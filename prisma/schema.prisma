@@ -23,6 +23,7 @@ model User {
   disqualificationsIssued  Disqualification[]       @relation("DisqualificationIssuedBy")
   disqualificationsRevoked Disqualification[]       @relation("DisqualificationRevokedBy")
   emailVerificationTokens  EmailVerificationToken[]
+  emailChangeTokens         EmailChangeToken[]
   inspections              Inspection[]             @relation("InspectionCheckedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
@@ -88,6 +89,7 @@ model CarConfiguration {
   id             String                    @id @default(uuid())
   carId          String
   name           String
+  isActive       Boolean                   @default(true)
   currentVersion Int                       @default(1)
   createdAt      DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime                  @updatedAt @db.Timestamptz(3)
@@ -222,6 +224,22 @@ model EmailVerificationToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model EmailChangeToken {
+  id        String    @id @default(uuid())
+  userId    String
+  newEmail  String
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([newEmail])
   @@index([expiresAt])
   @@index([usedAt])
 }
