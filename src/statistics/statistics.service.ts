@@ -1073,6 +1073,111 @@ export class StatisticsService {
     };
   }
 
+  async getDashboard() {
+    const now = new Date();
+
+    const [
+      overview,
+      openStages,
+      upcomingStages,
+      recentStages,
+      pendingInspections,
+      failedInspections,
+      resultsToday,
+      activeDisqualifications,
+      unresolvedImports,
+    ] = await Promise.all([
+      this.getOverview(),
+      this.prisma.stage.count({
+        where: {
+          isDeleted: false,
+          registrationOpen: true,
+        },
+      }),
+      this.prisma.stage.findMany({
+        where: {
+          isDeleted: false,
+          date: { gte: now },
+        },
+        orderBy: { date: 'asc' },
+        take: 5,
+        select: {
+          id: true,
+          stageNumber: true,
+          name: true,
+          city: true,
+          date: true,
+          registrationOpen: true,
+          season: {
+            select: {
+              id: true,
+              name: true,
+              year: true,
+            },
+          },
+        },
+      }),
+      this.prisma.stage.findMany({
+        where: {
+          isDeleted: false,
+          date: { lt: now },
+        },
+        orderBy: { date: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          stageNumber: true,
+          name: true,
+          city: true,
+          date: true,
+          season: {
+            select: {
+              id: true,
+              name: true,
+              year: true,
+            },
+          },
+        },
+      }),
+      this.prisma.inspection.count({
+        where: { status: 'PENDING' },
+      }),
+      this.prisma.inspection.count({
+        where: { status: 'FAILED' },
+      }),
+      this.prisma.result.count({
+        where: {
+          createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+        },
+      }),
+      this.prisma.disqualification.count({
+        where: { status: 'ACTIVE' },
+      }),
+      this.prisma.importJob.count({
+        where: {
+          status: { in: ['DRAFT', 'READY'] },
+          rows: { some: { status: 'WARNING' } },
+        },
+      }),
+    ]);
+
+    return {
+      success: true,
+      generatedAt: now,
+      overview,
+      attention: {
+        openStages,
+        pendingInspections,
+        failedInspections,
+        resultsToday,
+        activeDisqualifications,
+        unresolvedImports,
+      },
+      upcomingStages,
+      recentStages,
+    };
+  }
+
   async getOverview() {
     const [
       participants,
