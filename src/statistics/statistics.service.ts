@@ -61,6 +61,7 @@ type ResultRow = {
       code: string;
       name: string;
       unit: string;
+      sortOrder: number;
       direction: {
         id: string;
         name: string;
