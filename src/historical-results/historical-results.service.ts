@@ -116,7 +116,7 @@ export class HistoricalResultsService {
 
   private async getConfigurationVersion(tx: any, carId: string) {
     const existing = await tx.carConfigurationVersion.findFirst({
-      where: { configuration: { carId }, configuration: { isActive: true } },
+      where: { configuration: { carId, isActive: true } },
       orderBy: [{ createdAt: 'asc' }, { version: 'asc' }],
       select: { id: true },
     });
