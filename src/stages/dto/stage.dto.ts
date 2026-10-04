@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -12,14 +13,7 @@ import {
   Min,
 } from 'class-validator';
 
-export enum StageStatusDto {
-  DRAFT = 'DRAFT',
-  PUBLISHED = 'PUBLISHED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
-
-export class CreateStageDto {
+ export class CreateStageDto {
   @IsInt()
   @Min(1)
   @Max(999)
@@ -61,8 +55,8 @@ export class CreateStageDto {
   longitude?: number;
 
   @IsOptional()
-  @IsEnum(StageStatusDto)
-  status?: StageStatusDto;
+  @IsIn(['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'])
+  status?: 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED';
 
   @IsOptional()
   @IsBoolean()
