@@ -10,6 +10,7 @@ import {
 import { Roles } from '../auth/roles.decorator';
 import { StatisticsService } from './statistics.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
+import { AuditService } from '../common/audit/audit.service';
 
 @Controller('statistics')
 @Roles('ADMIN', 'JUDGE')
@@ -17,7 +18,19 @@ export class StatisticsController {
   constructor(
     private readonly statisticsService: StatisticsService,
     private readonly dataQualityService: DataQualityService,
+    private readonly auditService: AuditService,
   ) {}
+
+  @Get('audit')
+  @Roles('ADMIN')
+  getAudit(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
+    @Query('entity') entity?: string,
+    @Query('action') action?: string,
+  ) {
+    return this.auditService.list({ page, limit, entity, action });
+  }
 
   @Get('data-quality/report')
   @Roles('ADMIN')
