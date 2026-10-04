@@ -2675,6 +2675,89 @@ export class ImportsService {
     return newCar.id;
   }
 
+  private async createImportRegistration(
+    tx: Prisma.TransactionClient,
+    data: {
+      stageId: string;
+      participantId: string;
+      carId: string;
+      participantNumber: number;
+    },
+  ) {
+    try {
+      return await tx.registration.create({
+        data: {
+          stageId: data.stageId,
+          participantId: data.participantId,
+          carId: data.carId,
+          participantNumber: data.participantNumber,
+          source: 'IMPORT',
+          status: 'ACTIVE',
+        },
+      });
+    } catch (error) {
+      if (
+        !(
+          error instanceof
+          Prisma.PrismaClientKnownRequestError
+        ) ||
+        error.code !== 'P2002'
+      ) {
+        throw error;
+      }
+
+      const existing =
+        await tx.registration.findUnique({
+          where: {
+            stageId_carId: {
+              stageId: data.stageId,
+              carId: data.carId,
+            },
+          },
+        });
+
+      if (!existing) {
+        throw error;
+      }
+
+      if (
+        existing.participantId !==
+        data.participantId
+      ) {
+        throw new BadRequestException(
+          'Автомобиль уже зарегистрирован на этом этапе за другим участником',
+        );
+      }
+
+      if (
+        existing.participantNumber !==
+        data.participantNumber
+      ) {
+        throw new BadRequestException(
+          `Автомобиль уже зарегистрирован на этом этапе под номером ${existing.participantNumber}; в импорте указан номер ${data.participantNumber}`,
+        );
+      }
+
+      if (
+        existing.status ===
+        'CANCELLED'
+      ) {
+        return await tx.registration.update({
+          where: {
+            id: existing.id,
+          },
+          data: {
+            status: 'ACTIVE',
+            source: 'IMPORT',
+            registeredAt: new Date(),
+          },
+        });
+      }
+
+      return existing;
+    }
+  }
+
   async commitImport(
     importId: string,
   ) {
@@ -3241,24 +3324,16 @@ export class ImportsService {
            */
           if (!registrationId) {
             const registration =
-              await tx.registration.create({
-                data: {
+              await this.createImportRegistration(
+                tx,
+                {
                   stageId:
                     importJob.stageId,
-
                   participantId,
-
                   carId,
-
                   participantNumber,
-
-                  source:
-                    'IMPORT',
-
-                  status:
-                    'ACTIVE',
                 },
-              });
+              );
 
             registrationId =
               registration.id;
@@ -3803,24 +3878,14 @@ export class ImportsService {
 
               if (!registrationId) {
                 const registration =
-                  await tx.registration.create(
+                  await this.createImportRegistration(
+                    tx,
                     {
-                      data: {
-                        stageId:
-                          importJob.stageId,
-
-                        participantId,
-
-                        carId,
-
-                        participantNumber,
-
-                        source:
-                          'IMPORT',
-
-                        status:
-                          'ACTIVE',
-                      },
+                      stageId:
+                        importJob.stageId,
+                      participantId,
+                      carId,
+                      participantNumber,
                     },
                   );
 
