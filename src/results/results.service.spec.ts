@@ -229,6 +229,7 @@ describe('ResultsService', () => {
         registrationId: 'registration-1',
         registrationClassId: 'registration-class-1',
         value: 150.123,
+          confirmed: true,
       },
       judgeRequest,
     );
@@ -252,6 +253,7 @@ describe('ResultsService', () => {
         registrationId: 'registration-1',
         registrationClassId: 'registration-class-1',
         value: 150,
+          confirmed: true,
       },
       judgeRequest,
     );
