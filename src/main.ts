@@ -3,6 +3,9 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 
+import { DEFAULT_REQUEST_BODY_LIMIT, DEFAULT_TRUST_PROXY_HOPS } from './common/security/security.constants';
+import express from 'express';
+
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
@@ -57,6 +60,17 @@ async function bootstrap() {
   }));
 
   app.use(cookieParser());
+  app.use((_request, response, next) => {
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    if (process.env.NODE_ENV === 'production') {
+      response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
 
   app.use((request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -83,6 +97,11 @@ async function bootstrap() {
     next();
   });
 
+  const corsOrigins = (process.env.CORS_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (process.env.NODE_ENV === 'production' && corsOrigins.length === 0) {
+    throw new Error('CORS_ORIGINS должен быть задан в production');
+  }
+
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
@@ -95,6 +114,8 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    maxAge: 86400,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     maxAge: 86400,
   });
