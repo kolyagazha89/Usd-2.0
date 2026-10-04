@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -428,6 +429,10 @@ export class ResultsService {
     data: CreateResultDto,
     request: AuthenticatedRequest,
   ) {
+    if (!['ADMIN', 'JUDGE'].includes(request.user.role)) {
+      throw new ForbiddenException('Недостаточно прав для внесения результата');
+    }
+
     this.validateValue(data.value);
     this.validatePlace(data.place);
 
@@ -511,6 +516,10 @@ export class ResultsService {
     data: UpdateResultDto,
     request: AuthenticatedRequest,
   ) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Исправлять результаты может только администратор');
+    }
+
     this.validateValue(data.value ?? 0);
     this.validatePlace(data.place);
 
