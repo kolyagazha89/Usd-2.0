@@ -69,7 +69,39 @@ function createTransactionClient(
     })),
   };
 
-  return { registration: client } as unknown as Prisma.TransactionClient;
+  return {
+    registration: client,
+    carConfiguration: {
+      findFirst: jest.fn(async () => ({
+        id: 'legacy-config-1',
+        carId: 'car-1',
+        name: 'LEGACY_IMPORT',
+        currentVersion: 1,
+      })),
+      create: jest.fn(async () => ({
+        id: 'legacy-config-1',
+        carId: 'car-1',
+        name: 'LEGACY_IMPORT',
+        currentVersion: 1,
+      })),
+    },
+    carConfigurationVersion: {
+      findFirst: jest.fn(async () => ({
+        id: 'legacy-version-1',
+        configurationId: 'legacy-config-1',
+        version: 1,
+        vibrationIsolation: null,
+        additionalDescription: 'legacy',
+      })),
+      create: jest.fn(async () => ({
+        id: 'legacy-version-1',
+        configurationId: 'legacy-config-1',
+        version: 1,
+        vibrationIsolation: null,
+        additionalDescription: 'legacy',
+      })),
+    },
+  } as unknown as Prisma.TransactionClient;
 }
 
 const input = {
@@ -174,6 +206,23 @@ describe('ImportsService.createImportRegistration', () => {
   it('rethrows non-P2002 database errors unchanged', async () => {
     const error = new Error('database unavailable');
     const tx = {
+      carConfiguration: {
+        findFirst: jest.fn(async () => ({
+          id: 'legacy-config-1',
+          carId: 'car-1',
+          name: 'LEGACY_IMPORT',
+          currentVersion: 1,
+        })),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn(async () => ({
+          id: 'legacy-version-1',
+          configurationId: 'legacy-config-1',
+          version: 1,
+          vibrationIsolation: null,
+          additionalDescription: 'legacy',
+        })),
+      },
       registration: {
         create: jest.fn(async () => {
           throw error;
