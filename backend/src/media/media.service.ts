@@ -68,8 +68,10 @@ export class MediaService {
       'X-Amz-SignedHeaders': contentType ? 'content-type;host' : 'host',
     };
     const canonicalQuery = Object.keys(params).sort().map((k) => `${this.awsEncode(k)}=${this.awsEncode(params[k])}`).join('&');
-    const canonicalHeaders = `content-type:${contentType}\\nhost:${host}\\n`;
-    const signedHeaders = 'content-type;host';
+    const canonicalHeaders = contentType
+      ? `content-type:${contentType}\\nhost:${host}\\n`
+      : `host:${host}\\n`;
+    const signedHeaders = contentType ? 'content-type;host' : 'host';
     const payloadHash = 'UNSIGNED-PAYLOAD';
     const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\\n');
     const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\\n');
@@ -82,16 +84,15 @@ export class MediaService {
     return baseUrl.toString();
   }
 
-  private publicUrl(key: string) {
+  private objectUrl(key: string) {
     const cfg = this.config();
-    const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
-    if (base) return `${base}/${key.split('/').map((p) => encodeURIComponent(p)).join('/')}`;
     const url = new URL(cfg.endpoint);
+    const encodedKey = key.split('/').map((p) => this.awsEncode(p)).join('/');
     if (process.env.S3_FORCE_PATH_STYLE === 'true') {
-      url.pathname = `/${cfg.bucket}/${key.split('/').map((p) => encodeURIComponent(p)).join('/')}`;
+      url.pathname = `/${this.awsEncode(cfg.bucket)}/${encodedKey}`;
     } else {
       url.host = `${cfg.bucket}.${url.host}`;
-      url.pathname = `/${key.split('/').map((p) => encodeURIComponent(p)).join('/')}`;
+      url.pathname = `/${encodedKey}`;
     }
     return url.toString();
   }
@@ -114,7 +115,14 @@ export class MediaService {
     const key = `usd/${targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : 'cars'}/${targetId}/${crypto.randomUUID()}`;
     const expiresIn = Math.min(Math.max(Number(process.env.S3_UPLOAD_EXPIRES_SECONDS ?? 600), 60), 900);
     await this.prisma.mediaUpload.create({ data: { userId, targetType, targetId, objectKey: key, contentType: contentType.toLowerCase(), tokenHash: this.hashToken(token), expiresAt: new Date(Date.now() + expiresIn * 1000) } });
-    return { uploadToken: token, uploadUrl: this.presignedUrl('PUT', key, contentType.toLowerCase(), expiresIn), publicUrl: this.publicUrl(key), expiresIn, maxBytes: MAX_IMAGE_BYTES, contentType: contentType.toLowerCase() };
+    return {
+      uploadToken: token,
+      uploadUrl: this.presignedUrl('PUT', key, contentType.toLowerCase(), expiresIn),
+      objectUrl: this.objectUrl(key),
+      expiresIn,
+      maxBytes: MAX_IMAGE_BYTES,
+      contentType: contentType.toLowerCase(),
+    };
   }
 
   private async headObject(key: string) {
@@ -139,7 +147,9 @@ export class MediaService {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
     await this.prisma.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
-    const url = this.publicUrl(upload.objectKey);
+    // The bucket is private. Store the S3 object URL internally; clients must not
+    // use it directly. A signed GET URL can be generated when media delivery is added.
+    const url = this.objectUrl(upload.objectKey);
     if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       await this.prisma.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
     } else {
