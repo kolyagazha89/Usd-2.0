@@ -3,9 +3,11 @@ import {
   Get,
   Param,
   Query,
+  Req,
 } from '@nestjs/common';
 import { HistoryService } from './history.service';
 import { Roles } from '../auth/roles.decorator';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('history')
 @Roles('ADMIN', 'JUDGE')
@@ -32,7 +34,8 @@ export class HistoryController {
   @Get('participant/:participantId')
   getParticipantHistory(
     @Param('participantId') participantId: string,
+    @Req() request: AuthenticatedRequest,
   ) {
-    return this.historyService.getParticipantHistory(participantId);
+    return this.historyService.getParticipantHistory(participantId, request.user.role === 'ADMIN' ? 'ADMIN' : 'JUDGE');
   }
 }

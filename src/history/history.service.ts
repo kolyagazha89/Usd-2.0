@@ -37,7 +37,7 @@ export class HistoryService {
     });
   }
 
-  async getParticipantHistory(participantId: string) {
+  async getParticipantHistory(participantId: string, role: 'ADMIN' | 'JUDGE') {
     const participant = await this.prisma.participant.findUnique({
       where: { id: participantId },
       select: {
@@ -100,7 +100,7 @@ export class HistoryService {
             brand: true,
             model: true,
             registrationCountry: true,
-            registrationNumber: true,
+            ...(role === 'ADMIN' ? { registrationNumber: true } : {}),
             color: true,
             photoUrl: true,
           },
@@ -138,7 +138,6 @@ export class HistoryService {
             unit: true,
             place: true,
             notes: true,
-            attemptNumber: true,
             isBest: true,
             createdAt: true,
             registrationClass: {
@@ -162,7 +161,7 @@ export class HistoryService {
           },
           orderBy: [
             { registrationClassId: 'asc' },
-            { attemptNumber: 'asc' },
+            { createdAt: 'asc' },
           ],
         },
       },
