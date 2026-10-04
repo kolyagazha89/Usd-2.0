@@ -212,8 +212,6 @@ export class StagesService {
       ipAddress: request.ip,
       metadata: {
         changedFields: changed,
-        before: Object.fromEntries(changed.map((key) => [key, (stage as any)[key]])),
-        after: Object.fromEntries(changed.map((key) => [key, (updated as any)[key]])),
       },
     });
 
