@@ -494,7 +494,9 @@ model Record {
   result        Result?    @relation(fields: [resultId], references: [id])
   stage         Stage?     @relation(fields: [stageId], references: [id])
 
+  @@unique([resultId])
   @@index([classId])
+  @@index([classId, isCurrent])
   @@index([seasonId])
   @@index([stageId])
   @@index([participantId])
