@@ -32,7 +32,15 @@ describe('HistoricalResultsService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('requires a different ADMIN to verify a pending historical result', async () => {
+  it('allows the same ADMIN to verify a pending historical result', async () => {
+    const verified = {
+      id: 'result-1',
+      isHistorical: true,
+      verificationStatus: 'VERIFIED',
+      createdByUserId: 'admin-1',
+      registration: { stageId: 'stage-2019' },
+      registrationClass: { classId: 'class-1' },
+    };
     const tx: any = {
       result: {
         findUnique: jest.fn().mockResolvedValue({
@@ -41,16 +49,25 @@ describe('HistoricalResultsService', () => {
           verificationStatus: 'PENDING',
           createdByUserId: 'admin-1',
         }),
+        update: jest.fn().mockResolvedValue(verified),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+    prisma.result.findFirst.mockResolvedValue(verified);
     const service = new HistoricalResultsService(prisma, records, ranking);
 
-    await expect(service.verify('result-1', admin1)).rejects.toThrow(
-      'Нельзя подтвердить исторический результат, который создали вы сами',
-    );
-    expect(tx.result.update).toBeUndefined();
-    expect(records.createFromResultIfEligible).not.toHaveBeenCalled();
+    await service.verify('result-1', admin1);
+
+    expect(tx.result.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'result-1' },
+      data: expect.objectContaining({
+        verificationStatus: 'VERIFIED',
+        verifiedByUserId: 'admin-1',
+      }),
+    }));
+    expect(records.createFromResultIfEligible).toHaveBeenCalledWith('result-1');
+    expect(ranking.recalculateByStageClass).toHaveBeenCalledWith('stage-2019', 'class-1');
   });
 
   it('verifies a historical result and immediately recalculates records and ranking', async () => {
