@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
+import { Public } from '../auth/public.decorator';
 
 function requireAdmin(req: Request): { id: string } {
   const user = (req as any).user;
@@ -34,6 +35,7 @@ export class GoogleController {
     return { success: true, authorizationUrl: await this.google.createAuthorizationUrl(user.id) };
   }
 
+  @Public()
   @Get('callback')
   async callback(@Query('code') code: string, @Query('state') state: string, @Res() res: Response) {
     const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
