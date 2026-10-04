@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Req,
   Res,
@@ -10,6 +12,7 @@ import {
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
+import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
 import { ChangeEmailDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
@@ -89,7 +92,6 @@ export class AuthController {
     return this.authService.register(
       body.email,
       body.password,
-      body.name,
     );
   }
 
@@ -202,6 +204,48 @@ export class AuthController {
     return {
       success: true,
     };
+  }
+
+  @Get('sessions')
+  async listSessions(@Req() request: Request) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.listMySessions(userId);
+  }
+
+  @Delete('sessions/:sessionId')
+  async revokeSession(
+    @Req() request: Request,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.revokeMySession(userId, sessionId);
+  }
+
+  @Delete('sessions')
+  async revokeAllSessions(@Req() request: Request) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.revokeAllMySessions(userId);
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/users/:userId/sessions')
+  async listUserSessions(@Param('userId') userId: string) {
+    return this.authService.listUserSessions(userId);
+  }
+
+  @Roles('ADMIN')
+  @Delete('admin/users/:userId/sessions/:sessionId')
+  async revokeUserSession(
+    @Param('userId') userId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.authService.revokeUserSession(userId, sessionId);
+  }
+
+  @Roles('ADMIN')
+  @Delete('admin/users/:userId/sessions')
+  async revokeAllUserSessions(@Param('userId') userId: string) {
+    return this.authService.revokeAllUserSessions(userId);
   }
 
   @Post('request-email-change')
