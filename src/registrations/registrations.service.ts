@@ -526,6 +526,18 @@ export class RegistrationsService {
             participantId,
             carId,
             configurationVersionId: configurationVersion?.id ?? null,
+            configurationSnapshot: configurationVersion
+              ? {
+                  version: configurationVersion.version,
+                  vibrationIsolation: configurationVersion.vibrationIsolation,
+                  additionalDescription: configurationVersion.additionalDescription,
+                  headUnits: configurationVersion.headUnits,
+                  audioComponents: configurationVersion.audioComponents,
+                  amplifiers: configurationVersion.amplifiers,
+                  batteries: configurationVersion.batteries,
+                  generators: configurationVersion.generators,
+                }
+              : null,
             participantNumber,
             source,
             status: 'ACTIVE',
