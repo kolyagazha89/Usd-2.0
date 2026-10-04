@@ -157,7 +157,7 @@ describe('RecordsService', () => {
       data: { isCurrent: false },
     });
     expect(tx.record.create).toHaveBeenCalled();
-    expect(tx.record.create.mock.calls[0][0].data.resultId).toBe('result-new');
+    expect(tx.record.create.mock.calls[0][0].data.resultId).toBe('new');
   });
 
   it('excludes an actively disqualified result and recalculates the next record', async () => {
