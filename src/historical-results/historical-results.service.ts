@@ -332,10 +332,6 @@ export class HistoricalResultsService {
       if (existing.verificationStatus !== 'PENDING') {
         throw new ConflictException('Исторический результат не ожидает подтверждения');
       }
-      if (existing.createdByUserId === request.user.sub) {
-        throw new ForbiddenException('Нельзя подтвердить исторический результат, который создали вы сами');
-      }
-
       const updated = await tx.result.update({
         where: { id },
         data: {
