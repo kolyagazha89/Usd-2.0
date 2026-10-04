@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CreateSeasonDto, UpdateSeasonDto } from '../stages/dto/season.dto';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Injectable()
 export class SeasonsService {
@@ -52,7 +53,7 @@ export class SeasonsService {
     return season;
   }
 
-  async create(dto: CreateSeasonDto) {
+  async create(dto: CreateSeasonDto, request: AuthenticatedRequest) {
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Название сезона обязательно');
 
@@ -70,16 +71,18 @@ export class SeasonsService {
     });
 
     await this.audit.log({
+      userId: request.user.sub,
       action: 'SEASON_CREATED',
       entity: 'Season',
       entityId: season.id,
       metadata: { year: season.year, name: season.name },
+      ipAddress: request.ip,
     });
 
     return season;
   }
 
-  async update(id: string, dto: UpdateSeasonDto) {
+  async update(id: string, dto: UpdateSeasonDto, request: AuthenticatedRequest) {
     const season = await this.prisma.season.findUnique({ where: { id } });
     if (!season) throw new NotFoundException('Сезон не найден');
 
@@ -100,13 +103,12 @@ export class SeasonsService {
     const updated = await this.prisma.season.update({ where: { id }, data });
 
     await this.audit.log({
+      userId: request.user.sub,
       action: 'SEASON_UPDATED',
       entity: 'Season',
       entityId: id,
-      metadata: {
-        before: { name: season.name, description: season.description, status: season.status },
-        after: { name: updated.name, description: updated.description, status: updated.status },
-      },
+      metadata: { changedFields: Object.keys(data) },
+      ipAddress: request.ip,
     });
 
     return updated;
