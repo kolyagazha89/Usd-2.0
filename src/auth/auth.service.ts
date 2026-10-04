@@ -405,9 +405,16 @@ export class AuthService {
         },
       });
 
+    if (session?.revokedAt) {
+      await this.prisma.refreshSession.updateMany({
+        where: { familyId: session.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException('Недействительная refresh-сессия');
+    }
+
     if (
       !session ||
-      session.revokedAt ||
       session.expiresAt < new Date() ||
       !session.user.isActive ||
       !session.user.emailVerifiedAt
