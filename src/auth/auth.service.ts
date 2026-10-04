@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -496,6 +497,252 @@ export class AuthService {
         participantId: result.participantId,
       },
     };
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (normalizedPasswordInvalid(newPassword)) {
+      throw new BadRequestException('Пароль должен содержать минимум 8 символов');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true, isActive: true, emailVerifiedAt: true },
+    });
+
+    if (!user || !user.isActive || !user.emailVerifiedAt) {
+      throw new UnauthorizedException('Недействительная учётная запись');
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Неверный текущий пароль');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Пароль изменён. Выполните вход заново на других устройствах.',
+    };
+  }
+
+  async adminListUsers(search?: string, role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT') {
+    return this.prisma.user.findMany({
+      where: {
+        ...(role ? { role } : {}),
+        ...(search?.trim()
+          ? { email: { contains: search.trim().toLowerCase(), mode: 'insensitive' } }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        emailVerifiedAt: true,
+        participantId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async adminGetUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        emailVerifiedAt: true,
+        participantId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return user;
+  }
+
+  async adminCreateUser(
+    email: string,
+    password: string,
+    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) throw new BadRequestException('Email обязателен');
+    if (normalizedEmail.length > 254) throw new BadRequestException('Некорректный email');
+    if (password.length < 12) throw new BadRequestException('Административный пароль должен содержать минимум 12 символов');
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictException('Пользователь с таким email уже существует');
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash,
+          name: null,
+          role,
+          isActive: true,
+          emailVerifiedAt: new Date(),
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          emailVerifiedAt: true,
+          participantId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'USER_CREATED',
+          entity: 'User',
+          entityId: created.id,
+          ipAddress,
+          metadata: { email: created.email, role: created.role },
+        },
+      });
+
+      return created;
+    });
+
+    return user;
+  }
+
+  async adminSetActive(
+    targetUserId: string,
+    active: boolean,
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    if (targetUserId === actorUserId && !active) {
+      throw new BadRequestException('Нельзя деактивировать собственную учётную запись');
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, isActive: true },
+    });
+    if (!target) throw new NotFoundException('Пользователь не найден');
+
+    if (!active && target.isActive && target.role === 'ADMIN') {
+      const admins = await this.prisma.user.count({
+        where: { role: 'ADMIN', isActive: true },
+      });
+      if (admins <= 1) {
+        throw new ConflictException('Нельзя деактивировать последнего активного администратора');
+      }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { isActive: active },
+      }),
+      ...(active
+        ? []
+        : [
+            this.prisma.refreshSession.updateMany({
+              where: { userId: targetUserId, revokedAt: null },
+              data: { revokedAt: new Date() },
+            }),
+          ]),
+      this.prisma.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: active ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+          entity: 'User',
+          entityId: targetUserId,
+          ipAddress,
+          metadata: { active },
+        },
+      }),
+    ]);
+
+    return this.adminGetUser(targetUserId);
+  }
+
+  async adminSetRole(
+    targetUserId: string,
+    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    if (targetUserId === actorUserId && role !== 'ADMIN') {
+      throw new BadRequestException('Нельзя снять роль ADMIN с собственной учётной записи');
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true },
+    });
+    if (!target) throw new NotFoundException('Пользователь не найден');
+
+    if (target.role === 'ADMIN' && role !== 'ADMIN') {
+      const admins = await this.prisma.user.count({
+        where: { role: 'ADMIN', isActive: true },
+      });
+      if (admins <= 1) {
+        throw new ConflictException('Нельзя снять роль с последнего активного администратора');
+      }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { role },
+      }),
+      this.prisma.refreshSession.updateMany({
+        where: { userId: targetUserId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'USER_ROLE_CHANGED',
+          entity: 'User',
+          entityId: targetUserId,
+          ipAddress,
+          metadata: { before: target.role, after: role },
+        },
+      }),
+    ]);
+
+    return this.adminGetUser(targetUserId);
   }
 
   async listMySessions(userId: string) {

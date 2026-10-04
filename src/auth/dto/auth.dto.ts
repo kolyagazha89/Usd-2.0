@@ -1,5 +1,7 @@
 import {
+  IsBoolean,
   IsEmail,
+  IsIn,
   IsString,
   Matches,
   MaxLength,
@@ -63,4 +65,40 @@ export class ChangeEmailDto {
   @MinLength(8)
   @MaxLength(128)
   currentPassword!: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  newPassword!: string;
+}
+
+export class AdminCreateUserDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(128)
+  password!: string;
+
+  @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
+  role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+}
+
+export class AdminUserActiveDto {
+  @IsBoolean()
+  active!: boolean;
+}
+
+export class AdminUserRoleDto {
+  @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
+  role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
 }
