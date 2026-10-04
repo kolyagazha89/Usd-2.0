@@ -2486,7 +2486,8 @@ export class ImportsService {
 
       if (
         action === 'CREATE' &&
-        (!Number.isInteger(resolution.registration.participantNumber) ||
+        (resolution.registration.participantNumber === undefined ||
+          !Number.isInteger(resolution.registration.participantNumber) ||
           resolution.registration.participantNumber <= 0)
       ) {
         throw new BadRequestException(
