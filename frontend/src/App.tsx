@@ -62,8 +62,47 @@ function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
  return <Coming title="Пользователи" icon={UserRound} user={user}/>;
 }
 
-function DashboardPage({go}:{go:(p:string)=>void}){const[data,setData]=useState<Dashboard|null>(null),[quality,setQuality]=useState<any>(null),[error,setError]=useState('');const load=()=>Promise.all([getDashboard(),getDataQuality().catch(()=>null)]).then(([d,q])=>{setData(d);setQuality(q)}).catch(e=>setError(e instanceof Error?e.message:'Ошибка'));useEffect(()=>{void load()},[]);if(error)return <ErrorPanel message={error} retry={load}/>;if(!data)return <LoadingPage/>;const k=[['Участники',data.overview.participants,Users,'/admin/participants'],['Автомобили',data.overview.cars,CarFront,'/admin/cars'],['Этапы',data.overview.stages,Flag,'/admin/stages'],['Регистрации',data.overview.registrations,ClipboardCheck,'/admin/registrations'],['Результаты',data.overview.results,Trophy,'/admin/results'],['Рекорды',data.overview.records,Gauge,'/admin/records']] as const;return <PageFrame title="Dashboard" subtitle="Операционный центр USD 2.0" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}><section className="kpi-grid">{k.map(([l,v,I,p])=><button className="kpi-card" key={l} onClick={()=>go(p)}><div className="kpi-icon"><I size={19}/></div><div><span>{l}</span><strong>{v.toLocaleString('ru-RU')}</strong></div><ChevronRight className="kpi-arrow" size={17}/></button>)}</section><section className="dashboard-grid"><div className="panel"><PanelTitle title="Требует внимания" icon={Bell}/>{[['Открытые этапы',data.attention.openStages,'neutral','/admin/stages'],['Без инспекции',data.attention.pendingInspections,data.attention.pendingInspections?'warning':'good','/admin/inspections'],['Проваленные инспекции',data.attention.failedInspections,data.attention.failedInspections?'danger':'good','/admin/inspections'],['Результаты сегодня',data.attention.resultsToday,'good','/admin/results'],['Активные дисквалификации',data.attention.activeDisqualifications,data.attention.activeDisqualifications?'warning':'good','/admin/disqualifications'],['Импорты требуют решения',data.attention.unresolvedImports,data.attention.unresolvedImports?'danger':'good','/admin/import']].map(([l,v,t,p])=><button className="attention-row" key={String(l)} onClick={()=>go(String(p))}><span className={`attention-dot ${t}`}/><span>{l}</span><b>{v as number}</b><ChevronRight size={15}/></button>)}</div><div className="panel quality-panel"><PanelTitle title="Контроль данных" icon={Database}/>{quality?<><div className={`quality-ring ${quality.healthy?'healthy':'bad'}`}><strong>{quality.counts.error+quality.counts.warning}</strong><span>проблем</span></div><div className="quality-stats"><div><b>{quality.counts.error}</b><span>Ошибки</span></div><div><b>{quality.counts.warning}</b><span>Предупреждения</span></div><div><b>{quality.counts.info}</b><span>Инфо</span></div></div><button className="text-button" onClick={()=>go('/admin/data-quality')}>Открыть контроль данных <ChevronRight size={15}/></button></>:<Empty text="Недоступно" />}</div></section><section className="dashboard-grid lower"><StageMini title="Ближайшие этапы" items={data.upcomingStages} go={go}/><StageMini title="Последние этапы" items={data.recentStages} go={go}/></section></PageFrame>}
-
+function DashboardPage({go}:{go:(p:string)=>void}){
+ const[data,setData]=useState<Dashboard|null>(null),[error,setError]=useState('');
+ const load=()=>getDashboard().then(setData).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки'));
+ useEffect(()=>{void load()},[]);
+ if(error)return <ErrorPanel message={error} retry={load}/>;
+ if(!data)return <LoadingPage/>;
+ const stage=data.currentStage;
+ const regs=data.activeRegistrationStats;
+ return <PageFrame title="Dashboard" subtitle="Операционный центр USD 2.0" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  <section className="dashboard-grid">
+   <div className="panel dashboard-stage-card">
+    <PanelTitle title={stage?'Текущий этап':'Ближайший этап'} icon={Flag}/>
+    {stage?<button className="dashboard-feature" onClick={()=>go('/admin/stages')}>
+      <div className="stage-number large">{stage.stageNumber}</div>
+      <div className="stage-main"><strong>{stage.name}</strong><span>{stage.city||'—'} · {formatDate(stage.date)}</span><small>{stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</small></div>
+      <ChevronRight size={20}/>
+    </button>:data.upcomingStages[0]?<button className="dashboard-feature" onClick={()=>go('/admin/stages')}>
+      <div className="stage-number large">{data.upcomingStages[0].stageNumber}</div>
+      <div className="stage-main"><strong>{data.upcomingStages[0].name}</strong><span>{data.upcomingStages[0].city||'—'} · {formatDate(data.upcomingStages[0].date)}</span><small>{data.upcomingStages[0].registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</small></div>
+      <ChevronRight size={20}/>
+    </button>:<Empty text="Будущих этапов пока нет"/>}
+   </div>
+   <div className="panel">
+    <PanelTitle title="Активные регистрации" icon={ClipboardCheck}/>
+    <button className="dashboard-registration" onClick={()=>go('/admin/registrations')}>
+      <div className="registration-total"><strong>{regs.registrations.toLocaleString('ru-RU')}</strong><span>регистраций</span></div>
+      <div className="registration-breakdown"><div><strong>{regs.participants.toLocaleString('ru-RU')}</strong><span>участников</span></div><div><strong>{regs.cars.toLocaleString('ru-RU')}</strong><span>автомобилей</span></div></div>
+      <ChevronRight size={20}/>
+    </button>
+   </div>
+  </section>
+  <section className="panel dashboard-info">
+   <PanelTitle title="Состояние системы" icon={Activity}/>
+   <div className="dashboard-info-grid">
+    <button onClick={()=>go('/admin/stages')}><span>Открытые этапы</span><strong>{data.attention.openStages}</strong></button>
+    <button onClick={()=>go('/admin/inspections')}><span>Без инспекции</span><strong>{data.attention.pendingInspections}</strong></button>
+    <button onClick={()=>go('/admin/results')}><span>Результаты сегодня</span><strong>{data.attention.resultsToday}</strong></button>
+   </div>
+  </section>
+ </PageFrame>
+}
 function StageMini({title,items,go}:{title:string;items:any[];go:(p:string)=>void}){return <div className="panel"><PanelTitle title={title} icon={CalendarDays} action="Все этапы" onAction={()=>go('/admin/stages')}/>{items.length?items.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages')}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div>{s.registrationOpen!==undefined&&<span className={`status ${s.registrationOpen?'open':''}`}>{s.registrationOpen?'Открыта':'Закрыта'}</span>}<ChevronRight size={16}/></button>):<Empty text="Нет данных"/>}</div>}
 
 type Field={name:string;label:string;type?:string;required?:boolean;options?:string[]};
