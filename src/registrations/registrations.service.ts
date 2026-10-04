@@ -143,6 +143,7 @@ export class RegistrationsService {
     participantId: string;
     carId: string;
     classIds: string[];
+    configurationId?: string;
     source?: RegistrationSource;
   }) {
     const {
@@ -476,12 +477,27 @@ export class RegistrationsService {
 
         // 8. Фиксируем текущую версию конфигурации автомобиля.
         // Если конфигурация ещё не создана, регистрация остаётся допустимой.
-        const configuration =
-          await tx.carConfiguration.findFirst({
+        let configuration = null;
+
+        if (body.configurationId) {
+          configuration = await tx.carConfiguration.findFirst({
+            where: { id: body.configurationId, carId },
+            select: { id: true, name: true, currentVersion: true },
+          });
+          if (!configuration) {
+            throw new BadRequestException('Выбранная конфигурация не принадлежит этому автомобилю');
+          }
+        } else {
+          const configurations = await tx.carConfiguration.findMany({
             where: { carId },
             orderBy: { createdAt: 'asc' },
-            select: { id: true, currentVersion: true },
+            select: { id: true, name: true, currentVersion: true },
           });
+          if (configurations.length > 1) {
+            throw new BadRequestException('Для автомобиля доступно несколько конфигураций — необходимо выбрать конфигурацию для регистрации');
+          }
+          configuration = configurations[0] ?? null;
+        }
 
         const configurationVersion = configuration
           ? await tx.carConfigurationVersion.findUnique({
@@ -528,6 +544,8 @@ export class RegistrationsService {
             configurationVersionId: configurationVersion?.id ?? null,
             configurationSnapshot: configurationVersion
               ? {
+                  configurationId: configuration.id,
+                  configurationName: configuration.name,
                   version: configurationVersion.version,
                   vibrationIsolation: configurationVersion.vibrationIsolation,
                   additionalDescription: configurationVersion.additionalDescription,
