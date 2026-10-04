@@ -499,88 +499,33 @@ export class RegistrationsService {
           );
         }
 
-        // 8. Выбираем конкретную версию конфигурации.
-        // Регистрация хранит ссылку на неё и неизменяемый snapshot.
-        let configurationVersion = null;
-
-        if (configurationVersionId) {
-          configurationVersion =
-            await tx.carConfigurationVersion.findFirst({
-              where: {
-                id: configurationVersionId,
-                configuration: {
-                  carId,
-                },
-              },
-              include: {
-                configuration: true,
-                headUnits: true,
-                audioComponents: true,
-                amplifiers: {
-                  include: {
-                    componentLinks: true,
-                  },
-                },
-                batteries: true,
-                generators: true,
-              },
-            });
-
-          if (!configurationVersion) {
-            throw new BadRequestException(
-              'Выбранная версия конфигурации не принадлежит этому автомобилю',
-            );
-          }
-        } else {
-          const configurations =
-            await tx.carConfiguration.findMany({
-              where: {
+        // 8. Выбираем только явно указанную версию конфигурации.
+        const configurationVersion =
+          await tx.carConfigurationVersion.findFirst({
+            where: {
+              id: configurationVersionId,
+              configuration: {
                 carId,
               },
-              select: {
-                id: true,
-                name: true,
-                currentVersion: true,
-              },
-            });
-
-          if (configurations.length > 1) {
-            throw new BadRequestException(
-              'Для автомобиля доступно несколько конфигураций — необходимо выбрать версию конфигурации для регистрации',
-            );
-          }
-
-          if (configurations.length === 1) {
-            configurationVersion =
-              await tx.carConfigurationVersion.findUnique({
-                where: {
-                  configurationId_version: {
-                    configurationId:
-                      configurations[0].id,
-                    version:
-                      configurations[0].currentVersion,
-                  },
-                },
+            },
+            include: {
+              configuration: true,
+              headUnits: true,
+              audioComponents: true,
+              amplifiers: {
                 include: {
-                  configuration: true,
-                  headUnits: true,
-                  audioComponents: true,
-                  amplifiers: {
-                    include: {
-                      componentLinks: true,
-                    },
-                  },
-                  batteries: true,
-                  generators: true,
+                  componentLinks: true,
                 },
-              });
+              },
+              batteries: true,
+              generators: true,
+            },
+          });
 
-            if (!configurationVersion) {
-              throw new ConflictException(
-                'Текущая версия конфигурации автомобиля не найдена',
-              );
-            }
-          }
+        if (!configurationVersion) {
+          throw new BadRequestException(
+            'Выбранная версия конфигурации не принадлежит этому автомобилю',
+          );
         }
 
         // 8. Получаем следующий номер.
@@ -613,9 +558,9 @@ export class RegistrationsService {
             stageId,
             participantId,
             carId,
-            configurationVersionId: configurationVersion?.id ?? null,
+            configurationVersionId: configurationVersion.id,
             configurationSnapshot: configurationVersion
-              ? {
+              {
                   configurationId:
                     configurationVersion.configurationId,
                   configurationName:
@@ -629,7 +574,6 @@ export class RegistrationsService {
                   batteries: configurationVersion.batteries,
                   generators: configurationVersion.generators,
                 }
-              : undefined,
             participantNumber,
             source,
             status: 'ACTIVE',
