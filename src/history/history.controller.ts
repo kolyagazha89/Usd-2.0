@@ -36,6 +36,6 @@ export class HistoryController {
     @Param('participantId') participantId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.historyService.getParticipantHistory(participantId, request.user.role);
+    return this.historyService.getParticipantHistory(participantId, request.user.role === 'ADMIN' ? 'ADMIN' : 'JUDGE');
   }
 }
