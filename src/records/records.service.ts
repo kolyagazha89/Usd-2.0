@@ -217,6 +217,10 @@ export class RecordsService {
         registrationClass: {
           classId,
         },
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
       },
       include: {
         registration: {
@@ -255,6 +259,7 @@ export class RecordsService {
       },
       orderBy: [
         { value: 'desc' },
+        { registration: { stage: { date: 'asc' } } },
         { createdAt: 'asc' },
         { id: 'asc' },
       ],
@@ -324,7 +329,7 @@ export class RecordsService {
           carId: winner.registration.carId,
           value: winner.value,
           unit: winner.unit,
-          achievedAt: winner.createdAt,
+          achievedAt: winner.registration.stage.date,
           isCurrent: true,
           notes: winner.notes,
         },
@@ -344,7 +349,7 @@ export class RecordsService {
         resultId: winner.id,
         value: winner.value,
         unit: winner.unit,
-        achievedAt: winner.createdAt,
+        achievedAt: winner.registration.stage.date,
         isCurrent: true,
         notes: winner.notes,
       },
