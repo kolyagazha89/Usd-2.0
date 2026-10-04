@@ -23,6 +23,10 @@ export class CreateStageDto {
   registrationOpen?: boolean;
 
   @IsOptional()
+  @IsUUID()
+  seasonId?: string;
+
+  @IsOptional()
   @IsDateString()
   registrationStartsAt?: string;
 
