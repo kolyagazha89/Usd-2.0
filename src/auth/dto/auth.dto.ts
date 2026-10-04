@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsString,
@@ -88,6 +89,16 @@ export class AdminCreateUserDto {
   @MaxLength(128)
   password!: string;
 
+  @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
+  role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+}
+
+export class AdminUserActiveDto {
+  @IsBoolean()
+  active!: boolean;
+}
+
+export class AdminUserRoleDto {
   @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
   role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
 }
