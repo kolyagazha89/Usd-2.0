@@ -28,6 +28,11 @@ export class RegistrationsService {
     },
     participant: true,
     car: true,
+    configurationVersion: {
+      include: {
+        configuration: true,
+      },
+    },
     classes: {
       include: {
         class: {
@@ -469,6 +474,27 @@ export class RegistrationsService {
           });
         }
 
+        // 8. Фиксируем текущую версию конфигурации автомобиля.
+        // Если конфигурация ещё не создана, регистрация остаётся допустимой.
+        const configuration =
+          await tx.carConfiguration.findFirst({
+            where: { carId },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, currentVersion: true },
+          });
+
+        const configurationVersion = configuration
+          ? await tx.carConfigurationVersion.findUnique({
+              where: {
+                configurationId_version: {
+                  configurationId: configuration.id,
+                  version: configuration.currentVersion,
+                },
+              },
+              include: { headUnits: true, audioComponents: true, amplifiers: { include: { componentLinks: true } }, batteries: true, generators: true },
+            })
+          : null;
+
         // 8. Получаем следующий номер.
         //
         // Берём максимум среди ВСЕХ регистраций,
@@ -499,6 +525,19 @@ export class RegistrationsService {
             stageId,
             participantId,
             carId,
+            configurationVersionId: configurationVersion?.id ?? null,
+            configurationSnapshot: configurationVersion
+              ? {
+                  version: configurationVersion.version,
+                  vibrationIsolation: configurationVersion.vibrationIsolation,
+                  additionalDescription: configurationVersion.additionalDescription,
+                  headUnits: configurationVersion.headUnits,
+                  audioComponents: configurationVersion.audioComponents,
+                  amplifiers: configurationVersion.amplifiers,
+                  batteries: configurationVersion.batteries,
+                  generators: configurationVersion.generators,
+                }
+              : undefined,
             participantNumber,
             source,
             status: 'ACTIVE',
