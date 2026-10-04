@@ -8,6 +8,35 @@ import { PrismaService } from '../prisma/prisma.service';
 export class HistoryService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAuditLogs(options: { limit?: number; action?: string; entity?: string; entityId?: string }) {
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+    return this.prisma.auditLog.findMany({
+      where: {
+        ...(options.action ? { action: options.action } : {}),
+        ...(options.entity ? { entity: options.entity } : {}),
+        ...(options.entityId ? { entityId: options.entityId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        action: true,
+        entity: true,
+        entityId: true,
+        metadata: true,
+        ipAddress: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
   async getParticipantHistory(participantId: string) {
     const participant = await this.prisma.participant.findUnique({
       where: { id: participantId },
