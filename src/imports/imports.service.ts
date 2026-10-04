@@ -497,8 +497,7 @@ export class ImportsService {
           participantNumber,
 
           email:
-            this.stringValue(
-              this.getImportFieldValue(
+            this.stringValue(              this.getImportFieldValue(
                 row,
                 [
                   'Email',
@@ -997,8 +996,7 @@ export class ImportsService {
       {
         column: 'SPL Hurricane',
         value: row['SPL Hurricane'],
-        direction: 'Hurrican',
-      },
+        direction: 'Hurrican',      },
     ];
 
     const classes: any[] = [];
@@ -1497,8 +1495,7 @@ export class ImportsService {
           typeof this.findParticipant
         > & {
           source: 'DATABASE';
-        })
-      | {
+        })      | {
           status:
             | 'MATCHED'
             | 'AMBIGUOUS';
@@ -1997,8 +1994,7 @@ export class ImportsService {
 
   private getImportFieldValue(
     row: Record<string, unknown>,
-    targets: string[],
-  ): unknown {
+    targets: string[],  ): unknown {
     for (const target of targets) {
       if (
         Object.prototype.hasOwnProperty.call(
@@ -2497,8 +2493,7 @@ export class ImportsService {
     const rawModel =
       findValue([
         'Модель автомобиля',
-        'Модель',
-        'model',
+        'Модель',        'model',
       ]);
 
     const rawBrand =
@@ -2997,7 +2992,6 @@ export class ImportsService {
                       .participant
                       .team ??
                     null,
-
                   email:
                     resolution
                       .participant
@@ -3497,8 +3491,7 @@ export class ImportsService {
                 {
                   where: {
                     stageId_classId:
-                      {
-                        stageId:
+                      {                        stageId:
                           importJob.stageId,
 
                         classId,
@@ -3997,7 +3990,6 @@ export class ImportsService {
                 importedRegistrationsByNumber.get(
                   resultParticipantNumber,
                 ) ?? null;
-
               if (!registrationId) {
                 const existing =
                   await tx.registration.findUnique(
@@ -4182,10 +4174,7 @@ export class ImportsService {
               ?.result;
 
           const unit =
-            row.unit ??
-            normalized
-              ?.unit ??
-            'DB';
+            stageClass.class.unit;
 
           if (
             value === null ||
@@ -4197,17 +4186,14 @@ export class ImportsService {
           }
 
           const existingResult =
-            await tx.result.findUnique(
+            await tx.result.findFirst(
               {
                 where: {
-                  registrationClassId_attemptNumber:
-                    {
-                      registrationClassId:
-                        registrationClass.id,
-
-                      attemptNumber:
-                        1,
-                    },
+                  registrationClassId:
+                    registrationClass.id,
+                },
+                select: {
+                  id: true,
                 },
               },
             );
@@ -4226,12 +4212,10 @@ export class ImportsService {
                   registrationClassId:
                     registrationClass.id,
 
-                  attemptNumber:
-                    1,
-
                   value,
 
-                  unit,
+                  unit:
+                    stageClass.class.unit,
 
                   place:
                     row.place ??
@@ -4469,9 +4453,6 @@ export class ImportsService {
             registrationClassId:
               true,
 
-            attemptNumber:
-              true,
-
             value: true,
 
             unit: true,
@@ -4497,8 +4478,7 @@ export class ImportsService {
           select: {
             id: true,
 
-            resultId:
-              true,
+            resultId:              true,
           },
         },
       );
