@@ -544,6 +544,8 @@ export class RegistrationsService {
             configurationVersionId: configurationVersion?.id ?? null,
             configurationSnapshot: configurationVersion
               ? {
+                  configurationId: configuration.id,
+                  configurationName: configuration.name,
                   version: configurationVersion.version,
                   vibrationIsolation: configurationVersion.vibrationIsolation,
                   additionalDescription: configurationVersion.additionalDescription,
