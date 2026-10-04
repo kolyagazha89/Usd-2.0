@@ -414,8 +414,6 @@ export class ClassesService {
     }
 
     const existing = await this.prisma.stageClass.findMany({ where: { stageId } });
-    const desired = new Set(uniqueClassIds);
-
     await this.prisma.$transaction(async (tx) => {
       await tx.stageClass.updateMany({
         where: {
