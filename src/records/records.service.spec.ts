@@ -141,7 +141,7 @@ describe('RecordsService', () => {
     const tx = setupRecalc([
       result('new', 160, '2026-03-01T10:00:00.000Z'),
       result('old', 155, '2026-02-01T10:00:00.000Z'),
-    ], old);
+    ]);
 
     await service.recalculateCurrentRecord('class-1');
 
