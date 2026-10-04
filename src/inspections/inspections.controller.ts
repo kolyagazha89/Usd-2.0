@@ -12,6 +12,7 @@ import { Roles } from '../auth/roles.decorator';
 import { InspectionsService } from './inspections.service';
 
 @Controller('inspections')
+@Roles('ADMIN', 'JUDGE')
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
