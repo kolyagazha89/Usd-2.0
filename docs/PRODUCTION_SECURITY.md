@@ -78,3 +78,5 @@ Production release is blocked until CI passes build, lint, unit tests, E2E tests
 - Security regression tests cover registration configuration binding and duplicate-registration protections.
 
 - Legacy imports now receive an explicit immutable placeholder configuration version instead of creating registrations without configuration history.
+
+- CI failures are treated as release blockers and are fixed before merge.
