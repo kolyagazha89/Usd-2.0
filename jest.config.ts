@@ -15,13 +15,12 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true }],
+    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: { module: 'CommonJS' } }],
   },
   moduleNameMapper: {
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
     '^(.+)\\.js$': '$1',
   },
-  extensionsToTreatAsEsm: ['.ts'],
   collectCoverageFrom: [
     'src/**/*.(t|j)s',
     'libs/**/*.(t|j)s',
