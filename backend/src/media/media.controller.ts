@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { MediaService } from './media.service';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -15,6 +15,20 @@ export class MediaController {
       body.targetType,
       body.targetId,
       body.contentType,
+    );
+  }
+
+  @Get('view/:targetType/:targetId')
+  view(
+    @Req() request: AuthenticatedRequest,
+    @Param('targetType') targetType: MediaTargetType,
+    @Param('targetId') targetId: string,
+  ) {
+    return this.mediaService.getSignedViewUrl(
+      request.user.sub,
+      request.user.role,
+      targetType,
+      targetId,
     );
   }
 
