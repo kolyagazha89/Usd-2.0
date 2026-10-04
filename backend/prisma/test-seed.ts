@@ -500,10 +500,21 @@ async function main() {
           },
         });
 
-    await prisma.registrationClass.deleteMany({ where: { registrationId: registration.id } });
-    await prisma.registrationClass.createMany({
-      data: r.classes.map(code => ({ registrationId: registration.id, classId: classMap.get(code).id })),
-    });
+    for (const code of r.classes) {
+      await prisma.registrationClass.upsert({
+        where: {
+          registrationId_classId: {
+            registrationId: registration.id,
+            classId: classMap.get(code).id,
+          },
+        },
+        update: {},
+        create: {
+          registrationId: registration.id,
+          classId: classMap.get(code).id,
+        },
+      });
+    }
 
     registrationMap.set(r.key, registration);
   }
