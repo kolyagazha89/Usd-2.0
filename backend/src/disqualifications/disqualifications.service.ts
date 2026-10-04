@@ -291,10 +291,26 @@ export class DisqualificationsService {
                 },
                 {
                   participant: {
-                    fullName: {
-                      contains: search,
-                      mode: 'insensitive',
-                    },
+                    OR: [
+                      {
+                        firstName: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        lastName: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        middleName: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                    ],
                   },
                 },
                 {
