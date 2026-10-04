@@ -3,13 +3,13 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 
-import { DEFAULT_REQUEST_BODY_LIMIT, DEFAULT_TRUST_PROXY_HOPS } from './common/security/security.constants';
-import express from 'express';
-
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
-import { DEFAULT_REQUEST_BODY_LIMIT, DEFAULT_TRUST_PROXY_HOPS } from './common/security/security.constants';
+import {
+  DEFAULT_REQUEST_BODY_LIMIT,
+  DEFAULT_TRUST_PROXY_HOPS,
+} from './common/security/security.constants';
 
 async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -23,7 +23,10 @@ async function bootstrap() {
     throw new Error('AUTH_COOKIE_SECURE=true обязателен в production');
   }
 
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
+  const corsOrigins = (
+    process.env.CORS_ORIGINS ??
+    (isProduction ? '' : 'http://localhost:3000,http://localhost:5173')
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -36,7 +39,11 @@ async function bootstrap() {
     process.env.TRUST_PROXY_HOPS ?? DEFAULT_TRUST_PROXY_HOPS,
   );
 
-  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 10) {
+  if (
+    !Number.isInteger(trustProxyHops) ||
+    trustProxyHops < 0 ||
+    trustProxyHops > 10
+  ) {
     throw new Error('TRUST_PROXY_HOPS должен быть целым числом от 0 до 10');
   }
 
@@ -45,38 +52,35 @@ async function bootstrap() {
   });
 
   const expressApp = app.getHttpAdapter().getInstance();
-
   expressApp.disable('x-powered-by');
   expressApp.set('trust proxy', trustProxyHops);
 
-  expressApp.use(express.json({
-    limit: process.env.REQUEST_BODY_LIMIT ?? DEFAULT_REQUEST_BODY_LIMIT,
-    strict: true,
-  }));
+  expressApp.use(
+    express.json({
+      limit:
+        process.env.REQUEST_BODY_LIMIT ??
+        DEFAULT_REQUEST_BODY_LIMIT,
+      strict: true,
+    }),
+  );
 
-  expressApp.use(express.urlencoded({
-    extended: false,
-    limit: '100kb',
-  }));
+  expressApp.use(
+    express.urlencoded({
+      extended: false,
+      limit: '100kb',
+    }),
+  );
 
   app.use(cookieParser());
-  app.use((_request, response, next) => {
-    response.setHeader('X-Content-Type-Options', 'nosniff');
-    response.setHeader('X-Frame-Options', 'DENY');
-    response.setHeader('Referrer-Policy', 'no-referrer');
-    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
-    if (process.env.NODE_ENV === 'production') {
-      response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    }
-    next();
-  });
 
   app.use((request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     response.setHeader('Referrer-Policy', 'no-referrer');
-    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    response.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
     response.setHeader(
       'Content-Security-Policy',
       "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
@@ -97,44 +101,65 @@ async function bootstrap() {
     next();
   });
 
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
-  if (process.env.NODE_ENV === 'production' && corsOrigins.length === 0) {
-    throw new Error('CORS_ORIGINS должен быть задан в production');
-  }
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
-
-  app.useGlobalGuards(app.get(JwtAuthGuard), app.get(RolesGuard));
+  app.useGlobalGuards(
+    app.get(JwtAuthGuard),
+    app.get(RolesGuard),
+  );
 
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
-    methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
-    maxAge: 86400,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    methods: [
+      'GET',
+      'HEAD',
+      'OPTIONS',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+    ],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
+    ],
     maxAge: 86400,
   });
 
-  const trustedOrigins = (process.env.CSRF_TRUSTED_ORIGINS ?? '')
+  const trustedOrigins = (
+    process.env.CSRF_TRUSTED_ORIGINS ?? ''
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
   if (trustedOrigins.length > 0) {
     const csrfApp = app as typeof app & {
-      enableCsrfProtection?: (options: { trustedOrigins: string[] }) => void;
+      enableCsrfProtection?: (options: {
+        trustedOrigins: string[];
+      }) => void;
     };
 
-    if (typeof csrfApp.enableCsrfProtection === 'function') {
-      csrfApp.enableCsrfProtection({ trustedOrigins });
+    if (
+      typeof csrfApp.enableCsrfProtection ===
+      'function'
+    ) {
+      csrfApp.enableCsrfProtection({
+        trustedOrigins,
+      });
     }
   } else if (isProduction) {
-    throw new Error('CSRF_TRUSTED_ORIGINS должен быть задан в production');
+    throw new Error(
+      'CSRF_TRUSTED_ORIGINS должен быть задан в production',
+    );
   }
 
   await app.listen(process.env.PORT ?? 3000);
