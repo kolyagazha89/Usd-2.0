@@ -1,6 +1,7 @@
 -- Add a historical snapshot reference from a registration to the car configuration version used at registration time.
 ALTER TABLE "Registration"
-ADD COLUMN "configurationVersionId" TEXT;
+ADD COLUMN "configurationVersionId" TEXT,
+ADD COLUMN "configurationSnapshot" JSONB;
 
 CREATE INDEX "Registration_configurationVersionId_idx"
 ON "Registration"("configurationVersionId");
