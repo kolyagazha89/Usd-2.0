@@ -45,3 +45,9 @@ export async function apiPut<T=any>(path:string,body:any){return request<T>(path
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
 export async function getMediaUrl(targetType:string,targetId:string){const r=await apiGet<{success:boolean;url:string}>(`/media/view/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`);return r.url;}
+
+export async function getGoogleStatus(){return request<any>('/google/status');}
+export async function connectGoogle(){const r=await request<{success:boolean;authorizationUrl:string}>('/google/connect');window.location.href=r.authorizationUrl;}
+export async function getGoogleSpreadsheets(){return request<any>('/google/spreadsheets');}
+export async function getGoogleSpreadsheet(id:string){return request<any>('/google/spreadsheets/'+encodeURIComponent(id));}
+export async function getGoogleSheetValues(id:string,sheet:string){return request<any>('/google/spreadsheets/'+encodeURIComponent(id)+'/values?sheet='+encodeURIComponent(sheet));}
