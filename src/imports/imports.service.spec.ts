@@ -69,7 +69,7 @@ function createTransactionClient(
     })),
   };
 
-  return client as unknown as Prisma.TransactionClient;
+  return { registration: client } as unknown as Prisma.TransactionClient;
 }
 
 const input = {
