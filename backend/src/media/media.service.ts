@@ -55,7 +55,7 @@ export class MediaService {
     const cfg = this.config();
     const service = 's3';
     const now = new Date();
-    const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\\.\\d{3}Z$/, 'Z');
+    const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
     const date = amzDate.slice(0, 8);
     const credentialScope = `${date}/${cfg.region}/${service}/aws4_request`;
     const host = this.host(cfg.endpoint, cfg.bucket);
@@ -132,6 +132,36 @@ export class MediaService {
     return {
       size: Number(response.headers.get('content-length') ?? '0'),
       contentType: (response.headers.get('content-type') ?? '').split(';')[0].toLowerCase(),
+    };
+  }
+
+  async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+    await this.ensureTargetAccess(userId, role, targetType, targetId);
+
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: {
+        targetType,
+        targetId,
+        completedAt: { not: null },
+      },
+      orderBy: { completedAt: 'desc' },
+      select: { objectKey: true, contentType: true },
+    });
+
+    if (!upload) {
+      throw new BadRequestException('Фотография не найдена');
+    }
+
+    const expiresIn = Math.min(
+      Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30),
+      900,
+    );
+
+    return {
+      success: true,
+      url: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
+      expiresIn,
+      contentType: upload.contentType,
     };
   }
 
