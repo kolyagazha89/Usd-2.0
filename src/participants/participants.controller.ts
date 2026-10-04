@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
+import { CreateParticipantDto, UpdateParticipantDto } from './dto/participant.dto';
 
 @Controller()
 export class ParticipantsController {
@@ -49,18 +50,7 @@ export class ParticipantsController {
   @Post('participants/me')
   createMe(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      lastName: string;
-      firstName: string;
-      middleName?: string | null;
-      birthDate?: string | null;
-      city?: string | null;
-      team?: string | null;
-      phone?: string | null;
-      photoUrl?: string | null;
-      isPublic?: boolean;
-    },
+    @Body() body: CreateParticipantDto,
   ) {
     return this.participantsService.createMe(
       request,
@@ -72,18 +62,7 @@ export class ParticipantsController {
   @Patch('participants/me')
   updateMe(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      lastName?: string;
-      firstName?: string;
-      middleName?: string | null;
-      birthDate?: string | null;
-      city?: string | null;
-      team?: string | null;
-      phone?: string | null;
-      photoUrl?: string | null;
-      isPublic?: boolean;
-    },
+    @Body() body: UpdateParticipantDto,
   ) {
     return this.participantsService.updateMe(
       request,
@@ -237,6 +216,7 @@ export class ParticipantsController {
   // CAR
   // =========================================================
 
+  @Public()
   @Get('cars/:id')
   findCar(
     @Param('id') id: string,
