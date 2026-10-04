@@ -51,7 +51,7 @@ export class MediaService {
     return crypto.createHmac('sha256', kService).update('aws4_request').digest();
   }
 
-  private presignedUrl(method: string, key: string, contentType: string, expiresIn: number) {
+  private presignedUrl(method: string, key: string, contentType: string | null, expiresIn: number) {
     const cfg = this.config();
     const service = 's3';
     const now = new Date();
@@ -65,7 +65,7 @@ export class MediaService {
       'X-Amz-Credential': `${cfg.accessKey}/${credentialScope}`,
       'X-Amz-Date': amzDate,
       'X-Amz-Expires': String(expiresIn),
-      'X-Amz-SignedHeaders': 'content-type;host',
+      'X-Amz-SignedHeaders': contentType ? 'content-type;host' : 'host',
     };
     const canonicalQuery = Object.keys(params).sort().map((k) => `${this.awsEncode(k)}=${this.awsEncode(params[k])}`).join('&');
     const canonicalHeaders = `content-type:${contentType}\\nhost:${host}\\n`;
@@ -117,10 +117,27 @@ export class MediaService {
     return { uploadToken: token, uploadUrl: this.presignedUrl('PUT', key, contentType.toLowerCase(), expiresIn), publicUrl: this.publicUrl(key), expiresIn, maxBytes: MAX_IMAGE_BYTES, contentType: contentType.toLowerCase() };
   }
 
+  private async headObject(key: string) {
+    const url = this.presignedUrl('HEAD', key, null, 60);
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) throw new BadRequestException('Файл не найден в S3 после загрузки');
+    return {
+      size: Number(response.headers.get('content-length') ?? '0'),
+      contentType: (response.headers.get('content-type') ?? '').split(';')[0].toLowerCase(),
+    };
+  }
+
   async complete(userId: string, role: string, uploadToken: string) {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    const object = await this.headObject(upload.objectKey);
+    if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Размер изображения должен быть от 1 байта до 10 MB');
+    }
+    if (object.contentType !== upload.contentType) {
+      throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
+    }
     await this.prisma.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
     const url = this.publicUrl(upload.objectKey);
     if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
