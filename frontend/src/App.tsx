@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Activity,AlertTriangle,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,listData,login,logout,refresh,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -278,36 +278,72 @@ function DisqualificationsPage(){
 function HistoricalPage(){return <OperationalPage title="История результатов" subtitle="Импорт исторических результатов и верификация" icon={History} endpoint="/historical-results"/>}
 function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
 
+function sheetRows(values:any[][]){
+  if(!Array.isArray(values)||values.length<2)return [];
+  const headers=(values[0]??[]).map((x:any)=>String(x??'').trim());
+  return values.slice(1).filter((row:any[])=>row?.some((x:any)=>String(x??'').trim()!=='')).map((row:any[])=>{
+    const item:any={};
+    headers.forEach((h:string,i:number)=>{if(h)item[h]=row?.[i]??''});
+    return item;
+  });
+}
 function ImportPage(){
- const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[json,setJson]=useState(''),[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
- useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)}).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить этапы'))},[]);
- const preview=async()=>{setLoading(true);setError('');try{const body=JSON.parse(json||'{}');const r=await apiPost<any>('/imports/stage/preview',{stageId,...body});setResult(r);setJob(r.importJob);const previewRows=[...(r.registrationPreview??[]).map((x:any,i:number)=>({...x,type:'REGISTRATION',rowNumber:i+1})),...(r.resultPreview??[]).map((x:any,i:number)=>({...x,type:'RESULT',rowNumber:i+1}))];if(r.importJob?.id){const full=await apiGet<any>('/imports/'+r.importJob.id);setJob(full.importJob);setRows(full.importJob?.rows??previewRows)}else setRows(previewRows)}catch(e){setError(e instanceof Error?e.message:'Проверьте JSON')}finally{setLoading(false)}};
+ const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
+ const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);
+ const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
+ const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
+ useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)}).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить этапы'));void loadGoogle();},[]);
+ useEffect(()=>{if(!spreadsheetId){setSpreadsheet(null);return}getGoogleSpreadsheet(spreadsheetId).then(r=>setSpreadsheet(r.spreadsheet)).catch(e=>setError(e instanceof Error?e.message:'Не удалось открыть таблицу'))},[spreadsheetId]);
+ const preview=async()=>{
+   setLoading(true);setError('');
+   try{
+     if(!stageId||!spreadsheetId)throw new Error('Выберите этап и Google Таблицу');
+     const sheetNames=(spreadsheet?.sheets??[]).map((s:any)=>s.title);
+     if(!sheetNames.includes('Результаты'))throw new Error('В таблице отсутствует лист «Результаты»');
+     if(mode==='HISTORICAL'&&!sheetNames.includes('Регистрация'))throw new Error('Для исторического импорта нужен лист «Регистрация»');
+     const resultValues=(await getGoogleSheetValues(spreadsheetId,'Результаты')).values??[];
+     const results=sheetRows(resultValues);
+     if(!results.length)throw new Error('Лист «Результаты» пустой или не содержит строк данных');
+     let registrations:any[]=[];
+     if(mode==='HISTORICAL'){
+       const regValues=(await getGoogleSheetValues(spreadsheetId,'Регистрация')).values??[];
+       registrations=sheetRows(regValues);
+       if(!registrations.length)throw new Error('Лист «Регистрация» пустой или не содержит строк данных');
+     }
+     const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL'});
+     setResult(r);setJob(r.importJob);
+     if(r.importJob?.id){const full=await apiGet<any>('/imports/'+r.importJob.id);setJob(full.importJob);setRows(full.importJob?.rows??[])}else setRows([]);
+   }catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить Preview')}finally{setLoading(false)}
+ };
  const refreshJob=async(id:string)=>{try{const r=await apiGet<any>('/imports/'+id);setJob(r.importJob);setRows(r.importJob?.rows??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}};
- const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{const body=JSON.parse(resolution||'{}');await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:body});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
- const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPost<any>('/imports/'+job.id+'/commit',{});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить commit')}finally{setLoading(false)}};
+ const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:JSON.parse(resolution||'{}')});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
+ const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPost('/imports/'+job.id+'/commit',{});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить commit')}finally{setLoading(false)}};
  const readyCount=rows.filter((r:any)=>r.status==='READY').length,warnCount=rows.filter((r:any)=>r.status==='WARNING').length,resolvedCount=rows.filter((r:any)=>r.status==='RESOLVED').length;
- return <PageFrame title="Импорт" subtitle="Безопасный импорт: сначала проверяем, затем исправляем спорные строки, и только после этого записываем данные." action={job?.id?<button className="secondary-button compact" onClick={()=>void refreshJob(job.id)}><RefreshCw size={14}/>Обновить импорт</button>:undefined}>
-  <div className="import-steps"><div className="import-step active"><b>1</b><span>Выбрать этап и данные</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправить предупреждения</span></div><div className="import-step"><b>4</b><span>Подтвердить</span></div></div>
-  <div className="notice"><FileInput size={17}/><div><strong>Принцип импорта:</strong> Preview ничего не меняет в чемпионате. Система сопоставляет участников, регистрации, автомобили и классы. <b>READY</b> можно будет записать. <b>WARNING</b> сначала нужно разобрать вручную. После этого выполняется один транзакционный Commit.</div></div>
+ const resultSheet=spreadsheet?.sheets?.find((s:any)=>s.title==='Результаты'),registrationSheet=spreadsheet?.sheets?.find((s:any)=>s.title==='Регистрация');
+ return <PageFrame title="Импорт" subtitle="Импорт из Google Таблиц: сначала Preview, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>void refreshJob(job.id)}><RefreshCw size={14}/>Обновить импорт</button>:undefined}>
+  <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Commit</span></div></div>
+  <div className="notice"><FileInput size={17}/><div><strong>Google Таблицы:</strong> аккаунт подключается один раз. Для обычного импорта используется только <b>Результаты</b>. Для исторического — <b>Регистрация</b> + <b>Результаты</b>.</div></div>
   <div className="import-grid">
    <div className="panel form">
+    <div className="segmented"><button className={mode==='NORMAL'?'selected':''} onClick={()=>setMode('NORMAL')}>Обычный импорт</button><button className={mode==='HISTORICAL'?'selected':''} onClick={()=>setMode('HISTORICAL')}>Исторический</button></div>
+    {!google?.connected?<div className="notice"><AlertTriangle size={16}/><span>Google аккаунт ещё не подключён.</span><button className="primary-button compact" onClick={()=>void connectGoogle()}>Подключить Google</button></div>:<div className="notice"><Check size={16}/><span>Подключён: <strong>{google.email}</strong></span></div>}
     <label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
-    <label>JSON импорта<textarea rows={16} value={json} onChange={e=>setJson(e.target.value)} placeholder={'{\n  "registrations": [],\n  "results": [],\n  "historicalResults": false\n}'}/></label>
-    <div className="import-example"><b>registrations</b> — регистрации: ФИО, номер участника, команда, автомобиль, госномер и классы.<br/><b>results</b> — результаты: участник/номер, класс, значение и место.<br/><b>historicalResults</b> — true только для исторических результатов.</div>
-    <button className="primary-button" disabled={loading||!stageId||!json.trim()} onClick={()=>void preview()}>{loading?'Проверяем…':'1. Запустить проверку'}</button>
+    <label>Google Таблица<select value={spreadsheetId} onChange={e=>setSpreadsheetId(e.target.value)} disabled={!google?.connected}><option value="">Выберите таблицу</option>{spreadsheets.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+    {spreadsheet&&<div className="import-example"><b>{spreadsheet.title}</b><br/>Регистрация: {registrationSheet?'найден':'не найден'}<br/>Результаты: {resultSheet?'найден':'не найден'}</div>}
+    <button className="primary-button" disabled={loading||!stageId||!spreadsheetId||!google?.connected} onClick={()=>void preview()}>{loading?'Загружаем и проверяем…':'1. Загрузить и запустить Preview'}</button>
     {error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}
    </div>
    <div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>
     {job?<><div className="import-summary"><div><b>{readyCount}</b><span>готово</span></div><div className="warning"><b>{warnCount}</b><span>нужно исправить</span></div><div className="resolved"><b>{resolvedCount}</b><span>исправлено</span></div></div>
       <div className="import-job-line">Импорт: <strong>{job.id}</strong> · статус: <strong>{job.status}</strong></div>
-      <div className="import-rows">{rows.slice(0,50).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{r.status}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small></span>{r.status==='WARNING'&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):'{}')}}>Исправить</button>}</div>)}</div>
+      <div className="import-rows">{rows.slice(0,100).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{r.status}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small></span>{r.status==='WARNING'&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):'{}')}}>Исправить</button>}</div>)}</div>
       {warnCount===0&&job.status==='DRAFT'&&<button className="primary-button" disabled={loading} onClick={()=>void commit()}>4. Подтвердить и записать импорт</button>}
-      {warnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>Есть предупреждения. Открой строку, выбери решение и сохрани его. Пока остаётся хотя бы один WARNING — Commit заблокирован.</span></div>}
-      {job.status==='COMMITTED'&&<div className="notice"><Check size={17}/><span>Импорт успешно записан. Теперь данные находятся в основной базе USD 2.0.</span></div>}
+      {warnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>Есть предупреждения. Пока остаётся хотя бы один WARNING — Commit заблокирован.</span></div>}
+      {job.status==='COMMITTED'&&<div className="notice"><Check size={17}/><span>Импорт успешно записан в базу USD 2.0.</span></div>}
     </>:<Empty text="После Preview здесь появится отчёт по каждой строке"/>}
    </div>
   </div>
-  {resolveRow&&<Modal title={`Исправление строки №${resolveRow.rowNumber}`} onClose={()=>setResolveRow(null)}><div className="import-resolution"><div className="notice"><AlertTriangle size={16}/><span>Здесь сохраняется решение администратора. После RESOLVED сервер ещё раз проверит его перед Commit.</span></div><div className="resolution-source"><strong>Исходные данные</strong><pre className="json-view">{JSON.stringify(resolveRow.rawData??{},null,2)}</pre><strong>Предварительный разбор</strong><pre className="json-view">{JSON.stringify(resolveRow.normalizedData??{},null,2)}</pre></div><label>Решение JSON<textarea rows={12} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button className="primary-button" disabled={loading} onClick={()=>void resolve()}>{loading?'Сохраняем…':'Сохранить решение'}</button></div></Modal>}
+  {resolveRow&&<Modal title={`Исправление строки №${resolveRow.rowNumber}`} onClose={()=>setResolveRow(null)}><div className="import-resolution"><div className="notice"><AlertTriangle size={16}/><span>Сервер повторно проверит решение перед Commit.</span></div><div className="resolution-source"><strong>Исходные данные</strong><pre className="json-view">{JSON.stringify(resolveRow.rawData??{},null,2)}</pre><strong>Предварительный разбор</strong><pre className="json-view">{JSON.stringify(resolveRow.normalizedData??{},null,2)}</pre></div><label>Решение JSON<textarea rows={12} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button className="primary-button" disabled={loading} onClick={()=>void resolve()}>{loading?'Сохраняем…':'Сохранить решение'}</button></div></Modal>}
  </PageFrame>
 }
 function RecordsPage(){
