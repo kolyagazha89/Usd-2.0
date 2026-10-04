@@ -1,263 +1,117 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  CalendarDays,
-  CarFront,
-  ChevronRight,
-  ClipboardCheck,
-  Database,
-  FileClock,
-  FileInput,
-  Flag,
-  Gauge,
-  History,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Search,
-  Settings2,
-  ShieldAlert,
-  Trophy,
-  UserRound,
-  Users,
-  X,
-} from 'lucide-react';
-import { getDashboard, getDataQuality, login, logout, me, refresh, type Dashboard, type Role, type User } from './api';
+import {useEffect,useMemo,useState} from 'react';
+import {Activity,AlertTriangle,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
+import {apiDelete,apiGet,apiPatch,apiPost,getAudit,getDashboard,getDataQuality,listData,login,logout,refresh,type Dashboard,type Role,type User} from './api';
 
-const nav = [
-  { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Участники', path: '/admin/participants', icon: Users, roles: ['ADMIN'] },
-  { label: 'Автомобили', path: '/admin/cars', icon: CarFront, roles: ['ADMIN'] },
-  { label: 'Сезоны', path: '/admin/seasons', icon: CalendarDays, roles: ['ADMIN'] },
-  { label: 'Этапы', path: '/admin/stages', icon: Flag, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Классы', path: '/admin/classes', icon: Gauge, roles: ['ADMIN'] },
-  { label: 'Регистрации', path: '/admin/registrations', icon: ClipboardCheck, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Инспекции', path: '/admin/inspections', icon: ShieldAlert, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Результаты', path: '/admin/results', icon: Trophy, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Дисквалификации', path: '/admin/disqualifications', icon: AlertTriangle, roles: ['ADMIN'] },
-  { label: 'История результатов', path: '/admin/historical-results', icon: History, roles: ['ADMIN'] },
-  { label: 'Импорт', path: '/admin/import', icon: FileInput, roles: ['ADMIN'] },
-  { label: 'Рекорды', path: '/admin/records', icon: Trophy, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Статистика', path: '/admin/statistics', icon: BarChart3, roles: ['ADMIN', 'JUDGE'] },
-  { label: 'Пользователи', path: '/admin/users', icon: UserRound, roles: ['ADMIN'] },
-  { label: 'Аудит', path: '/admin/audit', icon: FileClock, roles: ['ADMIN'] },
-  { label: 'Контроль данных', path: '/admin/data-quality', icon: Database, roles: ['ADMIN'] },
+const nav=[
+ {label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
+ {label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
+ {label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
+ {label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
+ {label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
+ {label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
+ {label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
+ {label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
+ {label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
+ {label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
+ {label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
+ {label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
+ {label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
+ {label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
+ {label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
 ];
+const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
-const roleName: Record<Role, string> = {
-  ADMIN: 'Администратор',
-  JUDGE: 'Судья',
-  PARTICIPANT: 'Участник',
-};
+function App(){
+ const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname),[mobileOpen,setMobileOpen]=useState(false);
+ useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
+ const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
+ if(booting)return <Splash/>;
+ if(!user)return <LoginScreen onLogin={async(e,p)=>setUser(await login(e,p))}/>;
+ if(user.role==='PARTICIPANT')return <AccessDenied onLogout={async()=>{await logout();setUser(null)}}/>;
+ return <Shell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}}/>;
+}
+function Splash(){return <div className="splash"><div className="brand-mark">USD</div><div className="loader"/></div>}
+function LoginScreen({onLogin}:{onLogin:(e:string,p:string)=>Promise<void>}){const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(false);return <div className="login-page"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><div className="brand-mark">USD</div><span>2.0</span></div><div className="eyebrow">Competition Management System</div><h1>С возвращением</h1><p className="muted">Войдите в административную панель USD.</p><form className="form" onSubmit={async e=>{e.preventDefault();setError('');setLoading(true);try{await onLogin(email,password)}catch(x){setError(x instanceof Error?x.message:'Не удалось выполнить вход')}finally{setLoading(false)}}}><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="username" required/></label><label>Пароль<input value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete="current-password" required/></label>{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}<button className="primary-button" disabled={loading}>{loading?'Входим…':'Войти'}<ChevronRight size={18}/></button></form><div className="login-footer"><span>USD Russia</span><span>Secure access</span></div></div></div>}
+function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к Admin Panel.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
-function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [booting, setBooting] = useState(true);
-  const [path, setPath] = useState(window.location.pathname);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const boot = async () => {
-      const session = await refresh();
-      if (session) setUser(session.user);
-      else {
-        try { setUser(await me()); } catch { setUser(null); }
-      }
-      setBooting(false);
-    };
-    void boot();
-  }, []);
-
-  useEffect(() => {
-    const onPop = () => setPath(window.location.pathname);
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  const go = (next: string) => {
-    window.history.pushState({}, '', next);
-    setPath(next);
-    setMobileOpen(false);
-  };
-
-  if (booting) return <Splash />;
-
-  if (!user) {
-    return <LoginScreen onLogin={async (email, password) => setUser(await login(email, password))} />;
-  }
-
-  if (user.role === 'PARTICIPANT') {
-    return <AccessDenied onLogout={async () => { await logout(); setUser(null); }} />;
-  }
-
-  return (
-    <AdminShell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}
-      onLogout={async () => { await logout(); setUser(null); go('/'); }} />
-  );
+function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
+ const visible=useMemo(()=>nav.filter(n=>n.roles.includes(user.role)),[user.role]),active=visible.find(n=>path===n.path||(n.path!=='/admin'&&path.startsWith(n.path)));
+ return <div className="app-shell"><aside className={`sidebar ${mobileOpen?'open':''}`}><div className="sidebar-top"><button className="brand-button" onClick={()=>go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button><button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)}><X size={19}/></button></div><div className="sidebar-label">Управление</div><nav>{visible.map(n=>{const I=n.icon;return <button key={n.path} className={`nav-item ${active?.path===n.path?'active':''}`} onClick={()=>go(n.path)}><I size={18}/><span>{n.label}</span>{active?.path===n.path&&<span className="nav-dot"/>}</button>})}</nav><div className="sidebar-bottom"><div className="user-mini"><div className="avatar">{(user.name??user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name||'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div><button className="logout-button" onClick={()=>void onLogout()}><LogOut size={17}/>Выйти</button></div></aside>{mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)}/>}<main className="main"><header className="topbar"><button className="icon-button menu-button" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label??'Панель'}</strong></div><div className="topbar-actions"><div className="role-pill">{user.role==='JUDGE'?'JUDGE MODE':'ADMIN MODE'}</div></div></header><div className="content"><Page path={path} go={go} user={user}/></div></main></div>
 }
 
-function Splash() {
-  return <div className="splash"><div className="brand-mark">USD</div><div className="loader" /></div>;
+function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
+ if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
+ if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
+ if(path.startsWith('/admin/cars'))return <CarsPage/>;
+ if(path.startsWith('/admin/seasons'))return <SeasonsPage/>;
+ if(path.startsWith('/admin/stages'))return <StagesPage go={go}/>;
+ if(path.startsWith('/admin/classes'))return <ClassesPage/>;
+ if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
+ if(path.startsWith('/admin/inspections'))return <InspectionsPage/>;
+ if(path.startsWith('/admin/results'))return <ResultsPage/>;
+ if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
+ if(path.startsWith('/admin/historical-results'))return <HistoricalPage/>;
+ if(path.startsWith('/admin/import'))return <ImportPage/>;
+ if(path.startsWith('/admin/records'))return <RecordsPage/>;
+ if(path.startsWith('/admin/statistics'))return <StatisticsPage/>;
+ if(path.startsWith('/admin/audit'))return <AuditPage/>;
+ if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
+ return <Coming title="Пользователи" icon={UserRound} user={user}/>;
 }
 
-function LoginScreen({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+function DashboardPage({go}:{go:(p:string)=>void}){const[data,setData]=useState<Dashboard|null>(null),[quality,setQuality]=useState<any>(null),[error,setError]=useState('');const load=()=>Promise.all([getDashboard(),getDataQuality().catch(()=>null)]).then(([d,q])=>{setData(d);setQuality(q)}).catch(e=>setError(e instanceof Error?e.message:'Ошибка'));useEffect(()=>{void load()},[]);if(error)return <ErrorPanel message={error} retry={load}/>;if(!data)return <LoadingPage/>;const k=[['Участники',data.overview.participants,Users,'/admin/participants'],['Автомобили',data.overview.cars,CarFront,'/admin/cars'],['Этапы',data.overview.stages,Flag,'/admin/stages'],['Регистрации',data.overview.registrations,ClipboardCheck,'/admin/registrations'],['Результаты',data.overview.results,Trophy,'/admin/results'],['Рекорды',data.overview.records,Gauge,'/admin/records']] as const;return <PageFrame title="Dashboard" subtitle="Операционный центр USD 2.0" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}><section className="kpi-grid">{k.map(([l,v,I,p])=><button className="kpi-card" key={l} onClick={()=>go(p)}><div className="kpi-icon"><I size={19}/></div><div><span>{l}</span><strong>{v.toLocaleString('ru-RU')}</strong></div><ChevronRight className="kpi-arrow" size={17}/></button>)}</section><section className="dashboard-grid"><div className="panel"><PanelTitle title="Требует внимания" icon={Bell}/>{[['Открытые этапы',data.attention.openStages,'neutral','/admin/stages'],['Без инспекции',data.attention.pendingInspections,data.attention.pendingInspections?'warning':'good','/admin/inspections'],['Проваленные инспекции',data.attention.failedInspections,data.attention.failedInspections?'danger':'good','/admin/inspections'],['Результаты сегодня',data.attention.resultsToday,'good','/admin/results'],['Активные дисквалификации',data.attention.activeDisqualifications,data.attention.activeDisqualifications?'warning':'good','/admin/disqualifications'],['Импорты требуют решения',data.attention.unresolvedImports,data.attention.unresolvedImports?'danger':'good','/admin/import']].map(([l,v,t,p])=><button className="attention-row" key={String(l)} onClick={()=>go(String(p))}><span className={`attention-dot ${t}`}/><span>{l}</span><b>{v as number}</b><ChevronRight size={15}/></button>)}</div><div className="panel quality-panel"><PanelTitle title="Контроль данных" icon={Database}/>{quality?<><div className={`quality-ring ${quality.healthy?'healthy':'bad'}`}><strong>{quality.counts.error+quality.counts.warning}</strong><span>проблем</span></div><div className="quality-stats"><div><b>{quality.counts.error}</b><span>Ошибки</span></div><div><b>{quality.counts.warning}</b><span>Предупреждения</span></div><div><b>{quality.counts.info}</b><span>Инфо</span></div></div><button className="text-button" onClick={()=>go('/admin/data-quality')}>Открыть контроль данных <ChevronRight size={15}/></button></>:<Empty text="Недоступно" />}</div></section><section className="dashboard-grid lower"><StageMini title="Ближайшие этапы" items={data.upcomingStages} go={go}/><StageMini title="Последние этапы" items={data.recentStages} go={go}/></section></PageFrame>}
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError('');
-    setLoading(true);
-    try { await onLogin(email, password); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Не удалось выполнить вход'); }
-    finally { setLoading(false); }
-  };
+function StageMini({title,items,go}:{title:string;items:any[];go:(p:string)=>void}){return <div className="panel"><PanelTitle title={title} icon={CalendarDays} action="Все этапы" onAction={()=>go('/admin/stages')}/>{items.length?items.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages')}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div>{s.registrationOpen!==undefined&&<span className={`status ${s.registrationOpen?'open':''}`}>{s.registrationOpen?'Открыта':'Закрыта'}</span>}<ChevronRight size={16}/></button>):<Empty text="Нет данных"/>}</div>}
 
-  return (
-    <div className="login-page">
-      <div className="login-grid" />
-      <div className="login-card">
-        <div className="brand-lockup"><div className="brand-mark">USD</div><span>2.0</span></div>
-        <div className="eyebrow">Competition Management System</div>
-        <h1>С возвращением</h1>
-        <p className="muted">Войдите в административную панель USD.</p>
-        <form onSubmit={submit} className="form">
-          <label>Email<input value={email} onChange={e => setEmail(e.target.value)} type="email" autoComplete="username" required placeholder="you@example.com" /></label>
-          <label>Пароль<input value={password} onChange={e => setPassword(e.target.value)} type="password" autoComplete="current-password" required placeholder="••••••••" /></label>
-          {error && <div className="form-error"><AlertTriangle size={16}/>{error}</div>}
-          <button className="primary-button" disabled={loading}>{loading ? 'Входим…' : 'Войти'}<ChevronRight size={18}/></button>
-        </form>
-        <div className="login-footer"><span>USD Russia</span><span>Secure access</span></div>
-      </div>
-    </div>
-  );
+type Field={name:string;label:string;type?:string;required?:boolean;options?:string[]};
+function ResourcePage({title,subtitle,path,columns,fields,create,update,remove,searchPlaceholder='Поиск'}:{title:string;subtitle:string;path:string;columns:{key:string;label:string}[];fields?:Field[];create?:(v:any)=>Promise<any>;update?:(id:string,v:any)=>Promise<any>;remove?:(id:string)=>Promise<any>;searchPlaceholder?:string}){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[modal,setModal]=useState<any|null>(null),[saving,setSaving]=useState(false);
+ const load=()=>{setLoading(true);return apiGet<any>(path).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[path]);
+ const filtered=data.filter(x=>JSON.stringify(x).toLowerCase().includes(search.toLowerCase()));
+ const submit=async(v:any)=>{setSaving(true);try{if(modal?.id&&update)await update(modal.id,v);else if(create)await create(v);setModal(null);await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения')}finally{setSaving(false)}};
+ return <PageFrame title={title} subtitle={subtitle} action={<>{fields&&create&&<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить</button>}<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/></button></>}><div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={searchPlaceholder}/></div><span className="row-count">{filtered.length} записей</span></div>{error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={filtered} columns={columns} onEdit={update?setModal:undefined} onDelete={remove?async id=>{if(confirm('Удалить запись?')){await remove(id);await load()}}:undefined}/>}</div>{modal!==null&&<Modal title={modal.id?'Редактирование':'Новая запись'} onClose={()=>setModal(null)}><EntityForm fields={fields??[]} initial={modal} saving={saving} onSubmit={submit}/></Modal>}</PageFrame>
 }
 
-function AccessDenied({ onLogout }: { onLogout: () => Promise<void> }) {
-  return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к Admin Panel.</p><button className="secondary-button" onClick={() => void onLogout()}>Выйти</button></div></div>;
-}
+function ParticipantsPage({go}:{go:(p:string)=>void}){return <ResourcePage title="Участники" subtitle="Профили, команды и история выступлений" path="/participants" columns={[{key:'lastName',label:'Фамилия'},{key:'firstName',label:'Имя'},{key:'city',label:'Город'},{key:'team',label:'Команда'},{key:'phone',label:'Телефон'},{key:'isPublic',label:'Публичный'}]} fields={[{name:'lastName',label:'Фамилия',required:true},{name:'firstName',label:'Имя',required:true},{name:'middleName',label:'Отчество'},{name:'city',label:'Город'},{name:'team',label:'Команда'},{name:'phone',label:'Телефон'},{name:'birthDate',label:'Дата рождения',type:'date'}]} create={v=>apiPost('/participants',v)} update={(id,v)=>apiPatch('/participants/'+id,v)} remove={id=>apiDelete('/participants/'+id)} searchPlaceholder="ФИО, город, команда"/>}
+function CarsPage(){return <ResourcePage title="Автомобили" subtitle="Все автомобили участников" path="/cars" columns={[{key:'brand',label:'Марка'},{key:'model',label:'Модель'},{key:'registrationNumber',label:'Госномер'},{key:'registrationCountry',label:'Страна'},{key:'color',label:'Цвет'},{key:'isActive',label:'Активен'}]} searchPlaceholder="Марка, модель, госномер"/>}
+function SeasonsPage(){return <ResourcePage title="Сезоны" subtitle="Сезонная структура чемпионата" path="/seasons" columns={[{key:'year',label:'Год'},{key:'name',label:'Название'},{key:'status',label:'Статус'},{key:'description',label:'Описание'}]} fields={[{name:'year',label:'Год',type:'number',required:true},{name:'name',label:'Название',required:true},{name:'description',label:'Описание',type:'textarea'}]} create={v=>apiPost('/seasons',v)} update={(id,v)=>apiPatch('/seasons/'+id,v)}/>}
 
-function AdminShell({ user, path, go, mobileOpen, setMobileOpen, onLogout }: {
-  user: User; path: string; go: (path: string) => void; mobileOpen: boolean; setMobileOpen: (v: boolean) => void; onLogout: () => Promise<void>;
-}) {
-  const visibleNav = useMemo(() => nav.filter(item => item.roles.includes(user.role)), [user.role]);
-  const active = visibleNav.find(item => path === item.path || (item.path !== '/admin' && path.startsWith(item.path)));
-  return (
-    <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
-        <div className="sidebar-top">
-          <button className="brand-button" onClick={() => go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button>
-          <button className="icon-button mobile-close" onClick={() => setMobileOpen(false)}><X size={19}/></button>
-        </div>
-        <div className="sidebar-label">Управление</div>
-        <nav>{visibleNav.map(item => {
-          const Icon = item.icon;
-          return <button key={item.path} className={`nav-item ${active?.path === item.path ? 'active' : ''}`} onClick={() => go(item.path)}><Icon size={18}/><span>{item.label}</span>{active?.path === item.path && <span className="nav-dot"/>}</button>;
-        })}</nav>
-        <div className="sidebar-bottom">
-          <div className="user-mini"><div className="avatar">{(user.name ?? user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name || 'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div>
-          <button className="logout-button" onClick={() => void onLogout()}><LogOut size={17}/>Выйти</button>
-        </div>
-      </aside>
-      {mobileOpen && <button className="mobile-backdrop" onClick={() => setMobileOpen(false)} aria-label="Закрыть меню" />}
-      <main className="main">
-        <header className="topbar">
-          <button className="icon-button menu-button" onClick={() => setMobileOpen(true)}><Menu size={21}/></button>
-          <div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label ?? 'Панель'}</strong></div>
-          <div className="topbar-actions"><button className="icon-button"><Bell size={19}/></button><div className="role-pill">{user.role === 'JUDGE' ? 'JUDGE MODE' : 'ADMIN MODE'}</div></div>
-        </header>
-        <div className="content">
-          <Page path={path} go={go} user={user} />
-        </div>
-      </main>
-    </div>
-  );
-}
+function StagesPage({go}:{go:(p:string)=>void}){return <ResourcePage title="Этапы" subtitle="Календарь соревнований и открытие регистрации" path="/stages" columns={[{key:'stageNumber',label:'#'},{key:'name',label:'Название'},{key:'city',label:'Город'},{key:'date',label:'Дата'},{key:'status',label:'Статус'},{key:'registrationOpen',label:'Регистрация'}]} fields={[{name:'stageNumber',label:'Номер',type:'number',required:true},{name:'name',label:'Название',required:true},{name:'city',label:'Город'},{name:'date',label:'Дата',type:'datetime-local',required:true},{name:'venue',label:'Площадка'},{name:'address',label:'Адрес'},{name:'seasonId',label:'ID сезона'}]} create={v=>apiPost('/stages',v)} update={(id,v)=>apiPatch('/stages/'+id,v)} remove={id=>apiDelete('/stages/'+id)} searchPlaceholder="Название, город"/>}
 
-function Page({ path, go, user }: { path: string; go: (path: string) => void; user: User }) {
-  if (path === '/admin' || path === '/admin/') return <DashboardPage go={go} />;
-  const item = nav.find(x => x.path === path || (x.path !== '/admin' && path.startsWith(x.path)));
-  return <ComingPage item={item?.label ?? 'Раздел'} icon={item?.icon ?? Settings2} user={user} />;
-}
+function ClassesPage(){const[tab,setTab]=useState<'classes'|'directions'>('classes');return <PageFrame title="Классы" subtitle="Направления, классы и единицы измерения" action={<div className="segmented"><button className={tab==='classes'?'selected':''} onClick={()=>setTab('classes')}>Классы</button><button className={tab==='directions'?'selected':''} onClick={()=>setTab('directions')}>Направления</button></div>}>{tab==='classes'?<ResourcePage title="Классы" subtitle="" path="/classes" columns={[{key:'code',label:'Код'},{key:'name',label:'Название'},{key:'direction.name',label:'Направление'},{key:'unit',label:'Единица'},{key:'isActive',label:'Активен'}]} fields={[{name:'directionId',label:'ID направления',required:true},{name:'code',label:'Код',required:true},{name:'name',label:'Название',required:true},{name:'unit',label:'Единица',options:['DB','MPS','OTHER']}]} create={v=>apiPost('/classes',v)} update={(id,v)=>apiPatch('/classes/'+id,v)}/>:<ResourcePage title="Направления" subtitle="" path="/directions" columns={[{key:'name',label:'Название'},{key:'sortOrder',label:'Порядок'},{key:'isActive',label:'Активно'}]} fields={[{name:'name',label:'Название',required:true},{name:'sortOrder',label:'Порядок',type:'number'}]} create={v=>apiPost('/directions',v)} update={(id,v)=>apiPatch('/directions/'+id,v)} remove={id=>apiDelete('/directions/'+id)}/>}</PageFrame>}
 
-function DashboardPage({ go }: { go: (path: string) => void }) {
-  const [data, setData] = useState<Dashboard | null>(null);
-  const [quality, setQuality] = useState<{ counts: { total: number; error: number; warning: number; info: number }; healthy: boolean } | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    Promise.all([getDashboard(), getDataQuality().catch(() => null)])
-      .then(([dashboard, dq]) => { setData(dashboard); setQuality(dq); })
-      .catch(e => setError(e instanceof Error ? e.message : 'Не удалось загрузить dashboard'));
-  }, []);
+function RegistrationsPage(){return <ResourcePage title="Регистрации" subtitle="Регистрации по этапам, автомобилям и классам" path="/registrations" columns={[{key:'participantNumber',label:'№'},{key:'participant.lastName',label:'Участник'},{key:'car.brand',label:'Автомобиль'},{key:'car.model',label:'Модель'},{key:'status',label:'Статус'},{key:'stage.name',label:'Этап'}]} searchPlaceholder="Участник, номер, автомобиль"/>}
+function InspectionsPage(){return <OperationalPage title="Инспекции" subtitle="Технический контроль перед результатом" icon={ShieldAlert} endpoint="/inspections"/>}
+function ResultsPage(){return <OperationalPage title="Результаты" subtitle="Официальные результаты. JUDGE создаёт, ADMIN корректирует." icon={Trophy} endpoint="/results/admin/stage/"/>}
+function DisqualificationsPage(){return <OperationalPage title="Дисквалификации" subtitle="Активные и отозванные дисквалификации" icon={AlertTriangle} endpoint="/disqualifications"/>}
+function HistoricalPage(){return <OperationalPage title="История результатов" subtitle="Импорт исторических результатов и верификация" icon={History} endpoint="/historical-results"/>}
+function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
 
-  if (error) return <div className="page"><PageHeading title="Dashboard" subtitle="Операционный центр USD 2.0"/><div className="error-panel"><AlertTriangle/><div><strong>Не удалось загрузить данные</strong><p>{error}</p></div></div></div>;
-  if (!data) return <DashboardSkeleton />;
+function ImportPage(){const[stageId,setStageId]=useState(''),[json,setJson]=useState(''),[result,setResult]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');const preview=async()=>{setLoading(true);setError('');try{const body=JSON.parse(json||'{}');setResult(await apiPost('/imports/stage/preview',{stageId,...body}))}catch(e){setError(e instanceof Error?e.message:'Проверьте JSON')}finally{setLoading(false)}};return <PageFrame title="Импорт" subtitle="Предпросмотр → предупреждения → исправление → commit"><div className="import-grid"><div className="panel form"><label>ID этапа<input value={stageId} onChange={e=>setStageId(e.target.value)} placeholder="UUID"/></label><label>Данные импорта<textarea rows={16} value={json} onChange={e=>setJson(e.target.value)} placeholder={'{"registrations":[],"results":[]}'}/></label><button className="primary-button" disabled={loading||!stageId} onClick={()=>void preview()}>{loading?'Проверяем…':'Запустить preview'}</button>{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}</div><div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>{result?<pre className="json-view">{JSON.stringify(result,null,2)}</pre>:<Empty text="Здесь появятся строки READY / WARNING"/>}</div></div></PageFrame>}
 
-  const kpis = [
-    ['Участники', data.overview.participants, Users, '/admin/participants'],
-    ['Автомобили', data.overview.cars, CarFront, '/admin/cars'],
-    ['Этапы', data.overview.stages, Flag, '/admin/stages'],
-    ['Регистрации', data.overview.registrations, ClipboardCheck, '/admin/registrations'],
-    ['Результаты', data.overview.results, Trophy, '/admin/results'],
-    ['Рекорды', data.overview.records, Gauge, '/admin/records'],
-  ] as const;
+function RecordsPage(){return <OperationalPage title="Рекорды" subtitle="Текущие и исторические рекорды" icon={Trophy} endpoint="/records/admin/current"/>}
+function StatisticsPage(){const[overview,setOverview]=useState<any>(null),[participants,setParticipants]=useState<any[]>([]);useEffect(()=>{Promise.all([apiGet('/statistics/overview'),apiGet('/statistics/participants?limit=50')]).then(([o,p])=>{setOverview(o);setParticipants(listData(p))})},[]);return <PageFrame title="Статистика" subtitle="Участники, посещения, места и лучшие результаты"><div className="kpi-grid small">{overview&&Object.entries(overview.overview??overview).slice(0,6).map(([k,v])=><div className="stat-card" key={k}><span>{humanize(k)}</span><strong>{String(v)}</strong></div>)}</div><div className="panel table-wrap"><DataTable rows={participants} columns={autoColumns(participants)}/></div></PageFrame>}
+function AuditPage(){const[data,setData]=useState<any[]>([]);useEffect(()=>{getAudit(1,100).then(r=>setData(listData(r)))},[]);return <PageFrame title="Аудит" subtitle="Журнал административных действий"><div className="panel table-wrap"><DataTable rows={data} columns={autoColumns(data)}/></div></PageFrame>}
+function QualityPage(){const[data,setData]=useState<any>(null);useEffect(()=>{getDataQuality().then(setData)},[]);return <PageFrame title="Контроль данных" subtitle="Центр качества данных"><div className="quality-summary">{data&&<><div className="stat-card"><span>Всего проблем</span><strong>{data.counts.total}</strong></div><div className="stat-card danger-card"><span>Ошибки</span><strong>{data.counts.error}</strong></div><div className="stat-card"><span>Предупреждения</span><strong>{data.counts.warning}</strong></div><div className="stat-card"><span>Информация</span><strong>{data.counts.info}</strong></div></>}</div><div className="panel table-wrap"><DataTable rows={data?.issues??[]} columns={autoColumns(data?.issues??[])}/></div></PageFrame>}
 
-  return <div className="page">
-    <PageHeading title="Dashboard" subtitle="Операционный центр USD 2.0" right={<div className="live-status"><span/>Система работает</div>} />
-    <section className="kpi-grid">{kpis.map(([label,value,Icon,target]) => <button className="kpi-card" key={label} onClick={() => go(target)}><div className="kpi-icon"><Icon size={19}/></div><div><span>{label}</span><strong>{value.toLocaleString('ru-RU')}</strong></div><ChevronRight className="kpi-arrow" size={17}/></button>)}</section>
-    <section className="dashboard-grid">
-      <div className="panel attention-panel">
-        <PanelTitle title="Требует внимания" icon={Bell}/>
-        <div className="attention-list">
-          <Attention label="Открытые этапы" value={data.attention.openStages} tone="neutral" onClick={() => go('/admin/stages')}/>
-          <Attention label="Без инспекции" value={data.attention.pendingInspections} tone={data.attention.pendingInspections ? 'warning' : 'good'} onClick={() => go('/admin/inspections')}/>
-          <Attention label="Проваленные инспекции" value={data.attention.failedInspections} tone={data.attention.failedInspections ? 'danger' : 'good'} onClick={() => go('/admin/inspections')}/>
-          <Attention label="Результаты сегодня" value={data.attention.resultsToday} tone="good" onClick={() => go('/admin/results')}/>
-          <Attention label="Активные дисквалификации" value={data.attention.activeDisqualifications} tone={data.attention.activeDisqualifications ? 'warning' : 'good'} onClick={() => go('/admin/disqualifications')}/>
-          <Attention label="Импорты требуют решения" value={data.attention.unresolvedImports} tone={data.attention.unresolvedImports ? 'danger' : 'good'} onClick={() => go('/admin/import')}/>
-        </div>
-      </div>
-      <div className="panel quality-panel">
-        <PanelTitle title="Контроль данных" icon={Database}/>
-        {quality ? <><div className={`quality-ring ${quality.healthy ? 'healthy' : 'bad'}`}><strong>{quality.counts.error + quality.counts.warning}</strong><span>проблем</span></div><div className="quality-stats"><div><b>{quality.counts.error}</b><span>Ошибки</span></div><div><b>{quality.counts.warning}</b><span>Предупреждения</span></div><div><b>{quality.counts.info}</b><span>Информация</span></div></div><button className="text-button" onClick={() => go('/admin/data-quality')}>Открыть контроль данных <ChevronRight size={15}/></button></> : <p className="muted">Контроль данных недоступен для текущей роли.</p>}
-      </div>
-    </section>
-    <section className="dashboard-grid lower">
-      <div className="panel">
-        <PanelTitle title="Ближайшие этапы" icon={CalendarDays} action="Все этапы" onAction={() => go('/admin/stages')}/>
-        <div className="stage-list">{data.upcomingStages.length ? data.upcomingStages.map(stage => <button className="stage-row" key={stage.id} onClick={() => go('/admin/stages')}><div className="stage-number">{stage.stageNumber}</div><div className="stage-main"><strong>{stage.name}</strong><span>{stage.city} · {formatDate(stage.date)}</span></div><span className={`status ${stage.registrationOpen ? 'open' : ''}`}>{stage.registrationOpen ? 'Регистрация открыта' : 'Закрыта'}</span><ChevronRight size={16}/></button>) : <Empty text="Ближайших этапов нет"/>}</div>
-      </div>
-      <div className="panel">
-        <PanelTitle title="Последние этапы" icon={History} action="Все этапы" onAction={() => go('/admin/stages')}/>
-        <div className="stage-list">{data.recentStages.length ? data.recentStages.map(stage => <button className="stage-row" key={stage.id} onClick={() => go('/admin/stages')}><div className="stage-number muted-number">{stage.stageNumber}</div><div className="stage-main"><strong>{stage.name}</strong><span>{stage.city} · {formatDate(stage.date)}</span></div><ChevronRight size={16}/></button>) : <Empty text="Истории этапов пока нет"/>}</div>
-      </div>
-    </section>
-  </div>;
-}
+function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
 
-function Attention({ label, value, tone, onClick }: { label: string; value: number; tone: string; onClick: () => void }) {
-  return <button className="attention-row" onClick={onClick}><span className={`attention-dot ${tone}`}/><span>{label}</span><b>{value}</b><ChevronRight size={15}/></button>;
-}
-function PanelTitle({ title, icon: Icon, action, onAction }: { title: string; icon: typeof Bell; action?: string; onAction?: () => void }) {
-  return <div className="panel-title"><div><Icon size={17}/><h2>{title}</h2></div>{action && <button className="text-button" onClick={onAction}>{action}<ChevronRight size={14}/></button>}</div>;
-}
-function PageHeading({ title, subtitle, right }: { title: string; subtitle: string; right?: React.ReactNode }) {
-  return <div className="page-heading"><div><div className="eyebrow">USD 2.0</div><h1>{title}</h1><p>{subtitle}</p></div>{right}</div>;
-}
-function Empty({ text }: { text: string }) { return <div className="empty-state"><Activity size={20}/><span>{text}</span></div>; }
-function ComingPage({ item, icon: Icon, user }: { item: string; icon: typeof Settings2; user: User }) {
-  return <div className="page"><PageHeading title={item} subtitle={user.role === 'JUDGE' ? 'Раздел доступен в режиме судьи' : 'Управление разделом USD 2.0'} /><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас Admin Panel уже подключён. Здесь будет полноценный интерфейс раздела с таблицами, фильтрами, действиями и правами роли.</p><div className="placeholder-tags"><span>RBAC</span><span>API ready</span><span>Responsive</span></div></div></div>;
-}
-function DashboardSkeleton() {
-  return <div className="page"><PageHeading title="Dashboard" subtitle="Загрузка операционного центра…"/><div className="kpi-grid">{Array.from({length:6},(_,i)=><div className="skeleton-card" key={i}/>)}</div><div className="dashboard-grid"><div className="panel skeleton-panel"/><div className="panel skeleton-panel"/></div></div>;
-}
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
-}
+function Coming({title,icon:Icon,user}:{title:string;icon:any;user:User}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD 2.0'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
 
+function PageFrame({title,subtitle,children,action}:{title:string;subtitle:string;children:React.ReactNode;action?:React.ReactNode}){return <div className="page"><div className="page-heading"><div><div className="eyebrow">USD 2.0</div><h1>{title}</h1><p>{subtitle}</p></div>{action}</div>{children}</div>}
+function PanelTitle({title,icon:Icon,action,onAction}:{title:string;icon:any;action?:string;onAction?:()=>void}){return <div className="panel-title"><div><Icon size={17}/><h2>{title}</h2></div>{action&&<button className="text-button" onClick={onAction}>{action}<ChevronRight size={14}/></button>}</div>}
+function DataTable({rows,columns,onEdit,onDelete}:{rows:any[];columns:{key:string;label:string}[];onEdit?:(row:any)=>void;onDelete?:(id:string)=>void}){if(!rows.length)return <Empty text="Записей пока нет"/>;return <table className="data-table"><thead><tr>{columns.map(c=><th key={c.key}>{c.label}</th>)}{(onEdit||onDelete)&&<th/>}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id??i}>{columns.map(c=><td key={c.key}>{formatCell(getPath(r,c.key))}</td>)}{(onEdit||onDelete)&&<td className="row-actions">{onEdit&&<button className="icon-button" onClick={()=>onEdit(r)} title="Изменить">✎</button>}{onDelete&&r.id&&<button className="icon-button danger" onClick={()=>void onDelete(r.id)} title="Удалить">×</button>}</td>}</tr>)}</tbody></table>}
+function autoColumns(rows:any[]){const first=rows[0]??{};return Object.keys(first).filter(k=>!['id','createdAt','updatedAt','deletedAt'].includes(k)&&typeof first[k]!=='object').slice(0,8).map(k=>({key:k,label:humanize(k)}))}
+function getPath(o:any,path:string){return path.split('.').reduce((a,k)=>a?.[k],o)}
+function formatCell(v:any){if(v===null||v===undefined)return '—';if(typeof v==='boolean')return v?<span className="badge good"><Check size={11}/>Да</span>:<span className="badge">Нет</span>;if(typeof v==='string'&&v.includes('T')&&!Number.isNaN(Date.parse(v)))return formatDate(v);return String(v)}
+function humanize(s:string){return s.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ').replace(/^./,x=>x.toUpperCase())}
+function EntityForm({fields,initial,saving,onSubmit}:{fields:Field[];initial:any;saving:boolean;onSubmit:(v:any)=>Promise<void>}){const[v,setV]=useState<any>(initial??{});return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(clean(v))}}>{fields.map(f=><label key={f.name}>{f.label}{f.options?<select value={v[f.name]??''} onChange={e=>setV({...v,[f.name]:e.target.value})}><option value="">—</option>{f.options.map(o=><option key={o}>{o}</option>)}</select>:f.type==='textarea'?<textarea rows={4} value={v[f.name]??''} onChange={e=>setV({...v,[f.name]:e.target.value})}/>:<input type={f.type??'text'} value={v[f.name]??''} onChange={e=>setV({...v,[f.name]:f.type==='number'?Number(e.target.value):e.target.value})} required={f.required}/>}</label>)}<button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить'}</button></form>}
+function clean(v:any){return Object.fromEntries(Object.entries(v).filter(([,x])=>x!==''&&x!==undefined))}
+function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal"><div className="modal-head"><strong>{title}</strong><button className="icon-button" onClick={onClose}><X size={17}/></button></div>{children}</div></div>}
+function LoadingPage({small=false}:{small?:boolean}){return <div className={small?'loading-small':'loading-page'}><Loader2 className="spin"/><span>Загрузка…</span></div>}
+function ErrorPanel({message,retry}:{message:string;retry:()=>Promise<any>|any}){return <div className="error-panel"><AlertTriangle/><div><strong>Не удалось загрузить данные</strong><p>{message}</p><button className="text-button" onClick={()=>void retry()}>Повторить</button></div></div>}
+function Empty({text}:{text:string}){return <div className="empty-state"><Activity size={20}/><span>{text}</span></div>}
+function formatDate(v:string){return new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(v))}
 export default App;
