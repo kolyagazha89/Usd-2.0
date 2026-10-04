@@ -180,6 +180,12 @@ export class RegistrationsService {
       configurationVersionId,
     } = body;
 
+    if (!configurationVersionId) {
+      throw new BadRequestException(
+        'Для регистрации необходимо выбрать версию конфигурации автомобиля',
+      );
+    }
+
     if (
       request.user.role === 'PARTICIPANT' &&
       request.user.participantId !== participantId
