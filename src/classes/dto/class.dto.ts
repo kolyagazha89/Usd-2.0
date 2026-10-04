@@ -1,3 +1,5 @@
+import { Prisma } from '../../generated/prisma';
+
 import {
   IsArray,
   IsBoolean,
@@ -132,5 +134,5 @@ export class UpdateStageClassDto {
   description?: string | null;
 
   @IsOptional()
-  settings?: Record<string, unknown> | null;
+  settings?: Prisma.InputJsonValue | null;
 }
