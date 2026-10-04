@@ -14,7 +14,7 @@ const config: Config = {
   testRegex: '.*\\.spec\\.ts$',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true, tsconfig: './tsconfig.json' }],
+    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true, tsconfig: { module: 'ESNext', moduleResolution: 'NodeNext' } }],
   },
   moduleNameMapper: {
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
