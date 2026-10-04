@@ -497,8 +497,7 @@ export class ImportsService {
           participantNumber,
 
           email:
-            this.stringValue(              this.getImportFieldValue(
-                row,
+            this.stringValue(              this.getImportFieldValue(                row,
                 [
                   'Email',
                   'E-mail',
@@ -998,7 +997,6 @@ export class ImportsService {
         value: row['SPL Hurricane'],
         direction: 'Hurrican',      },
     ];
-
     const classes: any[] = [];
     const warnings: string[] = [];
     const processedColumns =
@@ -1497,8 +1495,7 @@ export class ImportsService {
           source: 'DATABASE';
         })      | {
           status:
-            | 'MATCHED'
-            | 'AMBIGUOUS';
+            | 'MATCHED'            | 'AMBIGUOUS';
 
           normalizedName: string;
 
@@ -1997,8 +1994,7 @@ export class ImportsService {
     targets: string[],  ): unknown {
     for (const target of targets) {
       if (
-        Object.prototype.hasOwnProperty.call(
-          row,
+        Object.prototype.hasOwnProperty.call(          row,
           target,
         )
       ) {
@@ -2497,8 +2493,7 @@ export class ImportsService {
       ]);
 
     const rawBrand =
-      findValue([
-        'Марка автомобиля',
+      findValue([        'Марка автомобиля',
         'Марка',
         'brand',
       ]);
@@ -2997,8 +2992,7 @@ export class ImportsService {
                       .participant
                       .email ??
                     null,
-                },
-              );
+                },              );
 
             participantId =
               participant.id;
@@ -3497,8 +3491,7 @@ export class ImportsService {
                         classId,
                       },
                   },
-                  include: {
-                    class: {
+                  include: {                    class: {
                       select: {
                         id: true,
                         directionId:
@@ -3997,8 +3990,7 @@ export class ImportsService {
                       where: {
                         stageId_participantNumber:
                           {
-                            stageId:
-                              importJob.stageId,
+                            stageId:                              importJob.stageId,
 
                             participantNumber:
                               resultParticipantNumber,
@@ -4132,6 +4124,13 @@ export class ImportsService {
 
                       classId,
                     },
+                },
+                include: {
+                  class: {
+                    select: {
+                      unit: true,
+                    },
+                  },
                 },
               },
             );
@@ -4497,8 +4496,7 @@ export class ImportsService {
 
       results,
 
-      records,
-    };
+      records,    };
   }
 
   private parseParticipantNumber(
