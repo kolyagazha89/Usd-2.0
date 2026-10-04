@@ -4,7 +4,9 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -14,7 +16,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { AdminCreateUserDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AdminCreateUserDto, AdminUserActiveDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -222,9 +224,10 @@ export class AuthController {
   @Roles('ADMIN')
   @Get('admin/users')
   async adminListUsers(
-    @Param('search') _unused?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
   ) {
-    return this.authService.adminListUsers();
+    return this.authService.adminListUsers(search, role);
   }
 
   @Get('sessions')
@@ -275,10 +278,10 @@ export class AuthController {
   async adminSetActive(
     @Req() request: Request,
     @Param('userId') userId: string,
-    @Body('active') active: boolean,
+    @Body() body: AdminUserActiveDto,
   ) {
     const actor = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.adminSetActive(userId, active, actor, request.ip);
+    return this.authService.adminSetActive(userId, body.active, actor, request.ip);
   }
 
   @Roles('ADMIN')
@@ -286,10 +289,10 @@ export class AuthController {
   async adminSetRole(
     @Req() request: Request,
     @Param('userId') userId: string,
-    @Body('role') role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    @Body() body: AdminUserRoleDto,
   ) {
     const actor = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.adminSetRole(userId, role, actor, request.ip);
+    return this.authService.adminSetRole(userId, body.role, actor, request.ip);
   }
 
   @Roles('ADMIN')
