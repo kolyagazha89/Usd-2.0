@@ -537,7 +537,7 @@ export class RegistrationsService {
                   batteries: configurationVersion.batteries,
                   generators: configurationVersion.generators,
                 }
-              : null,
+              : undefined,
             participantNumber,
             source,
             status: 'ACTIVE',
