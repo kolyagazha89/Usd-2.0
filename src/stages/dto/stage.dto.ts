@@ -1,4 +1,16 @@
-import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateStageDto {
   @IsInt()
@@ -19,6 +31,33 @@ export class CreateStageDto {
   date!: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  venue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @IsOptional()
+  @IsIn(['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'])
+  status?: 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED';
+
+  @IsOptional()
   @IsBoolean()
   registrationOpen?: boolean;
 
@@ -30,15 +69,20 @@ export class CreateStageDto {
   @IsDateString()
   registrationEndsAt?: string;
 
+  @IsOptional()
   @IsInt()
   @Min(2000)
   @Max(3000)
-  seasonYear!: number;
+  seasonYear?: number;
 
   @IsOptional()
   @IsString()
   @MaxLength(160)
   seasonName?: string;
+
+  @IsOptional()
+  @IsUUID()
+  seasonId?: string;
 }
 
 export class UpdateStageDto {
@@ -61,6 +105,33 @@ export class UpdateStageDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  venue?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
+
+  @IsOptional()
+  @IsIn(['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'])
+  status?: 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED';
 
   @IsOptional()
   @IsBoolean()

@@ -297,6 +297,23 @@ export class RegistrationsService {
           );
         }
 
+        if (stage.status !== 'PUBLISHED') {
+          throw new BadRequestException(
+            'Регистрация доступна только на опубликованный этап',
+          );
+        }
+
+        const season = await tx.season.findUnique({
+          where: { id: stage.seasonId },
+          select: { status: true },
+        });
+
+        if (!season || season.status !== 'ACTIVE') {
+          throw new BadRequestException(
+            'Регистрация недоступна: сезон не активен',
+          );
+        }
+
         if (!stage.registrationOpen) {
           throw new BadRequestException(
             'Регистрация на этот этап закрыта',
@@ -434,6 +451,7 @@ export class RegistrationsService {
               classId: {
                 in: classIds,
               },
+              isActive: true,
               class: {
                 isActive: true,
                 direction: {
@@ -443,6 +461,7 @@ export class RegistrationsService {
             },
             select: {
               classId: true,
+              participantLimit: true,
               class: {
                 select: {
                   directionId: true,
@@ -476,7 +495,31 @@ export class RegistrationsService {
           );
         }
 
-        // 7. Проверяем регистрацию этого автомобиля
+        // 7. Проверяем лимиты классов на этом этапе.
+        for (const stageClass of stageClasses) {
+          if (stageClass.participantLimit === null) continue;
+
+          const currentCount = await tx.registrationClass.count({
+            where: {
+              classId: stageClass.classId,
+              registration: {
+                stageId,
+                status: 'ACTIVE',
+              },
+            },
+          });
+
+          if (currentCount >= stageClass.participantLimit) {
+            throw new ConflictException({
+              message: 'Лимит участников в выбранном классе уже достигнут',
+              code: 'STAGE_CLASS_PARTICIPANT_LIMIT_REACHED',
+              classId: stageClass.classId,
+              limit: stageClass.participantLimit,
+            });
+          }
+        }
+
+        // 8. Проверяем регистрацию этого автомобиля
         // на этом этапе.
         //
         // Один участник может иметь несколько машин

@@ -287,6 +287,8 @@ model Season {
   id                String             @id @default(uuid())
   name              String
   year              Int                @unique
+  description       String?
+  status            SeasonStatus       @default(DRAFT)
   isActive          Boolean            @default(true)
   legacyId          String?            @unique
   createdAt         DateTime           @default(now()) @db.Timestamptz(3)
@@ -302,6 +304,12 @@ model Stage {
   name                 String
   city                 String?
   date                 DateTime
+  description          String?
+  venue                String?
+  address              String?
+  latitude             Decimal?           @db.Decimal(9, 6)
+  longitude            Decimal?           @db.Decimal(9, 6)
+  status               StageStatus        @default(DRAFT)
   registrationOpen     Boolean            @default(false)
   registrationStartsAt DateTime?
   registrationEndsAt   DateTime?
@@ -320,6 +328,7 @@ model Stage {
   @@index([seasonId])
   @@index([date])
   @@index([registrationOpen])
+  @@index([status])
 }
 
 model Direction {
@@ -338,6 +347,7 @@ model Class {
   directionId   String
   code          String              @unique
   name          String
+  unit          ResultUnit          @default(DB)
   sortOrder     Int                 @default(0)
   isActive      Boolean             @default(true)
   legacyId      String?             @unique
@@ -354,10 +364,16 @@ model Class {
 }
 
 model StageClass {
-  id        String   @id @default(uuid())
-  stageId   String
-  classId   String
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  id               String   @id @default(uuid())
+  stageId          String
+  classId          String
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  participantLimit Int?
+  customName       String?
+  description      String?
+  settings         Json?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
   class     Class    @relation(fields: [classId], references: [id])
   stage     Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
 
@@ -580,6 +596,19 @@ model ParticipantLegacyEmail {
   email         String?
 
   @@map("_ParticipantLegacyEmail")
+}
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum StageStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
 }
 
 enum UserRole {

@@ -1,302 +1,238 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-interface CreateStageDto {
-  seasonYear: number;
-  seasonName?: string;
-  stageNumber: number;
-  name: string;
-  city?: string;
-  date: string;
-  registrationOpen?: boolean;
-  registrationStartsAt?: string;
-  registrationEndsAt?: string;
-}
+import { AuditService } from '../common/audit/audit.service';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import type { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 
 @Injectable()
 export class StagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findAll() {
     return this.prisma.stage.findMany({
-      where: {
-        isDeleted: false,
-      },
-      orderBy: [
-        {
-          date: 'desc',
-        },
-        {
-          stageNumber: 'asc',
-        },
-      ],
-      include: {
-        season: true,
-      },
+      where: { isDeleted: false },
+      orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
+      include: { season: true },
     });
   }
 
   async findOne(id: string) {
     const stage = await this.prisma.stage.findFirst({
-      where: {
-        id,
-        isDeleted: false,
-      },
+      where: { id, isDeleted: false },
       include: {
         season: true,
         stageClasses: {
-          include: {
-            class: {
-              include: {
-                direction: true,
-              },
-            },
-          },
-          orderBy: {
-            class: {
-              sortOrder: 'asc',
-            },
-          },
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          include: { class: { include: { direction: true } } },
         },
       },
     });
+    if (!stage) throw new NotFoundException('Этап не найден');
+    return stage;
+  }
 
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
+  private validateCoordinates(latitude?: number | null, longitude?: number | null) {
+    if (latitude !== undefined && latitude !== null && (latitude < -90 || latitude > 90)) {
+      throw new BadRequestException('Широта должна быть в диапазоне от -90 до 90');
     }
+    if (longitude !== undefined && longitude !== null && (longitude < -180 || longitude > 180)) {
+      throw new BadRequestException('Долгота должна быть в диапазоне от -180 до 180');
+    }
+  }
+
+  private parseDate(value: string, message: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw new BadRequestException(message);
+    return date;
+  }
+
+  private async resolveSeason(dto: CreateStageDto) {
+    if (dto.seasonId) {
+      const season = await this.prisma.season.findUnique({ where: { id: dto.seasonId } });
+      if (!season) throw new NotFoundException('Сезон не найден');
+      return season;
+    }
+
+    if (!dto.seasonYear) throw new BadRequestException('Необходимо указать seasonId или seasonYear');
+
+    const season = await this.prisma.season.findUnique({ where: { year: dto.seasonYear } });
+    if (!season) {
+      throw new NotFoundException('Сезон не найден. Сначала создайте сезон через /seasons');
+    }
+    return season;
+  }
+
+  async create(dto: CreateStageDto, request: AuthenticatedRequest) {
+    const date = this.parseDate(dto.date, 'Некорректная дата этапа');
+    const season = await this.resolveSeason(dto);
+
+    if (dto.stageNumber < 1) throw new BadRequestException('Номер этапа должен быть положительным числом');
+    if (dto.registrationOpen && (dto.status ?? 'DRAFT') !== 'PUBLISHED') {
+      throw new BadRequestException('Открытая регистрация допустима только для опубликованного этапа');
+    }
+    if ((dto.status ?? 'DRAFT') === 'PUBLISHED' && season.status !== 'ACTIVE') {
+      throw new BadRequestException('Нельзя опубликовать этап, пока сезон не активен');
+    }
+    this.validateCoordinates(dto.latitude, dto.longitude);
+
+    const existing = await this.prisma.stage.findUnique({
+      where: { seasonId_stageNumber: { seasonId: season.id, stageNumber: dto.stageNumber } },
+    });
+    if (existing && !existing.isDeleted) {
+      throw new BadRequestException(`Этап №${dto.stageNumber} уже существует в сезоне ${season.year}`);
+    }
+
+    const data = {
+      seasonId: season.id,
+      stageNumber: dto.stageNumber,
+      name: dto.name.trim(),
+      city: dto.city?.trim() || null,
+      date,
+      description: dto.description?.trim() || null,
+      venue: dto.venue?.trim() || null,
+      address: dto.address?.trim() || null,
+      latitude: dto.latitude ?? null,
+      longitude: dto.longitude ?? null,
+      status: dto.status ?? 'DRAFT' as const,
+      registrationOpen: dto.registrationOpen ?? false,
+      registrationStartsAt: dto.registrationStartsAt ? this.parseDate(dto.registrationStartsAt, 'Некорректная дата начала регистрации') : null,
+      registrationEndsAt: dto.registrationEndsAt ? this.parseDate(dto.registrationEndsAt, 'Некорректная дата окончания регистрации') : null,
+      isDeleted: false,
+    };
+
+    if (data.registrationStartsAt && data.registrationEndsAt && data.registrationStartsAt > data.registrationEndsAt) {
+      throw new BadRequestException('Дата начала регистрации не может быть позже даты окончания');
+    }
+
+    const stage = existing
+      ? await this.prisma.stage.update({ where: { id: existing.id }, data, include: { season: true } })
+      : await this.prisma.stage.create({ data, include: { season: true } });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: existing ? 'STAGE_RESTORED' : 'STAGE_CREATED',
+      entity: 'Stage',
+      entityId: stage.id,
+      ipAddress: request.ip,
+      metadata: { seasonId: season.id, stageNumber: stage.stageNumber, status: stage.status },
+    });
 
     return stage;
   }
 
-  async create(dto: CreateStageDto) {
-    const date = new Date(dto.date);
+  async update(id: string, dto: UpdateStageDto, request: AuthenticatedRequest) {
+    const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
 
-    if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException('Некорректная дата этапа');
-    }
+    const hasOperationalFields = ['stageNumber', 'date', 'latitude', 'longitude', 'status', 'registrationOpen', 'registrationStartsAt', 'registrationEndsAt']
+      .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
 
-    if (!Number.isInteger(dto.seasonYear)) {
-      throw new BadRequestException('Некорректный год сезона');
-    }
-
-    if (!Number.isInteger(dto.stageNumber) || dto.stageNumber < 1) {
-      throw new BadRequestException(
-        'Номер этапа должен быть положительным числом',
-      );
-    }
-
-    const season = await this.prisma.season.upsert({
-      where: {
-        year: dto.seasonYear,
-      },
-      update: {
-        ...(dto.seasonName ? { name: dto.seasonName } : {}),
-      },
-      create: {
-        year: dto.seasonYear,
-        name: dto.seasonName ?? `Сезон ${dto.seasonYear}`,
-      },
-    });
-
-    const existingStage = await this.prisma.stage.findUnique({
-      where: {
-        seasonId_stageNumber: {
-          seasonId: season.id,
-          stageNumber: dto.stageNumber,
-        },
-      },
-    });
-
-    if (existingStage) {
-  if (!existingStage.isDeleted) {
-    throw new BadRequestException(
-      `Этап №${dto.stageNumber} уже существует в сезоне ${dto.seasonYear}`,
-    );
-  }
-
-  return this.prisma.stage.update({
-    where: {
-      id: existingStage.id,
-    },
-    data: {
-      name: dto.name,
-      city: dto.city,
-      date,
-      registrationOpen: dto.registrationOpen ?? false,
-      registrationStartsAt: dto.registrationStartsAt
-        ? new Date(dto.registrationStartsAt)
-        : null,
-      registrationEndsAt: dto.registrationEndsAt
-        ? new Date(dto.registrationEndsAt)
-        : null,
-      isDeleted: false,
-    },
-    include: {
-      season: true,
-    },
-  });
-}
-
-    return this.prisma.stage.create({
-      data: {
-        seasonId: season.id,
-        stageNumber: dto.stageNumber,
-        name: dto.name,
-        city: dto.city,
-        date,
-        registrationOpen: dto.registrationOpen ?? false,
-        registrationStartsAt: dto.registrationStartsAt
-          ? new Date(dto.registrationStartsAt)
-          : null,
-        registrationEndsAt: dto.registrationEndsAt
-          ? new Date(dto.registrationEndsAt)
-          : null,
-      },
-      include: {
-        season: true,
-      },
-    });
-  }
-    async update(
-    id: string,
-    dto: {
-      stageNumber?: number;
-      name?: string;
-      city?: string;
-      date?: string;
-      registrationOpen?: boolean;
-      registrationStartsAt?: string | null;
-      registrationEndsAt?: string | null;
-    },
-  ) {
-    const stage = await this.prisma.stage.findFirst({
-      where: {
-        id,
-        isDeleted: false,
-      },
-    });
-
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
-
-    if (
-      dto.stageNumber !== undefined &&
-      (!Number.isInteger(dto.stageNumber) || dto.stageNumber < 1)
-    ) {
-      throw new BadRequestException(
-        'Номер этапа должен быть положительным числом',
-      );
+    if ((stage.status === 'COMPLETED' || stage.status === 'CANCELLED') && hasOperationalFields) {
+      throw new BadRequestException('Завершённый или отменённый этап можно корректировать только по текстовым полям');
     }
 
     if (dto.stageNumber !== undefined && dto.stageNumber !== stage.stageNumber) {
-      const existingStage = await this.prisma.stage.findUnique({
-        where: {
-          seasonId_stageNumber: {
-            seasonId: stage.seasonId,
-            stageNumber: dto.stageNumber,
-          },
-        },
+      const duplicate = await this.prisma.stage.findUnique({
+        where: { seasonId_stageNumber: { seasonId: stage.seasonId, stageNumber: dto.stageNumber } },
       });
-
-      if (existingStage && existingStage.id !== id) {
-        throw new BadRequestException(
-          `Этап №${dto.stageNumber} уже существует в этом сезоне`,
-        );
+      if (duplicate && duplicate.id !== id && !duplicate.isDeleted) {
+        throw new BadRequestException(`Этап №${dto.stageNumber} уже существует в этом сезоне`);
       }
     }
 
-    let parsedDate: Date | undefined;
+    const season = await this.prisma.season.findUnique({ where: { id: stage.seasonId } });
+    if (!season) throw new NotFoundException('Сезон не найден');
 
-    if (dto.date !== undefined) {
-      parsedDate = new Date(dto.date);
-
-      if (Number.isNaN(parsedDate.getTime())) {
-        throw new BadRequestException('Некорректная дата этапа');
-      }
+    if (dto.status === 'PUBLISHED' && season.status !== 'ACTIVE') {
+      throw new BadRequestException('Нельзя опубликовать этап, пока сезон не активен');
+    }
+    if (dto.registrationOpen === true && (dto.status ?? stage.status) !== 'PUBLISHED') {
+      throw new BadRequestException('Открытая регистрация допустима только для опубликованного этапа');
+    }
+    if (dto.status === 'CANCELLED' || dto.status === 'COMPLETED' || dto.status === 'DRAFT') {
+      if (dto.registrationOpen === true) throw new BadRequestException('Для этого статуса регистрация должна быть закрыта');
     }
 
-    let registrationStartsAt: Date | null | undefined;
-    let registrationEndsAt: Date | null | undefined;
+    const parsedDate = dto.date !== undefined ? this.parseDate(dto.date, 'Некорректная дата этапа') : undefined;
+    this.validateCoordinates(dto.latitude, dto.longitude);
 
-    if (dto.registrationStartsAt !== undefined) {
-      if (dto.registrationStartsAt === null) {
-        registrationStartsAt = null;
-      } else {
-        registrationStartsAt = new Date(dto.registrationStartsAt);
+    const starts = dto.registrationStartsAt === undefined
+      ? undefined
+      : dto.registrationStartsAt === null
+        ? null
+        : this.parseDate(dto.registrationStartsAt, 'Некорректная дата начала регистрации');
+    const ends = dto.registrationEndsAt === undefined
+      ? undefined
+      : dto.registrationEndsAt === null
+        ? null
+        : this.parseDate(dto.registrationEndsAt, 'Некорректная дата окончания регистрации');
 
-        if (Number.isNaN(registrationStartsAt.getTime())) {
-          throw new BadRequestException(
-            'Некорректная дата начала регистрации',
-          );
-        }
-      }
+    const effectiveStart = starts === undefined ? stage.registrationStartsAt : starts;
+    const effectiveEnd = ends === undefined ? stage.registrationEndsAt : ends;
+    if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
+      throw new BadRequestException('Дата начала регистрации не может быть позже даты окончания');
     }
 
-    if (dto.registrationEndsAt !== undefined) {
-      if (dto.registrationEndsAt === null) {
-        registrationEndsAt = null;
-      } else {
-        registrationEndsAt = new Date(dto.registrationEndsAt);
+    const data: any = {
+      ...(dto.stageNumber !== undefined ? { stageNumber: dto.stageNumber } : {}),
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
+      ...(dto.date !== undefined ? { date: parsedDate } : {}),
+      ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
+      ...(dto.venue !== undefined ? { venue: dto.venue?.trim() || null } : {}),
+      ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}),
+      ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
+      ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
+      ...(dto.status !== undefined ? { status: dto.status } : {}),
+      ...(dto.registrationOpen !== undefined ? { registrationOpen: dto.registrationOpen } : {}),
+      ...(starts !== undefined ? { registrationStartsAt: starts } : {}),
+      ...(ends !== undefined ? { registrationEndsAt: ends } : {}),
+    };
 
-        if (Number.isNaN(registrationEndsAt.getTime())) {
-          throw new BadRequestException(
-            'Некорректная дата окончания регистрации',
-          );
-        }
-      }
+    if (dto.status === 'CANCELLED' || dto.status === 'COMPLETED' || dto.status === 'DRAFT') {
+      data.registrationOpen = false;
     }
 
-    return this.prisma.stage.update({
-      where: {
-        id,
-      },
-      data: {
-        ...(dto.stageNumber !== undefined
-          ? { stageNumber: dto.stageNumber }
-          : {}),
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.city !== undefined ? { city: dto.city } : {}),
-        ...(parsedDate !== undefined ? { date: parsedDate } : {}),
-        ...(dto.registrationOpen !== undefined
-          ? { registrationOpen: dto.registrationOpen }
-          : {}),
-        ...(registrationStartsAt !== undefined
-          ? { registrationStartsAt }
-          : {}),
-        ...(registrationEndsAt !== undefined
-          ? { registrationEndsAt }
-          : {}),
-      },
-      include: {
-        season: true,
+    const updated = await this.prisma.stage.update({ where: { id }, data, include: { season: true } });
+
+    const changed = Object.keys(data);
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_UPDATED',
+      entity: 'Stage',
+      entityId: id,
+      ipAddress: request.ip,
+      metadata: {
+        changedFields: changed,
       },
     });
+
+    return updated;
   }
-  async remove(id: string) {
-    const stage = await this.prisma.stage.findFirst({
-      where: {
-        id,
-        isDeleted: false,
-      },
+
+  async remove(id: string, request: AuthenticatedRequest) {
+    const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
+
+    const updated = await this.prisma.stage.update({
+      where: { id },
+      data: { isDeleted: true, status: 'CANCELLED', registrationOpen: false },
+      include: { season: true },
     });
 
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
-
-    return this.prisma.stage.update({
-      where: {
-        id,
-      },
-      data: {
-        isDeleted: true,
-        registrationOpen: false,
-      },
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_CANCELLED',
+      entity: 'Stage',
+      entityId: id,
+      ipAddress: request.ip,
+      metadata: { previousStatus: stage.status },
     });
+
+    return updated;
   }
 }

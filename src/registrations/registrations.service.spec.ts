@@ -37,6 +37,7 @@ describe('RegistrationsService', () => {
           .mockResolvedValueOnce({
             id: 'stage-1',
             isDeleted: false,
+            status: 'PUBLISHED',
             registrationOpen: true,
             registrationStartsAt: null,
             registrationEndsAt: null,
@@ -46,6 +47,9 @@ describe('RegistrationsService', () => {
             id: 'stage-1',
             seasonId: 'season-1',
           }),
+      },
+      season: {
+        findUnique: jest.fn().mockResolvedValue({ status: 'ACTIVE' }),
       },
       participant: {
         findUnique: jest
@@ -69,6 +73,9 @@ describe('RegistrationsService', () => {
             class: { directionId: 'direction-1' },
           },
         ]),
+      },
+      registrationClass: {
+        count: jest.fn().mockResolvedValue(0),
       },
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),

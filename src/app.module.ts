@@ -20,6 +20,8 @@ import { ImportsModule } from './imports/imports.module';
 import { DisqualificationsModule } from './disqualifications/disqualifications.module';
 import { ConfigurationsModule } from './configurations/configurations.module';
 import { MediaModule } from './media/media.module';
+import { AuditModule } from './common/audit/audit.module';
+import { SeasonsModule } from './seasons/seasons.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { MediaModule } from './media/media.module';
     DisqualificationsModule,
     ConfigurationsModule,
     MediaModule,
+    AuditModule,
+    SeasonsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
