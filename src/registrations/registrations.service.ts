@@ -143,6 +143,7 @@ export class RegistrationsService {
     participantId: string;
     carId: string;
     classIds: string[];
+    configurationId?: string;
     source?: RegistrationSource;
   }) {
     const {
