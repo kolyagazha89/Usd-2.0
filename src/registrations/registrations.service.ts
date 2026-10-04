@@ -168,7 +168,7 @@ export class RegistrationsService {
       participantId: string;
       carId: string;
       classIds: string[];
-      configurationVersionId?: string;
+      configurationVersionId: string;
       source?: RegistrationSource;
     },
   ) {
