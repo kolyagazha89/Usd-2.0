@@ -184,6 +184,35 @@ describe('RecordsService', () => {
     });
   });
 
+  it('does not create records for BassRace classes', async () => {
+    const tx = setupRecalc([
+      result('bassrace', 159.9, '2026-05-01T10:00:00.000Z'),
+    ]);
+    tx.class.findUnique.mockResolvedValue({
+      id: 'class-1',
+      name: '159.9',
+      unit: 'DB',
+      direction: { name: 'BassRace' },
+    });
+
+    const records = await service.recalculateCurrentRecord('class-1');
+
+    expect(records).toEqual([]);
+    expect(tx.record.updateMany).toHaveBeenCalledWith({
+      where: { classId: 'class-1', isCurrent: true },
+      data: { isCurrent: false },
+    });
+    expect(tx.result.updateMany).toHaveBeenCalledWith({
+      where: {
+        registrationClass: { classId: 'class-1' },
+        isBest: true,
+      },
+      data: { isBest: false },
+    });
+    expect(tx.result.findMany).not.toHaveBeenCalled();
+    expect(tx.record.create).not.toHaveBeenCalled();
+  });
+
   it('does not expose car registration number in public records', () => {
     const includeText = JSON.stringify(service['publicInclude']);
     expect(includeText).not.toContain('registrationNumber');
