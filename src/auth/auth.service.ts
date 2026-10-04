@@ -66,13 +66,9 @@ export class AuthService {
   async register(
     email: string,
     password: string,
-    name: string,
   ) {
     const normalizedEmail =
       email.trim().toLowerCase();
-
-    const normalizedName =
-      name.trim();
 
     if (!normalizedEmail) {
       throw new BadRequestException(
@@ -83,12 +79,6 @@ export class AuthService {
     if (normalizedPasswordInvalid(password)) {
       throw new BadRequestException(
         'Пароль должен содержать минимум 8 символов',
-      );
-    }
-
-    if (!normalizedName) {
-      throw new BadRequestException(
-        'Имя обязательно',
       );
     }
 
@@ -113,7 +103,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           passwordHash,
-          name: normalizedName,
+          name: null,
           role: 'PARTICIPANT',
           isActive: true,
         },
@@ -506,6 +496,99 @@ export class AuthService {
         participantId: result.participantId,
       },
     };
+  }
+
+  async listMySessions(userId: string) {
+    return this.prisma.refreshSession.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        familyId: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        updatedAt: true,
+        expiresAt: true,
+      },
+    });
+  }
+
+  async revokeMySession(userId: string, sessionId: string) {
+    const result = await this.prisma.refreshSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    if (result.count !== 1) {
+      throw new BadRequestException('Сессия не найдена или уже завершена');
+    }
+
+    return { success: true };
+  }
+
+  async revokeAllMySessions(userId: string) {
+    const result = await this.prisma.refreshSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { success: true, revoked: result.count };
+  }
+
+  async listUserSessions(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Пользователь не найден');
+    }
+
+    return this.prisma.refreshSession.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        familyId: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        updatedAt: true,
+        expiresAt: true,
+      },
+    });
+  }
+
+  async revokeUserSession(userId: string, sessionId: string) {
+    const result = await this.prisma.refreshSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    if (result.count !== 1) {
+      throw new BadRequestException('Сессия не найдена или уже завершена');
+    }
+
+    return { success: true };
+  }
+
+  async revokeAllUserSessions(userId: string) {
+    const result = await this.prisma.refreshSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { success: true, revoked: result.count };
   }
 
   async logout(
