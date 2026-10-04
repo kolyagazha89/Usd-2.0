@@ -8,6 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { Roles } from '../auth/roles.decorator';
 import { InspectionsService } from './inspections.service';
 
 @Controller('inspections')
@@ -26,6 +27,7 @@ export class InspectionsController {
     return this.inspectionsService.findByRegistration(registrationId);
   }
 
+  @Roles('ADMIN', 'JUDGE')
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
@@ -38,6 +40,7 @@ export class InspectionsController {
     return this.inspectionsService.create({ ...body, checkedByUserId: request.user.sub });
   }
 
+  @Roles('ADMIN', 'JUDGE')
   @Patch(':id')
   update(
     @Param('id') id: string,
