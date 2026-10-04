@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 
 import type { Request, Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
@@ -82,6 +83,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('register')
   async register(
     @Body()
@@ -94,6 +96,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('verify-email')
   async verifyEmail(
     @Body()
@@ -105,6 +108,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('resend-verification')
   async resendVerificationEmail(
     @Body()
@@ -116,6 +120,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('login')
   async login(
     @Body()
@@ -146,6 +151,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('refresh')
   async refresh(
     @Req() request: Request,
@@ -223,6 +229,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('forgot-password')
   async forgotPassword(
     @Body()
@@ -234,6 +241,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('reset-password')
   async resetPassword(
     @Body()
