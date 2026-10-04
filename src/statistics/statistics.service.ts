@@ -1139,8 +1139,11 @@ export class StatisticsService {
           },
         },
       }),
-      this.prisma.inspection.count({
-        where: { status: 'PENDING' },
+      this.prisma.registration.count({
+        where: {
+          status: 'ACTIVE',
+          inspection: null,
+        },
       }),
       this.prisma.inspection.count({
         where: { status: 'FAILED' },
