@@ -29,7 +29,14 @@ describe('RecordsService', () => {
         }),
       },
       result: {
-        findMany: jest.fn().mockResolvedValue(results),
+        findMany: jest.fn().mockResolvedValue(
+          [...results].sort((a, b) =>
+            Number(b.value) - Number(a.value) ||
+            a.registration.stage.date.getTime() - b.registration.stage.date.getTime() ||
+            a.createdAt.getTime() - b.createdAt.getTime() ||
+            a.id.localeCompare(b.id),
+          ),
+        ),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         update: jest.fn().mockResolvedValue({}),
       },
