@@ -577,6 +577,11 @@ export class StatisticsService {
             stageId: true,
             carId: true,
             registeredAt: true,
+            inspection: {
+              select: {
+                status: true,
+              },
+            },
           },
         }),
         this.loadResults({
