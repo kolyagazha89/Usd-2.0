@@ -1,11 +1,12 @@
 import {
   Body,
-  Req,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
@@ -17,34 +18,48 @@ import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
+  @Get('registration/:registrationId')
+  findByRegistration(@Param('registrationId') registrationId: string) {
+    return this.inspectionsService.findByRegistration(registrationId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.inspectionsService.findOne(id);
   }
 
-  @Get('registration/:registrationId')
-  findByRegistration(
-    @Param('registrationId') registrationId: string,
-  ) {
-    return this.inspectionsService.findByRegistration(registrationId);
-  }
-
-  @Roles('ADMIN', 'JUDGE')
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
     @Body() body: CreateInspectionDto,
   ) {
-    return this.inspectionsService.create({ ...body, checkedByUserId: request.user.sub });
+    return this.inspectionsService.create(body, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
   }
 
-  @Roles('ADMIN', 'JUDGE')
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Req() request: AuthenticatedRequest,
     @Body() body: UpdateInspectionDto,
   ) {
-    return this.inspectionsService.update(id, { ...body, checkedByUserId: request.user.sub });
+    return this.inspectionsService.update(id, body, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
+  @Roles('ADMIN')
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.inspectionsService.remove(id, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
   }
 }
