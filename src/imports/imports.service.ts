@@ -4767,8 +4767,9 @@ export class ImportsService {
           let resultId: string;
 
           if (existingResult) {
-            resultId =
-              existingResult.id;
+            throw new BadRequestException(
+              `Для регистрации ${registrationId} и класса ${classId} результат уже существует; импорт не может молча переиспользовать существующий результат`,
+            );
           } else {
             const result =
               await tx.result.create({
