@@ -13,6 +13,7 @@ type Bucket = {
 export class SecurityMiddleware implements NestMiddleware {
   private readonly buckets = new Map<string, Bucket>();
   private lastCleanupAt = 0;
+  private readonly maxBuckets = 50_000;
 
   use(request: Request, response: Response, next: NextFunction) {
     const now = Date.now();
@@ -37,6 +38,10 @@ export class SecurityMiddleware implements NestMiddleware {
 
     const key = `${ip}:${isSensitiveAuthRoute ? 'auth-sensitive' : isAuthRoute ? 'auth' : 'global'}`;
     const bucket = this.buckets.get(key);
+
+    if (!bucket && this.buckets.size >= this.maxBuckets) {
+      this.evictOldestBucket(now);
+    }
 
     if (!bucket || bucket.resetAt <= now) {
       this.buckets.set(key, {
@@ -82,6 +87,26 @@ export class SecurityMiddleware implements NestMiddleware {
     response.setHeader('X-RateLimit-Limit', limit);
     response.setHeader('X-RateLimit-Remaining', remaining);
     response.setHeader('X-RateLimit-Reset', Math.ceil(resetAt / 1000));
+  }
+
+  private evictOldestBucket(now: number) {
+    let oldestKey: string | undefined;
+    let oldestResetAt = Number.POSITIVE_INFINITY;
+
+    for (const [key, bucket] of this.buckets) {
+      if (bucket.resetAt <= now) {
+        this.buckets.delete(key);
+        return;
+      }
+      if (bucket.resetAt < oldestResetAt) {
+        oldestResetAt = bucket.resetAt;
+        oldestKey = key;
+      }
+    }
+
+    if (oldestKey) {
+      this.buckets.delete(oldestKey);
+    }
   }
 
   private cleanup(now: number) {
