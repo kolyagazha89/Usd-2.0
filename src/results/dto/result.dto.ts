@@ -1,10 +1,4 @@
-import { IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
-
-enum ResultUnitDto {
-  DB = 'DB',
-  MPS = 'MPS',
-  OTHER = 'OTHER',
-}
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateResultDto {
   @IsUUID()
@@ -16,8 +10,8 @@ export class CreateResultDto {
   @IsNumber({ maxDecimalPlaces: 4 })
   value!: number;
 
-  @IsEnum(ResultUnitDto)
-  unit!: ResultUnitDto;
+  @IsIn(['DB', 'MPS', 'OTHER'])
+  unit!: 'DB' | 'MPS' | 'OTHER';
 
   @IsOptional()
   @IsInt()
@@ -37,8 +31,8 @@ export class UpdateResultDto {
   value?: number;
 
   @IsOptional()
-  @IsEnum(ResultUnitDto)
-  unit?: ResultUnitDto;
+  @IsIn(['DB', 'MPS', 'OTHER'])
+  unit?: 'DB' | 'MPS' | 'OTHER';
 
   @IsOptional()
   @IsInt()
