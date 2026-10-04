@@ -38,7 +38,7 @@ function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div class
 
 function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
  const visible=useMemo(()=>nav.filter(n=>n.roles.includes(user.role)),[user.role]),active=visible.find(n=>path===n.path||(n.path!=='/admin'&&path.startsWith(n.path)));
- return <div className="app-shell"><aside className={`sidebar ${mobileOpen?'open':''}`}><div className="sidebar-top"><button className="brand-button" onClick={()=>go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button><button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)}><X size={19}/></button></div><div className="sidebar-label">Управление</div><nav>{visible.map(n=>{const I=n.icon;return <button key={n.path} className={`nav-item ${active?.path===n.path?'active':''}`} onClick={()=>go(n.path)}><I size={18}/><span>{n.label}</span>{active?.path===n.path&&<span className="nav-dot"/>}</button>})}</nav><div className="sidebar-bottom"><div className="user-mini"><div className="avatar">{(user.name??user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name||'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div><button className="logout-button" onClick={()=>void onLogout()}><LogOut size={17}/>Выйти</button></div></aside>{mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)}/>}<main className="main"><header className="topbar"><button className="icon-button menu-button" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label??'Панель'}</strong></div><div className="topbar-actions"><div className="role-pill">{user.role==='JUDGE'?'JUDGE MODE':'ADMIN MODE'}</div></div></header><div className="content"><Page path={path} go={go} user={user}/></div></main></div>
+ return <div className="app-shell"><aside className={`sidebar ${mobileOpen?'open':''}`}><div className="sidebar-top"><button className="brand-button" onClick={()=>go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button><button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)}><X size={19}/></button></div><div className="sidebar-label">Управление</div><nav>{visible.map(n=>{const I=n.icon;return <button key={n.path} className={`nav-item ${active?.path===n.path?'active':''}`} onClick={()=>go(n.path)}><I size={18}/><span>{n.label}</span>{active?.path===n.path&&<span className="nav-dot"/>}</button>})}</nav><div className="sidebar-bottom"><div className="user-mini"><div className="avatar">{(user.name??user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name||'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div><button className="logout-button" onClick={()=>void onLogout()}><LogOut size={17}/>Выйти</button></div></aside>{mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)}/>}<main className="main"><header className="topbar"><button className="icon-button menu-button" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label??'Панель'}</strong></div><div className="topbar-actions"><div className="field-status"><span className="field-status-dot"/>ПОЛЕВОЙ РЕЖИМ</div><div className="role-pill">{user.role==='JUDGE'?'JUDGE':'ADMIN'}</div><button className="topbar-refresh" title="Обновить страницу" onClick={()=>window.location.reload()}><RefreshCw size={16}/></button></div></header><div className="content"><Page path={path} go={go} user={user}/></div></main></div>
 }
 
 function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
@@ -93,12 +93,19 @@ function DashboardPage({go}:{go:(p:string)=>void}){
     </button>
    </div>
   </section>
-  <section className="panel dashboard-info">
-   <PanelTitle title="Состояние системы" icon={Activity}/>
-   <div className="dashboard-info-grid">
-    <button onClick={()=>go('/admin/stages')}><span>Открытые этапы</span><strong>{data.attention.openStages}</strong></button>
-    <button onClick={()=>go('/admin/inspections')}><span>Без инспекции</span><strong>{data.attention.pendingInspections}</strong></button>
-    <button onClick={()=>go('/admin/results')}><span>Результаты сегодня</span><strong>{data.attention.resultsToday}</strong></button>
+  <section className="race-command-grid">
+   <button className="race-command primary" onClick={()=>go('/admin/inspections')}>
+    <div className="race-command-icon"><ShieldAlert size={24}/></div>
+    <div><span>ГЛАВНАЯ ЗАДАЧА НА ЭТАПЕ</span><strong>Инспекция въезда</strong><small>{data.attention.pendingInspections} участников ожидают проверки</small></div>
+    <ChevronRight size={22}/>
+   </button>
+   <div className="panel dashboard-info">
+    <PanelTitle title="Состояние системы" icon={Activity}/>
+    <div className="dashboard-info-grid">
+     <button onClick={()=>go('/admin/stages')}><span>Открытые этапы</span><strong>{data.attention.openStages}</strong></button>
+     <button onClick={()=>go('/admin/inspections')}><span>Без инспекции</span><strong>{data.attention.pendingInspections}</strong></button>
+     <button onClick={()=>go('/admin/results')}><span>Результаты сегодня</span><strong>{data.attention.resultsToday}</strong></button>
+    </div>
    </div>
   </section>
  </PageFrame>
@@ -229,9 +236,9 @@ function EntryInspection({stageId,user}:{stageId:string;user:User}){
    <div className="inspection-stat bad"><strong>{failed}</strong><span>не прошли</span></div>
    <div className="inspection-stat pending"><strong>{pending}</strong><span>ожидают</span></div>
   </div>
-  <div className="toolbar">
-   <div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="№, участник, автомобиль, госномер, класс"/></div>
-   <button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>
+  <div className="inspection-toolbar">
+   <div className="search-box"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по №, участнику, автомобилю, госномеру или классу"/></div>
+   <button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={15}/>Обновить</button>
    <span className="row-count">{filtered.length} из {rows.length}</span>
   </div>
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
