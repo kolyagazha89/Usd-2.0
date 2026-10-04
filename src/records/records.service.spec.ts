@@ -117,7 +117,7 @@ describe('RecordsService', () => {
     expect(tx.record.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          resultId: 'result-2',
+          resultId: '2',
           value: 155,
           isCurrent: true,
         }),
