@@ -19,7 +19,7 @@ export class MediaService {
     if (!endpoint || !bucket || !accessKey || !secretKey) {
       throw new ServiceUnavailableException('S3-хранилище не настроено');
     }
-    return { endpoint: endpoint.replace(/\/$//, ''), region, bucket, accessKey, secretKey };
+    return { endpoint: endpoint.replace(/\/$/, ''), region, bucket, accessKey, secretKey };
   }
 
   private hashToken(value: string) {
@@ -84,7 +84,7 @@ export class MediaService {
 
   private publicUrl(key: string) {
     const cfg = this.config();
-    const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$//, '');
+    const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
     if (base) return `${base}/${key.split('/').map((p) => encodeURIComponent(p)).join('/')}`;
     const url = new URL(cfg.endpoint);
     if (process.env.S3_FORCE_PATH_STYLE === 'true') {
