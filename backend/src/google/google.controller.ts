@@ -11,7 +11,7 @@ import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
 import { Public } from '../auth/public.decorator';
 
-function requireAdmin(req: Request): { id: string } {
+function requireAdmin(req: Request): { sub: string } {
   const user = (req as any).user;
   if (!user || user.role !== 'ADMIN') {
     throw new UnauthorizedException('Требуются права администратора');
@@ -32,7 +32,7 @@ export class GoogleController {
   @Get('connect')
   async connect(@Req() req: Request) {
     const user = requireAdmin(req);
-    return { success: true, authorizationUrl: await this.google.createAuthorizationUrl(user.id) };
+    return { success: true, authorizationUrl: await this.google.createAuthorizationUrl(user.sub) };
   }
 
   @Public()
