@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { Prisma } from '../generated/prisma/client';
+import { RegistrationCountry } from '../generated/prisma/enums';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 type ImportRow = Record<string, unknown>;
@@ -2865,7 +2866,7 @@ export class ImportsService {
               .slice(0, 8)
               .toUpperCase()}`,
           registrationCountry:
-            this.stringValue(row.registrationCountry) || 'RU',
+            (this.stringValue(row.registrationCountry) as RegistrationCountry) || RegistrationCountry.RU,
           isActive: true,
           isPublic: false,
         },
