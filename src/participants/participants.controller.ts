@@ -12,6 +12,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Public } from '../auth/public.decorator';
 import { ParticipantsService } from './participants.service';
+import { Roles } from '../auth/roles.decorator';
 
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
@@ -36,6 +37,7 @@ export class ParticipantsController {
   // CURRENT PARTICIPANT
   // =========================================================
 
+  @Roles('PARTICIPANT')
   @Get('participants/me')
   findMe(
     @Req() request: AuthenticatedRequest,
@@ -43,6 +45,7 @@ export class ParticipantsController {
     return this.participantsService.findMe(request);
   }
 
+  @Roles('PARTICIPANT')
   @Post('participants/me')
   createMe(
     @Req() request: AuthenticatedRequest,
@@ -65,6 +68,7 @@ export class ParticipantsController {
     );
   }
 
+  @Roles('PARTICIPANT')
   @Patch('participants/me')
   updateMe(
     @Req() request: AuthenticatedRequest,
@@ -91,6 +95,7 @@ export class ParticipantsController {
   // ALL CARS — ADMIN / JUDGE
   // =========================================================
 
+  @Roles('ADMIN', 'JUDGE')
   @Get('cars')
   findAllCars(
     @Req() request: AuthenticatedRequest,
@@ -102,6 +107,7 @@ export class ParticipantsController {
   // CURRENT PARTICIPANT CARS
   // =========================================================
 
+  @Roles('PARTICIPANT')
   @Get('participants/me/cars')
   findMyCars(
     @Req() request: AuthenticatedRequest,
@@ -109,6 +115,7 @@ export class ParticipantsController {
     return this.participantsService.findMyCars(request);
   }
 
+  @Roles('PARTICIPANT')
   @Post('participants/me/cars')
   createMyCar(
     @Req() request: AuthenticatedRequest,
@@ -136,6 +143,7 @@ export class ParticipantsController {
   // ADMIN PARTICIPANTS
   // =========================================================
 
+  @Roles('ADMIN')
   @Post('participants')
   createParticipant(
     @Req() request: AuthenticatedRequest,
@@ -158,6 +166,7 @@ export class ParticipantsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Patch('participants/:id')
   updateParticipant(
     @Req() request: AuthenticatedRequest,
@@ -182,6 +191,7 @@ export class ParticipantsController {
     );
   }
 
+  @Roles('ADMIN')
   @Delete('participants/:id')
   removeParticipant(
     @Req() request: AuthenticatedRequest,
@@ -197,6 +207,7 @@ export class ParticipantsController {
   // PARTICIPANT CARS — ADMIN / JUDGE
   // =========================================================
 
+  @Roles('ADMIN', 'JUDGE')
   @Get('participants/:participantId/cars')
   findCars(
     @Req() request: AuthenticatedRequest,
@@ -208,6 +219,7 @@ export class ParticipantsController {
     );
   }
 
+  @Roles('ADMIN')
   @Post('participants/:participantId/cars')
   createCar(
     @Req() request: AuthenticatedRequest,
@@ -232,6 +244,7 @@ export class ParticipantsController {
     return this.participantsService.findCar(id);
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Patch('cars/:id')
   updateCar(
     @Req() request: AuthenticatedRequest,
@@ -245,6 +258,7 @@ export class ParticipantsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Delete('cars/:id')
   removeCar(
     @Req() request: AuthenticatedRequest,
