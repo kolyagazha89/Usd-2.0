@@ -14,7 +14,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { ChangeEmailDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AdminCreateUserDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -206,6 +206,27 @@ export class AuthController {
     };
   }
 
+  @Post('change-password')
+  async changePassword(
+    @Req() request: Request,
+    @Body() body: ChangePasswordDto,
+  ) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.changePassword(
+      userId,
+      body.currentPassword,
+      body.newPassword,
+    );
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/users')
+  async adminListUsers(
+    @Param('search') _unused?: string,
+  ) {
+    return this.authService.adminListUsers();
+  }
+
   @Get('sessions')
   async listSessions(@Req() request: Request) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
@@ -225,6 +246,50 @@ export class AuthController {
   async revokeAllSessions(@Req() request: Request) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
     return this.authService.revokeAllMySessions(userId);
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/users/:userId')
+  async adminGetUser(@Param('userId') userId: string) {
+    return this.authService.adminGetUser(userId);
+  }
+
+  @Roles('ADMIN')
+  @Post('admin/users')
+  async adminCreateUser(
+    @Req() request: Request,
+    @Body() body: AdminCreateUserDto,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminCreateUser(
+      body.email,
+      body.password,
+      body.role,
+      actor,
+      request.ip,
+    );
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/users/:userId/active')
+  async adminSetActive(
+    @Req() request: Request,
+    @Param('userId') userId: string,
+    @Body('active') active: boolean,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminSetActive(userId, active, actor, request.ip);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/users/:userId/role')
+  async adminSetRole(
+    @Req() request: Request,
+    @Param('userId') userId: string,
+    @Body('role') role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminSetRole(userId, role, actor, request.ip);
   }
 
   @Roles('ADMIN')
