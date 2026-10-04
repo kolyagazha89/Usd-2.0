@@ -7,6 +7,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordsService } from '../records/records.service';
+import { ResultsRankingService } from '../results/results-ranking.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type {
   CreateHistoricalResultDto,
@@ -18,6 +19,7 @@ export class HistoricalResultsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly recordsService: RecordsService,
+    private readonly rankingService: ResultsRankingService,
   ) {}
 
   private validateValue(value: number) {
@@ -354,6 +356,10 @@ export class HistoricalResultsService {
     }, { isolationLevel: 'Serializable' });
 
     await this.recordsService.createFromResultIfEligible(result.id);
+    await this.rankingService.recalculateByStageClass(
+      result.registration.stageId,
+      result.registrationClass.classId,
+    );
     return this.findOneAdmin(result.id);
   }
 
@@ -420,6 +426,14 @@ export class HistoricalResultsService {
     }, { isolationLevel: 'Serializable' });
 
     await this.recordsService.syncAfterResultUpdate(id);
+    const refreshed = await this.prisma.result.findUniqueOrThrow({
+      where: { id },
+      select: { registration: { select: { stageId: true } }, registrationClass: { select: { classId: true } } },
+    });
+    await this.rankingService.recalculateByStageClass(
+      refreshed.registration.stageId,
+      refreshed.registrationClass.classId,
+    );
     return this.findOneAdmin(id);
   }
 }
