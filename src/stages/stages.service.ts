@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
-import type { CreateStageDto, UpdateStageDto, StageStatusDto } from './dto/stage.dto';
+import type { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 
 @Injectable()
 export class StagesService {
@@ -130,8 +130,6 @@ export class StagesService {
     const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
     if (!stage) throw new NotFoundException('Этап не найден');
 
-    const hasTextFields = ['name', 'city', 'description', 'venue', 'address']
-      .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
     const hasOperationalFields = ['stageNumber', 'date', 'latitude', 'longitude', 'status', 'registrationOpen', 'registrationStartsAt', 'registrationEndsAt']
       .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
 
