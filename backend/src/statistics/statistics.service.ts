@@ -1076,10 +1076,61 @@ export class StatisticsService {
   async getDashboard() {
     const now = new Date();
 
+    const currentStage = await this.prisma.stage.findFirst({
+      where: {
+        isDeleted: false,
+        status: 'PUBLISHED',
+        date: { lte: now },
+      },
+      orderBy: { date: 'desc' },
+      select: {
+        id: true,
+        stageNumber: true,
+        name: true,
+        city: true,
+        date: true,
+        registrationOpen: true,
+        status: true,
+        season: {
+          select: {
+            id: true,
+            name: true,
+            year: true,
+          },
+        },
+      },
+    });
+
+    const nextStage = currentStage
+      ? currentStage
+      : await this.prisma.stage.findFirst({
+          where: {
+            isDeleted: false,
+            date: { gt: now },
+            status: { not: 'CANCELLED' },
+          },
+          orderBy: { date: 'asc' },
+          select: {
+            id: true,
+            stageNumber: true,
+            name: true,
+            city: true,
+            date: true,
+            registrationOpen: true,
+            status: true,
+            season: {
+              select: {
+                id: true,
+                name: true,
+                year: true,
+              },
+            },
+          },
+        });
+
     const [
       overview,
       openStages,
-      currentStage,
       upcomingStages,
       recentStages,
       activeRegistrationStats,
@@ -1094,30 +1145,6 @@ export class StatisticsService {
         where: {
           isDeleted: false,
           registrationOpen: true,
-        },
-      }),
-      this.prisma.stage.findFirst({
-        where: {
-          isDeleted: false,
-          status: 'PUBLISHED',
-          date: { lte: now },
-        },
-        orderBy: { date: 'desc' },
-        select: {
-          id: true,
-          stageNumber: true,
-          name: true,
-          city: true,
-          date: true,
-          registrationOpen: true,
-          status: true,
-          season: {
-            select: {
-              id: true,
-              name: true,
-              year: true,
-            },
-          },
         },
       }),
       this.prisma.stage.findMany({
@@ -1167,7 +1194,10 @@ export class StatisticsService {
         },
       }),
       this.prisma.registration.findMany({
-        where: { status: 'ACTIVE' },
+        where: {
+          status: 'ACTIVE',
+          ...(nextStage ? { stageId: nextStage.id } : {}),
+        },
         select: { participantId: true, carId: true },
       }),
       this.prisma.registration.count({
@@ -1199,7 +1229,7 @@ export class StatisticsService {
       success: true,
       generatedAt: now,
       overview,
-      currentStage,
+      currentStage: nextStage,
       attention: {
         openStages,
         pendingInspections,
