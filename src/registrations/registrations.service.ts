@@ -451,6 +451,7 @@ export class RegistrationsService {
               classId: {
                 in: classIds,
               },
+              isActive: true,
               class: {
                 isActive: true,
                 direction: {
@@ -460,6 +461,7 @@ export class RegistrationsService {
             },
             select: {
               classId: true,
+              participantLimit: true,
               class: {
                 select: {
                   directionId: true,
