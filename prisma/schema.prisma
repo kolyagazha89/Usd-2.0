@@ -29,6 +29,7 @@ model User {
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
   resultsCreated           Result[]             @relation("ResultCreatedBy")
+  resultsVerified          Result[]             @relation("ResultVerifiedBy")
   participant              Participant?             @relation(fields: [participantId], references: [id])
 
   @@index([role])
@@ -460,15 +461,23 @@ model Result {
   isBest              Boolean           @default(false)
   notes               String?
   createdByUserId     String?
+  isHistorical        Boolean           @default(false)
+  verificationStatus  ResultVerificationStatus @default(NOT_REQUIRED)
+  verifiedByUserId    String?
+  verifiedAt          DateTime?         @db.Timestamptz(3)
   createdAt           DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
   records             Record[]
   registrationClass   RegistrationClass @relation(fields: [registrationClassId], references: [id], onDelete: Cascade)
   registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   createdByUser       User?             @relation("ResultCreatedBy", fields: [createdByUserId], references: [id])
+  verifiedByUser      User?             @relation("ResultVerifiedBy", fields: [verifiedByUserId], references: [id])
 
   @@unique([registrationClassId])
   @@index([createdByUserId])
+  @@index([verifiedByUserId])
+  @@index([verificationStatus])
+  @@index([isHistorical])
   @@index([registrationId])
   @@index([registrationClassId])
   @@index([place])
@@ -653,6 +662,12 @@ enum ResultUnit {
   DB
   MPS
   OTHER
+}
+
+enum ResultVerificationStatus {
+  NOT_REQUIRED
+  PENDING
+  VERIFIED
 }
 
 enum ImportJobStatus {
