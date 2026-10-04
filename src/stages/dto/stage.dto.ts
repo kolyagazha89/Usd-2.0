@@ -34,10 +34,11 @@ export class CreateStageDto {
   @IsDateString()
   registrationEndsAt?: string;
 
+  @IsOptional()
   @IsInt()
   @Min(2000)
   @Max(3000)
-  seasonYear!: number;
+  seasonYear?: number;
 
   @IsOptional()
   @IsString()
