@@ -1,5 +1,5 @@
 ALTER TABLE "Result"
-  DROP CONSTRAINT IF EXISTS "Result_registrationClassId_attemptNumber_key";
+  DROP INDEX IF EXISTS "Result_registrationClassId_attemptNumber_key";
 
 ALTER TABLE "Result"
   DROP COLUMN IF EXISTS "attemptNumber";
