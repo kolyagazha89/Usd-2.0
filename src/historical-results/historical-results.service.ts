@@ -225,8 +225,12 @@ export class HistoricalResultsService {
             source: 'IMPORT',
             status: 'ACTIVE',
           },
-          select: { id: true, participantId: true, status: true, configurationVersionId: true, configurationSnapshot: true },
+          select: { id: true, participantId: true, participantNumber: true, status: true, configurationVersionId: true, configurationSnapshot: true },
         });
+
+        if (!registration) {
+          throw new ConflictException('Не удалось создать архивную регистрацию');
+        }
 
         await tx.inspection.create({
           data: {
