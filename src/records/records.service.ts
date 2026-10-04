@@ -184,6 +184,35 @@ export class RecordsService {
       throw new NotFoundException('Класс не найден');
     }
 
+    // BassRace classes have ordinary results, but USD does not maintain
+    // all-time records for them.
+    const classWithDirection = await tx.class.findUnique({
+      where: { id: classId },
+      include: { direction: true },
+    });
+
+    if (
+      classWithDirection?.direction?.name?.trim().toLowerCase() === 'bassrace'
+      || classWithDirection?.direction?.code?.trim().toLowerCase() === 'bassrace'
+      || classWithDirection?.code?.trim().toLowerCase().startsWith('bassrace')
+      || classWithDirection?.name?.trim().toLowerCase().startsWith('bassrace')
+    ) {
+      await tx.record.updateMany({
+        where: { classId, isCurrent: true },
+        data: { isCurrent: false },
+      });
+
+      await tx.result.updateMany({
+        where: {
+          registrationClass: { classId },
+          isBest: true,
+        },
+        data: { isBest: false },
+      });
+
+      return [];
+    }
+
     const results = await tx.result.findMany({
       where: {
         registrationClass: {
