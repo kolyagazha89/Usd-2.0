@@ -564,8 +564,8 @@ export class ParticipantsService {
             id: user.id,
           },
           data: {
-            participantId:
-              participant.id,
+            participantId: participant.id,
+            name: `${firstName} ${lastName}`,
           },
         });
 
@@ -829,16 +829,24 @@ export class ParticipantsService {
       data.isPublic = body.isPublic;
     }
 
-    return this.getPrivateParticipant(
-      (
-        await this.prisma.participant.update({
-          where: {
-            id,
-          },
-          data,
-        })
-      ).id,
-    );
+    const updated =
+      await this.prisma.participant.update({
+        where: {
+          id,
+        },
+        data,
+      });
+
+    await this.prisma.user.updateMany({
+      where: {
+        participantId: id,
+      },
+      data: {
+        name: `${updated.firstName} ${updated.lastName}`,
+      },
+    });
+
+    return this.getPrivateParticipant(updated.id);
   }
 
   // =========================================================
