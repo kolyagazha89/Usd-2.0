@@ -56,6 +56,13 @@ export class StatisticsController {
     return this.statisticsService.getClass(classId);
   }
 
+  @Get('cars/:carId')
+  getCar(
+    @Param('carId') carId: string,
+  ) {
+    return this.statisticsService.getCar(carId);
+  }
+
   @Get('seasons/:seasonId')
   getSeason(
     @Param('seasonId') seasonId: string,
