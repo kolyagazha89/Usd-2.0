@@ -29,6 +29,8 @@ model User {
   inspectionsCreated       Inspection[]             @relation("InspectionCreatedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
+  googleOAuthStates        GoogleOAuthState[]
+  googleConnections        GoogleConnection[] @relation("GoogleConnectionConnectedBy")
   resultsCreated           Result[]             @relation("ResultCreatedBy")
   resultsVerified          Result[]             @relation("ResultVerifiedBy")
   participant              Participant?             @relation(fields: [participantId], references: [id])
@@ -723,4 +725,27 @@ enum RegistrationCountry {
   MN
   KP
   US
+}
+
+model GoogleConnection {
+  id                  String   @id
+  email               String
+  refreshTokenEncrypted String
+  connectedByUserId   String
+  connectedAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+  connectedByUser     User     @relation("GoogleConnectionConnectedBy", fields: [connectedByUserId], references: [id])
+}
+
+model GoogleOAuthState {
+  id        String   @id @default(uuid())
+  stateHash String   @unique
+  userId    String
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
 }
