@@ -104,13 +104,13 @@ describe('RecordsService', () => {
 
     expect(records).toHaveLength(1);
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-2' },
+      where: { id: '2' },
       data: { isBest: true },
     });
     expect(tx.record.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          resultId: 'result-2',
+          resultId: '2',
           value: 155,
           isCurrent: true,
         }),
@@ -127,7 +127,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-earlier' },
+      where: { id: 'earlier' },
       data: { isBest: true },
     });
   });
@@ -135,7 +135,7 @@ describe('RecordsService', () => {
   it('preserves an old record when a new record takes over', async () => {
     const old = {
       id: 'old-record',
-      resultId: 'result-old',
+      resultId: 'old',
       isCurrent: true,
     };
     const tx = setupRecalc([
@@ -150,7 +150,7 @@ describe('RecordsService', () => {
       data: { isCurrent: false },
     });
     expect(tx.record.create).toHaveBeenCalled();
-    expect(tx.record.create.mock.calls[0][0].data.resultId).toBe('result-new');
+    expect(tx.record.create.mock.calls[0][0].data.resultId).toBe('new');
   });
 
   it('excludes an actively disqualified result and recalculates the next record', async () => {
@@ -165,7 +165,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-good' },
+      where: { id: 'good' },
       data: { isBest: true },
     });
   });
@@ -179,7 +179,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-imported' },
+      where: { id: 'imported' },
       data: { isBest: true },
     });
   });
