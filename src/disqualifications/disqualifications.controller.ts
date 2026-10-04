@@ -14,6 +14,7 @@ import { DisqualificationsService } from './disqualifications.service';
 import { Roles } from '../auth/roles.decorator';
 
 @Controller('disqualifications')
+@Roles('ADMIN', 'JUDGE')
 export class DisqualificationsController {
   constructor(
     private readonly disqualificationsService: DisqualificationsService,
