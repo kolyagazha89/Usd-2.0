@@ -69,3 +69,8 @@ The API implements:
 ## Important limitation
 
 NestJS application controls cannot stop a large volumetric DDoS before traffic reaches the origin. Cloudflare/WAF and network-level controls are therefore mandatory for production.
+
+
+## Final release gate
+
+Production release is blocked until CI passes build, lint, unit tests, E2E tests, and the high-severity dependency audit. The API origin must remain behind Cloudflare/WAF and the PostgreSQL origin must not be publicly reachable.
