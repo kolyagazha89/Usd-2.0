@@ -66,15 +66,11 @@ export class AuthService {
   async register(
     email: string,
     password: string,
-    name: string,
   ) {
     const normalizedEmail =
       email.trim().toLowerCase();
 
-    const normalizedName =
-      name.trim();
-
-    if (!normalizedEmail) {
+        if (!normalizedEmail) {
       throw new BadRequestException(
         'Email обязателен',
       );
@@ -86,13 +82,7 @@ export class AuthService {
       );
     }
 
-    if (!normalizedName) {
-      throw new BadRequestException(
-        'Имя обязательно',
-      );
-    }
-
-    const existingUser =
+     const existingUser =
       await this.prisma.user.findUnique({
         where: {
           email: normalizedEmail,
@@ -113,7 +103,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           passwordHash,
-          name: normalizedName,
+          name: '',
           role: 'PARTICIPANT',
           isActive: true,
         },
@@ -766,6 +756,34 @@ export class AuthService {
         'Пароль успешно изменён',
     };
   }
+  async listSessions(userId: string) {
+    const sessions = await this.prisma.refreshSession.findMany({
+      where: { userId, expiresAt: { gt: new Date() }, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, userAgent: true, ipAddress: true, createdAt: true, expiresAt: true },
+    });
+    return { sessions };
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    const result = await this.prisma.refreshSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (result.count === 0) {
+      throw new UnauthorizedException('Сессия не найдена');
+    }
+    return { success: true };
+  }
+
+  async revokeAllSessions(userId: string) {
+    await this.prisma.refreshSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { success: true };
+  }
+
 }
 
 function normalizedPasswordInvalid(
