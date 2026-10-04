@@ -3030,6 +3030,247 @@ export class ImportsService {
     }
   }
 
+  /**
+   * Second validation pass for rows that were manually resolved.
+   *
+   * WARNING -> RESOLVED -> this validation -> COMMITTED.
+   * We intentionally re-read all referenced entities inside the same
+   * transaction as the commit so a stale/deleted/moved entity cannot
+   * silently pass because the preview was created earlier.
+   */
+  private async validateResolvedRowsForCommit(
+    tx: Prisma.TransactionClient,
+    importJob: {
+      stageId: string;
+      rows: Array<{
+        id: string;
+        type: 'REGISTRATION' | 'RESULT';
+        rowNumber: number;
+        status: 'READY' | 'WARNING' | 'RESOLVED' | 'COMMITTED';
+        resolution: unknown;
+      }>;
+    },
+  ) {
+    const resolvedRows = importJob.rows.filter(
+      (row) => row.status === 'RESOLVED',
+    );
+
+    for (const row of resolvedRows) {
+      const resolution = row.resolution as any;
+
+      if (!resolution || typeof resolution !== 'object') {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: отсутствует решение администратора`,
+        );
+      }
+
+      let participantId: string | null = null;
+
+      if (resolution.participant?.action === 'USE_EXISTING') {
+        participantId = resolution.participant.participantId;
+
+        const participant = await tx.participant.findUnique({
+          where: { id: participantId },
+          select: { id: true },
+        });
+
+        if (!participant) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный участник больше не существует`,
+          );
+        }
+      } else if (resolution.participant?.action === 'CREATE') {
+        if (
+          typeof resolution.participant.fullName !== 'string' ||
+          !resolution.participant.fullName.trim()
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: для нового участника не указано ФИО`,
+          );
+        }
+      }
+
+      if (resolution.registration?.action === 'USE_EXISTING') {
+        const registration =
+          await tx.registration.findUnique({
+            where: {
+              id: resolution.registration.registrationId,
+            },
+            select: {
+              id: true,
+              stageId: true,
+              participantId: true,
+              participantNumber: true,
+              status: true,
+            },
+          });
+
+        if (!registration) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация больше не существует`,
+          );
+        }
+
+        if (registration.stageId !== importJob.stageId) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация относится к другому этапу`,
+          );
+        }
+
+        if (
+          participantId &&
+          registration.participantId !== participantId
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: регистрация принадлежит другому участнику`,
+          );
+        }
+
+        if (registration.status !== 'ACTIVE') {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация неактивна`,
+          );
+        }
+      } else if (
+        resolution.registration?.action === 'CREATE' &&
+        (!Number.isInteger(
+          resolution.registration.participantNumber,
+        ) ||
+          resolution.registration.participantNumber <= 0)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: некорректный номер участника`,
+        );
+      }
+
+      if (resolution.car?.action === 'USE_EXISTING') {
+        const car = await tx.car.findUnique({
+          where: { id: resolution.car.carId },
+          select: {
+            id: true,
+            participantId: true,
+          },
+        });
+
+        if (!car) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный автомобиль больше не существует`,
+          );
+        }
+
+        if (
+          participantId &&
+          car.participantId !== participantId
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: автомобиль принадлежит другому участнику`,
+          );
+        }
+      } else if (resolution.car?.action === 'CREATE') {
+        if (
+          typeof resolution.car.brand !== 'string' ||
+          !resolution.car.brand.trim() ||
+          typeof resolution.car.model !== 'string' ||
+          !resolution.car.model.trim() ||
+          typeof resolution.car.registrationNumber !== 'string' ||
+          !resolution.car.registrationNumber.trim()
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: недостаточно данных для создания автомобиля`,
+          );
+        }
+
+        if (
+          resolution.car.registrationCountry !== undefined &&
+          typeof resolution.car.registrationCountry !== 'string'
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: некорректная страна регистрации автомобиля`,
+          );
+        }
+      }
+
+      const classIds = [
+        ...(Array.isArray(resolution.classIds)
+          ? resolution.classIds
+          : []),
+        ...(typeof resolution.classId === 'string'
+          ? [resolution.classId]
+          : []),
+      ];
+
+      for (const classId of [...new Set(classIds)]) {
+        const stageClass = await tx.stageClass.findUnique({
+          where: {
+            stageId_classId: {
+              stageId: importJob.stageId,
+              classId,
+            },
+          },
+          select: {
+            id: true,
+            isActive: true,
+            class: {
+              select: {
+                id: true,
+                isActive: true,
+                unit: true,
+              },
+            },
+          },
+        });
+
+        if (
+          !stageClass ||
+          !stageClass.isActive ||
+          !stageClass.class.isActive
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный класс больше не доступен на этапе`,
+          );
+        }
+      }
+
+      if (resolution.value !== undefined) {
+        if (
+          typeof resolution.value !== 'number' ||
+          !Number.isFinite(resolution.value) ||
+          resolution.value < 0 ||
+          !Number.isInteger(
+            Math.round(resolution.value * 1000),
+          )
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: некорректное значение результата`,
+          );
+        }
+      }
+
+      if (
+        resolution.place !== undefined &&
+        resolution.place !== null &&
+        (!Number.isInteger(resolution.place) ||
+          resolution.place < 1 ||
+          resolution.place > 999)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: некорректное место`,
+        );
+      }
+
+      if (
+        resolution.notes !== undefined &&
+        resolution.notes !== null &&
+        (typeof resolution.notes !== 'string' ||
+          resolution.notes.length > 2000)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: комментарий слишком длинный`,
+        );
+      }
+    }
+  }
+
   async commitImport(
     importId: string,
     request?: AuthenticatedRequest,
@@ -3135,6 +3376,12 @@ export class ImportsService {
               .join(', ')}`,
           );
         }
+
+        await this.validateResolvedRowsForCommit(
+          tx,
+          importJob,
+        );
+
 
         /*
          * Блокируем этап на время Commit.
