@@ -43,6 +43,38 @@ describe('ResultsService', () => {
     service = new ResultsService(prisma, records, ranking);
   });
 
+  it('rejects result creation from a participant at the service boundary', async () => {
+    const participantRequest = {
+      user: { sub: 'participant-user', role: 'PARTICIPANT' },
+      ip: '127.0.0.1',
+    } as any;
+
+    await expect(
+      service.create(
+        {
+          registrationId: 'registration-1',
+          registrationClassId: 'registration-class-1',
+          value: 150,
+        },
+        participantRequest,
+      ),
+    ).rejects.toThrow('Недостаточно прав для внесения результата');
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects result correction by a judge at the service boundary', async () => {
+    await expect(
+      service.update(
+        'result-1',
+        { value: 151 },
+        judgeRequest,
+      ),
+    ).rejects.toThrow('Исправлять результаты может только администратор');
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   function setupCreateTx(overrides: any = {}) {
     const tx: any = {
       registration: {
