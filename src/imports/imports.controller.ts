@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ImportsService } from './imports.service';
 import { Roles } from '../auth/roles.decorator';
+import { PreviewImportDto, ResolveImportRowDto } from './dto/import.dto';
 
 @Controller('imports')
 @Roles('ADMIN')
@@ -9,12 +10,7 @@ export class ImportsController {
 
   @Post('stage/preview')
   preview(
-    @Body()
-    body: {
-      stageId: string;
-      registrations?: Record<string, unknown>[];
-      results?: Record<string, unknown>[];
-    },
+    @Body() body: PreviewImportDto,
   ) {
     return this.importsService.previewStage(body);
   }
@@ -48,10 +44,7 @@ checkImport(@Param('id') id: string) {
 resolveImportRow(
   @Param('importId') importId: string,
   @Param('rowId') rowId: string,
-  @Body()
-  body: {
-    resolution: Record<string, unknown>;
-  },
+  @Body() body: ResolveImportRowDto,
 ) {
   return this.importsService.resolveImportRow(
     importId,
