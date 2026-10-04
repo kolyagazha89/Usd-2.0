@@ -126,18 +126,7 @@ export class ParticipantsController {
   @Post('participants')
   createParticipant(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      lastName: string;
-      firstName: string;
-      middleName?: string | null;
-      birthDate?: string | null;
-      city?: string | null;
-      team?: string | null;
-      phone?: string | null;
-      photoUrl?: string | null;
-      isPublic?: boolean;
-    },
+    @Body() body: CreateParticipantDto,
   ) {
     return this.participantsService.createParticipant(
       request,
@@ -150,18 +139,7 @@ export class ParticipantsController {
   updateParticipant(
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body()
-    body: {
-      lastName?: string;
-      firstName?: string;
-      middleName?: string | null;
-      birthDate?: string | null;
-      city?: string | null;
-      team?: string | null;
-      phone?: string | null;
-      photoUrl?: string | null;
-      isPublic?: boolean;
-    },
+    @Body() body: UpdateParticipantDto,
   ) {
     return this.participantsService.updateParticipant(
       request,
