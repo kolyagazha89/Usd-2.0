@@ -11,6 +11,7 @@ import {
 import { ResultsService } from './results.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
+import { CreateResultDto, UpdateResultDto } from './dto/result.dto';
 
 @Controller('results')
 export class ResultsController {
@@ -67,15 +68,7 @@ export class ResultsController {
   @Roles('ADMIN', 'JUDGE')
   @Post()
   create(
-    @Body()
-    body: {
-      registrationId: string;
-      registrationClassId: string;
-      value: number;
-      unit: 'DB' | 'MPS' | 'OTHER';
-      place?: number;
-      notes?: string;
-    },
+    @Body() body: CreateResultDto,
   ) {
     return this.resultsService.create(body);
   }
@@ -84,13 +77,7 @@ export class ResultsController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body()
-    body: {
-      value?: number;
-      unit?: 'DB' | 'MPS' | 'OTHER';
-      place?: number | null;
-      notes?: string | null;
-    },
+    @Body() body: UpdateResultDto,
   ) {
     return this.resultsService.update(id, body);
   }
