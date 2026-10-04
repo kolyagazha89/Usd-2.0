@@ -922,7 +922,7 @@ export class StatisticsService {
     let firstPlaces = 0;
     let secondPlaces = 0;
     let thirdPlaces = 0;
-    let bestResult: ResultRow | null = null;
+    const bestByClass = new Map<string, ResultRow>();
 
     for (const result of eligibleResults) {
       stages.add(result.registration.stageId);
@@ -932,16 +932,18 @@ export class StatisticsService {
       if (result.place === 2) secondPlaces += 1;
       if (result.place === 3) thirdPlaces += 1;
 
+      const classId = result.registrationClass.classId;
+      const current = bestByClass.get(classId);
       if (
-        !bestResult ||
-        Number(result.value) > Number(bestResult.value) ||
+        !current ||
+        Number(result.value) > Number(current.value) ||
         (
-          Number(result.value) === Number(bestResult.value) &&
+          Number(result.value) === Number(current.value) &&
           result.registration.stage.date.getTime() <
-            bestResult.registration.stage.date.getTime()
+            current.registration.stage.date.getTime()
         )
       ) {
-        bestResult = result;
+        bestByClass.set(classId, result);
       }
     }
 
@@ -963,14 +965,13 @@ export class StatisticsService {
         thirdPlaces,
         podiums: firstPlaces + secondPlaces + thirdPlaces,
         records: currentRecords,
-        bestResult: bestResult
-          ? {
-              value: bestResult.value.toString(),
-              unit: bestResult.unit,
-              class: bestResult.registrationClass.class,
-              stage: bestResult.registration.stage,
-            }
-          : null,
+        bestResultsByClass: [...bestByClass.values()].map((result) => ({
+          value: result.value.toString(),
+          unit: result.unit,
+          class: result.registrationClass.class,
+          stage: result.registration.stage,
+        })),
+        bestResult: null,
       },
       history: eligibleResults.map((result) => ({
         resultId: result.id,
