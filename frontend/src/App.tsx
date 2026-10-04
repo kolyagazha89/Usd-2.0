@@ -310,7 +310,23 @@ function ImportPage(){
   {resolveRow&&<Modal title={`Исправление строки №${resolveRow.rowNumber}`} onClose={()=>setResolveRow(null)}><div className="import-resolution"><div className="notice"><AlertTriangle size={16}/><span>Здесь сохраняется решение администратора. После RESOLVED сервер ещё раз проверит его перед Commit.</span></div><div className="resolution-source"><strong>Исходные данные</strong><pre className="json-view">{JSON.stringify(resolveRow.rawData??{},null,2)}</pre><strong>Предварительный разбор</strong><pre className="json-view">{JSON.stringify(resolveRow.normalizedData??{},null,2)}</pre></div><label>Решение JSON<textarea rows={12} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button className="primary-button" disabled={loading} onClick={()=>void resolve()}>{loading?'Сохраняем…':'Сохранить решение'}</button></div></Modal>}
  </PageFrame>
 }
-function RecordsPage(){return <OperationalPage title="Рекорды" subtitle="Текущие и исторические рекорды" icon={Trophy} endpoint="/records/admin/current"/>}
+function RecordsPage(){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const load=()=>{setLoading(true);setError('');return apiGet<any>('/records/admin/current').then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки рекордов')).finally(()=>setLoading(false))};
+ useEffect(()=>{void load()},[]);
+ return <PageFrame title="Рекорды" subtitle="Текущие действующие рекорды чемпионата" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th></tr></thead><tbody>{data.map((r:any)=>{const p=r.result?.registration?.participant;const car=r.result?.registration?.car;const st=r.stage;const cls=r.class;return <tr key={r.id}>
+   <td><strong>{cls?.name??'—'}</strong>{cls?.direction?.name&&<small className="table-sub">{cls.direction.name}</small>}</td>
+   <td><strong>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td>
+   <td>{[car?.brand,car?.model].filter(Boolean).join(' ')||'—'}</td>
+   <td><strong>{r.value??r.result?.value??'—'}</strong></td>
+   <td>{r.unit??r.result?.unit??'—'}</td>
+   <td>{st?<><strong>№{st.stageNumber} · {st.name}</strong>{st.city&&<small className="table-sub">{st.city}</small>}</>:'—'}</td>
+   <td>{formatDate(r.achievedAt)}</td>
+  </tr>})}</tbody></table>:<Empty text="Рекордов пока нет"/>}</div>
+ </PageFrame>
+}
 function StatisticsPage(){
  const[overview,setOverview]=useState<any>(null),[participants,setParticipants]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const load=()=>{setLoading(true);setError('');return Promise.all([apiGet<any>('/statistics/overview'),apiGet<any>('/statistics/participants?limit=50')]).then(([o,p])=>{setOverview(o?.stats??o);setParticipants(listData(p))}).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки статистики')).finally(()=>setLoading(false))};
