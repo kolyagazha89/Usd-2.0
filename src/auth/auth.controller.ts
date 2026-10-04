@@ -11,6 +11,7 @@ import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
+import { EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -83,11 +84,7 @@ export class AuthController {
   @Post('register')
   async register(
     @Body()
-    body: {
-      email: string;
-      password: string;
-      name: string;
-    },
+    body: RegisterDto,
   ) {
     return this.authService.register(
       body.email,
@@ -100,9 +97,7 @@ export class AuthController {
   @Post('verify-email')
   async verifyEmail(
     @Body()
-    body: {
-      token: string;
-    },
+    body: TokenDto,
   ) {
     return this.authService.verifyEmail(
       body.token,
@@ -113,9 +108,7 @@ export class AuthController {
   @Post('resend-verification')
   async resendVerificationEmail(
     @Body()
-    body: {
-      email: string;
-    },
+    body: EmailDto,
   ) {
     return this.authService.resendVerificationEmail(
       body.email,
@@ -126,10 +119,7 @@ export class AuthController {
   @Post('login')
   async login(
     @Body()
-    body: {
-      email: string;
-      password: string;
-    },
+    body: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true })
     response: Response,
@@ -231,10 +221,7 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword(
     @Body()
-    body: {
-      token: string;
-      password: string;
-    },
+    body: ResetPasswordDto,
   ) {
     return this.authService.resetPassword(
       body.token,
