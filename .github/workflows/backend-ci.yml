@@ -16,6 +16,10 @@ jobs:
     name: Build, lint and test
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/usd
       JWT_ISSUER: usd-2.0-api
@@ -48,6 +52,7 @@ jobs:
         with:
           node-version: 24.x
           cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Generate CI JWT secret
         run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
