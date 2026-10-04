@@ -4,25 +4,30 @@ import * as bcrypt from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} должен быть задан в окружении`);
+  return value;
+}
+
 async function main() {
-  const email = 'admin@usd-russia.com';
-  const password = 'USDadmin2026!';
-  const name = 'USD Administrator';
+  const email = requiredEnv('ADMIN_EMAIL').toLowerCase();
+  const password = requiredEnv('ADMIN_PASSWORD');
+  const name = process.env.ADMIN_NAME?.trim() || 'USD Administrator';
+
+  if (password.length < 12) {
+    throw new Error('ADMIN_PASSWORD должен содержать минимум 12 символов');
+  }
 
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString: requiredEnv('DATABASE_URL'),
   });
 
-  const prisma = new PrismaClient({
-    adapter,
-  });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
       const user = await prisma.user.update({
@@ -41,8 +46,6 @@ async function main() {
       console.log(`Email: ${user.email}`);
       console.log(`Role: ${user.role}`);
       console.log(`Email verified: ${user.emailVerifiedAt !== null}`);
-      console.log(`Password: ${password}`);
-
       return;
     }
 
@@ -62,7 +65,6 @@ async function main() {
     console.log(`Email: ${user.email}`);
     console.log(`Role: ${user.role}`);
     console.log(`Email verified: ${user.emailVerifiedAt !== null}`);
-    console.log(`Password: ${password}`);
   } finally {
     await prisma.$disconnect();
   }
