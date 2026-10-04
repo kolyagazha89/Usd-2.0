@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { jest } from '@jest/globals';
 
 import { Prisma } from '../generated/prisma/client';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
