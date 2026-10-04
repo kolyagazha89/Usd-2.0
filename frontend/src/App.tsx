@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Activity,AlertTriangle,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,getAudit,getDashboard,getDataQuality,listData,login,logout,refresh,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,listData,login,logout,refresh,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -91,7 +91,7 @@ function CarsPage({user}:{user:User}){
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
   <div className="panel table-wrap">{loading?<LoadingPage small/>:<>{filtered.length?<table className="data-table"><thead><tr><th>Автомобиль</th><th>Участник</th><th>Госномер</th><th>Цвет</th><th>Конфигурации</th><th>Статус</th><th/></tr></thead><tbody>{filtered.map(car=><tr key={car.id}><td><strong>{car.brand} {car.model}</strong></td><td>{car.participant?[car.participant.lastName,car.participant.firstName].filter(Boolean).join(' '):'—'}</td><td>{car.registrationCountry} · {car.registrationNumber}</td><td>{car.color||'—'}</td><td><button className="text-button" onClick={()=>setConfigCar(car)}>{car.configurations?.length??0} конф.</button></td><td><span className={"badge "+(car.isActive?'good':'')}>{car.isActive?'Активен':'Неактивен'}</span></td><td className="row-actions">{canEdit&&<><button className="icon-button" title="Изменить" onClick={()=>setModal(car)}>✎</button>{car.isActive&&<button className="icon-button danger" title="Деактивировать" onClick={()=>void removeCar(car.id)}>×</button>}</>}</td></tr>)}</tbody></table>:<Empty text="Автомобилей пока нет"/>}</>}</div>
   {modal!==null&&<CarModal value={modal} participants={participants} countries={countries} saving={saving} onClose={()=>setModal(null)} onSubmit={saveCar}/>}
-  {configCar&&<ConfigurationsModal car={configCar} canEdit={canEdit} onClose={()=>setConfigCar(null}/>}
+  {configCar&&<ConfigurationsModal car={configCar} canEdit={canEdit} onClose={()=>setConfigCar(null)}/>
  </PageFrame>
 }
 
