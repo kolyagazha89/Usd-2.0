@@ -1,10 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-
-enum RegistrationSourceDto {
-  PRE_REGISTRATION = 'PRE_REGISTRATION',
-  ON_SITE = 'ON_SITE',
-  IMPORT = 'IMPORT',
-}
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateRegistrationDto {
   @IsUUID()
@@ -26,6 +20,6 @@ export class CreateRegistrationDto {
   configurationVersionId!: string;
 
   @IsOptional()
-  @IsEnum(RegistrationSourceDto)
-  source?: RegistrationSourceDto;
+  @IsIn(['PRE_REGISTRATION', 'ON_SITE', 'IMPORT'])
+  source?: 'PRE_REGISTRATION' | 'ON_SITE' | 'IMPORT';
 }
