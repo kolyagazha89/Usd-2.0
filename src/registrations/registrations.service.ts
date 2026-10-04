@@ -495,7 +495,31 @@ export class RegistrationsService {
           );
         }
 
-        // 7. Проверяем регистрацию этого автомобиля
+        // 7. Проверяем лимиты классов на этом этапе.
+        for (const stageClass of stageClasses) {
+          if (stageClass.participantLimit === null) continue;
+
+          const currentCount = await tx.registrationClass.count({
+            where: {
+              classId: stageClass.classId,
+              registration: {
+                stageId,
+                status: 'ACTIVE',
+              },
+            },
+          });
+
+          if (currentCount >= stageClass.participantLimit) {
+            throw new ConflictException({
+              message: 'Лимит участников в выбранном классе уже достигнут',
+              code: 'STAGE_CLASS_PARTICIPANT_LIMIT_REACHED',
+              classId: stageClass.classId,
+              limit: stageClass.participantLimit,
+            });
+          }
+        }
+
+        // 8. Проверяем регистрацию этого автомобиля
         // на этом этапе.
         //
         // Один участник может иметь несколько машин
