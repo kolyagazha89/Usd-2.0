@@ -104,7 +104,7 @@ describe('RecordsService', () => {
 
     expect(records).toHaveLength(1);
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-2' },
+      where: { id: '2' },
       data: { isBest: true },
     });
     expect(tx.record.create).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-earlier' },
+      where: { id: 'earlier' },
       data: { isBest: true },
     });
   });
@@ -165,7 +165,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-good' },
+      where: { id: 'good' },
       data: { isBest: true },
     });
   });
@@ -179,7 +179,7 @@ describe('RecordsService', () => {
     await service.recalculateCurrentRecord('class-1');
 
     expect(tx.result.update).toHaveBeenCalledWith({
-      where: { id: 'result-imported' },
+      where: { id: 'imported' },
       data: { isBest: true },
     });
   });
