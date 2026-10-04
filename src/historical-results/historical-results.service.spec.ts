@@ -3,7 +3,7 @@ import { jest } from '@jest/globals';
 import { HistoricalResultsService } from './historical-results.service';
 
 describe('HistoricalResultsService', () => {
-  const prisma: any = { $transaction: jest.fn(), result: { findMany: jest.fn(), findFirst: jest.fn() } };
+  const prisma: any = { $transaction: jest.fn(), result: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), findUniqueOrThrow: jest.fn() } };
   const records: any = {
     createFromResultIfEligible: jest.fn(),
     syncAfterResultUpdate: jest.fn(),
@@ -136,10 +136,6 @@ describe('HistoricalResultsService', () => {
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
-    prisma.result.findUnique.mockResolvedValueOnce({
-      registration: { stageId: 'stage-2019' },
-      registrationClass: { classId: 'class-1' },
-    });
     prisma.result.findUniqueOrThrow = jest.fn().mockResolvedValue({
       registration: { stageId: 'stage-2019' },
       registrationClass: { classId: 'class-1' },
