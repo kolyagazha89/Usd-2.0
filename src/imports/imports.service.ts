@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { Prisma } from '../generated/prisma/client';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 type ImportRow = Record<string, unknown>;
 
@@ -69,12 +70,15 @@ export class ImportsService {
     };
   }
 
-  async previewStage(body: {
-    stageId: string;
-    registrations?: ImportRow[];
-    results?: ImportRow[];
-    historicalResults?: boolean;
-  }) {
+  async previewStage(
+    body: {
+      stageId: string;
+      registrations?: ImportRow[];
+      results?: ImportRow[];
+      historicalResults?: boolean;
+    },
+    request?: AuthenticatedRequest,
+  ) {
     if (!body.stageId) {
       throw new BadRequestException('stageId обязателен');
     }
@@ -250,6 +254,7 @@ export class ImportsService {
         data: {
           stageId: stage.id,
           status: 'DRAFT',
+          createdByUserId: request?.user.sub ?? null,
 
           summary,
 
@@ -337,6 +342,23 @@ export class ImportsService {
           rows: true,
         },
       });
+
+    if (request) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'IMPORT_CREATED',
+          entity: 'ImportJob',
+          entityId: importJob.id,
+          ipAddress: request.ip,
+          metadata: {
+            stageId: stage.id,
+            rowsCount: importJob.rows.length,
+            historicalResults: body.historicalResults === true,
+          },
+        },
+      });
+    }
 
     return {
       success: true,
@@ -2336,6 +2358,7 @@ export class ImportsService {
       place?: number | null;
       notes?: string | null;
     },
+    request?: AuthenticatedRequest,
   ) {
     const row =
       await this.prisma.importRow.findFirst({
@@ -2578,6 +2601,23 @@ export class ImportsService {
           status: 'RESOLVED',
         },
       });
+
+    if (request) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'IMPORT_ROW_RESOLVED',
+          entity: 'ImportRow',
+          entityId: updatedRow.id,
+          ipAddress: request.ip,
+          metadata: {
+            importJobId: importId,
+            rowNumber: row.rowNumber,
+            status: updatedRow.status,
+          },
+        },
+      });
+    }
 
     return {
       success: true,
@@ -2990,6 +3030,7 @@ export class ImportsService {
 
   async commitImport(
     importId: string,
+    request?: AuthenticatedRequest,
   ) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -4552,6 +4593,24 @@ export class ImportsService {
             },
           },
         );
+
+        if (request) {
+          await tx.auditLog.create({
+            data: {
+              userId: request.user.sub,
+              action: 'IMPORT_COMMITTED',
+              entity: 'ImportJob',
+              entityId: importId,
+              ipAddress: request.ip,
+              metadata: {
+                stageId: importJob.stageId,
+                rowsCount: committedRows.length,
+                historicalResults:
+                  (importJob.metadata as any)?.historicalResults === true,
+              },
+            },
+          });
+        }
 
         return {
           success: true,
