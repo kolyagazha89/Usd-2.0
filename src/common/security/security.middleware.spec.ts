@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { SecurityMiddleware } from './security.middleware';
 
 describe('SecurityMiddleware', () => {
