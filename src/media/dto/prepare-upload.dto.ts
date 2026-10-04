@@ -1,21 +1,20 @@
-import { IsEnum, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsString, IsUUID, MaxLength } from 'class-validator';
 import { MediaTargetType } from '../../generated/prisma/enums';
 
 export class PrepareUploadDto {
   @IsEnum(MediaTargetType)
   targetType!: MediaTargetType;
 
-  @IsString()
-  @MaxLength(128)
+  @IsUUID()
   targetId!: string;
 
   @IsString()
-  @MaxLength(100)
+  @IsIn(['image/jpeg', 'image/png', 'image/webp'])
   contentType!: string;
 }
 
 export class CompleteUploadDto {
   @IsString()
-  @MaxLength(128)
+  @MaxLength(64)
   uploadToken!: string;
 }
