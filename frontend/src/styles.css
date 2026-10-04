@@ -41,3 +41,22 @@ button{cursor:pointer}
 @media(max-width:600px){.kpi-grid.small{grid-template-columns:repeat(2,1fr)}.quality-summary{grid-template-columns:1fr 1fr}.toolbar{align-items:stretch}.search-box{max-width:none}.row-count{display:none}.modal{padding:16px}.page-heading{gap:15px;flex-wrap:wrap}}
 
 .filter-select,.inline-select{height:36px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:0 10px;font-size:10px;color:#555;outline:none}.inline-select{height:30px;padding:0 7px;font-size:9px}.filter-select:focus,.inline-select:focus{border-color:#aaa}
+
+/* Stage entry inspection */
+.inspection-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.inspection-stat{padding:16px 18px;border:1px solid var(--border,#e5e7eb);border-radius:14px;background:var(--panel,#fff);display:flex;flex-direction:column;gap:4px}
+.inspection-stat strong{font-size:25px;line-height:1}
+.inspection-stat span{font-size:12px;color:var(--muted,#6b7280)}
+.inspection-stat.good{border-color:#b7dfc4}
+.inspection-stat.bad{border-color:#f0b7b7}
+.inspection-stat.pending{border-color:#e8d59d}
+.inspection-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.danger-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #d88;border-radius:9px;padding:8px 11px;background:#fff;color:#b42318;font:inherit;cursor:pointer}
+.danger-button:hover{background:#fff5f5}
+.danger-button:disabled,.secondary-button:disabled,.primary-button:disabled{opacity:.55;cursor:not-allowed}
+.inspection-note{display:flex;gap:7px;align-items:flex-start;margin-top:8px;min-width:260px}
+.inspection-note textarea{min-width:220px;resize:vertical}
+.table-sub{display:block;margin-top:3px;font-size:11px;color:var(--muted,#6b7280)}
+.error-text{color:#b42318}
+.badge.bad{color:#b42318;border-color:#efb4b4;background:#fff5f5}
+@media(max-width:900px){.inspection-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.inspection-note{flex-direction:column}}
