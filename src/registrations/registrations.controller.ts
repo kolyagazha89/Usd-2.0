@@ -59,7 +59,7 @@ export class RegistrationsController {
       participantId: string;
       carId: string;
       classIds: string[];
-      configurationVersionId?: string;
+      configurationVersionId: string;
       source?: 'PRE_REGISTRATION' | 'ON_SITE' | 'IMPORT';
     },
   ) {
