@@ -58,3 +58,14 @@ export class ResetPasswordDto {
   @MaxLength(128)
   password!: string;
 }
+
+export class ChangeEmailDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  currentPassword!: string;
+}

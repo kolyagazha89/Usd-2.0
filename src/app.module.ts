@@ -19,6 +19,7 @@ import { NameNormalizerModule } from './common/names/name-normalizer.module';
 import { ImportsModule } from './imports/imports.module';
 import { DisqualificationsModule } from './disqualifications/disqualifications.module';
 import { ConfigurationsModule } from './configurations/configurations.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ConfigurationsModule } from './configurations/configurations.module';
     ImportsModule,
     DisqualificationsModule,
     ConfigurationsModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

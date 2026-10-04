@@ -11,7 +11,7 @@ import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
-import { EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { ChangeEmailDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -202,6 +202,24 @@ export class AuthController {
     return {
       success: true,
     };
+  }
+
+  @Post('request-email-change')
+  async requestEmailChange(
+    @Req() request: Request,
+    @Body() body: ChangeEmailDto,
+  ) {
+    return this.authService.requestEmailChange(
+      (request as Request & { user: { sub: string } }).user.sub,
+      body.email,
+      body.currentPassword,
+    );
+  }
+
+  @Public()
+  @Post('confirm-email-change')
+  async confirmEmailChange(@Body() body: TokenDto) {
+    return this.authService.confirmEmailChange(body.token);
   }
 
   @Public()

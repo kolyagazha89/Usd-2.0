@@ -533,6 +533,75 @@ export class AuthService {
     };
   }
 
+  async requestEmailChange(
+    userId: string,
+    newEmail: string,
+    currentPassword: string,
+  ) {
+    const normalizedEmail = newEmail.trim().toLowerCase();
+    if (!normalizedEmail || normalizedEmail.length > 254) {
+      throw new BadRequestException('Некорректный новый email');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive || !user.emailVerifiedAt) {
+      throw new UnauthorizedException('Недействительная учётная запись');
+    }
+    if (normalizedEmail === user.email) {
+      throw new ConflictException('Новый email совпадает с текущим');
+    }
+    const passwordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Неверный текущий пароль');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+    if (existing) {
+      throw new ConflictException('Этот email уже используется');
+    }
+
+    await this.prisma.emailChangeToken.deleteMany({ where: { userId } });
+    const rawToken = this.generateToken();
+    await this.prisma.emailChangeToken.create({
+      data: {
+        userId,
+        newEmail: normalizedEmail,
+        tokenHash: this.hashToken(rawToken),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+
+    await this.mailService.sendEmailChangeEmail(normalizedEmail, rawToken);
+    return { success: true, message: 'Письмо для подтверждения нового email отправлено.' };
+  }
+
+  async confirmEmailChange(token: string) {
+    if (!token?.trim()) throw new BadRequestException('Токен изменения email обязателен');
+    const tokenHash = this.hashToken(token.trim());
+    const change = await this.prisma.emailChangeToken.findUnique({ where: { tokenHash } });
+    if (!change || change.usedAt || change.expiresAt < new Date()) {
+      throw new BadRequestException('Недействительный или истёкший токен изменения email');
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.user.findUnique({ where: { email: change.newEmail }, select: { id: true } });
+        if (existing && existing.id !== change.userId) {
+          throw new ConflictException('Этот email уже используется');
+        }
+        await tx.user.update({ where: { id: change.userId }, data: { email: change.newEmail } });
+        await tx.emailChangeToken.update({ where: { id: change.id }, data: { usedAt: new Date() } });
+        await tx.emailChangeToken.deleteMany({ where: { userId: change.userId, id: { not: change.id } } });
+        await tx.refreshSession.updateMany({ where: { userId: change.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      throw error;
+    }
+
+    return { success: true, message: 'Email успешно изменён. Выполните вход заново.' };
+  }
+
   async requestPasswordReset(
     email: string,
   ) {
