@@ -272,6 +272,9 @@ export class StatisticsService {
       stageId: string;
       carId: string;
       registeredAt: Date;
+      inspection: {
+        status: string;
+      } | null;
     }>,
     results: ResultRow[],
     disqualificationKeys: Set<string>,
@@ -281,8 +284,22 @@ export class StatisticsService {
       this.isEligibleResult(result, disqualificationKeys),
     );
 
-    const stageIds = new Set(
-      eligibleResults.map((result) => result.registration.stageId),
+    const attendedStageIds = new Set(
+      registrations
+        .filter(
+          (registration) =>
+            registration.status === 'ACTIVE' &&
+            registration.inspection?.status === 'PASSED',
+        )
+        .map((registration) => registration.stageId),
+    );
+
+    for (const result of eligibleResults) {
+      attendedStageIds.add(result.registration.stageId);
+    }
+
+    const appearanceRegistrationIds = new Set(
+      eligibleResults.map((result) => result.registration.id),
     );
 
     const carIds = new Set(
@@ -334,18 +351,33 @@ export class StatisticsService {
       }
     }
 
-    const bestResult = [...eligibleResults].sort(
-      (a, b) => Number(b.value) - Number(a.value),
-    )[0] ?? null;
+    const bestResultsByClass = [...bestByClass.values()]
+      .sort(
+        (a, b) =>
+          a.registrationClass.class.sortOrder -
+          b.registrationClass.class.sortOrder,
+      )
+      .map((result) => ({
+        class: result.registrationClass.class,
+        value: result.value.toString(),
+        unit: result.unit,
+        stage: {
+          id: result.registration.stage.id,
+          name: result.registration.stage.name,
+          date: result.registration.stage.date,
+          season: result.registration.stage.season,
+        },
+      }));
 
     return {
       participant,
       stats: {
-        attendedStages: stageIds.size,
+        attendedStages: attendedStageIds.size,
         registrations: registrations.filter(
           (registration) => registration.status === 'ACTIVE',
         ).length,
-        appearances: eligibleResults.length,
+        appearances: appearanceRegistrationIds.size,
+        resultCount: eligibleResults.length,
         firstPlaces: eligibleResults.filter(
           (result) => result.place === 1,
         ).length,
@@ -364,35 +396,8 @@ export class StatisticsService {
         winsByClass: [...winsByClass.values()].sort(
           (a, b) => b.wins - a.wins,
         ),
-        bestResult: bestResult
-          ? {
-              value: bestResult.value.toString(),
-              unit: bestResult.unit,
-              class: bestResult.registrationClass.class,
-              stage: {
-                id: bestResult.registration.stage.id,
-                name: bestResult.registration.stage.name,
-                date: bestResult.registration.stage.date,
-                season: bestResult.registration.stage.season,
-              },
-            }
-          : null,
-        bestByClass: [...bestByClass.values()]
-          .sort((a, b) =>
-            a.registrationClass.class.sortOrder -
-            b.registrationClass.class.sortOrder,
-          )
-          .map((result) => ({
-            class: result.registrationClass.class,
-            value: result.value.toString(),
-            unit: result.unit,
-            stage: {
-              id: result.registration.stage.id,
-              name: result.registration.stage.name,
-              date: result.registration.stage.date,
-              season: result.registration.stage.season,
-            },
-          })),
+        bestResultsByClass,
+        bestResult: null,
         cars: carIds.size,
         records: recordsCount,
       },
@@ -447,6 +452,11 @@ export class StatisticsService {
             stageId: true,
             carId: true,
             registeredAt: true,
+            inspection: {
+              select: {
+                status: true,
+              },
+            },
           },
         }),
         this.loadResults({
@@ -825,7 +835,10 @@ export class StatisticsService {
         participants: participants.size,
         stages: stages.size,
         cars: cars.size,
-        appearances: eligibleResults.length,
+        appearances: new Set(
+          eligibleResults.map((result) => result.registration.id),
+        ).size,
+        resultCount: eligibleResults.length,
         firstPlaces,
         podiums,
         bestResult: bestResult
@@ -1036,7 +1049,10 @@ export class StatisticsService {
           ),
         ).size,
         registrations: registrations.length,
-        appearances: eligibleResults.length,
+        appearances: new Set(
+          eligibleResults.map((result) => result.registration.id),
+        ).size,
+        resultCount: eligibleResults.length,
         firstPlaces: eligibleResults.filter(
           (result) => result.place === 1,
         ).length,
