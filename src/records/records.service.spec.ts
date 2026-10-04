@@ -45,7 +45,12 @@ describe('RecordsService', () => {
       },
       record: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
-        findFirst: jest.fn().mockResolvedValue(existingRecord),
+        findFirst: jest.fn().mockImplementation(
+          async ({ where }: { where: { resultId?: string } }) =>
+            existingRecord && where?.resultId === existingRecord.resultId
+              ? existingRecord
+              : null,
+        ),
         update: jest.fn().mockResolvedValue({
           id: 'record-1',
           resultId: 'result-1',
