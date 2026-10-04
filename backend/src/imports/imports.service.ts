@@ -120,9 +120,9 @@ export class ImportsService {
       this.buildParticipantIndex(participants);
 
     const registrationParticipants =
-      this.buildRegistrationParticipantIndex(
-        registrations,
-      );
+      body.historicalResults === true
+        ? this.buildRegistrationParticipantIndex(registrations)
+        : await this.buildStageRegistrationParticipantIndex(body.stageId);
 
     const registrationPreview =
       await Promise.all(
@@ -611,6 +611,48 @@ export class ImportsService {
       byName,
       byNumber,
     };
+  }
+
+  private async buildStageRegistrationParticipantIndex(stageId: string): Promise<RegistrationParticipantIndex> {
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId, status: 'ACTIVE' },
+      select: {
+        participantNumber: true,
+        participant: {
+          select: { lastName: true, firstName: true, middleName: true },
+        },
+      },
+      orderBy: { participantNumber: 'asc' },
+    });
+
+    const byName = new Map<string, RegistrationParticipantMatch[]>();
+    const byNumber = new Map<number, RegistrationParticipantMatch[]>();
+
+    registrations.forEach((registration, index) => {
+      const rawName = [registration.participant.lastName, registration.participant.firstName, registration.participant.middleName]
+        .filter(Boolean)
+        .join(' ');
+      const normalizedName = this.normalizePersonName(rawName);
+      const match: RegistrationParticipantMatch = {
+        rowNumber: index + 1,
+        rawName,
+        normalizedName,
+        participantNumber: registration.participantNumber,
+        email: '',
+        team: '',
+        car: { model: '', plateNumber: '' },
+      };
+      if (normalizedName) {
+        const list = byName.get(normalizedName) ?? [];
+        list.push(match);
+        byName.set(normalizedName, list);
+      }
+      const numberList = byNumber.get(registration.participantNumber) ?? [];
+      numberList.push(match);
+      byNumber.set(registration.participantNumber, numberList);
+    });
+
+    return { byName, byNumber };
   }
 
   private findParticipant(
