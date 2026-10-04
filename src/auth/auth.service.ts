@@ -355,6 +355,7 @@ export class AuthService {
     await this.prisma.refreshSession.create({
       data: {
         userId: user.id,
+        familyId: crypto.randomUUID(),
         tokenHash:
           this.hashToken(refreshToken),
         userAgent:
@@ -444,6 +445,7 @@ export class AuthService {
       this.prisma.refreshSession.create({
         data: {
           userId: session.user.id,
+          familyId: session.familyId,
           tokenHash:
             this.hashToken(
               newRefreshToken,
