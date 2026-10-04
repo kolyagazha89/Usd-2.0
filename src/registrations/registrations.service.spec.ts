@@ -63,8 +63,10 @@ describe('RegistrationsService — car/configuration rules', () => {
         create: jest.fn().mockResolvedValue(created),
       },
       carConfiguration: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'configuration-1', name: 'Основная', currentVersion: 3 }]),
         findFirst: jest.fn().mockResolvedValue({
           id: 'configuration-1',
+          name: 'Основная',
           currentVersion: 3,
         }),
       },
@@ -133,6 +135,7 @@ describe('RegistrationsService — car/configuration rules', () => {
         create: jest.fn().mockImplementation(async () => registrations[createNumber++]),
       },
       carConfiguration: {
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
       },
       carConfigurationVersion: {
