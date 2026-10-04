@@ -12,7 +12,7 @@ import {
   Min,
 } from 'class-validator';
 
- export class CreateStageDto {
+export class CreateStageDto {
   @IsInt()
   @Min(1)
   @Max(999)
@@ -130,8 +130,8 @@ export class UpdateStageDto {
   longitude?: number | null;
 
   @IsOptional()
-  @IsEnum(StageStatusDto)
-  status?: StageStatusDto;
+  @IsIn(['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'])
+  status?: 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED';
 
   @IsOptional()
   @IsBoolean()
