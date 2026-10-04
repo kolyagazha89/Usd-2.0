@@ -83,8 +83,7 @@ export class InspectionsService {
 
   async create(data: {
   registrationId: string;
-  checkedByUserId?: string;
-  checkedByName?: string;
+  checkedByUserId: string;
   notes?: string;
 }) {
   const registration = await this.prisma.registration.findUnique({
@@ -134,11 +133,9 @@ export class InspectionsService {
       registrationId: data.registrationId,
 
       // При создании инспекция всегда считается НЕ ПРОЙДЕННОЙ.
-      // После проверки инспектор вручную меняет статус на PASSED.
       status: 'FAILED',
-
       checkedByUserId: data.checkedByUserId,
-      checkedByName: data.checkedByName,
+      checkedByName: undefined,
       notes: data.notes,
     },
     include: {
@@ -171,8 +168,7 @@ export class InspectionsService {
     id: string,
     data: {
       status?: 'PASSED' | 'FAILED';
-      checkedByUserId?: string | null;
-      checkedByName?: string | null;
+      checkedByUserId: string;
       notes?: string | null;
     },
   ) {
@@ -193,30 +189,13 @@ export class InspectionsService {
       );
     }
 
-    if (data.checkedByUserId) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: data.checkedByUserId },
-      });
-
-      if (!user) {
-        throw new NotFoundException(
-          'Пользователь, проводящий инспекцию, не найден',
-        );
-      }
-    }
-
     return this.prisma.inspection.update({
       where: { id },
       data: {
         ...(data.status !== undefined && {
           status: data.status,
         }),
-        ...(data.checkedByUserId !== undefined && {
-          checkedByUserId: data.checkedByUserId,
-        }),
-        ...(data.checkedByName !== undefined && {
-          checkedByName: data.checkedByName,
-        }),
+        checkedByUserId: data.checkedByUserId,
         ...(data.notes !== undefined && {
           notes: data.notes,
         }),

@@ -18,6 +18,10 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/usd
+      JWT_SECRET: ci-only-secret-must-be-at-least-32-bytes-long
+      JWT_ISSUER: usd-2.0-api
+      JWT_AUDIENCE: usd-2.0-client
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
 
     services:
       postgres:

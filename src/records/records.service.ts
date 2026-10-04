@@ -24,8 +24,30 @@ export class RecordsService {
       include: {
         registration: {
           include: {
-            participant: true,
-            car: true,
+participant: {
+                      select: {
+                        id: true,
+                        lastName: true,
+                        firstName: true,
+                        middleName: true,
+                        team: true,
+                        city: true,
+                        photoUrl: true,
+                        isPublic: true,
+                      },
+                    },
+            car: {
+                      select: {
+                        id: true,
+                        brand: true,
+                        model: true,
+                        registrationCountry: true,
+                        registrationNumber: true,
+                        color: true,
+                        photoUrl: true,
+                        isPublic: true,
+                      },
+                    },
             stage: {
               include: {
                 season: true,

@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ImportsService } from './imports.service';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('imports')
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
+  @Roles('ADMIN')
   @Post('stage/preview')
   preview(
     @Body()
@@ -42,6 +44,7 @@ checkImport(@Param('id') id: string) {
   ) {
     return this.importsService.getImportRow(importId, rowId);
   }
+  @Roles('ADMIN')
   @Patch(':importId/rows/:rowId/resolve')
 resolveImportRow(
   @Param('importId') importId: string,

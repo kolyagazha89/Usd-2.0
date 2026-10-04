@@ -41,11 +41,14 @@ export class AuthService {
       role: string;
     },
   ): Promise<string> {
-    return this.jwtService.signAsync({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    return this.jwtService.signAsync(
+      { sub: user.id, email: user.email, role: user.role },
+      {
+        issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api',
+        audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client',
+        expiresIn: '15m',
+      },
+    );
   }
 
   private getRefreshExpiration(): Date {
@@ -352,6 +355,7 @@ export class AuthService {
     await this.prisma.refreshSession.create({
       data: {
         userId: user.id,
+        familyId: crypto.randomUUID(),
         tokenHash:
           this.hashToken(refreshToken),
         userAgent:
@@ -441,6 +445,7 @@ export class AuthService {
       this.prisma.refreshSession.create({
         data: {
           userId: session.user.id,
+          familyId: session.familyId,
           tokenHash:
             this.hashToken(
               newRefreshToken,

@@ -29,8 +29,30 @@ export class ResultsService {
             season: true,
           },
         },
-        participant: true,
-        car: true,
+participant: {
+          select: {
+            id: true,
+            lastName: true,
+            firstName: true,
+            middleName: true,
+            team: true,
+            city: true,
+            photoUrl: true,
+            isPublic: true,
+          },
+        },
+        car: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationCountry: true,
+            registrationNumber: true,
+            color: true,
+            photoUrl: true,
+            isPublic: true,
+          },
+        },
       },
     },
     registrationClass: {
