@@ -182,7 +182,7 @@ export class RegistrationsService {
     request: AuthenticatedRequest,
     body: {
       stageId: string;
-      participantId: string;
+      participantId?: string;
       carId: string;
       classIds: string[];
       configurationVersionId: string;
