@@ -106,6 +106,10 @@ export class ResultsRankingService {
             registrationClass: {
               classId,
             },
+            OR: [
+              { isHistorical: false },
+              { isHistorical: true, verificationStatus: 'VERIFIED' },
+            ],
           },
           include: {
             registration: {
@@ -166,6 +170,10 @@ export class ResultsRankingService {
           registrationClassId: {
             in: registrationClassIds,
           },
+          OR: [
+            { isHistorical: false },
+            { isHistorical: true, verificationStatus: 'VERIFIED' },
+          ],
         },
         include: {
           registration: {
@@ -242,6 +250,10 @@ export class ResultsRankingService {
           registrationClassId: {
             in: registrationClassIds,
           },
+          OR: [
+            { isHistorical: false },
+            { isHistorical: true, verificationStatus: 'VERIFIED' },
+          ],
           registration: {
             participantId: {
               notIn: disqualifiedParticipantIds,
