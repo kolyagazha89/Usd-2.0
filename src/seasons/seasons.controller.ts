@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { SeasonsService } from './seasons.service';
 import { CreateSeasonDto, UpdateSeasonDto } from '../stages/dto/season.dto';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('seasons')
 @Roles('ADMIN')
@@ -19,12 +20,16 @@ export class SeasonsController {
   }
 
   @Post()
-  create(@Body() dto: CreateSeasonDto) {
-    return this.seasonsService.create(dto);
+  create(@Body() dto: CreateSeasonDto, @Req() request: AuthenticatedRequest) {
+    return this.seasonsService.create(dto, request);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSeasonDto) {
-    return this.seasonsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSeasonDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.seasonsService.update(id, dto, request);
   }
 }
