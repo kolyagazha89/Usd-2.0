@@ -20,7 +20,6 @@ import { ImportsModule } from './imports/imports.module';
 import { DisqualificationsModule } from './disqualifications/disqualifications.module';
 import { ConfigurationsModule } from './configurations/configurations.module';
 import { SecurityModule } from './common/security/security.module';
-import { SecurityModule } from './common/security/security.module';
 
 @Module({
   imports: [
@@ -39,7 +38,6 @@ import { SecurityModule } from './common/security/security.module';
     ImportsModule,
     DisqualificationsModule,
     ConfigurationsModule,
-    SecurityModule,
     SecurityModule,
   ],
   controllers: [AppController],
