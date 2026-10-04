@@ -297,6 +297,23 @@ export class RegistrationsService {
           );
         }
 
+        if (stage.status !== 'PUBLISHED') {
+          throw new BadRequestException(
+            'Регистрация доступна только на опубликованный этап',
+          );
+        }
+
+        const season = await tx.season.findUnique({
+          where: { id: stage.seasonId },
+          select: { status: true },
+        });
+
+        if (!season || season.status !== 'ACTIVE') {
+          throw new BadRequestException(
+            'Регистрация недоступна: сезон не активен',
+          );
+        }
+
         if (!stage.registrationOpen) {
           throw new BadRequestException(
             'Регистрация на этот этап закрыта',
