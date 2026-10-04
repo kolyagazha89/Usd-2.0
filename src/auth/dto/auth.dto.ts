@@ -19,10 +19,6 @@ export class RegisterDto {
   @MaxLength(128)
   password!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
-  name!: string;
 }
 
 export class LoginDto {
