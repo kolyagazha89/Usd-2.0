@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 
 import {
   CreateBatteryDto,
@@ -213,6 +214,7 @@ export class ConfigurationsService {
     return this.prisma.carConfiguration.findMany({
       where: {
         carId,
+        isActive: true,
       },
       orderBy: {
         updatedAt: 'desc',
@@ -391,6 +393,7 @@ export class ConfigurationsService {
         where: {
           carId,
           name: dto.name,
+          isActive: true,
         },
         select: {
           id: true,
@@ -475,140 +478,57 @@ export class ConfigurationsService {
     configurationId: string,
     dto: UpdateConfigurationDto,
   ) {
-    const configuration =
-      await this.requireConfigurationAccess(
-        request,
-        configurationId,
-      );
+    const configuration = await this.requireConfigurationAccess(request, configurationId);
+    if (!configuration) throw new NotFoundException('Configuration not found');
 
-    const duplicate =
-      await this.prisma.carConfiguration.findFirst({
-        where: {
-          carId: configuration.carId,
-          name: dto.name,
-          NOT: {
-            id: configurationId,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
+    const duplicate = await this.prisma.carConfiguration.findFirst({
+      where: {
+        carId: configuration.carId,
+        name: dto.name,
+        isActive: true,
+        NOT: { id: configurationId },
+      },
+      select: { id: true },
+    });
 
     if (duplicate) {
-      throw new BadRequestException(
-        `Configuration "${dto.name}" already exists for this car`,
-      );
+      throw new BadRequestException(`Configuration "${dto.name}" already exists for this car`);
     }
 
     return this.prisma.$transaction(
       async (tx) => {
-        const version =
-          await tx.carConfigurationVersion.findUnique({
-            where: {
-              configurationId_version: {
-                configurationId,
-                version:
-                  configuration.currentVersion,
-              },
-            },
-          });
-
-        if (!version) {
-          throw new NotFoundException(
-            'Current configuration version not found',
-          );
-        }
-
-        await tx.carHeadUnit.deleteMany({
-          where: {
-            versionId: version.id,
-          },
+        const current = await tx.carConfiguration.findUnique({
+          where: { id: configurationId },
+          select: { id: true, currentVersion: true },
         });
+        if (!current) throw new NotFoundException('Configuration not found');
 
-        await tx.carAmplifierComponent.deleteMany({
-          where: {
-            amplifier: {
-              versionId: version.id,
-            },
-          },
-        });
-
-        await tx.carAudioComponent.deleteMany({
-          where: {
-            versionId: version.id,
-          },
-        });
-
-        await tx.carAmplifier.deleteMany({
-          where: {
-            versionId: version.id,
-          },
-        });
-
-        await tx.carBattery.deleteMany({
-          where: {
-            versionId: version.id,
-          },
-        });
-
-        await tx.carGenerator.deleteMany({
-          where: {
-            versionId: version.id,
-          },
-        });
-
-        await tx.carConfigurationVersion.update({
-          where: {
-            id: version.id,
-          },
+        const nextVersion = current.currentVersion + 1;
+        const version = await tx.carConfigurationVersion.create({
           data: {
-            vibrationIsolation:
-              dto.vibrationIsolation,
-            additionalDescription:
-              dto.additionalDescription,
+            configurationId,
+            version: nextVersion,
+            vibrationIsolation: dto.vibrationIsolation,
+            additionalDescription: dto.additionalDescription,
           },
         });
 
-        await this.createVersionChildren(
-          tx,
-          version.id,
-          dto,
-        );
+        await this.createVersionChildren(tx, version.id, dto);
 
         await tx.carConfiguration.update({
-          where: {
-            id: configurationId,
-          },
-          data: {
-            name: dto.name,
-          },
+          where: { id: configurationId },
+          data: { name: dto.name, currentVersion: nextVersion },
         });
 
         return tx.carConfiguration.findUnique({
-          where: {
-            id: configurationId,
-          },
+          where: { id: configurationId },
           include: {
             versions: {
-              where: {
-                version:
-                  configuration.currentVersion,
-              },
+              where: { version: nextVersion },
               include: {
                 headUnits: true,
                 audioComponents: true,
-                amplifiers: {
-                  include: {
-                    componentLinks: {
-                      select: {
-                        amplifierId: true,
-                        componentId: true,
-                        quantity: true,
-                      },
-                    },
-                  },
-                },
+                amplifiers: { include: { componentLinks: { select: { amplifierId: true, componentId: true, quantity: true } } } },
                 batteries: true,
                 generators: true,
               },
@@ -616,9 +536,9 @@ export class ConfigurationsService {
           },
         });
       },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }
-
   // =========================================================
   // POST /configurations/:configurationId/versions
   // =========================================================
@@ -862,10 +782,9 @@ export class ConfigurationsService {
       configurationId,
     );
 
-    await this.prisma.carConfiguration.delete({
-      where: {
-        id: configurationId,
-      },
+    await this.prisma.carConfiguration.update({
+      where: { id: configurationId },
+      data: { isActive: false },
     });
 
     return {
