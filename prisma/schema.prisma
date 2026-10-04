@@ -328,7 +328,7 @@ model Registration {
   stageId       String
   participantId String
   carId         String
-  configurationVersionId String
+  configurationVersionId String?
   configurationSnapshot Json?
 
   participantNumber Int
@@ -342,7 +342,7 @@ model Registration {
   stage       Stage       @relation(fields: [stageId], references: [id])
   participant Participant @relation(fields: [participantId], references: [id])
   car         Car         @relation(fields: [carId], references: [id])
-  configurationVersion CarConfigurationVersion @relation(fields: [configurationVersionId], references: [id])
+  configurationVersion CarConfigurationVersion? @relation(fields: [configurationVersionId], references: [id])
 
   classes    RegistrationClass[]
   inspection Inspection?
