@@ -1,4 +1,4 @@
-import { IsArray, IsObject, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsUUID, ValidateNested } from 'class-validator';
 
 export class PreviewImportDto {
   @IsUUID()
@@ -13,6 +13,10 @@ export class PreviewImportDto {
   @IsArray()
   @IsObject({ each: true })
   results?: Record<string, unknown>[];
+
+  @IsOptional()
+  @IsBoolean()
+  historicalResults?: boolean;
 }
 
 export class ResolveImportRowDto {
