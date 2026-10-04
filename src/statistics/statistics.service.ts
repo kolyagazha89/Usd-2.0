@@ -850,6 +850,126 @@ export class StatisticsService {
     };
   }
 
+  async getCar(carId: string) {
+    const car = await this.prisma.car.findUnique({
+      where: { id: carId },
+      select: {
+        id: true,
+        participantId: true,
+        brand: true,
+        model: true,
+        registrationNumber: true,
+        registrationCountry: true,
+        color: true,
+        photoUrl: true,
+        isActive: true,
+        participant: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            team: true,
+            city: true,
+          },
+        },
+        configurations: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            currentVersion: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!car) {
+      throw new NotFoundException('Автомобиль не найден');
+    }
+
+    const results = await this.loadResults({
+      registration: { carId },
+    });
+
+    const keys = await this.getDisqualificationKeys([
+      car.participantId,
+    ]);
+
+    const eligibleResults = results.filter((result) =>
+      this.isEligibleResult(result, keys),
+    );
+
+    const stages = new Set<string>();
+    const classes = new Set<string>();
+
+    let firstPlaces = 0;
+    let secondPlaces = 0;
+    let thirdPlaces = 0;
+    let bestResult: ResultRow | null = null;
+
+    for (const result of eligibleResults) {
+      stages.add(result.registration.stageId);
+      classes.add(result.registrationClass.classId);
+
+      if (result.place === 1) firstPlaces += 1;
+      if (result.place === 2) secondPlaces += 1;
+      if (result.place === 3) thirdPlaces += 1;
+
+      if (
+        !bestResult ||
+        Number(result.value) > Number(bestResult.value) ||
+        (
+          Number(result.value) === Number(bestResult.value) &&
+          result.registration.stage.date.getTime() <
+            bestResult.registration.stage.date.getTime()
+        )
+      ) {
+        bestResult = result;
+      }
+    }
+
+    const currentRecords = await this.prisma.record.count({
+      where: {
+        carId,
+        isCurrent: true,
+      },
+    });
+
+    return {
+      car,
+      stats: {
+        stages: stages.size,
+        classes: classes.size,
+        appearances: eligibleResults.length,
+        firstPlaces,
+        secondPlaces,
+        thirdPlaces,
+        podiums: firstPlaces + secondPlaces + thirdPlaces,
+        records: currentRecords,
+        bestResult: bestResult
+          ? {
+              value: bestResult.value.toString(),
+              unit: bestResult.unit,
+              class: bestResult.registrationClass.class,
+              stage: bestResult.registration.stage,
+            }
+          : null,
+      },
+      history: eligibleResults.map((result) => ({
+        resultId: result.id,
+        value: result.value.toString(),
+        unit: result.unit,
+        place: result.place,
+        class: result.registrationClass.class,
+        stage: result.registration.stage,
+      })),
+    };
+  }
+
   async getSeason(seasonId: string) {
     const season =
       await this.prisma.season.findUnique({
