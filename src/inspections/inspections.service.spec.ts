@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InspectionsService } from './inspections.service';
 import { PrismaService } from '../prisma/prisma.service';
