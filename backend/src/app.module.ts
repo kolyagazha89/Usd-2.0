@@ -24,6 +24,7 @@ import { AuditModule } from './common/audit/audit.module';
 import { SeasonsModule } from './seasons/seasons.module';
 import { HistoricalResultsModule } from './historical-results/historical-results.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { GoogleModule } from './google/google.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { StatisticsModule } from './statistics/statistics.module';
     SeasonsModule,
     HistoricalResultsModule,
     StatisticsModule,
+    GoogleModule,
   ],
   controllers: [AppController],
   providers: [AppService],
