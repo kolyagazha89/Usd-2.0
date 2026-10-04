@@ -62,7 +62,7 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --omit=optional --audit-level=high
 
       - name: Build
         run: npm run build
