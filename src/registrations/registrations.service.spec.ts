@@ -199,6 +199,7 @@ describe('RegistrationsService — car/configuration rules', () => {
         findUnique: jest.fn().mockResolvedValue(existing),
         findFirst: jest.fn(),
         update: jest.fn().mockResolvedValue(existing),
+        create: jest.fn(),
         findUniqueOrThrow: jest.fn().mockResolvedValue(existing),
       },
       registrationClass: {
