@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 import { AuditService } from '../common/audit/audit.service';
 import {
   CreateClassDto,
@@ -351,7 +352,7 @@ export class ClassesService {
         ...(dto.participantLimit !== undefined ? { participantLimit: dto.participantLimit } : {}),
         ...(dto.customName !== undefined ? { customName: dto.customName?.trim() || null } : {}),
         ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
-        ...(dto.settings !== undefined ? { settings: dto.settings } : {}),
+        ...(dto.settings !== undefined ? { settings: dto.settings === null ? Prisma.JsonNull : dto.settings } : {}),
       },
       include: { class: { include: { direction: true } } },
     });
