@@ -472,7 +472,4 @@ export class RecordsService {
     );
   }
 
-  async createFromResultManually(resultId: string) {
-    return this.recalculateCurrentRecord(resultId);
-  }
 }
