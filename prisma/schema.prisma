@@ -196,6 +196,7 @@ model CarGenerator {
 model RefreshSession {
   id        String    @id @default(uuid())
   userId    String
+  familyId  String
   tokenHash String    @unique
   userAgent String?
   ipAddress String?
@@ -206,6 +207,7 @@ model RefreshSession {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([familyId])
   @@index([expiresAt])
   @@index([revokedAt])
 }

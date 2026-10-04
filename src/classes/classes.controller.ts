@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
+import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 
 @Controller()
 export class ClassesController {
@@ -19,16 +21,19 @@ export class ClassesController {
   // DIRECTIONS
   // =========================================================
 
+  @Public()
   @Get('directions')
   findAllDirections() {
     return this.classesService.findAllDirections();
   }
 
+  @Public()
   @Get('directions/:id')
   findDirection(@Param('id') id: string) {
     return this.classesService.findDirection(id);
   }
 
+  @Roles('ADMIN')
   @Post('directions')
   createDirection(
     @Body()
@@ -40,6 +45,7 @@ export class ClassesController {
     return this.classesService.createDirection(body);
   }
 
+  @Roles('ADMIN')
   @Patch('directions/:id')
   updateDirection(
     @Param('id') id: string,
@@ -53,6 +59,7 @@ export class ClassesController {
     return this.classesService.updateDirection(id, body);
   }
 
+  @Roles('ADMIN')
   @Delete('directions/:id')
   deleteDirection(@Param('id') id: string) {
     return this.classesService.deleteDirection(id);
@@ -62,6 +69,7 @@ export class ClassesController {
   // CLASSES
   // =========================================================
 
+  @Public()
   @Get('classes')
   findAllClasses(
     @Query('directionId') directionId?: string,
@@ -69,11 +77,13 @@ export class ClassesController {
     return this.classesService.findAllClasses(directionId);
   }
 
+  @Public()
   @Get('classes/:id')
   findClass(@Param('id') id: string) {
     return this.classesService.findClass(id);
   }
 
+  @Roles('ADMIN')
   @Post('classes')
   createClass(
     @Body()
@@ -87,6 +97,7 @@ export class ClassesController {
     return this.classesService.createClass(body);
   }
 
+  @Roles('ADMIN')
   @Patch('classes/:id')
   updateClass(
     @Param('id') id: string,
@@ -102,6 +113,7 @@ export class ClassesController {
     return this.classesService.updateClass(id, body);
   }
 
+  @Roles('ADMIN')
   @Delete('classes/:id')
   deleteClass(@Param('id') id: string) {
     return this.classesService.deleteClass(id);
@@ -111,11 +123,13 @@ export class ClassesController {
   // STAGE CLASSES
   // =========================================================
 
+  @Public()
   @Get('stages/:stageId/classes')
   findStageClasses(@Param('stageId') stageId: string) {
     return this.classesService.findStageClasses(stageId);
   }
 
+  @Roles('ADMIN')
   @Post('stages/:stageId/classes')
   addClassToStage(
     @Param('stageId') stageId: string,
@@ -130,6 +144,7 @@ export class ClassesController {
     );
   }
 
+  @Roles('ADMIN')
   @Put('stages/:stageId/classes')
   replaceStageClasses(
     @Param('stageId') stageId: string,
@@ -144,6 +159,7 @@ export class ClassesController {
     );
   }
 
+  @Roles('ADMIN')
   @Delete('stages/:stageId/classes/:classId')
   removeClassFromStage(
     @Param('stageId') stageId: string,

@@ -1,5 +1,6 @@
 import {
   Body,
+  Req,
   Controller,
   Get,
   Param,
@@ -7,6 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 import { DisqualificationsService } from './disqualifications.service';
 
@@ -80,6 +82,7 @@ export class DisqualificationsController {
 
   @Post()
   create(
+    @Req() request: AuthenticatedRequest,
     @Body()
     body: {
       participantId: string;
@@ -87,10 +90,9 @@ export class DisqualificationsController {
       stageId?: string;
       seasonId?: string;
       reason: string;
-      issuedByUserId: string;
     },
   ) {
-    return this.disqualificationsService.create(body);
+    return this.disqualificationsService.create({ ...body, issuedByUserId: request.user.sub });
   }
 
   @Patch(':id/revoke')
@@ -98,15 +100,16 @@ export class DisqualificationsController {
     @Param('id')
     id: string,
 
+    @Req() request: AuthenticatedRequest,
+
     @Body()
     body: {
-      revokedByUserId: string;
       revokeReason: string;
     },
   ) {
-    return this.disqualificationsService.revoke(
-      id,
-      body,
-    );
+    return this.disqualificationsService.revoke(id, {
+      ...body,
+      revokedByUserId: request.user.sub,
+    });
   }
 }

@@ -41,11 +41,14 @@ export class AuthService {
       role: string;
     },
   ): Promise<string> {
-    return this.jwtService.signAsync({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    return this.jwtService.signAsync(
+      { sub: user.id, email: user.email, role: user.role },
+      {
+        issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api',
+        audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client',
+        expiresIn: '15m',
+      },
+    );
   }
 
   private getRefreshExpiration(): Date {

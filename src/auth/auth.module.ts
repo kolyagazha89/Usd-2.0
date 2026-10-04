@@ -17,6 +17,8 @@ import { MailModule } from '../mail/mail.module';
       secret: process.env.JWT_SECRET,
       signOptions: {
         expiresIn: '15m',
+        issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api',
+        audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client',
       },
     }),
   ],
