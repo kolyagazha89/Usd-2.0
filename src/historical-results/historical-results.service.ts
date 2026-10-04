@@ -118,7 +118,7 @@ export class HistoricalResultsService {
 
   private async getConfigurationVersion(tx: any, carId: string) {
     const existing = await tx.carConfigurationVersion.findFirst({
-      where: { configuration: { carId, isActive: true } },
+      where: { configuration: { carId } },
       orderBy: [{ createdAt: 'asc' }, { version: 'asc' }],
       select: { id: true },
     });
@@ -190,11 +190,15 @@ export class HistoricalResultsService {
 
       let registration = await tx.registration.findUnique({
         where: { stageId_carId: { stageId: data.stageId, carId } },
-        select: { id: true, participantId: true, status: true, configurationVersionId: true, configurationSnapshot: true },
+        select: { id: true, participantId: true, participantNumber: true, status: true, configurationVersionId: true, configurationSnapshot: true },
       });
 
       if (registration && registration.participantId !== data.participantId) {
         throw new ConflictException('Регистрация автомобиля на этом этапе принадлежит другому участнику');
+      }
+
+      if (registration && registration.participantNumber !== data.participantNumber) {
+        throw new ConflictException('Номер участника не совпадает с существующей регистрацией этого автомобиля на этапе');
       }
 
       if (!registration) {
