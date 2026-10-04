@@ -86,6 +86,50 @@ export class ParticipantsService {
   }
 
   // =========================================================
+  // ADMIN PARTICIPANTS
+  // =========================================================
+
+  async findAllAdmin(request: AuthenticatedRequest) {
+    await this.requireAdmin(request);
+
+    return this.prisma.participant.findMany({
+      orderBy: [
+        { lastName: 'asc' },
+        { firstName: 'asc' },
+      ],
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        phone: true,
+        birthDate: true,
+        city: true,
+        photoUrl: true,
+        isPublic: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isActive: true,
+            emailVerifiedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            cars: true,
+            registrations: true,
+          },
+        },
+      },
+    });
+  }
+
+  // =========================================================
   // PUBLIC PARTICIPANTS
   // =========================================================
 
