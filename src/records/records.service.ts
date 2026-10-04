@@ -361,6 +361,14 @@ export class RecordsService {
 
   async findAll() {
     return this.prisma.record.findMany({
+      where: {
+        result: {
+          registration: {
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
       include: this.publicInclude,
       orderBy: [
         { class: { sortOrder: 'asc' } },
@@ -372,7 +380,15 @@ export class RecordsService {
 
   async findCurrent() {
     return this.prisma.record.findMany({
-      where: { isCurrent: true },
+      where: {
+        isCurrent: true,
+        result: {
+          registration: {
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
       include: this.publicInclude,
       orderBy: [
         { class: { sortOrder: 'asc' } },
@@ -392,7 +408,15 @@ export class RecordsService {
     }
 
     return this.prisma.record.findMany({
-      where: { classId },
+      where: {
+        classId,
+        result: {
+          registration: {
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
       include: this.publicInclude,
       orderBy: [
         { isCurrent: 'desc' },
@@ -404,7 +428,15 @@ export class RecordsService {
 
   async findBySeason(seasonId: string) {
     return this.prisma.record.findMany({
-      where: { seasonId },
+      where: {
+        seasonId,
+        result: {
+          registration: {
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
       include: this.publicInclude,
       orderBy: { achievedAt: 'desc' },
     });
@@ -412,7 +444,15 @@ export class RecordsService {
 
   async findOne(id: string) {
     const record = await this.prisma.record.findUnique({
-      where: { id },
+      where: {
+        id,
+        result: {
+          registration: {
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
       include: this.publicInclude,
     });
 
