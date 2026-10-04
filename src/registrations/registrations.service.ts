@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 type RegistrationSource =
   | 'PRE_REGISTRATION'
@@ -26,8 +27,30 @@ export class RegistrationsService {
         season: true,
       },
     },
-    participant: true,
-    car: true,
+    participant: {
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        city: true,
+        photoUrl: true,
+      },
+    },
+    car: {
+      select: {
+        id: true,
+        participantId: true,
+        brand: true,
+        model: true,
+        registrationCountry: true,
+        registrationNumber: true,
+        color: true,
+        photoUrl: true,
+        isActive: true,
+      },
+    },
     configurationVersion: {
       include: {
         configuration: true,
@@ -138,20 +161,58 @@ export class RegistrationsService {
   // СОЗДАНИЕ РЕГИСТРАЦИИ
   // ==========================================
 
-  async create(body: {
-    stageId: string;
-    participantId: string;
-    carId: string;
-    classIds: string[];
-    configurationId?: string;
-    source?: RegistrationSource;
-  }) {
+  async create(
+    request: AuthenticatedRequest,
+    body: {
+      stageId: string;
+      participantId: string;
+      carId: string;
+      classIds: string[];
+      configurationVersionId?: string;
+      source?: RegistrationSource;
+    },
+  ) {
     const {
       stageId,
       participantId,
       carId,
       classIds,
+      configurationVersionId,
     } = body;
+
+    if (!configurationVersionId) {
+      throw new BadRequestException(
+        'Для регистрации необходимо выбрать версию конфигурации автомобиля',
+      );
+    }
+
+    if (
+      request.user.role === 'PARTICIPANT' &&
+      request.user.participantId !== participantId
+    ) {
+      throw new ConflictException(
+        'Нельзя создавать регистрацию за другого участника',
+      );
+    }
+
+    if (
+      request.user.role === 'PARTICIPANT' &&
+      body.source &&
+      body.source !== 'PRE_REGISTRATION'
+    ) {
+      throw new BadRequestException(
+        'Участник может создавать только предрегистрацию',
+      );
+    }
+
+    if (
+      request.user.role === 'JUDGE' &&
+      body.source === 'IMPORT'
+    ) {
+      throw new BadRequestException(
+        'JUDGE не может создавать регистрацию с источником IMPORT',
+      );
+    }
 
     if (!stageId || !participantId || !carId) {
       throw new BadRequestException(
@@ -177,6 +238,12 @@ export class RegistrationsService {
     ) {
       throw new BadRequestException(
         'Список классов содержит некорректный ID',
+      );
+    }
+
+    if (classIds.length > 5) {
+      throw new BadRequestException(
+        'В одной регистрации можно выбрать не более 5 классов',
       );
     }
 
@@ -425,91 +492,96 @@ export class RegistrationsService {
           });
 
         if (existing) {
-          // Уже активна — повторно зарегистрировать нельзя.
-          if (
-            existing.status === 'ACTIVE'
-          ) {
-            throw new ConflictException(
-              'Этот автомобиль уже зарегистрирован на этапе',
+          throw new ConflictException(
+            existing.status === 'CANCELLED'
+              ? 'Этот автомобиль уже регистрировался на этапе и был отменён. Для новой регистрации создаётся новая запись и новый номер только после снятия старой регистрации с этого автомобиля.'
+              : 'Этот автомобиль уже зарегистрирован на этапе',
+          );
+        }
+
+        // 8. Выбираем конкретную версию конфигурации.
+        // Регистрация хранит ссылку на неё и неизменяемый snapshot.
+        let configurationVersion = null;
+
+        if (configurationVersionId) {
+          configurationVersion =
+            await tx.carConfigurationVersion.findFirst({
+              where: {
+                id: configurationVersionId,
+                configuration: {
+                  carId,
+                },
+              },
+              include: {
+                configuration: true,
+                headUnits: true,
+                audioComponents: true,
+                amplifiers: {
+                  include: {
+                    componentLinks: true,
+                  },
+                },
+                batteries: true,
+                generators: true,
+              },
+            });
+
+          if (!configurationVersion) {
+            throw new BadRequestException(
+              'Выбранная версия конфигурации не принадлежит этому автомобилю',
+            );
+          }
+        } else {
+          const configurations =
+            await tx.carConfiguration.findMany({
+              where: {
+                carId,
+              },
+              select: {
+                id: true,
+                name: true,
+                currentVersion: true,
+              },
+            });
+
+          if (configurations.length > 1) {
+            throw new BadRequestException(
+              'Для автомобиля доступно несколько конфигураций — необходимо выбрать версию конфигурации для регистрации',
             );
           }
 
-          // Отменённая регистрация:
-          // восстанавливаем ТУ ЖЕ запись и ТУ ЖЕ
-          // participantNumber.
-          await tx.registrationClass.deleteMany({
-            where: {
-              registrationId: existing.id,
-            },
-          });
-
-          await tx.registration.update({
-            where: {
-              id: existing.id,
-            },
-            data: {
-              participantId,
-              status: 'ACTIVE',
-              source,
-              registeredAt: new Date(),
-              classes: {
-                create: classIds.map(
-                  (classId) => ({
-                    class: {
-                      connect: {
-                        id: classId,
-                      },
-                    },
-                  }),
-                ),
-              },
-            },
-          });
-
-          return tx.registration.findUniqueOrThrow({
-            where: {
-              id: existing.id,
-            },
-            include:
-              this.registrationInclude,
-          });
-        }
-
-        // 8. Фиксируем текущую версию конфигурации автомобиля.
-        // Если конфигурация ещё не создана, регистрация остаётся допустимой.
-        let configuration = null;
-
-        if (body.configurationId) {
-          configuration = await tx.carConfiguration.findFirst({
-            where: { id: body.configurationId, carId },
-            select: { id: true, name: true, currentVersion: true },
-          });
-          if (!configuration) {
-            throw new BadRequestException('Выбранная конфигурация не принадлежит этому автомобилю');
-          }
-        } else {
-          const configurations = await tx.carConfiguration.findMany({
-            where: { carId },
-            orderBy: { createdAt: 'asc' },
-            select: { id: true, name: true, currentVersion: true },
-          });
-          if (configurations.length > 1) {
-            throw new BadRequestException('Для автомобиля доступно несколько конфигураций — необходимо выбрать конфигурацию для регистрации');
-          }
-          configuration = configurations[0] ?? null;
-        }
-
-        const configurationVersion = configuration
-          ? await tx.carConfigurationVersion.findUnique({
-              where: {
-                configurationId_version: {
-                  configurationId: configuration.id,
-                  version: configuration.currentVersion,
+          if (configurations.length === 1) {
+            configurationVersion =
+              await tx.carConfigurationVersion.findUnique({
+                where: {
+                  configurationId_version: {
+                    configurationId:
+                      configurations[0].id,
+                    version:
+                      configurations[0].currentVersion,
+                  },
                 },
-              },
-              include: { headUnits: true, audioComponents: true, amplifiers: { include: { componentLinks: true } }, batteries: true, generators: true },
-            })
-          : null;
+                include: {
+                  configuration: true,
+                  headUnits: true,
+                  audioComponents: true,
+                  amplifiers: {
+                    include: {
+                      componentLinks: true,
+                    },
+                  },
+                  batteries: true,
+                  generators: true,
+                },
+              });
+
+            if (!configurationVersion) {
+              throw new ConflictException(
+                'Текущая версия конфигурации автомобиля не найдена',
+              );
+            }
+          }
+        }
 
         // 8. Получаем следующий номер.
         //
@@ -544,8 +616,10 @@ export class RegistrationsService {
             configurationVersionId: configurationVersion?.id ?? null,
             configurationSnapshot: configurationVersion
               ? {
-                  configurationId: configuration.id,
-                  configurationName: configuration.name,
+                  configurationId:
+                    configurationVersion.configurationId,
+                  configurationName:
+                    configurationVersion.configuration.name,
                   version: configurationVersion.version,
                   vibrationIsolation: configurationVersion.vibrationIsolation,
                   additionalDescription: configurationVersion.additionalDescription,
@@ -577,162 +651,6 @@ export class RegistrationsService {
       },
     );
   }
-  // ==========================================
-  // ИЗМЕНЕНИЕ КЛАССОВ
-  // ==========================================
-
-  async updateClasses(
-    id: string,
-    classIds: string[],
-  ) {
-    if (
-      !Array.isArray(classIds) ||
-      classIds.length === 0
-    ) {
-      throw new BadRequestException(
-        'Необходимо выбрать хотя бы один класс',
-      );
-    }
-
-    if (
-      classIds.some(
-        (classId) =>
-          typeof classId !== 'string' ||
-          !classId.trim(),
-      )
-    ) {
-      throw new BadRequestException(
-        'Список классов содержит некорректный ID',
-      );
-    }
-
-    if (
-      new Set(classIds).size !== classIds.length
-    ) {
-      throw new BadRequestException(
-        'Один и тот же класс указан несколько раз',
-      );
-    }
-
-    return this.prisma.$transaction(
-      async (tx) => {
-        const registration =
-          await tx.registration.findUnique({
-            where: {
-              id,
-            },
-            include: {
-              stage: true,
-              results: true,
-            },
-          });
-
-        if (!registration) {
-          throw new NotFoundException(
-            'Регистрация не найдена',
-          );
-        }
-
-        if (
-          registration.status !== 'ACTIVE'
-        ) {
-          throw new BadRequestException(
-            'Нельзя менять классы отменённой регистрации',
-          );
-        }
-
-        if (
-          registration.results.length > 0
-        ) {
-          throw new BadRequestException(
-            'Нельзя менять классы после внесения результатов',
-          );
-        }
-
-        const activeDisqualifications =
-          await this.getActiveDisqualifications(
-            tx,
-            registration.participantId,
-            registration.stageId,
-          );
-
-        if (
-          activeDisqualifications.length > 0
-        ) {
-          throw new ConflictException(
-            'Нельзя изменять классы регистрации участника, находящегося под действующей дисквалификацией',
-          );
-        }
-
-        const stage =
-          registration.stage;
-
-        if (
-          stage.isDeleted ||
-          !stage.registrationOpen
-        ) {
-          throw new BadRequestException(
-            'Изменение классов недоступно: этап удалён или регистрация закрыта',
-          );
-        }
-
-        const stageClasses =
-          await tx.stageClass.findMany({
-            where: {
-              stageId:
-                registration.stageId,
-              classId: {
-                in: classIds,
-              },
-              class: {
-                isActive: true,
-                direction: {
-                  isActive: true,
-                },
-              },
-            },
-            select: {
-              classId: true,
-            },
-          });
-
-        if (
-          stageClasses.length !==
-          classIds.length
-        ) {
-          throw new BadRequestException(
-            'Один или несколько классов неактивны или не назначены этому этапу',
-          );
-        }
-
-        await tx.registrationClass.deleteMany({
-          where: {
-            registrationId: id,
-          },
-        });
-
-        await tx.registrationClass.createMany({
-          data: classIds.map(
-            (classId) => ({
-              registrationId: id,
-              classId,
-            }),
-          ),
-        });
-
-        return tx.registration.findUniqueOrThrow(
-          {
-            where: {
-              id,
-            },
-            include:
-              this.registrationInclude,
-          },
-        );
-      },
-    );
-  }
-
   // ==========================================
   // ОТМЕНА
   // ==========================================
@@ -771,103 +689,4 @@ export class RegistrationsService {
     });
   }
 
-  // ==========================================
-  // ВОССТАНОВЛЕНИЕ
-  // ==========================================
-
-  async restore(id: string) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const registration =
-          await tx.registration.findUnique({
-            where: {
-              id,
-            },
-            include: {
-              stage: true,
-            },
-          });
-
-        if (!registration) {
-          throw new NotFoundException(
-            'Регистрация не найдена',
-          );
-        }
-
-        if (
-          registration.status !==
-          'CANCELLED'
-        ) {
-          throw new ConflictException(
-            'Восстановить можно только отменённую регистрацию',
-          );
-        }
-
-        if (
-          registration.stage.isDeleted
-        ) {
-          throw new ConflictException(
-            'Нельзя восстановить регистрацию на удалённом этапе',
-          );
-        }
-
-        // При восстановлении снова проверяем
-        // актуальную дисквалификацию.
-        const activeDisqualifications =
-          await this.getActiveDisqualifications(
-            tx,
-            registration.participantId,
-            registration.stageId,
-          );
-
-        if (
-          activeDisqualifications.length > 0
-        ) {
-          throw new ConflictException(
-            'Нельзя восстановить регистрацию: участник находится под действующей дисквалификацией',
-          );
-        }
-
-        const activeRegistration =
-          await tx.registration.findFirst({
-            where: {
-              stageId:
-                registration.stageId,
-              participantId:
-                registration.participantId,
-              carId:
-                registration.carId,
-              status: 'ACTIVE',
-              id: {
-                not: registration.id,
-              },
-            },
-          });
-
-        if (activeRegistration) {
-          throw new ConflictException(
-            'У этого участника уже есть активная регистрация с этим автомобилем на данном этапе',
-          );
-        }
-
-        const restored =
-          await tx.registration.update({
-            where: {
-              id,
-            },
-            data: {
-              status: 'ACTIVE',
-            },
-          });
-
-        return tx.registration.findUnique({
-          where: {
-            id: restored.id,
-          },
-          include:
-            this.registrationInclude,
-        });
-      },
-    );
-  }
 }
