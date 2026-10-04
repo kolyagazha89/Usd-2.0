@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -483,7 +484,7 @@ export class AuthService {
         return session.user;
       },
       {
-        isolationLevel: 'Serializable',
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
 
