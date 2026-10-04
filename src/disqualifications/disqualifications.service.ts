@@ -189,8 +189,8 @@ export class DisqualificationsService {
       );
     }
 
-    const disqualification =
-      await this.prisma.disqualification.create({
+    const disqualification = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.disqualification.create({
         data: {
           participantId: body.participantId,
           scope: body.scope,
@@ -202,6 +202,25 @@ export class DisqualificationsService {
         },
         include: this.detailInclude(),
       });
+
+      await tx.auditLog.create({
+        data: {
+          userId: body.issuedByUserId,
+          action: 'DISQUALIFICATION_CREATED',
+          entity: 'Disqualification',
+          entityId: created.id,
+          metadata: {
+            participantId: created.participantId,
+            scope: created.scope,
+            stageId: created.stageId,
+            seasonId: created.seasonId,
+            reason: created.reason,
+          },
+        },
+      });
+
+      return created;
+    });
 
     /*
      * Дисквалификация начинает действовать сразу.
@@ -620,8 +639,8 @@ export class DisqualificationsService {
       );
     }
 
-    const revoked =
-      await this.prisma.disqualification.update({
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.disqualification.update({
         where: {
           id,
         },
@@ -634,6 +653,25 @@ export class DisqualificationsService {
         },
         include: this.detailInclude(),
       });
+
+      await tx.auditLog.create({
+        data: {
+          userId: body.revokedByUserId,
+          action: 'DISQUALIFICATION_REVOKED',
+          entity: 'Disqualification',
+          entityId: updated.id,
+          metadata: {
+            participantId: updated.participantId,
+            scope: updated.scope,
+            stageId: updated.stageId,
+            seasonId: updated.seasonId,
+            revokeReason: updated.revokeReason,
+          },
+        },
+      });
+
+      return updated;
+    });
 
     /*
      * После REVOKED результат снова становится
