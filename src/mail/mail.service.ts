@@ -1,7 +1,22 @@
 import {
   Injectable,
   InternalServerErrorException,
-} from '@nestjs/common';
+  async sendEmailChangeEmail(email: string, token: string): Promise<void> {
+    const url = `${this.frontendUrl}/confirm-email-change?token=${encodeURIComponent(token)}`;
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to: email,
+        subject: 'Подтверждение нового email — USD',
+        text: ['Здравствуйте!', '', 'Для подтверждения нового email перейдите по ссылке:', url, '', 'Ссылка действует 30 минут.'].join('\\n'),
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111"><h2>USD — подтверждение нового email</h2><p>Для подтверждения нового email нажмите кнопку ниже.</p><p><a href="${url}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px">Подтвердить email</a></p><p style="font-size:13px;color:#666">Ссылка действует 30 минут.</p></div>`,
+      });
+    } catch {
+      throw new InternalServerErrorException('Не удалось отправить письмо для изменения email');
+    }
+  }
+}
+ from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
 
@@ -151,3 +166,4 @@ export class MailService {
     }
   }
 }
+
