@@ -1,9 +1,4 @@
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-
-enum InspectionStatusDto {
-  PASSED = 'PASSED',
-  FAILED = 'FAILED',
-}
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateInspectionDto {
   @IsUUID()
@@ -17,8 +12,8 @@ export class CreateInspectionDto {
 
 export class UpdateInspectionDto {
   @IsOptional()
-  @IsEnum(InspectionStatusDto)
-  status?: InspectionStatusDto;
+  @IsIn(['PASSED', 'FAILED'])
+  status?: 'PASSED' | 'FAILED';
 
   @IsOptional()
   @IsString()
