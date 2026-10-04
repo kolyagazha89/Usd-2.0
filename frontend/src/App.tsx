@@ -49,7 +49,7 @@ function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
  if(path.startsWith('/admin/stages'))return <StagesPage go={go}/>;
  if(path.startsWith('/admin/classes'))return <ClassesPage/>;
  if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
- if(path.startsWith('/admin/inspections'))return <InspectionsPage/>;
+ if(path.startsWith('/admin/inspections'))return <InspectionsPage user={user}/>;
  if(path.startsWith('/admin/results'))return <ResultsPage/>;
  if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
  if(path.startsWith('/admin/historical-results'))return <HistoricalPage/>;
@@ -206,8 +206,48 @@ function ClassesPage(){const[tab,setTab]=useState<'classes'|'directions'>('class
 
 function RegistrationsPage(){return <ResourcePage title="Регистрации" subtitle="Регистрации по этапам, автомобилям и классам" path="/registrations" columns={[{key:'participantNumber',label:'№'},{key:'participant.lastName',label:'Участник'},{key:'car.brand',label:'Автомобиль'},{key:'car.model',label:'Модель'},{key:'status',label:'Статус'},{key:'stage.name',label:'Этап'}]} searchPlaceholder="Участник, номер, автомобиль"/>}
 function StagePicker({children}:{children:(stageId:string)=>React.ReactNode}){const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState('');useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)})},[]);return <><div className="toolbar stage-picker"><label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name}</option>)}</select></label></div>{stageId?children(stageId):<div className="panel"><Empty text="Выберите этап"/></div>}</>}
-function InspectionsPage(){const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false);return <PageFrame title="Инспекции" subtitle="Технический контроль перед результатом"><StagePicker>{stageId=><div className="panel table-wrap">{loading?<LoadingPage small/>:<StageRegistrations stageId={stageId} onRows={setRows} onLoading={setLoading}/>}</div>}</StagePicker></PageFrame>}
-function StageRegistrations({stageId,onRows,onLoading}:{stageId:string;onRows:(x:any[])=>void;onLoading:(x:boolean)=>void}){const[rows,setRows]=useState<any[]>([]);useEffect(()=>{let live=true;onLoading(true);apiGet('/registrations?stageId='+encodeURIComponent(stageId)).then(r=>{const regs=listData(r).map((x:any)=>({...x,inspectionStatus:x.inspection?.status??'—'}));if(live){setRows(regs);onRows(regs)}}).catch(()=>{if(live){setRows([]);onRows([])}}).finally(()=>{if(live)onLoading(false)});return()=>{live=false}},[stageId]);return <DataTable rows={rows} columns={[{key:'participantNumber',label:'№'},{key:'participant.lastName',label:'Участник'},{key:'car.brand',label:'Автомобиль'},{key:'car.model',label:'Модель'},{key:'inspectionStatus',label:'Инспекция'},{key:'status',label:'Регистрация'}]}/> }
+function InspectionsPage({user}:{user:User}){
+ const[stageId,setStageId]=useState(''),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true);
+ useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)}).catch(()=>{}).finally(()=>setLoadingStages(false))},[]);
+ return <PageFrame title="Инспекция въезда" subtitle="Проверка зарегистрированных участников перед допуском на этап">
+  <div className="toolbar stage-picker">
+   <label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)} disabled={loadingStages}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
+  </div>
+  {stageId?<EntryInspection stageId={stageId} user={user}/>:<div className="panel"><Empty text="Выберите этап"/></div>}
+ </PageFrame>
+}
+function EntryInspection({stageId,user}:{stageId:string;user:User}){
+ const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState('');
+ const load=()=>{setLoading(true);setError('');return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE').then(r=>setRows(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
+ useEffect(()=>{void load()},[stageId]);
+ const filtered=rows.filter(r=>{const q=search.trim().toLowerCase();if(!q)return true;return [r.participantNumber,r.participant?.lastName,r.participant?.firstName,r.participant?.middleName,r.participant?.team,r.car?.brand,r.car?.model,r.car?.registrationNumber,r.classes?.map((x:any)=>x.class?.name).join(' ')].filter(Boolean).join(' ').toLowerCase().includes(q)});
+ const passed=rows.filter(r=>r.inspection?.status==='PASSED').length,failed=rows.filter(r=>r.inspection?.status==='FAILED').length,pending=rows.filter(r=>!r.inspection).length;
+ return <>
+  <div className="inspection-summary">
+   <div className="inspection-stat"><strong>{rows.length}</strong><span>зарегистрировано</span></div>
+   <div className="inspection-stat good"><strong>{passed}</strong><span>прошли</span></div>
+   <div className="inspection-stat bad"><strong>{failed}</strong><span>не прошли</span></div>
+   <div className="inspection-stat pending"><strong>{pending}</strong><span>ожидают</span></div>
+  </div>
+  <div className="toolbar">
+   <div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="№, участник, автомобиль, госномер, класс"/></div>
+   <button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>
+   <span className="row-count">{filtered.length} из {rows.length}</span>
+  </div>
+  {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
+  <div className="panel table-wrap">
+   {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
+  </div>
+ </>;
+}
+function InspectionRow({registration:r,user,onSaved}:{registration:any;user:User;onSaved:()=>Promise<any>}){
+ const[busy,setBusy]=useState(false),[error,setError]=useState(''),[noteOpen,setNoteOpen]=useState(false),[notes,setNotes]=useState(r.inspection?.notes??'');
+ const inspection=r.inspection, canEdit=!inspection||(user.role==='ADMIN'||inspection.checkedByUserId===user.id||inspection.createdByUserId===user.id);
+ const save=async(status:'PASSED'|'FAILED')=>{if(status==='FAILED'&&!notes.trim()){setNoteOpen(true);setError('Для статуса «Не прошёл» укажите причину');return}setBusy(true);setError('');try{if(inspection){await apiPatch('/inspections/'+inspection.id,{status,notes:notes.trim()||null})}else{await apiPost('/inspections',{registrationId:r.id,status,notes:notes.trim()||undefined})}await onSaved();setNoteOpen(false)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить инспекцию')}finally{setBusy(false)}};
+ const classes=(r.classes??[]).map((x:any)=>x.class?.name).filter(Boolean).join(', ');
+ const status=inspection?.status;
+ return <tr><td><strong>{r.participantNumber}</strong></td><td><strong>{[r.participant?.lastName,r.participant?.firstName].filter(Boolean).join(' ')}</strong>{r.participant?.team&&<small className="table-sub">{r.participant.team}</small>}</td><td><strong>{[r.car?.brand,r.car?.model].filter(Boolean).join(' ')}</strong>{r.car?.registrationNumber&&<small className="table-sub">{r.car.registrationNumber}</small>}</td><td>{classes||'—'}</td><td>{status==='PASSED'?<span className="badge good"><Check size={11}/>Прошёл</span>:status==='FAILED'?<span className="badge bad"><X size={11}/>Не прошёл</span>:<span className="badge">Ожидает</span>}{inspection?.notes&&<small className="table-sub">{inspection.notes}</small>}{error&&<small className="table-sub error-text">{error}</small>}</td><td>{canEdit?<div className="inspection-actions"><button className="secondary-button compact" disabled={busy} onClick={()=>void save('PASSED')}>{busy?'…':<><Check size={14}/>Прошёл</>}</button><button className="danger-button compact" disabled={busy} onClick={()=>{setNoteOpen(true);setError('')}}><X size={14}/>Не прошёл</button></div>:<span className="muted">Только автор проверки</span>}{noteOpen&&canEdit&&<div className="inspection-note"><textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Причина непрохождения"/><button className="primary-button compact" disabled={busy} onClick={()=>void save('FAILED')}>{busy?'Сохраняем…':'Подтвердить'}</button></div>}</td></tr>
+}
 function ResultsPage(){return <PageFrame title="Результаты" subtitle="Официальные результаты. JUDGE создаёт, ADMIN корректирует."><StagePicker>{stageId=><ResultsStage stageId={stageId}/>}</StagePicker></PageFrame>}
 function ResultsStage({stageId}:{stageId:string}){const[data,setData]=useState<any[]>([]),[error,setError]=useState('');useEffect(()=>{apiGet('/results/admin/stage/'+stageId).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка'))},[stageId]);return <>{error&&<div className="notice"><AlertTriangle size={18}/>{error}</div>}<div className="panel table-wrap"><DataTable rows={data} columns={autoColumns(data)}/></div></>}
 function DisqualificationsPage(){return <OperationalPage title="Дисквалификации" subtitle="Активные и отозванные дисквалификации" icon={AlertTriangle} endpoint="/disqualifications"/>}
