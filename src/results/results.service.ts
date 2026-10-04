@@ -140,6 +140,7 @@ export class ResultsService {
       },
     },
     records: true,
+    verifiedByUser: { select: { id: true, name: true, role: true } },
   };
 
   private isBassRace(className: string): boolean {
@@ -322,8 +323,14 @@ export class ResultsService {
   }
 
   async findOne(id: string) {
-    const result = await this.prisma.result.findUnique({
-      where: { id },
+    const result = await this.prisma.result.findFirst({
+      where: {
+        id,
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+      },
       include: this.publicInclude,
     });
 
@@ -358,7 +365,13 @@ export class ResultsService {
     }
 
     return this.prisma.result.findMany({
-      where: { registrationId },
+      where: {
+        registrationId,
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+      },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
     });
@@ -375,7 +388,13 @@ export class ResultsService {
     }
 
     return this.prisma.result.findMany({
-      where: { registrationClassId },
+      where: {
+        registrationClassId,
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+      },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
     });
@@ -394,6 +413,10 @@ export class ResultsService {
     return this.prisma.result.findMany({
       where: {
         registration: { stageId },
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
       },
       include: this.publicInclude,
       orderBy: [
@@ -478,6 +501,8 @@ export class ResultsService {
             isBest: false,
             notes: data.notes?.trim() || null,
             createdByUserId: request.user.sub,
+            isHistorical: false,
+            verificationStatus: 'NOT_REQUIRED',
           },
           include: this.adminInclude,
         });
@@ -550,6 +575,9 @@ export class ResultsService {
 
         if (!existing) {
           throw new NotFoundException('Результат не найден');
+        }
+        if (existing.isHistorical) {
+          throw new ConflictException('Исторический результат редактируется через специальный административный workflow');
         }
 
         if (existing.registration.status !== 'ACTIVE') {

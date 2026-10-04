@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { Prisma } from '../generated/prisma/client';
+import { RegistrationCountry } from '../generated/prisma/enums';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 type ImportRow = Record<string, unknown>;
 
@@ -69,11 +71,15 @@ export class ImportsService {
     };
   }
 
-  async previewStage(body: {
-    stageId: string;
-    registrations?: ImportRow[];
-    results?: ImportRow[];
-  }) {
+  async previewStage(
+    body: {
+      stageId: string;
+      registrations?: ImportRow[];
+      results?: ImportRow[];
+      historicalResults?: boolean;
+    },
+    request?: AuthenticatedRequest,
+  ) {
     if (!body.stageId) {
       throw new BadRequestException('stageId обязателен');
     }
@@ -249,6 +255,7 @@ export class ImportsService {
         data: {
           stageId: stage.id,
           status: 'DRAFT',
+          createdByUserId: request?.user.sub ?? null,
 
           summary,
 
@@ -257,6 +264,7 @@ export class ImportsService {
             stageId: stage.id,
             stageNumber: stage.stageNumber,
             stageName: stage.name,
+            historicalResults: body.historicalResults === true,
           },
 
           rows: {
@@ -335,6 +343,23 @@ export class ImportsService {
           rows: true,
         },
       });
+
+    if (request) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'IMPORT_CREATED',
+          entity: 'ImportJob',
+          entityId: importJob.id,
+          ipAddress: request.ip,
+          metadata: {
+            stageId: stage.id,
+            rowsCount: importJob.rows.length,
+            historicalResults: body.historicalResults === true,
+          },
+        },
+      });
+    }
 
     return {
       success: true,
@@ -2320,7 +2345,21 @@ export class ImportsService {
       classIds?: string[];
 
       classId?: string;
+
+      car?: {
+        action: 'USE_EXISTING' | 'CREATE';
+        carId?: string;
+        brand?: string;
+        model?: string;
+        registrationNumber?: string;
+        registrationCountry?: string;
+      };
+
+      value?: number;
+      place?: number | null;
+      notes?: string | null;
     },
+    request?: AuthenticatedRequest,
   ) {
     const row =
       await this.prisma.importRow.findFirst({
@@ -2402,11 +2441,129 @@ export class ImportsService {
       }
     }
 
+    if (resolution.participant) {
+      const action = resolution.participant.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие participant');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.participant.participantId ||
+          typeof resolution.participant.participantId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать participantId',
+        );
+      }
+
+      if (
+        action === 'CREATE' &&
+        (!resolution.participant.fullName ||
+          typeof resolution.participant.fullName !== 'string' ||
+          !resolution.participant.fullName.trim())
+      ) {
+        throw new BadRequestException(
+          'Для CREATE необходимо указать непустое ФИО участника',
+        );
+      }
+    }
+
+    if (resolution.registration) {
+      const action = resolution.registration.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие registration');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.registration.registrationId ||
+          typeof resolution.registration.registrationId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать registrationId',
+        );
+      }
+
+      if (
+        action === 'CREATE' &&
+        (resolution.registration.participantNumber === undefined ||
+          !Number.isInteger(resolution.registration.participantNumber) ||
+          resolution.registration.participantNumber <= 0)
+      ) {
+        throw new BadRequestException(
+          'Для CREATE необходимо указать положительный номер участника',
+        );
+      }
+    }
+
+    if (resolution.car) {
+      const action = resolution.car.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие car');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.car.carId ||
+          typeof resolution.car.carId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать carId',
+        );
+      }
+
+      if (action === 'CREATE' &&
+        (!resolution.car.brand?.trim() ||
+          !resolution.car.model?.trim() ||
+          !resolution.car.registrationNumber?.trim())
+      ) {
+        throw new BadRequestException(
+          'Для CREATE автомобиля необходимо указать марку, модель и регистрационный номер',
+        );
+      }
+    }
+
+    if (resolution.value !== undefined) {
+      if (
+        typeof resolution.value !== 'number' ||
+        !Number.isFinite(resolution.value) ||
+        resolution.value < 0 ||
+        !Number.isInteger(Math.round(resolution.value * 1000))
+      ) {
+        throw new BadRequestException(
+          'Некорректное значение результата',
+        );
+      }
+    }
+
+    if (resolution.place !== undefined && resolution.place !== null) {
+      if (
+        !Number.isInteger(resolution.place) ||
+        resolution.place < 1 ||
+        resolution.place > 999
+      ) {
+        throw new BadRequestException(
+          'Место должно быть целым числом от 1 до 999',
+        );
+      }
+    }
+
+    if (resolution.notes !== undefined && resolution.notes !== null) {
+      if (
+        typeof resolution.notes !== 'string' ||
+        resolution.notes.length > 2000
+      ) {
+        throw new BadRequestException(
+          'Комментарий импорта должен быть строкой не длиннее 2000 символов',
+        );
+      }
+    }
+
     if (
       resolution.classIds !==
       undefined
-    ) {
-      if (
+    ) {      if (
         !Array.isArray(
           resolution.classIds,
         )
@@ -2447,6 +2604,23 @@ export class ImportsService {
         },
       });
 
+    if (request) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'IMPORT_ROW_RESOLVED',
+          entity: 'ImportRow',
+          entityId: updatedRow.id,
+          ipAddress: request.ip,
+          metadata: {
+            importJobId: importId,
+            rowNumber: row.rowNumber,
+            status: updatedRow.status,
+          },
+        },
+      });
+    }
+
     return {
       success: true,
       row: updatedRow,
@@ -2458,6 +2632,41 @@ export class ImportsService {
     participantId: string,
     row: Record<string, unknown> = {},
   ): Promise<string> {
+    const explicitCarId =
+      this.stringValue(row.carId);
+
+    if (explicitCarId) {
+      const explicitCar =
+        await tx.car.findUnique({
+          where: { id: explicitCarId },
+          select: {
+            id: true,
+            participantId: true,
+            isActive: true,
+          },
+        });
+
+      if (!explicitCar) {
+        throw new BadRequestException(
+          `Автомобиль ${explicitCarId} не найден`,
+        );
+      }
+
+      if (explicitCar.participantId !== participantId) {
+        throw new BadRequestException(
+          'Выбранный автомобиль принадлежит другому участнику',
+        );
+      }
+
+      if (!explicitCar.isActive) {
+        await tx.car.update({
+          where: { id: explicitCar.id },
+          data: { isActive: true },
+        });
+      }
+
+      return explicitCar.id;
+    }
     const findValue = (
       targets: string[],
     ): unknown => {
@@ -2656,7 +2865,8 @@ export class ImportsService {
             `IMPORT-${participantId
               .slice(0, 8)
               .toUpperCase()}`,
-          registrationCountry: 'RU',
+          registrationCountry:
+            (this.stringValue(row.registrationCountry) as RegistrationCountry) || RegistrationCountry.RU,
           isActive: true,
           isPublic: false,
         },
@@ -2820,8 +3030,258 @@ export class ImportsService {
     }
   }
 
+  /**
+   * Second validation pass for rows that were manually resolved.
+   *
+   * WARNING -> RESOLVED -> this validation -> COMMITTED.
+   * We intentionally re-read all referenced entities inside the same
+   * transaction as the commit so a stale/deleted/moved entity cannot
+   * silently pass because the preview was created earlier.
+   */
+  private async validateResolvedRowsForCommit(
+    tx: Prisma.TransactionClient,
+    importJob: {
+      stageId: string;
+      rows: Array<{
+        id: string;
+        type: 'REGISTRATION' | 'RESULT';
+        rowNumber: number;
+        status: 'READY' | 'WARNING' | 'RESOLVED' | 'COMMITTED';
+        resolution: unknown;
+      }>;
+    },
+  ) {
+    const resolvedRows = importJob.rows.filter(
+      (row) => row.status === 'RESOLVED',
+    );
+
+    for (const row of resolvedRows) {
+      const resolution = row.resolution as any;
+
+      if (!resolution || typeof resolution !== 'object') {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: отсутствует решение администратора`,
+        );
+      }
+
+      let participantId: string | null = null;
+
+      if (resolution.participant?.action === 'USE_EXISTING') {
+        const selectedParticipantId = resolution.participant.participantId;
+
+        if (typeof selectedParticipantId !== 'string' || !selectedParticipantId) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: не указан существующий участник`,
+          );
+        }
+
+        participantId = selectedParticipantId;
+
+        const participant = await tx.participant.findUnique({
+          where: { id: selectedParticipantId },
+          select: { id: true },
+        });
+
+        if (!participant) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный участник больше не существует`,
+          );
+        }
+      } else if (resolution.participant?.action === 'CREATE') {
+        if (
+          typeof resolution.participant.fullName !== 'string' ||
+          !resolution.participant.fullName.trim()
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: для нового участника не указано ФИО`,
+          );
+        }
+      }
+
+      if (resolution.registration?.action === 'USE_EXISTING') {
+        const registration =
+          await tx.registration.findUnique({
+            where: {
+              id: resolution.registration.registrationId,
+            },
+            select: {
+              id: true,
+              stageId: true,
+              participantId: true,
+              participantNumber: true,
+              status: true,
+            },
+          });
+
+        if (!registration) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация больше не существует`,
+          );
+        }
+
+        if (registration.stageId !== importJob.stageId) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация относится к другому этапу`,
+          );
+        }
+
+        if (
+          participantId &&
+          registration.participantId !== participantId
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: регистрация принадлежит другому участнику`,
+          );
+        }
+
+        if (registration.status !== 'ACTIVE') {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранная регистрация неактивна`,
+          );
+        }
+      } else if (
+        resolution.registration?.action === 'CREATE' &&
+        (!Number.isInteger(
+          resolution.registration.participantNumber,
+        ) ||
+          resolution.registration.participantNumber <= 0)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: некорректный номер участника`,
+        );
+      }
+
+      if (resolution.car?.action === 'USE_EXISTING') {
+        const car = await tx.car.findUnique({
+          where: { id: resolution.car.carId },
+          select: {
+            id: true,
+            participantId: true,
+          },
+        });
+
+        if (!car) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный автомобиль больше не существует`,
+          );
+        }
+
+        if (
+          participantId &&
+          car.participantId !== participantId
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: автомобиль принадлежит другому участнику`,
+          );
+        }
+      } else if (resolution.car?.action === 'CREATE') {
+        if (
+          typeof resolution.car.brand !== 'string' ||
+          !resolution.car.brand.trim() ||
+          typeof resolution.car.model !== 'string' ||
+          !resolution.car.model.trim() ||
+          typeof resolution.car.registrationNumber !== 'string' ||
+          !resolution.car.registrationNumber.trim()
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: недостаточно данных для создания автомобиля`,
+          );
+        }
+
+        if (
+          resolution.car.registrationCountry !== undefined &&
+          typeof resolution.car.registrationCountry !== 'string'
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: некорректная страна регистрации автомобиля`,
+          );
+        }
+      }
+
+      const classIds = [
+        ...(Array.isArray(resolution.classIds)
+          ? resolution.classIds
+          : []),
+        ...(typeof resolution.classId === 'string'
+          ? [resolution.classId]
+          : []),
+      ];
+
+      for (const classId of [...new Set(classIds)]) {
+        const stageClass = await tx.stageClass.findUnique({
+          where: {
+            stageId_classId: {
+              stageId: importJob.stageId,
+              classId,
+            },
+          },
+          select: {
+            id: true,
+            isActive: true,
+            class: {
+              select: {
+                id: true,
+                isActive: true,
+                unit: true,
+              },
+            },
+          },
+        });
+
+        if (
+          !stageClass ||
+          !stageClass.isActive ||
+          !stageClass.class.isActive
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: выбранный класс больше не доступен на этапе`,
+          );
+        }
+      }
+
+      if (resolution.value !== undefined) {
+        if (
+          typeof resolution.value !== 'number' ||
+          !Number.isFinite(resolution.value) ||
+          resolution.value < 0 ||
+          !Number.isInteger(
+            Math.round(resolution.value * 1000),
+          )
+        ) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: некорректное значение результата`,
+          );
+        }
+      }
+
+      if (
+        resolution.place !== undefined &&
+        resolution.place !== null &&
+        (!Number.isInteger(resolution.place) ||
+          resolution.place < 1 ||
+          resolution.place > 999)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: некорректное место`,
+        );
+      }
+
+      if (
+        resolution.notes !== undefined &&
+        resolution.notes !== null &&
+        (typeof resolution.notes !== 'string' ||
+          resolution.notes.length > 2000)
+      ) {
+        throw new BadRequestException(
+          `Строка ${row.rowNumber}: комментарий слишком длинный`,
+        );
+      }
+    }
+  }
+
   async commitImport(
     importId: string,
+    request?: AuthenticatedRequest,
   ) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -2878,6 +3338,58 @@ export class ImportsService {
             `В импорте остались нерешённые строки: ${unresolvedRows.length}`,
           );
         }
+
+        /*
+         * RESOLVED означает не просто "админ сменил статус".
+         * Для каждой такой строки обязательно должно сохраниться
+         * конкретное решение, которое затем повторно проверяется
+         * ниже во время commit внутри транзакции.
+         *
+         * Это второй контур проверки:
+         * WARNING -> RESOLVED -> повторная проверка -> COMMITTED.
+         */
+        const invalidResolvedRows =
+          importJob.rows.filter(
+            (row) =>
+              row.status === 'RESOLVED' &&
+              (!row.resolution ||
+                typeof row.resolution !== 'object'),
+          );
+
+        if (
+          invalidResolvedRows.length >
+          0
+        ) {
+          throw new BadRequestException(
+            `Найдены строки RESOLVED без сохранённого решения: ${invalidResolvedRows
+              .map((row) => row.rowNumber)
+              .join(', ')}`,
+          );
+        }
+
+        const unsupportedStatuses =
+          importJob.rows.filter(
+            (row) =>
+              row.status !== 'READY' &&
+              row.status !== 'RESOLVED',
+          );
+
+        if (
+          unsupportedStatuses.length >
+          0
+        ) {
+          throw new BadRequestException(
+            `Импорт содержит строки, не готовые к подтверждению: ${unsupportedStatuses
+              .map((row) => row.rowNumber)
+              .join(', ')}`,
+          );
+        }
+
+        await this.validateResolvedRowsForCommit(
+          tx,
+          importJob,
+        );
+
 
         /*
          * Блокируем этап на время Commit.
@@ -3101,38 +3613,57 @@ export class ImportsService {
           }
 
           const carData = {
+            carId:
+              resolution?.car?.action === 'USE_EXISTING'
+                ? resolution.car.carId
+                : undefined,
+
+            brand:
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.brand)
+                : undefined,
+
             model:
-              this.stringValue(
-                normalized
-                  ?.car
-                  ?.model ??
-                this.getImportFieldValue(
-                  rawData,
-                  [
-                    'Модель автомобиля',
-                    'Модель',
-                    'model',
-                  ],
-                ),
-              ),
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.model)
+                : this.stringValue(
+                    normalized
+                      ?.car
+                      ?.model ??
+                    this.getImportFieldValue(
+                      rawData,
+                      [
+                        'Модель автомобиля',
+                        'Модель',
+                        'model',
+                      ],
+                    ),
+                  ),
 
             plateNumber:
-              this.stringValue(
-                normalized
-                  ?.car
-                  ?.plateNumber ??
-                this.getImportFieldValue(
-                  rawData,
-                  [
-                    'Номер автомобиля',
-                    'Гос. номер',
-                    'Гос номер',
-                    'Регистрационный номер',
-                    'registrationNumber',
-                    'plateNumber',
-                  ],
-                ),
-              ),
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.registrationNumber)
+                : this.stringValue(
+                    normalized
+                      ?.car
+                      ?.plateNumber ??
+                    this.getImportFieldValue(
+                      rawData,
+                      [
+                        'Номер автомобиля',
+                        'Гос. номер',
+                        'Гос номер',
+                        'Регистрационный номер',
+                        'registrationNumber',
+                        'plateNumber',
+                      ],
+                    ),
+                  ),
+
+            registrationCountry:
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.registrationCountry) || 'RU'
+                : 'RU',
           };
 
           const carId =
@@ -3877,7 +4408,28 @@ export class ImportsService {
                 await this.getOrCreateImportCar(
                   tx,
                   participantId,
-                  {},
+                  {
+                    carId:
+                      resolution?.car?.action === 'USE_EXISTING'
+                        ? resolution.car.carId
+                        : undefined,
+                    brand:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.brand
+                        : undefined,
+                    model:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.model
+                        : undefined,
+                    registrationNumber:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.registrationNumber
+                        : undefined,
+                    registrationCountry:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.registrationCountry
+                        : undefined,
+                  },
                 );
 
               const existingByCar =
@@ -4168,12 +4720,27 @@ export class ImportsService {
           }
 
           const value =
+            resolution?.value ??
             row.value ??
             normalized
               ?.result;
 
           const unit =
             stageClass.class.unit;
+
+          const place =
+            resolution?.place ??
+            row.place ??
+            normalized?.place ??
+            null;
+
+          const notes =
+            resolution?.notes !== undefined
+              ? resolution.notes?.trim() || null
+              : null;
+
+          const historicalResults =
+            (importJob.metadata as any)?.historicalResults === true;
 
           if (
             value === null ||
@@ -4200,8 +4767,9 @@ export class ImportsService {
           let resultId: string;
 
           if (existingResult) {
-            resultId =
-              existingResult.id;
+            throw new BadRequestException(
+              `Для регистрации ${registrationId} и класса ${classId} результат уже существует; импорт не может молча переиспользовать существующий результат`,
+            );
           } else {
             const result =
               await tx.result.create({
@@ -4216,14 +4784,20 @@ export class ImportsService {
                   unit:
                     stageClass.class.unit,
 
-                  place:
-                    row.place ??
-                    normalized
-                      ?.place ??
-                    null,
+                  place,
+
+                  notes,
 
                   isBest:
                     false,
+
+                  isHistorical:
+                    historicalResults,
+
+                  verificationStatus:
+                    historicalResults
+                      ? 'PENDING'
+                      : 'NOT_REQUIRED',
                 },
               });
 
@@ -4278,6 +4852,24 @@ export class ImportsService {
           },
         );
 
+        if (request) {
+          await tx.auditLog.create({
+            data: {
+              userId: request.user.sub,
+              action: 'IMPORT_COMMITTED',
+              entity: 'ImportJob',
+              entityId: importId,
+              ipAddress: request.ip,
+              metadata: {
+                stageId: importJob.stageId,
+                rowsCount: committedRows.length,
+                historicalResults:
+                  (importJob.metadata as any)?.historicalResults === true,
+              },
+            },
+          });
+        }
+
         return {
           success: true,
 
@@ -4286,6 +4878,9 @@ export class ImportsService {
 
           status:
             'COMMITTED',
+
+          historicalResults:
+            (importJob.metadata as any)?.historicalResults === true,
 
           rows:
             committedRows,

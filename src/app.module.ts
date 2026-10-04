@@ -22,6 +22,7 @@ import { ConfigurationsModule } from './configurations/configurations.module';
 import { MediaModule } from './media/media.module';
 import { AuditModule } from './common/audit/audit.module';
 import { SeasonsModule } from './seasons/seasons.module';
+import { HistoricalResultsModule } from './historical-results/historical-results.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SeasonsModule } from './seasons/seasons.module';
     MediaModule,
     AuditModule,
     SeasonsModule,
+    HistoricalResultsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

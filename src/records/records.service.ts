@@ -217,6 +217,10 @@ export class RecordsService {
         registrationClass: {
           classId,
         },
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
       },
       include: {
         registration: {
