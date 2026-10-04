@@ -36,7 +36,10 @@ async function bootstrap() {
     .split(',').map((origin) => origin.trim()).filter(Boolean);
 
   if (trustedOrigins.length > 0) {
-    app.enableCsrfProtection({ trustedOrigins });
+    const csrfApp = app as typeof app & { enableCsrfProtection?: (options: { trustedOrigins: string[] }) => void };
+    if (typeof csrfApp.enableCsrfProtection === 'function') {
+      csrfApp.enableCsrfProtection({ trustedOrigins });
+    }
   } else if (process.env.NODE_ENV === 'production') {
     throw new Error('CSRF_TRUSTED_ORIGINS должен быть задан в production');
   }
