@@ -1,19 +1,11 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Post,
-} from '@nestjs/common';
-
+import { Controller, Get, Param } from '@nestjs/common';
 import { RecordsService } from './records.service';
 import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
 
 @Controller('records')
 export class RecordsController {
-  constructor(
-    private readonly recordsService: RecordsService,
-  ) {}
+  constructor(private readonly recordsService: RecordsService) {}
 
   @Public()
   @Get()
@@ -39,29 +31,21 @@ export class RecordsController {
     return this.recordsService.findBySeason(seasonId);
   }
 
+  @Roles('ADMIN')
+  @Get('admin/current')
+  findCurrentAdmin() {
+    return this.recordsService.findCurrentAdmin();
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/history')
+  findAllAdmin() {
+    return this.recordsService.findAllAdmin();
+  }
+
   @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.recordsService.findOne(id);
   }
-
-  @Roles('ADMIN')
-  @Post('from-result/:resultId')
-createFromResultManually(
-  @Param('resultId') resultId: string,
-) {
-  return this.recordsService.createFromResultManually(
-    resultId,
-  );
-}
-
-@Roles('ADMIN')
-@Post('from-result-auto/:resultId')
-createFromResultAuto(
-  @Param('resultId') resultId: string,
-) {
-  return this.recordsService.createFromResult(
-    resultId,
-  );
-}
 }

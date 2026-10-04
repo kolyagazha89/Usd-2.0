@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsBoolean,
   Max,
   MaxLength,
   Min,
@@ -30,6 +31,9 @@ export class CreateResultDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  @IsBoolean()
+  confirmed!: boolean;
 }
 
 export class UpdateResultDto {

@@ -433,6 +433,12 @@ export class ResultsService {
       throw new ForbiddenException('Недостаточно прав для внесения результата');
     }
 
+    if (data.confirmed !== true) {
+      throw new ConflictException(
+        'Перед сохранением результата необходимо подтвердить проверку данных',
+      );
+    }
+
     this.validateValue(data.value);
     this.validatePlace(data.place);
 
