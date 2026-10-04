@@ -1079,8 +1079,10 @@ export class StatisticsService {
     const [
       overview,
       openStages,
+      currentStage,
       upcomingStages,
       recentStages,
+      activeRegistrationStats,
       pendingInspections,
       failedInspections,
       resultsToday,
@@ -1094,10 +1096,35 @@ export class StatisticsService {
           registrationOpen: true,
         },
       }),
+      this.prisma.stage.findFirst({
+        where: {
+          isDeleted: false,
+          status: 'PUBLISHED',
+          date: { lte: now },
+        },
+        orderBy: { date: 'desc' },
+        select: {
+          id: true,
+          stageNumber: true,
+          name: true,
+          city: true,
+          date: true,
+          registrationOpen: true,
+          status: true,
+          season: {
+            select: {
+              id: true,
+              name: true,
+              year: true,
+            },
+          },
+        },
+      }),
       this.prisma.stage.findMany({
         where: {
           isDeleted: false,
-          date: { gte: now },
+          date: { gt: now },
+          status: { not: 'CANCELLED' },
         },
         orderBy: { date: 'asc' },
         take: 5,
@@ -1139,6 +1166,10 @@ export class StatisticsService {
           },
         },
       }),
+      this.prisma.registration.findMany({
+        where: { status: 'ACTIVE' },
+        select: { participantId: true, carId: true },
+      }),
       this.prisma.registration.count({
         where: {
           status: 'ACTIVE',
@@ -1168,6 +1199,7 @@ export class StatisticsService {
       success: true,
       generatedAt: now,
       overview,
+      currentStage,
       attention: {
         openStages,
         pendingInspections,
@@ -1175,6 +1207,15 @@ export class StatisticsService {
         resultsToday,
         activeDisqualifications,
         unresolvedImports,
+      },
+      activeRegistrationStats: {
+        registrations: activeRegistrationStats.length,
+        participants: new Set(
+          activeRegistrationStats.map((registration) => registration.participantId),
+        ).size,
+        cars: new Set(
+          activeRegistrationStats.map((registration) => registration.carId),
+        ).size,
       },
       upcomingStages,
       recentStages,
