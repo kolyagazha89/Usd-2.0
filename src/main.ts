@@ -166,7 +166,10 @@ async function bootstrap() {
     );
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  const server = await app.listen(process.env.PORT ?? 3000);
+  server.requestTimeout = 30000;
+  server.headersTimeout = 10000;
+  server.keepAliveTimeout = 5000;
 }
 
 void bootstrap();
