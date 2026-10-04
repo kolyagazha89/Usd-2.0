@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/commo
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { StagesService } from './stages.service';
+import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 
 @Controller('stages')
 export class StagesController {
@@ -11,12 +12,12 @@ export class StagesController {
   @Public() @Get(':id') findOne(@Param('id') id: string) { return this.stagesService.findOne(id); }
 
   @Roles('ADMIN') @Post()
-  create(@Body() body: { seasonYear: number; seasonName?: string; stageNumber: number; name: string; city?: string; date: string; registrationOpen?: boolean; registrationStartsAt?: string; registrationEndsAt?: string; }) {
+  create(@Body() body: CreateStageDto) {
     return this.stagesService.create(body);
   }
 
   @Roles('ADMIN') @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { stageNumber?: number; name?: string; city?: string; date?: string; registrationOpen?: boolean; registrationStartsAt?: string | null; registrationEndsAt?: string | null; }) {
+  update(@Param('id') id: string, @Body() body: UpdateStageDto) {
     return this.stagesService.update(id, body);
   }
 
