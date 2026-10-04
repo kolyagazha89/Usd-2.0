@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { ConfigurationsService } from './configurations.service';
+import { Roles } from '../auth/roles.decorator';
 
 import { CreateConfigurationDto } from './dto/create-configuration.dto';
 import { UpdateConfigurationDto } from './dto/update-configuration.dto';
@@ -25,6 +26,7 @@ export class ConfigurationsController {
   // CAR CONFIGURATIONS
   // =========================================================
 
+  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
   @Get('cars/:carId/configurations')
   findByCar(
     @Req() request: any,
@@ -36,6 +38,7 @@ export class ConfigurationsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Post('cars/:carId/configurations')
   create(
     @Req() request: any,
@@ -53,6 +56,7 @@ export class ConfigurationsController {
   // SINGLE CONFIGURATION
   // =========================================================
 
+  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
   @Get('configurations/:configurationId')
   findOne(
     @Req() request: any,
@@ -64,6 +68,7 @@ export class ConfigurationsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Put('configurations/:configurationId')
   update(
     @Req() request: any,
@@ -77,6 +82,7 @@ export class ConfigurationsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Delete('configurations/:configurationId')
   remove(
     @Req() request: any,
@@ -92,6 +98,7 @@ export class ConfigurationsController {
   // VERSIONS
   // =========================================================
 
+  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
   @Get(
     'configurations/:configurationId/versions',
   )
@@ -105,6 +112,7 @@ export class ConfigurationsController {
     );
   }
 
+  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
   @Get(
     'configurations/:configurationId/versions/:version',
   )
@@ -124,6 +132,7 @@ export class ConfigurationsController {
     );
   }
 
+  @Roles('ADMIN', 'PARTICIPANT')
   @Post(
     'configurations/:configurationId/versions',
   )

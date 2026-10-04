@@ -13,6 +13,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 import { RegistrationsService } from './registrations.service';
+import { CreateRegistrationDto } from './dto/create-registration.dto';
 
 @Controller('registrations')
 export class RegistrationsController {
@@ -53,15 +54,7 @@ export class RegistrationsController {
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      stageId: string;
-      participantId: string;
-      carId: string;
-      classIds: string[];
-      configurationVersionId: string;
-      source?: 'PRE_REGISTRATION' | 'ON_SITE' | 'IMPORT';
-    },
+    @Body() body: CreateRegistrationDto,
   ) {
     return this.registrationsService.create(
       request,

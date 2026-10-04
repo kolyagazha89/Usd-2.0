@@ -656,8 +656,6 @@ export class DisqualificationsService {
           id: true,
           fullName: true,
           team: true,
-          phone: true,
-          email: true,
           photoUrl: true,
         },
       },
@@ -682,7 +680,7 @@ export class DisqualificationsService {
         select: {
           id: true,
           name: true,
-          email: true,
+          role: true,
         },
       },
       revokedByUser: {

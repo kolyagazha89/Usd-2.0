@@ -4,8 +4,10 @@ import {
   Param,
 } from '@nestjs/common';
 import { HistoryService } from './history.service';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('history')
+@Roles('ADMIN', 'JUDGE')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 

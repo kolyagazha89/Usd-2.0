@@ -10,13 +10,28 @@ export class HistoryService {
 
   async getParticipantHistory(participantId: string) {
     const participant = await this.prisma.participant.findUnique({
-      where: {
-        id: participantId,
-      },
-      include: {
+      where: { id: participantId },
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        city: true,
+        photoUrl: true,
+        isPublic: true,
         cars: {
-          orderBy: {
-            createdAt: 'asc',
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationCountry: true,
+            registrationNumber: true,
+            color: true,
+            photoUrl: true,
+            isPublic: true,
+            isActive: true,
           },
         },
       },
@@ -27,85 +42,154 @@ export class HistoryService {
     }
 
     const registrations = await this.prisma.registration.findMany({
-      where: {
-        participantId,
-      },
-      include: {
+      where: { participantId },
+      select: {
+        id: true,
+        participantNumber: true,
+        status: true,
+        registeredAt: true,
+        source: true,
         stage: {
-          include: {
-            season: true,
-          },
-        },
-        car: true,
-        classes: {
-          include: {
-            class: {
-              include: {
-                direction: true,
+          select: {
+            id: true,
+            stageNumber: true,
+            name: true,
+            city: true,
+            date: true,
+            season: {
+              select: {
+                id: true,
+                name: true,
+                year: true,
               },
             },
           },
         },
-        inspection: true,
+        car: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationCountry: true,
+            registrationNumber: true,
+            color: true,
+            photoUrl: true,
+          },
+        },
+        classes: {
+          select: {
+            class: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                direction: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        inspection: {
+          select: {
+            id: true,
+            status: true,
+            notes: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         results: {
-          include: {
+          select: {
+            id: true,
+            value: true,
+            unit: true,
+            place: true,
+            notes: true,
+            attemptNumber: true,
+            isBest: true,
+            createdAt: true,
             registrationClass: {
-              include: {
+              select: {
+                id: true,
                 class: {
-                  include: {
-                    direction: true,
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    direction: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
                   },
                 },
               },
             },
           },
           orderBy: [
-            {
-              registrationClassId: 'asc',
-            },
-            {
-              attemptNumber: 'asc',
-            },
+            { registrationClassId: 'asc' },
+            { attemptNumber: 'asc' },
           ],
         },
       },
-      orderBy: {
-        registeredAt: 'desc',
-      },
+      orderBy: { registeredAt: 'desc' },
     });
 
     const records = await this.prisma.record.findMany({
-      where: {
-        participantId,
-      },
-      include: {
+      where: { participantId },
+      select: {
+        id: true,
+        value: true,
+        unit: true,
+        achievedAt: true,
+        isCurrent: true,
         class: {
-          include: {
-            direction: true,
-          },
-        },
-        stage: {
-          include: {
-            season: true,
-          },
-        },
-        result: {
-          include: {
-            registrationClass: {
-              include: {
-                class: true,
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            direction: {
+              select: {
+                id: true,
+                name: true,
               },
             },
           },
         },
+        stage: {
+          select: {
+            id: true,
+            stageNumber: true,
+            name: true,
+            city: true,
+            date: true,
+            season: {
+              select: {
+                id: true,
+                name: true,
+                year: true,
+              },
+            },
+          },
+        },
+        result: {
+          select: {
+            id: true,
+            value: true,
+            unit: true,
+            place: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: [
-        {
-          achievedAt: 'desc',
-        },
-        {
-          value: 'desc',
-        },
+        { achievedAt: 'desc' },
+        { value: 'desc' },
       ],
     });
 

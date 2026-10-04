@@ -2675,6 +2675,53 @@ export class ImportsService {
     return newCar.id;
   }
 
+  private async ensureLegacyImportConfiguration(
+    tx: Prisma.TransactionClient,
+    carId: string,
+  ) {
+    const name = 'LEGACY_IMPORT';
+
+    let configuration = await tx.carConfiguration.findFirst({
+      where: {
+        carId,
+        name,
+      },
+    });
+
+    if (!configuration) {
+      configuration = await tx.carConfiguration.create({
+        data: {
+          carId,
+          name,
+          currentVersion: 1,
+        },
+      });
+    }
+
+    let version = await tx.carConfigurationVersion.findFirst({
+      where: {
+        configurationId: configuration.id,
+        version: configuration.currentVersion,
+      },
+    });
+
+    if (!version) {
+      version = await tx.carConfigurationVersion.create({
+        data: {
+          configurationId: configuration.id,
+          version: configuration.currentVersion,
+          additionalDescription:
+            'LEGACY_IMPORT: точная конфигурация автомобиля в историческом импорте отсутствовала.',
+        },
+      });
+    }
+
+    return {
+      configuration,
+      version,
+    };
+  }
+
   private async createImportRegistration(
     tx: Prisma.TransactionClient,
     data: {
@@ -2684,12 +2731,35 @@ export class ImportsService {
       participantNumber: number;
     },
   ) {
+    const { configuration, version } =
+      await this.ensureLegacyImportConfiguration(
+        tx,
+        data.carId,
+      );
+
+    const configurationSnapshot = {
+      configurationId: configuration.id,
+      configurationName: configuration.name,
+      version: version.version,
+      vibrationIsolation: version.vibrationIsolation,
+      additionalDescription: version.additionalDescription,
+      headUnits: [],
+      audioComponents: [],
+      amplifiers: [],
+      batteries: [],
+      generators: [],
+      legacyImport: true,
+      configurationAvailable: false,
+    };
+
     try {
       return await tx.registration.create({
         data: {
           stageId: data.stageId,
           participantId: data.participantId,
           carId: data.carId,
+          configurationVersionId: version.id,
+          configurationSnapshot,
           participantNumber: data.participantNumber,
           source: 'IMPORT',
           status: 'ACTIVE',
@@ -2750,6 +2820,8 @@ export class ImportsService {
             status: 'ACTIVE',
             source: 'IMPORT',
             registeredAt: new Date(),
+            configurationVersionId: version.id,
+            configurationSnapshot,
           },
         });
       }

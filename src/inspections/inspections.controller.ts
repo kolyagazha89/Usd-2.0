@@ -10,8 +10,10 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 import { InspectionsService } from './inspections.service';
+import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 
 @Controller('inspections')
+@Roles('ADMIN', 'JUDGE')
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
@@ -31,11 +33,7 @@ export class InspectionsController {
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      registrationId: string;
-      notes?: string;
-    },
+    @Body() body: CreateInspectionDto,
   ) {
     return this.inspectionsService.create({ ...body, checkedByUserId: request.user.sub });
   }
@@ -45,11 +43,7 @@ export class InspectionsController {
   update(
     @Param('id') id: string,
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      status?: 'PASSED' | 'FAILED';
-      notes?: string | null;
-    },
+    @Body() body: UpdateInspectionDto,
   ) {
     return this.inspectionsService.update(id, { ...body, checkedByUserId: request.user.sub });
   }

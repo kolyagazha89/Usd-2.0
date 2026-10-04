@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -392,86 +393,117 @@ export class AuthService {
       );
     }
 
-    const tokenHash =
-      this.hashToken(refreshToken);
+    const tokenHash = this.hashToken(refreshToken);
 
-    const session =
-      await this.prisma.refreshSession.findUnique({
-        where: {
-          tokenHash,
-        },
-        include: {
-          user: true,
-        },
-      });
+    const newRefreshToken = this.generateToken();
+    const newRefreshTokenHash = this.hashToken(newRefreshToken);
 
-    if (
-      !session ||
-      session.revokedAt ||
-      session.expiresAt < new Date() ||
-      !session.user.isActive ||
-      !session.user.emailVerifiedAt
-    ) {
-      throw new UnauthorizedException(
-        'Недействительная refresh-сессия',
-      );
-    }
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const session =
+          await tx.refreshSession.findUnique({
+            where: { tokenHash },
+            include: { user: true },
+          });
 
-    /*
-     * Refresh token rotation:
-     * старый токен сразу отзывается,
-     * новый создаётся для этой же сессии.
-     */
-    const newRefreshToken =
-      this.generateToken();
+        if (!session) {
+          throw new UnauthorizedException(
+            'Недействительная refresh-сессия',
+          );
+        }
 
-    const newAccessToken =
-      await this.createAccessToken({
-        id: session.user.id,
-        email: session.user.email,
-        role: session.user.role,
-      });
+        if (session.revokedAt) {
+          await tx.refreshSession.updateMany({
+            where: {
+              familyId: session.familyId,
+              revokedAt: null,
+            },
+            data: {
+              revokedAt: new Date(),
+            },
+          });
 
-    await this.prisma.$transaction([
-      this.prisma.refreshSession.update({
-        where: {
-          id: session.id,
-        },
-        data: {
-          revokedAt: new Date(),
-        },
-      }),
+          throw new UnauthorizedException(
+            'Обнаружено повторное использование refresh token',
+          );
+        }
 
-      this.prisma.refreshSession.create({
-        data: {
-          userId: session.user.id,
-          familyId: session.familyId,
-          tokenHash:
-            this.hashToken(
-              newRefreshToken,
-            ),
-          userAgent:
-            session.userAgent,
-          ipAddress:
-            session.ipAddress,
-          expiresAt:
-            this.getRefreshExpiration(),
-        },
-      }),
-    ]);
+        if (
+          session.expiresAt < new Date() ||
+          !session.user.isActive ||
+          !session.user.emailVerifiedAt
+        ) {
+          throw new UnauthorizedException(
+            'Недействительная refresh-сессия',
+          );
+        }
+
+        /*
+         * Атомарно помечаем исходный токен отозванным.
+         * Если два запроса одновременно используют один token,
+         * только один получит count=1. Второй считается replay
+         * и закрывает всю семью refresh-сессий.
+         */
+        const revoked = await tx.refreshSession.updateMany({
+          where: {
+            id: session.id,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+          },
+        });
+
+        if (revoked.count !== 1) {
+          await tx.refreshSession.updateMany({
+            where: {
+              familyId: session.familyId,
+              revokedAt: null,
+            },
+            data: {
+              revokedAt: new Date(),
+            },
+          });
+
+          throw new UnauthorizedException(
+            'Обнаружено повторное использование refresh token',
+          );
+        }
+
+        await tx.refreshSession.create({
+          data: {
+            userId: session.user.id,
+            familyId: session.familyId,
+            tokenHash: newRefreshTokenHash,
+            userAgent: session.userAgent,
+            ipAddress: session.ipAddress,
+            expiresAt: this.getRefreshExpiration(),
+          },
+        });
+
+        return session.user;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+
+    const newAccessToken = await this.createAccessToken({
+      id: result.id,
+      email: result.email,
+      role: result.role,
+    });
 
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        role: session.user.role,
-        emailVerifiedAt:
-          session.user.emailVerifiedAt,
-        participantId:
-          session.user.participantId,
+        id: result.id,
+        email: result.email,
+        name: result.name,
+        role: result.role,
+        emailVerifiedAt: result.emailVerifiedAt,
+        participantId: result.participantId,
       },
     };
   }

@@ -104,20 +104,29 @@ export class ConfigurationsService {
     return configuration;
   }
 
+  private async requireConfigurationReadAccess(
+    request: any,
+    configurationId: string,
+  ) {
+    const configuration =
+      await this.getConfigurationOrThrow(configurationId);
+
+    if (request.user?.role === 'ADMIN' || request.user?.role === 'JUDGE') {
+      return configuration;
+    }
+
+    await this.requireCarAccess(request, configuration.carId);
+    return configuration;
+  }
+
   private async requireConfigurationAccess(
     request: any,
     configurationId: string,
   ) {
     const configuration =
-      await this.getConfigurationOrThrow(
-        configurationId,
-      );
+      await this.getConfigurationOrThrow(configurationId);
 
-    await this.requireCarAccess(
-      request,
-      configuration.carId,
-    );
-
+    await this.requireCarAccess(request, configuration.carId);
     return configuration;
   }
 
@@ -197,10 +206,9 @@ export class ConfigurationsService {
     request: any,
     carId: string,
   ) {
-    await this.requireCarAccess(
-      request,
-      carId,
-    );
+    if (request.user?.role !== 'ADMIN' && request.user?.role !== 'JUDGE') {
+      await this.requireCarAccess(request, carId);
+    }
 
     return this.prisma.carConfiguration.findMany({
       where: {
@@ -246,7 +254,7 @@ export class ConfigurationsService {
     configurationId: string,
   ) {
     const configuration =
-      await this.requireConfigurationAccess(
+      await this.requireConfigurationReadAccess(
         request,
         configurationId,
       );
@@ -291,7 +299,7 @@ export class ConfigurationsService {
     request: any,
     configurationId: string,
   ) {
-    await this.requireConfigurationAccess(
+    await this.requireConfigurationReadAccess(
       request,
       configurationId,
     );
@@ -323,7 +331,7 @@ export class ConfigurationsService {
     configurationId: string,
     versionNumber: number,
   ) {
-    await this.requireConfigurationAccess(
+    await this.requireConfigurationReadAccess(
       request,
       configurationId,
     );

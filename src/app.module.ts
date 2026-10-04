@@ -23,10 +23,8 @@ import { ConfigurationsModule } from './configurations/configurations.module';
 @Module({
   imports: [
     PrismaModule,
-
     AuthModule,
     MailModule,
-
     StagesModule,
     ClassesModule,
     ParticipantsModule,
@@ -40,13 +38,7 @@ import { ConfigurationsModule } from './configurations/configurations.module';
     DisqualificationsModule,
     ConfigurationsModule,
   ],
-
-  controllers: [
-    AppController,
-  ],
-
-  providers: [
-    AppService,
-  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

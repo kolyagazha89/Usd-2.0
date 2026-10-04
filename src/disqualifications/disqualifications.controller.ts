@@ -12,8 +12,10 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 import { DisqualificationsService } from './disqualifications.service';
 import { Roles } from '../auth/roles.decorator';
+import { CreateDisqualificationDto, RevokeDisqualificationDto } from './dto/disqualification.dto';
 
 @Controller('disqualifications')
+@Roles('ADMIN', 'JUDGE')
 export class DisqualificationsController {
   constructor(
     private readonly disqualificationsService: DisqualificationsService,
@@ -85,14 +87,7 @@ export class DisqualificationsController {
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      participantId: string;
-      scope: 'STAGE' | 'SEASON' | 'FORMAT';
-      stageId?: string;
-      seasonId?: string;
-      reason: string;
-    },
+    @Body() body: CreateDisqualificationDto,
   ) {
     return this.disqualificationsService.create({ ...body, issuedByUserId: request.user.sub });
   }
@@ -105,10 +100,7 @@ export class DisqualificationsController {
 
     @Req() request: AuthenticatedRequest,
 
-    @Body()
-    body: {
-      revokeReason: string;
-    },
+    @Body() body: RevokeDisqualificationDto,
   ) {
     return this.disqualificationsService.revoke(id, {
       ...body,
