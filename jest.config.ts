@@ -27,6 +27,7 @@ const config: Config = {
   ],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  verbose: false,
 };
 
 export default config;
