@@ -193,7 +193,6 @@ export class RecordsService {
 
     if (
       classWithDirection?.direction?.name?.trim().toLowerCase() === 'bassrace'
-      || classWithDirection?.direction?.code?.trim().toLowerCase() === 'bassrace'
       || classWithDirection?.code?.trim().toLowerCase().startsWith('bassrace')
       || classWithDirection?.name?.trim().toLowerCase().startsWith('bassrace')
     ) {
