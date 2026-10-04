@@ -31,7 +31,6 @@ async function bootstrap() {
       'S3_BUCKET',
       'S3_ACCESS_KEY_ID',
       'S3_SECRET_ACCESS_KEY',
-      'S3_PUBLIC_BASE_URL',
     ];
     for (const name of requiredStorage) {
       if (!process.env[name]) throw new Error(name + ' должен быть задан в production');
