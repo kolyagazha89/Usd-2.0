@@ -26,6 +26,7 @@ model User {
   emailChangeTokens         EmailChangeToken[]
   mediaUploads              MediaUpload[]
   inspections              Inspection[]             @relation("InspectionCheckedBy")
+  inspectionsCreated       Inspection[]             @relation("InspectionCreatedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
   participant              Participant?             @relation(fields: [participantId], references: [id])
@@ -436,6 +437,7 @@ model Inspection {
   registrationId  String           @unique
   status          InspectionStatus
   checkedByUserId String?
+  createdByUserId String?
   checkedByName   String?
   checkedAt       DateTime         @default(now()) @db.Timestamptz(3)
   notes           String?
@@ -443,10 +445,12 @@ model Inspection {
   updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
   legacyId        String?          @unique
   checkedByUser   User?            @relation("InspectionCheckedBy", fields: [checkedByUserId], references: [id])
+  createdByUser   User?            @relation("InspectionCreatedBy", fields: [createdByUserId], references: [id])
   registration    Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([checkedByUserId])
+  @@index([createdByUserId])
 }
 
 model Result {

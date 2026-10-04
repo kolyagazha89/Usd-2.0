@@ -4,6 +4,9 @@ export class CreateInspectionDto {
   @IsUUID()
   registrationId!: string;
 
+  @IsIn(['PASSED', 'FAILED'])
+  status!: 'PASSED' | 'FAILED';
+
   @IsOptional()
   @IsString()
   @MaxLength(2000)
