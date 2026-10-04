@@ -491,7 +491,7 @@ export class RegistrationsService {
                   version: configuration.currentVersion,
                 },
               },
-              select: { id: true },
+              include: { headUnits: true, audioComponents: true, amplifiers: { include: { componentLinks: true } }, batteries: true, generators: true },
             })
           : null;
 
