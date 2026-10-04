@@ -327,6 +327,7 @@ model Registration {
   participantId String
   carId         String
   configurationVersionId String?
+  configurationSnapshot Json?
 
   participantNumber Int
 
