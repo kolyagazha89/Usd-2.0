@@ -38,6 +38,11 @@ export class StatisticsController {
     return this.dataQualityService.getReport();
   }
 
+  @Get('dashboard')
+  getDashboard() {
+    return this.statisticsService.getDashboard();
+  }
+
   @Get('overview')
   getOverview() {
     return this.statisticsService.getOverview();
