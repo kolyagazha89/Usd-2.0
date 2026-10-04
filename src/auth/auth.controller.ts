@@ -1,0 +1,255 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
+
+import type { Request, Response } from 'express';
+
+import { AuthService } from './auth.service';
+import { Public } from './public.decorator';
+
+@Controller('auth')
+export class AuthController {
+  constructor(
+    private readonly authService: AuthService,
+  ) {}
+
+  private setRefreshCookie(
+    response: Response,
+    refreshToken: string,
+  ) {
+    const secure =
+      process.env.AUTH_COOKIE_SECURE ===
+      'true';
+
+    const sameSite =
+      secure
+        ? ('none' as const)
+        : ('lax' as const);
+
+    response.cookie(
+      process.env.AUTH_COOKIE_NAME ??
+        'usd_refresh_token',
+      refreshToken,
+      {
+        httpOnly: true,
+        secure,
+        sameSite,
+        path: '/auth',
+        maxAge:
+          Number(
+            process.env.JWT_REFRESH_EXPIRES_IN_DAYS ??
+              30,
+          ) *
+          24 *
+          60 *
+          60 *
+          1000,
+      },
+    );
+  }
+
+  private clearRefreshCookie(
+    response: Response,
+  ) {
+    const secure =
+      process.env.AUTH_COOKIE_SECURE ===
+      'true';
+
+    const sameSite =
+      secure
+        ? ('none' as const)
+        : ('lax' as const);
+
+    response.cookie(
+      process.env.AUTH_COOKIE_NAME ??
+        'usd_refresh_token',
+      '',
+      {
+        httpOnly: true,
+        secure,
+        sameSite,
+        path: '/auth',
+        maxAge: 0,
+      },
+    );
+  }
+
+  @Public()
+  @Post('register')
+  async register(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+      name: string;
+    },
+  ) {
+    return this.authService.register(
+      body.email,
+      body.password,
+      body.name,
+    );
+  }
+
+  @Public()
+  @Post('verify-email')
+  async verifyEmail(
+    @Body()
+    body: {
+      token: string;
+    },
+  ) {
+    return this.authService.verifyEmail(
+      body.token,
+    );
+  }
+
+  @Public()
+  @Post('resend-verification')
+  async resendVerificationEmail(
+    @Body()
+    body: {
+      email: string;
+    },
+  ) {
+    return this.authService.resendVerificationEmail(
+      body.email,
+    );
+  }
+
+  @Public()
+  @Post('login')
+  async login(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+    },
+    @Req() request: Request,
+    @Res({ passthrough: true })
+    response: Response,
+  ) {
+    const result =
+      await this.authService.login(
+        body.email,
+        body.password,
+        request.headers['user-agent'],
+        request.ip,
+      );
+
+    this.setRefreshCookie(
+      response,
+      result.refreshToken,
+    );
+
+    const {
+      refreshToken,
+      ...publicResult
+    } = result;
+
+    return publicResult;
+  }
+
+  @Public()
+  @Post('refresh')
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true })
+    response: Response,
+  ) {
+    const cookieName =
+      process.env.AUTH_COOKIE_NAME ??
+      'usd_refresh_token';
+
+    const refreshToken =
+      request.cookies?.[cookieName];
+
+    const result =
+      await this.authService.refresh(
+        refreshToken,
+      );
+
+    this.setRefreshCookie(
+      response,
+      result.refreshToken,
+    );
+
+    const {
+      refreshToken: _refreshToken,
+      ...publicResult
+    } = result;
+
+    return publicResult;
+  }
+
+  @Public()
+  @Post('logout')
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true })
+    response: Response,
+  ) {
+    const cookieName =
+      process.env.AUTH_COOKIE_NAME ??
+      'usd_refresh_token';
+
+    const refreshToken =
+      request.cookies?.[cookieName];
+
+    await this.authService.logout(
+      refreshToken,
+    );
+
+    this.clearRefreshCookie(
+      response,
+    );
+
+    return {
+      success: true,
+    };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(
+    @Body()
+    body: {
+      email: string;
+    },
+  ) {
+    return this.authService.requestPasswordReset(
+      body.email,
+    );
+  }
+
+  @Public()
+  @Post('reset-password')
+  async resetPassword(
+    @Body()
+    body: {
+      token: string;
+      password: string;
+    },
+  ) {
+    return this.authService.resetPassword(
+      body.token,
+      body.password,
+    );
+  }
+
+    @Get('me')
+  me(@Req() request: Request) {
+    return (request as Request & {
+      user: {
+        sub: string;
+        email: string;
+        role: string;
+      };
+    }).user;
+  }
+}

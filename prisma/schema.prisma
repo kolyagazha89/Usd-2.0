@@ -1,0 +1,623 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                       String                   @id @default(uuid())
+  email                    String                   @unique
+  passwordHash             String
+  name                     String
+  role                     UserRole                 @default(PARTICIPANT)
+  isActive                 Boolean                  @default(true)
+  createdAt                DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                 @updatedAt @db.Timestamptz(3)
+  emailVerifiedAt          DateTime?                @db.Timestamptz(3)
+  participantId            String?                  @unique
+  auditLogs                AuditLog[]
+  disqualificationsIssued  Disqualification[]       @relation("DisqualificationIssuedBy")
+  disqualificationsRevoked Disqualification[]       @relation("DisqualificationRevokedBy")
+  emailVerificationTokens  EmailVerificationToken[]
+  inspections              Inspection[]             @relation("InspectionCheckedBy")
+  passwordResetTokens      PasswordResetToken[]
+  refreshSessions          RefreshSession[]
+  participant              Participant?             @relation(fields: [participantId], references: [id])
+
+  @@index([role])
+  @@index([isActive])
+  @@index([emailVerifiedAt])
+}
+
+model Participant {
+  id                String             @id @default(uuid())
+  team              String?
+  phone             String?
+  photoUrl          String?
+  isPublic          Boolean            @default(true)
+  legacyId          String?            @unique
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
+  birthDate         DateTime?          @db.Date
+  city              String?
+  firstName         String
+  lastName          String
+  middleName        String?
+  cars              Car[]
+  disqualifications Disqualification[]
+  registrations     Registration[]
+  user              User?
+
+  @@index([lastName])
+  @@index([firstName])
+  @@index([team])
+  @@index([city])
+}
+
+model Car {
+  id                 String             @id @default(uuid())
+  participantId      String
+  brand              String
+  model              String
+  photoUrl           String?
+  isActive           Boolean            @default(true)
+  legacyId           String?            @unique
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+  registrationNumber String
+  registrationCountry RegistrationCountry @default(RU)
+  color              String?
+  isPublic           Boolean            @default(true)
+  participant        Participant        @relation(fields: [participantId], references: [id])
+  configurations     CarConfiguration[]
+  registrations      Registration[]
+
+  @@index([participantId])
+  @@index([brand])
+  @@index([model])
+  @@index([registrationNumber])
+  @@index([isPublic])
+  @@index([isActive])
+}
+
+model CarConfiguration {
+  id             String                    @id @default(uuid())
+  carId          String
+  name           String
+  currentVersion Int                       @default(1)
+  createdAt      DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                  @updatedAt @db.Timestamptz(3)
+  car            Car                       @relation(fields: [carId], references: [id], onDelete: Cascade)
+  versions       CarConfigurationVersion[]
+
+  @@index([carId])
+  @@index([carId, name])
+}
+
+model CarConfigurationVersion {
+  id                    String              @id @default(uuid())
+  version               Int
+  vibrationIsolation    String?
+  additionalDescription String?
+  createdAt             DateTime            @default(now()) @db.Timestamptz(3)
+  configurationId       String
+  amplifiers            CarAmplifier[]
+  audioComponents       CarAudioComponent[]
+  batteries             CarBattery[]
+  configuration         CarConfiguration    @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+  generators            CarGenerator[]
+  headUnits             CarHeadUnit[]
+
+  @@unique([configurationId, version])
+  @@index([configurationId])
+  @@index([createdAt])
+}
+
+model CarHeadUnit {
+  id        String                  @id @default(uuid())
+  versionId String
+  brand     String
+  model     String
+  direction CarDirection
+  version   CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@index([direction])
+}
+
+model CarAudioComponent {
+  id             String                  @id @default(uuid())
+  versionId      String
+  brand          String
+  model          String
+  quantity       Int                     @default(1)
+  type           AudioComponentType
+  direction      CarDirection
+  amplifierLinks CarAmplifierComponent[]
+  version        CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@index([type])
+  @@index([direction])
+}
+
+model CarAmplifier {
+  id             String                  @id @default(uuid())
+  versionId      String
+  brand          String
+  model          String
+  quantity       Int                     @default(1)
+  direction      CarDirection
+  version        CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  componentLinks CarAmplifierComponent[]
+
+  @@index([versionId])
+  @@index([direction])
+}
+
+model CarAmplifierComponent {
+  amplifierId String
+  componentId String
+  quantity    Int               @default(1)
+  amplifier   CarAmplifier      @relation(fields: [amplifierId], references: [id], onDelete: Cascade)
+  component   CarAudioComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@id([amplifierId, componentId])
+  @@index([componentId])
+}
+
+model CarBattery {
+  id        String                  @id @default(uuid())
+  versionId String
+  brand     String
+  model     String
+  quantity  Int                     @default(1)
+  version   CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+}
+
+model CarGenerator {
+  id        String                  @id @default(uuid())
+  versionId String
+  brand     String
+  model     String
+  quantity  Int                     @default(1)
+  version   CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model Season {
+  id                String             @id @default(uuid())
+  name              String
+  year              Int                @unique
+  isActive          Boolean            @default(true)
+  legacyId          String?            @unique
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
+  disqualifications Disqualification[]
+  stages            Stage[]
+}
+
+model Stage {
+  id                   String             @id @default(uuid())
+  seasonId             String
+  stageNumber          Int
+  name                 String
+  city                 String?
+  date                 DateTime
+  registrationOpen     Boolean            @default(false)
+  registrationStartsAt DateTime?
+  registrationEndsAt   DateTime?
+  isDeleted            Boolean            @default(false)
+  legacyId             String?            @unique
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+  disqualifications    Disqualification[]
+  imports              ImportJob[]
+  records              Record[]
+  registrations        Registration[]
+  season               Season             @relation(fields: [seasonId], references: [id])
+  stageClasses         StageClass[]
+
+  @@unique([seasonId, stageNumber])
+  @@index([seasonId])
+  @@index([date])
+  @@index([registrationOpen])
+}
+
+model Direction {
+  id        String   @id @default(uuid())
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  legacyId  String?  @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  classes   Class[]
+}
+
+model Class {
+  id            String              @id @default(uuid())
+  directionId   String
+  code          String              @unique
+  name          String
+  sortOrder     Int                 @default(0)
+  isActive      Boolean             @default(true)
+  legacyId      String?             @unique
+  createdAt     DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime            @updatedAt @db.Timestamptz(3)
+  direction     Direction           @relation(fields: [directionId], references: [id])
+  records       Record[]
+  registrations RegistrationClass[]
+  stageClasses  StageClass[]
+
+  @@index([directionId])
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model StageClass {
+  id        String   @id @default(uuid())
+  stageId   String
+  classId   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  class     Class    @relation(fields: [classId], references: [id])
+  stage     Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, classId])
+  @@index([stageId])
+  @@index([classId])
+}
+
+model Registration {
+  id            String  @id @default(uuid())
+  stageId       String
+  participantId String
+  carId         String
+
+  participantNumber Int
+
+  source       RegistrationSource
+  status       RegistrationStatus @default(ACTIVE)
+  registeredAt DateTime           @default(now()) @db.Timestamptz(3)
+
+  legacyId String? @unique
+
+  stage       Stage       @relation(fields: [stageId], references: [id])
+  participant Participant @relation(fields: [participantId], references: [id])
+  car         Car         @relation(fields: [carId], references: [id])
+
+  classes    RegistrationClass[]
+  inspection Inspection?
+  results    Result[]
+
+  @@unique([stageId, participantNumber])
+  @@unique([stageId, carId])
+  @@index([stageId])
+  @@index([participantId])
+  @@index([carId])
+  @@index([status])
+  @@index([source])
+}
+
+model RegistrationClass {
+  id             String       @id @default(uuid())
+  registrationId String
+  classId        String
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  class          Class        @relation(fields: [classId], references: [id])
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  results        Result[]
+
+  @@unique([registrationId, classId])
+  @@index([registrationId])
+  @@index([classId])
+}
+
+model Inspection {
+  id              String           @id @default(uuid())
+  registrationId  String           @unique
+  status          InspectionStatus
+  checkedByUserId String?
+  checkedByName   String?
+  checkedAt       DateTime         @default(now()) @db.Timestamptz(3)
+  notes           String?
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+  legacyId        String?          @unique
+  checkedByUser   User?            @relation("InspectionCheckedBy", fields: [checkedByUserId], references: [id])
+  registration    Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([checkedByUserId])
+}
+
+model Result {
+  id                  String            @id @default(uuid())
+  registrationId      String
+  registrationClassId String
+  attemptNumber       Int               @default(1)
+  value               Decimal           @db.Decimal(10, 3)
+  unit                ResultUnit
+  place               Int?
+  isBest              Boolean           @default(false)
+  notes               String?
+  createdAt           DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
+  records             Record[]
+  registrationClass   RegistrationClass @relation(fields: [registrationClassId], references: [id], onDelete: Cascade)
+  registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationClassId, attemptNumber])
+  @@index([registrationId])
+  @@index([registrationClassId])
+  @@index([place])
+  @@index([isBest])
+}
+
+model Record {
+  id            String     @id @default(uuid())
+  classId       String
+  seasonId      String?
+  stageId       String?
+  participantId String?
+  carId         String?
+  resultId      String?
+  value         Decimal    @db.Decimal(10, 3)
+  unit          ResultUnit
+  achievedAt    DateTime
+  isCurrent     Boolean    @default(true)
+  notes         String?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  class         Class      @relation(fields: [classId], references: [id])
+  result        Result?    @relation(fields: [resultId], references: [id])
+  stage         Stage?     @relation(fields: [stageId], references: [id])
+
+  @@index([classId])
+  @@index([seasonId])
+  @@index([stageId])
+  @@index([participantId])
+  @@index([isCurrent])
+}
+
+model Disqualification {
+  id              String                 @id @default(uuid())
+  participantId   String
+  scope           DisqualificationScope
+  status          DisqualificationStatus @default(ACTIVE)
+  stageId         String?
+  seasonId        String?
+  reason          String
+  issuedByUserId  String
+  issuedAt        DateTime               @default(now()) @db.Timestamptz(3)
+  revokedAt       DateTime?              @db.Timestamptz(3)
+  revokedByUserId String?
+  revokeReason    String?
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @db.Timestamptz(3)
+  issuedByUser    User                   @relation("DisqualificationIssuedBy", fields: [issuedByUserId], references: [id])
+  participant     Participant            @relation(fields: [participantId], references: [id])
+  revokedByUser   User?                  @relation("DisqualificationRevokedBy", fields: [revokedByUserId], references: [id])
+  season          Season?                @relation(fields: [seasonId], references: [id])
+  stage           Stage?                 @relation(fields: [stageId], references: [id])
+
+  @@index([participantId])
+  @@index([scope])
+  @@index([status])
+  @@index([stageId])
+  @@index([seasonId])
+  @@index([issuedByUserId])
+  @@index([revokedByUserId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model ImportJob {
+  id              String          @id @default(uuid())
+  stageId         String
+  status          ImportJobStatus @default(DRAFT)
+  createdByUserId String?
+  summary         Json?
+  metadata        Json?
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  stage           Stage           @relation(fields: [stageId], references: [id])
+  rows            ImportRow[]
+
+  @@index([stageId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ImportRow {
+  id                String          @id @default(uuid())
+  importJobId       String
+  type              ImportRowType
+  rowNumber         Int
+  status            ImportRowStatus @default(WARNING)
+  rawData           Json
+  normalizedData    Json?
+  warnings          Json?
+  resolution        Json?
+  participantId     String?
+  registrationId    String?
+  classId           String?
+  participantNumber Int?
+  place             Int?
+  value             Decimal?        @db.Decimal(10, 3)
+  unit              ResultUnit?
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  importJob         ImportJob       @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, type, rowNumber])
+  @@index([importJobId])
+  @@index([status])
+  @@index([participantId])
+  @@index([registrationId])
+  @@index([classId])
+}
+
+model ParticipantLegacyEmail {
+  participantId String  @id
+  email         String?
+
+  @@map("_ParticipantLegacyEmail")
+}
+
+enum UserRole {
+  ADMIN
+  JUDGE
+  PARTICIPANT
+}
+
+enum RegistrationSource {
+  PRE_REGISTRATION
+  ON_SITE
+  IMPORT
+}
+
+enum RegistrationStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum InspectionStatus {
+  PASSED
+  FAILED
+}
+
+enum DisqualificationScope {
+  STAGE
+  SEASON
+  FORMAT
+}
+
+enum DisqualificationStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ResultUnit {
+  DB
+  MPS
+  OTHER
+}
+
+enum ImportJobStatus {
+  DRAFT
+  READY
+  COMMITTED
+  CANCELLED
+}
+
+enum ImportRowType {
+  REGISTRATION
+  RESULT
+}
+
+enum ImportRowStatus {
+  READY
+  WARNING
+  RESOLVED
+  COMMITTED
+}
+
+enum CarDirection {
+  FRONT
+  REAR
+  SUB
+}
+
+enum AudioComponentType {
+  SUBWOOFER
+  MIDBASS
+  MIDRANGE
+  HORN
+  OTHER
+}
+enum RegistrationCountry {
+  RU
+  NO
+  FI
+  EE
+  LV
+  LT
+  PL
+  BY
+  UA
+  GE
+  AZ
+  KZ
+  CN
+  MN
+  KP
+  US
+}

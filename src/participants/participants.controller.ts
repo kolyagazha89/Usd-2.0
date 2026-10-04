@@ -1,0 +1,258 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
+
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { Public } from '../auth/public.decorator';
+import { ParticipantsService } from './participants.service';
+
+import { CreateCarDto } from './dto/create-car.dto';
+import { UpdateCarDto } from './dto/update-car.dto';
+
+@Controller()
+export class ParticipantsController {
+  constructor(
+    private readonly participantsService: ParticipantsService,
+  ) {}
+
+  // =========================================================
+  // PUBLIC PARTICIPANTS
+  // =========================================================
+
+  @Public()
+  @Get('participants')
+  findAll() {
+    return this.participantsService.findAll();
+  }
+
+  // =========================================================
+  // CURRENT PARTICIPANT
+  // =========================================================
+
+  @Get('participants/me')
+  findMe(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.participantsService.findMe(request);
+  }
+
+  @Post('participants/me')
+  createMe(
+    @Req() request: AuthenticatedRequest,
+    @Body()
+    body: {
+      lastName: string;
+      firstName: string;
+      middleName?: string | null;
+      birthDate?: string | null;
+      city?: string | null;
+      team?: string | null;
+      phone?: string | null;
+      photoUrl?: string | null;
+      isPublic?: boolean;
+    },
+  ) {
+    return this.participantsService.createMe(
+      request,
+      body,
+    );
+  }
+
+  @Patch('participants/me')
+  updateMe(
+    @Req() request: AuthenticatedRequest,
+    @Body()
+    body: {
+      lastName?: string;
+      firstName?: string;
+      middleName?: string | null;
+      birthDate?: string | null;
+      city?: string | null;
+      team?: string | null;
+      phone?: string | null;
+      photoUrl?: string | null;
+      isPublic?: boolean;
+    },
+  ) {
+    return this.participantsService.updateMe(
+      request,
+      body,
+    );
+  }
+
+  // =========================================================
+  // ALL CARS — ADMIN / JUDGE
+  // =========================================================
+
+  @Get('cars')
+  findAllCars(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.participantsService.findAllCars(request);
+  }
+
+  // =========================================================
+  // CURRENT PARTICIPANT CARS
+  // =========================================================
+
+  @Get('participants/me/cars')
+  findMyCars(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.participantsService.findMyCars(request);
+  }
+
+  @Post('participants/me/cars')
+  createMyCar(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateCarDto,
+  ) {
+    return this.participantsService.createMyCar(
+      request,
+      body,
+    );
+  }
+
+  // =========================================================
+  // PUBLIC PARTICIPANT PROFILE
+  // =========================================================
+
+  @Public()
+  @Get('participants/:id')
+  findOne(
+    @Param('id') id: string,
+  ) {
+    return this.participantsService.findOne(id);
+  }
+
+  // =========================================================
+  // ADMIN PARTICIPANTS
+  // =========================================================
+
+  @Post('participants')
+  createParticipant(
+    @Req() request: AuthenticatedRequest,
+    @Body()
+    body: {
+      lastName: string;
+      firstName: string;
+      middleName?: string | null;
+      birthDate?: string | null;
+      city?: string | null;
+      team?: string | null;
+      phone?: string | null;
+      photoUrl?: string | null;
+      isPublic?: boolean;
+    },
+  ) {
+    return this.participantsService.createParticipant(
+      request,
+      body,
+    );
+  }
+
+  @Patch('participants/:id')
+  updateParticipant(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      lastName?: string;
+      firstName?: string;
+      middleName?: string | null;
+      birthDate?: string | null;
+      city?: string | null;
+      team?: string | null;
+      phone?: string | null;
+      photoUrl?: string | null;
+      isPublic?: boolean;
+    },
+  ) {
+    return this.participantsService.updateParticipant(
+      request,
+      id,
+      body,
+    );
+  }
+
+  @Delete('participants/:id')
+  removeParticipant(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.participantsService.removeParticipant(
+      request,
+      id,
+    );
+  }
+
+  // =========================================================
+  // PARTICIPANT CARS — ADMIN / JUDGE
+  // =========================================================
+
+  @Get('participants/:participantId/cars')
+  findCars(
+    @Req() request: AuthenticatedRequest,
+    @Param('participantId') participantId: string,
+  ) {
+    return this.participantsService.findCars(
+      request,
+      participantId,
+    );
+  }
+
+  @Post('participants/:participantId/cars')
+  createCar(
+    @Req() request: AuthenticatedRequest,
+    @Param('participantId') participantId: string,
+    @Body() body: CreateCarDto,
+  ) {
+    return this.participantsService.createCar(
+      request,
+      participantId,
+      body,
+    );
+  }
+
+  // =========================================================
+  // CAR
+  // =========================================================
+
+  @Get('cars/:id')
+  findCar(
+    @Param('id') id: string,
+  ) {
+    return this.participantsService.findCar(id);
+  }
+
+  @Patch('cars/:id')
+  updateCar(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateCarDto,
+  ) {
+    return this.participantsService.updateCar(
+      request,
+      id,
+      body,
+    );
+  }
+
+  @Delete('cars/:id')
+  removeCar(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.participantsService.removeCar(
+      request,
+      id,
+    );
+  }
+}
