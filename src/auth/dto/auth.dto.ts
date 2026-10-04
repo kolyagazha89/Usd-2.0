@@ -17,7 +17,6 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(128)
   password!: string;
-
 }
 
 export class LoginDto {
