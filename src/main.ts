@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -57,7 +58,9 @@ async function bootstrap() {
   expressApp.set('trust proxy', trustProxyHops);
 
   const securityMiddleware = new SecurityMiddleware();
-  expressApp.use((request, response, next) => securityMiddleware.use(request, response, next));
+  expressApp.use((request: Request, response: Response, next: NextFunction) =>
+    securityMiddleware.use(request, response, next),
+  );
 
   expressApp.use(
     express.json({
@@ -77,7 +80,7 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  app.use((request, response, next) => {
+  app.use((request: Request, response: Response, next: NextFunction) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     response.setHeader('Referrer-Policy', 'no-referrer');
