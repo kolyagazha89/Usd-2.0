@@ -1,5 +1,6 @@
+import { RegistrationCountry } from '../../generated/prisma/client';
 import {
-  IsDateString,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -37,9 +38,8 @@ export class CreateHistoricalResultDto {
   registrationNumber?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
-  registrationCountry?: string;
+  @IsEnum(RegistrationCountry)
+  registrationCountry?: RegistrationCountry;
 
   @IsInt()
   @Min(1)
