@@ -1,17 +1,11 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-
-enum DisqualificationScopeDto {
-  STAGE = 'STAGE',
-  SEASON = 'SEASON',
-  FORMAT = 'FORMAT',
-}
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateDisqualificationDto {
   @IsUUID()
   participantId!: string;
 
-  @IsEnum(DisqualificationScopeDto)
-  scope!: DisqualificationScopeDto;
+  @IsIn(['STAGE', 'SEASON', 'FORMAT'])
+  scope!: 'STAGE' | 'SEASON' | 'FORMAT';
 
   @IsOptional()
   @IsUUID()
