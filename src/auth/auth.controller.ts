@@ -291,12 +291,23 @@ export class AuthController {
 
     @Get('me')
   me(@Req() request: Request) {
-    return (request as Request & {
-      user: {
-        sub: string;
-        email: string;
-        role: string;
-      };
-    }).user;
+    return (request as Request & { user: { sub: string; email: string; role: string; participantId?: string } }).user;
+  }
+
+  @Get('sessions')
+  async sessions(@Req() request: Request) {
+    return this.authService.listSessions((request as Request & { user: { sub: string } }).user.sub);
+  }
+
+  @Post('sessions/:sessionId/revoke')
+  async revokeSession(@Req() request: Request, @Param('sessionId') sessionId: string) {
+    return this.authService.revokeSession((request as Request & { user: { sub: string } }).user.sub, sessionId);
+  }
+
+  @Post('sessions/revoke-all')
+  async revokeAllSessions(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.revokeAllSessions((request as Request & { user: { sub: string } }).user.sub);
+    this.clearRefreshCookie(response);
+    return result;
   }
 }
