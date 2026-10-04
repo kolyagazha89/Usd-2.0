@@ -139,6 +139,23 @@ export class RegistrationsService {
   // ОДНА РЕГИСТРАЦИЯ
   // ==========================================
 
+  async findByParticipant(
+    participantId: string,
+    status?: RegistrationStatus,
+  ) {
+    return this.prisma.registration.findMany({
+      where: {
+        participantId,
+        ...(status ? { status } : {}),
+      },
+      orderBy: [
+        { stage: { date: 'desc' } },
+        { participantNumber: 'asc' },
+      ],
+      include: this.registrationInclude,
+    });
+  }
+
   async findOne(id: string) {
     const registration =
       await this.prisma.registration.findUnique({
@@ -165,7 +182,7 @@ export class RegistrationsService {
     request: AuthenticatedRequest,
     body: {
       stageId: string;
-      participantId: string;
+      participantId?: string;
       carId: string;
       classIds: string[];
       configurationVersionId: string;
@@ -174,11 +191,21 @@ export class RegistrationsService {
   ) {
     const {
       stageId,
-      participantId,
       carId,
       classIds,
       configurationVersionId,
     } = body;
+
+    const participantId =
+      request.user.role === 'PARTICIPANT'
+        ? request.user.participantId
+        : body.participantId;
+
+    if (!participantId) {
+      throw new BadRequestException(
+        'Для операции требуется профиль участника',
+      );
+    }
 
     if (!configurationVersionId) {
       throw new BadRequestException(

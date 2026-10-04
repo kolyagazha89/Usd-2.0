@@ -4,8 +4,9 @@ export class CreateRegistrationDto {
   @IsUUID()
   stageId!: string;
 
+  @IsOptional()
   @IsUUID()
-  participantId!: string;
+  participantId?: string;
 
   @IsUUID()
   carId!: string;

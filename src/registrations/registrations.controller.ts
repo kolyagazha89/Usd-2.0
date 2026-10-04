@@ -30,6 +30,21 @@ export class RegistrationsController {
     return this.registrationsService.findAll(stageId, status);
   }
 
+  @Get('me')
+  async findMyRegistrations(
+    @Req() request: AuthenticatedRequest,
+    @Query('status') status?: 'ACTIVE' | 'CANCELLED',
+  ) {
+    if (!request.user.participantId) {
+      throw new ForbiddenException('Профиль участника ещё не создан');
+    }
+
+    return this.registrationsService.findByParticipant(
+      request.user.participantId,
+      status,
+    );
+  }
+
   @Get(':id')
   async findOne(
     @Req() request: AuthenticatedRequest,
