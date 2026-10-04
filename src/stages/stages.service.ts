@@ -60,12 +60,10 @@ export class StagesService {
     if (!dto.seasonYear) throw new BadRequestException('Необходимо указать seasonId или seasonYear');
 
     const season = await this.prisma.season.findUnique({ where: { year: dto.seasonYear } });
-    if (season) return season;
-
-    const name = dto.seasonName?.trim() || `Сезон ${dto.seasonYear}`;
-    return this.prisma.season.create({
-      data: { year: dto.seasonYear, name, status: 'DRAFT', isActive: false },
-    });
+    if (!season) {
+      throw new NotFoundException('Сезон не найден. Сначала создайте сезон через /seasons');
+    }
+    return season;
   }
 
   async create(dto: CreateStageDto, request: AuthenticatedRequest) {
