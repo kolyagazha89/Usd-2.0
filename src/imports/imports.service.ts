@@ -73,6 +73,7 @@ export class ImportsService {
     stageId: string;
     registrations?: ImportRow[];
     results?: ImportRow[];
+    historicalResults?: boolean;
   }) {
     if (!body.stageId) {
       throw new BadRequestException('stageId обязателен');
@@ -257,6 +258,7 @@ export class ImportsService {
             stageId: stage.id,
             stageNumber: stage.stageNumber,
             stageName: stage.name,
+            historicalResults: body.historicalResults === true,
           },
 
           rows: {
@@ -2320,6 +2322,19 @@ export class ImportsService {
       classIds?: string[];
 
       classId?: string;
+
+      car?: {
+        action: 'USE_EXISTING' | 'CREATE';
+        carId?: string;
+        brand?: string;
+        model?: string;
+        registrationNumber?: string;
+        registrationCountry?: string;
+      };
+
+      value?: number;
+      place?: number | null;
+      notes?: string | null;
     },
   ) {
     const row =
@@ -2402,11 +2417,128 @@ export class ImportsService {
       }
     }
 
+    if (resolution.participant) {
+      const action = resolution.participant.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие participant');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.participant.participantId ||
+          typeof resolution.participant.participantId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать participantId',
+        );
+      }
+
+      if (
+        action === 'CREATE' &&
+        (!resolution.participant.fullName ||
+          typeof resolution.participant.fullName !== 'string' ||
+          !resolution.participant.fullName.trim())
+      ) {
+        throw new BadRequestException(
+          'Для CREATE необходимо указать непустое ФИО участника',
+        );
+      }
+    }
+
+    if (resolution.registration) {
+      const action = resolution.registration.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие registration');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.registration.registrationId ||
+          typeof resolution.registration.registrationId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать registrationId',
+        );
+      }
+
+      if (
+        action === 'CREATE' &&
+        (!Number.isInteger(resolution.registration.participantNumber) ||
+          resolution.registration.participantNumber <= 0)
+      ) {
+        throw new BadRequestException(
+          'Для CREATE необходимо указать положительный номер участника',
+        );
+      }
+    }
+
+    if (resolution.car) {
+      const action = resolution.car.action;
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+        throw new BadRequestException('Некорректное действие car');
+      }
+
+      if (
+        action === 'USE_EXISTING' &&
+        (!resolution.car.carId ||
+          typeof resolution.car.carId !== 'string')
+      ) {
+        throw new BadRequestException(
+          'Для USE_EXISTING необходимо указать carId',
+        );
+      }
+
+      if (action === 'CREATE' &&
+        (!resolution.car.brand?.trim() ||
+          !resolution.car.model?.trim() ||
+          !resolution.car.registrationNumber?.trim())
+      ) {
+        throw new BadRequestException(
+          'Для CREATE автомобиля необходимо указать марку, модель и регистрационный номер',
+        );
+      }
+    }
+
+    if (resolution.value !== undefined) {
+      if (
+        typeof resolution.value !== 'number' ||
+        !Number.isFinite(resolution.value) ||
+        resolution.value < 0 ||
+        !Number.isInteger(Math.round(resolution.value * 1000))
+      ) {
+        throw new BadRequestException(
+          'Некорректное значение результата',
+        );
+      }
+    }
+
+    if (resolution.place !== undefined && resolution.place !== null) {
+      if (
+        !Number.isInteger(resolution.place) ||
+        resolution.place < 1 ||
+        resolution.place > 999
+      ) {
+        throw new BadRequestException(
+          'Место должно быть целым числом от 1 до 999',
+        );
+      }
+    }
+
+    if (resolution.notes !== undefined && resolution.notes !== null) {
+      if (
+        typeof resolution.notes !== 'string' ||
+        resolution.notes.length > 2000
+      ) {
+        throw new BadRequestException(
+          'Комментарий импорта должен быть строкой не длиннее 2000 символов',
+        );
+      }
+    }
+
     if (
       resolution.classIds !==
       undefined
-    ) {
-      if (
+    ) {      if (
         !Array.isArray(
           resolution.classIds,
         )
@@ -2458,6 +2590,41 @@ export class ImportsService {
     participantId: string,
     row: Record<string, unknown> = {},
   ): Promise<string> {
+    const explicitCarId =
+      this.stringValue(row.carId);
+
+    if (explicitCarId) {
+      const explicitCar =
+        await tx.car.findUnique({
+          where: { id: explicitCarId },
+          select: {
+            id: true,
+            participantId: true,
+            isActive: true,
+          },
+        });
+
+      if (!explicitCar) {
+        throw new BadRequestException(
+          `Автомобиль ${explicitCarId} не найден`,
+        );
+      }
+
+      if (explicitCar.participantId !== participantId) {
+        throw new BadRequestException(
+          'Выбранный автомобиль принадлежит другому участнику',
+        );
+      }
+
+      if (!explicitCar.isActive) {
+        await tx.car.update({
+          where: { id: explicitCar.id },
+          data: { isActive: true },
+        });
+      }
+
+      return explicitCar.id;
+    }
     const findValue = (
       targets: string[],
     ): unknown => {
@@ -3147,38 +3314,52 @@ export class ImportsService {
           }
 
           const carData = {
+            carId:
+              resolution?.car?.action === 'USE_EXISTING'
+                ? resolution.car.carId
+                : undefined,
+
+            brand:
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.brand)
+                : undefined,
+
             model:
-              this.stringValue(
-                normalized
-                  ?.car
-                  ?.model ??
-                this.getImportFieldValue(
-                  rawData,
-                  [
-                    'Модель автомобиля',
-                    'Модель',
-                    'model',
-                  ],
-                ),
-              ),
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.model)
+                : this.stringValue(
+                    normalized
+                      ?.car
+                      ?.model ??
+                    this.getImportFieldValue(
+                      rawData,
+                      [
+                        'Модель автомобиля',
+                        'Модель',
+                        'model',
+                      ],
+                    ),
+                  ),
 
             plateNumber:
-              this.stringValue(
-                normalized
-                  ?.car
-                  ?.plateNumber ??
-                this.getImportFieldValue(
-                  rawData,
-                  [
-                    'Номер автомобиля',
-                    'Гос. номер',
-                    'Гос номер',
-                    'Регистрационный номер',
-                    'registrationNumber',
-                    'plateNumber',
-                  ],
-                ),
-              ),
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.registrationNumber)
+                : this.stringValue(
+                    normalized
+                      ?.car
+                      ?.plateNumber ??
+                    this.getImportFieldValue(
+                      rawData,
+                      [
+                        'Номер автомобиля',
+                        'Гос. номер',
+                        'Гос номер',
+                        'Регистрационный номер',
+                        'registrationNumber',
+                        'plateNumber',
+                      ],
+                    ),
+                  ),
           };
 
           const carId =
@@ -4214,12 +4395,27 @@ export class ImportsService {
           }
 
           const value =
+            resolution?.value ??
             row.value ??
             normalized
               ?.result;
 
           const unit =
             stageClass.class.unit;
+
+          const place =
+            resolution?.place ??
+            row.place ??
+            normalized?.place ??
+            null;
+
+          const notes =
+            resolution?.notes !== undefined
+              ? resolution.notes?.trim() || null
+              : null;
+
+          const historicalResults =
+            (importJob.metadata as any)?.historicalResults === true;
 
           if (
             value === null ||
@@ -4262,14 +4458,20 @@ export class ImportsService {
                   unit:
                     stageClass.class.unit,
 
-                  place:
-                    row.place ??
-                    normalized
-                      ?.place ??
-                    null,
+                  place,
+
+                  notes,
 
                   isBest:
                     false,
+
+                  isHistorical:
+                    historicalResults,
+
+                  verificationStatus:
+                    historicalResults
+                      ? 'PENDING'
+                      : 'NOT_REQUIRED',
                 },
               });
 
@@ -4332,6 +4534,9 @@ export class ImportsService {
 
           status:
             'COMMITTED',
+
+          historicalResults:
+            (importJob.metadata as any)?.historicalResults === true,
 
           rows:
             committedRows,
