@@ -5,6 +5,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsUUID,
   IsString,
   Max,
   MaxLength,
@@ -87,8 +88,7 @@ export class CreateStageDto {
   seasonName?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(36)
+  @IsUUID()
   seasonId?: string;
 }
 
