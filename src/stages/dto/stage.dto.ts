@@ -1,4 +1,22 @@
-import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+
+export enum StageStatusDto {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
 
 export class CreateStageDto {
   @IsInt()
@@ -19,12 +37,35 @@ export class CreateStageDto {
   date!: string;
 
   @IsOptional()
-  @IsBoolean()
-  registrationOpen?: boolean;
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
 
   @IsOptional()
-  @IsUUID()
-  seasonId?: string;
+  @IsString()
+  @MaxLength(240)
+  venue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @IsOptional()
+  @IsEnum(StageStatusDto)
+  status?: StageStatusDto;
+
+  @IsOptional()
+  @IsBoolean()
+  registrationOpen?: boolean;
 
   @IsOptional()
   @IsDateString()
@@ -44,6 +85,11 @@ export class CreateStageDto {
   @IsString()
   @MaxLength(160)
   seasonName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  seasonId?: string;
 }
 
 export class UpdateStageDto {
@@ -66,6 +112,33 @@ export class UpdateStageDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  venue?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
+
+  @IsOptional()
+  @IsEnum(StageStatusDto)
+  status?: StageStatusDto;
 
   @IsOptional()
   @IsBoolean()
