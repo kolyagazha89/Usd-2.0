@@ -1,8 +1,11 @@
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateInspectionDto {
   @IsUUID()
   registrationId!: string;
+
+  @IsIn(['PASSED', 'FAILED'])
+  status!: 'PASSED' | 'FAILED';
 
   @IsOptional()
   @IsString()
