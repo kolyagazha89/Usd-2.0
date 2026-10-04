@@ -65,6 +65,12 @@ describe('ResultsService', () => {
           stageId: 'stage-1',
         }),
       },
+      stage: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'stage-1',
+          seasonId: 'season-1',
+        }),
+      },
       disqualification: {
         findMany: jest.fn().mockResolvedValue([]),
       },
