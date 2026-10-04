@@ -11,6 +11,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 import { DisqualificationsService } from './disqualifications.service';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('disqualifications')
 export class DisqualificationsController {
@@ -80,6 +81,7 @@ export class DisqualificationsController {
     return this.disqualificationsService.findOne(id);
   }
 
+  @Roles('ADMIN')
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
@@ -95,6 +97,7 @@ export class DisqualificationsController {
     return this.disqualificationsService.create({ ...body, issuedByUserId: request.user.sub });
   }
 
+  @Roles('ADMIN')
   @Patch(':id/revoke')
   revoke(
     @Param('id')
