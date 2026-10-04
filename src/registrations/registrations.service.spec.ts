@@ -74,6 +74,9 @@ describe('RegistrationsService', () => {
           },
         ]),
       },
+      registrationClass: {
+        count: jest.fn().mockResolvedValue(0),
+      },
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
