@@ -388,7 +388,13 @@ export class ResultsService {
     }
 
     return this.prisma.result.findMany({
-      where: { registrationClassId },
+      where: {
+        registrationClassId,
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+      },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
     });
