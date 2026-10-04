@@ -148,7 +148,7 @@ function ConfigListEditor({title,items,onAdd,onRemove,children}:{title:string;it
 }
 
 function cleanConfig(v:any){
- const strip=(x:any):any=>{if(Array.isArray(x))return x.map(strip);if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).filter(([k,val])=>!['id','versionId','configurationId','amplifierId','componentId','version'].includes(k)&&val!==undefined&&val!==null).map(([k,val])=>[k,strip(val)]));return x};
+ const strip=(x:any):any=>{if(Array.isArray(x))return x.map(strip);if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).filter(([k,val])=>!['id','versionId','configurationId','amplifierId','componentId','version'].includes(k)&&val!==undefined&&val!==null).map(([k,val])=>[k,k==='componentLinks'&&Array.isArray(val)?(val as any[]).filter((link:any)=>String(link.componentId).trim()!=='').map(strip):strip(val)]));return x};
  return strip(v);
 }
 
