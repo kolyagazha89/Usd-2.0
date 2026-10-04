@@ -10,6 +10,7 @@ import {
   DEFAULT_REQUEST_BODY_LIMIT,
   DEFAULT_TRUST_PROXY_HOPS,
 } from './common/security/security.constants';
+import { SecurityMiddleware } from './common/security/security.middleware';
 
 async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -54,6 +55,9 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.disable('x-powered-by');
   expressApp.set('trust proxy', trustProxyHops);
+
+  const securityMiddleware = new SecurityMiddleware();
+  expressApp.use((request, response, next) => securityMiddleware.use(request, response, next));
 
   expressApp.use(
     express.json({
