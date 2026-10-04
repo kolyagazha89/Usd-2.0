@@ -3067,10 +3067,18 @@ export class ImportsService {
       let participantId: string | null = null;
 
       if (resolution.participant?.action === 'USE_EXISTING') {
-        participantId = resolution.participant.participantId;
+        const selectedParticipantId = resolution.participant.participantId;
+
+        if (typeof selectedParticipantId !== 'string' || !selectedParticipantId) {
+          throw new BadRequestException(
+            `Строка ${row.rowNumber}: не указан существующий участник`,
+          );
+        }
+
+        participantId = selectedParticipantId;
 
         const participant = await tx.participant.findUnique({
-          where: { id: participantId },
+          where: { id: selectedParticipantId },
           select: { id: true },
         });
 
