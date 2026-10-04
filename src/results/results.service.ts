@@ -87,7 +87,6 @@ export class ResultsService {
       },
     },
     records: true,
-    verifiedByUser: { select: { id: true, name: true, role: true } },
   };
 
   private readonly adminInclude = {
@@ -141,6 +140,7 @@ export class ResultsService {
       },
     },
     records: true,
+    verifiedByUser: { select: { id: true, name: true, role: true } },
   };
 
   private isBassRace(className: string): boolean {
