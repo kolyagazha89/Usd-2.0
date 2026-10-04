@@ -1,64 +1,31 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-interface CreateDirectionDto {
-  name: string;
-  sortOrder?: number;
-}
-
-interface UpdateDirectionDto {
-  name?: string;
-  sortOrder?: number;
-  isActive?: boolean;
-}
-
-interface CreateClassDto {
-  directionId: string;
-  code: string;
-  name: string;
-  sortOrder?: number;
-}
-
-interface UpdateClassDto {
-  directionId?: string;
-  code?: string;
-  name?: string;
-  sortOrder?: number;
-  isActive?: boolean;
-}
+import { AuditService } from '../common/audit/audit.service';
+import {
+  CreateClassDto,
+  CreateDirectionDto,
+  UpdateClassDto,
+  UpdateDirectionDto,
+  AddStageClassDto,
+  ReplaceStageClassesDto,
+  UpdateStageClassDto,
+} from './dto/class.dto';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Injectable()
 export class ClassesService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  // =========================================================
-  // DIRECTIONS
-  // =========================================================
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findAllDirections() {
     return this.prisma.direction.findMany({
-      orderBy: [
-        {
-          sortOrder: 'asc',
-        },
-        {
-          name: 'asc',
-        },
-      ],
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: {
         classes: {
-          orderBy: [
-            {
-              sortOrder: 'asc',
-            },
-            {
-              name: 'asc',
-            },
-          ],
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         },
       },
     });
@@ -66,548 +33,427 @@ export class ClassesService {
 
   async findDirection(id: string) {
     const direction = await this.prisma.direction.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
       include: {
         classes: {
-          orderBy: [
-            {
-              sortOrder: 'asc',
-            },
-            {
-              name: 'asc',
-            },
-          ],
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         },
       },
     });
+    if (!direction) throw new NotFoundException('Направление не найдено');
+    return direction;
+  }
 
-    if (!direction) {
-      throw new NotFoundException('Направление не найдено');
-    }
+  async createDirection(dto: CreateDirectionDto, request: AuthenticatedRequest) {
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('Название направления обязательно');
+
+    const existing = await this.prisma.direction.findFirst({ where: { name } });
+    if (existing) throw new BadRequestException(`Направление "${name}" уже существует`);
+
+    const direction = await this.prisma.direction.create({
+      data: { name, sortOrder: dto.sortOrder ?? 0 },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'DIRECTION_CREATED',
+      entity: 'Direction',
+      entityId: direction.id,
+      ipAddress: request.ip,
+      metadata: { name: direction.name },
+    });
 
     return direction;
   }
 
-  async createDirection(dto: CreateDirectionDto) {
-    const name = dto.name?.trim();
-
-    if (!name) {
-      throw new BadRequestException('Название направления обязательно');
-    }
-
-    const existing = await this.prisma.direction.findFirst({
-      where: {
-        name,
-      },
-    });
-
-    if (existing) {
-      throw new BadRequestException(
-        `Направление "${name}" уже существует`,
-      );
-    }
-
-    return this.prisma.direction.create({
-      data: {
-        name,
-        sortOrder: dto.sortOrder ?? 0,
-      },
-    });
-  }
-
-  async updateDirection(id: string, dto: UpdateDirectionDto) {
-    const direction = await this.prisma.direction.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!direction) {
-      throw new NotFoundException('Направление не найдено');
-    }
+  async updateDirection(id: string, dto: UpdateDirectionDto, request: AuthenticatedRequest) {
+    const direction = await this.prisma.direction.findUnique({ where: { id } });
+    if (!direction) throw new NotFoundException('Направление не найдено');
 
     if (dto.name !== undefined) {
       const name = dto.name.trim();
+      if (!name) throw new BadRequestException('Название направления не может быть пустым');
+      const existing = await this.prisma.direction.findFirst({ where: { name, NOT: { id } } });
+      if (existing) throw new BadRequestException(`Направление "${name}" уже существует`);
+    }
 
-      if (!name) {
-        throw new BadRequestException(
-          'Название направления не может быть пустым',
-        );
-      }
-
-      const existing = await this.prisma.direction.findFirst({
-        where: {
-          name,
-          NOT: {
-            id,
-          },
-        },
-      });
-
-      if (existing) {
-        throw new BadRequestException(
-          `Направление "${name}" уже существует`,
-        );
+    if (dto.isActive === false) {
+      const activeClasses = await this.prisma.class.count({ where: { directionId: id, isActive: true } });
+      if (activeClasses > 0) {
+        throw new BadRequestException('Сначала отключите активные классы направления');
       }
     }
 
-    return this.prisma.direction.update({
-      where: {
-        id,
-      },
+    const updated = await this.prisma.direction.update({
+      where: { id },
       data: {
-        ...(dto.name !== undefined
-          ? {
-              name: dto.name.trim(),
-            }
-          : {}),
-        ...(dto.sortOrder !== undefined
-          ? {
-              sortOrder: dto.sortOrder,
-            }
-          : {}),
-        ...(dto.isActive !== undefined
-          ? {
-              isActive: dto.isActive,
-            }
-          : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
-      include: {
-        classes: {
-          orderBy: {
-            sortOrder: 'asc',
-          },
-        },
+      include: { classes: { orderBy: { sortOrder: 'asc' } } },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'DIRECTION_UPDATED',
+      entity: 'Direction',
+      entityId: id,
+      ipAddress: request.ip,
+      metadata: {
+        before: { name: direction.name, sortOrder: direction.sortOrder, isActive: direction.isActive },
+        after: { name: updated.name, sortOrder: updated.sortOrder, isActive: updated.isActive },
       },
     });
+
+    return updated;
   }
 
-  async deleteDirection(id: string) {
-    const direction = await this.prisma.direction.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        classes: true,
-      },
-    });
-
-    if (!direction) {
-      throw new NotFoundException('Направление не найдено');
-    }
-
-    if (direction.classes.some((item) => item.isActive)) {
-      throw new BadRequestException(
-        'Нельзя отключить направление, пока в нём есть активные классы',
-      );
-    }
-
-    return this.prisma.direction.update({
-      where: {
-        id,
-      },
-      data: {
-        isActive: false,
-      },
-    });
+  async deleteDirection(id: string, request: AuthenticatedRequest) {
+    return this.updateDirection(id, { isActive: false }, request);
   }
-
-  // =========================================================
-  // CLASSES
-  // =========================================================
 
   async findAllClasses(directionId?: string) {
     return this.prisma.class.findMany({
       where: {
-        ...(directionId
-          ? {
-              directionId,
-            }
-          : {}),
+        isActive: true,
+        ...(directionId ? { directionId } : {}),
       },
       orderBy: [
-        {
-          direction: {
-            sortOrder: 'asc',
-          },
-        },
-        {
-          sortOrder: 'asc',
-        },
-        {
-          name: 'asc',
-        },
+        { direction: { sortOrder: 'asc' } },
+        { sortOrder: 'asc' },
+        { name: 'asc' },
       ],
-      include: {
-        direction: true,
-      },
+      include: { direction: true },
     });
   }
 
   async findClass(id: string) {
     const item = await this.prisma.class.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        direction: true,
-      },
+      where: { id },
+      include: { direction: true },
     });
-
-    if (!item) {
-      throw new NotFoundException('Класс не найден');
-    }
-
+    if (!item) throw new NotFoundException('Класс не найден');
     return item;
   }
 
-  async createClass(dto: CreateClassDto) {
-    const code = dto.code?.trim();
-    const name = dto.name?.trim();
+  async createClass(dto: CreateClassDto, request: AuthenticatedRequest) {
+    const code = dto.code.trim();
+    const name = dto.name.trim();
+    if (!code) throw new BadRequestException('Код класса обязателен');
+    if (!name) throw new BadRequestException('Название класса обязательно');
 
-    if (!code) {
-      throw new BadRequestException('Код класса обязателен');
-    }
+    const direction = await this.prisma.direction.findUnique({ where: { id: dto.directionId } });
+    if (!direction) throw new NotFoundException('Направление не найдено');
+    if (!direction.isActive) throw new BadRequestException('Нельзя создать класс в отключённом направлении');
 
-    if (!name) {
-      throw new BadRequestException('Название класса обязательно');
-    }
+    const existingCode = await this.prisma.class.findUnique({ where: { code } });
+    if (existingCode) throw new BadRequestException(`Класс с кодом "${code}" уже существует`);
 
-    const direction = await this.prisma.direction.findUnique({
-      where: {
-        id: dto.directionId,
-      },
-    });
-
-    if (!direction) {
-      throw new NotFoundException('Направление не найдено');
-    }
-
-    const existingCode = await this.prisma.class.findUnique({
-      where: {
-        code,
-      },
-    });
-
-    if (existingCode) {
-      throw new BadRequestException(
-        `Класс с кодом "${code}" уже существует`,
-      );
-    }
-
-    return this.prisma.class.create({
+    const item = await this.prisma.class.create({
       data: {
         directionId: dto.directionId,
         code,
         name,
+        unit: dto.unit ?? 'DB',
         sortOrder: dto.sortOrder ?? 0,
       },
-      include: {
-        direction: true,
-      },
+      include: { direction: true },
     });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'CLASS_CREATED',
+      entity: 'Class',
+      entityId: item.id,
+      ipAddress: request.ip,
+      metadata: { directionId: item.directionId, code: item.code, unit: item.unit },
+    });
+
+    return item;
   }
 
-  async updateClass(id: string, dto: UpdateClassDto) {
-    const item = await this.prisma.class.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!item) {
-      throw new NotFoundException('Класс не найден');
-    }
+  async updateClass(id: string, dto: UpdateClassDto, request: AuthenticatedRequest) {
+    const item = await this.prisma.class.findUnique({ where: { id } });
+    if (!item) throw new NotFoundException('Класс не найден');
 
     if (dto.directionId !== undefined) {
-      const direction = await this.prisma.direction.findUnique({
-        where: {
-          id: dto.directionId,
-        },
-      });
-
-      if (!direction) {
-        throw new NotFoundException('Направление не найдено');
+      const direction = await this.prisma.direction.findUnique({ where: { id: dto.directionId } });
+      if (!direction) throw new NotFoundException('Направление не найдено');
+      if (!direction.isActive && dto.isActive !== false) {
+        throw new BadRequestException('Нельзя включить класс в отключённом направлении');
       }
     }
 
     if (dto.code !== undefined) {
       const code = dto.code.trim();
-
-      if (!code) {
-        throw new BadRequestException('Код класса не может быть пустым');
-      }
-
-      const existing = await this.prisma.class.findUnique({
-        where: {
-          code,
-        },
-      });
-
-      if (existing && existing.id !== id) {
-        throw new BadRequestException(
-          `Класс с кодом "${code}" уже существует`,
-        );
-      }
+      if (!code) throw new BadRequestException('Код класса не может быть пустым');
+      const existing = await this.prisma.class.findUnique({ where: { code } });
+      if (existing && existing.id !== id) throw new BadRequestException(`Класс с кодом "${code}" уже существует`);
     }
 
     if (dto.name !== undefined && !dto.name.trim()) {
-      throw new BadRequestException(
-        'Название класса не может быть пустым',
-      );
+      throw new BadRequestException('Название класса не может быть пустым');
     }
 
-    return this.prisma.class.update({
-      where: {
-        id,
-      },
+    if (dto.isActive === true) {
+      const directionId = dto.directionId ?? item.directionId;
+      const direction = await this.prisma.direction.findUnique({ where: { id: directionId } });
+      if (!direction?.isActive) throw new BadRequestException('Нельзя включить класс в отключённом направлении');
+    }
+
+    const updated = await this.prisma.class.update({
+      where: { id },
       data: {
-        ...(dto.directionId !== undefined
-          ? {
-              directionId: dto.directionId,
-            }
-          : {}),
-        ...(dto.code !== undefined
-          ? {
-              code: dto.code.trim(),
-            }
-          : {}),
-        ...(dto.name !== undefined
-          ? {
-              name: dto.name.trim(),
-            }
-          : {}),
-        ...(dto.sortOrder !== undefined
-          ? {
-              sortOrder: dto.sortOrder,
-            }
-          : {}),
-        ...(dto.isActive !== undefined
-          ? {
-              isActive: dto.isActive,
-            }
-          : {}),
+        ...(dto.directionId !== undefined ? { directionId: dto.directionId } : {}),
+        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
+        ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
-      include: {
-        direction: true,
+      include: { direction: true },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'CLASS_UPDATED',
+      entity: 'Class',
+      entityId: id,
+      ipAddress: request.ip,
+      metadata: {
+        before: { directionId: item.directionId, code: item.code, name: item.name, unit: item.unit, sortOrder: item.sortOrder, isActive: item.isActive },
+        after: { directionId: updated.directionId, code: updated.code, name: updated.name, unit: updated.unit, sortOrder: updated.sortOrder, isActive: updated.isActive },
       },
     });
+
+    return updated;
   }
 
-  async deleteClass(id: string) {
-    const item = await this.prisma.class.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!item) {
-      throw new NotFoundException('Класс не найден');
-    }
-
-    return this.prisma.class.update({
-      where: {
-        id,
-      },
-      data: {
-        isActive: false,
-      },
-      include: {
-        direction: true,
-      },
-    });
+  async deleteClass(id: string, request: AuthenticatedRequest) {
+    return this.updateClass(id, { isActive: false }, request);
   }
 
-  // =========================================================
-  // STAGE CLASSES
-  // =========================================================
+  async findStageClasses(stageId: string, includeInactive = false) {
+    const stage = await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
 
-  async findStageClasses(stageId: string) {
-    const stage = await this.prisma.stage.findFirst({
-      where: {
-        id: stageId,
-        isDeleted: false,
-      },
-    });
-
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
-
-    const stageClasses = await this.prisma.stageClass.findMany({
+    return this.prisma.stageClass.findMany({
       where: {
         stageId,
+        ...(includeInactive ? {} : { isActive: true }),
       },
       orderBy: [
-        {
-          class: {
-            direction: {
-              sortOrder: 'asc',
-            },
-          },
-        },
-        {
-          class: {
-            sortOrder: 'asc',
-          },
-        },
+        { sortOrder: 'asc' },
+        { class: { direction: { sortOrder: 'asc' } } },
+        { class: { sortOrder: 'asc' } },
       ],
-      include: {
-        class: {
-          include: {
-            direction: true,
-          },
-        },
-      },
+      include: { class: { include: { direction: true } } },
     });
-
-    return stageClasses;
   }
 
-  async addClassToStage(stageId: string, classId: string) {
-    const stage = await this.prisma.stage.findFirst({
-      where: {
-        id: stageId,
-        isDeleted: false,
-      },
+  private async getStageClass(stageId: string, classId: string) {
+    return this.prisma.stageClass.findUnique({
+      where: { stageId_classId: { stageId, classId } },
+      include: { class: { include: { direction: true } }, stage: true },
     });
+  }
 
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
+  async addClassToStage(stageId: string, dto: AddStageClassDto, request: AuthenticatedRequest) {
+    const stage = await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
 
-    const item = await this.prisma.class.findFirst({
-      where: {
-        id: classId,
-        isActive: true,
-      },
-      include: {
-        direction: true,
-      },
+    const item = await this.prisma.class.findUnique({
+      where: { id: dto.classId },
+      include: { direction: true },
     });
-
-    if (!item) {
-      throw new NotFoundException(
-        'Активный класс не найден',
-      );
+    if (!item || !item.isActive || !item.direction.isActive) {
+      throw new NotFoundException('Активный класс не найден');
     }
 
     const existing = await this.prisma.stageClass.findUnique({
-      where: {
-        stageId_classId: {
-          stageId,
-          classId,
-        },
-      },
+      where: { stageId_classId: { stageId, classId: dto.classId } },
     });
-
     if (existing) {
-      throw new BadRequestException(
-        'Этот класс уже добавлен на этап',
-      );
+      if (existing.isActive) throw new BadRequestException('Этот класс уже добавлен на этап');
+      const restored = await this.prisma.stageClass.update({
+        where: { id: existing.id },
+        data: { isActive: true },
+        include: { class: { include: { direction: true } } },
+      });
+      await this.audit.log({
+        userId: request.user.sub,
+        action: 'STAGE_CLASS_RESTORED',
+        entity: 'StageClass',
+        entityId: restored.id,
+        ipAddress: request.ip,
+        metadata: { stageId, classId: dto.classId },
+      });
+      return restored;
     }
 
-    return this.prisma.stageClass.create({
-      data: {
-        stageId,
-        classId,
-      },
-      include: {
-        class: {
-          include: {
-            direction: true,
-          },
-        },
-      },
+    const created = await this.prisma.stageClass.create({
+      data: { stageId, classId: dto.classId },
+      include: { class: { include: { direction: true } } },
     });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_CLASS_CREATED',
+      entity: 'StageClass',
+      entityId: created.id,
+      ipAddress: request.ip,
+      metadata: { stageId, classId: dto.classId },
+    });
+
+    return created;
   }
 
-  async removeClassFromStage(stageId: string, classId: string) {
-    const existing = await this.prisma.stageClass.findUnique({
-      where: {
-        stageId_classId: {
-          stageId,
-          classId,
-        },
-      },
-    });
+  async updateStageClass(stageId: string, classId: string, dto: UpdateStageClassDto, request: AuthenticatedRequest) {
+    const existing = await this.getStageClass(stageId, classId);
+    if (!existing) throw new NotFoundException('Класс не привязан к этапу');
 
-    if (!existing) {
-      throw new NotFoundException(
-        'Этот класс не привязан к этапу',
-      );
+    if (dto.isActive === true && (!existing.class.isActive || !existing.class.direction.isActive)) {
+      throw new BadRequestException('Нельзя включить StageClass для отключённого класса или направления');
     }
 
-    await this.prisma.stageClass.delete({
-      where: {
-        id: existing.id,
-      },
-    });
-
-    return {
-      success: true,
-      stageId,
-      classId,
-    };
-  }
-
-  async replaceStageClasses(
-    stageId: string,
-    classIds: string[],
-  ) {
-    const stage = await this.prisma.stage.findFirst({
-      where: {
-        id: stageId,
-        isDeleted: false,
-      },
-    });
-
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
-
-    if (!Array.isArray(classIds)) {
-      throw new BadRequestException(
-        'classIds должен быть массивом',
-      );
-    }
-
-    const uniqueClassIds = [...new Set(classIds)];
-
-    const classes = await this.prisma.class.findMany({
-      where: {
-        id: {
-          in: uniqueClassIds,
-        },
-        isActive: true,
-      },
-    });
-
-    if (classes.length !== uniqueClassIds.length) {
-      throw new BadRequestException(
-        'Один или несколько классов не найдены или отключены',
-      );
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.stageClass.deleteMany({
+    if (dto.participantLimit !== undefined && dto.participantLimit !== null) {
+      const currentCount = await this.prisma.registrationClass.count({
         where: {
-          stageId,
+          classId,
+          registration: { stageId, status: 'ACTIVE' },
         },
       });
+      if (dto.participantLimit < currentCount) {
+        throw new BadRequestException(`Лимит не может быть меньше текущего количества регистраций: ${currentCount}`);
+      }
+    }
 
-      if (uniqueClassIds.length > 0) {
-        await tx.stageClass.createMany({
-          data: uniqueClassIds.map((classId) => ({
-            stageId,
-            classId,
-          })),
-        });
+    const updated = await this.prisma.stageClass.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dto.participantLimit !== undefined ? { participantLimit: dto.participantLimit } : {}),
+        ...(dto.customName !== undefined ? { customName: dto.customName?.trim() || null } : {}),
+        ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
+        ...(dto.settings !== undefined ? { settings: dto.settings } : {}),
+      },
+      include: { class: { include: { direction: true } } },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_CLASS_UPDATED',
+      entity: 'StageClass',
+      entityId: existing.id,
+      ipAddress: request.ip,
+      metadata: {
+        before: {
+          sortOrder: existing.sortOrder,
+          isActive: existing.isActive,
+          participantLimit: existing.participantLimit,
+          customName: existing.customName,
+          description: existing.description,
+          settings: existing.settings,
+        },
+        after: {
+          sortOrder: updated.sortOrder,
+          isActive: updated.isActive,
+          participantLimit: updated.participantLimit,
+          customName: updated.customName,
+          description: updated.description,
+          settings: updated.settings,
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  async removeClassFromStage(stageId: string, classId: string, request: AuthenticatedRequest) {
+    const existing = await this.getStageClass(stageId, classId);
+    if (!existing) throw new NotFoundException('Этот класс не привязан к этапу');
+
+    if (!existing.isActive) return existing;
+
+    const updated = await this.prisma.stageClass.update({
+      where: { id: existing.id },
+      data: { isActive: false },
+      include: { class: { include: { direction: true } } },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_CLASS_DEACTIVATED',
+      entity: 'StageClass',
+      entityId: existing.id,
+      ipAddress: request.ip,
+      metadata: { stageId, classId },
+    });
+
+    return updated;
+  }
+
+  async replaceStageClasses(stageId: string, dto: ReplaceStageClassesDto, request: AuthenticatedRequest) {
+    const stage = await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
+
+    const uniqueClassIds = [...new Set(dto.classIds)];
+    const classes = await this.prisma.class.findMany({
+      where: {
+        id: { in: uniqueClassIds },
+        isActive: true,
+        direction: { isActive: true },
+      },
+    });
+    if (classes.length !== uniqueClassIds.length) {
+      throw new BadRequestException('Один или несколько классов не найдены или отключены');
+    }
+
+    const existing = await this.prisma.stageClass.findMany({ where: { stageId } });
+    const desired = new Set(uniqueClassIds);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.stageClass.updateMany({
+        where: {
+          stageId,
+          classId: { notIn: uniqueClassIds },
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+
+      for (let index = 0; index < uniqueClassIds.length; index += 1) {
+        const classId = uniqueClassIds[index];
+        const found = existing.find((row) => row.classId === classId);
+        if (found) {
+          await tx.stageClass.update({
+            where: { id: found.id },
+            data: { isActive: true, sortOrder: index },
+          });
+        } else {
+          await tx.stageClass.create({
+            data: { stageId, classId, sortOrder: index, isActive: true },
+          });
+        }
       }
     });
 
-    return this.findStageClasses(stageId);
+    await this.audit.log({
+      userId: request.user.sub,
+      action: 'STAGE_CLASSES_REPLACED',
+      entity: 'Stage',
+      entityId: stageId,
+      ipAddress: request.ip,
+      metadata: {
+        previousActiveClassIds: existing.filter((x) => x.isActive).map((x) => x.classId),
+        activeClassIds: uniqueClassIds,
+      },
+    });
+
+    return this.findStageClasses(stageId, true);
   }
 }
