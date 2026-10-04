@@ -25,6 +25,19 @@ async function bootstrap() {
     throw new Error('AUTH_COOKIE_SECURE=true обязателен в production');
   }
 
+  if (isProduction) {
+    const requiredStorage = [
+      'S3_ENDPOINT',
+      'S3_BUCKET',
+      'S3_ACCESS_KEY_ID',
+      'S3_SECRET_ACCESS_KEY',
+      'S3_PUBLIC_BASE_URL',
+    ];
+    for (const name of requiredStorage) {
+      if (!process.env[name]) throw new Error(name + ' должен быть задан в production');
+    }
+  }
+
   const corsOrigins = (
     process.env.CORS_ORIGINS ??
     (isProduction ? '' : 'http://localhost:3000,http://localhost:5173')
