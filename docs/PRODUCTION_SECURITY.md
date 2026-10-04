@@ -74,3 +74,5 @@ NestJS application controls cannot stop a large volumetric DDoS before traffic r
 ## Final release gate
 
 Production release is blocked until CI passes build, lint, unit tests, E2E tests, and the high-severity dependency audit. The API origin must remain behind Cloudflare/WAF and the PostgreSQL origin must not be publicly reachable.
+
+- Security regression tests cover registration configuration binding and duplicate-registration protections.
