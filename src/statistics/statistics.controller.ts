@@ -9,13 +9,21 @@ import {
 
 import { Roles } from '../auth/roles.decorator';
 import { StatisticsService } from './statistics.service';
+import { DataQualityService } from '../data-quality/data-quality.service';
 
 @Controller('statistics')
 @Roles('ADMIN', 'JUDGE')
 export class StatisticsController {
   constructor(
     private readonly statisticsService: StatisticsService,
+    private readonly dataQualityService: DataQualityService,
   ) {}
+
+  @Get('data-quality/report')
+  @Roles('ADMIN')
+  getDataQualityReport() {
+    return this.dataQualityService.getReport();
+  }
 
   @Get('overview')
   getOverview() {
