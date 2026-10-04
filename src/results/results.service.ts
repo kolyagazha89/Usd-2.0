@@ -326,6 +326,10 @@ export class ResultsService {
     const result = await this.prisma.result.findFirst({
       where: {
         id,
+        registration: {
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
         OR: [
           { isHistorical: false },
           { isHistorical: true, verificationStatus: 'VERIFIED' },
@@ -367,6 +371,10 @@ export class ResultsService {
     return this.prisma.result.findMany({
       where: {
         registrationId,
+        registration: {
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
         OR: [
           { isHistorical: false },
           { isHistorical: true, verificationStatus: 'VERIFIED' },
@@ -390,6 +398,10 @@ export class ResultsService {
     return this.prisma.result.findMany({
       where: {
         registrationClassId,
+        registration: {
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
         OR: [
           { isHistorical: false },
           { isHistorical: true, verificationStatus: 'VERIFIED' },
@@ -412,7 +424,11 @@ export class ResultsService {
 
     return this.prisma.result.findMany({
       where: {
-        registration: { stageId },
+        registration: {
+          stageId,
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
         OR: [
           { isHistorical: false },
           { isHistorical: true, verificationStatus: 'VERIFIED' },

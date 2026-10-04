@@ -52,6 +52,118 @@ export class HistoricalResultsService {
     };
   }
 
+  private publicInclude() {
+    return {
+      registration: {
+        select: {
+          id: true,
+          participantNumber: true,
+          participant: {
+            select: {
+              id: true,
+              lastName: true,
+              firstName: true,
+              middleName: true,
+              team: true,
+              city: true,
+              photoUrl: true,
+              isPublic: true,
+            },
+          },
+          car: {
+            select: {
+              id: true,
+              brand: true,
+              model: true,
+              color: true,
+              photoUrl: true,
+              isPublic: true,
+            },
+          },
+          stage: {
+            select: {
+              id: true,
+              stageNumber: true,
+              name: true,
+              city: true,
+              date: true,
+              status: true,
+              season: {
+                select: {
+                  id: true,
+                  name: true,
+                  year: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      registrationClass: {
+        select: {
+          id: true,
+          class: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              unit: true,
+              sortOrder: true,
+              direction: {
+                select: {
+                  id: true,
+                  name: true,
+                  sortOrder: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
+  async findPublic(stageId?: string) {
+    return this.prisma.result.findMany({
+      where: {
+        isHistorical: true,
+        verificationStatus: 'VERIFIED',
+        registration: {
+          ...(stageId ? { stageId } : {}),
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
+      },
+      include: this.publicInclude(),
+      orderBy: [
+        { registrationClass: { class: { sortOrder: 'asc' } } },
+        { place: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+  }
+
+  async findPublicOne(id: string) {
+    const result = await this.prisma.result.findFirst({
+      where: {
+        id,
+        isHistorical: true,
+        verificationStatus: 'VERIFIED',
+        registration: {
+          participant: { isPublic: true },
+          car: { isPublic: true },
+        },
+      },
+      include: this.publicInclude(),
+    });
+
+    if (!result) {
+      throw new NotFoundException('Исторический результат не найден');
+    }
+
+    return result;
+  }
+
   async findPending() {
     return this.prisma.result.findMany({
       where: {
