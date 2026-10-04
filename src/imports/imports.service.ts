@@ -2823,7 +2823,8 @@ export class ImportsService {
             `IMPORT-${participantId
               .slice(0, 8)
               .toUpperCase()}`,
-          registrationCountry: 'RU',
+          registrationCountry:
+            this.stringValue(row.registrationCountry) || 'RU',
           isActive: true,
           isPublic: false,
         },
@@ -3360,6 +3361,11 @@ export class ImportsService {
                       ],
                     ),
                   ),
+
+            registrationCountry:
+              resolution?.car?.action === 'CREATE'
+                ? this.stringValue(resolution.car.registrationCountry) || 'RU'
+                : 'RU',
           };
 
           const carId =
@@ -4104,7 +4110,28 @@ export class ImportsService {
                 await this.getOrCreateImportCar(
                   tx,
                   participantId,
-                  {},
+                  {
+                    carId:
+                      resolution?.car?.action === 'USE_EXISTING'
+                        ? resolution.car.carId
+                        : undefined,
+                    brand:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.brand
+                        : undefined,
+                    model:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.model
+                        : undefined,
+                    registrationNumber:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.registrationNumber
+                        : undefined,
+                    registrationCountry:
+                      resolution?.car?.action === 'CREATE'
+                        ? resolution.car.registrationCountry
+                        : undefined,
+                  },
                 );
 
               const existingByCar =
