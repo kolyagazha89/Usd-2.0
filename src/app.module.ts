@@ -19,14 +19,13 @@ import { NameNormalizerModule } from './common/names/name-normalizer.module';
 import { ImportsModule } from './imports/imports.module';
 import { DisqualificationsModule } from './disqualifications/disqualifications.module';
 import { ConfigurationsModule } from './configurations/configurations.module';
+import { SecurityModule } from './common/security/security.module';
 
 @Module({
   imports: [
     PrismaModule,
-
     AuthModule,
     MailModule,
-
     StagesModule,
     ClassesModule,
     ParticipantsModule,
@@ -39,14 +38,9 @@ import { ConfigurationsModule } from './configurations/configurations.module';
     ImportsModule,
     DisqualificationsModule,
     ConfigurationsModule,
+    SecurityModule,
   ],
-
-  controllers: [
-    AppController,
-  ],
-
-  providers: [
-    AppService,
-  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
