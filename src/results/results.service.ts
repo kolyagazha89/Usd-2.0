@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,11 +8,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordsService } from '../records/records.service';
 import { ResultsRankingService } from './results-ranking.service';
-
-type ResultUnitValue =
-  | 'DB'
-  | 'MPS'
-  | 'OTHER';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import type { CreateResultDto, UpdateResultDto } from './dto/result.dto';
 
 @Injectable()
 export class ResultsService {
@@ -21,7 +19,77 @@ export class ResultsService {
     private readonly rankingService: ResultsRankingService,
   ) {}
 
-  private readonly resultInclude = {
+  private readonly publicInclude = {
+    registration: {
+      select: {
+        id: true,
+        participantNumber: true,
+        participant: {
+          select: {
+            id: true,
+            lastName: true,
+            firstName: true,
+            middleName: true,
+            team: true,
+            city: true,
+            photoUrl: true,
+            isPublic: true,
+          },
+        },
+        car: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            color: true,
+            photoUrl: true,
+            isPublic: true,
+          },
+        },
+        stage: {
+          select: {
+            id: true,
+            stageNumber: true,
+            name: true,
+            city: true,
+            date: true,
+            status: true,
+            season: {
+              select: {
+                id: true,
+                name: true,
+                year: true,
+              },
+            },
+          },
+        },
+      },
+    },
+    registrationClass: {
+      select: {
+        id: true,
+        class: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            unit: true,
+            sortOrder: true,
+            direction: {
+              select: {
+                id: true,
+                name: true,
+                sortOrder: true,
+              },
+            },
+          },
+        },
+      },
+    },
+    records: true,
+  };
+
+  private readonly adminInclude = {
     registration: {
       include: {
         stage: {
@@ -29,7 +97,7 @@ export class ResultsService {
             season: true,
           },
         },
-participant: {
+        participant: {
           select: {
             id: true,
             lastName: true,
@@ -64,481 +132,401 @@ participant: {
         },
       },
     },
+    createdByUser: {
+      select: {
+        id: true,
+        name: true,
+        role: true,
+      },
+    },
     records: true,
   };
 
-  private isBassRace(
-    className: string,
-  ): boolean {
-    return className
-      .trim()
-      .toLowerCase()
-      .startsWith('bassrace');
+  private isBassRace(className: string): boolean {
+    return className.trim().toLowerCase().startsWith('bassrace');
   }
 
   private validateValue(value: number) {
-    if (!Number.isFinite(value)) {
+    if (!Number.isFinite(value) || value < 0) {
       throw new ConflictException(
-        'Значение результата должно быть числом',
+        'Значение результата должно быть неотрицательным числом',
       );
     }
   }
 
-  private validateUnit(
-    unit: ResultUnitValue,
-  ) {
-    if (
-      !['DB', 'MPS', 'OTHER'].includes(
-        unit,
-      )
-    ) {
-      throw new ConflictException(
-        'Недопустимая единица измерения',
-      );
-    }
-  }
-
-  private validatePlace(
-    place?: number | null,
-  ) {
+  private validatePlace(place?: number | null) {
     if (
       place !== undefined &&
       place !== null &&
-      (!Number.isInteger(place) ||
-        place < 1)
+      (!Number.isInteger(place) || place < 1 || place > 999)
     ) {
       throw new ConflictException(
-        'Место должно быть целым числом больше 0',
+        'Место должно быть целым числом от 1 до 999',
       );
     }
   }
 
-  private async getActiveDisqualifications(
-    tx: PrismaService | any,
+  private async assertResultAllowed(
+    tx: any,
     participantId: string,
     stageId: string,
   ) {
-    const stage =
-      await tx.stage.findUnique({
-        where: {
-          id: stageId,
-        },
-        select: {
-          id: true,
-          seasonId: true,
-        },
-      });
+    const stage = await tx.stage.findUnique({
+      where: { id: stageId },
+      select: { id: true, seasonId: true },
+    });
 
     if (!stage) {
-      throw new NotFoundException(
-        'Этап не найден',
-      );
+      throw new NotFoundException('Этап не найден');
     }
 
-    return tx.disqualification.findMany({
+    const active = await tx.disqualification.findMany({
       where: {
         participantId,
         status: 'ACTIVE',
         OR: [
-          {
-            scope: 'FORMAT',
-          },
-          {
-            scope: 'SEASON',
-            seasonId: stage.seasonId,
-          },
-          {
-            scope: 'STAGE',
-            stageId: stage.id,
-          },
+          { scope: 'FORMAT' },
+          { scope: 'SEASON', seasonId: stage.seasonId },
+          { scope: 'STAGE', stageId: stage.id },
         ],
       },
+      select: { id: true, scope: true },
+    });
+
+    if (active.length === 0) return;
+
+    const scopeMessage: Record<string, string> = {
+      FORMAT: 'Участник дисквалифицирован по формату',
+      SEASON: 'Участник дисквалифицирован на сезон',
+      STAGE: 'Участник дисквалифицирован на этот этап',
+    };
+
+    const item = active[0];
+    throw new ConflictException({
+      message: scopeMessage[item.scope] ?? 'Участник дисквалифицирован',
+      code: 'RESULT_DISQUALIFIED',
+      disqualificationId: item.id,
     });
   }
 
-  private async assertResultAllowed(
-    tx: PrismaService | any,
-    participantId: string,
-    stageId: string,
-  ) {
-    const active =
-      await this.getActiveDisqualifications(
-        tx,
-        participantId,
-        stageId,
-      );
-
-    if (active.length > 0) {
-      const format =
-        active.find(
-          (item: { scope: string }) =>
-            item.scope === 'FORMAT',
-        );
-
-      if (format) {
-        throw new ConflictException({
-          message:
-            'Нельзя внести результат: участник дисквалифицирован по FORMAT',
-          code:
-            'RESULT_FORMAT_DISQUALIFIED',
-          disqualificationId: format.id,
-        });
-      }
-
-      const season =
-        active.find(
-          (item: { scope: string }) =>
-            item.scope === 'SEASON',
-        );
-
-      if (season) {
-        throw new ConflictException({
-          message:
-            'Нельзя внести результат: участник дисквалифицирован по SEASON',
-          code:
-            'RESULT_SEASON_DISQUALIFIED',
-          disqualificationId: season.id,
-        });
-      }
-
-      const stage =
-        active.find(
-          (item: { scope: string }) =>
-            item.scope === 'STAGE',
-        );
-
-      if (stage) {
-        throw new ConflictException({
-          message:
-            'Нельзя внести результат: участник дисквалифицирован на этот этап',
-          code:
-            'RESULT_STAGE_DISQUALIFIED',
-          disqualificationId: stage.id,
-        });
-      }
-    }
-  }
-
-  async findOne(id: string) {
-    const result =
-      await this.prisma.result.findUnique({
-        where: {
-          id,
-        },
-        include: this.resultInclude,
-      });
-
-    if (!result) {
-      throw new NotFoundException(
-        'Результат не найден',
-      );
-    }
-
-    return result;
-  }
-
-  async findByRegistration(
-    registrationId: string,
-  ) {
-    const registration =
-      await this.prisma.registration.findUnique(
-        {
-          where: {
-            id: registrationId,
+  private async getRegistrationContext(tx: any, registrationId: string) {
+    const registration = await tx.registration.findUnique({
+      where: { id: registrationId },
+      include: {
+        inspection: true,
+        stage: {
+          select: {
+            id: true,
+            status: true,
+            isDeleted: true,
+            seasonId: true,
           },
         },
-      );
+      },
+    });
 
     if (!registration) {
-      throw new NotFoundException(
-        'Регистрация не найдена',
-      );
+      throw new NotFoundException('Регистрация не найдена');
     }
 
-    return this.prisma.result.findMany({
-      where: {
-        registrationId,
-      },
-      include: this.resultInclude,
-      orderBy: [
-        {
-          registrationClass: {
-            class: {
-              sortOrder: 'asc',
-            },
-          },
-        },
-        {
-          createdAt: 'asc',
-        },
-      ],
-    });
-  }
-
-  async findByRegistrationClass(
-    registrationClassId: string,
-  ) {
-    const registrationClass =
-      await this.prisma.registrationClass.findUnique(
-        {
-          where: {
-            id: registrationClassId,
-          },
-        },
-      );
-
-    if (!registrationClass) {
-      throw new NotFoundException(
-        'Класс регистрации не найден',
-      );
-    }
-
-    return this.prisma.result.findMany({
-      where: {
-        registrationClassId,
-      },
-      include: this.resultInclude,
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-  }
-
-  async findByStage(
-    stageId: string,
-  ) {
-    const stage =
-      await this.prisma.stage.findUnique({
-        where: {
-          id: stageId,
-        },
-      });
-
-    if (!stage) {
-      throw new NotFoundException(
-        'Этап не найден',
-      );
-    }
-
-    return this.prisma.result.findMany({
-      where: {
-        registration: {
-          stageId,
-        },
-      },
-      include: this.resultInclude,
-      orderBy: [
-        {
-          registrationClass: {
-            class: {
-              sortOrder: 'asc',
-            },
-          },
-        },
-        {
-          place: 'asc',
-        },
-        {
-          createdAt: 'asc',
-        },
-      ],
-    });
-  }
-
-  async create(data: {
-    registrationId: string;
-    registrationClassId: string;
-    value: number;
-    unit: ResultUnitValue;
-    place?: number;
-    notes?: string;
-  }) {
-    this.validateValue(data.value);
-    this.validateUnit(data.unit);
-    this.validatePlace(data.place);
-
-    const registration =
-      await this.prisma.registration.findUnique(
-        {
-          where: {
-            id: data.registrationId,
-          },
-          include: {
-            inspection: true,
-            stage: true,
-          },
-        },
-      );
-
-    if (!registration) {
-      throw new NotFoundException(
-        'Регистрация не найдена',
+    if (registration.status !== 'ACTIVE') {
+      throw new ConflictException(
+        'Нельзя внести результат для неактивной регистрации',
       );
     }
 
     if (
-      registration.status !== 'ACTIVE'
+      registration.stage.isDeleted ||
+      !['PUBLISHED', 'COMPLETED'].includes(registration.stage.status)
     ) {
       throw new ConflictException(
-        'Нельзя добавить результат для неактивной регистрации',
-      );
-    }
-
-    if (registration.stage.isDeleted) {
-      throw new ConflictException(
-        'Нельзя добавить результат для удалённого этапа',
+        'Результат нельзя внести для этого статуса этапа',
       );
     }
 
     if (!registration.inspection) {
       throw new ConflictException(
-        'Нельзя добавить результат без инспекции',
+        'Участник не прошёл инспекцию: результат недоступен',
       );
     }
 
-    if (
-      registration.inspection.status !==
-      'PASSED'
-    ) {
+    if (registration.inspection.status !== 'PASSED') {
       throw new ConflictException(
-        'Нельзя добавить результат до прохождения инспекции',
+        'Участник не допущен после инспекции: результат недоступен',
       );
     }
 
     await this.assertResultAllowed(
-      this.prisma,
+      tx,
       registration.participantId,
       registration.stageId,
     );
 
-    const registrationClass =
-      await this.prisma.registrationClass.findUnique(
-        {
-          where: {
-            id: data.registrationClassId,
-          },
+    return registration;
+  }
+
+  private async getRegistrationClassContext(
+    tx: any,
+    registrationId: string,
+    registrationClassId: string,
+  ) {
+    const registrationClass = await tx.registrationClass.findUnique({
+      where: { id: registrationClassId },
+      include: {
+        class: {
           include: {
-            class: true,
+            direction: true,
           },
         },
-      );
+      },
+    });
 
     if (!registrationClass) {
-      throw new NotFoundException(
-        'Класс регистрации не найден',
-      );
+      throw new NotFoundException('Класс регистрации не найден');
     }
 
-    if (
-      registrationClass.registrationId !==
-      data.registrationId
-    ) {
+    if (registrationClass.registrationId !== registrationId) {
       throw new ConflictException(
         'Указанный класс не принадлежит данной регистрации',
       );
     }
 
-    const result =
-      await this.prisma.$transaction(
-        async (tx) => {
-          const existingResult =
-            await tx.result.findUnique({
-              where: {
-                registrationClassId_attemptNumber:
-                  {
-                    registrationClassId:
-                      data.registrationClassId,
-                    attemptNumber: 1,
-                  },
-              },
-            });
+    if (!registrationClass.class.isActive) {
+      throw new ConflictException(
+        'Нельзя внести результат для отключённого класса',
+      );
+    }
 
-          if (existingResult) {
-            throw new ConflictException(
-              'Для этого класса результат уже существует',
-            );
-          }
+    const stageClass = await tx.stageClass.findUnique({
+      where: {
+        stageId_classId: {
+          stageId: (
+            await tx.registration.findUniqueOrThrow({
+              where: { id: registrationId },
+              select: { stageId: true },
+            })
+          ).stageId,
+          classId: registrationClass.classId,
+        },
+      },
+      select: { id: true, isActive: true },
+    });
 
-          await this.assertResultAllowed(
-            tx,
-            registration.participantId,
-            registration.stageId,
+    if (!stageClass || !stageClass.isActive) {
+      throw new ConflictException(
+        'Класс не допущен к данному этапу',
+      );
+    }
+
+    return registrationClass;
+  }
+
+  async findOne(id: string) {
+    const result = await this.prisma.result.findUnique({
+      where: { id },
+      include: this.publicInclude,
+    });
+
+    if (!result) {
+      throw new NotFoundException('Результат не найден');
+    }
+
+    return result;
+  }
+
+  async findOneAdmin(id: string) {
+    const result = await this.prisma.result.findUnique({
+      where: { id },
+      include: this.adminInclude,
+    });
+
+    if (!result) {
+      throw new NotFoundException('Результат не найден');
+    }
+
+    return result;
+  }
+
+  async findByRegistration(registrationId: string) {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+      select: { id: true },
+    });
+
+    if (!registration) {
+      throw new NotFoundException('Регистрация не найдена');
+    }
+
+    return this.prisma.result.findMany({
+      where: { registrationId },
+      include: this.publicInclude,
+      orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async findByRegistrationClass(registrationClassId: string) {
+    const registrationClass = await this.prisma.registrationClass.findUnique({
+      where: { id: registrationClassId },
+      select: { id: true },
+    });
+
+    if (!registrationClass) {
+      throw new NotFoundException('Класс регистрации не найден');
+    }
+
+    return this.prisma.result.findMany({
+      where: { registrationClassId },
+      include: this.publicInclude,
+      orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async findByStage(stageId: string) {
+    const stage = await this.prisma.stage.findUnique({
+      where: { id: stageId },
+      select: { id: true },
+    });
+
+    if (!stage) {
+      throw new NotFoundException('Этап не найден');
+    }
+
+    return this.prisma.result.findMany({
+      where: {
+        registration: { stageId },
+      },
+      include: this.publicInclude,
+      orderBy: [
+        { registrationClass: { class: { sortOrder: 'asc' } } },
+        { place: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+  }
+
+  async findByStageAdmin(stageId: string) {
+    const stage = await this.prisma.stage.findUnique({
+      where: { id: stageId },
+      select: { id: true },
+    });
+
+    if (!stage) {
+      throw new NotFoundException('Этап не найден');
+    }
+
+    return this.prisma.result.findMany({
+      where: { registration: { stageId } },
+      include: this.adminInclude,
+      orderBy: [
+        { registrationClass: { class: { sortOrder: 'asc' } } },
+        { place: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+  }
+
+  async create(
+    data: CreateResultDto,
+    request: AuthenticatedRequest,
+  ) {
+    if (!['ADMIN', 'JUDGE'].includes(request.user.role)) {
+      throw new ForbiddenException('Недостаточно прав для внесения результата');
+    }
+
+    this.validateValue(data.value);
+    this.validatePlace(data.place);
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const registration = await this.getRegistrationContext(
+          tx,
+          data.registrationId,
+        );
+
+        const registrationClass = await this.getRegistrationClassContext(
+          tx,
+          data.registrationId,
+          data.registrationClassId,
+        );
+
+        const existing = await tx.result.findFirst({
+          where: {
+            registrationClassId: data.registrationClassId,
+          },
+          select: { id: true },
+        });
+
+        if (existing) {
+          throw new ConflictException(
+            'Для этого класса результат уже внесён',
           );
+        }
 
-          return tx.result.create({
-            data: {
-              registrationId:
-                data.registrationId,
-              registrationClassId:
-                data.registrationClassId,
-              attemptNumber: 1,
+        const result = await tx.result.create({
+          data: {
+            registrationId: data.registrationId,
+            registrationClassId: data.registrationClassId,
+            value: data.value,
+            unit: registrationClass.class.unit,
+            place: data.place ?? null,
+            isBest: false,
+            notes: data.notes?.trim() || null,
+            createdByUserId: request.user.sub,
+          },
+          include: this.adminInclude,
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: request.user.sub,
+            action: 'RESULT_CREATED',
+            entity: 'Result',
+            entityId: result.id,
+            ipAddress: request.ip,
+            metadata: {
+              registrationId: data.registrationId,
+              registrationClassId: data.registrationClassId,
               value: data.value,
-              unit: data.unit,
-              place: this.isBassRace(
-                registrationClass.class.name,
-              )
-                ? data.place
-                : null,
-              isBest: false,
-              notes: data.notes,
+              unit: registrationClass.class.unit,
+              place: data.place ?? null,
             },
-            include:
-              this.resultInclude,
-          });
-        },
-        {
-          isolationLevel:
-            'Serializable',
-        },
-      );
+          },
+        });
 
-    await this.recordsService
-      .createFromResultIfEligible(
-        result.id,
-      );
+        return {
+          result,
+          stageId: registration.stageId,
+          classId: registrationClass.classId,
+        };
+      },
+      { isolationLevel: 'Serializable' },
+    );
 
-    await this.rankingService
-      .recalculateByStageClass(
-        registration.stageId,
-        registrationClass.classId,
-      );
+    await this.recordsService.createFromResultIfEligible(result.result.id);
+    await this.rankingService.recalculateByStageClass(
+      result.stageId,
+      result.classId,
+    );
 
-    return this.findOne(result.id);
+    return this.findOneAdmin(result.result.id);
   }
 
   async update(
     id: string,
-    data: {
-      value?: number;
-      unit?: ResultUnitValue;
-      place?: number | null;
-      notes?: string | null;
-    },
+    data: UpdateResultDto,
+    request: AuthenticatedRequest,
   ) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Исправлять результаты может только администратор');
+    }
+
+    this.validateValue(data.value ?? 0);
     this.validatePlace(data.place);
 
-    if (
-      data.value !== undefined
-    ) {
-      this.validateValue(
-        data.value,
-      );
-    }
-
-    if (
-      data.unit !== undefined
-    ) {
-      this.validateUnit(
-        data.unit,
-      );
-    }
-
-    const existing =
-      await this.prisma.result.findUnique(
-        {
-          where: {
-            id,
-          },
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.result.findUnique({
+          where: { id },
           include: {
             registration: {
               include: {
@@ -552,177 +540,109 @@ participant: {
               },
             },
           },
-        },
-      );
+        });
 
-    if (!existing) {
-      throw new NotFoundException(
-        'Результат не найден',
-      );
-    }
+        if (!existing) {
+          throw new NotFoundException('Результат не найден');
+        }
 
-    if (
-      existing.registration.status !==
-      'ACTIVE'
-    ) {
-      throw new ConflictException(
-        'Нельзя изменить результат неактивной регистрации',
-      );
-    }
+        if (existing.registration.status !== 'ACTIVE') {
+          throw new ConflictException(
+            'Нельзя изменить результат неактивной регистрации',
+          );
+        }
 
-    if (
-      existing.registration.stage.isDeleted
-    ) {
-      throw new ConflictException(
-        'Нельзя изменить результат удалённого этапа',
-      );
-    }
+        if (
+          existing.registration.stage.isDeleted ||
+          !['PUBLISHED', 'COMPLETED'].includes(
+            existing.registration.stage.status,
+          )
+        ) {
+          throw new ConflictException(
+            'Нельзя изменить результат для этого статуса этапа',
+          );
+        }
 
-    if (
-      !existing.registration.inspection
-    ) {
-      throw new ConflictException(
-        'Нельзя изменить результат без инспекции',
-      );
-    }
+        if (!existing.registration.inspection) {
+          throw new ConflictException(
+            'Нельзя изменить результат без пройденной инспекции',
+          );
+        }
 
-    if (
-      existing.registration.inspection.status !==
-      'PASSED'
-    ) {
-      throw new ConflictException(
-        'Нельзя изменить результат до прохождения инспекции',
-      );
-    }
+        if (existing.registration.inspection.status !== 'PASSED') {
+          throw new ConflictException(
+            'Нельзя изменить результат участника, не допущенного к соревнованиям',
+          );
+        }
 
-    await this.assertResultAllowed(
-      this.prisma,
-      existing.registration.participantId,
-      existing.registration.stageId,
-    );
+        await this.assertResultAllowed(
+          tx,
+          existing.registration.participantId,
+          existing.registration.stageId,
+        );
 
-    if (
-      existing.registrationClass
-        .registrationId !==
-      existing.registrationId
-    ) {
-      throw new ConflictException(
-        'Класс результата не принадлежит его регистрации',
-      );
-    }
+        const before = {
+          value: existing.value.toString(),
+          unit: existing.unit,
+          place: existing.place,
+          notes: existing.notes,
+        };
 
-    const bassRace =
-      this.isBassRace(
-        existing.registrationClass.class.name,
-      );
+        const nextValue = data.value ?? Number(existing.value);
+        const nextPlace =
+          data.place !== undefined ? data.place : existing.place;
+        const nextNotes =
+          data.notes !== undefined
+            ? data.notes?.trim() || null
+            : existing.notes;
 
-    await this.prisma.result.update({
-      where: {
-        id,
-      },
-      data: {
-        ...(data.value !==
-          undefined && {
-          value: data.value,
-        }),
-        ...(data.unit !==
-          undefined && {
-          unit: data.unit,
-        }),
-        ...(bassRace &&
-          data.place !==
-            undefined && {
-            place: data.place,
-          }),
-        ...(data.notes !==
-          undefined && {
-          notes: data.notes,
-        }),
-      },
-    });
+        this.validateValue(nextValue);
+        this.validatePlace(nextPlace);
 
-    await this.recordsService
-      .syncAfterResultUpdate(id);
-
-    await this.rankingService
-      .recalculateByStageClass(
-        existing.registration.stageId,
-        existing.registrationClass.classId,
-      );
-
-    return this.findOne(id);
-  }
-
-  async remove(id: string) {
-    const existing =
-      await this.prisma.result.findUnique(
-        {
-          where: {
-            id,
+        const updated = await tx.result.update({
+          where: { id },
+          data: {
+            value: nextValue,
+            place: nextPlace,
+            notes: nextNotes,
           },
-          include: {
-            registration: {
-              include: {
-                stage: true,
-              },
-            },
-            registrationClass: {
-              include: {
-                class: true,
+          include: this.adminInclude,
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: request.user.sub,
+            action: 'RESULT_CORRECTED',
+            entity: 'Result',
+            entityId: id,
+            ipAddress: request.ip,
+            metadata: {
+              before,
+              after: {
+                value: updated.value.toString(),
+                unit: updated.unit,
+                place: updated.place,
+                notes: updated.notes,
               },
             },
           },
-        },
-      );
+        });
 
-    if (!existing) {
-      throw new NotFoundException(
-        'Результат не найден',
-      );
-    }
-
-    if (
-      existing.registration.status !==
-      'ACTIVE'
-    ) {
-      throw new ConflictException(
-        'Нельзя удалить результат неактивной регистрации',
-      );
-    }
-
-    if (
-      existing.registration.stage.isDeleted
-    ) {
-      throw new ConflictException(
-        'Нельзя удалить результат удалённого этапа',
-      );
-    }
-
-    const stageId =
-      existing.registration.stageId;
-
-    const classId =
-      existing.registrationClass.classId;
-
-    await this.prisma.result.delete({
-      where: {
-        id,
+        return {
+          result: updated,
+          stageId: existing.registration.stageId,
+          classId: existing.registrationClass.classId,
+        };
       },
-    });
-
-    await this.recordsService
-      .recalculateCurrentRecord(
-        classId,
-      );
-
-    await this.rankingService
-      .recalculateByStageClass(
-        stageId,
-        classId,
-      );
-
-    return this.findByRegistrationClass(
-      existing.registrationClassId,
+      { isolationLevel: 'Serializable' },
     );
+
+    await this.recordsService.syncAfterResultUpdate(updated.result.id);
+    await this.rankingService.recalculateByStageClass(
+      updated.stageId,
+      updated.classId,
+    );
+
+    return this.findOneAdmin(updated.result.id);
   }
 }

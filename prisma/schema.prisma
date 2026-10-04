@@ -29,6 +29,7 @@ model User {
   inspectionsCreated       Inspection[]             @relation("InspectionCreatedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
+  resultsCreated           Result[]             @relation("ResultCreatedBy")
   participant              Participant?             @relation(fields: [participantId], references: [id])
 
   @@index([role])
@@ -457,19 +458,21 @@ model Result {
   id                  String            @id @default(uuid())
   registrationId      String
   registrationClassId String
-  attemptNumber       Int               @default(1)
   value               Decimal           @db.Decimal(10, 3)
   unit                ResultUnit
   place               Int?
   isBest              Boolean           @default(false)
   notes               String?
+  createdByUserId     String?
   createdAt           DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
   records             Record[]
   registrationClass   RegistrationClass @relation(fields: [registrationClassId], references: [id], onDelete: Cascade)
   registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  createdByUser       User?             @relation("ResultCreatedBy", fields: [createdByUserId], references: [id])
 
-  @@unique([registrationClassId, attemptNumber])
+  @@unique([registrationClassId])
+  @@index([createdByUserId])
   @@index([registrationId])
   @@index([registrationClassId])
   @@index([place])

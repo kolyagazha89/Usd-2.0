@@ -497,9 +497,7 @@ export class ImportsService {
           participantNumber,
 
           email:
-            this.stringValue(
-              this.getImportFieldValue(
-                row,
+            this.stringValue(              this.getImportFieldValue(                row,
                 [
                   'Email',
                   'E-mail',
@@ -997,10 +995,8 @@ export class ImportsService {
       {
         column: 'SPL Hurricane',
         value: row['SPL Hurricane'],
-        direction: 'Hurrican',
-      },
+        direction: 'Hurrican',      },
     ];
-
     const classes: any[] = [];
     const warnings: string[] = [];
     const processedColumns =
@@ -1497,11 +1493,9 @@ export class ImportsService {
           typeof this.findParticipant
         > & {
           source: 'DATABASE';
-        })
-      | {
+        })      | {
           status:
-            | 'MATCHED'
-            | 'AMBIGUOUS';
+            | 'MATCHED'            | 'AMBIGUOUS';
 
           normalizedName: string;
 
@@ -1997,12 +1991,10 @@ export class ImportsService {
 
   private getImportFieldValue(
     row: Record<string, unknown>,
-    targets: string[],
-  ): unknown {
+    targets: string[],  ): unknown {
     for (const target of targets) {
       if (
-        Object.prototype.hasOwnProperty.call(
-          row,
+        Object.prototype.hasOwnProperty.call(          row,
           target,
         )
       ) {
@@ -2497,13 +2489,11 @@ export class ImportsService {
     const rawModel =
       findValue([
         'Модель автомобиля',
-        'Модель',
-        'model',
+        'Модель',        'model',
       ]);
 
     const rawBrand =
-      findValue([
-        'Марка автомобиля',
+      findValue([        'Марка автомобиля',
         'Марка',
         'brand',
       ]);
@@ -2997,14 +2987,12 @@ export class ImportsService {
                       .participant
                       .team ??
                     null,
-
                   email:
                     resolution
                       .participant
                       .email ??
                     null,
-                },
-              );
+                },              );
 
             participantId =
               participant.id;
@@ -3497,15 +3485,13 @@ export class ImportsService {
                 {
                   where: {
                     stageId_classId:
-                      {
-                        stageId:
+                      {                        stageId:
                           importJob.stageId,
 
                         classId,
                       },
                   },
-                  include: {
-                    class: {
+                  include: {                    class: {
                       select: {
                         id: true,
                         directionId:
@@ -3997,7 +3983,6 @@ export class ImportsService {
                 importedRegistrationsByNumber.get(
                   resultParticipantNumber,
                 ) ?? null;
-
               if (!registrationId) {
                 const existing =
                   await tx.registration.findUnique(
@@ -4005,8 +3990,7 @@ export class ImportsService {
                       where: {
                         stageId_participantNumber:
                           {
-                            stageId:
-                              importJob.stageId,
+                            stageId:                              importJob.stageId,
 
                             participantNumber:
                               resultParticipantNumber,
@@ -4141,6 +4125,13 @@ export class ImportsService {
                       classId,
                     },
                 },
+                include: {
+                  class: {
+                    select: {
+                      unit: true,
+                    },
+                  },
+                },
               },
             );
 
@@ -4182,10 +4173,7 @@ export class ImportsService {
               ?.result;
 
           const unit =
-            row.unit ??
-            normalized
-              ?.unit ??
-            'DB';
+            stageClass.class.unit;
 
           if (
             value === null ||
@@ -4197,17 +4185,14 @@ export class ImportsService {
           }
 
           const existingResult =
-            await tx.result.findUnique(
+            await tx.result.findFirst(
               {
                 where: {
-                  registrationClassId_attemptNumber:
-                    {
-                      registrationClassId:
-                        registrationClass.id,
-
-                      attemptNumber:
-                        1,
-                    },
+                  registrationClassId:
+                    registrationClass.id,
+                },
+                select: {
+                  id: true,
                 },
               },
             );
@@ -4226,12 +4211,10 @@ export class ImportsService {
                   registrationClassId:
                     registrationClass.id,
 
-                  attemptNumber:
-                    1,
-
                   value,
 
-                  unit,
+                  unit:
+                    stageClass.class.unit,
 
                   place:
                     row.place ??
@@ -4469,9 +4452,6 @@ export class ImportsService {
             registrationClassId:
               true,
 
-            attemptNumber:
-              true,
-
             value: true,
 
             unit: true,
@@ -4497,8 +4477,7 @@ export class ImportsService {
           select: {
             id: true,
 
-            resultId:
-              true,
+            resultId:              true,
           },
         },
       );
@@ -4517,8 +4496,7 @@ export class ImportsService {
 
       results,
 
-      records,
-    };
+      records,    };
   }
 
   private parseParticipantNumber(
