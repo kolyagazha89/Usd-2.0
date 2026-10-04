@@ -128,7 +128,6 @@ export class HistoricalResultsService {
       where: {
         isHistorical: true,
         verificationStatus: 'VERIFIED',
-        ...(stageId ? { registration: { stageId } } : {}),
         registration: {
           ...(stageId ? { stageId } : {}),
           participant: { isPublic: true },
