@@ -708,7 +708,9 @@ export class DisqualificationsService {
       participant: {
         select: {
           id: true,
-          fullName: true,
+          lastName: true,
+          firstName: true,
+          middleName: true,
           team: true,
           photoUrl: true,
         },
