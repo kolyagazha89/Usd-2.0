@@ -24,6 +24,7 @@ model User {
   disqualificationsRevoked Disqualification[]       @relation("DisqualificationRevokedBy")
   emailVerificationTokens  EmailVerificationToken[]
   emailChangeTokens         EmailChangeToken[]
+  mediaUploads              MediaUpload[]
   inspections              Inspection[]             @relation("InspectionCheckedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
@@ -226,6 +227,30 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([expiresAt])
   @@index([usedAt])
+}
+
+model MediaUpload {
+  id          String    @id @default(uuid())
+  userId      String
+  targetType  MediaTargetType
+  targetId    String
+  objectKey   String    @unique
+  contentType String
+  tokenHash   String    @unique
+  expiresAt   DateTime  @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([expiresAt])
+  @@index([completedAt])
+}
+
+enum MediaTargetType {
+  PARTICIPANT_PHOTO
+  CAR_PHOTO
 }
 
 model EmailChangeToken {
