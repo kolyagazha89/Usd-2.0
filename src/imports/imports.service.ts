@@ -2880,6 +2880,52 @@ export class ImportsService {
         }
 
         /*
+         * RESOLVED означает не просто "админ сменил статус".
+         * Для каждой такой строки обязательно должно сохраниться
+         * конкретное решение, которое затем повторно проверяется
+         * ниже во время commit внутри транзакции.
+         *
+         * Это второй контур проверки:
+         * WARNING -> RESOLVED -> повторная проверка -> COMMITTED.
+         */
+        const invalidResolvedRows =
+          importJob.rows.filter(
+            (row) =>
+              row.status === 'RESOLVED' &&
+              (!row.resolution ||
+                typeof row.resolution !== 'object'),
+          );
+
+        if (
+          invalidResolvedRows.length >
+          0
+        ) {
+          throw new BadRequestException(
+            `Найдены строки RESOLVED без сохранённого решения: ${invalidResolvedRows
+              .map((row) => row.rowNumber)
+              .join(', ')}`,
+          );
+        }
+
+        const unsupportedStatuses =
+          importJob.rows.filter(
+            (row) =>
+              row.status !== 'READY' &&
+              row.status !== 'RESOLVED',
+          );
+
+        if (
+          unsupportedStatuses.length >
+          0
+        ) {
+          throw new BadRequestException(
+            `Импорт содержит строки, не готовые к подтверждению: ${unsupportedStatuses
+              .map((row) => row.rowNumber)
+              .join(', ')}`,
+          );
+        }
+
+        /*
          * Блокируем этап на время Commit.
          *
          * Это защищает от двух одновременных импортов,
