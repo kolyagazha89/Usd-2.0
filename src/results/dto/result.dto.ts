@@ -1,4 +1,13 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateResultDto {
   @IsUUID()
@@ -7,11 +16,9 @@ export class CreateResultDto {
   @IsUUID()
   registrationClassId!: string;
 
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
   value!: number;
-
-  @IsIn(['DB', 'MPS', 'OTHER'])
-  unit!: 'DB' | 'MPS' | 'OTHER';
 
   @IsOptional()
   @IsInt()
@@ -27,12 +34,9 @@ export class CreateResultDto {
 
 export class UpdateResultDto {
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
   value?: number;
-
-  @IsOptional()
-  @IsIn(['DB', 'MPS', 'OTHER'])
-  unit?: 'DB' | 'MPS' | 'OTHER';
 
   @IsOptional()
   @IsInt()
