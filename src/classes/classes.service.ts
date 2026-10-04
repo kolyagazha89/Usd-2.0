@@ -179,6 +179,18 @@ export class ClassesService {
     const item = await this.prisma.class.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Класс не найден');
 
+    if ((dto.directionId !== undefined && dto.directionId !== item.directionId) ||
+        (dto.unit !== undefined && dto.unit !== item.unit)) {
+      const [registrationCount, resultCount, recordCount] = await Promise.all([
+        this.prisma.registrationClass.count({ where: { classId: id } }),
+        this.prisma.result.count({ where: { registrationClass: { classId: id } } }),
+        this.prisma.record.count({ where: { classId: id } }),
+      ]);
+      if (registrationCount > 0 || resultCount > 0 || recordCount > 0) {
+        throw new BadRequestException('Нельзя менять направление или единицу измерения класса после появления исторических данных');
+      }
+    }
+
     if (dto.directionId !== undefined) {
       const direction = await this.prisma.direction.findUnique({ where: { id: dto.directionId } });
       if (!direction) throw new NotFoundException('Направление не найдено');
