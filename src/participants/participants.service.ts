@@ -129,7 +129,7 @@ export class ParticipantsService {
             brand: true,
             model: true,
             registrationCountry: true,
-            registrationNumber: true,
+            
             color: true,
             photoUrl: true,
           },
@@ -181,7 +181,8 @@ export class ParticipantsService {
               photoUrl: true,
 
               configurations: {
-                orderBy: {
+              where: { isActive: true },
+              orderBy: {
                   updatedAt: 'desc',
                 },
                 select: {
@@ -444,7 +445,8 @@ export class ParticipantsService {
               isActive: true,
 
               configurations: {
-                orderBy: {
+              where: { isActive: true },
+              orderBy: {
                   updatedAt: 'desc',
                 },
                 select: {
@@ -1014,7 +1016,8 @@ export class ParticipantsService {
         },
 
         configurations: {
-          orderBy: {
+              where: { isActive: true },
+              orderBy: {
             updatedAt: 'desc',
           },
           select: {
@@ -1087,7 +1090,8 @@ export class ParticipantsService {
         updatedAt: true,
 
         configurations: {
-          orderBy: {
+              where: { isActive: true },
+              orderBy: {
             updatedAt: 'desc',
           },
           select: {
@@ -1257,7 +1261,8 @@ export class ParticipantsService {
           },
 
           configurations: {
-            orderBy: {
+              where: { isActive: true },
+              orderBy: {
               updatedAt: 'desc',
             },
             select: {
@@ -1513,7 +1518,8 @@ export class ParticipantsService {
         updatedAt: true,
 
         configurations: {
-          orderBy: {
+              where: { isActive: true },
+              orderBy: {
             updatedAt: 'desc',
           },
           select: {
