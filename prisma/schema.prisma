@@ -467,6 +467,7 @@ model Result {
   registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   createdByUser       User?             @relation("ResultCreatedBy", fields: [createdByUserId], references: [id])
 
+  @@unique([registrationClassId])
   @@index([createdByUserId])
   @@index([registrationId])
   @@index([registrationClassId])
