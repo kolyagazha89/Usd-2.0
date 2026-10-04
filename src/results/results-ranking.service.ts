@@ -99,6 +99,7 @@ export class ResultsRankingService {
           where: {
             registration: {
               stageId,
+              status: 'ACTIVE',
               participantId: {
                 notIn: disqualifiedParticipantIds,
               },
@@ -144,6 +145,7 @@ export class ResultsRankingService {
             classId,
             registration: {
               stageId,
+              status: 'ACTIVE',
             },
           },
           select: {
@@ -255,6 +257,7 @@ export class ResultsRankingService {
             { isHistorical: true, verificationStatus: 'VERIFIED' },
           ],
           registration: {
+            status: 'ACTIVE',
             participantId: {
               notIn: disqualifiedParticipantIds,
             },
