@@ -1352,3 +1352,30 @@ body{background:#eef0f2}
   .assistant-composer .primary-button{width:48px!important;padding:0!important;font-size:0!important}
   .assistant-composer .primary-button svg{margin:0!important}
 }
+
+
+/* Stage classes — focused modal */
+.stage-class-modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:4px 0 14px;border-bottom:1px solid #eceef0}
+.stage-class-modal-head div{display:flex;flex-direction:column;gap:3px}
+.stage-class-modal-head strong{font-size:13px}
+.stage-class-modal-head span{font-size:10px;color:#89919a}
+.stage-class-modal-list{display:grid;gap:7px;margin:14px 0}
+.stage-class-modal-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid #e5e7ea;border-radius:13px;background:#fafbfc;transition:.16s ease}
+.stage-class-modal-row.linked{background:#fff;border-color:#dfe2e5}
+.stage-class-modal-row:hover{border-color:#cbd0d5;transform:translateY(-1px)}
+.stage-class-modal-row>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.stage-class-modal-row strong{font-size:11px}
+.stage-class-modal-row span{font-size:9px;color:#8b929a}
+.stage-class-settings{padding:13px;margin-top:9px;border:1px solid #e4e6e9;border-radius:14px;background:#fff}
+.stage-class-settings>div:first-child{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.stage-class-settings>div:first-child strong{font-size:11px}
+.stage-class-settings>div:first-child span{font-size:9px;color:#9299a1}
+.stage-class-settings .stage-class-fields{display:grid;grid-template-columns:110px 1fr 1.3fr auto;gap:9px;align-items:end}
+.stage-class-settings label{font-size:9px;font-weight:800;color:#6c747d}
+.stage-class-settings input{margin-top:5px}
+@media(max-width:700px){
+ .stage-class-modal-head{align-items:flex-start;flex-direction:column}
+ .stage-class-modal-head .primary-button{width:100%}
+ .stage-class-settings .stage-class-fields{grid-template-columns:1fr}
+ .stage-class-settings .secondary-button{width:100%}
+}
