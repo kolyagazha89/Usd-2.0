@@ -77,7 +77,7 @@ export class AssistantService {
   private async askModel(text: string, userId: string) {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) return null;
-    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-6-luna';
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-6-astra';
     const context = await this.buildAssistantContext();
     const instructions = [
       'Ты — USD AI, интеллектуальный операционный ассистент системы USD 2.0.',
@@ -95,7 +95,7 @@ export class AssistantService {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-      body: JSON.stringify({ model, instructions, input: text, max_output_tokens: 1400 }),
+      body: JSON.stringify({ model, instructions, input: text, reasoning: { effort: 'high' }, max_output_tokens: 1800 }),
     });
     if (!response.ok) return null;
     const data: any = await response.json();
