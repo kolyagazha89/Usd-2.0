@@ -589,7 +589,7 @@ function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <
 
 function SiteSettingsPage(){
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
- const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}finally{setLoading(false)}};
+ const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings)}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}try{const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch{setStages([])}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  if(loading)return <PageFrame title="Настройки сайта" subtitle="Единый центр управления публичной частью USD 2.0"><LoadingPage/></PageFrame>;
  if(!settings)return <PageFrame title="Настройки сайта" subtitle="Единый центр управления публичной частью USD 2.0"><ErrorPanel message={error||'Настройки не найдены'} retry={load}/></PageFrame>;
