@@ -103,6 +103,37 @@ export class AssistantService {
     return { success: true, item: updated, execution: { available: false, reason: 'Исполнитель кода не подключён. Запрос подтверждён и готов к безопасному применению после подключения GitHub executor.' } };
   }
 
+  async apply(id: string, userId: string) {
+    const item = await this.get(id);
+    if (item.status !== 'APPROVED') {
+      throw new BadRequestException('Выполнить можно только подтверждённый запрос');
+    }
+
+    const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+    const functionCode = typeof metadata.functionCode === 'string' ? metadata.functionCode : null;
+
+    let execution: unknown = null;
+    if (item.type === 'ASSISTANT_FUNCTION' && functionCode) {
+      execution = await this.executeFunction(functionCode, (metadata.payload as Record<string, unknown>) ?? {}, userId);
+    } else if (item.type === 'SYSTEM_ACTION') {
+      const action = typeof metadata.action === 'string' ? metadata.action : null;
+      if (action === 'DATA_QUALITY_SCAN' || action === 'SYSTEM_SNAPSHOT' || action === 'STAGE_READINESS') {
+        execution = await this.executeFunction(action, (metadata.payload as Record<string, unknown>) ?? {}, userId);
+      } else {
+        throw new BadRequestException('Для системного запроса не выбрано разрешённое действие');
+      }
+    } else {
+      throw new BadRequestException('Изменения кода требуют отдельного GitHub/PR исполнителя; production shell недоступен из админки');
+    }
+
+    const updated = await this.prisma.assistantRequest.update({
+      where: { id },
+      data: { status: 'APPLIED', appliedAt: new Date() },
+    });
+    await this.audit(userId, 'ASSISTANT_REQUEST_APPLIED', id);
+    return { success: true, item: updated, execution };
+  }
+
   async reject(id: string, userId: string) {
     const item = await this.get(id);
     if (item.status !== 'PENDING') throw new BadRequestException('Отклонять можно только ожидающий запрос');
