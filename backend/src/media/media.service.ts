@@ -184,6 +184,32 @@ export class MediaService {
     };
   }
 
+  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string) {
+    if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Размер изображения должен быть от 1 байта до 10 MB');
+    }
+    const upload = await this.prisma.mediaUpload.findUnique({
+      where: { tokenHash: this.hashToken(uploadToken) },
+    });
+    if (!upload || (upload.userId !== userId && role !== 'ADMIN') || upload.completedAt || upload.expiresAt < new Date()) {
+      throw new BadRequestException('Недействительная загрузка');
+    }
+    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    if (upload.contentType !== contentType.toLowerCase()) {
+      throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
+    }
+    const response = await fetch(this.presignedUrl('PUT', upload.objectKey, upload.contentType, 120), {
+      method: 'PUT',
+      headers: { 'Content-Type': upload.contentType },
+      body,
+    });
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => '')).trim();
+      throw new BadRequestException(detail ? 'Хранилище отклонило загрузку: ' + detail.slice(0, 200) : 'Хранилище отклонило загрузку файла');
+    }
+    return this.complete(userId, role, uploadToken);
+  }
+
   async complete(userId: string, role: string, uploadToken: string) {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
