@@ -143,7 +143,34 @@ function ResourcePage({title,subtitle,path,columns,fields,create,update,remove,s
  useEffect(()=>{let cancelled=false;const relationFields=(fields??[]).filter(f=>f.optionsPath);if(!relationFields.length)return;Promise.all(relationFields.map(async f=>{try{const r=await apiGet<any>(f.optionsPath!);return [f.name,listData(r)] as const}catch{return [f.name,[]] as const}})).then(entries=>{if(!cancelled)setRelationOptions(Object.fromEntries(entries))});return()=>{cancelled=true}},[fields]);
  const filtered=data.filter(x=>JSON.stringify(x).toLowerCase().includes(search.toLowerCase()));
  const submit=async(v:any)=>{setSaving(true);try{if(modal?.id&&update)await update(modal.id,v);else if(create)await create(v);setModal(null);await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения')}finally{setSaving(false)}};
- return <PageFrame title={title} subtitle={subtitle} action={<>{fields&&create&&<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить</button>}<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/></button></>}><div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={searchPlaceholder}/></div><span className="row-count">{filtered.length} записей</span></div>{error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={filtered} columns={columns} onEdit={update?setModal:undefined} onDelete={remove?async id=>{if(confirm('Удалить запись?')){await remove(id);await load()}}:undefined}/>}</div>{modal!==null&&<Modal title={modal.id?'Редактирование':'Новая запись'} onClose={()=>setModal(null)}><EntityForm fields={fields??[]} initial={modal} saving={saving} relationOptions={relationOptions} onSubmit={submit}/></Modal>}</PageFrame>
+ const activeCount=data.filter(x=>x.isActive===true||x.status==='ACTIVE'||x.status==='PUBLISHED').length;
+ const inactiveCount=data.filter(x=>x.isActive===false||x.status==='CANCELLED'||x.status==='ARCHIVED').length;
+ const pageHints:Record<string,string>={
+  '/admin/participants':'Здесь хранятся профили людей. Исторические участники тоже находятся здесь — аккаунт создаётся отдельно.',
+  '/admin/seasons':'Сезон объединяет этапы одного года. Сначала создайте сезон, затем добавляйте в него этапы.',
+  '/admin/classes':'Класс относится к направлению. После создания класса подключите его к нужному этапу.',
+  '/admin/registrations':'Регистрация связывает участника, автомобиль, конфигурацию и классы конкретного этапа.',
+  '/admin/inspections':'Перед результатом проверьте регистрацию. Судья может проводить проверку, администратор — исправлять и удалять.',
+  '/admin/results':'Результат создаётся только для корректной регистрации и подключённого класса. Изменение результата доступно администратору.',
+  '/admin/disqualifications':'Дисквалификация влияет на допуск и отображение результатов. Всегда указывайте понятную причину.',
+  '/admin/records':'Рекорды формируются из подтверждённых результатов. Не редактируйте рекорд вручную без необходимости.',
+  '/admin/users':'Управляйте доступом к панели. ADMIN имеет полный доступ, JUDGE работает с судейскими операциями.',
+  '/admin/audit':'Журнал действий системы. Используйте его для контроля изменений и расследования спорных ситуаций.',
+  '/admin/data-quality':'Контроль качества данных показывает потенциальные проблемы, которые стоит исправить до этапа.',
+ };
+ return <PageFrame title={title} subtitle={subtitle} action={<>{fields&&create&&<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить</button>}<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button></>}>
+  <div className="admin-help-card"><div className="admin-help-icon"><Info size={18}/></div><div><strong>Как работать с разделом</strong><p>{pageHints[path]??'Проверяйте данные перед сохранением. По возможности используйте поиск и карточку записи вместо ручного редактирования связанных сущностей.'}</p></div></div>
+  {!loading&&data.length>0&&<div className="admin-mini-stats">
+   <div><span>Всего</span><strong>{data.length}</strong></div>
+   <div><span>Активных</span><strong>{activeCount}</strong></div>
+   <div><span>Неактивных</span><strong>{inactiveCount}</strong></div>
+   <div><span>Показано</span><strong>{filtered.length}</strong></div>
+  </div>}
+  <div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={searchPlaceholder}/></div><span className="row-count">{filtered.length} из {data.length}</span></div>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={filtered} columns={columns} onEdit={update?setModal:undefined} onDelete={remove?async id=>{if(confirm('Удалить запись?')){await remove(id);await load()}}:undefined}/>}</div>
+  {modal!==null&&<Modal title={modal.id?'Редактирование записи':'Новая запись'} onClose={()=>setModal(null)}><EntityForm fields={fields??[]} initial={modal} saving={saving} relationOptions={relationOptions} onSubmit={submit}/></Modal>}
+ </PageFrame>
 }
 
 function ParticipantsPage({go}:{go:(p:string)=>void}){return <ResourcePage title="Участники" subtitle="Профили, команды и история выступлений" path="/admin/participants" columns={[{key:'lastName',label:'Фамилия'},{key:'firstName',label:'Имя'},{key:'city',label:'Город'},{key:'team',label:'Команда'},{key:'phone',label:'Телефон'},{key:'isPublic',label:'Публичный'}]} fields={[{name:'lastName',label:'Фамилия',required:true},{name:'firstName',label:'Имя',required:true},{name:'middleName',label:'Отчество'},{name:'city',label:'Город'},{name:'team',label:'Команда'},{name:'phone',label:'Телефон'},{name:'birthDate',label:'Дата рождения',type:'date'},{name:'isPublic',label:'Показывать профиль публично',type:'checkbox'}]} create={v=>apiPost('/participants',v)} update={(id,v)=>apiPatch('/participants/'+id,v)} remove={id=>apiDelete('/participants/'+id)} searchPlaceholder="ФИО, город, команда"/>}
