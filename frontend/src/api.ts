@@ -46,6 +46,12 @@ export async function apiDelete<T=any>(path:string){return request<T>(path,{meth
 
 export async function getMediaUrl(targetType:string,targetId:string){const r=await apiGet<{success:boolean;url:string}>(`/media/view/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`);return r.url;}
 
+export async function getSiteSettings(){return apiGet<any>('/site-settings');}
+export async function updateSiteSettings(body:any){return apiPatch<any>('/site-settings',body);}
+export async function prepareMediaUpload(targetType:string,targetId:string,contentType:string){return apiPost<any>('/media/prepare',{targetType,targetId,contentType});}
+export async function completeMediaUpload(uploadToken:string){return apiPost<any>('/media/complete',{uploadToken});}
+export async function getPublicMediaUrl(targetType:string){const r=await apiGet<{success:boolean;url:string}>(`/media/public/${encodeURIComponent(targetType)}/default`);return r.url;}
+
 export async function getGoogleStatus(){return request<any>('/google/status');}
 export async function connectGoogle(){const r=await request<{success:boolean;authorizationUrl:string}>('/google/connect');window.location.href=r.authorizationUrl;}
 export async function getGoogleSpreadsheets(){return request<any>('/google/spreadsheets');}
