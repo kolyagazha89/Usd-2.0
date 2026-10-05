@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantRequests,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantRequests,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {section:'Рабочий стол',label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -700,7 +700,7 @@ function AssistantPage({go}:{go:(p:string)=>void}){
     <div className="assistant-request-actions">
      {(r.status==='DRAFT'||r.status==='REJECTED')&&<button className="secondary-button compact" disabled={saving} onClick={()=>void submit(r.id)}>Отправить на подтверждение</button>}
      {r.status==='PENDING'&&<><button className="primary-button compact" disabled={saving} onClick={()=>{setConfirm(r);setConfirmation('')}}><Check size={14}/>Подтвердить</button><button className="secondary-button compact" disabled={saving} onClick={()=>void reject(r.id)}>Отклонить</button></>}
-     {r.status==='APPROVED'&&<span className="badge good"><CheckCircle2 size={12}/>Подтверждено</span>}
+     {r.status==='APPROVED'&&<><span className="badge good"><CheckCircle2 size={12}/>Подтверждено</span><button className="primary-button compact" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await applyAssistantRequest(r.id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить запрос')}finally{setSaving(false)}}}><Activity size={14}/>Выполнить</button></>}
     </div>
    </div>)}</div>:<Empty text="Запросов пока нет"/>}</div>
    <div className="panel assistant-safety-card"><div className="assistant-action-icon"><ShieldAlert size={20}/></div><h2>Контур безопасности</h2><ul><li>только ADMIN</li><li>черновик → подтверждение → применение</li><li>опасные изменения требуют «ПОДТВЕРЖДАЮ»</li><li>все переходы статусов пишутся в аудит</li><li>код не должен изменяться напрямую из браузера</li></ul><div className="notice"><Info size={15}/><span>Сейчас очередь фиксирует и подтверждает намерение. Исполнитель GitHub/PR должен быть отдельным защищённым контуром — без прямого доступа админки к production shell.</span></div></div>
