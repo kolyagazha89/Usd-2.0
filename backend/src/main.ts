@@ -90,6 +90,13 @@ async function bootstrap() {
     }),
   );
 
+  expressApp.use(
+    express.raw({
+      type: ['image/jpeg', 'image/png', 'image/webp'],
+      limit: '10mb',
+    }),
+  );
+
   app.use(cookieParser());
 
   app.use((request: Request, response: Response, next: NextFunction) => {
