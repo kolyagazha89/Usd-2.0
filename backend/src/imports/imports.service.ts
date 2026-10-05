@@ -325,6 +325,18 @@ export class ImportsService {
                             preview.result,
                           place:
                             preview.place,
+                          car:
+                            preview.car?.model &&
+                            preview.car?.plateNumber
+                              ? {
+                                  action: 'CREATE',
+                                  brand: 'Импорт',
+                                  model: preview.car.model,
+                                  registrationNumber:
+                                    preview.car.plateNumber,
+                                  registrationCountry: 'RU',
+                                }
+                              : undefined,
                         }
                       : undefined;
 
