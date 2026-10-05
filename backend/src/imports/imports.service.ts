@@ -4154,9 +4154,17 @@ export class ImportsService {
                 );
               }
 
+              const rowClassName = this.stringValue(
+                normalized?.class?.className ??
+                normalized?.class?.name ??
+                normalized?.className,
+              ).trim().toLowerCase();
+              const rowIsBassRace = rowClassName.startsWith('bassrace');
+
               if (
                 existingRegistrationByCar.status ===
-                'ACTIVE'
+                'ACTIVE' &&
+                !rowIsBassRace
               ) {
                 throw new BadRequestException(
                   `Автомобиль уже зарегистрирован на этом этапе. Номер участника: ${existingRegistrationByCar.participantNumber}`,
@@ -4354,6 +4362,37 @@ export class ImportsService {
                 'Для регистрации ' + registrationId + ' не найден основной номер',
               );
             }
+            const classNumber = isBassRaceClass
+              ? participantNumber
+              : primaryRegistrationNumber.number;
+
+            const classNumberRecord =
+              classNumber === primaryRegistrationNumber.number
+                ? primaryRegistrationNumber
+                : await tx.registrationNumber.upsert({
+                    where: {
+                      stageId_number: {
+                        stageId: importJob.stageId,
+                        number: classNumber,
+                      },
+                    },
+                    update: {
+                      registrationId,
+                    },
+                    create: {
+                      stageId: importJob.stageId,
+                      registrationId,
+                      number: classNumber,
+                      isPrimary: false,
+                    },
+                  });
+
+            if (classNumberRecord.registrationId !== registrationId) {
+              throw new BadRequestException(
+                'Номер участника ' + classNumber + ' уже зарезервирован другой регистрацией',
+              );
+            }
+
 
             const existingClass =
               await tx.registrationClass.findFirst({
@@ -4368,7 +4407,7 @@ export class ImportsService {
                 data: {
                   registrationId,
                   classId,
-                  numberId: primaryRegistrationNumber.id,
+                  numberId: classNumberRecord.id,
                 },
               });
             }
