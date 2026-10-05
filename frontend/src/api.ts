@@ -82,6 +82,6 @@ export async function uploadSiteAsset(assetKey:string,file:File){
   if(!upload.ok) throw new Error('Не удалось загрузить файл в хранилище');
   const completed=await apiPost<any>('/media/complete',{uploadToken:prepared.uploadToken});
   const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
-  return { ...completed, url:view.url };
+  return { ...completed, url:view.url, publicPath:`/media/public/SITE_ASSET/${encodeURIComponent(assetKey)}` };
 }
 export async function getPublicSiteAsset(assetKey:string){return apiGet<any>('/media/public/SITE_ASSET/'+encodeURIComponent(assetKey));}
