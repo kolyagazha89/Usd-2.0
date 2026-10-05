@@ -33,6 +33,12 @@ export class MediaController {
     );
   }
 
+  @Public()
+  @Get('public/:targetType/:targetId')
+  publicView(@Param('targetType') targetType: MediaTargetType, @Param('targetId') targetId: string) {
+    return this.mediaService.getSignedPublicMediaUrl(targetType, targetId);
+  }
+
   @Post('complete')
   complete(@Req() request: AuthenticatedRequest, @Body() body: CompleteUploadDto) {
     return this.mediaService.complete(request.user.sub, request.user.role, body.uploadToken);
