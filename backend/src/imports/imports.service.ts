@@ -3683,6 +3683,9 @@ export class ImportsService {
           );
         }
 
+        const historicalResults =
+          (importJob.metadata as any)?.historicalResults === true;
+
         if (
           importJob.status !==
           'DRAFT'
@@ -3691,9 +3694,6 @@ export class ImportsService {
             `Импорт ${importId} нельзя выполнить: статус ${importJob.status}`,
           );
         }
-
-        const historicalResults =
-          (importJob.metadata as any)?.historicalResults === true;
 
         const unresolvedRows =
           importJob.rows.filter(
