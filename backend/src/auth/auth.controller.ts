@@ -208,31 +208,6 @@ export class AuthController {
     };
   }
 
-  @Post('profile/historical-candidates')
-  async historicalProfileCandidates(
-    @Req() request: Request,
-    @Body() body: { fullName?: string },
-  ) {
-    const userId = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.findHistoricalProfileCandidates(
-      userId,
-      body.fullName ?? '',
-    );
-  }
-
-  @Post('profile/link-historical')
-  async linkHistoricalProfile(
-    @Req() request: Request,
-    @Body() body: { participantId?: string },
-  ) {
-    const userId = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.linkHistoricalProfile(
-      userId,
-      body.participantId ?? '',
-    );
-  }
-
-
   @Post('change-password')
   async changePassword(
     @Req() request: Request,
