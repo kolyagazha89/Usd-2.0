@@ -90,7 +90,7 @@ function DashboardPage({go}:{go:(p:string)=>void}){
    <button className="dashboard-kpi" onClick={()=>go('/admin/participants')}><span><Users size={16}/>Участники</span><strong>{ov.participants.toLocaleString('ru-RU')}</strong><small>в базе</small></button>
    <button className="dashboard-kpi" onClick={()=>go('/admin/cars')}><span><CarFront size={16}/>Автомобили</span><strong>{ov.cars.toLocaleString('ru-RU')}</strong><small>активных</small></button>
    <button className="dashboard-kpi" onClick={()=>go('/admin/registrations')}><span><ClipboardCheck size={16}/>Регистрации</span><strong>{regs.registrations.toLocaleString('ru-RU')}</strong><small>{regs.participants} участников · {regs.cars} авто</small></button>
-   <button className="dashboard-kpi" onClick={()=>go('/admin/results')}><span><Trophy size={16}/>Результаты</span><strong>{ov.appearances.toLocaleString('ru-RU')}</strong><small>учтённых выступлений</small></button>
+   <button className="dashboard-kpi" onClick={()=>go('/admin/results')}><span><Trophy size={16}/>Результаты</span><strong>{(ov.appearances??ov.results??0).toLocaleString('ru-RU')}</strong><small>учтённых выступлений</small></button>
   </section>
   <section className="dashboard-main-grid">
    <div className="panel dashboard-stage-card">
