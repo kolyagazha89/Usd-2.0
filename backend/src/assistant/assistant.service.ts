@@ -46,6 +46,27 @@ export class AssistantService {
     return { success: true, item };
   }
 
+  async chat(message: string, userId: string) {
+    const text = String(message ?? '').trim();
+    if (!text || text.length > 12000) throw new BadRequestException('Сообщение пустое или слишком длинное');
+    const lower = text.toLowerCase();
+    if (/(провер|качество|ошибк|warning|проблем)/.test(lower)) {
+      const report = await this.dataQuality.getReport();
+      await this.audit(userId, 'ASSISTANT_CHAT_USED', 'DATA_QUALITY_SCAN');
+      return { success: true, reply: report.healthy ? 'Проверил качество данных: критичных проблем сейчас не найдено.' : `Проверил качество данных: найдено проблем — ${report.counts.error} ошибок, ${report.counts.warning} предупреждений.`, action: null, data: report };
+    }
+    if (/(состояни|статус|сколько|счетчик|счётчик)/.test(lower)) {
+      const r = await this.executeFunction('SYSTEM_SNAPSHOT', {}, userId);
+      return { success: true, reply: `Сейчас в системе: ${r.result.counts.participants} участников, ${r.result.counts.cars} автомобилей, ${r.result.counts.registrations} регистраций и ${r.result.counts.results} результатов.`, action: null, data: r.result };
+    }
+    if (/(провер.*этап|готов.*этап|готовность этапа)/.test(lower)) {
+      const r = await this.executeFunction('STAGE_READINESS', {}, userId);
+      return { success: true, reply: r.result.ready ? `Этап «${r.result.stage.name}» выглядит готовым к работе: классов ${r.result.stage.classes}, регистраций ${r.result.counts.registrations}, инспекций ${r.result.counts.inspections}, результатов ${r.result.counts.results}.` : `Этап «${r.result.stage.name}» пока не готов: проверьте подключённые классы и статус этапа.`, action: null, data: r.result };
+    }
+    const item = await this.create({ type: 'CODE_CHANGE', title: 'Задача из USD Copilot', prompt: text, risk: 'Средний', metadata: { source: 'chat', scope: 'admin' } }, userId);
+    return { success: true, reply: 'Понял задачу. Я подготовил её как управляемое изменение. Для действий, которые меняют код, данные или настройки, я покажу план и попрошу подтверждение перед применением.', action: { type: 'CHANGE_REQUEST', id: item.item.id, status: item.item.status } };
+  }
+
   async functions() {
     return { success: true, functions: [
       { code: 'DATA_QUALITY_SCAN', title: 'Проверка качества данных', description: 'Проверяет регистрации, инспекции, результаты, рекорды, автомобили и импорты.', risk: 'Низкий', confirmation: false },
