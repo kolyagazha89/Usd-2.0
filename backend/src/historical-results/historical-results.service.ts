@@ -143,7 +143,6 @@ export class HistoricalResultsService {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           participant: { isPublic: true },
           car: { isPublic: true },
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
       },
       include: this.publicInclude(),
