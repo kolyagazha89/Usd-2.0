@@ -65,3 +65,9 @@ export async function linkHistoricalProfile(participantId:string){
   return apiPost<any>('/auth/profile/link-historical',{participantId});
 }
 
+
+export async function getAssistantRequests(){return apiGet<any>('/assistant/requests');}
+export async function createAssistantRequest(body:any){return apiPost<any>('/assistant/requests',body);}
+export async function submitAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/submit',{});}
+export async function approveAssistantRequest(id:string,confirmation:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/approve',{confirmation});}
+export async function rejectAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/reject',{});}
