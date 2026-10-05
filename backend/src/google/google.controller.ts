@@ -5,7 +5,7 @@ import {
   Query,
   Req,
   Res,
-  UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
@@ -14,7 +14,7 @@ import { Public } from '../auth/public.decorator';
 function requireAdmin(req: Request): { sub: string } {
   const user = (req as any).user;
   if (!user || user.role !== 'ADMIN') {
-    throw new UnauthorizedException('Требуются права администратора');
+    throw new ForbiddenException('Требуются права администратора');
   }
   return user;
 }
