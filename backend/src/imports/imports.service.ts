@@ -4971,6 +4971,83 @@ export class ImportsService {
                 }
               }
 
+
+
+              if (
+                historicalResults &&
+                registrationId &&
+                Number.isInteger(primaryParticipantNumber) &&
+                primaryParticipantNumber > 0
+              ) {
+                const currentRegistration = await tx.registration.findUnique({
+                  where: { id: registrationId },
+                  select: { participantNumber: true },
+                });
+
+                if (
+                  currentRegistration &&
+                  currentRegistration.participantNumber !== primaryParticipantNumber
+                ) {
+                  const occupiedNumber = await tx.registration.findUnique({
+                    where: {
+                      stageId_participantNumber: {
+                        stageId: importJob.stageId,
+                        participantNumber: primaryParticipantNumber,
+                      },
+                    },
+                    select: { id: true },
+                  });
+
+                  if (occupiedNumber && occupiedNumber.id !== registrationId) {
+                    throw new BadRequestException(
+                      `Номер участника ${primaryParticipantNumber} уже принадлежит другой регистрации на этом этапе`,
+                    );
+                  }
+
+                  const oldPrimary = await tx.registrationNumber.findFirst({
+                    where: { registrationId, isPrimary: true },
+                  });
+                  const target = await tx.registrationNumber.findUnique({
+                    where: {
+                      stageId_number: {
+                        stageId: importJob.stageId,
+                        number: primaryParticipantNumber,
+                      },
+                    },
+                  });
+
+                  if (target && target.registrationId === registrationId) {
+                    await tx.registrationNumber.updateMany({
+                      where: { registrationId },
+                      data: { isPrimary: false },
+                    });
+                    await tx.registrationNumber.update({
+                      where: { id: target.id },
+                      data: { isPrimary: true },
+                    });
+                  } else if (oldPrimary) {
+                    await tx.registrationNumber.update({
+                      where: { id: oldPrimary.id },
+                      data: {
+                        number: primaryParticipantNumber,
+                        isPrimary: true,
+                      },
+                    });
+                  } else {
+                    await this.ensureRegistrationNumber(tx, {
+                      stageId: importJob.stageId,
+                      registrationId,
+                      number: primaryParticipantNumber,
+                      isPrimary: true,
+                    });
+                  }
+
+                  await tx.registration.update({
+                    where: { id: registrationId },
+                    data: { participantNumber: primaryParticipantNumber },
+                  });
+                }
+              }
               if (!registrationId) {
                 const registration =
                   await this.createImportRegistration(
