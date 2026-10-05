@@ -134,6 +134,7 @@ export class ImportsService {
               participantMatches,
               stageClasses,
               body.stageId,
+              body.historicalResults === true,
             ),
         ),
       );
@@ -615,18 +616,16 @@ export class ImportsService {
           },
         };
 
-        if (normalizedName) {
+        for (const alias of this.nameAliases(rawName)) {
           const existingByName =
-            byName.get(
-              normalizedName,
-            ) ?? [];
+            byName.get(alias) ?? [];
 
           existingByName.push(
             registrationParticipant,
           );
 
           byName.set(
-            normalizedName,
+            alias,
             existingByName,
           );
         }
@@ -966,6 +965,36 @@ export class ImportsService {
         normalizedName,
       ) ?? [];
 
+    if (matches.length === 0 && normalizedName) {
+      const targetAliases = this.nameAliases(rawName).filter((value) => value.length >= 5);
+      const fuzzyMatches: RegistrationParticipantMatch[] = [];
+
+      for (const candidateRows of registrationIndex.byName.values()) {
+        for (const match of candidateRows) {
+          const candidateAliases = this.nameAliases(match.rawName).filter((value) => value.length >= 5);
+          const close = targetAliases.some((target) =>
+            candidateAliases.some((candidateName) => {
+              const maxDistance = Math.max(
+                1,
+                Math.floor(Math.min(target.length, candidateName.length) * 0.12),
+              );
+              return this.levenshtein(target, candidateName) <= maxDistance;
+            }),
+          );
+          if (close && !fuzzyMatches.some((item) => item.rowNumber === match.rowNumber)) {
+            fuzzyMatches.push(match);
+          }
+        }
+      }
+
+      if (fuzzyMatches.length === 1) {
+        return { status: 'MATCHED' as const, normalizedName, matches: fuzzyMatches, matchType: 'NAME' as const };
+      }
+      if (fuzzyMatches.length > 1) {
+        return { status: 'AMBIGUOUS' as const, normalizedName, matches: fuzzyMatches, matchType: 'NAME' as const };
+      }
+    }
+
     if (matches.length === 0) {
       return {
         status: 'NOT_FOUND' as const,
@@ -1010,6 +1039,7 @@ export class ImportsService {
     >,
     stageClasses: Array<any>,
     stageId: string,
+    historicalResults = false,
   ) {
     const rawName = String(
       this.getImportFieldValue(row, [
@@ -1512,6 +1542,10 @@ export class ImportsService {
       directionIds.add(
         directionId,
       );
+    }
+
+    if (historicalResults) {
+      warnings.length = 0;
     }
 
     return {
@@ -2092,6 +2126,47 @@ export class ImportsService {
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
+  }
+
+  private transliterateRussianName(value: string): string {
+    const map: Record<string, string> = {
+      а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh',
+      з:'z', и:'i', й:'y', к:'k', л:'l', м:'m', н:'n', о:'o',
+      п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'h', ц:'ts',
+      ч:'ch', ш:'sh', щ:'sh', ъ:'', ы:'y', ь:'', э:'e', ю:'yu',
+      я:'ya',
+    };
+    return this.normalizePersonName(value)
+      .split('')
+      .map((char) => map[char] ?? char)
+      .join('');
+  }
+
+  private nameAliases(value: string): string[] {
+    const normalized = this.normalizePersonName(value);
+    const transliterated = this.transliterateRussianName(value);
+    return [...new Set([
+      normalized,
+      transliterated,
+      normalized.replace(/s+/g, ''),
+      transliterated.replace(/s+/g, ''),
+    ].filter(Boolean))];
+  }
+
+  private levenshtein(a: string, b: string): number {
+    const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 0; i < a.length; i++) {
+      let left = i + 1;
+      let diagonal = i;
+      for (let j = 0; j < b.length; j++) {
+        const up = prev[j + 1];
+        const cost = a[i] === b[j] ? 0 : 1;
+        prev[j + 1] = Math.min(prev[j + 1] + 1, left + 1, diagonal + cost);
+        diagonal = up;
+        left = prev[j + 1];
+      }
+    }
+    return prev[b.length];
   }
 
   private findMatchingObjectKey(
