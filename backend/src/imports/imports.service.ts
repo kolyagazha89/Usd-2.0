@@ -3365,11 +3365,14 @@ export class ImportsService {
           );
         }
 
+        const historicalResults =
+          (importJob.metadata as any)?.historicalResults === true;
+
         const unresolvedRows =
           importJob.rows.filter(
             (row) =>
-              row.status ===
-              'WARNING',
+              row.status === 'WARNING' &&
+              (!historicalResults || row.type === 'RESULT'),
           );
 
         if (
@@ -3480,6 +3483,10 @@ export class ImportsService {
          * =====================================================
          */
         for (const row of importJob.rows) {
+          if (historicalResults) {
+            continue;
+          }
+
           if (
             row.type !==
             'REGISTRATION'
