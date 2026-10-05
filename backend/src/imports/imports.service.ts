@@ -5349,10 +5349,6 @@ export class ImportsService {
             resolution?.notes !== undefined
               ? resolution.notes?.trim() || null
               : null;
-
-          const historicalResults =
-            (importJob.metadata as any)?.historicalResults === true;
-
           if (
             value === null ||
             value === undefined
