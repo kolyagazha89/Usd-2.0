@@ -5124,30 +5124,16 @@ export class ImportsService {
           tx,
           {
             fullName,
-            team: (
+            team: this.stringValue(
               resolution?.participant?.team ??
               registrationReference?.team ??
-              this.stringValue(
-                this.getImportFieldValue(rawData, [
-                  'Команда',
-                  'team',
-                ]),
-              ) ||
-              null
-            ),
-            email: (
+              this.getImportFieldValue(rawData, ['Команда', 'team']),
+            ) || null,
+            email: this.stringValue(
               resolution?.participant?.email ??
               registrationReference?.email ??
-              this.stringValue(
-                this.getImportFieldValue(rawData, [
-                  'Email',
-                  'E-mail',
-                  'Электронная почта',
-                  'email',
-                ]),
-              ) ||
-              null
-            ),
+              this.getImportFieldValue(rawData, ['Email', 'E-mail', 'Электронная почта', 'email']),
+            ) || null,
           },
         );
 
