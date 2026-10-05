@@ -328,6 +328,7 @@ model Stage {
   registrations        Registration[]
   season               Season             @relation(fields: [seasonId], references: [id])
   stageClasses         StageClass[]
+  registrationNumbers   RegistrationNumber[]
 
   @@unique([seasonId, stageNumber])
   @@index([seasonId])
@@ -408,6 +409,7 @@ model Registration {
   car         Car         @relation(fields: [carId], references: [id])
   configurationVersion CarConfigurationVersion @relation(fields: [configurationVersionId], references: [id])
 
+  numbers    RegistrationNumber[]
   classes    RegistrationClass[]
   inspection Inspection?
   results    Result[]
@@ -422,18 +424,37 @@ model Registration {
   @@index([source])
 }
 
+model RegistrationNumber {
+  id             String              @id @default(uuid())
+  stageId        String
+  registrationId String
+  number         Int
+  isPrimary      Boolean             @default(false)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  stage          Stage               @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  registration   Registration        @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  classes        RegistrationClass[]
+
+  @@unique([stageId, number])
+  @@index([registrationId])
+  @@index([number])
+}
+
 model RegistrationClass {
-  id             String       @id @default(uuid())
+  id             String             @id @default(uuid())
   registrationId String
   classId        String
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  class          Class        @relation(fields: [classId], references: [id])
-  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  numberId       String
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  class          Class              @relation(fields: [classId], references: [id])
+  registration   Registration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  number         RegistrationNumber @relation(fields: [numberId], references: [id])
   results        Result[]
 
   @@unique([registrationId, classId])
   @@index([registrationId])
   @@index([classId])
+  @@index([numberId])
 }
 
 model Inspection {
