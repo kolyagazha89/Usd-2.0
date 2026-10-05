@@ -3600,6 +3600,41 @@ export class ImportsService {
               ) ?? null;
           }
 
+          if (
+            !participantId &&
+            (importJob.metadata as any)?.historicalResults === true &&
+            normalized?.participant?.status === 'NEW' &&
+            normalizedName
+          ) {
+            const participant =
+              await this.createParticipantFromImport(
+                tx,
+                {
+                  fullName: rawName,
+                  team:
+                    this.stringValue(
+                      this.getImportFieldValue(
+                        rawData,
+                        ['Команда', 'team'],
+                      ),
+                    ) || null,
+                  email:
+                    this.stringValue(
+                      this.getImportFieldValue(
+                        rawData,
+                        ['Email', 'E-mail', 'email'],
+                      ),
+                    ) || null,
+                },
+              );
+
+            participantId = participant.id;
+            importedParticipants.set(
+              normalizedName,
+              participantId,
+            );
+          }
+
           if (!participantId) {
             throw new BadRequestException(
               `Не удалось определить участника для регистрации, строка ${row.rowNumber}`,
