@@ -67,7 +67,7 @@ export class AssistantService {
       result = { success: true, counts: { participants, cars, registrations, results, stages, imports } };
     } else {
       const stageId = typeof body.stageId === 'string' ? body.stageId : undefined;
-      const stage = stageId ? await this.prisma.stage.findUnique({ where: { id: stageId }, include: { stageClasses: { where: { isActive: true }, select: { id: true } } } }) : await this.prisma.stage.findFirst({ orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], include: { classes: { where: { isActive: true } } } });
+      const stage = stageId ? await this.prisma.stage.findUnique({ where: { id: stageId }, include: { stageClasses: { where: { isActive: true }, select: { id: true } } } }) : await this.prisma.stage.findFirst({ orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], include: { stageClasses: { where: { isActive: true }, select: { id: true } } } });
       if (!stage) throw new NotFoundException('Этап для проверки не найден');
       const [registrations, inspections, results] = await Promise.all([
         this.prisma.registration.count({ where: { stageId: stage.id, status: 'ACTIVE' } }),
