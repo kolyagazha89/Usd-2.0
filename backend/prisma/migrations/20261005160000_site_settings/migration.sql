@@ -1,4 +1,4 @@
-CREATE TABLE "SiteSettings" (
+CREATE TABLE IF NOT EXISTS "SiteSettings" (
   "id" TEXT NOT NULL,
   "branding" JSONB NOT NULL,
   "homepage" JSONB NOT NULL,
