@@ -11,7 +11,7 @@ export type SiteSettingsShape = {
 };
 
 const DEFAULTS:SiteSettingsShape={
-  branding:{siteName:'USD 2.0',logoUrl:null,mobileLogoUrl:null,faviconUrl:null,organizationName:'USD Russia'},
+  branding:{siteName:'USD',logoUrl:null,mobileLogoUrl:null,faviconUrl:null,organizationName:'USD Russia'},
   homepage:{blocks:[
     {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
