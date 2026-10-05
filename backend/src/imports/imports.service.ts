@@ -4298,6 +4298,38 @@ export class ImportsService {
               ) ?? null;
           }
 
+          if (historicalResults && !participantId) {
+            if (!rawName) {
+              throw new BadRequestException(
+                `Строка ${row.rowNumber}: ФИО отсутствует в результате`,
+              );
+            }
+
+            const created =
+              await this.createParticipantFromImport(
+                tx,
+                {
+                  fullName: rawName,
+                  team: this.stringValue(
+                    this.getImportFieldValue(rawData, ['Команда', 'team']),
+                  ) || null,
+                  email: this.stringValue(
+                    this.getImportFieldValue(rawData, [
+                      'Email',
+                      'E-mail',
+                      'Электронная почта',
+                      'email',
+                    ]),
+                  ) || null,
+                },
+              );
+
+            participantId = created.id;
+            if (normalizedName) {
+              importedParticipants.set(normalizedName, participantId);
+            }
+          }
+
           if (
             resolution
               ?.registration
