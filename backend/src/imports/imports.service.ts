@@ -5281,26 +5281,105 @@ export class ImportsService {
             );
 
           const isBassRace = stageClass.class.name.trim().toLowerCase().startsWith('bassrace');
+
+          let primaryNumber = registrationContext.participantNumber;
+
+          /*
+           * Historical Results is the source of truth for ordinary classes.
+           * If the result contains a real number, that number becomes the
+           * registration's primary number. It must never be represented as
+           * an "additional" number for a normal class.
+           *
+           * BassRace is the only exception: each appearance may keep its own
+           * reserved number on the same registration.
+           */
+          if (
+            historicalResults &&
+            !isBassRace &&
+            historicalOrResolvedNumber &&
+            historicalOrResolvedNumber > 0 &&
+            historicalOrResolvedNumber !== primaryNumber
+          ) {
+            const occupied = await tx.registration.findUnique({
+              where: {
+                stageId_participantNumber: {
+                  stageId: importJob.stageId,
+                  participantNumber: historicalOrResolvedNumber,
+                },
+              },
+              select: { id: true },
+            });
+
+            if (occupied && occupied.id !== registrationId) {
+              throw new BadRequestException(
+                'Строка ' + row.rowNumber + ': номер участника ' +
+                historicalOrResolvedNumber +
+                ' уже принадлежит другой регистрации на этом этапе',
+              );
+            }
+
+            const existingNumber = await tx.registrationNumber.findUnique({
+              where: {
+                stageId_number: {
+                  stageId: importJob.stageId,
+                  number: historicalOrResolvedNumber,
+                },
+              },
+            });
+
+            if (existingNumber && existingNumber.registrationId !== registrationId) {
+              throw new BadRequestException(
+                'Строка ' + row.rowNumber + ': номер участника ' +
+                historicalOrResolvedNumber +
+                ' уже зарезервирован другой регистрацией',
+              );
+            }
+
+            const oldPrimary = await tx.registrationNumber.findFirst({
+              where: { registrationId, isPrimary: true },
+            });
+
+            if (existingNumber) {
+              await tx.registrationNumber.updateMany({
+                where: { registrationId },
+                data: { isPrimary: false },
+              });
+              await tx.registrationNumber.update({
+                where: { id: existingNumber.id },
+                data: { isPrimary: true },
+              });
+            } else if (oldPrimary) {
+              await tx.registrationNumber.update({
+                where: { id: oldPrimary.id },
+                data: { number: historicalOrResolvedNumber, isPrimary: true },
+              });
+            } else {
+              await this.ensureRegistrationNumber(tx, {
+                stageId: importJob.stageId,
+                registrationId,
+                number: historicalOrResolvedNumber,
+                isPrimary: true,
+              });
+            }
+
+            await tx.registration.update({
+              where: { id: registrationId },
+              data: { participantNumber: historicalOrResolvedNumber },
+            });
+
+            primaryNumber = historicalOrResolvedNumber;
+          }
+
           const classNumber =
             isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
               ? historicalOrResolvedNumber
-              : registrationContext.participantNumber;
-
-          if (
-            !isBassRace &&
-            historicalOrResolvedNumber &&
-            historicalOrResolvedNumber !== registrationContext.participantNumber
-          ) {
-            throw new BadRequestException(
-              'Строка ' + row.rowNumber + ': обычный класс не может использовать дополнительный номер регистрации',
-            );
-          }
+              : primaryNumber;
 
           const registrationNumber = await this.ensureRegistrationNumber(tx, {
             stageId: importJob.stageId,
             registrationId,
             number: classNumber,
-            isPrimary: classNumber === registrationContext.participantNumber,
+            isPrimary: !isBassRace,
           });
 
           let registrationClass =
