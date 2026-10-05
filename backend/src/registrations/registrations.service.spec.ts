@@ -203,11 +203,11 @@ describe('RegistrationsService', () => {
         findMany: jest.fn().mockResolvedValue([
           {
             classId: 'class-1',
-            class: { directionId: 'direction-1' },
+            class: { directionId: 'direction-1', name: 'SPL 1x2' },
           },
           {
             classId: 'class-2',
-            class: { directionId: 'direction-1' },
+            class: { directionId: 'direction-1', name: 'SPL 1x2' },
           },
         ]),
       },
