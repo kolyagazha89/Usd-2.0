@@ -57,3 +57,10 @@ export async function connectGoogle(){const r=await request<{success:boolean;aut
 export async function getGoogleSpreadsheets(){return request<any>('/google/spreadsheets');}
 export async function getGoogleSpreadsheet(id:string){return request<any>('/google/spreadsheets/'+encodeURIComponent(id));}
 export async function getGoogleSheetValues(id:string,sheet:string){return request<any>('/google/spreadsheets/'+encodeURIComponent(id)+'/values?sheet='+encodeURIComponent(sheet));}
+
+export async function findHistoricalProfileCandidates(fullName:string){
+  return apiPost<any>('/auth/profile/historical-candidates',{fullName});
+}
+export async function linkHistoricalProfile(participantId:string){
+  return apiPost<any>('/auth/profile/link-historical',{participantId});
+}
