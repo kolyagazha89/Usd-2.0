@@ -4349,7 +4349,7 @@ export class ImportsService {
               usedDirections.add(directionId);
             }
 
-            const primaryRegistrationNumber =
+            const primaryRegistrationNumber: { id: string; number: number; registrationId: string } | null =
               await tx.registrationNumber.findFirst({
                 where: {
                   registrationId,
@@ -4362,11 +4362,11 @@ export class ImportsService {
                 'Для регистрации ' + registrationId + ' не найден основной номер',
               );
             }
-            const classNumber = isBassRaceClass
+            const classNumber: number = isBassRaceClass
               ? participantNumber
               : primaryRegistrationNumber.number;
 
-            let classNumberRecord =
+            let classNumberRecord: { id: string; number: number; registrationId: string } | null =
               classNumber === primaryRegistrationNumber.number
                 ? primaryRegistrationNumber
                 : await tx.registrationNumber.findUnique({
