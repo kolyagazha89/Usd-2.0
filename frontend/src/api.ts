@@ -64,3 +64,6 @@ export async function findHistoricalProfileCandidates(fullName:string){
 export async function linkHistoricalProfile(participantId:string){
   return apiPost<any>('/auth/profile/link-historical',{participantId});
 }
+
+export async function findHistoricalProfileCandidates(fullName:string){return apiPost<any>('/auth/profile/historical-candidates',{fullName});}
+export async function linkHistoricalProfile(participantId:string){return apiPost<any>('/auth/profile/link-historical',{participantId});}
