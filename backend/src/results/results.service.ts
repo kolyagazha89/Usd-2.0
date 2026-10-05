@@ -68,6 +68,7 @@ export class ResultsService {
     registrationClass: {
       select: {
         id: true,
+        number: true,
         class: {
           select: {
             id: true,
@@ -125,6 +126,7 @@ export class ResultsService {
     },
     registrationClass: {
       include: {
+        number: true,
         class: {
           include: {
             direction: true,
