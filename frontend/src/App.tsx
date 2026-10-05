@@ -431,7 +431,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  const currentClassId=parsed.classId??autoClass??'';
  const classCandidates=classes.filter(c=>!normalized.class?.className||String(c.name).trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()||String(c.code??'').trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()).slice(0,12);
 
- return <Modal title={\`Исправление строки №\${row.rowNumber}\`} onClose={onClose}>
+ return <Modal title={`Исправление строки №\${row.rowNumber}`} onClose={onClose}>
   <div className="import-resolution">
    <div className="notice"><AlertTriangle size={16}/><span>Теперь не нужно писать JSON вручную. Нажимай действия ниже — система сама собирает корректное решение.</span></div>
    {localError&&<div className="form-error"><AlertTriangle size={16}/>{localError}</div>}
