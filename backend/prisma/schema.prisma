@@ -587,6 +587,45 @@ model SiteSettings {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 }
 
+enum AssistantRequestStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  CANCELLED
+}
+
+enum AssistantRequestType {
+  CODE_CHANGE
+  ASSISTANT_FUNCTION
+  SYSTEM_ACTION
+}
+
+model AssistantRequest {
+  id               String                 @id @default(uuid())
+  type             AssistantRequestType
+  status           AssistantRequestStatus @default(DRAFT)
+  title            String
+  prompt            String
+  plan             String?
+  diff             String?
+  risk             String?
+  requestedByUserId String
+  approvedByUserId String?
+  appliedAt        DateTime?              @db.Timestamptz(3)
+  metadata         Json?
+  createdAt        DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime               @updatedAt @db.Timestamptz(3)
+  requestedBy      User                   @relation("AssistantRequestCreatedBy", fields: [requestedByUserId], references: [id])
+  approvedBy       User?                  @relation("AssistantRequestApprovedBy", fields: [approvedByUserId], references: [id])
+
+  @@index([status])
+  @@index([type])
+  @@index([requestedByUserId])
+  @@index([createdAt])
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String?
