@@ -201,7 +201,7 @@ export class MediaService {
     const response = await fetch(this.presignedUrl('PUT', upload.objectKey, upload.contentType, 120), {
       method: 'PUT',
       headers: { 'Content-Type': upload.contentType },
-      body,
+      body: body as unknown as BodyInit,
     });
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).trim();
