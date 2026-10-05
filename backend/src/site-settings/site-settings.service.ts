@@ -108,10 +108,14 @@ export class SiteSettingsService {
   async getPublic() {
     const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' } });
     const settings = this.toShape(row);
+    const branding = { ...settings.branding };
+    if (branding.logoUrl) branding.logoUrl = '/media/public/SITE_LOGO/default';
+    if (branding.mobileLogoUrl) branding.mobileLogoUrl = '/media/public/SITE_MOBILE_LOGO/default';
+    if (branding.faviconUrl) branding.faviconUrl = '/media/public/SITE_FAVICON/default';
     return {
       success: true,
       settings: {
-        branding: settings.branding,
+        branding,
         homepage: settings.homepage,
         stream: settings.stream,
         liveResults: settings.liveResults,
