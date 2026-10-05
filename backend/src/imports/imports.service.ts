@@ -4295,6 +4295,74 @@ export class ImportsService {
               ) ?? null;
           }
 
+          if (historicalResults && !participantId && normalizedName) {
+            const participants =
+              await tx.participant.findMany({
+                select: {
+                  id: true,
+                  lastName: true,
+                  firstName: true,
+                  middleName: true,
+                  team: true,
+                },
+              });
+
+            const match =
+              this.findParticipant(
+                rawName,
+                this.buildParticipantIndex(participants),
+              );
+
+            if (match.status === 'MATCHED') {
+              participantId = match.matches[0].id;
+            } else if (match.status === 'AMBIGUOUS') {
+              throw new BadRequestException(
+                `Строка ${row.rowNumber}: найдено несколько участников с ФИО "${rawName}"`,
+              );
+            }
+          }
+
+          if (historicalResults && !participantId) {
+            if (!rawName) {
+              throw new BadRequestException(
+                `Строка ${row.rowNumber}: ФИО отсутствует в результате`,
+              );
+            }
+
+            const created =
+              await this.createParticipantFromImport(
+                tx,
+                {
+                  fullName: rawName,
+                  team:
+                    this.stringValue(
+                      this.getImportFieldValue(rawData, [
+                        'Команда',
+                        'team',
+                      ]),
+                    ) || null,
+                  email:
+                    this.stringValue(
+                      this.getImportFieldValue(rawData, [
+                        'Email',
+                        'E-mail',
+                        'Электронная почта',
+                        'email',
+                      ]),
+                    ) || null,
+                },
+              );
+
+            participantId = created.id;
+
+            if (normalizedName) {
+              importedParticipants.set(
+                normalizedName,
+                participantId,
+              );
+            }
+          }
+
           if (
             resolution
               ?.registration
