@@ -75,3 +75,13 @@ export async function rejectAssistantRequest(id:string){return apiPatch<any>('/a
 export async function applyAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/apply',{});}
 export async function getAssistantFunctions(){return apiGet<any>('/assistant/functions');}
 export async function executeAssistantFunction(code:string,body:any={}){return apiPost<any>('/assistant/functions/'+encodeURIComponent(code)+'/execute',body);}
+
+export async function uploadSiteAsset(assetKey:string,file:File){
+  const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId:assetKey,contentType:file.type});
+  const upload=await fetch(prepared.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});
+  if(!upload.ok) throw new Error('Не удалось загрузить файл в хранилище');
+  const completed=await apiPost<any>('/media/complete',{uploadToken:prepared.uploadToken});
+  const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
+  return { ...completed, url:view.url };
+}
+export async function getPublicSiteAsset(assetKey:string){return apiGet<any>('/media/public/SITE_ASSET/'+encodeURIComponent(assetKey));}
