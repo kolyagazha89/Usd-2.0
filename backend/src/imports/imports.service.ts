@@ -146,7 +146,6 @@ export class ImportsService {
           participantMatches,
           registrationParticipants,
           stageClasses,
-          body.historicalResults === true,
         ),
     );
 
@@ -1512,7 +1511,6 @@ export class ImportsService {
     >,
     registrationParticipantIndex: RegistrationParticipantIndex,
     stageClasses: Array<any>,
-    historicalResults = false,
   ) {
     const rawName =
       this.stringValue(
@@ -1575,14 +1573,6 @@ export class ImportsService {
         };
 
     if (
-      historicalResults &&
-      databaseParticipant.status === 'MATCHED'
-    ) {
-      participant = {
-        ...databaseParticipant,
-        source: 'DATABASE',
-      };
-    } else if (
       registrationParticipant.status ===
       'MATCHED'
     ) {
@@ -4296,38 +4286,6 @@ export class ImportsService {
               importedParticipants.get(
                 normalizedName,
               ) ?? null;
-          }
-
-          if ((importJob.metadata as any)?.historicalResults === true && !participantId) {
-            if (!rawName) {
-              throw new BadRequestException(
-                `Строка ${row.rowNumber}: ФИО отсутствует в результате`,
-              );
-            }
-
-            const created =
-              await this.createParticipantFromImport(
-                tx,
-                {
-                  fullName: rawName,
-                  team: this.stringValue(
-                    this.getImportFieldValue(rawData, ['Команда', 'team']),
-                  ) || null,
-                  email: this.stringValue(
-                    this.getImportFieldValue(rawData, [
-                      'Email',
-                      'E-mail',
-                      'Электронная почта',
-                      'email',
-                    ]),
-                  ) || null,
-                },
-              );
-
-            participantId = created.id;
-            if (normalizedName) {
-              importedParticipants.set(normalizedName, participantId);
-            }
           }
 
           if (
