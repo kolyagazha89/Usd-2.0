@@ -594,3 +594,10 @@ body{font-size:13px}
  .assistant-hero-copy h2{font-size:20px}
  .assistant-stat{width:100%;margin-left:0}
 }
+
+.assistant-request-guide{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.assistant-request-guide>div{padding:11px 12px;border:1px solid #e0e3e6;background:#f8f9fa;border-radius:10px;display:grid;gap:4px}
+.assistant-request-guide strong{font-size:10px}.assistant-request-guide span{font-size:9px;color:#72787f;line-height:1.45}
+.assistant-request-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;color:#858b91;font-size:10px}
+.assistant-request-meta span{padding:4px 7px;border-radius:7px;background:#f4f5f6}
+@media(max-width:650px){.assistant-request-guide{grid-template-columns:1fr}}
