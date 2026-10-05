@@ -71,5 +71,6 @@ export async function createAssistantRequest(body:any){return apiPost<any>('/ass
 export async function submitAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/submit',{});}
 export async function approveAssistantRequest(id:string,confirmation:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/approve',{confirmation});}
 export async function rejectAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/reject',{});}
+export async function applyAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/apply',{});}
 export async function getAssistantFunctions(){return apiGet<any>('/assistant/functions');}
 export async function executeAssistantFunction(code:string,body:any={}){return apiPost<any>('/assistant/functions/'+encodeURIComponent(code)+'/execute',body);}
