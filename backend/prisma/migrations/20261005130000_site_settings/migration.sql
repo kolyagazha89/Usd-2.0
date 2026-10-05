@@ -1,4 +1,4 @@
-CREATE TABLE "SiteSettings" (
+CREATE TABLE IF NOT EXISTS "SiteSettings" (
   "id" TEXT NOT NULL DEFAULT 'default',
   "branding" JSONB NOT NULL,
   "homepage" JSONB NOT NULL,
@@ -16,10 +16,10 @@ CREATE TABLE "SiteSettings" (
   CONSTRAINT "SiteSettings_pkey" PRIMARY KEY ("id")
 );
 
-ALTER TYPE "MediaTargetType" ADD VALUE 'SITE_LOGO';
-ALTER TYPE "MediaTargetType" ADD VALUE 'SITE_MOBILE_LOGO';
-ALTER TYPE "MediaTargetType" ADD VALUE 'SITE_FAVICON';
-ALTER TYPE "MediaTargetType" ADD VALUE 'SITE_IMAGE';
+ALTER TYPE "MediaTargetType" ADD VALUE IF NOT EXISTS 'SITE_LOGO';
+ALTER TYPE "MediaTargetType" ADD VALUE IF NOT EXISTS 'SITE_MOBILE_LOGO';
+ALTER TYPE "MediaTargetType" ADD VALUE IF NOT EXISTS 'SITE_FAVICON';
+ALTER TYPE "MediaTargetType" ADD VALUE IF NOT EXISTS 'SITE_IMAGE';
 
 INSERT INTO "SiteSettings" ("id","branding","homepage","stream","liveResults","navigation","contacts","social","seo","legal","footer","registration")
 VALUES (
@@ -31,4 +31,5 @@ VALUES (
   '{"items":[]}',
   '{}','{}','{}','{}','{}',
   '{"enabled":true,"price":2000,"additionalClassPrice":2000}'
-);
+)
+ON CONFLICT ("id") DO NOTHING;
