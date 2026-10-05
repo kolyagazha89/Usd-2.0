@@ -184,6 +184,49 @@ export class MediaService {
     };
   }
 
+  private async validateImageSignature(key: string, contentType: string) {
+    const response = await fetch(this.presignedUrl('GET', key, null, 60));
+    if (!response.ok) {
+      throw new BadRequestException('Не удалось проверить загруженное изображение');
+    }
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const isJpeg =
+      bytes.length >= 3 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff;
+    const isPng =
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a;
+    const isWebp =
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50;
+
+    const valid =
+      (contentType === 'image/jpeg' && isJpeg) ||
+      (contentType === 'image/png' && isPng) ||
+      (contentType === 'image/webp' && isWebp);
+
+    if (!valid) {
+      throw new BadRequestException('Содержимое файла не соответствует заявленному типу изображения');
+    }
+  }
+
   async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string) {
     if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер изображения должен быть от 1 байта до 10 MB');
@@ -221,6 +264,7 @@ export class MediaService {
     if (object.contentType !== upload.contentType) {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
+    await this.validateImageSignature(upload.objectKey, upload.contentType);
     await this.prisma.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
     // The bucket is private. Store the S3 object URL internally; clients must not
     // use it directly. A signed GET URL can be generated when media delivery is added.
