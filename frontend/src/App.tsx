@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantRequests,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {section:'Рабочий стол',label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -633,88 +633,35 @@ function SiteSettingsPage(){
 }
 function SettingsMap({title,section,settings,patch,fields}:{title:string;section:string;settings:any;patch:(s:string,v:any)=>void;fields:string[]}){const data=settings[section]??{};const labels:Record<string,string>={phone:'Телефон',email:'Email',address:'Адрес',telegram:'Telegram',vk:'VK',youtube:'YouTube',rutube:'RuTube',whatsapp:'WhatsApp',title:'Заголовок страницы',description:'Описание',keywords:'Ключевые слова',ogTitle:'OG-заголовок',ogDescription:'OG-описание',ogImage:'OG-изображение',canonical:'Canonical URL',ipName:'ФИО / наименование ИП',inn:'ИНН',ogrnip:'ОГРНИП',copyrightHolder:'Правообладатель',privacyUrl:'Политика конфиденциальности',consentUrl:'Согласие на обработку данных',termsUrl:'Пользовательское соглашение',rulesUrl:'Правила USD',copyright:'Копирайт',text:'Текст подвала',enabled:'Регистрация включена',price:'Стоимость участия',additionalClassPrice:'Стоимость дополнительного класса',introText:'Текст перед регистрацией',successText:'Сообщение после регистрации',rulesText:'Условия регистрации'};const textareas=new Set(['description','ogDescription','text','introText','successText','rulesText']);const urlFields=new Set(['telegram','vk','youtube','rutube','whatsapp','ogImage','canonical','privacyUrl','consentUrl','termsUrl','rulesUrl']);return <div className="settings-section"><PanelTitle title={title} icon={Settings2}/><p className="settings-help">Здесь находятся параметры этого раздела. Заполняйте только то, что действительно используется на публичном сайте.</p><div className="settings-form-grid">{fields.map(k=>{const bool=typeof data[k]==='boolean';return <label key={k} className={bool?'settings-check':''}><span className="field-label">{labels[k]??humanize(k)}</span>{bool?<span className="setting-toggle-line"><input type="checkbox" checked={!!data[k]} onChange={e=>patch(section,{...data,[k]:e.target.checked})}/><b>{data[k]?'Включено':'Выключено'}</b></span>:textareas.has(k)?<textarea rows={4} value={data[k]??''} placeholder={k==='description'?'Коротко опишите USD для поисковиков…':''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>:<input type={urlFields.has(k)?'url':k.toLowerCase().includes('email')?'email':k==='price'||k==='additionalClassPrice'?'number':'text'} value={data[k]??''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>} {!bool&&<small className="field-help">{urlFields.has(k)?'Стабильная публичная ссылка':k==='price'||k==='additionalClassPrice'?'Сумма в рублях':'Можно оставить пустым, если параметр не используется.'}</small>}</label>})}</div></div>}
 function AssistantPage({go}:{go:(p:string)=>void}){
- const [tab,setTab]=useState<'commands'|'changes'|'functions'>('commands');
- const [query,setQuery]=useState(''),[requestType,setRequestType]=useState<'CODE_CHANGE'|'ASSISTANT_FUNCTION'|'SYSTEM_ACTION'>('CODE_CHANGE'),[risk,setRisk]=useState('Средний');
- const [requests,setRequests]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[confirm,setConfirm]=useState<any|null>(null),[confirmation,setConfirmation]=useState(''); const [functions,setFunctions]=useState<any[]>([]),[functionResult,setFunctionResult]=useState<any|null>(null);
- const load=()=>{setLoading(true);setError('');return getAssistantRequests().then(r=>setRequests(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить очередь ассистента')).finally(()=>setLoading(false));};
- useEffect(()=>{void load()},[]);
- const create=async()=>{
-   const prompt=query.trim();
-   if(prompt.length<10){setError('Опиши задачу подробнее: что изменить, где и какой результат должен получиться.');return}
-   setSaving(true);setError('');
-   try{
-    await createAssistantRequest({
-      type:requestType,
-      title:requestType==='CODE_CHANGE'?'Изменение структуры/функции USD':requestType==='ASSISTANT_FUNCTION'?'Новая функция ассистента USD':'Системное действие',
-      prompt,
-      risk,
-      metadata:{source:'admin-panel',scope:requestType==='CODE_CHANGE'?'frontend/backend':'assistant',functionCode:requestType==='ASSISTANT_FUNCTION'?'DATA_QUALITY_SCAN':undefined,action:requestType==='SYSTEM_ACTION'?'SYSTEM_SNAPSHOT':undefined}
-    });
-    setQuery('');setTab('changes');await load();
-   }catch(e){setError(e instanceof Error?e.message:'Не удалось создать запрос')}finally{setSaving(false)}
+ const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot. Можешь писать мне обычным языком: «проверь этап», «покажи проблемы импорта», «сделай карточки этапов понятнее», «добавь функцию ассистента». Я сначала отвечу и покажу план. Действия, которые меняют данные или код, будут отдельно обозначены и потребуют подтверждения.'}]);
+ const [input,setInput]=useState(''),[sending,setSending]=useState(false),[error,setError]=useState('');
+ const [requests,setRequests]=useState<any[]>([]),[functions,setFunctions]=useState<any[]>([]);
+ useEffect(()=>{void Promise.all([getAssistantRequests().then(r=>setRequests(listData(r))).catch(()=>{}),getAssistantFunctions().then(r=>setFunctions(listData(r))).catch(()=>{})])},[]);
+ const send=async(text?:string)=>{const value=(text??input).trim();if(!value||sending)return;setMessages(m=>[...m,{role:'user',text:value}]);setInput('');setSending(true);setError('');
+  try{const r=await chatAssistant(value);setMessages(m=>[...m,{role:'assistant',text:r.reply,action:r.action,data:r.data}]);if(r.action) setRequests(x=>[{...r.action,prompt:value,status:'DRAFT',title:'Задача из чата'},...x]);}
+  catch(e){setError(e instanceof Error?e.message:'Ассистент временно недоступен');setMessages(m=>[...m,{role:'assistant',text:'Не смог выполнить запрос. Проверь доступность сервера и попробуй ещё раз.'}]);}
+  finally{setSending(false)}
  };
- const submit=async(id:string)=>{setSaving(true);try{await submitAssistantRequest(id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отправить запрос')}finally{setSaving(false)}};
- const reject=async(id:string)=>{setSaving(true);try{await rejectAssistantRequest(id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отклонить запрос')}finally{setSaving(false)}};
- const approve=async()=>{if(!confirm)return;setSaving(true);try{await approveAssistantRequest(confirm.id,confirmation);setConfirm(null);setConfirmation('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить запрос')}finally{setSaving(false)}};
- const pending=requests.filter(r=>r.status==='PENDING'),approved=requests.filter(r=>r.status==='APPROVED');
- const actions=[
-  {title:'Проверить систему',text:'Контроль данных, импортов и критичных настроек.',icon:CheckCircle2,path:'/admin/data-quality'},
-  {title:'Подготовить этап',text:'Этап, классы, регистрация и публикация.',icon:Flag,path:'/admin/stages'},
-  {title:'Разобрать импорт',text:'Проверка строк и безопасная запись исторических данных.',icon:FileInput,path:'/admin/import'},
-  {title:'Настроить LIVE',text:'Трансляция и LIVE-результаты.',icon:Activity,path:'/admin/site-settings'},
-  {title:'Посмотреть аудит',text:'Кто, когда и что изменил.',icon:History,path:'/admin/audit'},
- ];
- return <PageFrame title="Ассистент USD" subtitle="Центр управляемых изменений, автоматизации и функций AI" action={<span className="badge good"><Sparkles size={12}/>ADMIN CONTROL</span>}>
-  <section className="assistant-hero panel">
-   <div className="assistant-hero-icon"><Bot size={28}/></div>
-   <div className="assistant-hero-copy"><div className="eyebrow">USD COPILOT</div><h2>Опиши задачу обычным языком — система создаст контролируемое изменение</h2><p>Запрос сначала становится черновиком, затем отправляется на подтверждение ADMIN. Опасные действия не выполняются молча и фиксируются в аудите.</p></div>
-   <div className="assistant-stat"><strong>{pending.length}</strong><span>ждут подтверждения</span></div>
-  </section>
-  <div className="assistant-tabs">
-   <button className={tab==='commands'?'active':''} onClick={()=>setTab('commands')}><Sparkles size={15}/>Команды</button>
-   <button className={tab==='changes'?'active':''} onClick={()=>setTab('changes')}><Code2 size={15}/>Очередь изменений <span>{requests.length}</span></button>
-   <button className={tab==='functions'?'active':''} onClick={()=>setTab('functions')}><Bot size={15}/>Функции ассистента</button>
-  </div>
-  {error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}
-  {tab==='commands'&&<>
-   <section className="assistant-command panel">
-    <div className="panel-title"><div><Sparkles size={17}/><h2>Новая задача для USD Copilot</h2></div><span className="badge">Сначала черновик</span></div>
-    <div className="assistant-input-row">
-     <div className="form-grid-2">
-      <label>Тип изменения<select value={requestType} onChange={e=>setRequestType(e.target.value as any)}><option value="CODE_CHANGE">Изменение кода / структуры</option><option value="ASSISTANT_FUNCTION">Новая или изменённая функция ассистента</option><option value="SYSTEM_ACTION">Системное действие</option></select></label>
-      <label>Уровень риска<select value={risk} onChange={e=>setRisk(e.target.value)}><option>Низкий</option><option>Средний</option><option>Высокий</option><option>Критический</option></select></label>
-     </div>
-     <textarea value={query} onChange={e=>setQuery(e.target.value)} placeholder={requestType==='CODE_CHANGE'?'Например: «Переделай карточку этапа: сверху статус и дата, ниже классы, регистрации, инспекции и результаты. Добавь быстрые действия и не меняй API».':requestType==='ASSISTANT_FUNCTION'?'Например: «Добавь ассистенту функцию подготовки этапа: проверить классы, регистрацию, LIVE и показать список проблем. Изменения в БД — только после подтверждения».':'Опиши действие, которое нужно выполнить в системе, и ожидаемый результат.'}/>
-     <div className="assistant-request-guide"><div><strong>Хорошее описание задачи</strong><span>что изменить → где → как должно выглядеть/работать → что нельзя ломать</span></div><div><strong>Безопасность</strong><span>после создания запрос можно проверить, отправить на подтверждение и только потом применить</span></div></div>
-     <div className="assistant-command-actions"><button className="primary-button" disabled={saving} onClick={()=>void create()}><Sparkles size={16}/>{saving?'Создаём…':'Создать запрос на изменение'}</button><button className="secondary-button" onClick={()=>setQuery('Сделай админку более понятной и профессиональной: улучши навигацию, карточки, формы, подсказки, состояния загрузки и ошибки. Не меняй бизнес-логику и API без необходимости.')}>Заполнить пример</button></div>
-    </div>
+ const pending=requests.filter(r=>r.status==='PENDING');
+ return <PageFrame title="Ассистент USD" subtitle="Полноценный чат управления USD 2.0" action={<span className="badge good"><Sparkles size={12}/>USD COPILOT</span>}>
+  <div className="assistant-chat-layout">
+   <section className="assistant-chat panel">
+    <div className="assistant-chat-head"><div className="assistant-avatar"><Bot size={21}/></div><div><strong>USD Copilot</strong><span>Администраторский AI-контур · {pending.length} на подтверждении</span></div><button className="secondary-button compact" onClick={()=>setMessages([{role:'assistant',text:'Чат очищен. Что делаем?'}])}>Новый чат</button></div>
+    <div className="assistant-messages">{messages.map((m:any,i:number)=><div key={i} className={'assistant-message '+m.role}><div className="message-avatar">{m.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div><div className="message-bubble"><div>{m.text}</div>{m.action&&<div className="assistant-action-card"><div><strong>Подготовлено изменение</strong><span>Это действие пока не применено.</span></div><button className="primary-button compact" onClick={()=>go('/admin/assistant?tab=changes')}><Code2 size={14}/>Открыть изменение</button></div>}{m.data&&<details className="assistant-data"><summary>Показать данные проверки</summary><pre>{JSON.stringify(m.data,null,2)}</pre></details>}</div></div>)}{sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble typing">печатает<span>.</span><span>.</span><span>.</span></div></div>}</div>
+    <div className="assistant-chat-suggestions">{['Проверь качество данных','Покажи состояние системы','Проверь готовность текущего этапа','Сделай админку понятнее'].map(x=><button key={x} onClick={()=>void send(x)}>{x}</button>)}</div>
+    {error&&<div className="form-error"><AlertTriangle size={15}/>{error}</div>}
+    <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}><textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Напишите сообщение ассистенту…" rows={2} disabled={sending}/><button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button></form>
+    <div className="assistant-chat-note"><LockKeyhole size={13}/>Ответы безопасны. Изменения кода, структуры и опасные операции не выполняются молча.</div>
    </section>
-   <section className="assistant-grid">{actions.map(a=>{const I=a.icon;return <button className="assistant-action panel" key={a.title} onClick={()=>go(a.path)}><div className="assistant-action-icon"><I size={20}/></div><div><strong>{a.title}</strong><p>{a.text}</p></div><ChevronRight size={18}/></button>})}</section>
-  </>}
-  {tab==='changes'&&<section className="assistant-change-layout">
-   <div className="assistant-queue panel"><PanelTitle title="Очередь изменений" icon={Code2} action="Обновить" onAction={()=>void load()}/>{loading?<LoadingPage small/>:requests.length?<div className="assistant-request-list">{requests.map(r=><div className="assistant-request-card" key={r.id}>
-    <div className="assistant-request-top"><span className={'badge '+(r.status==='APPROVED'||r.status==='APPLIED'?'good':r.status==='PENDING'?'warn':'')}>{r.status}</span><small>{r.type==='CODE_CHANGE'?'Код / структура':r.type==='ASSISTANT_FUNCTION'?'Функция ассистента':'Системное действие'}</small></div>
-    <h3>{r.title}</h3><p>{r.prompt}</p>
-    <div className="assistant-request-meta"><span>Создано: {formatDate(r.createdAt)}</span>{r.requestedBy?.name&&<span>Автор: {r.requestedBy.name}</span>}</div>
-    {r.risk&&<div className="request-risk"><LockKeyhole size={13}/>Риск: {r.risk}</div>}
-    <div className="assistant-request-actions">
-     {(r.status==='DRAFT'||r.status==='REJECTED')&&<button className="secondary-button compact" disabled={saving} onClick={()=>void submit(r.id)}>Отправить на подтверждение</button>}
-     {r.status==='PENDING'&&<><button className="primary-button compact" disabled={saving} onClick={()=>{setConfirm(r);setConfirmation('')}}><Check size={14}/>Подтвердить</button><button className="secondary-button compact" disabled={saving} onClick={()=>void reject(r.id)}>Отклонить</button></>}
-     {r.status==='APPROVED'&&<><span className="badge good"><CheckCircle2 size={12}/>Подтверждено</span><button className="primary-button compact" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await applyAssistantRequest(r.id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить запрос')}finally{setSaving(false)}}}><Activity size={14}/>Выполнить</button></>}
-    </div>
-   </div>)}</div>:<Empty text="Запросов пока нет"/>}</div>
-   <div className="panel assistant-safety-card"><div className="assistant-action-icon"><ShieldAlert size={20}/></div><h2>Контур безопасности</h2><ul><li>только ADMIN</li><li>черновик → подтверждение → применение</li><li>опасные изменения требуют «ПОДТВЕРЖДАЮ»</li><li>все переходы статусов пишутся в аудит</li><li>код не должен изменяться напрямую из браузера</li></ul><div className="notice"><Info size={15}/><span>Сейчас очередь фиксирует и подтверждает намерение. Исполнитель GitHub/PR должен быть отдельным защищённым контуром — без прямого доступа админки к production shell.</span></div></div>
-  </section>}
-  {tab==='functions'&&<section className="assistant-function-grid">
-   <div className="panel assistant-capability assistant-function-wide"><div className="assistant-action-icon"><Bot size={20}/></div><div><h2>Исполняемые функции</h2><p>Это безопасные встроенные действия. Они не получают shell-доступ и не могут менять код. Изменения кода остаются отдельным подтверждаемым запросом.</p><div className="capability-list">{functions.map(f=><span key={f.code}><CheckCircle2 size={14}/>{f.title}</span>)}</div></div></div>
-   {functions.map(f=><div className="panel assistant-capability" key={f.code}><div className="assistant-action-icon"><Sparkles size={18}/></div><div><h2>{f.title}</h2><p>{f.description}</p><div className="assistant-function-meta"><span>Риск: {f.risk}</span><span>Аудит: да</span></div><button className="primary-button compact" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{const r=await executeAssistantFunction(f.code,{});setFunctionResult(r.result??r)}catch(e){setError(e instanceof Error?e.message:'Функция не выполнена')}finally{setSaving(false)}}}><Activity size={14}/>Запустить проверку</button></div></div>)}
-   {functionResult&&<div className="panel assistant-function-result"><div className="panel-title"><div><CheckCircle2 size={17}/><h2>Результат функции</h2></div><button className="icon-button" onClick={()=>setFunctionResult(null)}><X size={15}/></button></div><pre>{JSON.stringify(functionResult,null,2)}</pre></div>}
-   <div className="panel assistant-capability"><div className="assistant-action-icon"><Code2 size={20}/></div><div><h2>Изменение кода</h2><p>Для структуры frontend/backend создаётся запрос. После подтверждения его должен выполнить отдельный GitHub/PR-контур с CI. Production shell из браузера не открывается.</p><button className="secondary-button compact" onClick={()=>{setTab('commands');setRequestType('CODE_CHANGE')}}><Code2 size={15}/>Создать изменение кода</button></div></div>
-   <div className="panel assistant-capability"><div className="assistant-action-icon"><LockKeyhole size={20}/></div><div><h2>Подтверждение</h2><p>Высокий и критический риск нельзя подтвердить тем же ADMIN, который создал запрос. Все действия пишутся в аудит.</p></div></div>
-  </section>}
-  {confirm&&<Modal title="Подтверждение изменения" onClose={()=>{if(!saving){setConfirm(null);setConfirmation('')}}}><div className="assistant-confirm-modal"><div className="notice"><ShieldAlert size={18}/><span>Проверь тип, риск и описание. Подтверждение фиксируется в аудите и меняет состояние запроса.</span></div><h3>{confirm.title}</h3><p>{confirm.prompt}</p><label>Введите <b>ПОДТВЕРЖДАЮ</b><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="ПОДТВЕРЖДАЮ" autoFocus/></label><div className="resolution-footer"><button className="secondary-button" onClick={()=>setConfirm(null)}>Отмена</button><button className="primary-button" disabled={saving||confirmation.trim().toUpperCase()!=='ПОДТВЕРЖДАЮ'} onClick={()=>void approve()}><Check size={15}/>Подтвердить</button></div></div></Modal>}
+   <aside className="assistant-side">
+    <div className="panel assistant-side-card"><PanelTitle title="Что я умею" icon={Bot}/><div className="assistant-capability-list"><div><CheckCircle2 size={15}/><span>Проверять данные и этапы</span></div><div><CheckCircle2 size={15}/><span>Разбирать импорт и проблемы</span></div><div><CheckCircle2 size={15}/><span>Готовить изменения frontend/backend</span></div><div><CheckCircle2 size={15}/><span>Предлагать новые функции ассистента</span></div><div><LockKeyhole size={15}/><span>Опасные изменения — только через подтверждение</span></div></div></div>
+    <div className="panel assistant-side-card"><PanelTitle title="Функции" icon={Sparkles}/>{functions.map(f=><div className="assistant-function-mini" key={f.code}><strong>{f.title}</strong><span>{f.description}</span><small>Риск: {f.risk}</small></div>)}</div>
+    <div className="panel assistant-side-card"><PanelTitle title="Изменения" icon={Code2}/><strong className="assistant-big-number">{requests.length}</strong><span>запросов в истории</span><button className="secondary-button compact" onClick={()=>go('/admin/assistant?tab=changes')}>Открыть очередь</button></div>
+   </aside>
+  </div>
  </PageFrame>
 }
+
 function GlobalSearch({onClose,go}:{onClose:()=>void;go:(p:string)=>void}){
  const[q,setQ]=useState(''),[results,setResults]=useState<any[]>([]),[loading,setLoading]=useState(false);
  useEffect(()=>{const t=setTimeout(async()=>{if(q.trim().length<2){setResults([]);return}setLoading(true);try{const r=await apiGet<any>('/statistics/participants?search='+encodeURIComponent(q.trim())+'&limit=12');const ps=listData(r).map((x:any)=>({type:'Участник',title:[x.lastName,x.firstName,x.middleName].filter(Boolean).join(' '),path:'/admin/participants'}));const cs=listData(await apiGet<any>('/cars')).filter((x:any)=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())).slice(0,8).map((x:any)=>({type:'Автомобиль',title:[x.brand,x.model,x.registrationNumber].filter(Boolean).join(' '),path:'/admin/cars'}));setResults([...ps,...cs])}catch{setResults([])}finally{setLoading(false)}},220);return()=>clearTimeout(t)},[q]);
