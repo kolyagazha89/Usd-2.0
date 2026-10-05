@@ -715,6 +715,17 @@ export class RegistrationsService {
         where: {
           id,
         },
+        include: {
+          results: {
+            select: { id: true },
+          },
+          stage: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+        },
       });
 
     if (!registration) {
@@ -731,16 +742,47 @@ export class RegistrationsService {
       );
     }
 
-    return this.prisma.registration.update({
-      where: {
-        id,
-      },
-      data: {
-        status: 'CANCELLED',
-      },
-      include:
-        this.registrationInclude,
+    if (registration.results.length > 0) {
+      throw new ConflictException(
+        'Нельзя отменить регистрацию: по ней уже внесён результат',
+      );
+    }
+
+    if (registration.stage.status === 'COMPLETED') {
+      throw new ConflictException(
+        'Нельзя отменить регистрацию после завершения этапа',
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.registration.update({
+        where: {
+          id,
+        },
+        data: {
+          status: 'CANCELLED',
+        },
+        include:
+          this.registrationInclude,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'REGISTRATION_CANCELLED',
+          entity: 'Registration',
+          entityId: id,
+          metadata: {
+            stageId: registration.stage.id,
+            participantId: registration.participantId,
+            carId: registration.carId,
+          },
+        },
+      });
+
+      return changed;
     });
+
+    return updated;
   }
 
 }
