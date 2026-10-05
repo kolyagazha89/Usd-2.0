@@ -142,7 +142,7 @@ export class ImportsService {
 
     const historicalNumberMap =
       body.historicalResults === true
-        ? this.buildHistoricalFallbackNumbers(registrations, results)
+        ? await this.buildHistoricalFallbackNumbers(stage.id, registrations, results)
         : undefined;
 
     const resultPreview = results.map(
@@ -1588,7 +1588,8 @@ export class ImportsService {
     };
   }
 
-  private buildHistoricalFallbackNumbers(
+  private async buildHistoricalFallbackNumbers(
+    stageId: string,
     registrations: ImportRow[],
     results: ImportRow[],
   ) {
@@ -1609,7 +1610,11 @@ export class ImportsService {
       if (key && number === null) names.add(key);
     }
 
-    let next = Math.max(0, ...Array.from(used)) + 1;
+    const existing = await this.prisma.registration.aggregate({
+      where: { stageId },
+      _max: { participantNumber: true },
+    });
+    let next = Math.max(0, existing._max.participantNumber ?? 0, ...Array.from(used)) + 1;
     for (const key of names) {
       while (used.has(next)) next += 1;
       map.set(key, next);
