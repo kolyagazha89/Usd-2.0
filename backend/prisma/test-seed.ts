@@ -500,6 +500,25 @@ async function main() {
           },
         });
 
+    const primaryRegistrationNumber = await prisma.registrationNumber.upsert({
+      where: {
+        stageId_number: {
+          stageId: stage.id,
+          number: r.number,
+        },
+      },
+      update: {
+        registrationId: registration.id,
+        isPrimary: true,
+      },
+      create: {
+        stageId: stage.id,
+        registrationId: registration.id,
+        number: r.number,
+        isPrimary: true,
+      },
+    });
+
     for (const code of r.classes) {
       await prisma.registrationClass.upsert({
         where: {
@@ -512,6 +531,7 @@ async function main() {
         create: {
           registrationId: registration.id,
           classId: classMap.get(code).id,
+          numberId: primaryRegistrationNumber.id,
         },
       });
     }
