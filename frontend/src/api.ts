@@ -9,7 +9,7 @@ export type User = { id:string; email:string; name?:string|null; role:Role; emai
 export type AuthResponse = { success?:boolean; accessToken:string; user:User };
 export type Dashboard = {
   success:boolean; generatedAt:string;
-  overview:{participants:number;cars:number;stages:number;registrations:number;results:number;records:number};
+  overview:{participants:number;cars:number;stages:number;registrations:number;results:number;records:number;appearances?:number;currentRecords?:number};
   currentStage:{id:string;stageNumber:number;name:string;city:string|null;date:string;registrationOpen:boolean;status:string}|null;
   attention:{openStages:number;pendingInspections:number;failedInspections:number;resultsToday:number;activeDisqualifications:number;unresolvedImports:number};
   activeRegistrationStats:{registrations:number;participants:number;cars:number};
