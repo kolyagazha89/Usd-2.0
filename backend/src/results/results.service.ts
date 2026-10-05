@@ -322,6 +322,23 @@ export class ResultsService {
     return registrationClass;
   }
 
+  private async assertPublicStage(stageId: string) {
+    const stage = await this.prisma.stage.findUnique({
+      where: { id: stageId },
+      select: { id: true, status: true, isDeleted: true },
+    });
+
+    if (!stage || stage.isDeleted) {
+      throw new NotFoundException('Этап не найден');
+    }
+
+    if (!['PUBLISHED', 'COMPLETED'].includes(stage.status)) {
+      throw new NotFoundException('Результаты этого этапа пока не опубликованы');
+    }
+
+    return stage;
+  }
+
   async findOne(id: string) {
     const result = await this.prisma.result.findFirst({
       where: {
@@ -342,6 +359,8 @@ export class ResultsService {
       throw new NotFoundException('Результат не найден');
     }
 
+    await this.assertPublicStage(result.registration.stage.id);
+
     return result;
   }
 
@@ -361,12 +380,14 @@ export class ResultsService {
   async findByRegistration(registrationId: string) {
     const registration = await this.prisma.registration.findUnique({
       where: { id: registrationId },
-      select: { id: true },
+      select: { id: true, stageId: true },
     });
 
     if (!registration) {
       throw new NotFoundException('Регистрация не найдена');
     }
+
+    await this.assertPublicStage(registration.stageId);
 
     return this.prisma.result.findMany({
       where: {
@@ -388,12 +409,17 @@ export class ResultsService {
   async findByRegistrationClass(registrationClassId: string) {
     const registrationClass = await this.prisma.registrationClass.findUnique({
       where: { id: registrationClassId },
-      select: { id: true },
+      select: {
+        id: true,
+        registration: { select: { stageId: true } },
+      },
     });
 
     if (!registrationClass) {
       throw new NotFoundException('Класс регистрации не найден');
     }
+
+    await this.assertPublicStage(registrationClass.registration.stageId);
 
     return this.prisma.result.findMany({
       where: {
@@ -413,14 +439,7 @@ export class ResultsService {
   }
 
   async findByStage(stageId: string) {
-    const stage = await this.prisma.stage.findUnique({
-      where: { id: stageId },
-      select: { id: true },
-    });
-
-    if (!stage) {
-      throw new NotFoundException('Этап не найден');
-    }
+    await this.assertPublicStage(stageId);
 
     return this.prisma.result.findMany({
       where: {
