@@ -1541,8 +1541,22 @@ export class ParticipantsService {
         );
       }
 
-      data.isActive =
-        body.isActive;
+      if (body.isActive === false) {
+        const activeRegistrations = await this.prisma.registration.count({
+          where: {
+            carId: id,
+            status: 'ACTIVE',
+          },
+        });
+
+        if (activeRegistrations > 0) {
+          throw new ConflictException(
+            'Нельзя деактивировать автомобиль: он участвует в активной регистрации',
+          );
+        }
+      }
+
+      data.isActive = body.isActive;
     }
 
     return this.prisma.car.update({
