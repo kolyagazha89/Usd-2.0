@@ -322,3 +322,44 @@ body{font-size:13px}
 .field-check small{display:block;color:#737980;font-size:9px;margin-top:3px;font-weight:500}
 .save-button{width:100%;margin-top:2px}
 @media(max-width:700px){.admin-mini-stats{grid-template-columns:repeat(2,1fr)}.entity-fields{grid-template-columns:1fr}}
+
+
+/* USD Admin — information architecture polish */
+.nav-group{display:grid;gap:3px;margin-bottom:13px}
+.nav-group-title{padding:5px 13px 4px;color:#666b72;font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+.nav-group:first-child .nav-group-title{display:none}
+.nav-group .nav-item{min-height:41px}
+.sidebar nav{padding-bottom:8px}
+.topbar{gap:18px}
+.global-search-trigger{order:0}
+.breadcrumb{min-width:0}
+.breadcrumb strong{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page-heading{position:relative}
+.page-heading>div:first-child{min-width:0}
+.admin-help-card{border:1px solid #d9dde1!important;background:linear-gradient(135deg,#fff,#f8f9fa)!important;box-shadow:0 3px 14px rgba(9,10,11,.035);border-radius:14px!important}
+.admin-help-card strong{font-size:11px!important}
+.admin-help-card p{font-size:10px!important;line-height:1.65!important}
+.admin-help-icon{width:34px!important;height:34px!important;border-radius:10px!important;background:#111!important;color:#fff!important;display:grid!important;place-items:center!important;flex:0 0 auto}
+.admin-mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 12px}
+.admin-mini-stats>div{background:#fff;border:1px solid #dfe2e5;border-radius:12px;padding:12px 14px}
+.admin-mini-stats span{display:block;font-size:8px;color:#737980;text-transform:uppercase;letter-spacing:.08em;font-weight:900}
+.admin-mini-stats strong{display:block;font-size:20px;line-height:1.1;margin-top:5px;letter-spacing:-.04em}
+.table-wrap.panel{overflow:hidden}
+.data-table td:first-child strong{font-weight:800;color:#111318}
+.modal-actions{position:sticky;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid #e4e6e8;padding:13px 22px;margin:0}
+.form-intro{margin-bottom:2px}
+.field-wrapper{min-width:0}
+@media(max-width:900px){
+ .nav-group-title{padding-left:10px}
+ .admin-mini-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){
+ .sidebar{width:286px}
+ .topbar{padding:0 14px;gap:8px}
+ .breadcrumb{display:none}
+ .topbar-actions{gap:5px}
+ .field-status{padding:8px}
+ .field-status:not(.active){font-size:0}
+ .field-status:not(.active) .field-status-dot{margin:0}
+ .admin-mini-stats{grid-template-columns:repeat(2,1fr)}
+}
