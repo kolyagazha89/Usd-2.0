@@ -30,6 +30,7 @@ export class RegistrationsController {
     return this.registrationsService.findAll(stageId, status);
   }
 
+  @Roles('PARTICIPANT')
   @Get('me')
   async findMyRegistrations(
     @Req() request: AuthenticatedRequest,
