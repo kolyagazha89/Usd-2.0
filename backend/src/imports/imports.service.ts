@@ -4635,36 +4635,48 @@ export class ImportsService {
           }
 
           if (
-            resolution
-              ?.participant
-              ?.action ===
-            'CREATE'
+            resolution?.participant?.action === 'CREATE'
           ) {
-            const participant =
-              await this.createParticipantFromImport(
-                tx,
-                {
-                  fullName:
-                    resolution
-                      .participant
-                      .fullName,
+            const fullName = this.stringValue(
+              resolution.participant.fullName,
+            );
+            const participantKey =
+              this.normalizePersonName(fullName);
 
-                  team:
-                    resolution
-                      .participant
-                      .team ??
-                    null,
-
-                  email:
-                    resolution
-                      .participant
-                      .email ??
-                    null,
-                },
-              );
-
+            /*
+             * Several historical result rows can point to the same
+             * participant. Reuse the participant created earlier in
+             * this commit instead of creating duplicates.
+             */
             participantId =
-              participant.id;
+              participantKey
+                ? importedParticipants.get(participantKey) ?? null
+                : null;
+
+            if (!participantId) {
+              const participant =
+                await this.createParticipantFromImport(
+                  tx,
+                  {
+                    fullName,
+                    team:
+                      resolution.participant.team ??
+                      null,
+                    email:
+                      resolution.participant.email ??
+                      null,
+                  },
+                );
+
+              participantId = participant.id;
+
+              if (participantKey) {
+                importedParticipants.set(
+                  participantKey,
+                  participant.id,
+                );
+              }
+            }
           }
 
           /*
