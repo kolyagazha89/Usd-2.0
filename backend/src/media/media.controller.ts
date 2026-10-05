@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { MediaService } from './media.service';
+import { Public } from '../auth/public.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -19,6 +20,7 @@ export class MediaController {
     );
   }
 
+  @Public()
   @Get('public/:targetType/:targetId')
   publicView(@Param('targetType') targetType: MediaTargetType, @Param('targetId') targetId: string) {
     return this.mediaService.getPublicSignedViewUrl(targetType, targetId);
