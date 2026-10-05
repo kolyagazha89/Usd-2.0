@@ -26,6 +26,7 @@ import { HistoricalResultsModule } from './historical-results/historical-results
 import { StatisticsModule } from './statistics/statistics.module';
 import { GoogleModule } from './google/google.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
+import { AssistantModule } from './assistant/assistant.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SiteSettingsModule } from './site-settings/site-settings.module';
     StatisticsModule,
     GoogleModule,
     SiteSettingsModule,
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],
