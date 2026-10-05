@@ -98,6 +98,10 @@ export class MediaService {
   }
 
   private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      if (role !== 'ADMIN') throw new ForbiddenException('Только администратор может управлять файлами сайта');
+      return;
+    }
     if (role === 'ADMIN') return;
     if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       const p = await this.prisma.participant.findFirst({ where: { id: targetId, user: { id: userId } }, select: { id: true } });
@@ -112,7 +116,8 @@ export class MediaService {
     if (!ALLOWED_TYPES.has(contentType.toLowerCase())) throw new BadRequestException('Разрешены только JPG, PNG и WebP');
     await this.ensureTargetAccess(userId, role, targetType, targetId);
     const token = crypto.randomBytes(32).toString('hex');
-    const key = `usd/${targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : 'cars'}/${targetId}/${crypto.randomUUID()}`;
+    const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
+    const key = `usd/${prefix}/${targetId}/${crypto.randomUUID()}`;
     const expiresIn = Math.min(Math.max(Number(process.env.S3_UPLOAD_EXPIRES_SECONDS ?? 600), 60), 900);
     await this.prisma.mediaUpload.create({ data: { userId, targetType, targetId, objectKey: key, contentType: contentType.toLowerCase(), tokenHash: this.hashToken(token), expiresAt: new Date(Date.now() + expiresIn * 1000) } });
     return {
@@ -182,9 +187,9 @@ export class MediaService {
     const url = this.objectUrl(upload.objectKey);
     if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       await this.prisma.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-    } else {
+    } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
       await this.prisma.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
     }
-    return { success: true, photoUrl: url };
+    return { success: true, photoUrl: url, targetType: upload.targetType, targetId: upload.targetId };
   }
 }
