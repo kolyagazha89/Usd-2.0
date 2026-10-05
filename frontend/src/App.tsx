@@ -655,7 +655,7 @@ function AuditEntryCard({item}:{item:any}){
   </div>
  </article>
 }
-function auditEntityName(x:string){const m:Record<string,string>={Stage:'Этап',Registration:'Регистрация',Participant:'Участник',Car:'Автомобиль',Result:'Результат',Inspection:'Инспекция',ImportJob:'Импорт',AssistantRequest:'Запрос ассистента',SiteSettings:'Настройки сайта',User:'Пользователь',Disqualification:'Дисквалификация',Season:'Сезон',Class:'Класс',Direction:'Направление',Record:'Рекорд',Result:'Результат'};return m[x]??humanize(x)}
+function auditEntityName(x:string){const m:Record<string,string>={Stage:'Этап',Registration:'Регистрация',Participant:'Участник',Car:'Автомобиль',Result:'Результат',Inspection:'Инспекция',ImportJob:'Импорт',AssistantRequest:'Запрос ассистента',SiteSettings:'Настройки сайта',User:'Пользователь',Disqualification:'Дисквалификация',Season:'Сезон',Class:'Класс',Direction:'Направление',Record:'Рекорд'};return m[x]??humanize(x)}
 function auditActionName(x:string){const m:Record<string,string>={
  CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',HISTORICAL_RESULT_CREATED:'Добавлен исторический результат',HISTORICAL_RESULT_VERIFIED:'Исторический результат подтверждён',HISTORICAL_RESULT_CORRECTED:'Исторический результат исправлен',INSPECTION_DELETED:'Инспекция удалена',ASSISTANT_AI_USED:'Ассистент ИИ использован',
  IMPORT_PREVIEW:'Предпросмотр импорта',IMPORT_COMMITTED:'Импорт зафиксирован',IMPORT_ROW_RESOLVED:'Строка импорта исправлена',
