@@ -326,7 +326,7 @@ export class ImportsService {
                               : {
                                   action: 'CREATE',
                                   fullName:
-                                    preview.participant.rawName,
+                                    this.normalizedDisplayName(preview.participant.rawName),
                                   team:
                                     preview.participant.source === 'REGISTRATION'
                                       ? preview.participant.matches?.[0]?.team || null
@@ -1737,6 +1737,8 @@ export class ImportsService {
         ),
       );
 
+    const normalizedDisplayName = this.nameNormalizer.normalize(rawName);
+
     const rawNumber =
       this.numberValue(
         this.getImportFieldValue(
@@ -2485,6 +2487,10 @@ export class ImportsService {
     };
   }
 
+  private normalizedDisplayName(value: string): string {
+    return this.nameNormalizer.normalize(value);
+  }
+
   private async createParticipantFromImport(
     tx: any,
     participant: {
@@ -2494,8 +2500,8 @@ export class ImportsService {
     },
   ) {
     const fullName =
-      this.stringValue(
-        participant.fullName,
+      this.nameNormalizer.normalize(
+        this.stringValue(participant.fullName),
       );
 
     const parsedName =
