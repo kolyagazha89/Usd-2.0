@@ -499,6 +499,168 @@ export class AuthService {
     };
   }
 
+  /**
+   * Finds historical USD participants for a newly registered account.
+   * This is intentionally a suggestion step: no profile is linked
+   * automatically from a name match.
+   */
+  async findHistoricalProfileCandidates(
+    userId: string,
+    fullName: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, participantId: true, role: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Учётная запись не найдена');
+    }
+
+    if (user.role !== 'PARTICIPANT') {
+      throw new BadRequestException(
+        'Поиск исторического профиля доступен только участнику',
+      );
+    }
+
+    if (user.participantId) {
+      throw new ConflictException(
+        'Профиль участника уже привязан к аккаунту',
+      );
+    }
+
+    const normalized = this.normalizeProfileName(fullName);
+    if (!normalized) {
+      throw new BadRequestException('ФИО обязательно');
+    }
+
+    const parts = normalized.split(' ');
+    const lastName = parts[0] ?? '';
+    const firstName = parts[1] ?? '';
+    const middleName = parts.slice(2).join(' ') || null;
+
+    const candidates = await this.prisma.participant.findMany({
+      where: {
+        AND: [
+          { lastName: { equals: lastName, mode: 'insensitive' } },
+          { firstName: { equals: firstName, mode: 'insensitive' } },
+          ...(middleName
+            ? [{ middleName: { equals: middleName, mode: 'insensitive' } }]
+            : []),
+          { user: null },
+        ],
+      },
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        city: true,
+        cars: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          take: 3,
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationNumber: true,
+          },
+        },
+        _count: {
+          select: {
+            registrations: true,
+          },
+        },
+      },
+      take: 10,
+    });
+
+    return {
+      success: true,
+      found: candidates.length,
+      candidates,
+    };
+  }
+
+  async linkHistoricalProfile(
+    userId: string,
+    participantId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, participantId: true, role: true },
+      });
+
+      if (!user || user.role !== 'PARTICIPANT') {
+        throw new UnauthorizedException('Недействительная учётная запись');
+      }
+
+      if (user.participantId) {
+        if (user.participantId === participantId) {
+          return {
+            success: true,
+            linked: true,
+            participantId,
+          };
+        }
+        throw new ConflictException('У аккаунта уже есть профиль участника');
+      }
+
+      const participant = await tx.participant.findUnique({
+        where: { id: participantId },
+        select: { id: true, user: { select: { id: true } } },
+      });
+
+      if (!participant) {
+        throw new NotFoundException('Исторический профиль не найден');
+      }
+
+      if (participant.user) {
+        throw new ConflictException(
+          'Этот исторический профиль уже связан с другим аккаунтом',
+        );
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { participantId: participant.id },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'PARTICIPANT_PROFILE_LINKED',
+          entity: 'Participant',
+          entityId: participant.id,
+          metadata: {
+            source: 'HISTORICAL_MATCH',
+            email: user.email,
+          },
+        },
+      });
+
+      return {
+        success: true,
+        linked: true,
+        participantId: participant.id,
+      };
+    });
+  }
+
+  private normalizeProfileName(value: string) {
+    return String(value ?? '')
+      .normalize('NFKC')
+      .replace(/ё/gi, 'е')
+      .replace(/[^a-zа-я0-9\s-]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+
   async changePassword(
     userId: string,
     currentPassword: string,
