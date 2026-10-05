@@ -3365,11 +3365,14 @@ export class ImportsService {
           );
         }
 
+        const historicalResults =
+          (importJob.metadata as any)?.historicalResults === true;
+
         const unresolvedRows =
           importJob.rows.filter(
             (row) =>
-              row.status ===
-              'WARNING',
+              row.status === 'WARNING' &&
+              (!historicalResults || row.type === 'RESULT'),
           );
 
         if (
@@ -3480,6 +3483,10 @@ export class ImportsService {
          * =====================================================
          */
         for (const row of importJob.rows) {
+          if (historicalResults) {
+            continue;
+          }
+
           if (
             row.type !==
             'REGISTRATION'
@@ -4194,6 +4201,267 @@ export class ImportsService {
           let registrationId:
             | string
             | null = null;
+
+          const historicalRawName =
+            this.stringValue(
+              normalized?.participant?.rawName ??
+              this.getImportFieldValue(rawData, [
+                'ФИО',
+                'Фамилия и имя',
+                'participantName',
+              ]),
+            );
+
+          if (historicalResults) {
+            const resultParticipantNumber =
+              this.parseParticipantNumber(
+                normalized?.resultParticipantNumber ??
+                this.getImportFieldValue(rawData, [
+                  'Номер',
+                  'Номер участника',
+                  'participantNumber',
+                ]),
+              );
+
+            if (!resultParticipantNumber) {
+              throw new BadRequestException(
+                `Не указан положительный номер участника в строке результата ${row.rowNumber}`,
+              );
+            }
+
+            const historicalRegistrationRows =
+              importJob.rows.filter(
+                (candidate: any) => candidate.type === 'REGISTRATION',
+              );
+
+            const historicalRegistrationIndex =
+              this.buildRegistrationParticipantIndex(
+                historicalRegistrationRows.map(
+                  (candidate: any) => candidate.rawData as ImportRow,
+                ),
+              );
+
+            const byNumber =
+              historicalRegistrationIndex.byNumber.get(
+                resultParticipantNumber,
+              ) ?? [];
+
+            let historicalReference =
+              byNumber.length === 1 ? byNumber[0] : null;
+
+            if (!historicalReference && historicalRawName) {
+              const byName =
+                historicalRegistrationIndex.byName.get(
+                  this.normalizePersonName(historicalRawName),
+                ) ?? [];
+              if (byName.length === 1) {
+                historicalReference = byName[0];
+              }
+            }
+
+            if (
+              resolution?.participant?.action === 'USE_EXISTING'
+            ) {
+              participantId =
+                resolution.participant.participantId;
+            }
+
+            if (!participantId && historicalRawName) {
+              const participants =
+                await tx.participant.findMany({
+                  select: {
+                    id: true,
+                    lastName: true,
+                    firstName: true,
+                    middleName: true,
+                    team: true,
+                  },
+                });
+
+              const match =
+                this.findParticipant(
+                  historicalRawName,
+                  this.buildParticipantIndex(participants),
+                );
+
+              if (match.status === 'MATCHED') {
+                participantId = match.matches[0].id;
+              } else if (match.status === 'AMBIGUOUS') {
+                throw new BadRequestException(
+                  `Строка ${row.rowNumber}: найдено несколько участников с ФИО "${historicalRawName}". Выберите существующий профиль вручную.`,
+                );
+              }
+            }
+
+            if (!participantId && historicalReference) {
+              const participants =
+                await tx.participant.findMany({
+                  select: {
+                    id: true,
+                    lastName: true,
+                    firstName: true,
+                    middleName: true,
+                    team: true,
+                  },
+                });
+
+              const match =
+                this.findParticipant(
+                  historicalReference.rawName,
+                  this.buildParticipantIndex(participants),
+                );
+
+              if (match.status === 'MATCHED') {
+                participantId = match.matches[0].id;
+              }
+            }
+
+            if (!participantId) {
+              const fullName =
+                historicalRawName ||
+                historicalReference?.rawName ||
+                '';
+
+              if (!fullName) {
+                throw new BadRequestException(
+                  `Строка ${row.rowNumber}: невозможно определить ФИО участника`,
+                );
+              }
+
+              const created =
+                await this.createParticipantFromImport(
+                  tx,
+                  {
+                    fullName,
+                    team:
+                      historicalReference?.team ||
+                      this.stringValue(
+                        this.getImportFieldValue(rawData, [
+                          'Команда',
+                          'team',
+                        ]),
+                      ) ||
+                      null,
+                    email:
+                      historicalReference?.email ||
+                      this.stringValue(
+                        this.getImportFieldValue(rawData, [
+                          'Email',
+                          'E-mail',
+                          'Электронная почта',
+                          'email',
+                        ]),
+                      ) ||
+                      null,
+                  },
+                );
+
+              participantId = created.id;
+            }
+
+            const registrationKey =
+              `${participantId}:${resultParticipantNumber}`;
+
+            registrationId =
+              importedRegistrationsByNumber.get(
+                resultParticipantNumber,
+              ) ?? null;
+
+            if (!registrationId) {
+              const existing =
+                await tx.registration.findUnique({
+                  where: {
+                    stageId_participantNumber: {
+                      stageId: importJob.stageId,
+                      participantNumber: resultParticipantNumber,
+                    },
+                  },
+                  select: {
+                    id: true,
+                    participantId: true,
+                    status: true,
+                  },
+                });
+
+              if (existing) {
+                if (existing.participantId !== participantId) {
+                  throw new BadRequestException(
+                    `Номер участника ${resultParticipantNumber} уже принадлежит другому участнику`,
+                  );
+                }
+
+                registrationId = existing.id;
+
+                if (existing.status === 'CANCELLED') {
+                  await tx.registration.update({
+                    where: { id: existing.id },
+                    data: {
+                      status: 'ACTIVE',
+                      source: 'IMPORT',
+                      registeredAt: new Date(),
+                    },
+                  });
+                }
+              }
+            }
+
+            if (!registrationId) {
+              const referenceRaw =
+                historicalReference
+                  ? historicalRegistrationRows.find(
+                      (candidate: any) =>
+                        candidate.rowNumber === historicalReference!.rowNumber,
+                    )?.rawData ?? {}
+                  : {};
+
+              const carData: Record<string, unknown> = {
+                ...referenceRaw,
+                ...rawData,
+              };
+
+              if (resolution?.car?.action === 'USE_EXISTING') {
+                carData.carId = resolution.car.carId;
+              }
+
+              if (resolution?.car?.action === 'CREATE') {
+                carData.brand = resolution.car.brand;
+                carData.model = resolution.car.model;
+                carData.registrationNumber =
+                  resolution.car.registrationNumber;
+                carData.registrationCountry =
+                  resolution.car.registrationCountry;
+              }
+
+              const carId =
+                await this.getOrCreateImportCar(
+                  tx,
+                  participantId,
+                  carData,
+                );
+
+              const registration =
+                await this.createImportRegistration(
+                  tx,
+                  {
+                    stageId: importJob.stageId,
+                    participantId,
+                    carId,
+                    participantNumber: resultParticipantNumber,
+                  },
+                );
+
+              registrationId = registration.id;
+            }
+
+            importedRegistrations.set(
+              registrationKey,
+              registrationId,
+            );
+            importedRegistrationsByNumber.set(
+              resultParticipantNumber,
+              registrationId,
+            );
+          }
 
           if (
             resolution
