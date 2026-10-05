@@ -484,6 +484,27 @@ export class HistoricalResultsService {
     return result;
   }
 
+  async verifyAll(request: AuthenticatedRequest) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Подтверждать исторические результаты может только администратор');
+    }
+    const pending = await this.prisma.result.findMany({
+      where: { isHistorical: true, verificationStatus: 'PENDING' },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    let processed = 0;
+    for (const item of pending) {
+      try {
+        await this.verify(item.id, request);
+        processed++;
+      } catch {
+        // One broken row must not prevent the administrator from confirming the rest.
+      }
+    }
+    return { success: true, processed, total: pending.length, remaining: pending.length - processed };
+  }
+
   async verify(id: string, request: AuthenticatedRequest) {
     if (request.user.role !== 'ADMIN') {
       throw new ForbiddenException('Подтверждать исторические результаты может только администратор');
