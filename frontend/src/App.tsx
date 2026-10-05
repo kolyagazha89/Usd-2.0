@@ -112,6 +112,9 @@ function DashboardPage({go}:{go:(p:string)=>void}){
      <button onClick={()=>go('/admin/results')}><Trophy size={17}/><span>Внести результат</span></button>
      <button onClick={()=>go('/admin/import')}><FileInput size={17}/><span>Импорт</span></button>
      <button onClick={()=>go('/admin/registrations')}><ClipboardCheck size={17}/><span>Регистрации</span></button>
+     <button onClick={()=>go('/admin/stages')}><Activity size={17}/><span>Центр этапа</span></button>
+     <button onClick={()=>go('/admin/site-settings')}><Settings2 size={17}/><span>Настройки сайта</span></button>
+     <button onClick={()=>go('/admin/assistant')}><Bot size={17}/><span>Ассистент USD</span></button>
     </div>
    </div>
   </section>
