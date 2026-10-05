@@ -4325,6 +4325,7 @@ export class ImportsService {
                 },
               });
             }
+          }
 
           await tx.importRow.update(
             {
@@ -4352,6 +4353,7 @@ export class ImportsService {
 
             registrationId,
           });
+        }
         }
 
         /*
