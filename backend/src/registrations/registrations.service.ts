@@ -502,6 +502,7 @@ export class RegistrationsService {
               class: {
                 select: {
                   directionId: true,
+                  name: true,
                 },
               },
             },
