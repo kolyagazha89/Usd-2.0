@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -632,7 +633,7 @@ export class RegistrationsService {
         // индексу (stageId, number) другой участник не сможет
         // получить ни один из дополнительных BassRace-номеров.
         const numberRows = reservedNumbers.map((number, index) => ({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           stageId,
           number,
           isPrimary: index === 0,
