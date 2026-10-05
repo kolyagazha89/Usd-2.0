@@ -140,6 +140,20 @@ export class MediaService {
     };
   }
 
+  async getSignedPublicMediaUrl(targetType: MediaTargetType, targetId: string) {
+    if (targetType !== MediaTargetType.SITE_ASSET) {
+      throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
+    }
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: { targetType, targetId, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { objectKey: true, contentType: true },
+    });
+    if (!upload) throw new BadRequestException('Файл не найден');
+    const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
+    return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, expiresIn), expiresIn, contentType: upload.contentType };
+  }
+
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
     await this.ensureTargetAccess(userId, role, targetType, targetId);
 
