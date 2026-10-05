@@ -146,6 +146,7 @@ export class ImportsService {
           participantMatches,
           registrationParticipants,
           stageClasses,
+          body.historicalResults === true,
         ),
     );
 
@@ -1511,6 +1512,7 @@ export class ImportsService {
     >,
     registrationParticipantIndex: RegistrationParticipantIndex,
     stageClasses: Array<any>,
+    historicalResults = false,
   ) {
     const rawName =
       this.stringValue(
