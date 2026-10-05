@@ -66,6 +66,7 @@ export async function linkHistoricalProfile(participantId:string){
 }
 
 
+export async function chatAssistant(message:string){return apiPost<any>('/assistant/chat',{message});}
 export async function getAssistantRequests(){return apiGet<any>('/assistant/requests');}
 export async function createAssistantRequest(body:any){return apiPost<any>('/assistant/requests',body);}
 export async function submitAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/submit',{});}
