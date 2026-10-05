@@ -1111,10 +1111,14 @@ export class ImportsService {
 
       if (bestIndex < 0) return false;
 
-      const maxDistance = Math.max(
-        1,
-        Math.floor(Math.min(token.length, candidate[bestIndex].length) * 0.25),
+      const shortestTokenLength = Math.min(
+        token.length,
+        candidate[bestIndex].length,
       );
+      const maxDistance =
+        shortestTokenLength >= 8
+          ? 2
+          : Math.max(1, Math.floor(shortestTokenLength * 0.3));
 
       if (bestDistance > maxDistance) return false;
 
