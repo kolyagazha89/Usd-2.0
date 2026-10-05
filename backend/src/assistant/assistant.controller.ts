@@ -8,6 +8,11 @@ import { AssistantService } from './assistant.service';
 export class AssistantController {
   constructor(private readonly service: AssistantService) {}
 
+  @Post('chat')
+  chat(@Body() body: Record<string, unknown>, @Req() req: AuthenticatedRequest) {
+    return this.service.chat(String(body.message ?? ''), req.user.sub);
+  }
+
   @Get('functions')
   functions() {
     return this.service.functions();
