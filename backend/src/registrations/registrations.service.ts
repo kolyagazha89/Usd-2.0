@@ -68,7 +68,7 @@ export class RegistrationsService {
       },
     },
     numbers: {
-      orderBy: { number: 'asc' },
+      orderBy: { number: 'asc' as const },
     },
     inspection: true,
     results: true,
