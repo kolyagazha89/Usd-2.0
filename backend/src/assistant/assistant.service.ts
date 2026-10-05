@@ -50,6 +50,8 @@ export class AssistantService {
     const text = String(message ?? '').trim();
     if (!text || text.length > 12000) throw new BadRequestException('Сообщение пустое или слишком длинное');
     const lower = text.toLowerCase();
+    const ai = await this.askModel(text, userId).catch(() => null);
+    if (ai) return ai;
     if (/(провер|качество|ошибк|warning|проблем)/.test(lower)) {
       const report = await this.dataQuality.getReport();
       await this.audit(userId, 'ASSISTANT_CHAT_USED', 'DATA_QUALITY_SCAN');
@@ -70,6 +72,61 @@ export class AssistantService {
     }
     const item = await this.create({ type: 'CODE_CHANGE', title: 'Задача из USD Copilot', prompt: text, risk: 'Средний', metadata: { source: 'chat', scope: 'admin' } }, userId);
     return { success: true, reply: 'Понял задачу. Я подготовил её как управляемое изменение. Для действий, которые меняют код, данные или настройки, я покажу план и попрошу подтверждение перед применением.', action: { type: 'CHANGE_REQUEST', id: item.item.id, status: item.item.status } };
+  }
+
+  private async askModel(text: string, userId: string) {
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) return null;
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-6-luna';
+    const context = await this.buildAssistantContext();
+    const instructions = [
+      'Ты — USD AI, интеллектуальный операционный ассистент системы USD 2.0.',
+      'Отвечай на русском языке, естественно, уверенно и по делу. Ты должен рассуждать как опытный технический руководитель и оператор соревнований.',
+      'Ты видишь только контекст, который передан ниже. Не выдумывай факты, цифры, записи, права или выполненные действия.',
+      'Если пользователь просит изменить данные, настройки или код, не выполняй изменение молча: объясни план, последствия, риск и что именно потребуется подтвердить.',
+      'Если вопрос можно решить диагностикой, сначала используй факты из контекста и дай конкретные следующие шаги.',
+      'Если пользователь просит изменить код, подготовь понятный план изменения и укажи, что фактическое применение кода должно пройти через защищённую очередь запросов ассистента.',
+      'Не показывай внутренние ID, токены, секреты и технические идентификаторы без прямой необходимости.',
+      'Формат: короткий вывод -> детали -> что делать дальше. Не используй англоязычные статусы там, где есть русский эквивалент.',
+      '',
+      'АКТУАЛЬНЫЙ КОНТЕКСТ USD 2.0:',
+      JSON.stringify(context),
+    ].join('\n');
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, instructions, input: text, max_output_tokens: 1400 }),
+    });
+    if (!response.ok) return null;
+    const data: any = await response.json();
+    const reply = typeof data?.output_text === 'string'
+      ? data.output_text.trim()
+      : Array.isArray(data?.output)
+        ? data.output.flatMap((item: any) => item?.content ?? []).map((x: any) => x?.text ?? '').filter(Boolean).join('\n').trim()
+        : '';
+    if (!reply) return null;
+    await this.audit(userId, 'ASSISTANT_AI_USED', model);
+    return { success: true, reply, action: null, data: { model, contextGeneratedAt: new Date().toISOString() } };
+  }
+
+  private async buildAssistantContext() {
+    const [participants, cars, registrations, results, stages, imports, pendingHistorical, activeDisqualifications, quality] = await Promise.all([
+      this.prisma.participant.count(),
+      this.prisma.car.count({ where: { isActive: true } }),
+      this.prisma.registration.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.result.count(),
+      this.prisma.stage.findMany({ orderBy: [{ date: 'asc' }, { stageNumber: 'asc' }], take: 8, select: { id: true, stageNumber: true, name: true, city: true, date: true, status: true, registrationOpen: true, stageClasses: { where: { isActive: true }, select: { id: true } } } }),
+      this.prisma.importJob.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, status: true, stageId: true, createdAt: true, rows: { select: { status: true } } } }),
+      this.prisma.result.count({ where: { isHistorical: true, verificationStatus: 'PENDING' } }),
+      this.prisma.disqualification.count({ where: { status: 'ACTIVE' } }),
+      this.dataQuality.getReport(),
+    ]);
+    return {
+      counts: { participants, cars, registrations, results, pendingHistorical, activeDisqualifications },
+      stages: stages.map((s) => ({ stageNumber: s.stageNumber, name: s.name, city: s.city, date: s.date, status: s.status, registrationOpen: s.registrationOpen, activeClasses: s.stageClasses.length })),
+      imports: imports.map((j) => ({ status: j.status, stageId: j.stageId, createdAt: j.createdAt, rows: j.rows.reduce((a: any, r: any) => { a[r.status] = (a[r.status] ?? 0) + 1; return a; }, {}) })),
+      dataQuality: quality.counts,
+    };
   }
 
   async functions() {
