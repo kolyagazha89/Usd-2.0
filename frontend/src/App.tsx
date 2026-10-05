@@ -20,7 +20,6 @@ const nav=[
  {label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
  {label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
  {label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
- {label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
 ];
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
@@ -64,7 +63,6 @@ function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
  if(path.startsWith('/admin/users'))return <UsersPage/>;
  if(path.startsWith('/admin/audit'))return <AuditPage/>;
  if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
- if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
  return <Coming title="Пользователи" icon={UserRound} user={user}/>;
 }
 
