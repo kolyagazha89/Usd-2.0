@@ -150,13 +150,28 @@ export class InspectionsService {
     data: { status?: InspectionStatus; notes?: string | null },
     actor: Actor,
   ) {
-    const current = await this.prisma.inspection.findUnique({ where: { id } });
+    const current = await this.prisma.inspection.findUnique({
+      where: { id },
+      include: {
+        registration: {
+          select: {
+            results: { select: { id: true } },
+          },
+        },
+      },
+    });
     if (!current) throw new NotFoundException('Проверка не найдена');
     this.assertCanEdit(current.createdByUserId ?? current.checkedByUserId, actor);
 
     const nextStatus = data.status ?? current.status;
     const nextNotes = data.notes === undefined ? current.notes : data.notes;
-    this.validateNotes(nextStatus, nextNotes ?? undefined);
+    this.validateNotes(nextStatus, nextNotes);
+
+    if (nextStatus === 'FAILED' && current.registration.results.length > 0) {
+      throw new ConflictException(
+        'Нельзя перевести инспекцию в FAILED: по регистрации уже есть результат',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.inspection.update({
@@ -190,15 +205,30 @@ export class InspectionsService {
         },
       });
       return updated;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async remove(id: string, actor: Actor) {
     if (actor.role !== 'ADMIN') {
       throw new ForbiddenException('Удалять проверки может только ADMIN');
     }
-    const current = await this.prisma.inspection.findUnique({ where: { id } });
+    const current = await this.prisma.inspection.findUnique({
+      where: { id },
+      include: {
+        registration: {
+          select: {
+            results: { select: { id: true } },
+          },
+        },
+      },
+    });
     if (!current) throw new NotFoundException('Проверка не найдена');
+
+    if (current.registration.results.length > 0) {
+      throw new ConflictException(
+        'Нельзя удалить инспекцию: по регистрации уже есть результат',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.inspection.delete({ where: { id } });
@@ -219,7 +249,7 @@ export class InspectionsService {
         },
       });
       return { success: true, id };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   private assertCanEdit(ownerId: string | null, actor: Actor) {
