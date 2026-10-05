@@ -55,6 +55,11 @@ export class AssistantService {
       await this.audit(userId, 'ASSISTANT_CHAT_USED', 'DATA_QUALITY_SCAN');
       return { success: true, reply: report.healthy ? 'Проверил качество данных: критичных проблем сейчас не найдено.' : `Проверил качество данных: найдено проблем — ${report.counts.error} ошибок, ${report.counts.warning} предупреждений.`, action: null, data: report };
     }
+    if (/(импорт|загрузк|warning|предупрежден)/.test(lower)) {
+      const r = await this.executeFunction('IMPORT_DIAGNOSTICS', {}, userId);
+      const p = r.result;
+      return { success: true, reply: p.problemRows ? `Последний импорт требует внимания: ${p.problemRows} строк с предупреждениями в ${p.openJobs} незавершённых загрузках. Я могу помочь разобрать конкретную строку.` : 'Последний импорт выглядит чисто: незавершенных загрузок с предупреждениями не найдено.', action: null, data: p };
+    }
     if (/(состояни|статус|сколько|счетчик|счётчик)/.test(lower)) {
       const r = await this.executeFunction('SYSTEM_SNAPSHOT', {}, userId);
       return { success: true, reply: `Сейчас в системе: ${r.result.counts.participants} участников, ${r.result.counts.cars} автомобилей, ${r.result.counts.registrations} регистраций и ${r.result.counts.results} результатов.`, action: null, data: r.result };
@@ -72,15 +77,25 @@ export class AssistantService {
       { code: 'DATA_QUALITY_SCAN', title: 'Проверка качества данных', description: 'Проверяет регистрации, инспекции, результаты, рекорды, автомобили и импорты.', risk: 'Низкий', confirmation: false },
       { code: 'STAGE_READINESS', title: 'Проверка готовности этапа', description: 'Проверяет активный этап, классы, регистрацию, инспекции, результаты и LIVE-настройки.', risk: 'Низкий', confirmation: false },
       { code: 'SYSTEM_SNAPSHOT', title: 'Снимок состояния системы', description: 'Показывает основные счётчики и состояние ключевых сущностей.', risk: 'Низкий', confirmation: false },
+      { code: 'IMPORT_DIAGNOSTICS', title: 'Разбор импорта', description: 'Показывает незавершённые импорты, WARNING и распределение строк по статусам.', risk: 'Низкий', confirmation: false },
     ] };
   }
 
   async executeFunction(code: string, body: Record<string, unknown>, userId: string) {
-    const allowed = new Set(['DATA_QUALITY_SCAN', 'STAGE_READINESS', 'SYSTEM_SNAPSHOT']);
+    const allowed = new Set(['DATA_QUALITY_SCAN', 'STAGE_READINESS', 'SYSTEM_SNAPSHOT', 'IMPORT_DIAGNOSTICS']);
     if (!allowed.has(code)) throw new BadRequestException('Функция ассистента не разрешена');
     let result: any;
     if (code === 'DATA_QUALITY_SCAN') result = await this.dataQuality.getReport();
-    else if (code === 'SYSTEM_SNAPSHOT') {
+    else if (code === 'IMPORT_DIAGNOSTICS') {
+      const [openJobs, problemRows, readyRows, resolvedRows, committedJobs] = await Promise.all([
+        this.prisma.importJob.count({ where: { status: { in: ['DRAFT', 'READY'] } } }),
+        this.prisma.importRow.count({ where: { status: 'WARNING', importJob: { status: { in: ['DRAFT', 'READY'] } } } }),
+        this.prisma.importRow.count({ where: { status: 'READY', importJob: { status: { in: ['DRAFT', 'READY'] } } } }),
+        this.prisma.importRow.count({ where: { status: 'RESOLVED', importJob: { status: { in: ['DRAFT', 'READY'] } } } }),
+        this.prisma.importJob.count({ where: { status: 'COMMITTED' } }),
+      ]);
+      result = { openJobs, problemRows, readyRows, resolvedRows, committedJobs, healthy: problemRows === 0 };
+    } else if (code === 'SYSTEM_SNAPSHOT') {
       const [participants, cars, registrations, results, stages, imports] = await Promise.all([
         this.prisma.participant.count(), this.prisma.car.count(), this.prisma.registration.count(),
         this.prisma.result.count(), this.prisma.stage.count(), this.prisma.importJob.count(),

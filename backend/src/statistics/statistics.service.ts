@@ -1228,7 +1228,13 @@ export class StatisticsService {
     return {
       success: true,
       generatedAt: now,
-      overview,
+      // Keep the dashboard contract flat and explicit. The previous response
+      // returned getOverview() as { stats, topParticipants }, while the admin UI
+      // consumes overview.participants / overview.cars / ... directly.
+      overview: {
+        ...overview.stats,
+        topParticipants: overview.topParticipants,
+      },
       currentStage: nextStage,
       attention: {
         openStages,
