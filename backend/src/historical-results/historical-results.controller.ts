@@ -51,6 +51,7 @@ export class HistoricalResultsController {
     return this.service.verifyAll(req);
   }
 
+  @Roles('ADMIN')
   @Post()
   create(@Body() body: CreateHistoricalResultDto, @Req() req: AuthenticatedRequest) {
     return this.service.create(body, req);
