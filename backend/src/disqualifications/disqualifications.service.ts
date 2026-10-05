@@ -164,32 +164,42 @@ export class DisqualificationsService {
       }
     }
 
-    const existing =
-      await this.prisma.disqualification.findFirst({
+    const lockKey = [
+      body.participantId,
+      body.scope,
+      body.stageId ?? '',
+      body.seasonId ?? '',
+    ].join(':');
+
+    const disqualification = await this.prisma.$transaction(async (tx) => {
+      // Serialize duplicate active disqualification creation for the same
+      // participant/scope/target. The pre-existing check was outside the
+      // transaction and was therefore race-prone.
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${lockKey}))
+      `;
+
+      const existing = await tx.disqualification.findFirst({
         where: {
           participantId: body.participantId,
           scope: body.scope,
           status: 'ACTIVE',
           ...(body.scope === 'STAGE'
-            ? {
-                stageId: body.stageId,
-              }
+            ? { stageId: body.stageId }
             : {}),
           ...(body.scope === 'SEASON'
-            ? {
-                seasonId: body.seasonId,
-              }
+            ? { seasonId: body.seasonId }
             : {}),
         },
+        select: { id: true },
       });
 
-    if (existing) {
-      throw new ConflictException(
-        'Для участника уже существует активная дисквалификация такого типа',
-      );
-    }
+      if (existing) {
+        throw new ConflictException(
+          'Для участника уже существует активная дисквалификация такого типа',
+        );
+      }
 
-    const disqualification = await this.prisma.$transaction(async (tx) => {
       const created = await tx.disqualification.create({
         data: {
           participantId: body.participantId,
