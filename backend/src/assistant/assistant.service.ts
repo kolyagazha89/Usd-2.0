@@ -67,14 +67,14 @@ export class AssistantService {
       result = { success: true, counts: { participants, cars, registrations, results, stages, imports } };
     } else {
       const stageId = typeof body.stageId === 'string' ? body.stageId : undefined;
-      const stage = stageId ? await this.prisma.stage.findUnique({ where: { id: stageId }, include: { classes: { where: { isActive: true } } } }) : await this.prisma.stage.findFirst({ orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], include: { classes: { where: { isActive: true } } } });
+      const stage = stageId ? await this.prisma.stage.findUnique({ where: { id: stageId }, include: { stageClasses: { where: { isActive: true }, select: { id: true } } } }) : await this.prisma.stage.findFirst({ orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], include: { classes: { where: { isActive: true } } } });
       if (!stage) throw new NotFoundException('Этап для проверки не найден');
       const [registrations, inspections, results] = await Promise.all([
         this.prisma.registration.count({ where: { stageId: stage.id, status: 'ACTIVE' } }),
         this.prisma.inspection.count({ where: { registration: { stageId: stage.id } } }),
         this.prisma.result.count({ where: { registration: { stageId: stage.id } } }),
       ]);
-      result = { success: true, stage: { id: stage.id, name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.classes.length }, counts: { registrations, inspections, results }, ready: stage.classes.length > 0 && stage.status !== 'CANCELLED' };
+      result = { success: true, stage: { id: stage.id, name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length }, counts: { registrations, inspections, results }, ready: stage.stageClasses.length > 0 && stage.status !== 'CANCELLED' };
     }
     await this.audit(userId, 'ASSISTANT_FUNCTION_EXECUTED', code);
     return { success: true, code, result };
