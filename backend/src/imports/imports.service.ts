@@ -146,7 +146,6 @@ export class ImportsService {
           participantMatches,
           registrationParticipants,
           stageClasses,
-          body.historicalResults === true,
         ),
     );
 
@@ -1512,7 +1511,6 @@ export class ImportsService {
     >,
     registrationParticipantIndex: RegistrationParticipantIndex,
     stageClasses: Array<any>,
-    historicalResults = false,
   ) {
     const rawName =
       this.stringValue(
@@ -1574,12 +1572,7 @@ export class ImportsService {
           source: 'REGISTRATION';
         };
 
-    if (historicalResults && databaseParticipant.status === 'MATCHED') {
-      participant = {
-        ...databaseParticipant,
-        source: 'DATABASE',
-      };
-    } else if (
+    if (
       registrationParticipant.status ===
       'MATCHED'
     ) {
@@ -1659,11 +1652,16 @@ export class ImportsService {
 
     const registrationParticipantNumber =
       registrationParticipant.status ===
-        'MATCHED'
-        ? registrationParticipant.matches[0]?.participantNumber ?? null
+        'MATCHED' &&
+      registrationParticipant.matches[0]
+        ?.participantNumber !== null
+        ? registrationParticipant.matches[0]
+            ?.participantNumber
         : null;
 
-    let participantNumber: number | null = null;
+    let participantNumber:
+      | number
+      | null = null;
 
     let participantNumberSource:
       | 'RESULT'
@@ -1673,16 +1671,7 @@ export class ImportsService {
 
     const warnings: string[] = [];
 
-    if (historicalResults) {
-      if (resultParticipantNumber !== null) {
-        participantNumber = resultParticipantNumber;
-        participantNumberSource = 'RESULT';
-      } else {
-        warnings.push(
-          `Строка ${rowNumber}: в листе результатов отсутствует положительный номер участника; историческую регистрацию создать нельзя`,
-        );
-      }
-    } else if (
+    if (
       registrationParticipant.status ===
       'MATCHED'
     ) {
@@ -1767,11 +1756,9 @@ export class ImportsService {
           'RESULT';
       }
 
-      if (!historicalResults) {
-        warnings.push(
-          `Строка ${rowNumber}: участник "${rawName}" отсутствует в регистрации этого этапа`,
-        );
-      }
+      warnings.push(
+        `Строка ${rowNumber}: участник "${rawName}" отсутствует в регистрации этого этапа`,
+      );
     }
 
     if (!foundClass) {
@@ -1791,8 +1778,7 @@ export class ImportsService {
 
     if (
       participant.status ===
-      'NEW' &&
-      !historicalResults
+      'NEW'
     ) {
       warnings.push(
         `Строка ${rowNumber}: участник "${rawName}" отсутствует в базе`,
@@ -3379,17 +3365,6 @@ export class ImportsService {
           );
         }
 
-        const historicalResults =
-          (importJob.metadata as any)?.historicalResults === true;
-
-        if (historicalResults) {
-          return await this.commitHistoricalImport(
-            tx,
-            importJob,
-            request,
-          );
-        }
-
         const unresolvedRows =
           importJob.rows.filter(
             (row) =>
@@ -4955,557 +4930,6 @@ export class ImportsService {
       },
     );
   }
-
-  private findHistoricalRegistrationReference(
-    rawName: string,
-    participantNumber: number,
-    index: RegistrationParticipantIndex,
-  ): RegistrationParticipantMatch | null {
-    const byNumber = index.byNumber.get(participantNumber) ?? [];
-    if (byNumber.length === 1) {
-      return byNumber[0];
-    }
-
-    const normalizedName = this.normalizePersonName(rawName);
-    if (normalizedName) {
-      const byName = index.byName.get(normalizedName) ?? [];
-      if (byName.length === 1) {
-        return byName[0];
-      }
-    }
-
-    return null;
-  }
-
-
-  /**
-   * Historical import is result-driven.
-   *
-   * Registration-sheet rows are reference data only: they are never
-   * committed by themselves. Only people present in Results are imported.
-   * Results own the participant number; Registration is used to enrich
-   * participant/car data when available.
-   */
-  private async commitHistoricalImport(
-    tx: Prisma.TransactionClient,
-    importJob: any,
-    request?: AuthenticatedRequest,
-  ) {
-    const resultRows = importJob.rows.filter(
-      (row: any) => row.type === 'RESULT',
-    );
-
-    const unresolvedResults = resultRows.filter(
-      (row: any) => row.status === 'WARNING',
-    );
-
-    if (unresolvedResults.length > 0) {
-      throw new BadRequestException(
-        `В историческом импорте остались нерешённые строки результатов: ${unresolvedResults.map((row: any) => row.rowNumber).join(', ')}`,
-      );
-    }
-
-    const registrationRows = importJob.rows.filter(
-      (row: any) => row.type === 'REGISTRATION',
-    );
-
-    const registrationIndex =
-      this.buildRegistrationParticipantIndex(
-        registrationRows.map((row: any) => row.rawData as ImportRow),
-      );
-
-    const importedParticipants = new Map<string, string>();
-    const importedRegistrations = new Map<string, string>();
-    const committedRows: Array<{
-      rowId: string;
-      type: string;
-      participantId: string;
-      registrationId: string;
-      classId?: string;
-      resultId?: string;
-    }> = [];
-
-    for (const row of resultRows) {
-      if (row.status !== 'READY' && row.status !== 'RESOLVED') {
-        continue;
-      }
-
-      const normalized = (row.normalizedData ?? {}) as any;
-      const resolution = (row.resolution ?? {}) as any;
-      const rawData = (row.rawData ?? {}) as ImportRow;
-
-      const resultNumber =
-        this.parseParticipantNumber(
-          normalized?.resultParticipantNumber ??
-          this.getImportFieldValue(rawData, [
-            'Номер',
-            'Номер участника',
-            'participantNumber',
-          ]),
-        );
-
-      if (!resultNumber) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: номер участника должен быть указан в листе результатов и быть больше 0`,
-        );
-      }
-
-      const rawName =
-        this.stringValue(
-          normalized?.participant?.rawName ??
-          this.getImportFieldValue(rawData, [
-            'ФИО',
-            'Фамилия и имя',
-            'participantName',
-          ]),
-        );
-
-      const registrationReference =
-        this.findHistoricalRegistrationReference(
-          rawName,
-          resultNumber,
-          registrationIndex,
-        );
-
-      let participantId: string | null = null;
-
-      if (resolution?.participant?.action === 'USE_EXISTING') {
-        participantId = this.stringValue(
-          resolution.participant.participantId,
-        );
-      }
-
-      if (!participantId && normalized?.participant?.source === 'DATABASE' &&
-          normalized?.participant?.matches?.length === 1) {
-        participantId = normalized.participant.matches[0].id;
-      }
-
-      if (!participantId && registrationReference) {
-        const registrationParticipant = this.findParticipant(
-          registrationReference.rawName,
-          this.buildParticipantIndex(
-            await tx.participant.findMany({
-              select: {
-                id: true,
-                lastName: true,
-                firstName: true,
-                middleName: true,
-                team: true,
-              },
-            }),
-          ),
-        );
-        if (registrationParticipant.status === 'MATCHED') {
-          participantId = registrationParticipant.matches[0].id;
-        }
-      }
-
-      if (!participantId && rawName) {
-        participantId = importedParticipants.get(
-          this.normalizePersonName(rawName),
-        ) ?? null;
-      }
-
-      if (!participantId) {
-        const fullName =
-          this.stringValue(
-            resolution?.participant?.fullName ??
-            rawName ??
-            registrationReference?.rawName,
-          );
-
-        if (!fullName) {
-          throw new BadRequestException(
-            `Строка ${row.rowNumber}: невозможно определить ФИО участника из результата`,
-          );
-        }
-
-        const created = await this.createParticipantFromImport(
-          tx,
-          {
-            fullName,
-            team: this.stringValue(
-              resolution?.participant?.team ??
-              registrationReference?.team ??
-              this.getImportFieldValue(rawData, ['Команда', 'team']),
-            ) || null,
-            email: this.stringValue(
-              resolution?.participant?.email ??
-              registrationReference?.email ??
-              this.getImportFieldValue(rawData, ['Email', 'E-mail', 'Электронная почта', 'email']),
-            ) || null,
-          },
-        );
-
-        participantId = created.id;
-      }
-
-      if (rawName) {
-        importedParticipants.set(
-          this.normalizePersonName(rawName),
-          participantId,
-        );
-      }
-
-      const registrationKey =
-        `${participantId}:${resultNumber}`;
-
-      let registrationId =
-        importedRegistrations.get(registrationKey) ?? null;
-
-      if (!registrationId) {
-        const existing =
-          await tx.registration.findUnique({
-            where: {
-              stageId_participantNumber: {
-                stageId: importJob.stageId,
-                participantNumber: resultNumber,
-              },
-            },
-            select: {
-              id: true,
-              participantId: true,
-              carId: true,
-              status: true,
-            },
-          });
-
-        if (existing) {
-          if (existing.participantId !== participantId) {
-            throw new BadRequestException(
-              `Номер участника ${resultNumber} уже принадлежит другому участнику`,
-            );
-          }
-          registrationId = existing.id;
-          if (existing.status === 'CANCELLED') {
-            await tx.registration.update({
-              where: { id: existing.id },
-              data: { status: 'ACTIVE', source: 'IMPORT', registeredAt: new Date() },
-            });
-          }
-        }
-      }
-
-      let carId: string | null = null;
-
-      if (resolution?.car?.action === 'USE_EXISTING') {
-        carId = this.stringValue(resolution.car.carId) || null;
-      } else {
-        const carSource: Record<string, unknown> = {
-          ...(registrationReference?.car ?? {}),
-          ...rawData,
-        };
-
-        if (resolution?.car?.action === 'CREATE') {
-          Object.assign(carSource, {
-            brand: resolution.car.brand,
-            model: resolution.car.model,
-            registrationNumber: resolution.car.registrationNumber,
-            registrationCountry: resolution.car.registrationCountry,
-          });
-        }
-
-        const existingCars = await tx.car.findMany({
-          where: { participantId },
-          orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            brand: true,
-            model: true,
-            registrationNumber: true,
-            isActive: true,
-          },
-        });
-
-        const plate =
-          this.stringValue(
-            this.getImportFieldValue(carSource, [
-              'Номер автомобиля',
-              'Гос. номер',
-              'Гос номер',
-              'Регистрационный номер',
-              'registrationNumber',
-              'plateNumber',
-            ]),
-          ).toUpperCase();
-
-        const model =
-          this.stringValue(
-            this.getImportFieldValue(carSource, [
-              'Модель автомобиля',
-              'Модель',
-              'model',
-            ]),
-          );
-
-        const existingCar =
-          (plate && existingCars.find(
-            (car: any) =>
-              car.registrationNumber.trim().toUpperCase() === plate,
-          )) ||
-          (model && existingCars.find(
-            (car: any) =>
-              car.model.trim().toLowerCase() === model.toLowerCase(),
-          )) ||
-          (!plate && !model ? existingCars[0] : undefined);
-
-        if (existingCar) {
-          carId = existingCar.id;
-          if (!existingCar.isActive) {
-            await tx.car.update({
-              where: { id: existingCar.id },
-              data: { isActive: true },
-            });
-          }
-        } else {
-          const brand =
-            this.stringValue(
-              this.getImportFieldValue(carSource, [
-                'Марка автомобиля',
-                'Марка',
-                'brand',
-              ]),
-            ) || 'Импорт';
-
-          const resolvedModel =
-            model || 'Автомобиль из исторического импорта';
-
-          const registrationNumber =
-            plate ||
-            `IMPORT-${participantId.slice(0, 8).toUpperCase()}`;
-
-          carId = await this.getOrCreateImportCar(
-            tx,
-            participantId,
-            {
-              brand,
-              model: resolvedModel,
-              registrationNumber,
-              registrationCountry:
-                this.stringValue(
-                  this.getImportFieldValue(carSource, [
-                    'Страна регистрации',
-                    'registrationCountry',
-                    'country',
-                  ]),
-                ) || 'RU',
-            },
-          );
-        }
-      }
-
-      if (!carId) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: не удалось определить автомобиль`,
-        );
-      }
-
-      if (!registrationId) {
-        const existingByCar =
-          await tx.registration.findUnique({
-            where: {
-              stageId_carId: {
-                stageId: importJob.stageId,
-                carId,
-              },
-            },
-            select: {
-              id: true,
-              participantId: true,
-              participantNumber: true,
-              status: true,
-            },
-          });
-
-        if (existingByCar) {
-          if (existingByCar.participantId !== participantId) {
-            throw new BadRequestException(
-              `Автомобиль уже зарегистрирован на этом этапе под номером ${existingByCar.participantNumber}`,
-            );
-          }
-          if (existingByCar.participantNumber !== resultNumber) {
-            throw new BadRequestException(
-              `Автомобиль уже привязан к номеру ${existingByCar.participantNumber}, а в результатах указан ${resultNumber}`,
-            );
-          }
-          registrationId = existingByCar.id;
-        }
-      }
-
-      if (!registrationId) {
-        const registration = await this.createImportRegistration(
-          tx,
-          {
-            stageId: importJob.stageId,
-            participantId,
-            carId,
-            participantNumber: resultNumber,
-          },
-        );
-        registrationId = registration.id;
-      }
-
-      importedRegistrations.set(
-        registrationKey,
-        registrationId,
-      );
-
-      const classId =
-        resolution?.classId ??
-        normalized?.class?.classId ??
-        row.classId;
-
-      if (!classId) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: не удалось определить класс`,
-        );
-      }
-
-      const stageClass = await tx.stageClass.findUnique({
-        where: {
-          stageId_classId: {
-            stageId: importJob.stageId,
-            classId,
-          },
-        },
-        include: {
-          class: {
-            select: {
-              unit: true,
-              isActive: true,
-            },
-          },
-        },
-      });
-
-      if (!stageClass || !stageClass.isActive || !stageClass.class.isActive) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: класс не подключён или неактивен на этапе`,
-        );
-      }
-
-      let registrationClass =
-        await tx.registrationClass.findUnique({
-          where: {
-            registrationId_classId: {
-              registrationId,
-              classId,
-            },
-          },
-        });
-
-      if (!registrationClass) {
-        registrationClass = await tx.registrationClass.create({
-          data: {
-            registrationId,
-            classId,
-          },
-        });
-      }
-
-      const value =
-        resolution?.value ??
-        row.value ??
-        normalized?.result;
-
-      if (value === null || value === undefined || !Number.isFinite(Number(value))) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: не указан результат`,
-        );
-      }
-
-      const place =
-        resolution?.place ??
-        row.place ??
-        normalized?.place ??
-        null;
-
-      const notes =
-        resolution?.notes !== undefined
-          ? this.stringValue(resolution.notes) || null
-          : null;
-
-      const existingResult =
-        await tx.result.findFirst({
-          where: {
-            registrationClassId: registrationClass.id,
-          },
-          select: { id: true },
-        });
-
-      if (existingResult) {
-        throw new BadRequestException(
-          `Строка ${row.rowNumber}: результат для этой регистрации и класса уже существует`,
-        );
-      }
-
-      const result = await tx.result.create({
-        data: {
-          registrationId,
-          registrationClassId: registrationClass.id,
-          value: Number(value),
-          unit: stageClass.class.unit,
-          place,
-          notes,
-          isBest: false,
-          isHistorical: true,
-          verificationStatus: 'PENDING',
-        },
-      });
-
-      await tx.importRow.update({
-        where: { id: row.id },
-        data: {
-          participantId,
-          registrationId,
-          classId,
-          status: 'COMMITTED',
-        },
-      });
-
-      committedRows.push({
-        rowId: row.id,
-        type: row.type,
-        participantId,
-        registrationId,
-        classId,
-        resultId: result.id,
-      });
-    }
-
-    await tx.importJob.update({
-      where: { id: importJob.id },
-      data: { status: 'COMMITTED' },
-    });
-
-    if (request) {
-      await tx.auditLog.create({
-        data: {
-          userId: request.user.sub,
-          action: 'IMPORT_COMMITTED',
-          entity: 'ImportJob',
-          entityId: importJob.id,
-          ipAddress: request.ip,
-          metadata: {
-            stageId: importJob.stageId,
-            rowsCount: committedRows.length,
-            historicalResults: true,
-            registrationRowsIgnored: registrationRows.length,
-          },
-        },
-      });
-    }
-
-    return {
-      success: true,
-      importJobId: importJob.id,
-      status: 'COMMITTED',
-      historicalResults: true,
-      rows: committedRows,
-      registrationRowsIgnored: registrationRows.length,
-    };
-  }
-
 
   async checkImport(
     importJobId: string,
