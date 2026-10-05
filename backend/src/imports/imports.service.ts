@@ -140,6 +140,11 @@ export class ImportsService {
         ),
       );
 
+    const historicalNumberMap =
+      body.historicalResults === true
+        ? this.buildHistoricalFallbackNumbers(registrations, results)
+        : undefined;
+
     const resultPreview = results.map(
       (row, index) =>
         this.previewResultRow(
@@ -149,6 +154,7 @@ export class ImportsService {
           registrationParticipants,
           stageClasses,
           body.historicalResults === true,
+          historicalNumberMap,
         ),
     );
 
@@ -1582,6 +1588,37 @@ export class ImportsService {
     };
   }
 
+  private buildHistoricalFallbackNumbers(
+    registrations: ImportRow[],
+    results: ImportRow[],
+  ) {
+    const used = new Set<number>();
+    const map = new Map<string, number>();
+    const add = (value: unknown) => {
+      const number = this.parseParticipantNumber(value);
+      if (number !== null) used.add(number);
+    };
+    for (const row of registrations) add(this.getImportFieldValue(row, ['Номер участника','№ участника','Номер','participantNumber']));
+    for (const row of results) add(this.getImportFieldValue(row, ['Номер','Номер участника','participantNumber']));
+
+    const names = new Set<string>();
+    for (const row of results) {
+      const name = this.stringValue(this.getImportFieldValue(row, ['ФИО','Фамилия и имя','participantName']));
+      const number = this.parseParticipantNumber(this.getImportFieldValue(row, ['Номер','Номер участника','participantNumber']));
+      const key = this.normalizePersonName(name);
+      if (key && number === null) names.add(key);
+    }
+
+    let next = Math.max(0, ...Array.from(used)) + 1;
+    for (const key of names) {
+      while (used.has(next)) next += 1;
+      map.set(key, next);
+      used.add(next);
+      next += 1;
+    }
+    return map;
+  }
+
   private previewResultRow(
     row: ImportRow,
     rowNumber: number,
@@ -1592,6 +1629,7 @@ export class ImportsService {
     registrationParticipantIndex: RegistrationParticipantIndex,
     stageClasses: Array<any>,
     historicalResults = false,
+    fallbackParticipantNumbers?: Map<string, number>,
   ) {
     const rawName =
       this.stringValue(
@@ -1776,7 +1814,8 @@ export class ImportsService {
 
         if (
           resultParticipantNumber !== registrationParticipantNumber &&
-          !isBassRace
+          !isBassRace &&
+          !historicalResults
         ) {
           warnings.push(
             'Строка ' + rowNumber + ': номер участника в результате (' + resultParticipantNumber + ') отличается от номера в регистрации (' + registrationParticipantNumber + ')',
@@ -1823,9 +1862,18 @@ export class ImportsService {
       resultParticipantNumber === null &&
       participantNumber === null
     ) {
-      warnings.push(
-        'Строка ' + rowNumber + ': в листе результатов отсутствует номер участника и его нельзя определить по таблице регистрации',
-      );
+      const allocationKey = this.normalizePersonName(rawName);
+      const allocated = allocationKey
+        ? fallbackParticipantNumbers?.get(allocationKey)
+        : undefined;
+      if (allocated) {
+        participantNumber = allocated;
+        participantNumberSource = 'RESULT';
+      } else {
+        warnings.push(
+          'Строка ' + rowNumber + ': в листе результатов отсутствует ФИО для автоматической выдачи номера',
+        );
+      }
     }
 
     if (!foundClass) {
