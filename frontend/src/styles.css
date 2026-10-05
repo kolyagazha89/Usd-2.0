@@ -1580,3 +1580,78 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .assistant-inline-confirm-actions button{width:100%}
  .assistant-chat-note{padding:8px 12px 12px}
 }
+
+/* USD FINAL VISUAL SYSTEM — intentional scrollbars + clean overlays */
+html,body{
+  scrollbar-width:auto;
+  scrollbar-color:#8f969e #eceef0;
+}
+*{
+  scrollbar-width:auto;
+  scrollbar-color:#9aa1a8 #eef0f2;
+}
+*::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+*::-webkit-scrollbar-track{
+  background:#eef0f2;
+  border-radius:999px;
+}
+*::-webkit-scrollbar-thumb{
+  background:#9aa1a8;
+  border:2px solid #eef0f2;
+  border-radius:999px;
+  background-clip:padding-box;
+}
+*::-webkit-scrollbar-thumb:hover{
+  background:#68717a;
+  border-width:1px;
+}
+.sidebar nav::-webkit-scrollbar-track,
+.assistant-messages::-webkit-scrollbar-track,
+.stage-class-modal-list::-webkit-scrollbar-track,
+.config-list::-webkit-scrollbar-track{
+  background:#151719;
+}
+.sidebar nav::-webkit-scrollbar-thumb{
+  background:#555b61;
+  border-color:#151719;
+}
+.sidebar nav::-webkit-scrollbar-thumb:hover{
+  background:#e21d2f;
+}
+.modal-backdrop{
+  background:rgba(7,9,11,.52)!important;
+  backdrop-filter:blur(8px)!important;
+  -webkit-backdrop-filter:blur(8px)!important;
+  padding:24px!important;
+}
+.modal{
+  width:min(720px,calc(100vw - 48px))!important;
+  max-height:min(88vh,900px)!important;
+  margin:auto!important;
+  overflow:auto!important;
+  border:1px solid rgba(20,23,26,.10)!important;
+  border-radius:20px!important;
+  background:#fff!important;
+  box-shadow:0 32px 100px rgba(0,0,0,.30),0 8px 30px rgba(0,0,0,.12)!important;
+}
+.modal-head{
+  position:sticky!important;
+  top:0!important;
+  z-index:5!important;
+  margin:0!important;
+  padding:18px 22px 15px!important;
+  background:rgba(255,255,255,.96)!important;
+  backdrop-filter:blur(12px)!important;
+  -webkit-backdrop-filter:blur(12px)!important;
+  border-bottom:1px solid #eceef0!important;
+}
+.panel,.stat-card,.dashboard-alert,.dashboard-feature,.assistant-chat,.assistant-side-card,.asset-card{
+  box-shadow:var(--ui-shadow,0 8px 28px rgba(16,20,24,.07));
+}
+@media(max-width:560px){
+  .modal-backdrop{padding:10px!important}
+  .modal{width:calc(100vw - 20px)!important;border-radius:16px!important}
+}
