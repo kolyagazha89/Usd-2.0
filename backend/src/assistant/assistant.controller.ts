@@ -8,6 +8,16 @@ import { AssistantService } from './assistant.service';
 export class AssistantController {
   constructor(private readonly service: AssistantService) {}
 
+  @Get('functions')
+  functions() {
+    return this.service.functions();
+  }
+
+  @Post('functions/:code/execute')
+  executeFunction(@Param('code') code: string, @Body() body: Record<string, unknown>, @Req() req: AuthenticatedRequest) {
+    return this.service.executeFunction(code, body, req.user.sub);
+  }
+
   @Get('requests')
   list() {
     return this.service.list();
