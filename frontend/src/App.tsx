@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,getAssistantRequests,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {section:'Рабочий стол',label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
