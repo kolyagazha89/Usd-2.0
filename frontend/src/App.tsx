@@ -3,24 +3,24 @@ import {Activity,AlertTriangle,BarChart3,Bell,CalendarDays,CarFront,Check,Chevro
 import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,updateSiteSettings,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
- {label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
- {label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
- {label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
- {label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
- {label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
- {label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
- {label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
- {label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
- {label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
- {label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
- {label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
- {label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
- {label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
- {label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
- {label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
- {label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
- {label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
+ {section:'Рабочий стол',label:'Dashboard',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
+ {section:'Соревнование',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
+ {section:'Соревнование',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
+ {section:'Соревнование',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
+ {section:'Соревнование',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Справочники',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
+ {section:'Справочники',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
+ {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
+ {section:'Справочники',label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
+ {section:'Контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
+ {section:'Контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
+ {section:'Данные',label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
+ {section:'Данные',label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
+ {section:'Данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
+ {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
+ {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
+ {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
 ];
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
@@ -47,12 +47,12 @@ function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к Admin Panel.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
 function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
- const visible=useMemo(()=>nav.filter(n=>n.roles.includes(user.role)),[user.role]),active=visible.find(n=>path===n.path||(n.path!=='/admin'&&path.startsWith(n.path)));
+ const visible=useMemo(()=>nav.filter(n=>n.roles.includes(user.role)),[user.role]),active=visible.find(n=>path===n.path||(n.path!=='/admin'&&path.startsWith(n.path))),groups=useMemo(()=>visible.reduce((acc:any[],item:any)=>{let g=acc.find(x=>x.name===item.section);if(!g){g={name:item.section,items:[]};acc.push(g)}g.items.push(item);return acc},[]),[visible]);
  const[fieldMode,setFieldMode]=useState(()=>localStorage.getItem('usd.fieldMode')==='1');
  const[searchOpen,setSearchOpen]=useState(false);
  useEffect(()=>{localStorage.setItem('usd.fieldMode',fieldMode?'1':'0');document.documentElement.classList.toggle('field-mode',fieldMode);return()=>document.documentElement.classList.remove('field-mode')},[fieldMode]);
  useEffect(()=>{const h=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setSearchOpen(true)}if(e.key==='Escape')setSearchOpen(false)};addEventListener('keydown',h);return()=>removeEventListener('keydown',h)},[]);
- return <div className="app-shell"><aside className={`sidebar ${mobileOpen?'open':''}`}><div className="sidebar-top"><button className="brand-button" onClick={()=>go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button><button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)}><X size={19}/></button></div><div className="sidebar-label">Управление</div><nav>{visible.map(n=>{const I=n.icon;return <button key={n.path} className={`nav-item ${active?.path===n.path?'active':''}`} onClick={()=>go(n.path)}><I size={18}/><span>{n.label}</span>{active?.path===n.path&&<span className="nav-dot"/>}</button>})}</nav><div className="sidebar-bottom"><div className="user-mini"><div className="avatar">{(user.name??user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name||'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div><button className="logout-button" onClick={()=>void onLogout()}><LogOut size={17}/>Выйти</button></div></aside>{mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)}/>}<main className="main"><header className="topbar"><button className="icon-button menu-button" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><button className="global-search-trigger" onClick={()=>setSearchOpen(true)}><Search size={15}/><span>Быстрый поиск</span><kbd>Ctrl K</kbd></button><div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label??'Панель'}</strong></div><div className="topbar-actions"><button className={`field-status ${fieldMode?'active':''}`} title="Режим для работы на площадке: крупнее элементы, меньше второстепенных деталей" onClick={()=>setFieldMode(v=>!v)}><span className="field-status-dot"/>{fieldMode?'ПОЛЕВОЙ РЕЖИМ ON':'ПОЛЕВОЙ РЕЖИМ'}</button><div className="role-pill">{user.role==='JUDGE'?'JUDGE':'ADMIN'}</div><button className="topbar-refresh" title="Обновить страницу" onClick={()=>window.location.reload()}><RefreshCw size={16}/></button></div></header><div className="content"><Page path={path} go={go} user={user}/></div></main>{searchOpen&&<GlobalSearch onClose={()=>setSearchOpen(false)} go={go}/>}</div>
+ return <div className="app-shell"><aside className={`sidebar ${mobileOpen?'open':''}`}><div className="sidebar-top"><button className="brand-button" onClick={()=>go('/admin')}><span className="brand-mark small">USD</span><span className="brand-title">USD <b>2.0</b></span></button><button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)}><X size={19}/></button></div><div className="sidebar-label">Управление</div><nav>{groups.map((g:any)=><div className="nav-group" key={g.name}><div className="nav-group-title">{g.name}</div>{g.items.map((n:any)=>{const I=n.icon;return <button key={n.path} className={`nav-item ${active?.path===n.path?'active':''}`} onClick={()=>go(n.path)}><I size={17}/><span>{n.label}</span>{active?.path===n.path&&<span className="nav-dot"/>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="user-mini"><div className="avatar">{(user.name??user.email).slice(0,1).toUpperCase()}</div><div><strong>{user.name||'Пользователь'}</strong><small>{roleName[user.role]}</small></div></div><button className="logout-button" onClick={()=>void onLogout()}><LogOut size={17}/>Выйти</button></div></aside>{mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)}/>}<main className="main"><header className="topbar"><button className="icon-button menu-button" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><button className="global-search-trigger" onClick={()=>setSearchOpen(true)}><Search size={15}/><span>Быстрый поиск</span><kbd>Ctrl K</kbd></button><div className="breadcrumb"><span>USD 2.0</span><ChevronRight size={14}/><strong>{active?.label??'Панель'}</strong></div><div className="topbar-actions"><button className={`field-status ${fieldMode?'active':''}`} title="Режим для работы на площадке: крупнее элементы, меньше второстепенных деталей" onClick={()=>setFieldMode(v=>!v)}><span className="field-status-dot"/>{fieldMode?'ПОЛЕВОЙ РЕЖИМ ON':'ПОЛЕВОЙ РЕЖИМ'}</button><div className="role-pill">{user.role==='JUDGE'?'JUDGE':'ADMIN'}</div><button className="topbar-refresh" title="Обновить страницу" onClick={()=>window.location.reload()}><RefreshCw size={16}/></button></div></header><div className="content"><Page path={path} go={go} user={user}/></div></main>{searchOpen&&<GlobalSearch onClose={()=>setSearchOpen(false)} go={go}/>}</div>
 }
 
 function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
