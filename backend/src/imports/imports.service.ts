@@ -1575,6 +1575,14 @@ export class ImportsService {
         };
 
     if (
+      historicalResults &&
+      databaseParticipant.status === 'MATCHED'
+    ) {
+      participant = {
+        ...databaseParticipant,
+        source: 'DATABASE',
+      };
+    } else if (
       registrationParticipant.status ===
       'MATCHED'
     ) {
