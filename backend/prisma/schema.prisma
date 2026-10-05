@@ -34,6 +34,8 @@ model User {
   resultsCreated           Result[]             @relation("ResultCreatedBy")
   resultsVerified          Result[]             @relation("ResultVerifiedBy")
   participant              Participant?             @relation(fields: [participantId], references: [id])
+  assistantRequestsCreated  AssistantRequest[]      @relation("AssistantRequestCreatedBy")
+  assistantRequestsApproved AssistantRequest[]      @relation("AssistantRequestApprovedBy")
 
   @@index([role])
   @@index([isActive])
