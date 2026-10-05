@@ -1,5 +1,5 @@
-import { Client } from 'pg';
-import { spawnSync } from 'node:child_process';
+const { Client } = require('pg');
+const { spawnSync } = require('node:child_process');
 
 const RECOVERABLE_MIGRATION = '20261005160000_site_settings';
 
@@ -8,15 +8,12 @@ function runPrisma(args) {
     stdio: 'inherit',
     env: process.env,
   });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
 async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
-
   try {
     const result = await client.query(
       `SELECT migration_name
@@ -25,16 +22,13 @@ async function main() {
          AND rolled_back_at IS NULL
        ORDER BY started_at DESC`,
     );
-
-    const failed = result.rows.map((row) => row.migration_name);
-    if (failed.includes(RECOVERABLE_MIGRATION)) {
-      console.log(`[migrate-safe] resolving failed migration: ${RECOVERABLE_MIGRATION}`);
+    if (result.rows.some((row) => row.migration_name === RECOVERABLE_MIGRATION)) {
+      console.log('[migrate-safe] resolving failed site settings migration');
       runPrisma(['migrate', 'resolve', '--rolled-back', RECOVERABLE_MIGRATION]);
     }
   } finally {
     await client.end();
   }
-
   runPrisma(['migrate', 'deploy']);
 }
 
