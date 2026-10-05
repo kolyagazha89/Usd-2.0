@@ -1679,3 +1679,6 @@ html,body{
 .login-footer>span:first-child{display:flex;align-items:center;min-height:22px}
 .brand-mark.small:has(.brand-logo-shell){display:flex;align-items:center;justify-content:flex-start;width:92px;letter-spacing:0}
 @media(max-width:560px){.brand-logo-login{max-width:150px;height:40px}.brand-logo-footer{max-width:84px;height:20px}}
+
+
+.splash-brand{min-height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}.splash-brand img{display:block;width:auto;height:64px;max-width:min(220px,70vw);object-fit:contain;object-position:center}
