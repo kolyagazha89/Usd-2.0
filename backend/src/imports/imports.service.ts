@@ -4230,6 +4230,55 @@ export class ImportsService {
             registrationId,
           );
 
+          if (
+            historicalResults &&
+            registrationId &&
+            participantNumber > 0 &&
+            normalized?.class?.isBassRace !== true
+          ) {
+            const historicalRegistration = await tx.registration.findUnique({
+              where: { id: registrationId },
+              select: { id: true, participantId: true, participantNumber: true },
+            });
+
+            if (
+              historicalRegistration &&
+              historicalRegistration.participantNumber !== participantNumber
+            ) {
+              const occupiedNumber = await tx.registrationNumber.findUnique({
+                where: {
+                  stageId_number: {
+                    stageId: importJob.stageId,
+                    number: participantNumber,
+                  },
+                },
+              });
+
+              if (occupiedNumber && occupiedNumber.registrationId !== registrationId) {
+                throw new BadRequestException(
+                  'Номер участника ' + participantNumber + ' уже зарезервирован другой регистрацией',
+                );
+              }
+
+              await tx.registration.update({
+                where: { id: registrationId },
+                data: { participantNumber },
+              });
+
+              await tx.registrationNumber.updateMany({
+                where: { registrationId },
+                data: { isPrimary: false },
+              });
+
+              await this.ensureRegistrationNumber(tx, {
+                stageId: importJob.stageId,
+                registrationId,
+                number: participantNumber,
+                isPrimary: true,
+              });
+            }
+          }
+
           const classIds =
             new Set<string>();
 
