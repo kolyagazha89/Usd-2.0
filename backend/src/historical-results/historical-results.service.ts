@@ -44,7 +44,10 @@ export class HistoricalResultsService {
         },
       },
       registrationClass: {
-        include: { class: { include: { direction: true } } },
+        include: {
+          number: true,
+          class: { include: { direction: true } },
+        },
       },
       createdByUser: { select: { id: true, name: true, role: true } },
       verifiedByUser: { select: { id: true, name: true, role: true } },
@@ -102,6 +105,7 @@ export class HistoricalResultsService {
       registrationClass: {
         select: {
           id: true,
+          number: true,
           class: {
             select: {
               id: true,
@@ -356,6 +360,15 @@ export class HistoricalResultsService {
           throw new ConflictException('Не удалось создать архивную регистрацию');
         }
 
+        await tx.registrationNumber.create({
+          data: {
+            stageId: data.stageId,
+            registrationId: registration.id,
+            number: data.participantNumber,
+            isPrimary: true,
+          },
+        });
+
         await tx.inspection.create({
           data: {
             registrationId: registration.id,
@@ -371,6 +384,42 @@ export class HistoricalResultsService {
         throw new ConflictException('Регистрация автомобиля отменена и не может использоваться для исторического результата');
       }
 
+      const isBassRace = cls.name.trim().toLowerCase().startsWith('bassrace');
+      const classNumber = data.participantNumber;
+
+      if (!isBassRace && classNumber !== registration.participantNumber) {
+        throw new ConflictException(
+          'Обычный класс не может использовать дополнительный номер регистрации',
+        );
+      }
+
+      const registrationNumber = await tx.registrationNumber.findUnique({
+        where: {
+          stageId_number: {
+            stageId: data.stageId,
+            number: classNumber,
+          },
+        },
+      });
+
+      let numberRecord = registrationNumber;
+      if (numberRecord && numberRecord.registrationId !== registration.id) {
+        throw new ConflictException(
+          'Номер участника ' + classNumber + ' уже зарезервирован другой регистрацией на этом этапе',
+        );
+      }
+
+      if (!numberRecord) {
+        numberRecord = await tx.registrationNumber.create({
+          data: {
+            stageId: data.stageId,
+            registrationId: registration.id,
+            number: classNumber,
+            isPrimary: classNumber === registration.participantNumber,
+          },
+        });
+      }
+
       const registrationClass = await tx.registrationClass.upsert({
         where: {
           registrationId_classId: {
@@ -378,10 +427,11 @@ export class HistoricalResultsService {
             classId: data.classId,
           },
         },
-        update: {},
+        update: { numberId: numberRecord.id },
         create: {
           registrationId: registration.id,
           classId: data.classId,
+          numberId: numberRecord.id,
         },
         select: { id: true },
       });
