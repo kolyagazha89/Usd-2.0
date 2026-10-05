@@ -709,7 +709,7 @@ export class RegistrationsService {
   // ОТМЕНА
   // ==========================================
 
-  async cancel(id: string) {
+  async cancel(id: string, request: AuthenticatedRequest) {
     const registration =
       await this.prisma.registration.findUnique({
         where: {
@@ -768,6 +768,7 @@ export class RegistrationsService {
 
       await tx.auditLog.create({
         data: {
+          userId: request.user.sub,
           action: 'REGISTRATION_CANCELLED',
           entity: 'Registration',
           entityId: id,
