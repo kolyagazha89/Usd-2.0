@@ -570,6 +570,23 @@ model Disqualification {
   @@index([createdAt])
 }
 
+model SiteSettings {
+  id           String   @id
+  branding     Json
+  homepage     Json
+  stream       Json
+  liveResults  Json
+  navigation   Json
+  contacts     Json
+  social       Json
+  seo          Json
+  legal        Json
+  footer       Json
+  registration Json
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String?
