@@ -81,18 +81,17 @@ export async function uploadSiteAsset(assetKey:string,file:File){
   if(file.size<=0) throw new Error('Файл пустой');
   if(file.size>10*1024*1024) throw new Error('Размер изображения не должен превышать 10 МБ');
   const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId:assetKey,contentType:file.type});
-  let upload:Response;
+  let directUploadOk=false;
   try{
-    upload=await fetch(prepared.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});
-  }catch{
-    throw new Error('Не удалось связаться с файловым хранилищем. Проверьте CORS хранилища и доступность S3/R2.');
+    const upload=await fetch(prepared.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});
+    directUploadOk=upload.ok;
+  }catch{}
+  if(!directUploadOk){
+    await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  }else{
+    await apiPost<any>('/media/complete',{uploadToken:prepared.uploadToken});
   }
-  if(!upload.ok){
-    const detail=(await upload.text().catch(()=>'' )).trim();
-    throw new Error(detail?'Хранилище отклонило загрузку: '+detail.slice(0,240):'Хранилище отклонило загрузку файла');
-  }
-  const completed=await apiPost<any>('/media/complete',{uploadToken:prepared.uploadToken});
   const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
-  return { ...completed, url:view.url, publicPath:'/media/public/SITE_ASSET/'+encodeURIComponent(assetKey) };
+  return { url:view.url, publicPath:'/media/public/SITE_ASSET/'+encodeURIComponent(assetKey) };
 }
 export async function getPublicSiteAsset(assetKey:string){return apiGet<any>('/media/public/SITE_ASSET/'+encodeURIComponent(assetKey));}
