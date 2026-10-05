@@ -4366,31 +4366,33 @@ export class ImportsService {
               ? participantNumber
               : primaryRegistrationNumber.number;
 
-            const classNumberRecord =
+            let classNumberRecord =
               classNumber === primaryRegistrationNumber.number
                 ? primaryRegistrationNumber
-                : await tx.registrationNumber.upsert({
+                : await tx.registrationNumber.findUnique({
                     where: {
                       stageId_number: {
                         stageId: importJob.stageId,
                         number: classNumber,
                       },
                     },
-                    update: {
-                      registrationId,
-                    },
-                    create: {
-                      stageId: importJob.stageId,
-                      registrationId,
-                      number: classNumber,
-                      isPrimary: false,
-                    },
                   });
 
-            if (classNumberRecord.registrationId !== registrationId) {
+            if (classNumberRecord && classNumberRecord.registrationId !== registrationId) {
               throw new BadRequestException(
                 'Номер участника ' + classNumber + ' уже зарезервирован другой регистрацией',
               );
+            }
+
+            if (!classNumberRecord) {
+              classNumberRecord = await tx.registrationNumber.create({
+                data: {
+                  stageId: importJob.stageId,
+                  registrationId,
+                  number: classNumber,
+                  isPrimary: false,
+                },
+              });
             }
 
 
