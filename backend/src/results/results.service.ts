@@ -396,6 +396,7 @@ export class ResultsService {
         registration: {
           participant: { isPublic: true },
           car: { isPublic: true },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
           { isHistorical: false },
@@ -428,6 +429,7 @@ export class ResultsService {
         registration: {
           participant: { isPublic: true },
           car: { isPublic: true },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
           { isHistorical: false },
