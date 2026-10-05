@@ -84,13 +84,6 @@ export class MediaService {
     return baseUrl.toString();
   }
 
-  private storageCorsOrigins() {
-    return (process.env.S3_CORS_ORIGINS ?? process.env.CORS_ORIGINS ?? '')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
-  }
-
   private objectUrl(key: string) {
     const cfg = this.config();
     const url = new URL(cfg.endpoint);
