@@ -4258,6 +4258,7 @@ export class ImportsService {
                   include: {                    class: {
                       select: {
                         id: true,
+                        name: true,
                         directionId:
                           true,
                       },
