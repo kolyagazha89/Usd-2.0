@@ -668,3 +668,30 @@ body{font-size:13px}
  .form-grid-2{grid-template-columns:1fr}
  .toolbar{align-items:stretch;flex-wrap:wrap}
 }
+
+
+/* USD Admin — workflow guidance */
+.admin-help-copy{min-width:0;flex:1}
+.admin-flow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.admin-flow span{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid #dfe2e5;background:#fff;border-radius:8px;color:#555c63;font-size:9px;font-weight:800}
+.admin-flow span:first-child{border-color:#111;background:#111;color:#fff}
+.admin-flow span:not(:last-child)::after{content:'→';margin-left:7px;color:#a0a5aa}
+.admin-help-copy p{margin-bottom:0}
+.resource-toolbar{box-shadow:0 4px 14px rgba(10,12,14,.035)}
+.resource-toolbar .search-box{box-shadow:inset 0 0 0 1px rgba(0,0,0,.015)}
+.resource-filters button{transition:.12s}
+.data-table tbody tr td:first-child{font-weight:650}
+.data-table tbody tr:hover td{background:#fafbfc}
+.data-table tbody tr td:first-child{border-left:2px solid transparent}
+.data-table tbody tr:hover td:first-child{border-left-color:#111}
+.entity-fields label{position:relative}
+.entity-fields .field-label{line-height:1.2}
+.entity-fields input,.entity-fields select,.entity-fields textarea{background:#fff!important;color:#111!important}
+.entity-fields input::placeholder,.entity-fields textarea::placeholder{color:#9aa0a6!important}
+.entity-fields select{appearance:auto}
+.modal-form .save-button{position:sticky;bottom:0;z-index:4;background:#111}
+@media(max-width:650px){
+ .admin-flow{display:grid;grid-template-columns:1fr 1fr}
+ .admin-flow span{min-width:0}
+ .admin-flow span:not(:last-child)::after{display:none}
+}
