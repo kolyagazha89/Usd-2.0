@@ -3,8 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
-const STATUSES = new Set(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'APPLIED', 'CANCELLED']);
-
 @Injectable()
 export class AssistantService {
   constructor(private readonly prisma: PrismaService, private readonly dataQuality: DataQualityService) {}
@@ -92,11 +90,19 @@ export class AssistantService {
       'АКТУАЛЬНЫЙ КОНТЕКСТ USD 2.0:',
       JSON.stringify(context),
     ].join('\n');
-    const response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-      body: JSON.stringify({ model, instructions, input: text, reasoning: { effort: 'high' }, max_output_tokens: 1800 }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let response: Response;
+    try {
+      response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+        body: JSON.stringify({ model, instructions, input: text, reasoning: { effort: 'high' }, max_output_tokens: 1800 }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok) return null;
     const data: any = await response.json();
     const reply = typeof data?.output_text === 'string'
@@ -115,8 +121,8 @@ export class AssistantService {
       this.prisma.car.count({ where: { isActive: true } }),
       this.prisma.registration.count({ where: { status: 'ACTIVE' } }),
       this.prisma.result.count(),
-      this.prisma.stage.findMany({ orderBy: [{ date: 'asc' }, { stageNumber: 'asc' }], take: 8, select: { id: true, stageNumber: true, name: true, city: true, date: true, status: true, registrationOpen: true, stageClasses: { where: { isActive: true }, select: { id: true } } } }),
-      this.prisma.importJob.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, status: true, stageId: true, createdAt: true, rows: { select: { status: true } } } }),
+      this.prisma.stage.findMany({ orderBy: [{ date: 'asc' }, { stageNumber: 'asc' }], take: 8, select: { stageNumber: true, name: true, city: true, date: true, status: true, registrationOpen: true, stageClasses: { where: { isActive: true }, select: { id: true } } } }),
+      this.prisma.importJob.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { status: true, createdAt: true, rows: { select: { status: true } } } }),
       this.prisma.result.count({ where: { isHistorical: true, verificationStatus: 'PENDING' } }),
       this.prisma.disqualification.count({ where: { status: 'ACTIVE' } }),
       this.dataQuality.getReport(),
@@ -124,7 +130,7 @@ export class AssistantService {
     return {
       counts: { participants, cars, registrations, results, pendingHistorical, activeDisqualifications },
       stages: stages.map((s) => ({ stageNumber: s.stageNumber, name: s.name, city: s.city, date: s.date, status: s.status, registrationOpen: s.registrationOpen, activeClasses: s.stageClasses.length })),
-      imports: imports.map((j) => ({ status: j.status, stageId: j.stageId, createdAt: j.createdAt, rows: j.rows.reduce((a: any, r: any) => { a[r.status] = (a[r.status] ?? 0) + 1; return a; }, {}) })),
+      imports: imports.map((j) => ({ status: j.status, createdAt: j.createdAt, rows: j.rows.reduce((a: any, r: any) => { a[r.status] = (a[r.status] ?? 0) + 1; return a; }, {}) })),
       dataQuality: quality.counts,
     };
   }
@@ -167,7 +173,7 @@ export class AssistantService {
         this.prisma.inspection.count({ where: { registration: { stageId: stage.id } } }),
         this.prisma.result.count({ where: { registration: { stageId: stage.id } } }),
       ]);
-      result = { success: true, stage: { id: stage.id, name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length }, counts: { registrations, inspections, results }, ready: stage.stageClasses.length > 0 && stage.status !== 'CANCELLED' };
+      result = { success: true, stage: { name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length }, counts: { registrations, inspections, results }, ready: stage.stageClasses.length > 0 && stage.status !== 'CANCELLED' };
     }
     await this.audit(userId, 'ASSISTANT_FUNCTION_EXECUTED', code);
     return { success: true, code, result };
