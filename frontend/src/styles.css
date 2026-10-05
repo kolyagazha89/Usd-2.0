@@ -1670,3 +1670,12 @@ html,body{
 *::-webkit-scrollbar-corner{
   background:transparent!important;
 }
+
+
+/* USD configurable logo */
+.brand-logo-shell{display:block;width:auto;height:27px;max-width:92px;object-fit:contain;object-position:left center}
+.brand-logo-login{display:block;width:auto;height:46px;max-width:190px;object-fit:contain;object-position:left center}
+.brand-logo-footer{display:block;width:auto;height:22px;max-width:100px;object-fit:contain;object-position:left center}
+.login-footer>span:first-child{display:flex;align-items:center;min-height:22px}
+.brand-mark.small:has(.brand-logo-shell){display:flex;align-items:center;justify-content:flex-start;width:92px;letter-spacing:0}
+@media(max-width:560px){.brand-logo-login{max-width:150px;height:40px}.brand-logo-footer{max-width:84px;height:20px}}
