@@ -28,6 +28,19 @@ export class InspectionsController {
     return this.inspectionsService.findOne(id);
   }
 
+  @Post('stage/:stageId/fail-pending')
+  failPending(
+    @Param('stageId') stageId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { notes?: string },
+  ) {
+    return this.inspectionsService.failPending(stageId, body.notes, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
   @Post()
   create(
     @Req() request: AuthenticatedRequest,
