@@ -68,11 +68,24 @@ export class AssistantService {
       const r = await this.executeFunction('STAGE_READINESS', {}, userId);
       return { success: true, reply: r.result.ready ? `Этап «${r.result.stage.name}» выглядит готовым к работе: классов ${r.result.stage.classes}, регистраций ${r.result.counts.registrations}, инспекций ${r.result.counts.inspections}, результатов ${r.result.counts.results}.` : `Этап «${r.result.stage.name}» пока не готов: проверьте подключённые классы и статус этапа.`, action: null, data: r.result };
     }
+    if (/^(привет|здравствуй|здравствуйте|добрый (день|вечер|утро)|хай|hello|hi)\\b/i.test(text)) {
+      return { success: true, reply: 'Привет! 👋 Я здесь. Можешь просто написать, что хочешь узнать или сделать в USD 2.0 — отвечу прямо в этом чате.', action: null };
+    }
+
+    const changeIntent = /(измени|изменить|добавь|добавить|удали|удалить|создай|создать|сделай|сделать|переделай|переделать|исправь|исправить|реализуй|реализовать|напиши код|поменяй|поменять|настрой|настроить|включи|выключи)/i.test(text);
+    if (!changeIntent) {
+      return {
+        success: true,
+        reply: 'Я понял тебя. Расскажи чуть подробнее, что именно хочешь проверить, найти или узнать — отвечу прямо здесь, без создания какого-либо запроса.',
+        action: null,
+      };
+    }
+
     const item = await this.create({ type: 'CODE_CHANGE', title: 'Изменение по диалогу с USD Copilot', prompt: text, risk: 'Средний', metadata: { source: 'chat', scope: 'admin' } }, userId);
     const submitted = await this.submit(item.item.id, userId);
     return {
       success: true,
-      reply: 'Понял. Это уже не просто вопрос, а задача на изменение. Я подготовил её отдельно, но ничего не применяю без твоего явного подтверждения.',
+      reply: 'Понял, это задача на изменение. Я подготовил её, но ничего не применяю без твоего явного подтверждения. Детали показываю прямо в чате.',
       action: { type: 'CHANGE_REQUEST', id: item.item.id, status: submitted.item.status, title: item.item.title, prompt: text, risk: item.item.risk ?? 'Средний' }
     };
   }
