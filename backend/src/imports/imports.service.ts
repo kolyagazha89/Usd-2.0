@@ -4276,48 +4276,54 @@ export class ImportsService {
               stageClass.class
                 ?.directionId;
 
+            const isBassRaceClass =
+              stageClass.class?.name?.trim().toLowerCase().startsWith('bassrace') === true;
+
             if (
               directionId &&
-              usedDirections.has(
-                directionId,
-              )
+              !isBassRaceClass &&
+              usedDirections.has(directionId)
             ) {
               throw new BadRequestException(
-                `В строке ${row.rowNumber} указано несколько классов одного направления`,
+                'В строке ' + row.rowNumber + ' указано несколько классов одного направления',
               );
             }
 
-            if (directionId) {
-              usedDirections.add(
-                directionId,
+            if (directionId && !isBassRaceClass) {
+              usedDirections.add(directionId);
+            }
+
+            const primaryRegistrationNumber =
+              await tx.registrationNumber.findFirst({
+                where: {
+                  registrationId,
+                  isPrimary: true,
+                },
+              });
+
+            if (!primaryRegistrationNumber) {
+              throw new BadRequestException(
+                'Для регистрации ' + registrationId + ' не найден основной номер',
               );
             }
 
             const existingClass =
-              await tx.registrationClass.findFirst(
-                {
-                  where: {
-                    registrationId,
-
-                    classId,
-                  },
+              await tx.registrationClass.findFirst({
+                where: {
+                  registrationId,
+                  classId,
                 },
-              );
+              });
 
-            if (
-              !existingClass
-            ) {
-              await tx.registrationClass.create(
-                {
-                  data: {
-                    registrationId,
-
-                    classId,
-                  },
+            if (!existingClass) {
+              await tx.registrationClass.create({
+                data: {
+                  registrationId,
+                  classId,
+                  numberId: primaryRegistrationNumber.id,
                 },
-              );
+              });
             }
-          }
 
           await tx.importRow.update(
             {
