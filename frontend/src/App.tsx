@@ -279,14 +279,26 @@ function DisqualificationsPage(){
 function HistoricalPage(){return <OperationalPage title="История результатов" subtitle="Импорт исторических результатов и верификация" icon={History} endpoint="/historical-results"/>}
 function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
 
-function sheetRows(values:any[][]){
-  if(!Array.isArray(values)||values.length<2)return [];
-  const headers=(values[0]??[]).map((x:any)=>String(x??'').trim());
-  return values.slice(1).filter((row:any[])=>row?.some((x:any)=>String(x??'').trim()!=='')).map((row:any[])=>{
+function sheetRows(values:any){
+  if(!Array.isArray(values))return [];
+  const rows=values.filter((row:any)=>Array.isArray(row)&&row.some((x:any)=>String(x??'').trim()!==''));
+  if(rows.length<2)return [];
+  const headers=(rows[0]??[]).map((x:any)=>String(x??'').replace(/^\\uFEFF/,'').trim());
+  return rows.slice(1).map((row:any[])=>{
     const item:any={};
     headers.forEach((h:string,i:number)=>{if(h)item[h]=row?.[i]??''});
     return item;
-  });
+  }).filter((item:any)=>Object.values(item).some((x:any)=>String(x??'').trim()!==''));
+}
+
+function resultSheetRows(values:any){
+  const rows=sheetRows(values);
+  let currentClass='';
+  return rows.map((row:any)=>{
+    const classValue=String(row['Класс']??'').trim();
+    if(classValue)currentClass=classValue;
+    return currentClass?{...row,'Класс':currentClass}:row;
+  }).filter((row:any)=>String(row['Номер']??row['Номер участника']??'').trim()!=='');
 }
 function ImportPage(){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
@@ -303,7 +315,7 @@ function ImportPage(){
      if(!sheetNames.includes('Результаты'))throw new Error('В таблице отсутствует лист «Результаты»');
      if(mode==='HISTORICAL'&&!sheetNames.includes('Регистрация'))throw new Error('Для исторического импорта нужен лист «Регистрация»');
      const resultValues=(await getGoogleSheetValues(spreadsheetId,'Результаты')).values??[];
-     const results=sheetRows(resultValues);
+     const results=resultSheetRows(resultValues);
      if(!results.length)throw new Error('Лист «Результаты» пустой или не содержит строк данных');
      let registrations:any[]=[];
      if(mode==='HISTORICAL'){
