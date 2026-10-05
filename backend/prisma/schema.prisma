@@ -256,27 +256,6 @@ model MediaUpload {
 enum MediaTargetType {
   PARTICIPANT_PHOTO
   CAR_PHOTO
-  SITE_LOGO
-  SITE_MOBILE_LOGO
-  SITE_FAVICON
-  SITE_IMAGE
-}
-
-model SiteSettings {
-  id            String   @id @default("default")
-  branding      Json
-  homepage      Json
-  stream        Json
-  liveResults   Json
-  navigation    Json
-  contacts      Json
-  social        Json
-  seo           Json
-  legal         Json
-  footer        Json
-  registration  Json
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model EmailChangeToken {
