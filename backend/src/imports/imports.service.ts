@@ -3060,9 +3060,9 @@ export class ImportsService {
         await tx.car.create({
           data: {
             participantId,
-            brand: 'Импорт',
+            brand: 'Неизвестно',
             model:
-              'Автомобиль из старого импорта',
+              'Автомобиль не указан',
             registrationNumber:
               technicalRegistrationNumber,
             registrationCountry: 'RU',
@@ -3079,10 +3079,10 @@ export class ImportsService {
         data: {
           participantId,
           brand:
-            brand || 'Импорт',
+            brand || 'Неизвестно',
           model:
             model ||
-            'Автомобиль из импорта',
+            'Автомобиль не указан',
           registrationNumber:
             plateNumber ||
             `IMPORT-${participantId
