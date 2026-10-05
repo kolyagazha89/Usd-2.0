@@ -5131,7 +5131,6 @@ export class ImportsService {
             resultId,
           });
         }
-        }
 
         await tx.importJob.update(
           {
