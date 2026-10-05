@@ -258,6 +258,7 @@ model MediaUpload {
 enum MediaTargetType {
   PARTICIPANT_PHOTO
   CAR_PHOTO
+  SITE_ASSET
 }
 
 model EmailChangeToken {
