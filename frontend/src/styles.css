@@ -1682,3 +1682,29 @@ html,body{
 
 
 .splash-brand{min-height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}.splash-brand img{display:block;width:auto;height:64px;max-width:min(220px,70vw);object-fit:contain;object-position:center}
+
+
+/* USD mobile operational cards — disqualifications */
+@media(max-width:700px){
+  .disqualification-table-wrap{overflow:visible!important;border:0!important;background:transparent!important;box-shadow:none!important}
+  .disqualification-table{display:block!important;min-width:0!important;width:100%!important}
+  .disqualification-table thead{display:none!important}
+  .disqualification-table tbody{display:block!important}
+  .disqualification-table tbody tr{display:block!important;margin:0 0 10px!important;padding:13px 14px!important;border:1px solid #e1e5e8!important;border-radius:15px!important;background:#fff!important;box-shadow:0 5px 18px rgba(18,22,26,.06)!important}
+  .disqualification-table tbody tr:hover{transform:none!important;background:#fff!important;box-shadow:0 5px 18px rgba(18,22,26,.06)!important}
+  .disqualification-table td{display:grid!important;grid-template-columns:minmax(92px,34%) minmax(0,1fr)!important;align-items:start!important;gap:10px!important;width:100%!important;max-width:none!important;min-width:0!important;padding:8px 0!important;border:0!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;text-align:right!important;font-size:11px!important;line-height:1.35!important}
+  .disqualification-table td:before{content:attr(data-label)!important;display:block!important;text-align:left!important;color:#8a9198!important;font-size:8px!important;font-weight:900!important;line-height:1.25!important;text-transform:uppercase!important;letter-spacing:.055em!important}
+  .disqualification-table td:first-child{padding-top:0!important}
+  .disqualification-table td:first-child strong{font-size:13px!important;line-height:1.25!important;color:#111318!important}
+  .disqualification-table td:last-child{padding-bottom:0!important}
+  .disqualification-table td.row-actions{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:7px!important;margin-top:7px!important;padding-top:11px!important;border-top:1px solid #eceeef!important}
+  .disqualification-table td.row-actions:before{display:none!important}
+  .disqualification-table .table-sub{display:block!important;margin-top:3px!important;color:#7b838b!important;font-size:9px!important;line-height:1.25!important}
+  .disqualification-table .badge{justify-self:end!important}
+  .disqualification-table .disqualification-reason{color:#30353a!important;overflow-wrap:anywhere!important}
+  .disqualification-table .danger-button{min-height:36px!important;width:auto!important;padding:0 12px!important}
+}
+@media(max-width:420px){
+  .disqualification-table td{grid-template-columns:82px minmax(0,1fr)!important;gap:8px!important;font-size:10.5px!important}
+  .disqualification-table tbody tr{padding:12px!important}
+}
