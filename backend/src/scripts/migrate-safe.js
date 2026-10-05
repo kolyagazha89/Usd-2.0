@@ -23,8 +23,15 @@ async function main() {
        ORDER BY started_at DESC`,
     );
     if (result.rows.some((row) => row.migration_name === RECOVERABLE_MIGRATION)) {
-      console.log('[migrate-safe] resolving failed site settings migration');
-      runPrisma(['migrate', 'resolve', '--rolled-back', RECOVERABLE_MIGRATION]);
+      console.log('[migrate-safe] rolling back failed site settings migration metadata');
+      await client.query(
+        `UPDATE "_prisma_migrations"
+         SET rolled_back_at = NOW()
+         WHERE migration_name = $1
+           AND finished_at IS NULL
+           AND rolled_back_at IS NULL`,
+        [RECOVERABLE_MIGRATION],
+      );
     }
   } finally {
     await client.end();
