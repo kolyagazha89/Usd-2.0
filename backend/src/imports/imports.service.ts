@@ -1862,6 +1862,32 @@ export class ImportsService {
         ...participant,
       },
 
+      car: {
+        model:
+          registrationParticipant.status === 'MATCHED'
+            ? registrationParticipant.matches[0]?.car.model ?? ''
+            : this.stringValue(
+                this.getImportFieldValue(row, [
+                  'Модель автомобиля',
+                  'Модель',
+                  'model',
+                ]),
+              ),
+        plateNumber:
+          registrationParticipant.status === 'MATCHED'
+            ? registrationParticipant.matches[0]?.car.plateNumber ?? ''
+            : this.stringValue(
+                this.getImportFieldValue(row, [
+                  'Номер автомобиля',
+                  'Гос. номер',
+                  'Гос номер',
+                  'Регистрационный номер',
+                  'registrationNumber',
+                  'plateNumber',
+                ]),
+              ),
+      },
+
       registration:
         registrationParticipant.status ===
         'MATCHED'
