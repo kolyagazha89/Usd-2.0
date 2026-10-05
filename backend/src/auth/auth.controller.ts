@@ -28,14 +28,11 @@ export class AuthController {
     response: Response,
     refreshToken: string,
   ) {
-    const secure =
-      process.env.AUTH_COOKIE_SECURE ===
-      'true';
-
-    const sameSite =
-      secure
-        ? ('none' as const)
-        : ('lax' as const);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
+    // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
+    // In production the refresh cookie must therefore be a secure cross-site cookie.
+    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
@@ -62,14 +59,11 @@ export class AuthController {
   private clearRefreshCookie(
     response: Response,
   ) {
-    const secure =
-      process.env.AUTH_COOKIE_SECURE ===
-      'true';
-
-    const sameSite =
-      secure
-        ? ('none' as const)
-        : ('lax' as const);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
+    // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
+    // In production the refresh cookie must therefore be a secure cross-site cookie.
+    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
