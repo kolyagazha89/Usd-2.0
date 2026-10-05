@@ -697,38 +697,75 @@ function SiteSettingsPage(){
 }
 function SettingsMap({title,section,settings,patch,fields}:{title:string;section:string;settings:any;patch:(s:string,v:any)=>void;fields:string[]}){const data=settings[section]??{};const labels:Record<string,string>={phone:'Телефон',email:'Email',address:'Адрес',telegram:'Telegram',vk:'VK',youtube:'YouTube',rutube:'RuTube',whatsapp:'WhatsApp',title:'Заголовок страницы',description:'Описание',keywords:'Ключевые слова',ogTitle:'OG-заголовок',ogDescription:'OG-описание',ogImage:'OG-изображение',canonical:'Canonical URL',ipName:'ФИО / наименование ИП',inn:'ИНН',ogrnip:'ОГРНИП',copyrightHolder:'Правообладатель',privacyUrl:'Политика конфиденциальности',consentUrl:'Согласие на обработку данных',termsUrl:'Пользовательское соглашение',rulesUrl:'Правила USD',copyright:'Копирайт',text:'Текст подвала',enabled:'Регистрация включена',price:'Стоимость участия',additionalClassPrice:'Стоимость дополнительного класса',introText:'Текст перед регистрацией',successText:'Сообщение после регистрации',rulesText:'Условия регистрации'};const textareas=new Set(['description','ogDescription','text','introText','successText','rulesText']);const urlFields=new Set(['telegram','vk','youtube','rutube','whatsapp','ogImage','canonical','privacyUrl','consentUrl','termsUrl','rulesUrl']);return <div className="settings-section"><PanelTitle title={title} icon={Settings2}/><p className="settings-help">Здесь находятся параметры этого раздела. Заполняйте только то, что действительно используется на публичном сайте.</p><div className="settings-form-grid">{fields.map(k=>{const bool=typeof data[k]==='boolean';return <label key={k} className={bool?'settings-check':''}><span className="field-label">{labels[k]??humanize(k)}</span>{bool?<span className="setting-toggle-line"><input type="checkbox" checked={!!data[k]} onChange={e=>patch(section,{...data,[k]:e.target.checked})}/><b>{data[k]?'Включено':'Выключено'}</b></span>:textareas.has(k)?<textarea rows={4} value={data[k]??''} placeholder={k==='description'?'Коротко опишите USD для поисковиков…':''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>:<input type={urlFields.has(k)?'url':k.toLowerCase().includes('email')?'email':k==='price'||k==='additionalClassPrice'?'number':'text'} value={data[k]??''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>} {!bool&&<small className="field-help">{urlFields.has(k)?'Стабильная публичная ссылка':k==='price'||k==='additionalClassPrice'?'Сумма в рублях':'Можно оставить пустым, если параметр не используется.'}</small>}</label>})}</div></div>}
 function AssistantPage({go}:{go:(p:string)=>void}){
- const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot — рабочий помощник администратора. Я могу проверить состояние системы, найти проблемы в данных, разобрать импорт, проверить готовность этапа и подготовить управляемое изменение. Если действие меняет данные или код — сначала покажу, что именно будет сделано, зачем, риск и что изменится после подтверждения.'}]);
+ const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot. Просто разговаривай со мной как с живым помощником: опиши, что хочешь проверить, найти или изменить. Я сам разберусь с контекстом системы и отвечу по делу.'}]);
  const [input,setInput]=useState(''),[sending,setSending]=useState(false),[error,setError]=useState('');
- const [requests,setRequests]=useState<any[]>([]),[functions,setFunctions]=useState<any[]>([]);
- const [confirmId,setConfirmId]=useState<string|null>(null),[confirmation,setConfirmation]=useState('');
- const load=async()=>{try{const [rr,ff]=await Promise.all([getAssistantRequests(),getAssistantFunctions()]);setRequests(listData(rr));setFunctions(listData(ff))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить контур ассистента')}};
- useEffect(()=>{void load()},[]);
- const send=async(text?:string)=>{const value=(text??input).trim();if(!value||sending)return;setMessages(m=>[...m,{role:'user',text:value}]);setInput('');setSending(true);setError('');
-  try{const r=await chatAssistant(value);setMessages(m=>[...m,{role:'assistant',text:r.reply,action:r.action,data:r.data}]);await load()}
-  catch(e){setError(e instanceof Error?e.message:'Ассистент временно недоступен');setMessages(m=>[...m,{role:'assistant',text:'Не смог выполнить запрос. Проверь доступность сервера и попробуй ещё раз.'}]);}
-  finally{setSending(false)}};
- const runFunction=async(code:string,title:string)=>{setSending(true);setError('');try{const r=await executeAssistantFunction(code,{});setMessages(m=>[...m,{role:'assistant',text:`Функция «${title}» выполнена. Ниже — актуальный результат проверки.`,data:r.result}])}catch(e){setError(e instanceof Error?e.message:'Функция не выполнилась')}finally{setSending(false)}};
- const submit=async(id:string)=>{try{await submitAssistantRequest(id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отправить запрос')}};
- const reject=async(id:string)=>{try{await rejectAssistantRequest(id);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отклонить запрос')}};
- const approve=async(id:string)=>{if(confirmation.trim().toUpperCase()!=='ПОДТВЕРЖДАЮ'){setError('Введите «ПОДТВЕРЖДАЮ», чтобы подтвердить изменение');return}try{await approveAssistantRequest(id,confirmation);setConfirmId(null);setConfirmation('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить запрос')}};
- const apply=async(id:string)=>{try{const r=await applyAssistantRequest(id);setMessages(m=>[...m,{role:'assistant',text:'Запрос применён. Я получил результат выполнения и сохранил событие в аудит.',data:r.execution}]);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось применить запрос')}};
- const pending=requests.filter(r=>r.status==='PENDING'),drafts=requests.filter(r=>r.status==='DRAFT'||r.status==='REJECTED');
- return <PageFrame title="Ассистент USD" subtitle="Операционный AI-контур: диагностика, планы изменений и безопасные действия." action={<span className="badge good"><Sparkles size={12}/>USD COPILOT</span>}>
-  <div className="assistant-chat-layout">
+ const [confirming,setConfirming]=useState<any|null>(null),[confirmation,setConfirmation]=useState('');
+ const send=async(text?:string)=>{
+  const value=(text??input).trim();if(!value||sending)return;
+  setMessages(m=>[...m,{role:'user',text:value}]);setInput('');setSending(true);setError('');
+  try{
+   const r=await chatAssistant(value);
+   setMessages(m=>[...m,{role:'assistant',text:r.reply,action:r.action,data:r.data}]);
+   if(r.action?.type==='CHANGE_REQUEST') setConfirming(r.action);
+  }catch(e){setError(e instanceof Error?e.message:'Ассистент временно недоступен');setMessages(m=>[...m,{role:'assistant',text:'Не смог обработать запрос. Проверь доступность сервера и попробуй ещё раз.'}]);}
+  finally{setSending(false)}
+ };
+ const confirmChange=async()=>{
+  if(!confirming?.id)return;
+  if(confirmation.trim().toUpperCase()!=='ПОДТВЕРЖДАЮ'){setError('Введите «ПОДТВЕРЖДАЮ», чтобы подтвердить изменение');return}
+  setSending(true);setError('');
+  try{
+   const r=await approveAssistantRequest(confirming.id,confirmation);
+   setMessages(m=>[...m,{role:'assistant',text:'Подтверждение получено. Запрос принят в защищённый контур. Если для задачи требуется изменение кода, система не выполняет его напрямую — оно должно пройти через отдельный исполнитель изменений.' ,data:r.execution}]);
+   setConfirming(null);setConfirmation('');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить изменение')}
+  finally{setSending(false)}
+ };
+ const rejectChange=async()=>{
+  if(!confirming?.id)return;
+  setSending(true);setError('');
+  try{await rejectAssistantRequest(confirming.id);setMessages(m=>[...m,{role:'assistant',text:'Хорошо, изменение не выполняю.'}]);setConfirming(null);setConfirmation('')}
+  catch(e){setError(e instanceof Error?e.message:'Не удалось отклонить изменение')}
+  finally{setSending(false)}
+ };
+ const runFunction=async(code:string,title:string)=>{
+  setSending(true);setError('');
+  try{const r=await executeAssistantFunction(code,{});setMessages(m=>[...m,{role:'assistant',text:`Готово. ${title} выполнена.`,data:r.result}])}
+  catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить проверку')}
+  finally{setSending(false)}
+ };
+ return <PageFrame title="Ассистент USD" subtitle="Живой рабочий диалог с AI: спрашивайте, проверяйте и ставьте задачи обычным языком." action={<span className="badge good"><Sparkles size={12}/>USD COPILOT</span>}>
+  <div className="assistant-chat-layout assistant-chat-layout-single">
    <section className="assistant-chat panel">
-    <div className="assistant-chat-head"><div className="assistant-avatar"><Bot size={21}/></div><div><strong>USD Copilot</strong><span>Диагностика · автоматизация · управляемые изменения · {pending.length} ожидают подтверждения</span></div><button className="secondary-button compact" onClick={()=>setMessages([{role:'assistant',text:'Новый диалог начат. Что проверяем или меняем?'}])}>Новый чат</button></div>
-    <div className="assistant-messages">{messages.map((m:any,i:number)=><div key={i} className={'assistant-message '+m.role}><div className="message-avatar">{m.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div><div className="message-bubble"><div>{m.text}</div>{m.action&&<div className="assistant-action-card"><div><strong>Изменение подготовлено</strong><span>Запрос создан в защищённой очереди и ещё ничего не изменил.</span></div><button className="secondary-button compact" onClick={()=>document.getElementById('assistant-queue')?.scrollIntoView({behavior:'smooth'})}><Code2 size={14}/>Открыть очередь</button></div>}{m.data&&<details className="assistant-data" open><summary>Детали проверки</summary><pre>{JSON.stringify(m.data,null,2)}</pre></details>}</div></div>)}{sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble typing">анализирую<span>.</span><span>.</span><span>.</span></div></div>}</div>
-    <div className="assistant-chat-suggestions">{['Проверь качество данных','Покажи состояние системы','Проверь готовность текущего этапа','Разбери последний импорт','Что требует внимания сейчас','Подготовь улучшение админки'].map(x=><button key={x} onClick={()=>void send(x)}>{x}</button>)}</div>
+    <div className="assistant-chat-head">
+     <div className="assistant-avatar"><Bot size={21}/></div>
+     <div><strong>USD Copilot</strong><span>Говорите обычным языком — я вижу актуальное состояние USD 2.0</span></div>
+     <button className="secondary-button compact" onClick={()=>setMessages([{role:'assistant',text:'Новый диалог начат. Что делаем?'}])}>Новый чат</button>
+    </div>
+    <div className="assistant-messages">
+     {messages.map((m:any,i:number)=><div key={i} className={'assistant-message '+m.role}>
+      <div className="message-avatar">{m.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div>
+      <div className="message-bubble">
+       <div className="assistant-message-text">{m.text}</div>
+       {m.data&&<details className="assistant-data"><summary>Показать данные проверки</summary><pre>{JSON.stringify(m.data,null,2)}</pre></details>}
+      </div>
+     </div>)}
+     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble typing">анализирую<span>.</span><span>.</span><span>.</span></div></div>}
+    </div>
+    <div className="assistant-chat-suggestions">{['Что сейчас требует внимания?','Проверь качество данных','Проверь текущий этап','Разбери последний импорт','Покажи состояние системы'].map(x=><button key={x} onClick={()=>void send(x)} disabled={sending}>{x}</button>)}</div>
+    {confirming&&<div className="assistant-inline-confirm">
+      <div className="assistant-inline-confirm-head"><div className="assistant-avatar small"><LockKeyhole size={16}/></div><div><strong>Нужно подтверждение</strong><span>Я подготовил действие, но сам его не применю без вашего согласия.</span></div></div>
+      <div className="assistant-inline-confirm-body"><b>{confirming.title||'Изменение'}</b><p>{confirming.prompt||'Запрос подготовлен по вашему сообщению.'}</p><small>Риск: {assistantRiskName(confirming.risk||'Средний')}</small></div>
+      <div className="assistant-inline-confirm-actions"><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="Введите ПОДТВЕРЖДАЮ"/><button className="primary-button compact" onClick={()=>void confirmChange()} disabled={sending}>Подтвердить</button><button className="secondary-button compact" onClick={()=>void rejectChange()} disabled={sending}>Не выполнять</button></div>
+    </div>}
     {error&&<div className="form-error"><AlertTriangle size={15}/>{error}</div>}
-    <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}><textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «проверь текущий этап и скажи, что мешает его провести»" rows={2} disabled={sending}/><button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button></form>
-    <div className="assistant-chat-note"><LockKeyhole size={13}/><span>Безопасный режим: диагностика выполняется сразу, изменения данных требуют подтверждения, изменения кода должны проходить через защищённый контур изменений.</span></div>
+    <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}>
+     <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «проверь текущий этап и скажи, что мешает его провести»" rows={3} disabled={sending}/>
+     <button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button>
+    </form>
+    <div className="assistant-chat-note"><LockKeyhole size={13}/><span>Обычный разговор не создаёт очередь. Если ты просишь что-то изменить, я сначала покажу действие и попрошу явное подтверждение.</span></div>
    </section>
-   <aside className="assistant-side">
-    <div className="panel assistant-side-card"><PanelTitle title="Что я умею" icon={Bot}/><div className="assistant-capability-list"><div><CheckCircle2 size={15}/><span>Проверять качество и целостность данных</span></div><div><CheckCircle2 size={15}/><span>Разбирать импорты и предупреждения</span></div><div><CheckCircle2 size={15}/><span>Проверять готовность этапа</span></div><div><CheckCircle2 size={15}/><span>Готовить изменения системы</span></div><div><LockKeyhole size={15}/><span>Ничего опасного не выполняется молча</span></div></div></div>
-    <div className="panel assistant-side-card"><PanelTitle title="Безопасные функции" icon={Sparkles}/>{functions.map(f=><div className="assistant-function-mini" key={f.code}><strong>{f.title}</strong><span>{f.description}</span><small>Риск: {enumLabel(f.risk)} · {f.confirmation?'требует подтверждения':'можно запускать сразу'}</small>{!f.confirmation&&<button className="secondary-button compact" onClick={()=>void runFunction(f.code,f.title)}>Запустить проверку</button>}</div>)}</div>
-   </aside>
   </div>
-  <section id="assistant-queue" className="panel assistant-queue"><PanelTitle title="Очередь изменений и действий" icon={Code2}/>{!requests.length?<Empty text="Запросов пока нет. Опишите задачу в чате выше."/>:<div className="assistant-request-list">{requests.map((r:any)=><div className="assistant-request" key={r.id}><div className="assistant-request-main"><div className="assistant-request-head"><strong>{r.title||'Запрос ассистента'}</strong><span className={'assistant-status '+String(r.status).toLowerCase()}>{assistantStatusName(r.status)}</span></div><p>{r.prompt||'—'}</p><div className="assistant-request-meta"><span>Тип: {assistantTypeName(r.type||'')}</span><span>Риск: {assistantRiskName(r.risk||'')}</span><span>Создал: {r.requestedBy?.name||r.requestedBy?.email||'—'}</span>{r.approvedBy&&<span>Подтвердил: {r.approvedBy.name||r.approvedBy.email}</span>}</div></div><div className="assistant-request-actions">{r.status==='DRAFT'&&<button className="secondary-button compact" onClick={()=>void submit(r.id)}>На подтверждение</button>}{r.status==='PENDING'&&<><button className="secondary-button compact" onClick={()=>setConfirmId(confirmId===r.id?null:r.id)}>Подтвердить</button><button className="danger-button compact" onClick={()=>void reject(r.id)}>Отклонить</button></>}{r.status==='APPROVED'&&<button className="primary-button compact" onClick={()=>void apply(r.id)}>Применить</button>}{r.status==='REJECTED'&&<button className="secondary-button compact" onClick={()=>void submit(r.id)}>Отправить повторно</button>}{r.status==='APPLIED'&&<span className="badge good"><Check size={11}/>Применено</span>}</div>{confirmId===r.id&&<div className="assistant-confirm"><strong>Подтверждение изменения</strong><span>Проверьте описание выше. Для продолжения введите ПОДТВЕРЖДАЮ.</span><div><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="ПОДТВЕРЖДАЮ"/><button className="primary-button compact" onClick={()=>void approve(r.id)}>Подтвердить</button></div></div>}</div>)}</div>}</section>
  </PageFrame>
 }
 function assistantStatusName(x:string){const m:Record<string,string>={DRAFT:'Черновик',PENDING:'Ожидает подтверждения',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',CANCELLED:'Отменено'};return m[x]??enumLabel(x)}
