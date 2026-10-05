@@ -4956,6 +4956,28 @@ export class ImportsService {
     );
   }
 
+  private findHistoricalRegistrationReference(
+    rawName: string,
+    participantNumber: number,
+    index: RegistrationParticipantIndex,
+  ): RegistrationParticipantMatch | null {
+    const byNumber = index.byNumber.get(participantNumber) ?? [];
+    if (byNumber.length === 1) {
+      return byNumber[0];
+    }
+
+    const normalizedName = this.normalizePersonName(rawName);
+    if (normalizedName) {
+      const byName = index.byName.get(normalizedName) ?? [];
+      if (byName.length === 1) {
+        return byName[0];
+      }
+    }
+
+    return null;
+  }
+
+
   /**
    * Historical import is result-driven.
    *
@@ -5102,7 +5124,7 @@ export class ImportsService {
           tx,
           {
             fullName,
-            team:
+            team: (
               resolution?.participant?.team ??
               registrationReference?.team ??
               this.stringValue(
@@ -5111,8 +5133,9 @@ export class ImportsService {
                   'team',
                 ]),
               ) ||
-              null,
-            email:
+              null
+            ),
+            email: (
               resolution?.participant?.email ??
               registrationReference?.email ??
               this.stringValue(
@@ -5123,7 +5146,8 @@ export class ImportsService {
                   'email',
                 ]),
               ) ||
-              null,
+              null
+            ),
           },
         );
 
