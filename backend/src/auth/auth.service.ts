@@ -499,6 +499,129 @@ export class AuthService {
     };
   }
 
+  async findHistoricalProfileCandidates(userId: string, fullName: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, participantId: true, role: true },
+    });
+    if (!user || user.role !== 'PARTICIPANT') {
+      throw new UnauthorizedException('Недействительная учётная запись');
+    }
+    if (user.participantId) {
+      throw new ConflictException('Профиль участника уже привязан к аккаунту');
+    }
+
+    const normalizedInput = this.normalizeProfileName(fullName);
+    if (!normalizedInput) {
+      throw new BadRequestException('ФИО обязательно');
+    }
+
+    const participants = await this.prisma.participant.findMany({
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        city: true,
+        user: { select: { id: true } },
+        cars: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          take: 3,
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationNumber: true,
+          },
+        },
+        _count: { select: { registrations: true } },
+      },
+      take: 5000,
+    });
+
+    const candidates = participants.filter((participant) => {
+      if (participant.user) return false;
+      const candidate = this.normalizeProfileName(
+        [participant.lastName, participant.firstName, participant.middleName]
+          .filter(Boolean)
+          .join(' '),
+      );
+      const candidateWithoutMiddle = this.normalizeProfileName(
+        [participant.lastName, participant.firstName].join(' '),
+      );
+      return candidate === normalizedInput || candidateWithoutMiddle === normalizedInput;
+    });
+
+    return {
+      success: true,
+      found: candidates.length,
+      candidates: candidates.map(({ user: _user, ...participant }) => participant),
+    };
+  }
+
+  async linkHistoricalProfile(userId: string, participantId: string) {
+    if (!participantId?.trim()) {
+      throw new BadRequestException('participantId обязателен');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, participantId: true, role: true },
+      });
+      if (!user || user.role !== 'PARTICIPANT') {
+        throw new UnauthorizedException('Недействительная учётная запись');
+      }
+      if (user.participantId && user.participantId !== participantId) {
+        throw new ConflictException('У аккаунта уже есть профиль участника');
+      }
+      if (user.participantId === participantId) {
+        return { success: true, linked: true, participantId };
+      }
+
+      const participant = await tx.participant.findUnique({
+        where: { id: participantId },
+        select: { id: true, user: { select: { id: true } } },
+      });
+      if (!participant) {
+        throw new NotFoundException('Исторический профиль не найден');
+      }
+      if (participant.user) {
+        throw new ConflictException('Этот исторический профиль уже связан с другим аккаунтом');
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { participantId: participant.id },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'PARTICIPANT_PROFILE_LINKED',
+          entity: 'Participant',
+          entityId: participant.id,
+          metadata: { source: 'HISTORICAL_MATCH' },
+        },
+      });
+
+      return { success: true, linked: true, participantId: participant.id };
+    });
+  }
+
+  private normalizeProfileName(value: string) {
+    return String(value ?? '')
+      .normalize('NFKC')
+      .replace(/ё/gi, 'е')
+      .replace(/[^a-zа-я0-9\\s-]/gi, ' ')
+      .replace(/\\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+
   async changePassword(
     userId: string,
     currentPassword: string,
