@@ -3452,30 +3452,6 @@ export class ImportsService {
             string
           >();
 
-        const historicalResultNumbers = new Map<string, number>();
-        if ((importJob.metadata as any)?.historicalResults === true) {
-          for (const resultRow of importJob.rows) {
-            if (resultRow.type !== 'RESULT') continue;
-            const raw = resultRow.rawData as any;
-            const normalized = resultRow.normalizedData as any;
-            const name = this.normalizePersonName(
-              this.stringValue(
-                normalized?.participant?.rawName ??
-                  this.getImportFieldValue(raw, ['ФИО', 'Фамилия и имя', 'participantName']),
-              ),
-            );
-            const number =
-              normalized?.resultParticipantNumber ??
-              normalized?.participantNumber ??
-              this.parseParticipantNumber(
-                this.getImportFieldValue(raw, ['Номер', 'Номер участника', 'participantNumber']),
-              );
-            if (name && Number.isInteger(number) && number > 0) {
-              historicalResultNumbers.set(name, number);
-            }
-          }
-        }
-
         const importedRegistrations =
           new Map<
             string,
@@ -3624,21 +3600,6 @@ export class ImportsService {
               ) ?? null;
           }
 
-          if (
-            !participantId &&
-            (importJob.metadata as any)?.historicalResults === true &&
-            normalized?.participant?.status === 'NEW' &&
-            normalizedName
-          ) {
-            const createdParticipant = await this.createParticipantFromImport(tx, {
-              fullName: rawName,
-              team: this.stringValue(this.getImportFieldValue(rawData, ['Команда', 'team'])) || null,
-              email: this.stringValue(this.getImportFieldValue(rawData, ['Email', 'E-mail', 'email'])) || null,
-            });
-            participantId = createdParticipant.id;
-            importedParticipants.set(normalizedName, participantId);
-          }
-
           if (!participantId) {
             throw new BadRequestException(
               `Не удалось определить участника для регистрации, строка ${row.rowNumber}`,
@@ -3657,7 +3618,7 @@ export class ImportsService {
               ?.registration
               ?.participantNumber;
 
-          let participantNumber =
+          const participantNumber =
             resolutionNumber ??
             normalized
               ?.participantNumber ??
@@ -3672,14 +3633,6 @@ export class ImportsService {
                 ],
               ),
             );
-
-          if (
-            (!Number.isInteger(participantNumber) || participantNumber <= 0) &&
-            (importJob.metadata as any)?.historicalResults === true &&
-            normalizedName
-          ) {
-            participantNumber = historicalResultNumbers.get(normalizedName) ?? null;
-          }
 
           if (
             participantNumber ===
