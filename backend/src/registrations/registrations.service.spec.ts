@@ -70,17 +70,26 @@ describe('RegistrationsService', () => {
         findMany: jest.fn().mockResolvedValue([
           {
             classId: 'class-1',
-            class: { directionId: 'direction-1' },
+            class: { directionId: 'direction-1', name: 'SPL 1x2' },
           },
         ]),
       },
       registrationClass: {
         count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      registrationNumber: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'number-1', number: 1, isPrimary: true },
+        ]),
       },
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'registration-1' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-1' }),
       },
       carConfigurationVersion: {
         findFirst: jest.fn().mockResolvedValue({
