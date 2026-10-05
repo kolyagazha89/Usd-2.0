@@ -59,9 +59,6 @@ export class AssistantService {
     if (String(body.confirmation ?? '').trim().toUpperCase() !== 'ПОДТВЕРЖДАЮ') {
       throw new BadRequestException('Для подтверждения введите «ПОДТВЕРЖДАЮ»');
     }
-    if (item.requestedByUserId === userId) {
-      throw new BadRequestException('Для опасных изменений требуется подтверждение отдельным действием администратора');
-    }
     const updated = await this.prisma.assistantRequest.update({ where: { id }, data: { status: 'APPROVED', approvedByUserId: userId } });
     await this.audit(userId, 'ASSISTANT_REQUEST_APPROVED', id);
     return { success: true, item: updated, execution: { available: false, reason: 'Исполнитель кода не подключён. Запрос подтверждён и готов к безопасному применению после подключения GitHub executor.' } };
