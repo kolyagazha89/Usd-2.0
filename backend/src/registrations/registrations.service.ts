@@ -63,11 +63,20 @@ export class RegistrationsService {
             direction: true,
           },
         },
+        number: true,
       },
+    },
+    numbers: {
+      orderBy: { number: 'asc' },
     },
     inspection: true,
     results: true,
   };
+
+
+  private isBassRaceClass(className: string): boolean {
+    return className.trim().toLowerCase().startsWith('bassrace');
+  }
 
   private async getActiveDisqualifications(
     tx: PrismaService | any,
@@ -506,19 +515,21 @@ export class RegistrationsService {
           );
         }
 
-        // 6. В одной регистрации максимум
-        // один класс из каждого направления.
-        const directionIds =
-          stageClasses.map(
-            (item) => item.class.directionId,
-          );
+        // 6. В одной регистрации максимум один класс
+        // из каждого направления, кроме BassRace.
+        // BassRace специально допускает несколько классов
+        // одного направления: каждое такое выступление
+        // получает собственный зарезервированный номер.
+        const nonBassRaceDirectionIds = stageClasses
+          .filter((item) => !this.isBassRaceClass(item.class.name))
+          .map((item) => item.class.directionId);
 
         if (
-          new Set(directionIds).size !==
-          directionIds.length
+          new Set(nonBassRaceDirectionIds).size !==
+          nonBassRaceDirectionIds.length
         ) {
           throw new BadRequestException(
-            'В одной регистрации нельзя выбрать несколько классов одного направления',
+            'В одной регистрации нельзя выбрать несколько классов одного направления (кроме BassRace)',
           );
         }
 
@@ -598,32 +609,38 @@ export class RegistrationsService {
           );
         }
 
-        // 8. Получаем следующий номер.
-        //
-        // Берём максимум среди ВСЕХ регистраций,
-        // включая CANCELLED.
-        //
-        // Поэтому отменённые номера никогда
-        // не выдаются новой машине.
-        const lastRegistration =
-          await tx.registration.findFirst({
-            where: {
-              stageId,
-            },
-            orderBy: {
-              participantNumber: 'desc',
-            },
-            select: {
-              participantNumber: true,
-            },
-          });
+        // 8. Получаем первый свободный номер.
+        // RegistrationNumber является единственным источником
+        // истины для занятых номеров на этапе.
+        const lastNumber = await tx.registrationNumber.findFirst({
+          where: { stageId },
+          orderBy: { number: 'desc' },
+          select: { number: true },
+        });
 
-        const participantNumber =
-          (lastRegistration?.participantNumber ??
-            0) + 1;
+        const participantNumber = (lastNumber?.number ?? 0) + 1;
+        const bassRaceClassIds = stageClasses
+          .filter((item) => this.isBassRaceClass(item.class.name))
+          .map((item) => item.classId);
 
-        // 9. Создаём новую регистрацию.
-        return tx.registration.create({
+        const reservedNumbers = Array.from(
+          { length: Math.max(1, bassRaceClassIds.length) },
+          (_, index) => participantNumber + index,
+        );
+
+        // 9. Резервируем все номера сразу. Благодаря уникальному
+        // индексу (stageId, number) другой участник не сможет
+        // получить ни один из дополнительных BassRace-номеров.
+        const numberRows = reservedNumbers.map((number, index) => ({
+          id: crypto.randomUUID(),
+          stageId,
+          number,
+          isPrimary: index === 0,
+        }));
+
+        // 10. Создаём новую регистрацию. Номера связываются
+        // с регистрацией после её создания.
+        const registration = await tx.registration.create({
           data: {
             stageId,
             participantId,
@@ -644,20 +661,44 @@ export class RegistrationsService {
             participantNumber,
             source,
             status: 'ACTIVE',
-            classes: {
-              create: classIds.map(
-                (classId) => ({
-                  class: {
-                    connect: {
-                      id: classId,
-                    },
-                  },
-                }),
-              ),
-            },
           },
-          include:
-            this.registrationInclude,
+        });
+
+        await tx.registrationNumber.createMany({
+          data: numberRows.map((row) => ({
+            ...row,
+            registrationId: registration.id,
+          })),
+        });
+
+        const createdNumbers = await tx.registrationNumber.findMany({
+          where: { registrationId: registration.id },
+          orderBy: { number: 'asc' },
+        });
+
+        const primaryNumber = createdNumbers.find((item) => item.isPrimary) ?? createdNumbers[0];
+        const numberByClassId = new Map<string, string>();
+        let bassRaceIndex = 0;
+
+        for (const classId of classIds) {
+          const stageClass = stageClasses.find((item) => item.classId === classId)!;
+          const number = this.isBassRaceClass(stageClass.class.name)
+            ? createdNumbers[bassRaceIndex++] ?? primaryNumber
+            : primaryNumber;
+          numberByClassId.set(classId, number.id);
+        }
+
+        await tx.registrationClass.createMany({
+          data: classIds.map((classId) => ({
+            registrationId: registration.id,
+            classId,
+            numberId: numberByClassId.get(classId)!,
+          })),
+        });
+
+        return tx.registration.findUniqueOrThrow({
+          where: { id: registration.id },
+          include: this.registrationInclude,
         });
       },
     );
