@@ -124,14 +124,26 @@ export class HistoricalResultsService {
   }
 
   async findPublic(stageId?: string) {
+    if (stageId) {
+      const stage = await this.prisma.stage.findUnique({
+        where: { id: stageId },
+        select: { id: true, status: true, isDeleted: true },
+      });
+      if (!stage || stage.isDeleted || !['PUBLISHED', 'COMPLETED'].includes(stage.status)) {
+        throw new NotFoundException('Результаты этого этапа пока не опубликованы');
+      }
+    }
+
     return this.prisma.result.findMany({
       where: {
         isHistorical: true,
         verificationStatus: 'VERIFIED',
         registration: {
           ...(stageId ? { stageId } : {}),
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           participant: { isPublic: true },
           car: { isPublic: true },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
       },
       include: this.publicInclude(),
