@@ -315,13 +315,27 @@ export class ImportsService {
                     preview.status === 'READY'
                       ? {
                           participant:
-                            preview.participant.status === 'NEW'
+                            preview.participant.source === 'DATABASE' &&
+                            preview.participant.status === 'MATCHED' &&
+                            preview.participant.matches?.length
                               ? {
+                                  action: 'USE_EXISTING',
+                                  participantId:
+                                    preview.participant.matches[0].id,
+                                }
+                              : {
                                   action: 'CREATE',
                                   fullName:
                                     preview.participant.rawName,
-                                }
-                              : undefined,
+                                  team:
+                                    preview.participant.source === 'REGISTRATION'
+                                      ? preview.participant.matches?.[0]?.team || null
+                                      : null,
+                                  email:
+                                    preview.participant.source === 'REGISTRATION'
+                                      ? preview.participant.matches?.[0]?.email || null
+                                      : null,
+                                },
                           registration: {
                             action: 'CREATE',
                             participantNumber:
