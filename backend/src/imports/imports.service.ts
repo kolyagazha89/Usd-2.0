@@ -3770,11 +3770,7 @@ export class ImportsService {
          * которые пытаются выдать один и тот же номер
          * или зарегистрировать один автомобиль.
          */
-        await tx.$queryRaw`
-          SELECT pg_advisory_xact_lock(
-            hashtext(${importJob.stageId})
-          )
-        `;
+        await tx.$queryRaw<{ locked: string }[]>`SELECT pg_advisory_xact_lock(hashtext(${importJob.stageId}))::text AS locked`;
 
         const importedParticipants =
           new Map<
