@@ -601,3 +601,31 @@ body{font-size:13px}
 .assistant-request-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;color:#858b91;font-size:10px}
 .assistant-request-meta span{padding:4px 7px;border-radius:7px;background:#f4f5f6}
 @media(max-width:650px){.assistant-request-guide{grid-template-columns:1fr}}
+
+
+/* USD Admin — resource controls */
+.resource-toolbar{padding:8px!important;gap:8px!important;align-items:center}
+.resource-toolbar .search-box{margin:0;min-width:220px}
+.resource-filters{display:flex;gap:4px;padding:3px;border:1px solid #e0e3e6;background:#f5f6f7;border-radius:9px}
+.resource-filters button{border:0;background:transparent;color:#687078;border-radius:7px;padding:7px 9px;font-size:9px;font-weight:800;white-space:nowrap}
+.resource-filters button:hover{background:#fff;color:#111}
+.resource-filters button.selected{background:#111;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.resource-filters button b{font-size:8px;margin-left:4px;opacity:.7}
+.resource-filters button.selected b{opacity:1}
+.resource-toolbar .row-count{white-space:nowrap;padding:0 7px}
+.form-intro{box-shadow:inset 3px 0 0 var(--red)}
+.entity-fields{align-items:start}
+.entity-fields .field-wrapper{transition:border-color .12s,background .12s}
+.entity-fields .field-wrapper:focus-within{background:#fff!important}
+.entity-fields .field-help{line-height:1.55}
+@media(max-width:900px){
+ .resource-toolbar{flex-wrap:wrap}
+ .resource-toolbar .search-box{flex:1;min-width:180px}
+ .resource-filters{order:3;width:100%;overflow:auto}
+ .resource-filters button{flex:1}
+}
+@media(max-width:520px){
+ .resource-toolbar .search-box{min-width:100%;order:0}
+ .resource-toolbar .row-count{margin-left:auto}
+ .resource-filters{order:2}
+}
