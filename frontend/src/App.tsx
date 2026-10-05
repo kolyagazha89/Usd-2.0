@@ -314,12 +314,18 @@ function ImportPage(){
      const sheetNames=(spreadsheet?.sheets??[]).map((s:any)=>s.title);
      if(!sheetNames.includes('Результаты'))throw new Error('В таблице отсутствует лист «Результаты»');
      if(mode==='HISTORICAL'&&!sheetNames.includes('Регистрация'))throw new Error('Для исторического импорта нужен лист «Регистрация»');
-     const resultValues=(await getGoogleSheetValues(spreadsheetId,'Результаты')).values??[];
+     const resultResponse=await getGoogleSheetValues(spreadsheetId,'Результаты');
+     const resultValues=Array.isArray(resultResponse?.values)
+       ? resultResponse.values
+       : (Array.isArray(resultResponse?.values?.values) ? resultResponse.values.values : []);
      const results=resultSheetRows(resultValues);
      if(!results.length)throw new Error('Лист «Результаты» пустой или не содержит строк данных');
      let registrations:any[]=[];
      if(mode==='HISTORICAL'){
-       const regValues=(await getGoogleSheetValues(spreadsheetId,'Регистрация')).values??[];
+       const regResponse=await getGoogleSheetValues(spreadsheetId,'Регистрация');
+       const regValues=Array.isArray(regResponse?.values)
+         ? regResponse.values
+         : (Array.isArray(regResponse?.values?.values) ? regResponse.values.values : []);
        registrations=sheetRows(regValues);
        if(!registrations.length)throw new Error('Лист «Регистрация» пустой или не содержит строк данных');
      }
