@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   Injectable,
@@ -3088,6 +3089,53 @@ export class ImportsService {
     };
   }
 
+  private async ensureRegistrationNumber(
+    tx: Prisma.TransactionClient,
+    data: {
+      stageId: string;
+      registrationId: string;
+      number: number;
+      isPrimary: boolean;
+    },
+  ) {
+    if (!Number.isInteger(data.number) || data.number <= 0) {
+      throw new BadRequestException('Номер участника должен быть положительным целым числом');
+    }
+
+    const existing = await tx.registrationNumber.findUnique({
+      where: {
+        stageId_number: {
+          stageId: data.stageId,
+          number: data.number,
+        },
+      },
+    });
+
+    if (existing) {
+      if (existing.registrationId !== data.registrationId) {
+        throw new BadRequestException(
+          'Номер участника ' + data.number + ' уже зарезервирован другой регистрацией на этом этапе',
+        );
+      }
+      if (data.isPrimary && !existing.isPrimary) {
+        throw new BadRequestException(
+          'Номер участника ' + data.number + ' уже используется как дополнительный номер этой регистрации',
+        );
+      }
+      return existing;
+    }
+
+    return tx.registrationNumber.create({
+      data: {
+        id: randomUUID(),
+        stageId: data.stageId,
+        registrationId: data.registrationId,
+        number: data.number,
+        isPrimary: data.isPrimary,
+      },
+    });
+  }
+
   private async createImportRegistration(
     tx: Prisma.TransactionClient,
     data: {
@@ -3119,7 +3167,7 @@ export class ImportsService {
     };
 
     try {
-      return await tx.registration.create({
+      const registration = await tx.registration.create({
         data: {
           stageId: data.stageId,
           participantId: data.participantId,
@@ -3131,6 +3179,15 @@ export class ImportsService {
           status: 'ACTIVE',
         },
       });
+
+      await this.ensureRegistrationNumber(tx, {
+        stageId: data.stageId,
+        registrationId: registration.id,
+        number: data.participantNumber,
+        isPrimary: true,
+      });
+
+      return registration;
     } catch (error) {
       if (
         !(
@@ -4853,6 +4910,8 @@ export class ImportsService {
                 include: {
                   class: {
                     select: {
+                      id: true,
+                      name: true,
                       unit: true,
                     },
                   },
@@ -4866,30 +4925,72 @@ export class ImportsService {
             );
           }
 
-          let registrationClass =
-            await tx.registrationClass.findFirst(
-              {
-                where: {
-                  registrationId,
+          const registrationContext = await tx.registration.findUnique({
+            where: { id: registrationId },
+            select: { participantNumber: true },
+          });
 
-                  classId,
-                },
-              },
+          if (!registrationContext) {
+            throw new BadRequestException(
+              'Регистрация не найдена для строки результата ' + row.rowNumber,
+            );
+          }
+
+          const historicalOrResolvedNumber =
+            resolution?.participantNumber ??
+            normalized?.participantNumber ??
+            this.parseParticipantNumber(
+              this.getImportFieldValue(rawData, [
+                'Номер',
+                'Номер участника',
+                'participantNumber',
+              ]),
             );
 
-          if (
-            !registrationClass
-          ) {
-            registrationClass =
-              await tx.registrationClass.create(
-                {
-                  data: {
-                    registrationId,
+          const isBassRace = stageClass.class.name.trim().toLowerCase().startsWith('bassrace');
+          const classNumber =
+            isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
+              ? historicalOrResolvedNumber
+              : registrationContext.participantNumber;
 
-                    classId,
-                  },
-                },
-              );
+          if (
+            !isBassRace &&
+            historicalOrResolvedNumber &&
+            historicalOrResolvedNumber !== registrationContext.participantNumber
+          ) {
+            throw new BadRequestException(
+              'Строка ' + row.rowNumber + ': обычный класс не может использовать дополнительный номер регистрации',
+            );
+          }
+
+          const registrationNumber = await this.ensureRegistrationNumber(tx, {
+            stageId: importJob.stageId,
+            registrationId,
+            number: classNumber,
+            isPrimary: classNumber === registrationContext.participantNumber,
+          });
+
+          let registrationClass =
+            await tx.registrationClass.findFirst({
+              where: {
+                registrationId,
+                classId,
+              },
+            });
+
+          if (!registrationClass) {
+            registrationClass = await tx.registrationClass.create({
+              data: {
+                registrationId,
+                classId,
+                numberId: registrationNumber.id,
+              },
+            });
+          } else if (registrationClass.numberId !== registrationNumber.id) {
+            registrationClass = await tx.registrationClass.update({
+              where: { id: registrationClass.id },
+              data: { numberId: registrationNumber.id },
+            });
           }
 
           const value =
