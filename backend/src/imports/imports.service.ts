@@ -1814,6 +1814,12 @@ export class ImportsService {
       }
     }
 
+    if (historicalResults && resultParticipantNumber === null) {
+      warnings.push(
+        `Строка ${rowNumber}: в листе результатов отсутствует положительный номер участника`,
+      );
+    }
+
     if (!foundClass) {
       warnings.push(
         `Строка ${rowNumber}: класс "${className}" не подключён к этому этапу`,
@@ -1954,7 +1960,9 @@ export class ImportsService {
                 'NOT_FOUND' as const,
             },
 
-      participantNumber,
+      participantNumber: historicalResults
+        ? resultParticipantNumber
+        : participantNumber,
 
       participantNumberSource,
 
