@@ -68,8 +68,13 @@ export class AssistantService {
       const r = await this.executeFunction('STAGE_READINESS', {}, userId);
       return { success: true, reply: r.result.ready ? `Этап «${r.result.stage.name}» выглядит готовым к работе: классов ${r.result.stage.classes}, регистраций ${r.result.counts.registrations}, инспекций ${r.result.counts.inspections}, результатов ${r.result.counts.results}.` : `Этап «${r.result.stage.name}» пока не готов: проверьте подключённые классы и статус этапа.`, action: null, data: r.result };
     }
-    const item = await this.create({ type: 'CODE_CHANGE', title: 'Задача из USD Copilot', prompt: text, risk: 'Средний', metadata: { source: 'chat', scope: 'admin' } }, userId);
-    return { success: true, reply: 'Понял задачу. Я подготовил её как управляемое изменение. Для действий, которые меняют код, данные или настройки, я покажу план и попрошу подтверждение перед применением.', action: { type: 'CHANGE_REQUEST', id: item.item.id, status: item.item.status } };
+    const item = await this.create({ type: 'CODE_CHANGE', title: 'Изменение по диалогу с USD Copilot', prompt: text, risk: 'Средний', metadata: { source: 'chat', scope: 'admin' } }, userId);
+    const submitted = await this.submit(item.item.id, userId);
+    return {
+      success: true,
+      reply: 'Понял. Это уже не просто вопрос, а задача на изменение. Я подготовил её отдельно, но ничего не применяю без твоего явного подтверждения.',
+      action: { type: 'CHANGE_REQUEST', id: item.item.id, status: submitted.item.status, title: item.item.title, prompt: text, risk: item.item.risk ?? 'Средний' }
+    };
   }
 
   private async askModel(text: string, userId: string) {
