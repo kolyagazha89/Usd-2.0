@@ -320,6 +320,9 @@ export class ImportsService {
                             action: 'CREATE',
                             participantNumber:
                               preview.participantNumber,
+                            primaryParticipantNumber:
+                              preview.registration?.participantNumber ??
+                              preview.participantNumber,
                           },
                           classId:
                             preview.class?.classId,
@@ -4550,6 +4553,13 @@ export class ImportsService {
                 .registration
                 .participantNumber;
 
+
+            const primaryParticipantNumber =
+              (importJob.metadata as any)?.historicalResults === true &&
+              Number.isInteger(resolution?.registration?.primaryParticipantNumber) &&
+              resolution.registration.primaryParticipantNumber > 0
+                ? resolution.registration.primaryParticipantNumber
+                : participantNumber;
             if (
               !participantNumber ||
               participantNumber <= 0
@@ -4725,7 +4735,7 @@ export class ImportsService {
                         importJob.stageId,
                       participantId,
                       carId,
-                      participantNumber,
+                      participantNumber: primaryParticipantNumber,
                     },
                   );
 
