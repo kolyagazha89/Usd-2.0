@@ -5,11 +5,12 @@ export class PrepareUploadDto {
   @IsEnum(MediaTargetType)
   targetType!: MediaTargetType;
 
-  @IsUUID()
+  @IsString()
+  @MaxLength(120)
   targetId!: string;
 
   @IsString()
-  @IsIn(['image/jpeg', 'image/png', 'image/webp'])
+  @IsIn(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon'])
   contentType!: string;
 }
 
