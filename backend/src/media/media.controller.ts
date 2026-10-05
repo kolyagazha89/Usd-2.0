@@ -19,6 +19,11 @@ export class MediaController {
     );
   }
 
+  @Get('public/:targetType/:targetId')
+  publicView(@Param('targetType') targetType: MediaTargetType, @Param('targetId') targetId: string) {
+    return this.mediaService.getPublicSignedViewUrl(targetType, targetId);
+  }
+
   @Get('view/:targetType/:targetId')
   view(
     @Req() request: AuthenticatedRequest,
