@@ -38,6 +38,11 @@ export class AssistantController {
     return this.service.approve(id, body, req.user.sub);
   }
 
+  @Patch('requests/:id/apply')
+  apply(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.apply(id, req.user.sub);
+  }
+
   @Patch('requests/:id/reject')
   reject(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.reject(id, req.user.sub);
