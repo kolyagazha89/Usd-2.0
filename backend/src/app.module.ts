@@ -25,6 +25,7 @@ import { SeasonsModule } from './seasons/seasons.module';
 import { HistoricalResultsModule } from './historical-results/historical-results.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { GoogleModule } from './google/google.module';
+import { SiteSettingsModule } from './site-settings/site-settings.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { GoogleModule } from './google/google.module';
     HistoricalResultsModule,
     StatisticsModule,
     GoogleModule,
+    SiteSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
