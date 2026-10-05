@@ -1780,7 +1780,8 @@ export class ImportsService {
 
     if (
       participant.status ===
-      'NEW'
+      'NEW' &&
+      !historicalResults
     ) {
       warnings.push(
         `Строка ${rowNumber}: участник "${rawName}" отсутствует в базе`,
