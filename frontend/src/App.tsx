@@ -615,7 +615,48 @@ function UsersPage(){
   {modal!==null&&<Modal title="Новый пользователь" onClose={()=>setModal(null)}><EntityForm fields={[{name:'email',label:'Email',type:'email',required:true},{name:'password',label:'Пароль',type:'password',required:true},{name:'role',label:'Роль',options:['ADMIN','JUDGE','PARTICIPANT'],required:true}]} initial={modal} saving={saving} onSubmit={save}/></Modal>}
  </PageFrame>
 }
-function AuditPage(){const[data,setData]=useState<any[]>([]);useEffect(()=>{getAudit(1,100).then(r=>setData(listData(r)))},[]);return <PageFrame title="Аудит" subtitle="Журнал административных действий"><div className="panel table-wrap"><DataTable rows={data} columns={autoColumns(data)}/></div></PageFrame>}
+function AuditPage(){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const[entity,setEntity]=useState(''),[action,setAction]=useState('');
+ const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[entity,action]);
+ const actions=[...new Set(data.map(x=>x.action).filter(Boolean))];
+ return <PageFrame title="Аудит" subtitle="Понятная история: кто, что, где и когда изменил в системе." action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  <div className="audit-toolbar panel">
+   <label>Раздел<select value={entity} onChange={e=>setEntity(e.target.value)}><option value="">Все разделы</option>{['Stage','Registration','Participant','Car','Result','Inspection','ImportJob','AssistantRequest','SiteSettings','User'].map(x=><option key={x} value={x}>{auditEntityName(x)}</option>)}</select></label>
+   <label>Действие<select value={action} onChange={e=>setAction(e.target.value)}><option value="">Все действия</option>{actions.map(x=><option key={x} value={x}>{auditActionName(x)}</option>)}</select></label>
+   <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
+  </div>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x}/>)}</div>}
+  {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
+ </PageFrame>
+}
+function AuditEntryCard({item}:{item:any}){
+ const meta=item.metadata&&typeof item.metadata==='object'?item.metadata:{};
+ const actor=item.user?.name||item.user?.email||'Система';
+ const details=Object.entries(meta).filter(([k,v])=>v!==null&&v!==undefined&&k!=='password').slice(0,8);
+ return <article className="audit-entry">
+  <div className="audit-entry-icon"><FileClock size={17}/></div>
+  <div className="audit-entry-main">
+   <div className="audit-entry-head"><strong>{auditActionName(item.action)}</strong><time>{new Date(item.createdAt).toLocaleString('ru-RU')}</time></div>
+   <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{item.user?.role||'SYSTEM'}</span><span>·</span><span>{auditEntityName(item.entity)}</span>{item.entityId&&<code>{item.entityId}</code>}</div>
+   {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v)}</strong></div>)}</div>}
+   {item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
+  </div>
+ </article>
+}
+function auditEntityName(x:string){const m:Record<string,string>={Stage:'Этап',Registration:'Регистрация',Participant:'Участник',Car:'Автомобиль',Result:'Результат',Inspection:'Инспекция',ImportJob:'Импорт',AssistantRequest:'Запрос ассистента',SiteSettings:'Настройки сайта',User:'Пользователь'};return m[x]??humanize(x)}
+function auditActionName(x:string){const m:Record<string,string>={
+ CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',
+ IMPORT_PREVIEW:'Предпросмотр импорта',IMPORT_COMMITTED:'Импорт зафиксирован',IMPORT_ROW_RESOLVED:'Строка импорта исправлена',
+ INSPECTION_CREATED:'Инспекция создана',INSPECTION_UPDATED:'Инспекция изменена',RESULT_CREATED:'Результат внесён',RESULT_UPDATED:'Результат изменён',RESULT_DELETED:'Результат удалён',
+ DISQUALIFICATION_CREATED:'Дисквалификация создана',DISQUALIFICATION_REVOKED:'Дисквалификация отозвана',
+ ASSISTANT_CHAT_USED:'Использован чат ассистента',ASSISTANT_FUNCTION_EXECUTED:'Выполнена функция ассистента',ASSISTANT_REQUEST_CREATED:'Создан запрос ассистента',ASSISTANT_REQUEST_SUBMITTED:'Запрос отправлен на подтверждение',ASSISTANT_REQUEST_APPROVED:'Запрос подтверждён',ASSISTANT_REQUEST_REJECTED:'Запрос отклонён',ASSISTANT_REQUEST_APPLIED:'Запрос применён',
+ SITE_SETTINGS_UPDATED:'Настройки сайта изменены',USER_CREATED:'Пользователь создан',USER_UPDATED:'Пользователь изменён'
+ };return m[x]??humanize(x)}
+function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск'};return m[x]??humanize(x)}
+function formatAuditValue(v:any){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='object')return JSON.stringify(v);return String(v)}
 function QualityPage(){const[data,setData]=useState<any>(null);useEffect(()=>{getDataQuality().then(setData)},[]);return <PageFrame title="Контроль данных" subtitle="Центр качества данных"><div className="quality-summary">{data&&<><div className="stat-card"><span>Всего проблем</span><strong>{data.counts.total}</strong></div><div className="stat-card danger-card"><span>Ошибки</span><strong>{data.counts.error}</strong></div><div className="stat-card"><span>Предупреждения</span><strong>{data.counts.warning}</strong></div><div className="stat-card"><span>Информация</span><strong>{data.counts.info}</strong></div></>}</div><div className="panel table-wrap"><DataTable rows={data?.issues??[]} columns={autoColumns(data?.issues??[])}/></div></PageFrame>}
 
 function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
@@ -647,7 +688,7 @@ function SiteSettingsPage(){
 }
 function SettingsMap({title,section,settings,patch,fields}:{title:string;section:string;settings:any;patch:(s:string,v:any)=>void;fields:string[]}){const data=settings[section]??{};const labels:Record<string,string>={phone:'Телефон',email:'Email',address:'Адрес',telegram:'Telegram',vk:'VK',youtube:'YouTube',rutube:'RuTube',whatsapp:'WhatsApp',title:'Заголовок страницы',description:'Описание',keywords:'Ключевые слова',ogTitle:'OG-заголовок',ogDescription:'OG-описание',ogImage:'OG-изображение',canonical:'Canonical URL',ipName:'ФИО / наименование ИП',inn:'ИНН',ogrnip:'ОГРНИП',copyrightHolder:'Правообладатель',privacyUrl:'Политика конфиденциальности',consentUrl:'Согласие на обработку данных',termsUrl:'Пользовательское соглашение',rulesUrl:'Правила USD',copyright:'Копирайт',text:'Текст подвала',enabled:'Регистрация включена',price:'Стоимость участия',additionalClassPrice:'Стоимость дополнительного класса',introText:'Текст перед регистрацией',successText:'Сообщение после регистрации',rulesText:'Условия регистрации'};const textareas=new Set(['description','ogDescription','text','introText','successText','rulesText']);const urlFields=new Set(['telegram','vk','youtube','rutube','whatsapp','ogImage','canonical','privacyUrl','consentUrl','termsUrl','rulesUrl']);return <div className="settings-section"><PanelTitle title={title} icon={Settings2}/><p className="settings-help">Здесь находятся параметры этого раздела. Заполняйте только то, что действительно используется на публичном сайте.</p><div className="settings-form-grid">{fields.map(k=>{const bool=typeof data[k]==='boolean';return <label key={k} className={bool?'settings-check':''}><span className="field-label">{labels[k]??humanize(k)}</span>{bool?<span className="setting-toggle-line"><input type="checkbox" checked={!!data[k]} onChange={e=>patch(section,{...data,[k]:e.target.checked})}/><b>{data[k]?'Включено':'Выключено'}</b></span>:textareas.has(k)?<textarea rows={4} value={data[k]??''} placeholder={k==='description'?'Коротко опишите USD для поисковиков…':''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>:<input type={urlFields.has(k)?'url':k.toLowerCase().includes('email')?'email':k==='price'||k==='additionalClassPrice'?'number':'text'} value={data[k]??''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>} {!bool&&<small className="field-help">{urlFields.has(k)?'Стабильная публичная ссылка':k==='price'||k==='additionalClassPrice'?'Сумма в рублях':'Можно оставить пустым, если параметр не используется.'}</small>}</label>})}</div></div>}
 function AssistantPage({go}:{go:(p:string)=>void}){
- const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot. Можешь писать мне обычным языком: «проверь этап», «покажи проблемы импорта», «сделай карточки этапов понятнее», «добавь функцию ассистента». Я сначала отвечу и покажу план. Действия, которые меняют данные или код, будут отдельно обозначены и потребуют подтверждения.'}]);
+ const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot — рабочий помощник администратора. Я могу проверить состояние системы, найти проблемы в данных, разобрать импорт, проверить готовность этапа и подготовить управляемое изменение. Если действие меняет данные или код — сначала покажу, что именно будет сделано, зачем, риск и что изменится после подтверждения.'}]);
  const [input,setInput]=useState(''),[sending,setSending]=useState(false),[error,setError]=useState('');
  const [requests,setRequests]=useState<any[]>([]),[functions,setFunctions]=useState<any[]>([]);
  useEffect(()=>{void Promise.all([getAssistantRequests().then(r=>setRequests(listData(r))).catch(()=>{}),getAssistantFunctions().then(r=>setFunctions(listData(r))).catch(()=>{})])},[]);
@@ -662,10 +703,10 @@ function AssistantPage({go}:{go:(p:string)=>void}){
    <section className="assistant-chat panel">
     <div className="assistant-chat-head"><div className="assistant-avatar"><Bot size={21}/></div><div><strong>USD Copilot</strong><span>Администраторский AI-контур · {pending.length} на подтверждении</span></div><button className="secondary-button compact" onClick={()=>setMessages([{role:'assistant',text:'Чат очищен. Что делаем?'}])}>Новый чат</button></div>
     <div className="assistant-messages">{messages.map((m:any,i:number)=><div key={i} className={'assistant-message '+m.role}><div className="message-avatar">{m.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div><div className="message-bubble"><div>{m.text}</div>{m.action&&<div className="assistant-action-card"><div><strong>Подготовлено изменение</strong><span>Это действие пока не применено.</span></div><button className="primary-button compact" onClick={()=>go('/admin/assistant?tab=changes')}><Code2 size={14}/>Открыть изменение</button></div>}{m.data&&<details className="assistant-data"><summary>Показать данные проверки</summary><pre>{JSON.stringify(m.data,null,2)}</pre></details>}</div></div>)}{sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble typing">печатает<span>.</span><span>.</span><span>.</span></div></div>}</div>
-    <div className="assistant-chat-suggestions">{['Проверь качество данных','Покажи состояние системы','Проверь готовность текущего этапа','Сделай админку понятнее'].map(x=><button key={x} onClick={()=>void send(x)}>{x}</button>)}</div>
+    <div className="assistant-chat-suggestions">{['Проверь качество данных','Покажи состояние системы','Проверь готовность текущего этапа','Разбери последний импорт','Что требует внимания сейчас','Подготовь улучшение админки'].map(x=><button key={x} onClick={()=>void send(x)}>{x}</button>)}</div>
     {error&&<div className="form-error"><AlertTriangle size={15}/>{error}</div>}
     <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}><textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Напишите сообщение ассистенту…" rows={2} disabled={sending}/><button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button></form>
-    <div className="assistant-chat-note"><LockKeyhole size={13}/>Ответы безопасны. Изменения кода, структуры и опасные операции не выполняются молча.</div>
+    <div className="assistant-chat-note"><LockKeyhole size={13}/><span>Безопасный режим: ассистент сначала анализирует и формирует план. Изменения данных требуют подтверждения, а изменения кода проходят через контролируемый PR-контур.</span></div>
    </section>
    <aside className="assistant-side">
     <div className="panel assistant-side-card"><PanelTitle title="Что я умею" icon={Bot}/><div className="assistant-capability-list"><div><CheckCircle2 size={15}/><span>Проверять данные и этапы</span></div><div><CheckCircle2 size={15}/><span>Разбирать импорт и проблемы</span></div><div><CheckCircle2 size={15}/><span>Готовить изменения frontend/backend</span></div><div><CheckCircle2 size={15}/><span>Предлагать новые функции ассистента</span></div><div><LockKeyhole size={15}/><span>Опасные изменения — только через подтверждение</span></div></div></div>
