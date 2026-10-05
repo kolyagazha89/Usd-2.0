@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DataQualityService } from '../data-quality/data-quality.service';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
 const STATUSES = new Set(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'APPLIED', 'CANCELLED']);
 
 @Injectable()
 export class AssistantService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly dataQuality: DataQualityService) {}
 
   async list() {
     const items = await this.prisma.assistantRequest.findMany({
@@ -43,6 +44,40 @@ export class AssistantService {
     });
     await this.prisma.auditLog.create({ data: { userId, action: 'ASSISTANT_REQUEST_CREATED', entity: 'AssistantRequest', entityId: item.id, metadata: { type, title } } });
     return { success: true, item };
+  }
+
+  async functions() {
+    return { success: true, functions: [
+      { code: 'DATA_QUALITY_SCAN', title: 'Проверка качества данных', description: 'Проверяет регистрации, инспекции, результаты, рекорды, автомобили и импорты.', risk: 'Низкий', confirmation: false },
+      { code: 'STAGE_READINESS', title: 'Проверка готовности этапа', description: 'Проверяет активный этап, классы, регистрацию, инспекции, результаты и LIVE-настройки.', risk: 'Низкий', confirmation: false },
+      { code: 'SYSTEM_SNAPSHOT', title: 'Снимок состояния системы', description: 'Показывает основные счётчики и состояние ключевых сущностей.', risk: 'Низкий', confirmation: false },
+    ] };
+  }
+
+  async executeFunction(code: string, body: Record<string, unknown>, userId: string) {
+    const allowed = new Set(['DATA_QUALITY_SCAN', 'STAGE_READINESS', 'SYSTEM_SNAPSHOT']);
+    if (!allowed.has(code)) throw new BadRequestException('Функция ассистента не разрешена');
+    let result: any;
+    if (code === 'DATA_QUALITY_SCAN') result = await this.dataQuality.getReport();
+    else if (code === 'SYSTEM_SNAPSHOT') {
+      const [participants, cars, registrations, results, stages, imports] = await Promise.all([
+        this.prisma.participant.count(), this.prisma.car.count(), this.prisma.registration.count(),
+        this.prisma.result.count(), this.prisma.stage.count(), this.prisma.importJob.count(),
+      ]);
+      result = { success: true, counts: { participants, cars, registrations, results, stages, imports } };
+    } else {
+      const stageId = typeof body.stageId === 'string' ? body.stageId : undefined;
+      const stage = stageId ? await this.prisma.stage.findUnique({ where: { id: stageId }, include: { classes: { where: { isActive: true } } } }) : await this.prisma.stage.findFirst({ orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], include: { classes: { where: { isActive: true } } } });
+      if (!stage) throw new NotFoundException('Этап для проверки не найден');
+      const [registrations, inspections, results] = await Promise.all([
+        this.prisma.registration.count({ where: { stageId: stage.id, status: 'ACTIVE' } }),
+        this.prisma.inspection.count({ where: { registration: { stageId: stage.id } } }),
+        this.prisma.result.count({ where: { registration: { stageId: stage.id } } }),
+      ]);
+      result = { success: true, stage: { id: stage.id, name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.classes.length }, counts: { registrations, inspections, results }, ready: stage.classes.length > 0 && stage.status !== 'CANCELLED' };
+    }
+    await this.audit(userId, 'ASSISTANT_FUNCTION_EXECUTED', code);
+    return { success: true, code, result };
   }
 
   async submit(id: string, userId: string) {
