@@ -79,6 +79,20 @@ export class InspectionsService {
     return inspection;
   }
 
+  async failPending(stageId: string, notes: string | undefined, actor: Actor) {
+    const normalized = notes?.trim() || 'Не прошёл общую техническую проверку перед въездом';
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId, status: 'ACTIVE', inspection: null },
+      select: { id: true },
+      orderBy: { participantNumber: 'asc' },
+    });
+    if (!registrations.length) return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
+    for (const registration of registrations) {
+      await this.create({ registrationId: registration.id, status: 'FAILED', notes: normalized }, actor);
+    }
+    return { success: true, processed: registrations.length, notes: normalized };
+  }
+
   async create(
     data: { registrationId: string; status: InspectionStatus; notes?: string },
     actor: Actor,
