@@ -18,6 +18,9 @@ describe('InspectionsService', () => {
     notes: null,
     createdByUserId: 'judge-1',
     checkedByUserId: 'judge-1',
+    registration: {
+      results: [],
+    },
   };
   let prisma: any;
   let service: InspectionsService;
