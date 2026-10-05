@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Req } from '@nestjs/common';
 import { MediaService } from './media.service';
 import { Public } from '../auth/public.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
@@ -38,6 +38,22 @@ export class MediaController {
   @Get('public/:targetType/:targetId')
   publicView(@Param('targetType') targetType: MediaTargetType, @Param('targetId') targetId: string) {
     return this.mediaService.getSignedPublicMediaUrl(targetType, targetId);
+  }
+
+  @Put('upload')
+  uploadThroughApi(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-upload-token') uploadToken: string,
+  ) {
+    const contentType = String(request.headers['content-type'] ?? '').split(';')[0].toLowerCase();
+    const body = request.body as Buffer;
+    return this.mediaService.uploadThroughApi(
+      request.user.sub,
+      request.user.role,
+      uploadToken,
+      body,
+      contentType,
+    );
   }
 
   @Post('complete')
