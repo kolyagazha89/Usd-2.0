@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon']);
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 @Injectable()
 export class MediaService {
@@ -98,11 +98,6 @@ export class MediaService {
   }
 
   private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
-    if (targetType === MediaTargetType.SITE_LOGO || targetType === MediaTargetType.SITE_MOBILE_LOGO || targetType === MediaTargetType.SITE_FAVICON || targetType === MediaTargetType.SITE_IMAGE) {
-      if (role !== 'ADMIN') throw new ForbiddenException('Только ADMIN может управлять медиа сайта');
-      if (targetId !== 'default') throw new ForbiddenException('Недопустимая цель медиа');
-      return;
-    }
     if (role === 'ADMIN') return;
     if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       const p = await this.prisma.participant.findFirst({ where: { id: targetId, user: { id: userId } }, select: { id: true } });
@@ -117,8 +112,7 @@ export class MediaService {
     if (!ALLOWED_TYPES.has(contentType.toLowerCase())) throw new BadRequestException('Разрешены только JPG, PNG и WebP');
     await this.ensureTargetAccess(userId, role, targetType, targetId);
     const token = crypto.randomBytes(32).toString('hex');
-    const folder = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
-    const key = `usd/${folder}/${targetId}/${crypto.randomUUID()}`;
+    const key = `usd/${targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : 'cars'}/${targetId}/${crypto.randomUUID()}`;
     const expiresIn = Math.min(Math.max(Number(process.env.S3_UPLOAD_EXPIRES_SECONDS ?? 600), 60), 900);
     await this.prisma.mediaUpload.create({ data: { userId, targetType, targetId, objectKey: key, contentType: contentType.toLowerCase(), tokenHash: this.hashToken(token), expiresAt: new Date(Date.now() + expiresIn * 1000) } });
     return {
@@ -139,18 +133,6 @@ export class MediaService {
       size: Number(response.headers.get('content-length') ?? '0'),
       contentType: (response.headers.get('content-type') ?? '').split(';')[0].toLowerCase(),
     };
-  }
-
-  async getPublicSignedViewUrl(targetType: MediaTargetType, targetId: string) {
-    const allowed = new Set([MediaTargetType.SITE_LOGO, MediaTargetType.SITE_MOBILE_LOGO, MediaTargetType.SITE_FAVICON, MediaTargetType.SITE_IMAGE]);
-    if (!allowed.has(targetType) || targetId !== 'default') throw new ForbiddenException('Медиа недоступно');
-    const upload = await this.prisma.mediaUpload.findFirst({
-      where: { targetType, targetId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      select: { objectKey: true, contentType: true },
-    });
-    if (!upload) throw new BadRequestException('Медиа не найдено');
-    return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, 900), expiresIn: 900, contentType: upload.contentType };
   }
 
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
@@ -200,15 +182,8 @@ export class MediaService {
     const url = this.objectUrl(upload.objectKey);
     if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       await this.prisma.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-    } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
-      await this.prisma.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
     } else {
-      const key = upload.targetType === MediaTargetType.SITE_LOGO ? 'logoUrl' : upload.targetType === MediaTargetType.SITE_MOBILE_LOGO ? 'mobileLogoUrl' : upload.targetType === MediaTargetType.SITE_FAVICON ? 'faviconUrl' : null;
-      if (key) {
-        const current = await this.prisma.siteSettings.findUnique({ where: { id: 'default' } });
-        const branding = { ...(current?.branding as any ?? {}), [key]: url };
-        await this.prisma.siteSettings.upsert({ where: { id: 'default' }, create: { id: 'default', branding, homepage: {}, stream: {}, liveResults: {}, navigation: {}, contacts: {}, social: {}, seo: {}, legal: {}, footer: {}, registration: {} }, update: { branding } });
-      }
+      await this.prisma.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
     }
     return { success: true, photoUrl: url };
   }
