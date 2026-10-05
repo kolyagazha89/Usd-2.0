@@ -302,6 +302,32 @@ export class ImportsService {
                   const preview =
                     resultPreview[index];
 
+                  const historicalResolution =
+                    body.historicalResults === true &&
+                    preview.status === 'READY'
+                      ? {
+                          participant:
+                            preview.participant.status === 'NEW'
+                              ? {
+                                  action: 'CREATE',
+                                  fullName:
+                                    preview.participant.rawName,
+                                }
+                              : undefined,
+                          registration: {
+                            action: 'CREATE',
+                            participantNumber:
+                              preview.resultParticipantNumber,
+                          },
+                          classId:
+                            preview.class?.classId,
+                          value:
+                            preview.result,
+                          place:
+                            preview.place,
+                        }
+                      : undefined;
+
                   return {
                     type: 'RESULT' as const,
 
@@ -320,6 +346,9 @@ export class ImportsService {
                     warnings: this.toJson(
                       preview.warnings,
                     ),
+
+                    resolution:
+                      historicalResolution,
 
                     participantNumber:
                       preview.participantNumber,
