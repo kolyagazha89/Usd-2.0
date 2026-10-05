@@ -355,16 +355,133 @@ function ImportPage(){
    <div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>
     {job?<><div className="import-summary"><div><b>{readyCount}</b><span>готово</span></div><div className="warning"><b>{warnCount}</b><span>нужно исправить</span></div><div className="resolved"><b>{resolvedCount}</b><span>исправлено</span></div></div>
       <div className="import-job-line">Импорт: <strong>{job.id}</strong> · статус: <strong>{job.status}</strong></div>
-      <div className="import-rows">{rows.slice(0,100).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{r.status}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small></span>{r.status==='WARNING'&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):'{}')}}>Исправить</button>}</div>)}</div>
+      <div className="import-rows">{rows.slice(0,100).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{r.status}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small></span>{r.status==='WARNING'&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):JSON.stringify({},null,2))}}>Исправить</button>}</div>)}</div>
       {warnCount===0&&job.status==='DRAFT'&&<button className="primary-button" disabled={loading} onClick={()=>void commit()}>4. Подтвердить и записать импорт</button>}
       {warnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>Есть предупреждения. Пока остаётся хотя бы один WARNING — Commit заблокирован.</span></div>}
       {job.status==='COMMITTED'&&<div className="notice"><Check size={17}/><span>Импорт успешно записан в базу USD 2.0.</span></div>}
     </>:<Empty text="После Preview здесь появится отчёт по каждой строке"/>}
    </div>
   </div>
-  {resolveRow&&<Modal title={`Исправление строки №${resolveRow.rowNumber}`} onClose={()=>setResolveRow(null)}><div className="import-resolution"><div className="notice"><AlertTriangle size={16}/><span>Сервер повторно проверит решение перед Commit.</span></div><div className="resolution-source"><strong>Исходные данные</strong><pre className="json-view">{JSON.stringify(resolveRow.rawData??{},null,2)}</pre><strong>Предварительный разбор</strong><pre className="json-view">{JSON.stringify(resolveRow.normalizedData??{},null,2)}</pre></div><label>Решение JSON<textarea rows={12} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button className="primary-button" disabled={loading} onClick={()=>void resolve()}>{loading?'Сохраняем…':'Сохранить решение'}</button></div></Modal>}
+  {resolveRow&&<ImportResolutionModal row={resolveRow} stageId={stageId} mode={mode} resolution={resolution} setResolution={setResolution} loading={loading} onClose={()=>setResolveRow(null)} onSave={async()=>{await resolve()}}/>}
  </PageFrame>
 }
+
+function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loading,onClose,onSave}:{row:any;stageId:string;mode:'NORMAL'|'HISTORICAL';resolution:string;setResolution:(v:string)=>void;loading:boolean;onClose:()=>void;onSave:()=>Promise<void>}){
+ const[data,setData]=useState<any[]>([]),[cars,setCars]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]),[classes,setClasses]=useState<any[]>([]),[loadingOptions,setLoadingOptions]=useState(true),[localError,setLocalError]=useState('');
+ const parsed=useMemo(()=>{try{return JSON.parse(resolution||'{}')}catch{return {}}},[resolution]);
+ const raw=row.rawData??{}, normalized=row.normalizedData??{};
+ const resultParticipant=normalized.participant?.matches?.[0]??null;
+ const participantName=normalized.participant?.rawName??raw['ФИО']??raw['Фамилия и имя']??'';
+ const participantNumber=normalized.participantNumber??normalized.resultParticipantNumber??raw['Номер']??raw['Номер участника']??'';
+ const setPart=(patch:any)=>setResolution(JSON.stringify({...parsed,participant:{...(parsed.participant??{}),...patch}},null,2));
+ const setReg=(patch:any)=>setResolution(JSON.stringify({...parsed,registration:{...(parsed.registration??{}),...patch}},null,2));
+ const setCar=(patch:any)=>setResolution(JSON.stringify({...parsed,car:{...(parsed.car??{}),...patch}},null,2));
+ const setClass=(classId:string)=>setResolution(JSON.stringify({...parsed,classId},null,2));
+ const setResultField=(patch:any)=>setResolution(JSON.stringify({...parsed,...patch},null,2));
+
+ useEffect(()=>{let cancelled=false;setLoadingOptions(true);Promise.all([
+   apiGet<any>('/participants'),
+   apiGet<any>('/cars'),
+   apiGet<any>('/registrations?stageId='+encodeURIComponent(stageId)),
+   apiGet<any>('/classes')
+ ]).then(([p,c,r,cl])=>{if(cancelled)return;setData(listData(p));setCars(listData(c));setRegistrations(listData(r));setClasses(listData(cl))}).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось загрузить варианты для решения')).finally(()=>{if(!cancelled)setLoadingOptions(false)});return()=>{cancelled=true}},[stageId]);
+
+ const participantCandidates=useMemo(()=>{
+   const q=String(participantName).trim().toLowerCase();
+   const n=Number(participantNumber);
+   return data.filter(p=>{
+     const name=[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ').toLowerCase();
+     return (q&&name.includes(q))||(Number.isFinite(n)&&n>0&&p.participantNumber===n);
+   }).slice(0,8);
+ },[data,participantName,participantNumber]);
+
+ const selectedParticipantId=parsed.participant?.participantId;
+ const selectedParticipant=data.find(p=>p.id===selectedParticipantId);
+ const selectedRegistrationId=parsed.registration?.registrationId;
+ const selectedRegistration=registrations.find(r=>r.id===selectedRegistrationId);
+ const carCandidates=cars.filter(c=>!selectedParticipantId||c.participantId===selectedParticipantId).slice(0,8);
+ const registrationCandidates=registrations.filter(r=>{
+   const n=Number(participantNumber);
+   return (Number.isFinite(n)&&n>0&&r.participantNumber===n)||(
+     selectedParticipantId&&r.participantId===selectedParticipantId
+   );
+ }).slice(0,8);
+
+ const createParticipant=()=>setPart({action:'CREATE',fullName:String(participantName).trim(),team:String(raw['Команда']??'').trim()||null,email:String(raw['Email']??'').trim()||null});
+ const useParticipant=(p:any)=>setPart({action:'USE_EXISTING',participantId:p.id});
+ const createRegistration=()=>setReg({action:'CREATE',participantNumber:Number(participantNumber)});
+ const useRegistration=(r:any)=>setReg({action:'USE_EXISTING',registrationId:r.id,participantNumber:r.participantNumber});
+ const createCar=()=>setCar({action:'CREATE',brand:String(raw['Марка автомобиля']??raw['Марка']??'').trim()||undefined,model:String(raw['Модель автомобиля']??raw['Модель']??'').trim()||undefined,registrationNumber:String(raw['Номер автомобиля']??raw['Гос. номер']??'').trim()||undefined,registrationCountry:'RU'});
+ const useCar=(c:any)=>setCar({action:'USE_EXISTING',carId:c.id});
+ const autoClass=normalized.class?.classId;
+ const currentClassId=parsed.classId??autoClass??'';
+ const classCandidates=classes.filter(c=>!normalized.class?.className||String(c.name).trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()||String(c.code??'').trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()).slice(0,12);
+
+ return <Modal title={\`Исправление строки №\${row.rowNumber}\`} onClose={onClose}>
+  <div className="import-resolution">
+   <div className="notice"><AlertTriangle size={16}/><span>Теперь не нужно писать JSON вручную. Нажимай действия ниже — система сама собирает корректное решение.</span></div>
+   {localError&&<div className="form-error"><AlertTriangle size={16}/>{localError}</div>}
+   <div className="resolution-source">
+    <div><strong>Исходная строка</strong><pre className="json-view">{JSON.stringify(raw,null,2)}</pre></div>
+    <div><strong>Что система определила</strong><pre className="json-view">{JSON.stringify(normalized,null,2)}</pre></div>
+   </div>
+
+   <div className="resolution-actions">
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><UserRound size={17}/><strong>Участник</strong></div>
+     <div className="resolution-action-value">{participantName||'Не определён'}{participantNumber&&<small>№ {participantNumber}</small>}</div>
+     <div className="resolution-buttons">
+      {selectedParticipantId&&<span className="badge good"><Check size={11}/>Выбран</span>}
+      {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createParticipant}><Plus size={14}/>Создать участника</button>}
+     </div>
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><ClipboardCheck size={17}/><strong>Регистрация на этап</strong></div>
+     <div className="resolution-action-value">{selectedRegistration?[selectedRegistration.participantNumber,selectedRegistration.participant?.lastName,selectedRegistration.participant?.firstName].filter(Boolean).join(' · '):'Не выбрана'}</div>
+     <div className="resolution-buttons">
+      {registrationCandidates.map(r=><button key={r.id} className="secondary-button compact" onClick={()=>useRegistration(r)}>Использовать №{r.participantNumber}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" disabled={!participantNumber} onClick={createRegistration}><Plus size={14}/>Создать регистрацию №{participantNumber}</button>}
+     </div>
+     {mode==='NORMAL'&&<small className="muted">В обычном импорте регистрацию только выбираем — создавать её нельзя.</small>}
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><CarFront size={17}/><strong>Автомобиль</strong></div>
+     <div className="resolution-action-value">{String(raw['Модель автомобиля']??raw['Модель']??'Автомобиль из импорта')}{raw['Номер автомобиля']&&<small>{String(raw['Номер автомобиля'])}</small>}</div>
+     <div className="resolution-buttons">
+      {carCandidates.map(c=><button key={c.id} className="secondary-button compact" onClick={()=>useCar(c)}>Использовать: {c.brand} {c.model}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createCar}><Plus size={14}/>Создать машину</button>}
+     </div>
+     {mode==='NORMAL'&&<small className="muted">В обычном импорте автомобиль не создаём — он уже должен быть у регистрации.</small>}
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><Trophy size={17}/><strong>Класс</strong></div>
+     <div className="resolution-action-value">{normalized.class?.className??raw['Класс']??'Не определён'}</div>
+     <div className="resolution-buttons">
+      {classCandidates.map(c=><button key={c.id} className={currentClassId===c.id?'primary-button compact':'secondary-button compact'} onClick={()=>setClass(c.id)}>{currentClassId===c.id?<Check size={14}/>:null}{c.name}</button>)}
+      {!classCandidates.length&&<select value={currentClassId} onChange={e=>setClass(e.target.value)}><option value="">Выберите класс</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+     </div>
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><Check size={17}/><strong>Результат</strong></div>
+     <div className="resolution-buttons resolution-fields">
+      <label>Результат<input type="number" step="0.01" value={parsed.value??normalized.result??''} onChange={e=>setResultField({value:e.target.value===''?undefined:Number(e.target.value)})}/></label>
+      <label>Место<input type="number" min="1" step="1" value={parsed.place??normalized.place??''} onChange={e=>setResultField({place:e.target.value===''?null:Number(e.target.value)})}/></label>
+      <label>Комментарий<input value={parsed.notes??''} onChange={e=>setResultField({notes:e.target.value||null})}/></label>
+     </div>
+    </div>
+   </div>
+
+   <details className="resolution-json-preview"><summary>Показать итоговое решение JSON</summary><pre className="json-view">{JSON.stringify(parsed,null,2)}</pre></details>
+   <div className="resolution-footer"><button className="secondary-button" onClick={onClose}>Отмена</button><button className="primary-button" disabled={loading||loadingOptions} onClick={()=>void onSave()}>{loading?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить решение</>}</button></div>
+  </div>
+ </Modal>
+}
+
 function RecordsPage(){
  const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const load=()=>{setLoading(true);setError('');return apiGet<any>('/records/admin/current').then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки рекордов')).finally(()=>setLoading(false))};
