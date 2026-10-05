@@ -433,6 +433,9 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  const selectedParticipant=data.find(p=>p.id===selectedParticipantId);
  const selectedRegistrationId=parsed.registration?.registrationId;
  const selectedRegistration=registrations.find(r=>r.id===selectedRegistrationId);
+ const registrationAction=parsed.registration?.action;
+ const resolvedParticipantNumber=Number(parsed.registration?.participantNumber??participantNumber);
+ const displayParticipantNumber=Number.isInteger(resolvedParticipantNumber)&&resolvedParticipantNumber>0?String(resolvedParticipantNumber).padStart(3,'0'):'—';
  const carCandidates=cars.filter(c=>!selectedParticipantId||c.participantId===selectedParticipantId).slice(0,8);
  const registrationCandidates=registrations.filter(r=>{
    const n=Number(participantNumber);
@@ -465,7 +468,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
      <div className="resolution-action-head"><UserRound size={17}/><strong>Участник</strong></div>
      <div className="resolution-action-value">{participantName||'Не определён'}{participantNumber&&<small>№ {participantNumber}</small>}</div>
      <div className="resolution-buttons">
-      {selectedParticipantId&&<span className="badge good"><Check size={11}/>Выбран</span>}
+      {selectedParticipantId&&<span className="badge good"><Check size={11}/>Участник выбран</span>}
       {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
       {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createParticipant}><Plus size={14}/>Создать участника</button>}
      </div>
@@ -473,10 +476,10 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
 
     <div className="resolution-action-card">
      <div className="resolution-action-head"><ClipboardCheck size={17}/><strong>Регистрация на этап</strong></div>
-     <div className="resolution-action-value">{selectedRegistration?[selectedRegistration.participantNumber,selectedRegistration.participant?.lastName,selectedRegistration.participant?.firstName].filter(Boolean).join(' · '):'Не выбрана'}</div>
+     <div className="resolution-action-value">{selectedRegistration?[selectedRegistration.participantNumber,selectedRegistration.participant?.lastName,selectedRegistration.participant?.firstName].filter(Boolean).join(' · '):registrationAction==='CREATE'?'Создание регистрации №'+displayParticipantNumber:'Не выбрана'}</div>
      <div className="resolution-buttons">
-      {registrationCandidates.map(r=><button key={r.id} className="secondary-button compact" onClick={()=>useRegistration(r)}>Использовать №{r.participantNumber}</button>)}
-      {mode==='HISTORICAL'&&<button className="primary-button compact" disabled={!participantNumber} onClick={createRegistration}><Plus size={14}/>Создать регистрацию №{participantNumber}</button>}
+      {registrationCandidates.map(r=><button key={r.id} className="secondary-button compact" onClick={()=>useRegistration(r)}>Использовать №{String(r.participantNumber).padStart(3,'0')}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" disabled={!Number.isInteger(resolvedParticipantNumber)||resolvedParticipantNumber<=0} onClick={createRegistration}><Plus size={14}/>{registrationAction==='CREATE'?'Регистрация №'+displayParticipantNumber+' выбрана':'Создать регистрацию №'+displayParticipantNumber}</button>}
      </div>
      {mode==='NORMAL'&&<small className="muted">В обычном импорте регистрацию только выбираем — создавать её нельзя.</small>}
     </div>
