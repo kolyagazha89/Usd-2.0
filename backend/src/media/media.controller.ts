@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { MediaService } from './media.service';
+import { Public } from '../auth/public.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { MediaTargetType } from '../generated/prisma/enums';
