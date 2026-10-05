@@ -920,25 +920,110 @@ export class ImportsService {
     registrationIndex: RegistrationParticipantIndex,
     participantNumber?: number | null,
   ) {
+    const normalizedName = this.normalizePersonName(rawName);
+
+    /*
+     * Historical import: ФИО is the key used to enrich a 000 result
+     * from the Registration sheet. The number in Results is the source
+     * of truth and must never be used to reject a name match.
+     *
+     * We therefore try name matching first. This is especially important
+     * when Results contains 000 or when the same participant has a
+     * different historical number in Results.
+     */
+    const exactAliases = new Set(this.nameAliases(rawName));
+    const exactMatches: RegistrationParticipantMatch[] = [];
+
+    for (const alias of exactAliases) {
+      for (const match of registrationIndex.byName.get(alias) ?? []) {
+        if (!exactMatches.some((item) => item.rowNumber === match.rowNumber)) {
+          exactMatches.push(match);
+        }
+      }
+    }
+
+    if (exactMatches.length === 1) {
+      return {
+        status: 'MATCHED' as const,
+        normalizedName,
+        matches: exactMatches,
+        matchType: 'NAME' as const,
+      };
+    }
+
+    if (exactMatches.length > 1) {
+      return {
+        status: 'AMBIGUOUS' as const,
+        normalizedName,
+        matches: exactMatches,
+        matchType: 'NAME' as const,
+      };
+    }
+
+    /*
+     * Names in the historical sheets can be written as
+     * "Фамилия Имя" or "Имя Фамилия", and transliterations differ.
+     * Compare transliterated token sets, not the whole string order.
+     */
+    if (normalizedName) {
+      const targetTokens = this.nameTokens(rawName);
+      const fuzzyMatches: RegistrationParticipantMatch[] = [];
+
+      for (const candidateRows of registrationIndex.byName.values()) {
+        for (const match of candidateRows) {
+          if (
+            fuzzyMatches.some(
+              (item) => item.rowNumber === match.rowNumber,
+            )
+          ) {
+            continue;
+          }
+
+          const candidateTokens = this.nameTokens(match.rawName);
+          if (this.nameTokenMatch(targetTokens, candidateTokens)) {
+            fuzzyMatches.push(match);
+          }
+        }
+      }
+
+      if (fuzzyMatches.length === 1) {
+        return {
+          status: 'MATCHED' as const,
+          normalizedName,
+          matches: fuzzyMatches,
+          matchType: 'NAME' as const,
+        };
+      }
+
+      if (fuzzyMatches.length > 1) {
+        return {
+          status: 'AMBIGUOUS' as const,
+          normalizedName,
+          matches: fuzzyMatches,
+          matchType: 'NAME' as const,
+        };
+      }
+    }
+
+    /*
+     * Only after name matching fails do we fall back to the positive
+     * number from Results.  A positive result number is never replaced
+     * by the Registration number; it is used only to find the helper row.
+     */
     if (
       participantNumber !== null &&
       participantNumber !== undefined &&
       participantNumber > 0
     ) {
       const numberMatches =
-        registrationIndex.byNumber.get(
-          participantNumber,
-        ) ?? [];
+        registrationIndex.byNumber.get(participantNumber) ?? [];
 
       if (numberMatches.length === 1) {
         return {
           status: 'MATCHED' as const,
-
           normalizedName:
-            numberMatches[0].normalizedName,
-
+            numberMatches[0].normalizedName || normalizedName,
           matches: numberMatches,
-
           matchType: 'NUMBER' as const,
         };
       }
@@ -946,92 +1031,84 @@ export class ImportsService {
       if (numberMatches.length > 1) {
         return {
           status: 'AMBIGUOUS' as const,
-
-          normalizedName:
-            this.normalizePersonName(
-              rawName,
-            ),
-
+          normalizedName,
           matches: numberMatches,
-
           matchType: 'NUMBER' as const,
         };
       }
     }
 
-    const normalizedName =
-      this.normalizePersonName(
-        rawName,
-      );
+    return {
+      status: 'NOT_FOUND' as const,
+      normalizedName,
+      matches: [],
+      matchType: 'NAME' as const,
+    };
+  }
 
-    const matches =
-      registrationIndex.byName.get(
-        normalizedName,
-      ) ?? [];
+  private nameTokens(value: string): string[] {
+    const transliterated = this.transliterateRussianName(value);
+    return transliterated
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort();
+  }
 
-    if (matches.length === 0 && normalizedName) {
-      const targetAliases = this.nameAliases(rawName).filter((value) => value.length >= 5);
-      const fuzzyMatches: RegistrationParticipantMatch[] = [];
+  private nameTokenMatch(
+    target: string[],
+    candidate: string[],
+  ): boolean {
+    if (!target.length || !candidate.length) return false;
 
-      for (const candidateRows of registrationIndex.byName.values()) {
-        for (const match of candidateRows) {
-          const candidateAliases = this.nameAliases(match.rawName).filter((value) => value.length >= 5);
-          const close = targetAliases.some((target) =>
-            candidateAliases.some((candidateName) => {
-              const maxDistance = Math.max(
-                1,
-                Math.floor(Math.min(target.length, candidateName.length) * 0.12),
-              );
-              return this.levenshtein(target, candidateName) <= maxDistance;
-            }),
-          );
-          if (close && !fuzzyMatches.some((item) => item.rowNumber === match.rowNumber)) {
-            fuzzyMatches.push(match);
-          }
+    /*
+     * Exact token-set match handles "Сергей Мещеряков" vs
+     * "Misheryakov Sergey". For small transliteration differences,
+     * allow one close token while requiring the rest to match.
+     */
+    if (
+      target.length === candidate.length &&
+      target.every((token) => candidate.includes(token))
+    ) {
+      return true;
+    }
+
+    if (target.length !== candidate.length) {
+      return false;
+    }
+
+    const used = new Set<number>();
+    let closeCount = 0;
+
+    for (const token of target) {
+      let bestIndex = -1;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      for (let i = 0; i < candidate.length; i++) {
+        if (used.has(i)) continue;
+        const distance = this.levenshtein(token, candidate[i]);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = i;
         }
       }
 
-      if (fuzzyMatches.length === 1) {
-        return { status: 'MATCHED' as const, normalizedName, matches: fuzzyMatches, matchType: 'NAME' as const };
-      }
-      if (fuzzyMatches.length > 1) {
-        return { status: 'AMBIGUOUS' as const, normalizedName, matches: fuzzyMatches, matchType: 'NAME' as const };
-      }
+      if (bestIndex < 0) return false;
+
+      const maxDistance = Math.max(
+        1,
+        Math.floor(Math.min(token.length, candidate[bestIndex].length) * 0.25),
+      );
+
+      if (bestDistance > maxDistance) return false;
+
+      used.add(bestIndex);
+      closeCount++;
     }
 
-    if (matches.length === 0) {
-      return {
-        status: 'NOT_FOUND' as const,
-
-        normalizedName,
-
-        matches: [],
-
-        matchType: 'NAME' as const,
-      };
-    }
-
-    if (matches.length === 1) {
-      return {
-        status: 'MATCHED' as const,
-
-        normalizedName,
-
-        matches,
-
-        matchType: 'NAME' as const,
-      };
-    }
-
-    return {
-      status: 'AMBIGUOUS' as const,
-
-      normalizedName,
-
-      matches,
-
-      matchType: 'NAME' as const,
-    };
+    return closeCount === target.length;
   }
 
   private async previewRegistrationRow(
