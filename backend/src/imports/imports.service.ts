@@ -4653,22 +4653,19 @@ export class ImportsService {
               participant.id;
           }
 
+          /*
+           * Historical preview may resolve the helper participant from
+           * either the DATABASE or the Registration sheet. In both cases
+           * the normalized match already contains the canonical
+           * Participant id when it exists. Do not require source=DATABASE.
+           */
           if (
             !participantId &&
-            normalized
-              ?.participant
-              ?.source ===
-              'DATABASE' &&
-            normalized
-              ?.participant
-              ?.matches
-              ?.length
+            normalized?.participant?.matches?.length &&
+            typeof normalized.participant.matches[0]?.id === 'string'
           ) {
             participantId =
-              normalized
-                .participant
-                .matches[0]
-                .id;
+              normalized.participant.matches[0].id;
           }
 
           const rawName =
