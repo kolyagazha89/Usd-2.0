@@ -2237,8 +2237,8 @@ export class ImportsService {
     return [...new Set([
       normalized,
       transliterated,
-      normalized.replace(/s+/g, ''),
-      transliterated.replace(/s+/g, ''),
+      normalized.replace(/\s+/g, ''),
+      transliterated.replace(/\s+/g, ''),
     ].filter(Boolean))];
   }
 
