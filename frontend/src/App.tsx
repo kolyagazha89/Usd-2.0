@@ -648,7 +648,7 @@ function AssistantPage({go}:{go:(p:string)=>void}){
       title:requestType==='CODE_CHANGE'?'Изменение структуры/функции USD':requestType==='ASSISTANT_FUNCTION'?'Новая функция ассистента USD':'Системное действие',
       prompt,
       risk,
-      metadata:{source:'admin-panel',scope:requestType==='CODE_CHANGE'?'frontend/backend':'assistant'}
+      metadata:{source:'admin-panel',scope:requestType==='CODE_CHANGE'?'frontend/backend':'assistant',functionCode:requestType==='ASSISTANT_FUNCTION'?'DATA_QUALITY_SCAN':undefined,action:requestType==='SYSTEM_ACTION'?'SYSTEM_SNAPSHOT':undefined}
     });
     setQuery('');setTab('changes');await load();
    }catch(e){setError(e instanceof Error?e.message:'Не удалось создать запрос')}finally{setSaving(false)}
