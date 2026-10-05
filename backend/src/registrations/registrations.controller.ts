@@ -96,6 +96,6 @@ export class RegistrationsController {
       );
     }
 
-    return this.registrationsService.cancel(id);
+    return this.registrationsService.cancel(id, request);
   }
 }
