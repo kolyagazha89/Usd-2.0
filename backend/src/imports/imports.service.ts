@@ -4298,7 +4298,7 @@ export class ImportsService {
               ) ?? null;
           }
 
-          if (historicalResults && !participantId) {
+          if ((importJob.metadata as any)?.historicalResults === true && !participantId) {
             if (!rawName) {
               throw new BadRequestException(
                 `Строка ${row.rowNumber}: ФИО отсутствует в результате`,
