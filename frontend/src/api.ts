@@ -17,18 +17,39 @@ export type Dashboard = {
   recentStages:Array<{id:string;stageNumber:number;name:string;city:string;date:string}>;
 };
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<T>{
   const headers=new Headers(init.headers);
   if(init.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
-  const response=await fetch(`${API_BASE}${path}`,{...init,headers,credentials:'include'});
-  if(response.status===401 && retry && !path.startsWith('/auth/')){
-    const refreshed=await refresh();
-    if(refreshed) return request<T>(path,init,false);
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response=await fetch(`${API_BASE}${path}`,{
+      ...init,
+      headers,
+      credentials:'include',
+      signal:init.signal ?? controller.signal,
+    });
+
+    if(response.status===401 && retry && !path.startsWith('/auth/')){
+      const refreshed=await refresh();
+      if(refreshed) return request<T>(path,init,false);
+    }
+
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok){
+      const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
+      e.status=response.status;
+      throw e;
+    }
+    return data as T;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok){const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;e.status=response.status;throw e;}
-  return data as T;
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
 export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;return r.user;}
