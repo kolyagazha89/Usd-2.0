@@ -4354,7 +4354,6 @@ export class ImportsService {
             registrationId,
           });
         }
-        }
 
         /*
          * =====================================================
