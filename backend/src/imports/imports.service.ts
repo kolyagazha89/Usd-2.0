@@ -327,7 +327,6 @@ export class ImportsService {
                             participantNumber:
                               preview.participantNumber,
                             primaryParticipantNumber:
-                              preview.registration?.participantNumber ??
                               preview.participantNumber,
                           },
                           classId:
@@ -336,18 +335,13 @@ export class ImportsService {
                             preview.result,
                           place:
                             preview.place,
-                          car:
-                            preview.car?.model &&
-                            preview.car?.plateNumber
-                              ? {
-                                  action: 'CREATE',
-                                  brand: 'Импорт',
-                                  model: preview.car.model,
-                                  registrationNumber:
-                                    preview.car.plateNumber,
-                                  registrationCountry: 'RU',
-                                }
-                              : undefined,
+                          car: {
+                            action: 'CREATE',
+                            brand: preview.car?.model || preview.car?.plateNumber ? 'Импорт' : 'Неизвестно',
+                            model: preview.car?.model || 'Автомобиль не указан',
+                            registrationNumber: preview.car?.plateNumber || undefined,
+                            registrationCountry: 'RU',
+                          },
                         }
                       : undefined;
 
