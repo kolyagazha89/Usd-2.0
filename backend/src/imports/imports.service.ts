@@ -3660,6 +3660,16 @@ export class ImportsService {
   ) {
     return this.prisma.$transaction(
       async (tx) => {
+        // Serialize commits of the same import job. Without a row lock,
+        // two concurrent requests could both observe DRAFT and execute the
+        // expensive commit path before one of them hits a later unique constraint.
+        await tx.$queryRaw`
+          SELECT id
+          FROM "ImportJob"
+          WHERE id = ${importId}
+          FOR UPDATE
+        `;
+
         const importJob =
           await tx.importJob.findUnique({
             where: {
