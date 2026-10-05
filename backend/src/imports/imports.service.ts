@@ -318,7 +318,7 @@ export class ImportsService {
                           registration: {
                             action: 'CREATE',
                             participantNumber:
-                              preview.resultParticipantNumber,
+                              preview.participantNumber,
                           },
                           classId:
                             preview.class?.classId,
@@ -1735,6 +1735,9 @@ export class ImportsService {
         rawResult,
       );
 
+    const isBassRace =
+      className.toLowerCase().startsWith('bassrace');
+
     const registrationParticipantNumber =
       registrationParticipant.status ===
         'MATCHED' &&
@@ -1760,97 +1763,64 @@ export class ImportsService {
       registrationParticipant.status ===
       'MATCHED'
     ) {
-      if (
-        registrationParticipantNumber !==
-        null
-      ) {
-        participantNumber =
-          registrationParticipantNumber;
+      if (resultParticipantNumber !== null) {
+        participantNumber = resultParticipantNumber;
+        participantNumberSource =
+          resultParticipantNumber === registrationParticipantNumber
+            ? 'BOTH'
+            : 'RESULT';
 
         if (
-          resultParticipantNumber !==
-          null
+          resultParticipantNumber !== registrationParticipantNumber &&
+          !isBassRace
         ) {
-          if (
-            resultParticipantNumber ===
-            registrationParticipantNumber
-          ) {
-            participantNumberSource =
-              'BOTH';
-          } else {
-            participantNumberSource =
-              'REGISTRATION';
-
-            warnings.push(
-              `Строка ${rowNumber}: номер участника в результате (${resultParticipantNumber}) отличается от номера в регистрации (${registrationParticipantNumber})`,
-            );
-          }
-        } else {
-          participantNumberSource =
-            'REGISTRATION';
+          warnings.push(
+            'Строка ' + rowNumber + ': номер участника в результате (' + resultParticipantNumber + ') отличается от номера в регистрации (' + registrationParticipantNumber + ')',
+          );
         }
-      } else if (
-        resultParticipantNumber !==
-        null
-      ) {
-        participantNumber =
-          resultParticipantNumber;
-
-        participantNumberSource =
-          'RESULT';
-
-        warnings.push(
-          `Строка ${rowNumber}: у участника есть регистрация этапа, но номер в регистрации отсутствует; используется номер из результата`,
-        );
+      } else if (registrationParticipantNumber !== null) {
+        participantNumber = registrationParticipantNumber;
+        participantNumberSource = 'REGISTRATION';
       } else {
         warnings.push(
-          `Строка ${rowNumber}: номер участника отсутствует и в результате, и в регистрации этапа`,
+          'Строка ' + rowNumber + ': номер участника отсутствует и в результате, и в регистрации этапа',
         );
       }
     } else if (
       registrationParticipant.status ===
       'AMBIGUOUS'
     ) {
-      if (
-        resultParticipantNumber !==
-        null
-      ) {
-        participantNumber =
-          resultParticipantNumber;
-
-        participantNumberSource =
-          'RESULT';
-
+      if (resultParticipantNumber !== null) {
+        participantNumber = resultParticipantNumber;
+        participantNumberSource = 'RESULT';
         warnings.push(
-          `Строка ${rowNumber}: найдено несколько регистраций с ФИО "${rawName}", используется номер из результата`,
+          'Строка ' + rowNumber + ': найдено несколько регистраций с ФИО "' + rawName + '", используется номер из результата',
         );
       } else {
         warnings.push(
-          `Строка ${rowNumber}: найдено несколько регистраций с ФИО "${rawName}", определить номер автоматически нельзя`,
+          'Строка ' + rowNumber + ': найдено несколько регистраций с ФИО "' + rawName + '", определить номер автоматически нельзя',
         );
       }
     } else {
-      if (
-        resultParticipantNumber !==
-        null
-      ) {
-        participantNumber =
-          resultParticipantNumber;
-
-        participantNumberSource =
-          'RESULT';
+      if (resultParticipantNumber !== null) {
+        participantNumber = resultParticipantNumber;
+        participantNumberSource = 'RESULT';
       }
 
       if (!historicalResults) {
         warnings.push(
-          `Строка ${rowNumber}: участник "${rawName}" отсутствует в регистрации этого этапа`,
+          'Строка ' + rowNumber + ': участник "' + rawName + '" отсутствует в регистрации этого этапа',
         );
       }
     }
 
-    if (historicalResults && resultParticipantNumber === null) {
+    if (
+      historicalResults &&
+      resultParticipantNumber === null &&
+      participantNumber === null
+    ) {
       warnings.push(
-        `Строка ${rowNumber}: в листе результатов отсутствует положительный номер участника`,
+        'Строка ' + rowNumber + ': в листе результатов отсутствует номер участника и его нельзя определить по таблице регистрации',
       );
     }
 
@@ -1884,13 +1854,6 @@ export class ImportsService {
         `Строка ${rowNumber}: результат "${rawResult}" не удалось определить как число`,
       );
     }
-
-    const isBassRace =
-      className
-        .toLowerCase()
-        .startsWith(
-          'bassrace',
-        );
 
     if (
       resultValue === 0 &&
@@ -1994,9 +1957,7 @@ export class ImportsService {
                 'NOT_FOUND' as const,
             },
 
-      participantNumber: historicalResults
-        ? resultParticipantNumber
-        : participantNumber,
+      participantNumber,
 
       participantNumberSource,
 
