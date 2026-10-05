@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -502,7 +503,7 @@ export class AuthService {
   async findHistoricalProfileCandidates(userId: string, fullName: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, participantId: true, role: true },
+      select: { id: true, email: true, participantId: true, role: true },
     });
     if (!user || user.role !== 'PARTICIPANT') {
       throw new UnauthorizedException('Недействительная учётная запись');
@@ -554,10 +555,35 @@ export class AuthService {
       return candidate === normalizedInput || candidateWithoutMiddle === normalizedInput;
     });
 
+    /*
+     * Исторический профиль нельзя привязать только по ФИО.
+     * Это было бы IDOR/захватом чужой исторической сущности:
+     * любой зарегистрированный PARTICIPANT мог бы подобрать UUID
+     * незанятого профиля и привязать его к своему аккаунту.
+     *
+     * Для self-service привязки нужен дополнительный ownership proof:
+     * legacy email участника должен совпадать с подтверждённым email аккаунта.
+     * Профили без сохранённого legacy email привязываются только администратором.
+     */
+    const userEmail = user.email;
+    const ownershipVerifiedCandidates: typeof candidates = [];
+    for (const candidate of candidates) {
+      const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
+        where: { participantId: candidate.id },
+        select: { email: true },
+      });
+      if (
+        legacyEmail?.email &&
+        legacyEmail.email.trim().toLowerCase() === userEmail.trim().toLowerCase()
+      ) {
+        ownershipVerifiedCandidates.push(candidate);
+      }
+    }
+
     return {
       success: true,
-      found: candidates.length,
-      candidates: candidates.map(({ user: _user, ...participant }) => participant),
+      found: ownershipVerifiedCandidates.length,
+      candidates: ownershipVerifiedCandidates.map(({ user: _user, ...participant }) => participant),
     };
   }
 
@@ -585,6 +611,18 @@ export class AuthService {
         where: { id: participantId },
         select: { id: true, user: { select: { id: true } } },
       });
+      const legacyEmail = await tx.participantLegacyEmail.findUnique({
+        where: { participantId },
+        select: { email: true },
+      });
+      if (
+        !legacyEmail?.email ||
+        legacyEmail.email.trim().toLowerCase() !== user.email.trim().toLowerCase()
+      ) {
+        throw new ForbiddenException(
+          'Нельзя самостоятельно привязать этот исторический профиль',
+        );
+      }
       if (!participant) {
         throw new NotFoundException('Исторический профиль не найден');
       }
