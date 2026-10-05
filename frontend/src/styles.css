@@ -1477,3 +1477,49 @@ body:has(.modal-backdrop){
 @media(prefers-reduced-motion:reduce){
   .modal-backdrop{backdrop-filter:none;-webkit-backdrop-filter:none}
 }
+
+/* USD unified final UI pass */
+:root{--ui-radius:14px;--ui-border:#e5e8eb;--ui-muted:#747c85;--ui-shadow:0 8px 28px rgba(16,20,24,.07)}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit}
+button{transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease}
+button:active{transform:translateY(0)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(226,29,47,.35);outline-offset:2px}
+.panel,.table-wrap.panel,.smart-table-wrap,.stat-card,.dashboard-alert,.dashboard-feature,.asset-card,.assistant-chat,.assistant-side-card,.quality-table-panel,.statistics-table-panel{border-color:var(--ui-border)}
+.page{min-width:0}
+.page-head{min-width:0}
+.page-head>div{min-width:0}
+.page-head h1{letter-spacing:-.025em}
+.page-head p{color:#7a828b}
+.toolbar,.filter-bar,.page-toolbar{min-width:0}
+.toolbar input,.toolbar select,.filter-bar input,.filter-bar select{min-width:0}
+.data-table th{white-space:nowrap}
+.data-table td{vertical-align:middle}
+.data-table tbody tr{transition:background .14s ease}
+.data-table tbody tr:hover{background:#fafbfc}
+.badge{white-space:nowrap}
+.primary-button,.secondary-button,.danger-button{min-height:36px}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.empty-state,.empty-card{border:1px dashed #d8dde1!important;background:linear-gradient(180deg,#fff,#fafbfc)!important}
+.loading-state{min-height:160px;display:flex;align-items:center;justify-content:center;color:#7d858e}
+.error-card,.error-state{border-radius:14px;border:1px solid #efc4c9;background:#fff7f8;color:#a12634;padding:12px 14px}
+@media(max-width:1050px){
+  .page{padding-left:18px!important;padding-right:18px!important}
+  .page-head{gap:12px}
+}
+@media(max-width:800px){
+  .page{padding:16px!important}
+  .page-head{align-items:flex-start}
+  .page-head h1{font-size:22px}
+  .page-actions{gap:6px}
+  .page-actions>*{max-width:100%}
+  .table-wrap.panel,.smart-table-wrap{border-radius:12px}
+}
+@media(max-width:560px){
+  .page{padding:12px!important}
+  .page-head h1{font-size:20px}
+  .page-head p{font-size:10px}
+  .page-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .page-actions>*{width:100%!important}
+  .primary-button,.secondary-button,.danger-button{min-height:38px}
+}
