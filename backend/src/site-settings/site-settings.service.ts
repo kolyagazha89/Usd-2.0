@@ -53,7 +53,7 @@ export class SiteSettingsService{
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
       footer:input.footer??current.footer,registration:input.registration??current.registration,
     };
-    const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...next},update:{...next}});
+    const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
     await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections:Object.keys(input)}}});
     return {success:true,settings:this.shape(row)};
   }
