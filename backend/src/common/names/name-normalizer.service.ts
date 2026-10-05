@@ -66,7 +66,6 @@ export class NameNormalizerService {
     'tatarinov': 'Татаринов',
     'maksim': 'Максим',
     'sabelnikov': 'Сабельников',
-    'dmitriy': 'Дмитрий',
     'lazarev': 'Лазарев',
     'sergey': 'Сергей',
     'goryachev': 'Горячев',
@@ -82,7 +81,6 @@ export class NameNormalizerService {
     'rusik': 'Русик',
     'ruslan': 'Руслан',
     'matveev': 'Матвеев',
-    'viktor': 'Виктор',
     'zaharov': 'Захаров',
     'latysheva': 'Латышева',
     'kseniya': 'Ксения',
@@ -93,12 +91,8 @@ export class NameNormalizerService {
     'andrey': 'Андрей',
     'zacepilov': 'Зацепилов',
     'kirill': 'Кирилл',
-    'lyutov': 'Лютов',
-    'evgeny': 'Евгений',
     'voitenko': 'Войтенко',
-    'evgeniy': 'Евгений',
     'misheryakov': 'Мещеряков',
-    'sergey': 'Сергей',
     '34': '34',
   };
 
