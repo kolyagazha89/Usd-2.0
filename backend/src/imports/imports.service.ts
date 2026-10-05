@@ -1891,6 +1891,7 @@ export class ImportsService {
       | 'RESULT'
       | 'REGISTRATION'
       | 'BOTH'
+      | 'AUTO'
       | 'NONE' = 'NONE';
 
     const warnings: string[] = [];
@@ -1962,7 +1963,7 @@ export class ImportsService {
         : undefined;
       if (allocated) {
         participantNumber = allocated;
-        participantNumberSource = 'RESULT';
+        participantNumberSource = 'AUTO';
       } else {
         warnings.push(
           'Строка ' + rowNumber + ': в листе результатов отсутствует ФИО для автоматической выдачи номера',
