@@ -141,6 +141,18 @@ export class MediaService {
     };
   }
 
+  async getPublicSignedViewUrl(targetType: MediaTargetType, targetId: string) {
+    const allowed = new Set([MediaTargetType.SITE_LOGO, MediaTargetType.SITE_MOBILE_LOGO, MediaTargetType.SITE_FAVICON, MediaTargetType.SITE_IMAGE]);
+    if (!allowed.has(targetType) || targetId !== 'default') throw new ForbiddenException('Медиа недоступно');
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: { targetType, targetId, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { objectKey: true, contentType: true },
+    });
+    if (!upload) throw new BadRequestException('Медиа не найдено');
+    return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, 900), expiresIn: 900, contentType: upload.contentType };
+  }
+
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
     await this.ensureTargetAccess(userId, role, targetType, targetId);
 
