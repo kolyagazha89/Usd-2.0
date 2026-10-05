@@ -340,7 +340,7 @@ function DisqualificationsPage(){
    <td>{d.scope==='STAGE'?<><strong>#{d.stage?.stageNumber??'—'} · {d.stage?.name??'Этап'}</strong>{d.stage?.city&&<small className="table-sub">{d.stage.city}</small>}</>:d.scope==='SEASON'?<><strong>{d.season?.name??'Сезон'}</strong>{d.season?.year&&<small className="table-sub">{d.season.year}</small>}</>:<strong>Весь формат</strong>}</td>
    <td><span className={`badge ${d.status==='ACTIVE'?'bad':'good'}`}>{d.status==='ACTIVE'?'Действует':'Отозвана'}</span></td>
    <td title={d.reason}>{d.reason||'—'}</td>
-   <td>{d.issuedByUser?.name||'—'}{d.issuedByUser?.role&&<small className="table-sub">{roleName[d.issuedByUser.role]??enumLabel(d.issuedByUser.role)}</small>}</td>
+   <td>{d.issuedByUser?.name||'—'}{d.issuedByUser?.role&&<small className="table-sub">{roleName[d.issuedByUser.role as Role]??enumLabel(d.issuedByUser.role)}</small>}</td>
    <td>{formatDate(d.createdAt)}</td>
   </tr>)}</tbody></table>:<Empty text="Дисквалификаций нет"/>}</div>
  </PageFrame>
