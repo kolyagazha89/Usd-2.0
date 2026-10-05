@@ -1766,9 +1766,11 @@ export class ImportsService {
           'RESULT';
       }
 
-      warnings.push(
-        `Строка ${rowNumber}: участник "${rawName}" отсутствует в регистрации этого этапа`,
-      );
+      if (!historicalResults) {
+        warnings.push(
+          `Строка ${rowNumber}: участник "${rawName}" отсутствует в регистрации этого этапа`,
+        );
+      }
     }
 
     if (!foundClass) {
@@ -1788,7 +1790,8 @@ export class ImportsService {
 
     if (
       participant.status ===
-      'NEW'
+      'NEW' &&
+      !historicalResults
     ) {
       warnings.push(
         `Строка ${rowNumber}: участник "${rawName}" отсутствует в базе`,
