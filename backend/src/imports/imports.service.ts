@@ -5034,6 +5034,10 @@ export class ImportsService {
             | string
             | null = null;
 
+          // Tracks whether this historical row received a fresh participant number
+          // because the imported number was already occupied by another participant.
+          let historicalNumberAllocated = false;
+
           if (
             resolution
               ?.participant
