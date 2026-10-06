@@ -5219,11 +5219,23 @@ export class ImportsService {
               );
             }
 
-            const historicalBassRace =
-              (importJob.metadata as any)?.historicalResults === true &&
-              normalized?.class?.isBassRace === true;
+            const historicalImport =
+              (importJob.metadata as any)?.historicalResults === true;
 
-            if (historicalBassRace) {
+            /*
+             * Архив является источником истины по результатам, но один и тот же
+             * напечатанный номер не должен останавливать весь импорт. Если номер
+             * уже занят ДРУГИМ участником — независимо от класса — выдаём этому
+             * участнику следующий свободный номер. Это особенно важно для
+             * BassRace, но правило должно быть единым для всего исторического
+             * импорта.
+             *
+             * Важно: запоминаем факт перераспределения. Ниже нельзя второй раз
+             * пытаться вернуть регистрацию на исходный конфликтующий номер.
+             */
+            let historicalNumberAllocated = false;
+
+            if (historicalImport) {
               const existingByImportedNumber =
                 importedRegistrationsByNumber.get(participantNumber) ?? null;
               const existingByNumber = await tx.registration.findUnique({
@@ -5236,9 +5248,21 @@ export class ImportsService {
                 select: { id: true, participantId: true },
               });
 
+              const numberBelongsToAnotherParticipant =
+                Boolean(
+                  existingByNumber &&
+                  existingByNumber.participantId !== participantId,
+                );
+
+              const importedNumberBelongsToAnotherRegistration =
+                Boolean(
+                  existingByImportedNumber &&
+                  existingByImportedNumber !== registrationId,
+                );
+
               if (
-                (existingByNumber && existingByNumber.participantId !== participantId) ||
-                Boolean(existingByImportedNumber && existingByImportedNumber !== registrationId)
+                numberBelongsToAnotherParticipant ||
+                importedNumberBelongsToAnotherRegistration
               ) {
                 const allocatedNumber = await this.allocateFreeImportNumber(
                   tx,
@@ -5247,6 +5271,7 @@ export class ImportsService {
                 );
                 participantNumber = allocatedNumber;
                 primaryParticipantNumber = allocatedNumber;
+                historicalNumberAllocated = true;
               }
             }
 
@@ -5731,6 +5756,7 @@ export class ImportsService {
           if (
             historicalResults &&
             !isBassRace &&
+            !historicalNumberAllocated &&
             historicalOrResolvedNumber &&
             historicalOrResolvedNumber > 0 &&
             historicalOrResolvedNumber !== primaryNumber
