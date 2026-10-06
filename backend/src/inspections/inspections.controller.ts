@@ -28,6 +28,18 @@ export class InspectionsController {
     return this.inspectionsService.findOne(id);
   }
 
+  @Post('stage/:stageId/pass-pending')
+  passPending(
+    @Param('stageId') stageId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.inspectionsService.passPending(stageId, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
   @Post('stage/:stageId/fail-pending')
   failPending(
     @Param('stageId') stageId: string,
