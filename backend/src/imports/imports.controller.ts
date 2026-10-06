@@ -9,6 +9,11 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
+  @Post('historical/prepare')
+  prepareHistoricalXlsx(@Req() req: AuthenticatedRequest) {
+    return this.importsService.prepareHistoricalXlsxImport(req);
+  }
+
   @Post('stage/preview')
   preview(
     @Body() body: PreviewImportDto,
