@@ -139,10 +139,10 @@ function DashboardPage({go}:{go:(p:string)=>void}){
   <section className="dashboard-system panel">
    <div className="dashboard-system-head"><div><strong>Состояние системы</strong><span>{hasAlerts?'Есть пункты, требующие внимания':'Критичных пунктов нет'}</span></div><span className={'system-status '+(hasAlerts?'warning':'good')}>{hasAlerts?'ТРЕБУЕТ ВНИМАНИЯ':'ВСЁ В ПОРЯДКЕ'}</span></div>
    <div className="dashboard-system-grid">
-    <button onClick={()=>go('/admin/stages')}><span>Открытые этапы</span><strong>{a.openStages}</strong></button>
-    <button onClick={()=>go('/admin/results')}><span>Результаты сегодня</span><strong>{a.resultsToday}</strong></button>
-    <button onClick={()=>go('/admin/records')}><span>Текущие рекорды</span><strong>{ov.currentRecords}</strong></button>
-    <button onClick={()=>go('/admin/data-quality')}><span>Контроль данных</span><strong>Открыть</strong></button>
+    <button onClick={()=>go('/admin/stages')}><span>Этапы с открытой регистрацией</span><strong>{a.openStages}</strong><small>можно регистрировать участников</small></button>
+    <button onClick={()=>go('/admin/results')}><span>Результаты за сегодня</span><strong>{a.resultsToday}</strong><small>внесено результатов сегодня</small></button>
+    <button onClick={()=>go('/admin/records')}><span>Текущие рекорды</span><strong>{ov.currentRecords}</strong><small>действующих рекордов</small></button>
+    <button onClick={()=>go('/admin/data-quality')}><span>Контроль данных</span><strong>Открыть</strong><small>проверка целостности данных</small></button>
    </div>
   </section>
  </PageFrame>
