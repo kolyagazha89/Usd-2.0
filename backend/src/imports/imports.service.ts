@@ -2250,7 +2250,16 @@ export class ImportsService {
         select: { id: true, participantId: true },
       });
 
-      if (existingRegistration) {
+      // В историческом BassRace один и тот же напечатанный номер может
+      // встречаться у разных участников. Такой номер не должен превращать
+      // строку в конфликт с уже импортированным результатом: при Commit
+      // для второго участника будет выдан следующий свободный номер.
+      const duplicateBassRaceNumber =
+        isBassRace &&
+        existingRegistration &&
+        existingRegistration.participantId !== participant.matches?.[0]?.id;
+
+      if (existingRegistration && !duplicateBassRaceNumber) {
         const registrationClass = await this.prisma.registrationClass.findUnique({
           where: {
             registrationId_classId: {
@@ -3567,6 +3576,31 @@ export class ImportsService {
     };
   }
 
+  private async allocateFreeImportNumber(
+    tx: Prisma.TransactionClient,
+    stageId: string,
+    preferredNumber: number,
+  ): Promise<number> {
+    const rows = await tx.registrationNumber.findMany({
+      where: { stageId },
+      select: { number: true },
+      orderBy: { number: 'asc' },
+    });
+
+    const used = new Set(rows.map((row) => row.number));
+    let candidate = preferredNumber;
+
+    if (!Number.isInteger(candidate) || candidate <= 0) {
+      candidate = 1;
+    }
+
+    while (used.has(candidate)) {
+      candidate += 1;
+    }
+
+    return candidate;
+  }
+
   private async ensureRegistrationNumber(
     tx: Prisma.TransactionClient,
     data: {
@@ -4862,9 +4896,28 @@ export class ImportsService {
                   });
 
             if (classNumberRecord && classNumberRecord.registrationId !== registrationId) {
-              throw new BadRequestException(
-                'Номер участника ' + classNumber + ' уже зарезервирован другой регистрацией',
-              );
+              if (historicalResults && isBassRaceClass) {
+                const originalNumber = classNumber;
+                const allocatedNumber = await this.allocateFreeImportNumber(
+                  tx,
+                  importJob.stageId,
+                  originalNumber,
+                );
+
+                classNumberRecord = await tx.registrationNumber.create({
+                  data: {
+                    id: randomUUID(),
+                    stageId: importJob.stageId,
+                    registrationId,
+                    number: allocatedNumber,
+                    isPrimary: false,
+                  },
+                });
+              } else {
+                throw new BadRequestException(
+                  'Номер участника ' + classNumber + ' уже зарезервирован другой регистрацией',
+                );
+              }
             }
 
             if (!classNumberRecord) {
@@ -5712,10 +5765,35 @@ export class ImportsService {
             primaryNumber = historicalOrResolvedNumber;
           }
 
-          const classNumber =
+          let classNumber =
             isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
               ? historicalOrResolvedNumber
               : primaryNumber;
+
+          if (historicalResults && isBassRace && classNumber > 0) {
+            const occupiedBassRaceNumber = await tx.registrationNumber.findUnique({
+              where: {
+                stageId_number: {
+                  stageId: importJob.stageId,
+                  number: classNumber,
+                },
+              },
+              select: {
+                registrationId: true,
+              },
+            });
+
+            if (
+              occupiedBassRaceNumber &&
+              occupiedBassRaceNumber.registrationId !== registrationId
+            ) {
+              classNumber = await this.allocateFreeImportNumber(
+                tx,
+                importJob.stageId,
+                classNumber,
+              );
+            }
+          }
 
           const registrationNumber = await this.ensureRegistrationNumber(tx, {
             stageId: importJob.stageId,
