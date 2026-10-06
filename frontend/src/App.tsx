@@ -742,6 +742,7 @@ function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:
  </form>
 }
 function SiteSettingsPage(){
+ const debugMode=new URLSearchParams(window.location.search).get('debug')==='1';
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);for(const key of ['logoUrl','mobileLogoUrl','faviconUrl']){getMediaUrl('SITE_ASSET','branding-'+key).then(url=>setPreview(x=>({...x,[key]:url}))).catch(()=>{})}}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}try{const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch{setStages([])}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
