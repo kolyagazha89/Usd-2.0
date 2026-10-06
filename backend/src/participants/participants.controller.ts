@@ -36,6 +36,14 @@ export class ParticipantsController {
     return this.participantsService.findAllAdmin(request);
   }
 
+  @Roles('ADMIN')
+  @Get('participants/teams')
+  findTeams(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.participantsService.findTeams(request);
+  }
+
   // =========================================================
   // PUBLIC PARTICIPANTS
   // =========================================================
