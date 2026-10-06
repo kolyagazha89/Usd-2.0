@@ -1,0 +1,10 @@
+name: tmp-prod-stages
+on:
+  push:
+    branches: ["tmp/prod-stages-20261006"]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsSL https://usd-api-production.up.railway.app/stages
