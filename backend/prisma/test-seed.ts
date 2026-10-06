@@ -339,8 +339,8 @@ async function main() {
 
   const judge = await prisma.user.upsert({
     where: { email: TEST_JUDGE_EMAIL },
-    update: { name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash },
-    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash },
+    update: { name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
+    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
   });
 
   // 5. Cars and complete configuration trees.
