@@ -1,0 +1,35 @@
+name: tmp-full-xlsx-extract
+on:
+  push:
+    branches: ["tmp/full-xlsx-import-20261006"]
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl
+      - name: Extract source workbooks
+        run: |
+          python - <<'PY'
+          import openpyxl,json,pathlib
+          out={}
+          for fn in ["USD _ Регистрация.xlsx","USD _ Результаты.xlsx"]:
+              wb=openpyxl.load_workbook(fn,data_only=True,read_only=True)
+              out[fn]={}
+              for ws in wb.worksheets:
+                  out[fn][ws.title]=[list(row) for row in ws.iter_rows(values_only=True)]
+          pathlib.Path("tmp/full-xlsx-data.json").write_text(json.dumps(out,ensure_ascii=False,default=str),encoding="utf-8")
+          print({fn:{s:len(rows) for s,rows in sheets.items()} for fn,sheets in out.items()})
+          PY
+      - name: Commit extracted data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/full-xlsx-data.json
+          git commit -m "tmp: extract full historical xlsx data" || true
+          git push
