@@ -1765,3 +1765,113 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .statistics-brand-block{margin-top:18px}.statistics-brand-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 @media(max-width:800px){.statistics-analytics-grid{grid-template-columns:1fr}.statistics-brand-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.statistics-section-head{align-items:flex-start;flex-direction:column}}
 .poster-modal-content{display:grid;gap:12px}.stage-poster-preview{display:block;width:100%;max-height:52vh;object-fit:contain;border-radius:12px;background:#f1f2f3;border:1px solid #e2e5e7}.poster-modal-content input[type=file]{display:block;width:100%;padding:12px;border:1px dashed #c8cdd1;border-radius:10px;background:#fafafa}.poster-modal-content .field-help{display:block;margin-top:5px;color:#8a9198;font-size:10px}.partner-photo-preview{display:block;max-width:100%;max-height:180px;object-fit:contain;border-radius:12px;border:1px solid #e2e5e7;background:#f4f5f6;padding:6px}
+
+/* USD production modal system v2 — viewport-owned, centered, above the entire shell */
+body:has(.modal-backdrop){overflow:hidden!important}
+.modal-backdrop{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  box-sizing:border-box!important;
+  z-index:2147483647!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:24px!important;
+  margin:0!important;
+  overflow:hidden!important;
+  background:rgba(5,7,9,.64)!important;
+  backdrop-filter:blur(18px) saturate(.78)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(.78)!important;
+  overscroll-behavior:none!important;
+}
+.modal-backdrop .modal{
+  position:relative!important;
+  inset:auto!important;
+  flex:0 1 auto!important;
+  width:min(920px,calc(100vw - 48px))!important;
+  max-width:920px!important;
+  max-height:min(90dvh,920px)!important;
+  margin:0!important;
+  padding:0!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable!important;
+  background:#fff!important;
+  border:1px solid #d8dce0!important;
+  border-radius:20px!important;
+  box-shadow:0 40px 120px rgba(0,0,0,.42),0 10px 35px rgba(0,0,0,.18)!important;
+}
+.modal-backdrop .modal-head{
+  position:sticky!important;
+  top:0!important;
+  z-index:20!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  min-height:62px!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:16px 22px!important;
+  background:rgba(255,255,255,.97)!important;
+  backdrop-filter:blur(12px)!important;
+  -webkit-backdrop-filter:blur(12px)!important;
+  border-bottom:1px solid #e5e7e9!important;
+}
+.modal-backdrop .modal > :not(.modal-head){
+  box-sizing:border-box;
+}
+.stage-statuses{
+  display:inline-flex!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+  margin-top:6px!important;
+}
+.stage-statuses .status{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:24px!important;
+  padding:3px 8px!important;
+  border-radius:999px!important;
+  white-space:nowrap!important;
+}
+.stage-statuses .status-stage{
+  border:1px solid #d5d9dd!important;
+  background:#f5f6f7!important;
+  color:#34383d!important;
+}
+.stage-statuses .status-stage.published{
+  border-color:#b8cce8!important;
+  background:#f0f6ff!important;
+  color:#245b94!important;
+}
+.stage-statuses .status-stage.completed{
+  border-color:#c7cbd0!important;
+  background:#f1f2f3!important;
+  color:#4d5359!important;
+}
+.stage-statuses .status-stage.cancelled{
+  border-color:#efb0b8!important;
+  background:#fff1f3!important;
+  color:#a51f31!important;
+}
+.stage-statuses .status-stage.draft{
+  border-color:#e1d39d!important;
+  background:#fffaf0!important;
+  color:#80651a!important;
+}
+@media(max-width:700px){
+  .modal-backdrop{padding:10px!important}
+  .modal-backdrop .modal{
+    width:calc(100vw - 20px)!important;
+    max-width:none!important;
+    max-height:calc(100dvh - 20px)!important;
+    border-radius:16px!important;
+  }
+  .modal-backdrop .modal-head{min-height:56px!important;padding:14px 16px!important}
+}
