@@ -742,7 +742,7 @@ export class StatisticsService {
           total: inspections.length,
           passed: inspections.filter((inspection) => inspection.status === 'PASSED').length,
           failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
-          pending: inspections.filter((inspection) => inspection.status === 'PENDING').length,
+          pending: Math.max(0, registrations.length - new Set(inspections.map((inspection) => inspection.registrationId)).size),
         },
         appearances: eligibleResults.length,
         classResults: [...classes.values()]
