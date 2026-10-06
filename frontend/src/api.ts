@@ -73,6 +73,7 @@ export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
 export async function getDataQuality(){return request<{success:boolean;generatedAt:string;counts:{total:number;error:number;warning:number;info:number};healthy:boolean;issues?:any[]}>('/statistics/data-quality/report');}
+export async function prepareHistoricalImport(){return apiPost<any>('/imports/historical/prepare',{});}
 export async function getAudit(page=1,limit=50,entity='',action=''){const q=new URLSearchParams({page:String(page),limit:String(limit)});if(entity)q.set('entity',entity);if(action)q.set('action',action);return request<any>(`/statistics/audit?${q}`);}
 export async function apiGet<T=any>(path:string){return request<T>(path);}
 export async function apiPost<T=any>(path:string,body:any){return request<T>(path,{method:'POST',body:JSON.stringify(body)});}
