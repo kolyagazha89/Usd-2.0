@@ -80,6 +80,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
  if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
  return <Coming title="Пользователи" icon={UserRound} user={user}/>;
+ }
 }
 
 function DashboardPage({go}:{go:(p:string)=>void}){
