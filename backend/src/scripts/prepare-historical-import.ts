@@ -40,8 +40,7 @@ const registrationStageMap: Record<string, number> = {
 
 const resultStageMap: Record<string, number> = {
   open_volgograd2026: 3,
-  astrיaxan: 4,
-  astrорaxan: 4,
+  astraxan: 4,
   astrakhан: 4,
   ijevsk: 5,
   lipetsk: 6,
