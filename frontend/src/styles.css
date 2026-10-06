@@ -1959,3 +1959,57 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 
 .sidebar-section-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;cursor:pointer}.section-chevron{transition:transform .18s ease}.section-chevron.open{transform:rotate(90deg)}.results-direction-row td{padding:12px 16px;background:var(--surface-2,#f5f5f5);border-top:1px solid var(--border,#e5e5e5)}.results-direction-row span{margin-left:10px;font-size:12px;color:var(--muted,#777);font-weight:500}
+/* USD 2.0 · car configurations */
+.config-modal{display:flex;flex-direction:column;gap:16px}
+.config-modal-hero{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:18px;background:linear-gradient(135deg,#fafafa,#f3f4f6)}
+.config-car-icon,.config-editor-icon,.config-empty-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:#111;color:#fff;flex:none}
+.config-modal-hero h2,.config-details-hero h2{margin:2px 0 3px;font-size:20px;letter-spacing:-.02em}
+.config-modal-hero p,.config-details-hero p{margin:0;color:#737373;font-size:13px}
+.config-count{min-width:76px;text-align:center;padding:9px 12px;border:1px solid #ddd;border-radius:13px;background:#fff}
+.config-count strong{display:block;font-size:20px;line-height:1}
+.config-count span{display:block;margin-top:4px;color:#777;font-size:11px}
+.config-list{display:flex;flex-direction:column;gap:10px}
+.config-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;border:1px solid #e2e2e2;border-radius:16px;background:#fff;transition:.16s ease}
+.config-card:hover{border-color:#bdbdbd;box-shadow:0 8px 24px rgba(0,0,0,.06);transform:translateY(-1px)}
+.config-card-main{display:flex;align-items:center;gap:13px;min-width:0}
+.config-card-main h3{margin:0 0 4px;font-size:15px}
+.config-card-main p{margin:0;color:#777;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:430px}
+.config-version{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;height:54px;border-radius:14px;background:#111;color:#fff}
+.config-version span{font-size:7px;letter-spacing:.08em;opacity:.65}
+.config-version b{font-size:17px;margin-top:2px}
+.config-card-actions{display:flex;gap:7px;flex:none}
+.config-create-button{width:100%;display:flex;align-items:center;gap:12px;padding:14px 15px;border:1px dashed #bdbdbd;border-radius:15px;background:#fafafa;text-align:left;cursor:pointer;color:inherit}
+.config-create-button:hover{background:#f4f4f4;border-color:#888}
+.config-create-button>span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#111;color:#fff}
+.config-create-button div{flex:1}
+.config-create-button strong,.config-create-button small{display:block}
+.config-create-button small{margin-top:2px;color:#777}
+.config-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;border:1px dashed #ccc;border-radius:16px;background:#fafafa}
+.config-empty-icon{width:42px;height:42px;margin-bottom:10px}
+.config-empty strong{font-size:14px}.config-empty span{max-width:380px;margin-top:5px;color:#777;font-size:12px}
+.config-editor{gap:14px!important}
+.config-editor-intro{display:flex;align-items:center;gap:12px;padding:14px;border-radius:15px;background:#f6f6f6;border:1px solid #e5e5e5}
+.config-editor-intro strong{display:block;margin-top:3px;font-size:13px}
+.config-basic-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:12px}
+.config-section{padding:14px;border:1px solid #e1e1e1;border-radius:16px;background:#fff}
+.config-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.config-section-title{display:flex;align-items:center;gap:10px}
+.config-section-title strong,.config-section-title small{display:block}.config-section-title small{margin-top:2px;color:#888;font-size:11px}
+.config-section-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#f0f0f0;color:#222}
+.config-row{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-top:1px solid #eee}
+.config-row-number{width:25px;padding-top:9px;color:#aaa;font:600 10px/1 ui-monospace,monospace}
+.config-row-content{flex:1;min-width:0}.config-row-content>div{width:100%}
+.config-row .form-grid-3,.config-row .form-grid-4,.config-row .form-grid-5{width:100%}
+.config-row>.icon-button{margin-top:3px}
+.config-section-empty{padding:12px;border-radius:10px;background:#f8f8f8;color:#888;font-size:12px;text-align:center}
+.config-editor-actions{display:flex;justify-content:flex-end;padding-top:2px}
+.config-details{display:flex;flex-direction:column;gap:15px}
+.config-details-hero{display:flex;gap:13px;align-items:center;padding:17px;border-radius:17px;background:#111;color:#fff}
+.config-details-hero p{color:#aaa}.config-details-badge{display:grid;place-items:center;width:50px;height:50px;border-radius:14px;background:#fff;color:#111;font-weight:800;font-size:18px}
+.config-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.config-stat-grid>div{padding:12px;border:1px solid #e5e5e5;border-radius:13px;background:#fafafa}
+.config-stat-grid span,.config-stat-grid strong{display:block}.config-stat-grid span{font-size:10px;color:#888}.config-stat-grid strong{font-size:20px;margin-top:3px}
+.config-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.config-detail-grid .detail-block{min-height:70px;padding:12px 14px;border:1px solid #e5e5e5;border-radius:13px;background:#fff}
+.config-detail-grid .detail-block span,.config-detail-grid .detail-block strong{display:block}.config-detail-grid .detail-block span{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em}.config-detail-grid .detail-block strong{margin-top:6px;font-size:12px;line-height:1.45;white-space:pre-wrap}
+@media(max-width:700px){.config-modal-hero{grid-template-columns:auto 1fr}.config-count{grid-column:2;text-align:left}.config-card{align-items:flex-start;flex-direction:column}.config-card-actions{width:100%}.config-card-actions button{flex:1}.config-basic-grid,.config-detail-grid{grid-template-columns:1fr}.config-stat-grid{grid-template-columns:1fr 1fr}}
