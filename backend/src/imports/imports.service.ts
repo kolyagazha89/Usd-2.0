@@ -2605,6 +2605,36 @@ export class ImportsService {
         fullName,
       );
 
+    // Final DB-level guard: preview matching is not enough. An import can be
+    // resolved from a registration/result sheet, so before creating a new
+    // Participant we always check the canonical Participant table itself.
+    const existingParticipant =
+      await tx.participant.findFirst({
+        where: {
+          lastName: parsedName.lastName,
+          firstName: parsedName.firstName,
+          ...(parsedName.middleName
+            ? { middleName: parsedName.middleName }
+            : { middleName: null }),
+        },
+      });
+
+    if (existingParticipant) {
+      const email = this.stringValue(participant.email);
+      if (email) {
+        const existingLegacyEmail =
+          await tx.participantLegacyEmail.findFirst({
+            where: { participantId: existingParticipant.id, email },
+          });
+        if (!existingLegacyEmail) {
+          await tx.participantLegacyEmail.create({
+            data: { participantId: existingParticipant.id, email },
+          });
+        }
+      }
+      return existingParticipant;
+    }
+
     const createdParticipant =
       await tx.participant.create({
         data: {
