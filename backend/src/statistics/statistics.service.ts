@@ -657,7 +657,7 @@ export class StatisticsService {
       throw new NotFoundException('Этап не найден');
     }
 
-    const [registrations, results] = await Promise.all([
+    const [registrations, results, inspections] = await Promise.all([
       this.prisma.registration.findMany({
         where: {
           stageId,
@@ -672,6 +672,7 @@ export class StatisticsService {
       this.loadResults({
         registration: { stageId },
       }),
+      this.prisma.inspection.findMany({ where: { registration: { stageId } }, select: { status: true } }),
     ]);
 
     const ids = [...new Set(results.map(
@@ -737,6 +738,12 @@ export class StatisticsService {
             registration.carId,
           ),
         ).size,
+        inspections: {
+          total: inspections.length,
+          passed: inspections.filter((inspection) => inspection.status === 'PASSED').length,
+          failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
+          pending: inspections.filter((inspection) => inspection.status === 'PENDING').length,
+        },
         appearances: eligibleResults.length,
         classResults: [...classes.values()]
           .sort(
