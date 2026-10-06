@@ -117,7 +117,6 @@ function DashboardPage({go}:{go:(p:string)=>void}){
  if(error)return <ErrorPanel message={error} retry={load}/>;
  if(!data)return <LoadingPage/>;
  const stage=data.currentStage,regs=data.activeRegistrationStats,a=data.attention,ov=data.overview;
- const hasAlerts=a.failedInspections>0||a.unresolvedImports>0||a.activeDisqualifications>0||a.openStages===0;
  return <PageFrame title="Панель управления" subtitle="Операционный центр USD" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
   <section className="dashboard-kpis">
    <button className="dashboard-kpi" onClick={()=>go('/admin/participants')}><span><Users size={16}/>Участники</span><strong>{ov.participants.toLocaleString('ru-RU')}</strong><small>в базе</small></button>
@@ -160,15 +159,6 @@ function DashboardPage({go}:{go:(p:string)=>void}){
   <section className="dashboard-lower-grid">
    <div className="panel"><PanelTitle title="Ближайшие этапы" icon={CalendarDays} action="Все" onAction={()=>go('/admin/stages')}/>{data.upcomingStages.length?data.upcomingStages.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages/'+s.id)}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div><span className={'status '+(s.registrationOpen?'open':'')}>{s.registrationOpen?'Открыта':'Закрыта'}</span><ChevronRight size={16}/></button>):<Empty text="Нет запланированных этапов"/>}</div>
    <div className="panel"><PanelTitle title="Последние этапы" icon={History} action="Все" onAction={()=>go('/admin/stages')}/>{data.recentStages.length?data.recentStages.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages/'+s.id)}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div><ChevronRight size={16}/></button>):<Empty text="История этапов пока пуста"/>}</div>
-  </section>
-  <section className="dashboard-system panel">
-   <div className="dashboard-system-head"><div><strong>Состояние системы</strong><span>{hasAlerts?'Есть пункты, требующие внимания':'Критичных пунктов нет'}</span></div><span className={'system-status '+(hasAlerts?'warning':'good')}>{hasAlerts?'ТРЕБУЕТ ВНИМАНИЯ':'ВСЁ В ПОРЯДКЕ'}</span></div>
-   <div className="dashboard-system-grid">
-    <button onClick={()=>go('/admin/stages')}><span>Этапы с открытой регистрацией</span><strong>{a.openStages}</strong><small>можно регистрировать участников</small></button>
-    <button onClick={()=>go('/admin/results')}><span>Результаты за сегодня</span><strong>{a.resultsToday}</strong><small>внесено результатов сегодня</small></button>
-    <button onClick={()=>go('/admin/records')}><span>Текущие рекорды</span><strong>{ov.currentRecords}</strong><small>действующих рекордов</small></button>
-    <button onClick={()=>go('/admin/data-quality')}><span>Контроль данных</span><strong>Открыть</strong><small>проверка целостности данных</small></button>
-   </div>
   </section>
  </PageFrame>
 }
