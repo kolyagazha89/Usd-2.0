@@ -664,7 +664,7 @@ export class ImportsService {
       const rawClass = this.stringValue(row['Класс']);
       if (rawClass) currentClass = rawClass;
       return { ...row, 'Класс': currentClass };
-    }).filter((row) => this.stringValue(row['Класс']) && this.stringValue(row['ФИО']));
+    }).filter((row: any) => this.stringValue(row['Класс']) && this.stringValue(row['ФИО']));
   }
 
   private buildParticipantIndex(
