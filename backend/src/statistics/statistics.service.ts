@@ -669,12 +669,68 @@ export class StatisticsService {
           id: true,
           participantId: true,
           carId: true,
+          participantNumber: true,
+          participant: {
+            select: {
+              firstName: true,
+              lastName: true,
+              middleName: true,
+              team: true,
+            },
+          },
+          car: {
+            select: {
+              brand: true,
+              model: true,
+              registrationNumber: true,
+            },
+          },
+          classes: {
+            select: {
+              classId: true,
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                  direction: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       }),
       this.loadResults({
         registration: { stageId },
       }),
-      this.prisma.inspection.findMany({ where: { registration: { stageId } }, select: { registrationId: true, status: true } }),
+      this.prisma.inspection.findMany({
+        where: { registration: { stageId } },
+        select: {
+          registrationId: true,
+          status: true,
+          notes: true,
+          registration: {
+            select: {
+              participantNumber: true,
+              participant: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  middleName: true,
+                  team: true,
+                },
+              },
+              car: {
+                select: {
+                  brand: true,
+                  model: true,
+                  registrationNumber: true,
+                },
+              },
+            },
+          },
+        },
+      }),
     ]);
 
     const ids = [...new Set(results.map(
@@ -746,6 +802,54 @@ export class StatisticsService {
           failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
           pending: Math.max(0, registrations.length - new Set(inspections.map((inspection) => inspection.registrationId)).size),
         },
+        registrationClasses: (() => {
+          const grouped = new Map<string, any>();
+          for (const registration of registrations) {
+            for (const item of registration.classes) {
+              const current = grouped.get(item.classId) ?? {
+                class: item.class,
+                registrations: 0,
+                participants: new Set<string>(),
+                cars: new Set<string>(),
+              };
+              current.registrations += 1;
+              current.participants.add(registration.participantId);
+              current.cars.add(registration.carId);
+              grouped.set(item.classId, current);
+            }
+          }
+          return [...grouped.values()]
+            .sort(
+              (a, b) =>
+                (a.class.direction?.name ?? '').localeCompare(b.class.direction?.name ?? '', 'ru') ||
+                a.class.name.localeCompare(b.class.name, 'ru'),
+            )
+            .map((item) => ({
+              class: item.class,
+              registrations: item.registrations,
+              participants: item.participants.size,
+              cars: item.cars.size,
+            }));
+        })(),
+        inspectionDetails: inspections
+          .map((inspection) => ({
+            registrationId: inspection.registrationId,
+            status: inspection.status,
+            notes: inspection.notes,
+            participantNumber: inspection.registration.participantNumber,
+            participant: inspection.registration.participant,
+            car: inspection.registration.car,
+          }))
+          .sort((a, b) => a.participantNumber - b.participantNumber),
+        pendingRegistrations: registrations
+          .filter((registration) => !inspections.some((inspection) => inspection.registrationId === registration.id))
+          .map((registration) => ({
+            registrationId: registration.id,
+            participantNumber: registration.participantNumber,
+            participant: registration.participant,
+            car: registration.car,
+          }))
+          .sort((a, b) => a.participantNumber - b.participantNumber),
         appearances: eligibleResults.length,
         classResults: [...classes.values()]
           .sort(
