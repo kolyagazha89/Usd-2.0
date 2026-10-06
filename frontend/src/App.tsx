@@ -21,6 +21,7 @@ const nav=[
  {section:'Данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
  {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
  {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
+ {section:'Система',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
 ];
@@ -81,6 +82,7 @@ function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
  if(path.startsWith('/admin/users'))return <UsersPage/>;
  if(path.startsWith('/admin/audit'))return <AuditPage/>;
  if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
+ if(path.startsWith('/admin/partners'))return <PartnersPage/>;
  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
  if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
  return <Coming title="Пользователи" icon={UserRound} user={user}/>;
@@ -1025,6 +1027,31 @@ function QualityPage(){const[data,setData]=useState<any>(null),[error,setError]=
 
 function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
 
+function PartnersPage(){
+ const[partners,setPartners]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null);
+ const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setPartners(Array.isArray(r?.settings?.partners)?r.settings.partners:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ const save=async(v:any)=>{setSaving(true);setError('');try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];let item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),name:String(v.name??'').trim(),description:String(v.description??'').trim(),tier:v.tier||'REGULAR',website:String(v.website??'').trim(),isActive:v.isActive!==false,sortOrder:Number(v.sortOrder??0),photoUrl:modal?.photoUrl??null};if(v.file instanceof File){const uploaded=await uploadSiteAsset('partner-'+item.id,v.file);item.photoUrl=uploaded.publicPath}const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];await updateSiteSettings({...r.settings,partners:next});setModal(null);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить партнёра')}finally{setSaving(false)}};
+ const remove=async(id:string)=>{if(!confirm('Скрыть партнёра?'))return;try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];await updateSiteSettings({...r.settings,partners:current.map((x:any)=>x.id===id?{...x,isActive:false}:x)});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить статус')}};
+ const tierName=(x:string)=>x==='GENERAL'?'Генеральный':x==='PREMIUM'?'Премиальный':'Обычный';
+ return <PageFrame title="Партнёры" subtitle="Партнёры USD и размещение на публичном сайте" action={<button className="primary-button compact" onClick={()=>setModal({tier:'REGULAR',isActive:true,sortOrder:0})}><Plus size={15}/>Добавить партнёра</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap">{loading?<LoadingPage small/>:partners.length?<table className="data-table"><thead><tr><th>Партнёр</th><th>Уровень</th><th>Описание</th><th>Сайт</th><th>Статус</th><th/></tr></thead><tbody>{partners.map((p:any)=><tr key={p.id}><td data-label="Партнёр"><strong>{p.name}</strong></td><td data-label="Уровень"><span className="badge">{tierName(p.tier)}</span></td><td data-label="Описание">{p.description||'—'}</td><td data-label="Сайт">{p.website||'—'}</td><td data-label="Статус"><span className={'badge '+(p.isActive?'good':'')}>{p.isActive?'Активен':'Скрыт'}</span></td><td data-label="Действия" className="row-actions"><button className="icon-button" onClick={()=>setModal(p)} title="Изменить">✎</button>{p.isActive&&<button className="secondary-button compact" onClick={()=>void remove(p.id)}>Скрыть</button>}</td></tr>)}</tbody></table>:<Empty text="Партнёров пока нет"/>}</div>
+  {modal&&<Modal title={modal.id?'Редактирование партнёра':'Новый партнёр'} onClose={()=>setModal(null)}><PartnerForm value={modal} saving={saving} onSubmit={save}/></Modal>}
+ </PageFrame>
+}
+function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:(v:any)=>Promise<void>}){
+ const[v,setV]=useState<any>({...value});
+ return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
+  <div className="form-grid-2"><label>Название<input value={v.name??''} onChange={e=>setV({...v,name:e.target.value})} required/></label><label>Уровень<select value={v.tier??'REGULAR'} onChange={e=>setV({...v,tier:e.target.value})}><option value="GENERAL">Генеральный</option><option value="PREMIUM">Премиальный</option><option value="REGULAR">Обычный</option></select></label></div>
+  <label>Описание<textarea value={v.description??''} onChange={e=>setV({...v,description:e.target.value})}/></label>
+  <label>Сайт<input value={v.website??''} onChange={e=>setV({...v,website:e.target.value})} placeholder="https://"/></label>
+  <div className="form-grid-2"><label>Порядок<input type="number" value={v.sortOrder??0} onChange={e=>setV({...v,sortOrder:Number(e.target.value)})}/></label><label className="checkbox-row"><input type="checkbox" checked={v.isActive!==false} onChange={e=>setV({...v,isActive:e.target.checked})}/>Показывать публично</label></div>
+  <label>Фото / логотип<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setV({...v,file:e.target.files?.[0]??null})}/></label>
+  {v.photoUrl&&<img className="partner-photo-preview" src={v.photoUrl} alt=""/>}
+  <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
+ </form>
+}
 function SiteSettingsPage(){
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);for(const key of ['logoUrl','mobileLogoUrl','faviconUrl']){getMediaUrl('SITE_ASSET','branding-'+key).then(url=>setPreview(x=>({...x,[key]:url}))).catch(()=>{})}}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}try{const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch{setStages([])}finally{setLoading(false)}};
