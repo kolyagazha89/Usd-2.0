@@ -555,23 +555,27 @@ export class ImportsService {
             },
           });
 
-      const existingJobs = await this.prisma.importJob.findMany({
-        where: { stageId: stage.id },
-        select: { id: true, status: true, metadata: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      const existingHistoricalJob = existingJobs.find((job) => (job.metadata as any)?.source === 'HISTORICAL_XLSX');
-
-      if (existingHistoricalJob) {
-        prepared.push({
+      // Каждый новый запуск подготовки архива должен начинать с чистого DRAFT.
+      // Иначе старые RESOLVED/WARNING из предыдущего Preview возвращаются после F5
+      // и пользователь уже не может заново принять другое решение по строкам.
+      const staleHistoricalJobs = await this.prisma.importJob.findMany({
+        where: {
           stageId: stage.id,
-          stageNumber: mapping.number,
-          stageName: stage.name,
-          importJobId: existingHistoricalJob.id,
-          status: existingHistoricalJob.status,
-          reused: true,
+          status: 'DRAFT',
+          metadata: {
+            path: ['source'],
+            equals: 'HISTORICAL_XLSX',
+          },
+        },
+        select: { id: true },
+      });
+
+      if (staleHistoricalJobs.length) {
+        await this.prisma.importJob.deleteMany({
+          where: {
+            id: { in: staleHistoricalJobs.map((job) => job.id) },
+          },
         });
-        continue;
       }
 
       const registrations = mapping.reg ? this.rowsFromSheet(registrationWorkbook[mapping.reg]) : [];
