@@ -2274,6 +2274,9 @@ export class ImportsService {
 
             if (sameValue && samePlace && existingResult.unit === foundClass.class.unit) {
               existingResultState = 'SAME';
+              warnings.push(
+                `Строка ${rowNumber}: результат уже существует и полностью совпадает с импортируемым. Явно выберите «Оставить существующий» или «Заменить».`,
+              );
             } else {
               existingResultState = 'CONFLICT';
               warnings.push(
@@ -5801,14 +5804,11 @@ export class ImportsService {
             existingResult.unit === unit,
           );
 
-          if (existingResult && sameExistingResult) {
-            resultId = existingResult.id;
-          } else if (existingResult) {
-            const conflictAction = String(resolution?.existingResultAction ?? '').toUpperCase();
-
-            if (conflictAction === 'KEEP_EXISTING') {
+          if (existingResult) {
+            const existingAction = String(resolution?.existingResultAction ?? '').toUpperCase();
+            if (existingAction === 'KEEP_EXISTING') {
               resultId = existingResult.id;
-            } else if (conflictAction === 'REPLACE') {
+            } else if (existingAction === 'REPLACE') {
               const replaced = await tx.result.update({
                 where: { id: existingResult.id },
                 data: { value, unit, place, notes },
@@ -5816,7 +5816,7 @@ export class ImportsService {
               resultId = replaced.id;
             } else {
               throw new BadRequestException(
-                `Строка ${row.rowNumber}: результат уже существует и отличается от импортируемого. Выберите «Оставить существующий» или «Заменить».`,
+                `Строка ${row.rowNumber}: результат уже существует. Выберите «Оставить существующий» или «Заменить».`,
               );
             }
           } else {
