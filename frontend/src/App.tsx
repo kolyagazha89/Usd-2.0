@@ -84,19 +84,29 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
  };
- return <div className="admin-shell">
-  <header className="topbar">
-   <div className="topbar-left"><button className="icon-button mobile-menu-button" onClick={()=>setMobileOpen(!mobileOpen)} aria-label="Меню"><Menu size={20}/></button><button className="brand-button" onClick={()=>go('/admin')} aria-label="USD"><span className="brand-image-wrap">{logo?<img src={logo} className="brand-logo" alt="USD"/>:<span className="brand-mark">USD</span>}</span><span className="brand-title">USD 2.0</span></button></div>
-   <div className="topbar-right"><div className="user-chip"><span className="user-avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><span className="user-meta"><strong>{roleName[user.role]}</strong><small>{user.email}</small></span></div><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={18}/></button></div>
-  </header>
-  <div className="admin-body">
-   <aside className={`sidebar ${mobileOpen?'open':''}`}>
-    <div className="sidebar-brand">{logo?<img src={logo} className="sidebar-logo" alt="USD"/>:<span className="brand-mark">USD</span>}<div><strong>USD 2.0</strong><small>Панель управления</small></div></div>
-    <nav className="sidebar-nav">{sections.map(section=><div className="nav-section" key={section}><div className="nav-section-title">{section}</div>{visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=path===item.path||(item.path!=='/admin'&&path.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>)}</nav>
-    <div className="sidebar-footer"><div className="role-badge"><ShieldAlert size={14}/><span>{roleName[user.role]}</span></div></div>
-   </aside>
-   {mobileOpen&&<button className="sidebar-overlay" aria-label="Закрыть меню" onClick={()=>setMobileOpen(false)}/>}
-   <main className="admin-main"><Page path={path} go={go} user={user}/></main>
+ return <div className="app-shell">
+  <aside className={`sidebar ${mobileOpen?'open':''}`}>
+   <div className="sidebar-top">
+    <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD 2.0">
+     <span className="brand-mark small">{logo?<img className="brand-logo-shell" src={logo} alt="USD"/>:<span>USD</span>}</span>
+     <span className="brand-title">USD <b>2.0</b></span>
+    </button>
+    <button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"><X size={18}/></button>
+   </div>
+   <nav>{sections.map(section=><div key={section}><div className="sidebar-label">{section}</div>{visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=path===item.path||(item.path!=='/admin'&&path.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>)}</nav>
+   <div className="sidebar-bottom">
+    <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{roleName[user.role]}</strong><small>{user.email}</small></div></div>
+    <button className="logout-button" onClick={()=>void onLogout()}><LogOut size={15}/>Выйти</button>
+   </div>
+  </aside>
+  {mobileOpen&&<button className="mobile-backdrop" aria-label="Закрыть меню" onClick={()=>setMobileOpen(false)}/>}
+  <div className="main">
+   <header className="topbar">
+    <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
+    <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===path)?.label??'Панель управления'}</span></div>
+    <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
+   </header>
+   <main className="content"><Page path={path} go={go} user={user}/></main>
   </div>
  </div>;
 }
