@@ -614,12 +614,30 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
 }
 
 function RecordsPage(){
- const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[detail,setDetail]=useState<any|null>(null);
+ const[data,setData]=useState<any[]>([]);
+ const[loading,setLoading]=useState(true);
+ const[error,setError]=useState('');
+ const[detail,setDetail]=useState<any|null>(null);
  const load=()=>{setLoading(true);setError('');return apiGet<any>('/records/admin/current').then(r=>setData(listData(r).filter((x:any)=>!String(x.class?.name??'').trim().toLowerCase().startsWith('bassrace')))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки рекордов')).finally(()=>setLoading(false))};
  useEffect(()=>{void load()},[]);
- return <PageFrame title="Рекорды" subtitle="Текущие действующие рекорды чемпионата" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th></tr></thead><tbody>{data.map((r:any)=>{const p=r.result?.registration?.participant,car=r.result?.registration?.car,st=r.stage,cls=r.class;return <tr key={r.id} className="clickable-row" onClick={()=>setDetail(r)}><td data-label="Класс"><strong>{cls?.name??'—'}</strong>{cls?.direction?.name&&<small className="table-sub">{cls.direction.name}</small>}</td><td data-label="Участник"><strong>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td><td data-label="Автомобиль">{[car?.brand,car?.model].filter(Boolean).join(' ')||'—'}</td><td data-label="Результат"><strong>{r.value??r.result?.value??'—'}</strong></td><td data-label="Ед.">{r.unit??r.result?.unit??'—'}</td><td data-label="Этап">{st?<><strong>№{st.stageNumber} · {st.name}</strong>{st.city&&<small className="table-sub">{st.city}</small></>:'—'}</td><td data-label="Дата">{formatDate(r.achievedAt)}</td></tr>})}</tbody></table>:<Empty text="Рекордов пока нет"/>}</div>{detail&&<EntityDetailModal title="Рекорд" item={detail} columns={[{key:'class.name',label:'Класс'},{key:'class.direction.name',label:'Направление'},{key:'result.registration.participant.lastName',label:'Фамилия'},{key:'result.registration.participant.firstName',label:'Имя'},{key:'result.registration.car.brand',label:'Марка'},{key:'result.registration.car.model',label:'Модель'},{key:'value',label:'Результат'},{key:'unit',label:'Единица'},{key:'stage.name',label:'Этап'},{key:'achievedAt',label:'Дата'}]} onClose={()=>setDetail(null)}/>}</PageFrame>
+ return <PageFrame title="Рекорды" subtitle="Текущие действующие рекорды чемпионата" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap">
+   {loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th></tr></thead><tbody>
+    {data.map((r:any)=>{const p=r.result?.registration?.participant;const car=r.result?.registration?.car;const st=r.stage;const cls=r.class;return <tr key={r.id} className="clickable-row" onClick={()=>setDetail(r)}>
+      <td data-label="Класс"><strong>{cls?.name??'—'}</strong>{cls?.direction?.name&&<small className="table-sub">{cls.direction.name}</small>}</td>
+      <td data-label="Участник"><strong>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td>
+      <td data-label="Автомобиль">{[car?.brand,car?.model].filter(Boolean).join(' ')||'—'}</td>
+      <td data-label="Результат"><strong>{r.value??r.result?.value??'—'}</strong></td>
+      <td data-label="Ед.">{r.unit??r.result?.unit??'—'}</td>
+      <td data-label="Этап">{st?<><strong>№{st.stageNumber} · {st.name}</strong>{st.city&&<small className="table-sub">{st.city}</small>}</>:'—'}</td>
+      <td data-label="Дата">{formatDate(r.achievedAt)}</td>
+    </tr>})}
+   </tbody></table>:<Empty text="Рекордов пока нет"/>}
+  </div>
+  {detail&&<EntityDetailModal title="Рекорд" item={detail} columns={[{key:'class.name',label:'Класс'},{key:'class.direction.name',label:'Направление'},{key:'result.registration.participant.lastName',label:'Фамилия'},{key:'result.registration.participant.firstName',label:'Имя'},{key:'result.registration.car.brand',label:'Марка'},{key:'result.registration.car.model',label:'Модель'},{key:'value',label:'Результат'},{key:'unit',label:'Единица'},{key:'stage.name',label:'Этап'},{key:'achievedAt',label:'Дата'}]} onClose={()=>setDetail(null)}/>}
+ </PageFrame>
 }
-
 function StatisticsPage(){
  const[overview,setOverview]=useState<any>(null),[participants,setParticipants]=useState<any[]>([]),[selected,setSelected]=useState<any|null>(null),[seasons,setSeasons]=useState<any[]>([]),[seasonId,setSeasonId]=useState(''),[analytics,setAnalytics]=useState<any|null>(null),[search,setSearch]=useState(''),[loading,setLoading]=useState(true),[detailLoading,setDetailLoading]=useState(false),[error,setError]=useState('');
  const loadOverview=async()=>{setLoading(true);setError('');try{const[o,se]=await Promise.all([apiGet<any>('/statistics/overview'),apiGet<any>('/seasons')]);setOverview(o?.stats??o);const ss=listData(se);setSeasons(ss);const active=ss.find((x:any)=>x.status==='ACTIVE')??ss[0];if(active?.id)setSeasonId(active.id)}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки статистики')}finally{setLoading(false)}};
