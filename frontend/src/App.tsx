@@ -148,10 +148,7 @@ function DashboardPage({go}:{go:(p:string)=>void}){
           <div><span>Прошли</span><strong>{stageStats.inspections?.passed??0}</strong><small>допущены</small></div>
           <div><span>Не прошли</span><strong>{stageStats.inspections?.failed??0}</strong><small>требуют внимания</small></div>
         </div>
-        <div className="working-summary-links">
-          <button className="working-summary-link" onClick={e=>{e.stopPropagation();go('/admin/registrations?stageId='+stage.id)}}><span>Регистрации</span><strong>Подробнее</strong><ChevronRight size={15}/></button>
-          <button className="working-summary-link" onClick={e=>{e.stopPropagation();go('/admin/inspections?stageId='+stage.id)}}><span>Инспекции</span><strong>Подробнее</strong><ChevronRight size={15}/></button>
-        </div>
+
       </div>}
     </div>:<Empty text="Будущих этапов пока нет"/>}
    </div>
