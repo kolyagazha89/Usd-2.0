@@ -305,7 +305,7 @@ function InspectionsPage({user}:{user:User}){
 }
 function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readOnly:boolean}){
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL');
- const load=()=>{setLoading(true);setError('');return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE').then(r=>setRows(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
+ const load=()=>{setLoading(true);setError('');const query=readOnly?'':'&status=ACTIVE';return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+query).then(r=>setRows(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
  useEffect(()=>{void load()},[stageId]);
  const passed=rows.filter(r=>r.inspection?.status==='PASSED').length,failed=rows.filter(r=>r.inspection?.status==='FAILED').length,pending=rows.filter(r=>!r.inspection).length;
  const statusFiltered=rows.filter(r=>filter==='ALL'?true:filter==='PASSED'?r.inspection?.status==='PASSED':r.inspection?.status==='FAILED');
