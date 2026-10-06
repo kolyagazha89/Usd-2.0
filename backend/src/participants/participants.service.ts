@@ -145,6 +145,22 @@ export class ParticipantsService {
       .map((name) => ({ name }));
   }
 
+  async findAllForOperations(request: AuthenticatedRequest) {
+    await this.requireAdminOrJudge(request);
+    return this.prisma.participant.findMany({
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        team: true,
+        city: true,
+        isPublic: true,
+      },
+    });
+  }
+
   // =========================================================
   // PUBLIC PARTICIPANTS
   // =========================================================
