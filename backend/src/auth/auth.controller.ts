@@ -140,13 +140,14 @@ export class AuthController {
       ...publicResult
     } = result;
 
-    return publicResult;
+    return { ...publicResult, refreshToken };
   }
 
   @Public()
   @Post('refresh')
   async refresh(
     @Req() request: Request,
+    @Body() body: { refreshToken?: string },
     @Res({ passthrough: true })
     response: Response,
   ) {
@@ -155,7 +156,7 @@ export class AuthController {
       'usd_refresh_token';
 
     const refreshToken =
-      request.cookies?.[cookieName];
+      body?.refreshToken || request.cookies?.[cookieName];
 
     const result =
       await this.authService.refresh(
@@ -172,7 +173,7 @@ export class AuthController {
       ...publicResult
     } = result;
 
-    return publicResult;
+    return { ...publicResult, refreshToken: _refreshToken };
   }
 
   @Public()
