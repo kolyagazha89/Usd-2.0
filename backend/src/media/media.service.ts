@@ -69,12 +69,12 @@ export class MediaService {
     };
     const canonicalQuery = Object.keys(params).sort().map((k) => `${this.awsEncode(k)}=${this.awsEncode(params[k])}`).join('&');
     const canonicalHeaders = contentType
-      ? `content-type:${contentType}\\nhost:${host}\\n`
-      : `host:${host}\\n`;
+      ? `content-type:${contentType}\nhost:${host}\n`
+      : `host:${host}\n`;
     const signedHeaders = contentType ? 'content-type;host' : 'host';
     const payloadHash = 'UNSIGNED-PAYLOAD';
-    const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\\n');
-    const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\\n');
+    const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\n');
+    const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
     const signature = crypto.createHmac('sha256', this.signingKey(cfg.secretKey, date, cfg.region, service)).update(stringToSign).digest('hex');
     params['X-Amz-Signature'] = signature;
     const baseUrl = new URL(cfg.endpoint);
