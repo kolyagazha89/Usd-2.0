@@ -551,10 +551,42 @@ function ImportPage(){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
  const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}'); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');
+ const IMPORT_STATE_KEY='usd.import.current';
+ const persistImportState=(next:any)=>{try{localStorage.setItem(IMPORT_STATE_KEY,JSON.stringify(next))}catch{}};
+ const clearImportState=()=>{try{localStorage.removeItem(IMPORT_STATE_KEY)}catch{}};
  const prepareHistorical=async()=>{setLoading(true);setError('');setHistoricalPrepare(null);setHistoricalJobId('');try{const r=await prepareHistoricalImport();setHistoricalPrepare(r);const prepared=Array.isArray(r?.prepared)?r.prepared:[];const first=prepared[0];if(first?.importJobId){setHistoricalJobId(first.importJobId);setStageId(first.stageId);await refreshJob(first.importJobId)}const x=await apiGet('/stages');setStages(listData(x))}catch(e){setError(e instanceof Error?e.message:'Не удалось подготовить исторический XLSX импорт')}finally{setLoading(false)}}; const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
- useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)}).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить этапы'));void loadGoogle();},[]);
+ useEffect(()=>{
+   const restore=async()=>{
+     try{
+       const saved=JSON.parse(localStorage.getItem(IMPORT_STATE_KEY)||'null');
+       const stageResponse=await apiGet('/stages');
+       const stageList=listData(stageResponse);
+       setStages(stageList);
+       if(saved?.jobId){
+         if(saved.mode==='HISTORICAL') setMode('HISTORICAL');
+         if(saved.stageId) setStageId(saved.stageId);
+         setHistoricalJobId(saved.mode==='HISTORICAL'?saved.jobId:'');
+         if(saved.mode==='HISTORICAL'){
+           setHistoricalPrepare({prepared:[{
+             stageId:saved.stageId,
+             importJobId:saved.jobId,
+             stageNumber:saved.stageNumber,
+             stageName:saved.stageName,
+           }]});
+         }
+         await refreshJob(saved.jobId);
+       }else if(stageList[0]?.id){
+         setStageId(stageList[0].id);
+       }
+     }catch(e){
+       setError(e instanceof Error?e.message:'Не удалось восстановить импорт');
+     }
+   };
+   void restore();
+   void loadGoogle();
+ },[]);
  useEffect(()=>{if(!spreadsheetId){setSpreadsheet(null);return}getGoogleSpreadsheet(spreadsheetId).then(r=>setSpreadsheet(r.spreadsheet)).catch(e=>setError(e instanceof Error?e.message:'Не удалось открыть таблицу'))},[spreadsheetId]);
- const changeMode=(next:'NORMAL'|'HISTORICAL')=>{setMode(next);setResult(null);setJob(null);setRows([]);setResolveRow(null);setResolution('{}');setError('')};
+ const changeMode=(next:'NORMAL'|'HISTORICAL')=>{setMode(next);setResult(null);setJob(null);setRows([]);setResolveRow(null);setResolution('{}');setError('');clearImportState();setHistoricalPrepare(null);setHistoricalJobId('')};
  const preview=async()=>{
    setLoading(true);setError('');
    try{
@@ -579,10 +611,32 @@ function ImportPage(){
      }
      const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL'});
      setResult(r);setJob(r.importJob);
-     if(r.importJob?.id){const full=await apiGet<any>('/imports/'+r.importJob.id);setJob(full.importJob);setRows(full.importJob?.rows??[])}else setRows([]);
+     if(r.importJob?.id){
+       const full=await apiGet<any>('/imports/'+r.importJob.id);
+       setJob(full.importJob);setRows(full.importJob?.rows??[]);
+       persistImportState({
+         jobId:r.importJob.id,
+         stageId,
+         mode,
+         stageNumber:full.importJob?.stage?.stageNumber,
+         stageName:full.importJob?.stage?.name,
+       });
+     }else setRows([]);
    }catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить Preview')}finally{setLoading(false)}
  };
- const refreshJob=async(id:string)=>{try{const r=await apiGet<any>('/imports/'+id);setJob(r.importJob);setRows(r.importJob?.rows??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}};
+ const refreshJob=async(id:string)=>{
+   try{
+     const r=await apiGet<any>('/imports/'+id);
+     setJob(r.importJob);setRows(r.importJob?.rows??[]);
+     persistImportState({
+       jobId:id,
+       stageId:r.importJob?.stageId??stageId,
+       mode:(r.importJob?.metadata?.historicalResults===true||mode==='HISTORICAL')?'HISTORICAL':'NORMAL',
+       stageNumber:r.importJob?.stage?.stageNumber,
+       stageName:r.importJob?.stage?.name,
+     });
+   }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}
+ };
  const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:JSON.parse(resolution||'{}')});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
  const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPost('/imports/'+job.id+'/commit',{});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось завершить импорт')}finally{setLoading(false)}}; const resolveExistingResult=async(row:any,action:'KEEP_EXISTING'|'REPLACE')=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+row.id+'/resolve',{resolution:{existingResultAction:action}});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение результата')}finally{setLoading(false)}};
  const visibleRows=mode==='HISTORICAL'?rows.filter((r:any)=>r.type==='RESULT'):rows;
