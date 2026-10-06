@@ -23,7 +23,8 @@ export class NameNormalizerService {
     'krasnov': 'Краснов',
     'kashapov': 'Кашапов',
     'karekkikh': 'Карекких',
-    'usolcev': 'Усолцев',
+    'usolcev': 'Усольцев',
+    'usoltsev': 'Усольцев',
     'yakovenko': 'Яковенко',
     'vasily': 'Василий',
     'vitaly': 'Виталий',
@@ -115,56 +116,27 @@ export class NameNormalizerService {
   };
 
   normalize(value: string | null | undefined): string {
-    if (!value) {
-      return '';
-    }
+    if (!value) return '';
 
-    const cleaned = value
-      .trim()
-      .replace(/\s+/g, ' ')
-      .replace(/ё/gi, 'е');
+    const cleaned = value.trim().replace(/\s+/g, ' ').replace(/ё/gi, 'е');
+    if (!cleaned) return '';
 
-    if (!cleaned) {
-      return '';
-    }
-
-    const words = cleaned.split(' ');
-
-    const normalizedWords = words.map((word) => {
+    return cleaned.split(' ').map((word) => {
       const lower = word.toLowerCase();
-
-      if (this.transliteration[lower]) {
-        return this.transliteration[lower];
-      }
-
-      return this.transliterateLatinWord(word);
-    });
-
-    return normalizedWords.join(' ');
+      return this.transliteration[lower] ?? this.transliterateLatinWord(word);
+    }).join(' ');
   }
 
   normalizeForMatching(value: string | null | undefined): string {
     const normalized = this.normalize(value);
+    if (!normalized) return '';
 
-    if (!normalized) {
-      return '';
-    }
-
-    const words = normalized.split(' ');
-
-    // Для исторических результатов обычно достаточно
-    // фамилии + имени. Отчество не является обязательным.
-    return words
-      .slice(0, 2)
-      .join(' ')
-      .toLowerCase();
+    return normalized.split(' ').slice(0, 2).join(' ').toLowerCase();
   }
 
   private transliterateLatinWord(value: string): string {
     const lower = value.toLowerCase();
-    if (!/^[a-z]+$/.test(lower)) {
-      return this.capitalizeRussian(value);
-    }
+    if (!/^[a-z]+$/.test(lower)) return this.capitalizeRussian(value);
 
     const digraphs: Record<string, string> = {
       shch: 'щ', zh: 'ж', kh: 'х', ts: 'ц', ch: 'ч', sh: 'ш',
@@ -181,6 +153,7 @@ export class NameNormalizerService {
     let rest = lower;
     let result = '';
     const orderedDigraphs = Object.keys(digraphs).sort((a, b) => b.length - a.length);
+
     while (rest.length > 0) {
       const digraph = orderedDigraphs.find((key) => rest.startsWith(key));
       if (digraph) {
@@ -197,10 +170,7 @@ export class NameNormalizerService {
   }
 
   private capitalizeRussian(value: string): string {
-    if (!value) {
-      return '';
-    }
-
+    if (!value) return '';
     return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
   }
 }
