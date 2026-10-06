@@ -2079,3 +2079,51 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .working-summary-row em{display:none}
   .working-summary-head{align-items:flex-start}
 }
+
+
+/* Working stage summary navigation */
+.working-summary-links{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.working-summary-link{
+  appearance:none;
+  width:100%;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid var(--border,#e5e7eb);
+  border-radius:12px;
+  background:var(--surface,#fff);
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color .18s ease,background .18s ease,transform .18s ease;
+}
+.working-summary-link:hover{
+  border-color:var(--text,#111);
+  background:var(--surface-muted,#f7f7f7);
+  transform:translateY(-1px);
+}
+.working-summary-link span{
+  flex:1;
+  min-width:0;
+  font-size:13px;
+  font-weight:600;
+}
+.working-summary-link strong{
+  font-size:12px;
+  font-weight:600;
+  color:var(--muted,#777);
+}
+.working-summary-link svg{
+  flex:0 0 auto;
+  color:var(--muted,#777);
+}
+@media (max-width:640px){
+  .working-summary-links{grid-template-columns:1fr}
+}
