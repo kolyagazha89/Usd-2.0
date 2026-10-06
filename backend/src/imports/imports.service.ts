@@ -2254,10 +2254,15 @@ export class ImportsService {
       // встречаться у разных участников. Такой номер не должен превращать
       // строку в конфликт с уже импортированным результатом: при Commit
       // для второго участника будет выдан следующий свободный номер.
+      const matchedParticipantId =
+        participant.matches?.[0] && 'id' in participant.matches[0]
+          ? participant.matches[0].id
+          : null;
       const duplicateBassRaceNumber =
         isBassRace &&
         existingRegistration &&
-        existingRegistration.participantId !== participant.matches?.[0]?.id;
+        (matchedParticipantId === null ||
+          existingRegistration.participantId !== matchedParticipantId);
 
       if (existingRegistration && !duplicateBassRaceNumber) {
         const registrationClass = await this.prisma.registrationClass.findUnique({
