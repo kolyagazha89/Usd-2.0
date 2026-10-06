@@ -118,8 +118,8 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
  </div>;
 }
 function DashboardPage({go}:{go:(p:string)=>void}){
- const[data,setData]=useState<Dashboard|null>(null),[error,setError]=useState(''),[quick,setQuick]=useState<'STAGE'|'PARTICIPANT'|'CAR'|null>(null);
- const load=()=>{setError('');return getDashboard().then(setData).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки'));};
+ const[data,setData]=useState<Dashboard|null>(null),[stageStats,setStageStats]=useState<any|null>(null),[error,setError]=useState(''),[quick,setQuick]=useState<'STAGE'|'PARTICIPANT'|'CAR'|null>(null);
+ const load=async()=>{setError('');try{const dashboard=await getDashboard();setData(dashboard);if(dashboard.currentStage){try{setStageStats((await getStageStatistics(dashboard.currentStage.id))?.stats??null)}catch{setStageStats(null)}}else setStageStats(null)}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки')}};
  useEffect(()=>{void load()},[]);
  if(error)return <ErrorPanel message={error} retry={load}/>;
  if(!data)return <LoadingPage/>;
@@ -134,11 +134,26 @@ function DashboardPage({go}:{go:(p:string)=>void}){
   <section className="dashboard-main-grid">
    <div className="panel dashboard-stage-card">
     <PanelTitle title={stage?'Рабочий этап':'Ближайший этап'} icon={Flag} action="Открыть этап" onAction={()=>stage&&go('/admin/stages/'+stage.id)}/>
-    {stage?<button className="dashboard-feature" onClick={()=>go('/admin/stages/'+stage.id)}>
-      <div className="stage-number large">{stage.stageNumber}</div>
-      <div className="stage-main"><strong>{stage.name}</strong><span>{stage.city||'—'} · {formatDate(stage.date)}</span><small className="stage-statuses"><span className="status">{stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</span><span className={'status status-stage '+String(stage.status||'').toLowerCase()}>{enumLabel(stage.status)}</span></small></div>
-      <ChevronRight size={20}/>
-    </button>:<Empty text="Будущих этапов пока нет"/>}
+    {stage?<div className="dashboard-working-stage">
+      <button className="dashboard-feature" onClick={()=>go('/admin/stages/'+stage.id)}>
+        <div className="stage-number large">{stage.stageNumber}</div>
+        <div className="stage-main"><strong>{stage.name}</strong><span>{stage.city||'—'} · {formatDate(stage.date)}</span><small className="stage-statuses"><span className="status">{stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</span><span className={'status status-stage '+String(stage.status||'').toLowerCase()}>{enumLabel(stage.status)}</span></small></div>
+        <ChevronRight size={20}/>
+      </button>
+      {stageStats&&<div className="working-stage-summary">
+        <div className="working-summary-head"><div><span className="eyebrow">СВОДКА ПО ЭТАПУ</span><strong>Регистрации и инспекции</strong></div><button className="text-button" onClick={e=>{e.stopPropagation();go('/admin/registrations?stageId='+stage.id)}}>Открыть регистрации</button></div>
+        <div className="working-summary-kpis">
+          <div><span>Регистрации</span><strong>{stageStats.registrations}</strong><small>{stageStats.participants} участников · {stageStats.cars} авто</small></div>
+          <div><span>Инспекции</span><strong>{stageStats.inspections?.total??0}</strong><small>{stageStats.inspections?.pending??0} ожидают</small></div>
+          <div><span>Прошли</span><strong>{stageStats.inspections?.passed??0}</strong><small>допущены</small></div>
+          <div><span>Не прошли</span><strong>{stageStats.inspections?.failed??0}</strong><small>требуют внимания</small></div>
+        </div>
+        <div className="working-summary-columns">
+          <div className="working-summary-block"><div className="working-summary-title">Регистрации по классам</div>{stageStats.registrationClasses?.length?<div className="working-summary-list">{stageStats.registrationClasses.map((x:any)=><div className="working-summary-row" key={x.class.id}><span><strong>{x.class.name}</strong><small>{x.class.direction?.name||'—'}</small></span><b>{x.registrations}</b><em>{x.participants} уч. · {x.cars} авто</em></div>)}</div>:<span className="muted">Регистраций по классам пока нет</span>}</div>
+          <div className="working-summary-block"><div className="working-summary-title">Статус инспекций</div>{stageStats.inspectionDetails?.length?<div className="working-summary-list">{stageStats.inspectionDetails.map((x:any)=><div className="working-summary-row" key={x.registrationId}><span><strong>№{x.participantNumber} · {[x.participant?.lastName,x.participant?.firstName].filter(Boolean).join(' ')||'—'}</strong><small>{[x.car?.brand,x.car?.model].filter(Boolean).join(' ')||'—'}</small></span><b className={x.status==='PASSED'?'good-text':'bad-text'}>{x.status==='PASSED'?'Прошёл':'Не прошёл'}</b></div>)}</div>:<span className="muted">Инспекций пока нет</span>}{stageStats.pendingRegistrations?.length?<div className="working-summary-pending"><strong>Ожидают проверки: {stageStats.pendingRegistrations.length}</strong><span>{stageStats.pendingRegistrations.slice(0,5).map((x:any)=>'№'+x.participantNumber).join(', ')}{stageStats.pendingRegistrations.length>5?'…':''}</span></div>:null}</div>
+        </div>
+      </div>}
+    </div>:<Empty text="Будущих этапов пока нет"/>}
    </div>
    <div className="panel dashboard-command-panel">
     <PanelTitle title="Быстро создать" icon={Plus}/>
