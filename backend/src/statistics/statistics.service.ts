@@ -1143,10 +1143,16 @@ export class StatisticsService {
     });
 
     const total = registrations.length;
-    const withTeam = registrations.filter((r) => !!r.participant.team?.trim()).length;
+    const normalizeTeam = (value: string | null | undefined) => {
+      const normalized = value?.trim() ?? '';
+      if (!normalized) return null;
+      const emptyMarkers = new Set(['-', '—', 'нет', 'нет команды', 'без команды', 'n/a', 'na']);
+      return emptyMarkers.has(normalized.toLowerCase()) ? null : normalized;
+    };
+    const withTeam = registrations.filter((r) => Boolean(normalizeTeam(r.participant.team))).length;
     const teamMap = new Map<string, { registrations: number; participants: Set<string> }>();
     for (const r of registrations) {
-      const team = r.participant.team?.trim() || 'Без команды';
+      const team = normalizeTeam(r.participant.team) || 'Без команды';
       const item = teamMap.get(team) ?? { registrations: 0, participants: new Set<string>() };
       item.registrations += 1;
       item.participants.add(r.participantId);
