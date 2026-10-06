@@ -651,3 +651,478 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
  </>;
 }
 
+
+function ResultsPage({user}:{user:User}){return <PageFrame title="Результаты" subtitle="Официальные результаты. Судья вносит, администратор может корректировать."><StagePicker>{stageId=><ResultsStage stageId={stageId} user={user}/>}</StagePicker></PageFrame>}
+function ResultsStage({stageId,user}:{stageId:string;user:User}){const[data,setData]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[saving,setSaving]=useState(false);const load=async()=>{setLoading(true);setError('');try{const[a,b]=await Promise.all([apiGet<any>('/results/admin/stage/'+stageId),apiGet<any>('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE')]);setData(listData(a));setRegistrations(listData(b))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки')}finally{setLoading(false)}};useEffect(()=>{void load()},[stageId]);const save=async(v:any)=>{setSaving(true);try{if(v.id&&user.role==='ADMIN')await apiPatch('/results/'+v.id,{value:Number(v.value),place:v.place===''?null:Number(v.place),notes:v.notes||null});else await apiPost('/results',{registrationId:v.registrationId,registrationClassId:v.registrationClassId,value:Number(v.value),place:v.place===''?undefined:Number(v.place),notes:v.notes||undefined,confirmed:true});setModal(null);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить результат')}finally{setSaving(false)}};return <>{error&&<ErrorPanel message={error} retry={load}/>}<div className="toolbar"><button className="primary-button compact" onClick={()=>setModal({})}><Plus size={14}/>Внести результат</button><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button><span className="row-count">{data.length} результатов</span></div><div className="panel table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Авто</th><th>Результат</th><th>Место</th><th>Статус</th><th/></tr></thead><tbody>{data.map(r=><tr key={r.id}><td data-label="Класс">{r.registrationClass?.class?.name||'—'}<small className="table-sub">{r.registrationClass?.number?.number?'№'+r.registrationClass.number.number+' · ':''}{enumLabel(r.registrationClass?.class?.unit||'')}</small></td><td data-label="Участник">{[r.registration?.participant?.lastName,r.registration?.participant?.firstName].filter(Boolean).join(' ')||'—'}<small className="table-sub">№{r.registration?.participantNumber??'—'}</small></td><td data-label="Авто">{[r.registration?.car?.brand,r.registration?.car?.model].filter(Boolean).join(' ')||'—'}</td><td data-label="Результат"><strong>{r.value}</strong></td><td data-label="Место">{r.place??'—'}</td><td data-label="Статус">{r.isHistorical?<span className="badge">Исторический</span>:<span className="badge good">Официальный</span>}</td><td data-label="Действия" className="row-actions">{user.role==='ADMIN'&&!r.isHistorical&&<button className="icon-button" title="Исправить" onClick={()=>setModal({id:r.id,value:Number(r.value),place:r.place??'',notes:r.notes??''})}>✎</button>}</td></tr>)}</tbody></table>:<Empty text="Результатов пока нет"/>}</div>{modal!==null&&<ResultModal value={modal} registrations={registrations} saving={saving} onClose={()=>setModal(null)} onSubmit={save}/>}</>}
+function ResultModal({value,registrations,saving,onClose,onSubmit}:{value:any;registrations:any[];saving:boolean;onClose:()=>void;onSubmit:(v:any)=>Promise<void>}){const[v,setV]=useState<any>(value??{});const selected=registrations.find(r=>r.id===v.registrationId);const classes=selected?.classes??[];return <Modal title={v.id?'Исправление результата':'Новый результат'} onClose={onClose}><form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>{!v.id&&<><label>Регистрация<select value={v.registrationId??''} onChange={e=>setV({...v,registrationId:e.target.value,registrationClassId:''})} required><option value="">Выберите участника</option>{registrations.map(r=><option key={r.id} value={r.id}>№{r.participantNumber} · {[r.participant?.lastName,r.participant?.firstName].filter(Boolean).join(' ')} · {[r.car?.brand,r.car?.model].filter(Boolean).join(' ')}</option>)}</select></label><label>Класс регистрации<select value={v.registrationClassId??''} onChange={e=>setV({...v,registrationClassId:e.target.value})} required><option value="">Выберите класс</option>{classes.map((x:any)=><option key={x.id} value={x.id}>{x.class?.name} · {x.class?.unit}</option>)}</select></label></>}<label>Результат<input type="number" step="0.001" min="0" value={v.value??''} onChange={e=>setV({...v,value:e.target.value})} required/></label><label>Место<input type="number" min="1" max="999" value={v.place??''} onChange={e=>setV({...v,place:e.target.value})}/></label><label>Комментарий<textarea rows={4} value={v.notes??''} onChange={e=>setV({...v,notes:e.target.value})}/></label><button className="primary-button" disabled={saving||(!v.id&&(!v.registrationId||!v.registrationClassId))}>{saving?'Сохраняем…':'Сохранить результат'}</button></form></Modal>}
+
+function DisqualificationsPage(){
+ const[data,setData]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[stages,setStages]=useState<any[]>([]),[seasons,setSeasons]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState(false),[status,setStatus]=useState<'ACTIVE'|'REVOKED'|'ALL'>('ACTIVE');
+ const load=async()=>{setLoading(true);setError('');try{const q=status==='ALL'?'':'?status='+status;const [d,p,st,se]=await Promise.all([apiGet<any>('/disqualifications'+q),apiGet<any>('/participants'),apiGet<any>('/stages'),apiGet<any>('/seasons')]);setData(listData(d));setParticipants(listData(p));setStages(listData(st));setSeasons(listData(se))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки дисквалификаций')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[status]);
+ const create=async(v:any)=>{setSaving(true);try{await apiPost('/disqualifications',{participantId:v.participantId,scope:v.scope,stageId:v.scope==='STAGE'?v.stageId:undefined,seasonId:v.scope==='SEASON'?v.seasonId:undefined,reason:v.reason});setModal(false);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось выдать дисквалификацию')}finally{setSaving(false)}};
+ const revoke=async(d:any)=>{const reason=window.prompt('Причина отзыва дисквалификации:');if(!reason?.trim())return;setSaving(true);try{await apiPatch('/disqualifications/'+d.id+'/revoke',{revokeReason:reason.trim()});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отозвать дисквалификацию')}finally{setSaving(false)}};
+ return <PageFrame title="Дисквалификации" subtitle="Реальное управление запретами: выдача, просмотр и отзыв с обязательной причиной." action={<div className="page-actions"><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button><button className="primary-button compact" onClick={()=>setModal(true)}><Plus size={15}/>Выдать дисквалификацию</button></div>}>
+  <div className="toolbar"><select className="filter-select" value={status} onChange={e=>setStatus(e.target.value as any)}><option value="ACTIVE">Действующие</option><option value="REVOKED">Отозванные</option><option value="ALL">Все</option></select><span className="row-count">{data.length} записей</span></div>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap disqualification-table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table disqualification-table"><thead><tr><th>Участник</th><th>Область</th><th>Этап / сезон</th><th>Статус</th><th>Причина</th><th>Кем выдана</th><th>Действия</th></tr></thead><tbody>{data.map(d=><tr key={d.id}><td data-label="Участник"><strong>{[d.participant?.lastName,d.participant?.firstName,d.participant?.middleName].filter(Boolean).join(' ')||'—'}</strong>{d.participant?.team&&<small className="table-sub">{d.participant.team}</small>}</td><td data-label="Область"><span className="badge">{d.scope==='STAGE'?'Этап':d.scope==='SEASON'?'Сезон':'Весь формат'}</span></td><td data-label="Этап / сезон">{d.scope==='STAGE'?<><strong>№{d.stage?.stageNumber??'—'} · {d.stage?.name??'Этап'}</strong>{d.stage?.city&&<small className="table-sub">{d.stage.city}</small>}</>:d.scope==='SEASON'?<><strong>{d.season?.name??'Сезон'}</strong>{d.season?.year&&<small className="table-sub">{d.season.year}</small>}</>:<strong>Весь формат</strong>}</td><td data-label="Статус"><span className={'badge '+(d.status==='ACTIVE'?'bad':'good')}>{d.status==='ACTIVE'?'Действует':'Отозвана'}</span></td><td data-label="Причина" className="disqualification-reason" title={d.reason}>{d.reason||'—'}</td><td data-label="Кем выдана">{d.issuedByUser?.name||'—'}{d.issuedByUser?.role&&<small className="table-sub">{roleName[d.issuedByUser.role as Role]??enumLabel(d.issuedByUser.role)}</small>}</td><td data-label="Действия" className="row-actions">{d.status==='ACTIVE'&&<button className="danger-button compact" disabled={saving} onClick={()=>void revoke(d)}><X size={14}/>Отозвать</button>}{d.status==='REVOKED'&&<span className="muted">Отозвана</span>}</td></tr>)}</tbody></table>:<Empty text="Дисквалификаций по выбранному фильтру нет"/>}</div>
+  {modal&&<DisqualificationModal participants={participants} stages={stages} seasons={seasons} saving={saving} onClose={()=>setModal(false)} onSubmit={create}/>}
+ </PageFrame>
+}
+function DisqualificationModal({participants,stages,seasons,saving,onClose,onSubmit}:{participants:any[];stages:any[];seasons:any[];saving:boolean;onClose:()=>void;onSubmit:(v:any)=>Promise<void>}){
+ const[v,setV]=useState<any>({scope:'STAGE',participantId:'',stageId:'',seasonId:'',reason:''});
+ return <Modal title="Новая дисквалификация" onClose={onClose}><form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
+  <label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')}{p.team?' · '+p.team:''}</option>)}</select></label>
+  <label>Область<select value={v.scope} onChange={e=>setV({...v,scope:e.target.value,stageId:'',seasonId:''})}><option value="STAGE">Этап</option><option value="SEASON">Сезон</option><option value="FORMAT">Весь формат</option></select></label>
+  {v.scope==='STAGE'&&<label>Этап<select value={v.stageId} onChange={e=>setV({...v,stageId:e.target.value})} required><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>№{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>}
+  {v.scope==='SEASON'&&<label>Сезон<select value={v.seasonId} onChange={e=>setV({...v,seasonId:e.target.value})} required><option value="">Выберите сезон</option>{seasons.map(s=><option key={s.id} value={s.id}>{s.year} · {s.name}</option>)}</select></label>}
+  <label>Причина<textarea rows={4} value={v.reason} onChange={e=>setV({...v,reason:e.target.value})} placeholder="Укажите причину дисквалификации" required/></label>
+  <button className="primary-button" disabled={saving}>{saving?'Сохраняем…':'Выдать дисквалификацию'}</button>
+ </form></Modal>
+}
+
+function HistoricalPage(){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const load=()=>{setLoading(true);setError('');return apiGet<any>('/historical-results').then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки исторических результатов')).finally(()=>setLoading(false))};
+ const verify=async(id:string)=>{try{await apiPost('/historical-results/'+id+'/verify',{});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить результат')}};
+ const verifyAll=async()=>{if(!window.confirm('Подтвердить все исторические результаты, которые сейчас ожидают проверки?'))return;setLoading(true);setError('');try{const r=await apiPost<any>('/historical-results/verify-all',{});await load();if(r?.remaining)window.alert('Не удалось подтвердить часть записей: '+r.remaining)}catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить все результаты')}finally{setLoading(false)}};
+ const pending=data.filter(r=>r.verificationStatus==='PENDING').length;
+ return <PageFrame title="История результатов" subtitle="Архивные результаты: импортируются на проверку и подтверждаются администратором." action={<div className="page-actions"><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>{pending>0&&<button className="primary-button compact" onClick={()=>void verifyAll()}><CheckCircle2 size={14}/>Подтвердить все ({pending})</button>}</div>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Этап</th><th>Результат</th><th>Место</th><th>Проверка</th><th/></tr></thead><tbody>{data.map(r=><tr key={r.id}><td data-label="Класс">{r.registrationClass?.class?.name||'—'}</td><td data-label="Участник">{[r.registration?.participant?.lastName,r.registration?.participant?.firstName].filter(Boolean).join(' ')||'—'}<small className="table-sub">№{r.registration?.participantNumber??'—'}</small></td><td data-label="Этап">{r.registration?.stage?<><strong>№{r.registration.stage.stageNumber} · {r.registration.stage.name}</strong><small className="table-sub">{r.registration.stage.season?.year??''}</small></>:'—'}</td><td data-label="Результат"><strong>{r.value}</strong> {enumLabel(r.unit)}</td><td data-label="Место">{r.place??'—'}</td><td data-label="Проверка"><span className={'badge '+(r.verificationStatus==='VERIFIED'?'good':'')}>{r.verificationStatus==='VERIFIED'?'Подтверждён':'Ожидает проверки'}</span></td><td data-label="Действия" className="row-actions">{r.verificationStatus==='PENDING'&&<button className="primary-button compact" onClick={()=>void verify(r.id)}>Подтвердить</button>}</td></tr>)}</tbody></table>:<Empty text="Исторических результатов нет"/>}</div></PageFrame>
+}
+function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
+
+function sheetRows(values:any){
+  if(!Array.isArray(values))return [];
+  const rows=values.filter((row:any)=>Array.isArray(row)&&row.some((x:any)=>String(x??'').trim()!==''));
+  if(rows.length<2)return [];
+  const headers=(rows[0]??[]).map((x:any)=>String(x??'').replace(/^\\uFEFF/,'').trim());
+  return rows.slice(1).map((row:any[])=>{
+    const item:any={};
+    headers.forEach((h:string,i:number)=>{if(h)item[h]=row?.[i]??''});
+    return item;
+  }).filter((item:any)=>Object.values(item).some((x:any)=>String(x??'').trim()!==''));
+}
+
+function resultSheetRows(values:any){
+  const rows=sheetRows(values);
+  let currentClass='';
+  return rows.map((row:any)=>{
+    const classValue=String(row['Класс']??'').trim();
+    if(classValue)currentClass=classValue;
+    return currentClass?{...row,'Класс':currentClass}:row;
+  }).filter((row:any)=>String(row['Номер']??row['Номер участника']??'').trim()!=='');
+}
+function ImportPage(){
+ const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
+ const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);
+ const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
+ const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
+ useEffect(()=>{apiGet('/stages').then(r=>{const s=listData(r);setStages(s);if(s[0]?.id)setStageId(s[0].id)}).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить этапы'));void loadGoogle();},[]);
+ useEffect(()=>{if(!spreadsheetId){setSpreadsheet(null);return}getGoogleSpreadsheet(spreadsheetId).then(r=>setSpreadsheet(r.spreadsheet)).catch(e=>setError(e instanceof Error?e.message:'Не удалось открыть таблицу'))},[spreadsheetId]);
+ const changeMode=(next:'NORMAL'|'HISTORICAL')=>{setMode(next);setResult(null);setJob(null);setRows([]);setResolveRow(null);setResolution('{}');setError('')};
+ const preview=async()=>{
+   setLoading(true);setError('');
+   try{
+     if(!stageId||!spreadsheetId)throw new Error('Выберите этап и Google Таблицу');
+     const sheetNames=(spreadsheet?.sheets??[]).map((s:any)=>s.title);
+     if(!sheetNames.includes('Результаты'))throw new Error('В таблице отсутствует лист «Результаты»');
+     if(mode==='HISTORICAL'&&!sheetNames.includes('Регистрация'))throw new Error('Для исторического импорта нужен лист «Регистрация»');
+     const resultResponse=await getGoogleSheetValues(spreadsheetId,'Результаты');
+     const resultValues=Array.isArray(resultResponse?.values)
+       ? resultResponse.values
+       : (Array.isArray(resultResponse?.values?.values) ? resultResponse.values.values : []);
+     const results=resultSheetRows(resultValues);
+     if(!results.length)throw new Error('Лист «Результаты» пустой или не содержит строк данных');
+     let registrations:any[]=[];
+     if(mode==='HISTORICAL'){
+       const regResponse=await getGoogleSheetValues(spreadsheetId,'Регистрация');
+       const regValues=Array.isArray(regResponse?.values)
+         ? regResponse.values
+         : (Array.isArray(regResponse?.values?.values) ? regResponse.values.values : []);
+       registrations=sheetRows(regValues);
+       if(!registrations.length)throw new Error('Лист «Регистрация» пустой или не содержит строк данных');
+     }
+     const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL'});
+     setResult(r);setJob(r.importJob);
+     if(r.importJob?.id){const full=await apiGet<any>('/imports/'+r.importJob.id);setJob(full.importJob);setRows(full.importJob?.rows??[])}else setRows([]);
+   }catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить Preview')}finally{setLoading(false)}
+ };
+ const refreshJob=async(id:string)=>{try{const r=await apiGet<any>('/imports/'+id);setJob(r.importJob);setRows(r.importJob?.rows??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}};
+ const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:JSON.parse(resolution||'{}')});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
+ const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPost('/imports/'+job.id+'/commit',{});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить commit')}finally{setLoading(false)}};
+ const visibleRows=mode==='HISTORICAL'?rows.filter((r:any)=>r.type==='RESULT'):rows;
+ const readyCount=visibleRows.filter((r:any)=>r.status==='READY').length;
+ const warnCount=visibleRows.filter((r:any)=>r.status==='WARNING').length;
+ const resolvedCount=visibleRows.filter((r:any)=>r.status==='RESOLVED').length;
+ const resultWarnCount=visibleRows.filter((r:any)=>r.type==='RESULT'&&r.status==='WARNING').length;
+ const blockingWarnCount=mode==='HISTORICAL'?resultWarnCount:warnCount;
+ const resultSheet=spreadsheet?.sheets?.find((s:any)=>s.title==='Результаты'),registrationSheet=spreadsheet?.sheets?.find((s:any)=>s.title==='Регистрация');
+ return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>void refreshJob(job.id)}><RefreshCw size={14}/>Обновить импорт</button>:undefined}>
+  <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
+  <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  <div className="import-grid">
+   <div className="panel form">
+    <div className="segmented"><button className={mode==='NORMAL'?'selected':''} onClick={()=>changeMode('NORMAL')}>Обычный импорт</button><button className={mode==='HISTORICAL'?'selected':''} onClick={()=>changeMode('HISTORICAL')}>Исторический</button></div>
+    {!google?.connected?<div className="notice"><AlertTriangle size={16}/><span>Google аккаунт ещё не подключён.</span><button className="primary-button compact" onClick={()=>void connectGoogle()}>Подключить Google</button></div>:<div className="notice"><Check size={16}/><span>Подключён: <strong>{google.email}</strong></span></div>}
+    <label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
+    <label>Google Таблица<select value={spreadsheetId} onChange={e=>setSpreadsheetId(e.target.value)} disabled={!google?.connected}><option value="">Выберите таблицу</option>{spreadsheets.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+    {spreadsheet&&<div className="import-example"><b>{spreadsheet.title}</b><br/>Регистрация: {registrationSheet?'найден':'не найден'}<br/>Результаты: {resultSheet?'найден':'не найден'}</div>}
+    <button className="primary-button" disabled={loading||!stageId||!spreadsheetId||!google?.connected} onClick={()=>void preview()}>{loading?'Загружаем и проверяем…':'1. Загрузить и запустить Preview'}</button>
+    {error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}
+   </div>
+   <div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>
+    {job?<><div className="import-summary"><div><b>{readyCount}</b><span>готово</span></div><div className="warning"><b>{warnCount}</b><span>нужно исправить</span></div><div className="resolved"><b>{resolvedCount}</b><span>исправлено</span></div>{mode==='HISTORICAL'?<><div className="good"><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='REGISTRATION').length}</b><span>номер из регистрации</span></div><div><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='RESULT'||r.normalizedData?.participantNumberSource==='BOTH').length}</b><span>номер из результатов</span></div><div className="warning"><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='NONE'&&r.status==='READY').length}</b><span>номер авто</span></div></>:<div><b>{visibleRows.length}</b><span>строк в работе</span></div>}</div>
+      <div className="import-job-line">Состояние импорта: <strong>{enumLabel(job.status)}</strong></div>
+      <div className="import-rows">{visibleRows.slice(0,100).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{enumLabel(r.status)}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small>{mode==='HISTORICAL'&&r.type==='RESULT'&&<small className="table-sub">{r.normalizedData?.participantNumberSource==='REGISTRATION'?'Номер взят из «Регистрация»':r.normalizedData?.participantNumberSource==='RESULT'?'Номер взят из «Результаты»':r.normalizedData?.participantNumberSource==='BOTH'?'Номер совпал в обоих листах':r.normalizedData?.participantNumberSource==='AUTO'?'Номер выдан автоматически':'Номер будет определён при commit'}{r.normalizedData?.car?.model||r.normalizedData?.car?.plateNumber?' · Авто из справочника':''}</small>}</span>{r.status==='WARNING'&&(mode!=='HISTORICAL'||r.type==='RESULT')&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):JSON.stringify({},null,2))}}>Исправить</button>}</div>)}</div>
+      {blockingWarnCount===0&&job.status==='DRAFT'&&<button className="primary-button" disabled={loading} onClick={()=>void commit()}>4. Подтвердить и записать импорт</button>}
+      {blockingWarnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>{mode==='HISTORICAL'?'Исправьте предупреждения в строках результатов. Лист «Регистрация» используется только как справочник и сам по себе ничего не создаёт.':'Есть предупреждения. Пока остаётся хотя бы один WARNING — запись заблокирована.'}</span></div>}
+      {job.status==='COMMITTED'&&<div className="notice"><Check size={17}/><span>Импорт успешно записан в базу USD.</span></div>}
+    </>:<Empty text="После Preview здесь появится отчёт по каждой строке"/>}
+   </div>
+  </div>
+  {resolveRow&&<ImportResolutionModal row={resolveRow} stageId={stageId} mode={mode} resolution={resolution} setResolution={setResolution} loading={loading} onClose={()=>setResolveRow(null)} onSave={async()=>{await resolve()}}/>}
+ </PageFrame>
+}
+
+function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loading,onClose,onSave}:{row:any;stageId:string;mode:'NORMAL'|'HISTORICAL';resolution:string;setResolution:(v:string)=>void;loading:boolean;onClose:()=>void;onSave:()=>Promise<void>}){
+ const[data,setData]=useState<any[]>([]),[cars,setCars]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]),[classes,setClasses]=useState<any[]>([]),[loadingOptions,setLoadingOptions]=useState(true),[localError,setLocalError]=useState('');
+ const parsed=useMemo(()=>{try{return JSON.parse(resolution||'{}')}catch{return {}}},[resolution]);
+ const raw=row.rawData??{}, normalized=row.normalizedData??{};
+ const resultParticipant=normalized.participant?.matches?.[0]??null;
+ const participantName=normalized.participant?.rawName??raw['ФИО']??raw['Фамилия и имя']??'';
+ const participantNumber=normalized.participantNumber??normalized.resultParticipantNumber??raw['Номер']??raw['Номер участника']??'';
+ const setPart=(patch:any)=>setResolution(JSON.stringify({...parsed,participant:{...(parsed.participant??{}),...patch}},null,2));
+ const setReg=(patch:any)=>setResolution(JSON.stringify({...parsed,registration:{...(parsed.registration??{}),...patch}},null,2));
+ const setCar=(patch:any)=>setResolution(JSON.stringify({...parsed,car:{...(parsed.car??{}),...patch}},null,2));
+ const setClass=(classId:string)=>setResolution(JSON.stringify({...parsed,classId},null,2));
+ const setResultField=(patch:any)=>setResolution(JSON.stringify({...parsed,...patch},null,2));
+
+ useEffect(()=>{let cancelled=false;setLoadingOptions(true);Promise.all([
+   apiGet<any>('/participants'),
+   apiGet<any>('/cars'),
+   apiGet<any>('/registrations?stageId='+encodeURIComponent(stageId)),
+   apiGet<any>('/classes')
+ ]).then(([p,c,r,cl])=>{if(cancelled)return;setData(listData(p));setCars(listData(c));setRegistrations(listData(r));setClasses(listData(cl))}).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось загрузить варианты для решения')).finally(()=>{if(!cancelled)setLoadingOptions(false)});return()=>{cancelled=true}},[stageId]);
+
+ const participantCandidates=useMemo(()=>{
+   const q=String(participantName).trim().toLowerCase();
+   const n=Number(participantNumber);
+   return data.filter(p=>{
+     const name=[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ').toLowerCase();
+     return (q&&name.includes(q))||(Number.isFinite(n)&&n>0&&p.participantNumber===n);
+   }).slice(0,8);
+ },[data,participantName,participantNumber]);
+
+ const selectedParticipantId=parsed.participant?.participantId;
+ const selectedParticipant=data.find(p=>p.id===selectedParticipantId);
+ const selectedRegistrationId=parsed.registration?.registrationId;
+ const selectedRegistration=registrations.find(r=>r.id===selectedRegistrationId);
+ const registrationAction=parsed.registration?.action;
+ const resolvedParticipantNumber=Number(parsed.registration?.participantNumber??participantNumber);
+ const displayParticipantNumber=Number.isInteger(resolvedParticipantNumber)&&resolvedParticipantNumber>0?String(resolvedParticipantNumber).padStart(3,'0'):'—';
+ const carCandidates=cars.filter(c=>!selectedParticipantId||c.participantId===selectedParticipantId).slice(0,8);
+ const registrationCandidates=registrations.filter(r=>{
+   const n=Number(participantNumber);
+   return (Number.isFinite(n)&&n>0&&r.participantNumber===n)||(
+     selectedParticipantId&&r.participantId===selectedParticipantId
+   );
+ }).slice(0,8);
+
+ const createParticipant=()=>setPart({action:'CREATE',fullName:String(participantName).trim(),team:String(raw['Команда']??'').trim()||null,email:String(raw['Email']??'').trim()||null});
+ const useParticipant=(p:any)=>setPart({action:'USE_EXISTING',participantId:p.id});
+ const createRegistration=()=>setReg({action:'CREATE',participantNumber:Number(participantNumber)});
+ const useRegistration=(r:any)=>setReg({action:'USE_EXISTING',registrationId:r.id,participantNumber:r.participantNumber});
+ const createCar=()=>setCar({action:'CREATE',brand:String(raw['Марка автомобиля']??raw['Марка']??'').trim()||undefined,model:String(raw['Модель автомобиля']??raw['Модель']??'').trim()||undefined,registrationNumber:String(raw['Номер автомобиля']??raw['Гос. номер']??'').trim()||undefined,registrationCountry:'RU'});
+ const useCar=(c:any)=>setCar({action:'USE_EXISTING',carId:c.id});
+ const autoClass=normalized.class?.classId;
+ const currentClassId=parsed.classId??autoClass??'';
+ const classCandidates=classes.filter(c=>!normalized.class?.className||String(c.name).trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()||String(c.code??'').trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()).slice(0,12);
+
+ return <Modal title={`Исправление строки №\${row.rowNumber}`} onClose={onClose}>
+  <div className="import-resolution">
+   <div className="notice"><AlertTriangle size={16}/><span>Теперь не нужно писать JSON вручную. Нажимай действия ниже — система сама собирает корректное решение.</span></div>
+   {localError&&<div className="form-error"><AlertTriangle size={16}/>{localError}</div>}
+   <div className="resolution-source">
+    <div><strong>Исходная строка</strong><pre className="json-view">{JSON.stringify(raw,null,2)}</pre></div>
+    <div><strong>Что система определила</strong><pre className="json-view">{JSON.stringify(normalized,null,2)}</pre></div>
+   </div>
+
+   <div className="resolution-actions">
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><UserRound size={17}/><strong>Участник</strong></div>
+     <div className="resolution-action-value">{participantName||'Не определён'}{participantNumber&&<small>№ {participantNumber}</small>}</div>
+     <div className="resolution-buttons">
+      {selectedParticipantId&&<span className="badge good"><Check size={11}/>Участник выбран</span>}
+      {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createParticipant}><Plus size={14}/>Создать участника</button>}
+     </div>
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><ClipboardCheck size={17}/><strong>Регистрация на этап</strong></div>
+     <div className="resolution-action-value">{selectedRegistration?[selectedRegistration.participantNumber,selectedRegistration.participant?.lastName,selectedRegistration.participant?.firstName].filter(Boolean).join(' · '):registrationAction==='CREATE'?'Создание регистрации №'+displayParticipantNumber:'Не выбрана'}</div>
+     <div className="resolution-buttons">
+      {registrationCandidates.map(r=><button key={r.id} className="secondary-button compact" onClick={()=>useRegistration(r)}>Использовать №{String(r.participantNumber).padStart(3,'0')}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" disabled={!Number.isInteger(resolvedParticipantNumber)||resolvedParticipantNumber<=0} onClick={createRegistration}><Plus size={14}/>{registrationAction==='CREATE'?'Регистрация №'+displayParticipantNumber+' выбрана':'Создать регистрацию №'+displayParticipantNumber}</button>}
+     </div>
+     {mode==='NORMAL'&&<small className="muted">В обычном импорте регистрацию только выбираем — создавать её нельзя.</small>}
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><CarFront size={17}/><strong>Автомобиль</strong></div>
+     <div className="resolution-action-value">{String(raw['Модель автомобиля']??raw['Модель']??'Автомобиль из импорта')}{raw['Номер автомобиля']&&<small>{String(raw['Номер автомобиля'])}</small>}</div>
+     <div className="resolution-buttons">
+      {carCandidates.map(c=><button key={c.id} className="secondary-button compact" onClick={()=>useCar(c)}>Использовать: {c.brand} {c.model}</button>)}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createCar}><Plus size={14}/>Создать машину</button>}
+     </div>
+     {mode==='NORMAL'&&<small className="muted">В обычном импорте автомобиль не создаём — он уже должен быть у регистрации.</small>}
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><Trophy size={17}/><strong>Класс</strong></div>
+     <div className="resolution-action-value">{normalized.class?.className??raw['Класс']??'Не определён'}</div>
+     <div className="resolution-buttons">
+      {classCandidates.map(c=><button key={c.id} className={currentClassId===c.id?'primary-button compact':'secondary-button compact'} onClick={()=>setClass(c.id)}>{currentClassId===c.id?<Check size={14}/>:null}{c.name}</button>)}
+      {!classCandidates.length&&<select value={currentClassId} onChange={e=>setClass(e.target.value)}><option value="">Выберите класс</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+     </div>
+    </div>
+
+    <div className="resolution-action-card">
+     <div className="resolution-action-head"><Check size={17}/><strong>Результат</strong></div>
+     <div className="resolution-buttons resolution-fields">
+      <label>Результат<input type="number" step="0.01" value={parsed.value??normalized.result??''} onChange={e=>setResultField({value:e.target.value===''?undefined:Number(e.target.value)})}/></label>
+      <label>Место<input type="number" min="1" step="1" value={parsed.place??normalized.place??''} onChange={e=>setResultField({place:e.target.value===''?null:Number(e.target.value)})}/></label>
+      <label>Комментарий<input value={parsed.notes??''} onChange={e=>setResultField({notes:e.target.value||null})}/></label>
+     </div>
+    </div>
+   </div>
+
+   <details className="resolution-json-preview"><summary>Показать сформированное решение</summary><pre className="json-view">{JSON.stringify(parsed,null,2)}</pre></details>
+   <div className="resolution-footer"><button className="secondary-button" onClick={onClose}>Отмена</button><button className="primary-button" disabled={loading||loadingOptions} onClick={()=>void onSave()}>{loading?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить решение</>}</button></div>
+  </div>
+ </Modal>
+}
+
+function RecordsPage(){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const load=()=>{setLoading(true);setError('');return apiGet<any>('/records/admin/current').then(r=>setData(listData(r).filter((x:any)=>!String(x.class?.name??'').trim().toLowerCase().startsWith('bassrace')))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки рекордов')).finally(()=>setLoading(false))};
+ useEffect(()=>{void load()},[]);
+ return <PageFrame title="Рекорды" subtitle="Текущие действующие рекорды чемпионата" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="panel table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th></tr></thead><tbody>{data.map((r:any)=>{const p=r.result?.registration?.participant;const car=r.result?.registration?.car;const st=r.stage;const cls=r.class;return <tr key={r.id}>
+   <td data-label="Класс"><strong>{cls?.name??'—'}</strong>{cls?.direction?.name&&<small className="table-sub">{cls.direction.name}</small>}</td>
+   <td data-label="Участник"><strong>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td>
+   <td data-label="Автомобиль">{[car?.brand,car?.model].filter(Boolean).join(' ')||'—'}</td>
+   <td data-label="Результат"><strong>{r.value??r.result?.value??'—'}</strong></td>
+   <td data-label="Ед.">{r.unit??r.result?.unit??'—'}</td>
+   <td data-label="Этап">{st?<><strong>№{st.stageNumber} · {st.name}</strong>{st.city&&<small className="table-sub">{st.city}</small>}</>:'—'}</td>
+   <td data-label="Дата">{formatDate(r.achievedAt)}</td>
+  </tr>})}</tbody></table>:<Empty text="Рекордов пока нет"/>}</div>
+ </PageFrame>
+}
+function StatisticsPage(){
+ const[overview,setOverview]=useState<any>(null),[participants,setParticipants]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const load=()=>{setLoading(true);setError('');return Promise.all([apiGet<any>('/statistics/overview'),apiGet<any>('/statistics/participants?limit=50')]).then(([o,p])=>{setOverview(o?.stats??o);setParticipants(listData(p))}).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки статистики')).finally(()=>setLoading(false))};
+ useEffect(()=>{void load()},[]);
+ const s=overview??{};
+ return <PageFrame title="Статистика" subtitle="Понятные показатели чемпионата: участники, автомобили, этапы, выступления и рекорды" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  <div className="kpi-grid small">
+   {[['participants','Участники','Зарегистрированные профили'],['cars','Автомобили','Активные автомобили'],['seasons','Сезоны','Активные сезоны'],['stages','Этапы','Этапы чемпионата'],['activeRegistrations','Активные регистрации','Регистрации со статусом ACTIVE'],['appearances','Выступления','Учтённые результаты'],['currentRecords','Текущие рекорды','Действующие рекорды']].map(([key,label,hint])=><div className="stat-card" key={key}><span>{label}</span><strong>{loading?'—':String(s[key]??0)}</strong><small>{hint}</small></div>)}
+  </div>
+  <div className="panel">
+   <PanelTitle title="Участники и спортивная статистика" icon={Users}/>
+   {loading?<LoadingPage small/>:<div className="smart-table-wrap"><table className="data-table"><thead><tr><th>Участник</th><th>Команда</th><th>Этапы</th><th>Регистрации</th><th>Результаты</th><th>Победы</th><th>Подиумы</th><th>Автомобили</th><th>Рекорды</th></tr></thead><tbody>{participants.map((p:any)=>{const st=p.stats??{};return <tr key={p.participant?.id??p.id}><td data-label="Участник"><strong>{[p.participant?.lastName,p.participant?.firstName,p.participant?.middleName].filter(Boolean).join(' ')||'—'}</strong></td><td data-label="Команда">{p.participant?.team||'—'}</td><td data-label="Этапы">{st.attendedStages??0}</td><td data-label="Регистрации">{st.registrations??0}</td><td data-label="Результаты">{st.resultCount??0}</td><td data-label="Победы"><span className="badge good">{st.firstPlaces??0}</span></td><td data-label="Подиумы">{st.podiums??0}</td><td data-label="Автомобили">{st.cars??0}</td><td data-label="Рекорды">{st.records??0}</td></tr>})}</tbody></table></div>}
+  </div>
+ </PageFrame>
+}
+function UsersPage(){
+ const[data,setData]=useState<any[]>([]),[search,setSearch]=useState(''),[role,setRoleFilter]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[saving,setSaving]=useState(false);
+ const load=()=>{setLoading(true);const q=new URLSearchParams();if(search.trim())q.set('search',search.trim());if(role)q.set('role',role);return apiGet<any>('/auth/admin/users'+(q.toString()?'?'+q:'')).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки')).finally(()=>setLoading(false))};
+ useEffect(()=>{void load()},[role]);
+ const save=async(v:any)=>{setSaving(true);try{await apiPost('/auth/admin/users',v);setModal(null);await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка создания')}finally{setSaving(false)}};
+ const setActive=async(u:any)=>{try{await apiPatch('/auth/admin/users/'+u.id+'/active',{active:!u.isActive});await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка изменения статуса')}};
+ const changeRole=async(u:any,r:string)=>{try{await apiPatch('/auth/admin/users/'+u.id+'/role',{role:r});await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка изменения роли')}};
+ return <PageFrame title="Пользователи" subtitle="Учётные записи, роли и доступ к системе" action={<button className="primary-button compact" onClick={()=>setModal({role:'PARTICIPANT'})}><Plus size={15}/>Создать</button>}>
+  <div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void load()}} placeholder="Email"/></div><select className="filter-select" value={role} onChange={e=>setRoleFilter(e.target.value)}><option value="">Все роли</option><option value="ADMIN">Администратор</option><option value="JUDGE">Судья</option><option value="PARTICIPANT">Участник</option></select><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/></button><span className="row-count">{data.length} пользователей</span></div>
+  {error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<table className="data-table"><thead><tr><th>Email</th><th>Роль</th><th>Статус</th><th>Подтверждение</th><th>Создан</th><th/></tr></thead><tbody>{data.map(u=><tr key={u.id}><td data-label="Email">{u.email}</td><td data-label="Роль"><select className="inline-select" value={u.role} onChange={e=>void changeRole(u,e.target.value)}><option value="ADMIN">Администратор</option><option value="JUDGE">Судья</option><option value="PARTICIPANT">Участник</option></select></td><td data-label="Статус"><span className={`badge ${u.isActive?'good':''}`}>{u.isActive?'Активен':'Отключён'}</span></td><td data-label="Подтверждение">{u.emailVerifiedAt?'Да':'Нет'}</td><td data-label="Создан">{formatDate(u.createdAt)}</td><td data-label="Действия" className="row-actions"><button className="secondary-button compact" onClick={()=>void setActive(u)}>{u.isActive?'Отключить':'Включить'}</button></td></tr>)}</tbody></table>}</div>
+  {modal!==null&&<Modal title="Новый пользователь" onClose={()=>setModal(null)}><EntityForm fields={[{name:'email',label:'Email',type:'email',required:true},{name:'password',label:'Пароль',type:'password',required:true},{name:'role',label:'Роль',options:['ADMIN','JUDGE','PARTICIPANT'],required:true}]} initial={modal} saving={saving} onSubmit={save}/></Modal>}
+ </PageFrame>
+}
+function AuditPage(){
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const[entity,setEntity]=useState(''),[action,setAction]=useState('');
+ const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[entity,action]);
+ const actions=[...new Set(data.map(x=>x.action).filter(Boolean))];
+ return <PageFrame title="Аудит" subtitle="Понятная история: кто, что, где и когда изменил в системе." action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
+  <div className="audit-toolbar panel">
+   <label>Раздел<select value={entity} onChange={e=>setEntity(e.target.value)}><option value="">Все разделы</option>{['Stage','Registration','Participant','Car','Result','Inspection','ImportJob','AssistantRequest','SiteSettings','User'].map(x=><option key={x} value={x}>{auditEntityName(x)}</option>)}</select></label>
+   <label>Действие<select value={action} onChange={e=>setAction(e.target.value)}><option value="">Все действия</option>{actions.map(x=><option key={x} value={x}>{auditActionName(x)}</option>)}</select></label>
+   <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
+  </div>
+  {error&&<ErrorPanel message={error} retry={load}/>}
+  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x}/>)}</div>}
+  {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
+ </PageFrame>
+}
+function AuditEntryCard({item}:{item:any}){
+ const meta=item.metadata&&typeof item.metadata==='object'?item.metadata:{};
+ const actor=item.user?.name||item.user?.email||'Система';
+ const details=Object.entries(meta).filter(([k,v])=>v!==null&&v!==undefined&&k!=='password'&&!/id$/i.test(k)&&!/Ids$/i.test(k)).slice(0,8);
+ return <article className="audit-entry">
+  <div className="audit-entry-icon"><FileClock size={17}/></div>
+  <div className="audit-entry-main">
+   <div className="audit-entry-head"><strong>{auditActionName(item.action)}</strong><time>{new Date(item.createdAt).toLocaleString('ru-RU')}</time></div>
+   <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{roleName[item.user?.role as Role]??'Система'}</span><span>·</span><span>{auditEntityName(item.entity)}</span></div>
+   {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v)}</strong></div>)}</div>}
+   {item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
+  </div>
+ </article>
+}
+function auditEntityName(x:string){const m:Record<string,string>={Stage:'Этап',Registration:'Регистрация',Participant:'Участник',Car:'Автомобиль',Result:'Результат',Inspection:'Инспекция',ImportJob:'Импорт',AssistantRequest:'Запрос ассистента',SiteSettings:'Настройки сайта',User:'Пользователь',Disqualification:'Дисквалификация',Season:'Сезон',Class:'Класс',Direction:'Направление',Record:'Рекорд'};return m[x]??humanize(x)}
+function auditActionName(x:string){const m:Record<string,string>={
+ CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',HISTORICAL_RESULT_CREATED:'Добавлен исторический результат',HISTORICAL_RESULT_VERIFIED:'Исторический результат подтверждён',HISTORICAL_RESULT_CORRECTED:'Исторический результат исправлен',INSPECTION_DELETED:'Инспекция удалена',ASSISTANT_AI_USED:'Ассистент ИИ использован',
+ IMPORT_PREVIEW:'Предпросмотр импорта',IMPORT_COMMITTED:'Импорт зафиксирован',IMPORT_ROW_RESOLVED:'Строка импорта исправлена',
+ INSPECTION_CREATED:'Инспекция создана',INSPECTION_UPDATED:'Инспекция изменена',RESULT_CREATED:'Результат внесён',RESULT_UPDATED:'Результат изменён',RESULT_DELETED:'Результат удалён',
+ DISQUALIFICATION_CREATED:'Дисквалификация создана',DISQUALIFICATION_REVOKED:'Дисквалификация отозвана',
+ ASSISTANT_CHAT_USED:'Использован чат ассистента',ASSISTANT_FUNCTION_EXECUTED:'Выполнена функция ассистента',ASSISTANT_REQUEST_CREATED:'Создан запрос ассистента',ASSISTANT_REQUEST_SUBMITTED:'Запрос отправлен на подтверждение',ASSISTANT_REQUEST_APPROVED:'Запрос подтверждён',ASSISTANT_REQUEST_REJECTED:'Запрос отклонён',ASSISTANT_REQUEST_APPLIED:'Запрос применён',
+ SITE_SETTINGS_UPDATED:'Настройки сайта изменены',USER_CREATED:'Пользователь создан',USER_UPDATED:'Пользователь изменён'
+ };if(m[x])return m[x];const words:Record<string,string>={CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',CREATED:'Создано',UPDATED:'Изменено',DELETED:'Удалено',VERIFIED:'Подтверждено',CORRECTED:'Исправлено',REVOKED:'Отозвано',COMMITTED:'Зафиксировано',RESOLVED:'Исправлено',USED:'Использован',EXECUTED:'Выполнено',SUBMITTED:'Отправлено',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',HISTORICAL:'Исторический',RESULT:'результат',INSPECTION:'инспекция',DISQUALIFICATION:'дисквалификация',REGISTRATION:'регистрация',IMPORT:'импорт',USER:'пользователь',CAR:'автомобиль',PARTICIPANT:'участник',STAGE:'этап',SEASON:'сезон',CLASS:'класс',ASSISTANT:'ассистент',FUNCTION:'функция',CHAT:'чат',SITE:'сайт',SETTINGS:'настройки',PREVIEW:'предпросмотр',ROW:'строка',DATA:'данные',QUALITY:'качество'};return x.split('_').map(w=>words[w]??w.toLowerCase()).join(' ')}
+function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск',entity:'Раздел',before:'До изменения',after:'После изменения',sections:'Изменённые разделы',model:'Модель ассистента'};return m[x]??humanize(x)}
+function formatAuditValue(v:any){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='string')return enumLabel(v);if(typeof v==='object')return JSON.stringify(v);return String(v)}
+function QualityPage(){const[data,setData]=useState<any>(null),[error,setError]=useState('');const load=()=>getDataQuality().then(setData).catch(e=>setError(e instanceof Error?e.message:'Не удалось проверить данные'));useEffect(()=>{void load()},[]);const issues=data?.issues??[];const entityName=(x:string)=>({Registration:'Регистрация',Inspection:'Инспекция',Result:'Результат',Record:'Рекорд',Car:'Автомобиль',ImportJob:'Импорт'} as Record<string,string>)[x]??humanize(x);const severity=(x:string)=>x==='ERROR'?'Ошибка':x==='WARNING'?'Предупреждение':'Информация';const qualityRuleName=(x:string)=>({REGISTRATION_WITHOUT_INSPECTION:'Активная регистрация без инспекции',REGISTRATION_WITHOUT_CLASSES:'Активная регистрация без класса',FAILED_INSPECTION_WITH_RESULT:'Результат при непройденной инспекции',RESULT_FOR_CANCELLED_REGISTRATION:'Результат отменённой регистрации',RESULT_FOR_FAILED_INSPECTION:'Результат при непройденной инспекции',HISTORICAL_RESULT_PENDING:'Исторический результат ожидает подтверждения',RESULT_UNIT_MISMATCH:'Несовпадение единиц результата и класса',ORPHAN_RECORD:'Рекорд без результата',RECORD_UNIT_MISMATCH:'Несовпадение единиц рекорда и класса',CAR_WITHOUT_CONFIGURATION:'Автомобиль без конфигурации',IMPORT_WITH_UNRESOLVED_WARNINGS:'Импорт с нерешёнными предупреждениями'} as Record<string,string>)[x]??humanize(x);return <PageFrame title="Контроль данных" subtitle="Проверка целостности: система сама ищет то, что может сломать этап или публикацию." action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Проверить снова</button>}>{error&&<ErrorPanel message={error} retry={load}/>}<div className="quality-summary">{data&&<><div className="stat-card"><span>Всего проблем</span><strong>{data.counts.total}</strong></div><div className="stat-card danger-card"><span>Ошибки</span><strong>{data.counts.error}</strong></div><div className="stat-card"><span>Предупреждения</span><strong>{data.counts.warning}</strong></div><div className="stat-card"><span>Информация</span><strong>{data.counts.info}</strong></div></>}</div><div className="panel quality-table-panel">{!issues.length?<Empty text={data?'Проблем не найдено — данные выглядят чисто':'Загрузка проверки…'}/>:<div className="smart-table-wrap"><table className="data-table"><thead><tr><th>Уровень</th><th>Что найдено</th><th>Раздел</th><th>Подробности</th></tr></thead><tbody>{issues.map((x:any,i:number)=><tr key={x.entityId??i}><td data-label="Уровень"><span className={'badge '+(x.severity==='ERROR'?'bad':x.severity==='WARNING'?'warn':'')}>{severity(x.severity)}</span></td><td data-label="Что найдено"><strong>{x.message}</strong><small className="table-sub">Правило: {qualityRuleName(x.code)}</small></td><td data-label="Раздел">{entityName(x.entity)}</td><td data-label="Подробности">{x.context?Object.entries(x.context).filter(([k])=>!k.toLowerCase().endsWith('id')&&!k.toLowerCase().endsWith('ids')).map(([k,v])=><span className="quality-detail" key={k}><b>{humanizeAuditKey(k)}</b>: {enumLabel(v as any)}</span>):'—'}</td></tr>)}</tbody></table></div>}</div></PageFrame>}
+
+function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
+
+function SiteSettingsPage(){
+ const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
+ const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);for(const key of ['logoUrl','mobileLogoUrl','faviconUrl']){getMediaUrl('SITE_ASSET','branding-'+key).then(url=>setPreview(x=>({...x,[key]:url}))).catch(()=>{})}}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}try{const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch{setStages([])}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ if(loading)return <PageFrame title="Настройки сайта" subtitle="Единый центр управления публичной частью USD"><LoadingPage/></PageFrame>;
+ if(!settings)return <PageFrame title="Настройки сайта" subtitle="Единый центр управления публичной частью USD"><ErrorPanel message={error||'Настройки не найдены'} retry={load}/></PageFrame>;
+ const patch=(section:string,value:any)=>setSettings((s:any)=>({...s,[section]:value}));
+ const save=async()=>{setSaving(true);setSaved(false);setError('');try{await updateSiteSettings(settings);setSaved(true)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить настройки')}finally{setSaving(false)}};
+ const uploadBrandingFile=async(key:string,file:File)=>{if(!file.type.startsWith('image/')){setError('Можно выбрать только изображение');return}setUploading(key);setError('');try{const assetKey='branding-'+key;const r=await uploadSiteAsset(assetKey,file);setPreview(x=>({...x,[key]:r.url}));patch('branding',{...settings.branding,[key]:r.publicPath});}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить изображение')}finally{setUploading(null)}};
+ const blocks=settings.homepage.blocks??[];
+ const moveBlock=(index:number,to:number)=>{if(to<0||to>=blocks.length)return;const next=[...blocks];const [item]=next.splice(index,1);next.splice(to,0,item);patch('homepage',{...settings.homepage,blocks:next})};
+ const setBlock=(id:string,field:string,value:any)=>patch('homepage',{...settings.homepage,blocks:blocks.map((b:any)=>b.id===id?{...b,[field]:value}:b)});
+ return <PageFrame title="Настройки сайта" subtitle="Публичный сайт, бренд, главная, LIVE, SEO и контент" action={<div className="settings-save-actions">{saved&&<span className="save-ok"><Check size={14}/>Сохранено</span>}<button className="primary-button compact" onClick={()=>void save()} disabled={saving}>{saving?<><Loader2 size={14} className="spin"/>Сохраняем…</>:<><Check size={14}/>Сохранить всё</>}</button></div>}>
+  <div className="settings-layout"><aside className="settings-tabs">{[['branding','Брендинг',Settings2],['homepage','Главная',LayoutDashboard],['stream','Трансляция',Activity],['live','Результаты LIVE',Trophy],['contacts','Контакты',Users],['seo','SEO',Search],['legal','Юридическое',FileClock],['registration','Регистрация',ClipboardCheck],['footer','Подвал',Flag]].map(([id,label,I]:any)=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><I size={16}/><span>{label}</span></button>)}</aside><section className="settings-content">{error&&<div className="notice"><AlertTriangle size={16}/>{error}</div>}
+   {tab==='branding'&&<div className="settings-section"><PanelTitle title="Брендинг" icon={Settings2}/><p className="settings-help">Выберите изображение с компьютера. Система сама загрузит его в защищённое хранилище; ссылки вручную больше не нужны.</p><div className="asset-grid">{[['logoUrl','Логотип шапки','PNG, JPG или WebP'],['mobileLogoUrl','Мобильный логотип','PNG, JPG или WebP'],['faviconUrl','Иконка вкладки','PNG или WebP']].map(([key,title,hint]:any)=><div className="asset-card" key={key}><div className="asset-preview">{preview[key]?<img src={preview[key]} alt=""/>:<span>{settings.branding[key]?'Файл выбран':'USD'}</span>}</div><strong>{title}</strong><small>{hint}</small><label className="file-picker"><input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading===key} onChange={e=>{const file=e.target.files?.[0];if(file)void uploadBrandingFile(key,file);e.currentTarget.value=''}}/><span>{uploading===key?'Загружаем…':'Выбрать файл'}</span></label></div>)}</div><div className="settings-form-grid"><label>Название сайта<input value={settings.branding.siteName??''} onChange={e=>patch('branding',{...settings.branding,siteName:e.target.value})}/></label><label>Название организации<input value={settings.branding.organizationName??''} onChange={e=>patch('branding',{...settings.branding,organizationName:e.target.value})}/></label></div></div>}
+   {tab==='homepage'&&<div className="settings-section"><PanelTitle title="Конструктор главной" icon={LayoutDashboard}/><p className="settings-help">Блоки можно включать, выключать и менять местами. Порядок сохраняется и будет использоваться публичной частью.</p><div className="settings-form-grid"><label>Заголовок<input value={settings.homepage.heroTitle??''} onChange={e=>patch('homepage',{...settings.homepage,heroTitle:e.target.value})}/></label><label>Подзаголовок<input value={settings.homepage.heroSubtitle??''} onChange={e=>patch('homepage',{...settings.homepage,heroSubtitle:e.target.value})}/></label></div><div className="block-sort-list">{blocks.map((b:any,i:number)=><div className="block-sort-row" key={b.id} draggable onDragStart={e=>e.dataTransfer.setData('text/plain',String(i))} onDragOver={e=>e.preventDefault()} onDrop={e=>{const from=Number(e.dataTransfer.getData('text/plain'));moveBlock(from,i)}}><span className="drag-handle">⋮⋮</span><div><strong>{b.title||b.id}</strong><small>{b.id}</small></div><input value={b.title??''} onChange={e=>setBlock(b.id,'title',e.target.value)}/><button className="icon-button" onClick={()=>moveBlock(i,i-1)} disabled={i===0}>↑</button><button className="icon-button" onClick={()=>moveBlock(i,i+1)} disabled={i===blocks.length-1}>↓</button><button className={`toggle-button ${b.enabled?'on':''}`} onClick={()=>setBlock(b.id,'enabled',!b.enabled)}>{b.enabled?'Включён':'Скрыт'}</button></div>)}</div></div>}
+   {tab==='stream'&&<div className="settings-section"><PanelTitle title="Прямая трансляция" icon={Activity}/><p className="settings-help">Настрой трансляцию заранее. В день этапа блок может автоматически появляться на главной.</p><div className="settings-form-grid"><label className="checkbox-row"><input type="checkbox" checked={!!settings.stream.enabled} onChange={e=>patch('stream',{...settings.stream,enabled:e.target.checked})}/>Показывать трансляцию</label><label>Провайдер<select value={settings.stream.provider??'YOUTUBE'} onChange={e=>patch('stream',{...settings.stream,provider:e.target.value})}><option>YOUTUBE</option><option>VK</option><option>RUTUBE</option><option>CUSTOM</option></select></label><label>Название трансляции<input value={settings.stream.title??''} onChange={e=>patch('stream',{...settings.stream,title:e.target.value})}/></label><label>Ссылка на трансляцию<input value={settings.stream.url??''} onChange={e=>patch('stream',{...settings.stream,url:e.target.value})}/></label><label>Embed URL<input value={settings.stream.embedUrl??''} onChange={e=>patch('stream',{...settings.stream,embedUrl:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!settings.stream.autoShowOnStageDay} onChange={e=>patch('stream',{...settings.stream,autoShowOnStageDay:e.target.checked})}/>Автоматически показывать в день этапа</label><label className="checkbox-row"><input type="checkbox" checked={!!settings.stream.showChat} onChange={e=>patch('stream',{...settings.stream,showChat:e.target.checked})}/>Показывать чат</label></div></div>}
+   {tab==='live'&&<div className="settings-section"><PanelTitle title="Результаты LIVE" icon={Trophy}/><p className="settings-help">Публичный фронт сможет автоматически обновлять результаты. Интервал 2–60 секунд.</p><div className="settings-form-grid"><label className="checkbox-row"><input type="checkbox" checked={!!settings.liveResults.enabled} onChange={e=>patch('liveResults',{...settings.liveResults,enabled:e.target.checked})}/>LIVE-результаты включены</label><label>Этап LIVE<select value={settings.liveResults.stageId??''} onChange={e=>patch('liveResults',{...settings.liveResults,stageId:e.target.value||null})}><option value="">Не выбран</option>{stages.map((s:any)=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label><label>Автообновление, сек.<input type="number" min="2" max="60" value={settings.liveResults.refreshSeconds??5} onChange={e=>patch('liveResults',{...settings.liveResults,refreshSeconds:Number(e.target.value)})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!settings.liveResults.showOnlyPublished} onChange={e=>patch('liveResults',{...settings.liveResults,showOnlyPublished:e.target.checked})}/>Показывать только опубликованные результаты</label></div></div>}
+   {tab==='contacts'&&<SettingsMap title="Контакты и соцсети" section="contacts" settings={settings} patch={patch} fields={['phone','email','address','telegram','vk','youtube','rutube','whatsapp']}/>}
+   {tab==='seo'&&<SettingsMap title="SEO" section="seo" settings={settings} patch={patch} fields={['title','description','keywords','ogTitle','ogDescription','ogImage','canonical']}/>}
+   {tab==='legal'&&<SettingsMap title="Юридическая информация" section="legal" settings={settings} patch={patch} fields={['ipName','inn','ogrnip','copyrightHolder','privacyUrl','consentUrl','termsUrl','rulesUrl']}/>}
+   {tab==='footer'&&<SettingsMap title="Подвал сайта" section="footer" settings={settings} patch={patch} fields={['copyright','text','phone','email']}/>}
+   {tab==='registration'&&<SettingsMap title="Регистрация" section="registration" settings={settings} patch={patch} fields={['enabled','price','additionalClassPrice','introText','successText','rulesText']}/>}
+  </section></div></PageFrame>
+}
+function SettingsMap({title,section,settings,patch,fields}:{title:string;section:string;settings:any;patch:(s:string,v:any)=>void;fields:string[]}){const data=settings[section]??{};const labels:Record<string,string>={phone:'Телефон',email:'Email',address:'Адрес',telegram:'Telegram',vk:'VK',youtube:'YouTube',rutube:'RuTube',whatsapp:'WhatsApp',title:'Заголовок страницы',description:'Описание',keywords:'Ключевые слова',ogTitle:'OG-заголовок',ogDescription:'OG-описание',ogImage:'OG-изображение',canonical:'Canonical URL',ipName:'ФИО / наименование ИП',inn:'ИНН',ogrnip:'ОГРНИП',copyrightHolder:'Правообладатель',privacyUrl:'Политика конфиденциальности',consentUrl:'Согласие на обработку данных',termsUrl:'Пользовательское соглашение',rulesUrl:'Правила USD',copyright:'Копирайт',text:'Текст подвала',enabled:'Регистрация включена',price:'Стоимость участия',additionalClassPrice:'Стоимость дополнительного класса',introText:'Текст перед регистрацией',successText:'Сообщение после регистрации',rulesText:'Условия регистрации'};const textareas=new Set(['description','ogDescription','text','introText','successText','rulesText']);const urlFields=new Set(['telegram','vk','youtube','rutube','whatsapp','ogImage','canonical','privacyUrl','consentUrl','termsUrl','rulesUrl']);return <div className="settings-section"><PanelTitle title={title} icon={Settings2}/><p className="settings-help">Здесь находятся параметры этого раздела. Заполняйте только то, что действительно используется на публичном сайте.</p><div className="settings-form-grid">{fields.map(k=>{const bool=typeof data[k]==='boolean';return <label key={k} className={bool?'settings-check':''}><span className="field-label">{labels[k]??humanize(k)}</span>{bool?<span className="setting-toggle-line"><input type="checkbox" checked={!!data[k]} onChange={e=>patch(section,{...data,[k]:e.target.checked})}/><b>{data[k]?'Включено':'Выключено'}</b></span>:textareas.has(k)?<textarea rows={4} value={data[k]??''} placeholder={k==='description'?'Коротко опишите USD для поисковиков…':''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>:<input type={urlFields.has(k)?'url':k.toLowerCase().includes('email')?'email':k==='price'||k==='additionalClassPrice'?'number':'text'} value={data[k]??''} onChange={e=>patch(section,{...data,[k]:e.target.value})}/>} {!bool&&<small className="field-help">{urlFields.has(k)?'Стабильная публичная ссылка':k==='price'||k==='additionalClassPrice'?'Сумма в рублях':'Можно оставить пустым, если параметр не используется.'}</small>}</label>})}</div></div>}
+function AssistantPage({go}:{go:(p:string)=>void}){
+ const [messages,setMessages]=useState<any[]>([{role:'assistant',text:'Привет. Я USD Copilot. Просто разговаривай со мной как с живым помощником: опиши, что хочешь проверить, найти или изменить. Я сам разберусь с контекстом системы и отвечу по делу.'}]);
+ const [input,setInput]=useState(''),[sending,setSending]=useState(false),[error,setError]=useState('');
+ const [confirming,setConfirming]=useState<any|null>(null),[confirmation,setConfirmation]=useState('');
+ const send=async(text?:string)=>{
+  const value=(text??input).trim();if(!value||sending)return;
+  setMessages(m=>[...m,{role:'user',text:value}]);setInput('');setSending(true);setError('');
+  try{
+   const r=await chatAssistant(value);
+   setMessages(m=>[...m,{role:'assistant',text:r.reply,action:r.action,data:r.data}]);
+   if(r.action?.type==='CHANGE_REQUEST') setConfirming(r.action);
+  }catch(e){setError(e instanceof Error?e.message:'Ассистент временно недоступен');setMessages(m=>[...m,{role:'assistant',text:'Не смог обработать запрос. Проверь доступность сервера и попробуй ещё раз.'}]);}
+  finally{setSending(false)}
+ };
+ const confirmChange=async()=>{
+  if(!confirming?.id)return;
+  if(confirmation.trim().toUpperCase()!=='ПОДТВЕРЖДАЮ'){setError('Введите «ПОДТВЕРЖДАЮ», чтобы подтвердить изменение');return}
+  setSending(true);setError('');
+  try{
+   const r=await approveAssistantRequest(confirming.id,confirmation);
+   setMessages(m=>[...m,{role:'assistant',text:'Подтверждение получено. Запрос принят в защищённый контур. Если для задачи требуется изменение кода, система не выполняет его напрямую — оно должно пройти через отдельный исполнитель изменений.' ,data:r.execution}]);
+   setConfirming(null);setConfirmation('');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить изменение')}
+  finally{setSending(false)}
+ };
+ const rejectChange=async()=>{
+  if(!confirming?.id)return;
+  setSending(true);setError('');
+  try{await rejectAssistantRequest(confirming.id);setMessages(m=>[...m,{role:'assistant',text:'Хорошо, изменение не выполняю.'}]);setConfirming(null);setConfirmation('')}
+  catch(e){setError(e instanceof Error?e.message:'Не удалось отклонить изменение')}
+  finally{setSending(false)}
+ };
+ const runFunction=async(code:string,title:string)=>{
+  setSending(true);setError('');
+  try{const r=await executeAssistantFunction(code,{});setMessages(m=>[...m,{role:'assistant',text:`Готово. ${title} выполнена.`,data:r.result}])}
+  catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить проверку')}
+  finally{setSending(false)}
+ };
+ return <PageFrame title="Ассистент USD" subtitle="Живой рабочий диалог с AI: спрашивайте, проверяйте и ставьте задачи обычным языком." action={<span className="badge good"><Sparkles size={12}/>USD COPILOT</span>}>
+  <div className="assistant-chat-layout assistant-chat-layout-single">
+   <section className="assistant-chat panel">
+    <div className="assistant-chat-head">
+     <div className="assistant-avatar"><Bot size={21}/></div>
+     <div><strong>USD Copilot</strong><span>Говорите обычным языком — я вижу актуальное состояние USD</span></div>
+     <button className="secondary-button compact" onClick={()=>setMessages([{role:'assistant',text:'Новый диалог начат. Что делаем?'}])}>Новый чат</button>
+    </div>
+    <div className="assistant-messages">
+     {messages.map((m:any,i:number)=><div key={i} className={'assistant-message '+m.role}>
+      <div className="message-avatar">{m.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div>
+      <div className="message-bubble">
+       <div className="assistant-message-text">{m.text}</div>
+       {m.data&&<details className="assistant-data"><summary>Показать данные проверки</summary><pre>{JSON.stringify(m.data,null,2)}</pre></details>}
+      </div>
+     </div>)}
+     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble typing">анализирую<span>.</span><span>.</span><span>.</span></div></div>}
+    </div>
+    <div className="assistant-chat-suggestions">{['Что сейчас требует внимания?','Проверь качество данных','Проверь текущий этап','Разбери последний импорт','Покажи состояние системы'].map(x=><button key={x} onClick={()=>void send(x)} disabled={sending}>{x}</button>)}</div>
+    {confirming&&<div className="assistant-inline-confirm">
+      <div className="assistant-inline-confirm-head"><div className="assistant-avatar small"><LockKeyhole size={16}/></div><div><strong>Нужно подтверждение</strong><span>Я подготовил действие, но сам его не применю без вашего согласия.</span></div></div>
+      <div className="assistant-inline-confirm-body"><b>{confirming.title||'Изменение'}</b><p>{confirming.prompt||'Запрос подготовлен по вашему сообщению.'}</p><small>Риск: {assistantRiskName(confirming.risk||'Средний')}</small></div>
+      <div className="assistant-inline-confirm-actions"><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="Введите ПОДТВЕРЖДАЮ"/><button className="primary-button compact" onClick={()=>void confirmChange()} disabled={sending}>Подтвердить</button><button className="secondary-button compact" onClick={()=>void rejectChange()} disabled={sending}>Не выполнять</button></div>
+    </div>}
+    {error&&<div className="form-error"><AlertTriangle size={15}/>{error}</div>}
+    <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}>
+     <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «проверь текущий этап и скажи, что мешает его провести»" rows={3} disabled={sending}/>
+     <button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button>
+    </form>
+    <div className="assistant-chat-note"><LockKeyhole size={13}/><span>Обычный разговор не создаёт очередь. Если ты просишь что-то изменить, я сначала покажу действие и попрошу явное подтверждение.</span></div>
+   </section>
+  </div>
+ </PageFrame>
+}
+function assistantStatusName(x:string){const m:Record<string,string>={DRAFT:'Черновик',PENDING:'Ожидает подтверждения',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',CANCELLED:'Отменено'};return m[x]??enumLabel(x)}
+function assistantTypeName(x:string){return ({CODE_CHANGE:'Изменение кода',ASSISTANT_FUNCTION:'Функция ассистента',SYSTEM_ACTION:'Действие системы'} as Record<string,string>)[x]??enumLabel(x)}
+function assistantRiskName(x:string){return ({Низкий:'Низкий',Средний:'Средний',Высокий:'Высокий',Критический:'Критический',low:'Низкий',medium:'Средний',high:'Высокий',critical:'Критический'} as Record<string,string>)[x]??enumLabel(x)}
+function GlobalSearch({onClose,go}:{onClose:()=>void;go:(p:string)=>void}){
+ const[q,setQ]=useState(''),[results,setResults]=useState<any[]>([]),[loading,setLoading]=useState(false);
+ useEffect(()=>{const t=setTimeout(async()=>{if(q.trim().length<2){setResults([]);return}setLoading(true);try{const r=await apiGet<any>('/statistics/participants?search='+encodeURIComponent(q.trim())+'&limit=12');const ps=listData(r).map((x:any)=>({type:'Участник',title:[x.lastName,x.firstName,x.middleName].filter(Boolean).join(' '),path:'/admin/participants'}));const cs=listData(await apiGet<any>('/cars')).filter((x:any)=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())).slice(0,8).map((x:any)=>({type:'Автомобиль',title:[x.brand,x.model,x.registrationNumber].filter(Boolean).join(' '),path:'/admin/cars'}));setResults([...ps,...cs])}catch{setResults([])}finally{setLoading(false)}},220);return()=>clearTimeout(t)},[q]);
+ return <div className="search-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="global-search"><div className="global-search-head"><Search size={18}/><input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Участник, автомобиль, госномер…"/><button className="icon-button" onClick={onClose}><X size={17}/></button></div>{loading?<LoadingPage small/>:results.length?<div className="global-search-results">{results.map((r,i)=><button key={i} onClick={()=>{onClose();go(r.path)}}><span>{r.type}</span><strong>{r.title}</strong><ChevronRight size={16}/></button>)}</div>:<div className="global-search-empty">{q.length>1?'Ничего не найдено':'Начни вводить минимум 2 символа'}</div>}</div></div>}
+
+function Coming({title,icon:Icon,user}:{title:string;icon:any;user:User}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
+
+function PageFrame({title,subtitle,children,action,showHelp=true}:{title:string;subtitle:string;children:React.ReactNode;action?:React.ReactNode;showHelp?:boolean}){
+ const tips:Record<string,string>={'Панель управления':'Главный рабочий стол. Здесь собраны текущий этап, задачи и быстрые действия.','Этапы':'Создавайте этапы, открывайте регистрацию, назначайте классы и управляйте публикацией.','Регистрации':'Рабочий список заявок на этап. Здесь удобно искать участника, автомобиль и класс.','Инспекции':'Проверка автомобилей перед выступлением. Сначала выберите этап, затем обработайте очередь по статусам.','Результаты':'Вносите и контролируйте спортивные результаты. Изменение и удаление защищены правами доступа.','Участники':'Единый справочник спортсменов. История выступлений не теряется при повторных регистрациях.','Автомобили':'Справочник автомобилей участников. Один автомобиль может использоваться в нескольких этапах.','Сезоны':'Сезоны чемпионата и их жизненный цикл: черновик, активный, архивный.','Классы':'Спортивные классы и направления. Сначала настройте справочник, затем подключайте классы к этапам.','Импорт':'Загрузка данных с предварительной проверкой. В историческом импорте «Результаты» — источник факта участия, «Регистрация» — справочник.','История результатов':'Исторические выступления. Результаты являются источником факта участия, регистрация используется как справочник.','Контроль данных':'Поиск потенциальных проблем в данных перед публикацией и проведением этапов.','Дисквалификации':'Управление действующими и отозванными дисквалификациями.','Рекорды':'Текущие рекорды, синхронизированные с подтверждёнными результатами.','Статистика':'Сводная спортивная статистика по участникам, этапам и выступлениям.','Пользователи':'Учётные записи, роли и доступ. ADMIN имеет полный доступ, JUDGE — рабочий доступ судьи.','Аудит':'Журнал критичных действий системы. Используйте его для контроля изменений и разборов.','Настройки сайта':'Единый центр настройки публичного сайта: бренд, главная, LIVE, контакты, SEO и юридические данные.','Ассистент USD':'Безопасный центр команд администратора, автоматизации и управляемых изменений.'};
+ const flows:Record<string,string[]>={'Этапы':['1 · Создать этап','2 · Подключить классы','3 · Открыть регистрацию','4 · Провести этап'],'Регистрации':['1 · Выбрать этап','2 · Найти участника','3 · Проверить авто и классы','4 · Допустить'],'Инспекции':['1 · Выбрать этап','2 · Найти №','3 · Проверить авто','4 · Отметить результат'],'Результаты':['1 · Выбрать этап','2 · Выбрать класс','3 · Внести результат','4 · Проверить место'],'Импорт':['1 · Загрузить','2 · Проверить','3 · Исправить предупреждения','4 · Зафиксировать'],'Настройки сайта':['1 · Бренд','2 · Главная','3 · LIVE','4 · Сохранить'],'Ассистент USD':['1 · Описать задачу','2 · Получить план','3 · Подтвердить','4 · Применить через защищённый контур']} ;
+ return <div className="page"><div className="page-heading"><div><div className="eyebrow">USD · ADMIN PANEL</div><h1>{title}</h1><p>{subtitle}</p></div>{action}</div>{showHelp&&tips[title]&&<div className="admin-help-card"><div className="admin-help-icon"><Info size={17}/></div><div className="admin-help-copy"><strong>{tips[title]}</strong><p>Заполняйте только известные данные. Система проверяет обязательные поля, связи и права доступа.</p>{flows[title]&&<div className="admin-flow">{flows[title].map((x,i)=><span key={i}>{x}</span>)}</div>}</div></div>}{children}</div>}
+function PanelTitle({title,icon:Icon,action,onAction}:{title:string;icon:any;action?:string;onAction?:()=>void}){return <div className="panel-title"><div><Icon size={17}/><h2>{title}</h2></div>{action&&<button className="text-button" onClick={onAction}>{action}<ChevronRight size={14}/></button>}</div>}
+function DataTable({rows,columns,onEdit,onDelete,extraAction}:{rows:any[];columns:{key:string;label:string}[];onEdit?:(row:any)=>void;onDelete?:(id:string)=>void;extraAction?:(row:any)=>React.ReactNode}){if(!rows.length)return <Empty text="Записей пока нет"/>;return <div className="smart-table-wrap"><table className="data-table"><thead><tr>{columns.map(c=><th key={c.key}>{c.label}</th>)}{(onEdit||onDelete||extraAction)&&<th className="actions-head">Действия</th>}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id??i}>{columns.map(c=><td key={c.key} data-label={c.label}>{formatCell(getPath(r,c.key),c.key)}</td>)}{(onEdit||onDelete||extraAction)&&<td className="row-actions" data-label="Действия">{extraAction?.(r)}{onEdit&&<button className="icon-button" onClick={()=>onEdit(r)} title="Изменить" aria-label="Изменить"><Pencil size={15}/></button>}{onDelete&&r.id&&<button className="icon-button danger" onClick={()=>void onDelete(r.id)} title="Удалить" aria-label="Удалить"><Trash2 size={15}/></button>}</td>}</tr>)}</tbody></table></div>}
+function autoColumns(rows:any[]){const first=rows[0]??{};return Object.keys(first).filter(k=>!['id','createdAt','updatedAt','deletedAt'].includes(k)&&!k.endsWith('Id')&&!k.endsWith('Ids')&&typeof first[k]!=='object').slice(0,8).map(k=>({key:k,label:humanize(k)}))}
+function getPath(o:any,path:string){return path.split('.').reduce((a,k)=>a?.[k],o)}
+function formatCell(v:any,key=''){if(v===null||v===undefined)return '—';if(typeof v==='boolean')return v?<span className="badge good"><Check size={11}/>Да</span>:<span className="badge">Нет</span>;if(typeof v==='string'&&v.includes('T')&&!Number.isNaN(Date.parse(v)))return formatDate(v);if(['status','verificationStatus','unit','direction','type','scope','role','risk'].includes(key)||key.toLowerCase().includes('status'))return <span className="badge">{enumLabel(v)}</span>;return String(v)}
+function humanize(s:string){const m:Record<string,string>={participantNumber:'Номер участника',resultUnit:'Единица результата',classUnit:'Единица класса',recordUnit:'Единица рекорда',warningRows:'Строки с предупреждениями',registrationId:'Регистрация',classId:'Класс',participantId:'Участник',carId:'Автомобиль',stageId:'Этап',seasonId:'Сезон',verifiedByUserId:'Кем подтверждено',createdByUserId:'Кем создано',checkedByUserId:'Кем проверено'};return m[s]??s.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ').replace(/^./,x=>x.toUpperCase())}
+const enumLabels:Record<string,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник',DRAFT:'Черновик',ACTIVE:'Активен',INACTIVE:'Неактивен',PUBLISHED:'Опубликован',COMPLETED:'Завершён',CANCELLED:'Отменён',ARCHIVED:'Архивный',PASSED:'Прошёл',FAILED:'Не прошёл',PENDING:'Ожидает проверки',VERIFIED:'Подтверждён',READY:'Готово',WARNING:'Предупреждение',RESOLVED:'Исправлено',COMMITTED:'Зафиксирован',FRONT:'Фронт',REAR:'Тыл',SUB:'Сабвуфер',SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое',DB:'дБ',MPS:'м/с',STAGE:'Этап',SEASON:'Сезон',FORMAT:'Формат',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',PRE_REGISTRATION:'Предварительная регистрация',ON_SITE:'На площадке',IMPORT:'Импорт',REGISTRATION:'Регистрация',RESULT:'Результат',NORMAL:'Обычный импорт',HISTORICAL:'Исторический импорт',AUTO:'Автоматически',NONE:'Нет',BOTH:'Оба'};
+function enumLabel(value:any){if(value===null||value===undefined||value==='')return '';if(typeof value!=='string')return String(value);return enumLabels[value]??humanize(value)}
+function fieldPlaceholder(f:Field){if(f.placeholder)return f.placeholder;const p:Record<string,string>={name:'Например: USD Тюмень 2026',lastName:'Фамилия',firstName:'Имя',middleName:'Отчество (необязательно)',city:'Например: Тюмень',team:'Название команды',phone:'+7 900 000-00-00',venue:'Название площадки',address:'Адрес проведения',description:'Короткое описание…',registrationNumber:'Госномер',brand:'Например: Lada',model:'Например: Priora',color:'Например: чёрный'};return p[f.name]??'';}
+function EntityForm({fields,initial,saving,relationOptions={},onSubmit}:{fields:Field[];initial:any;saving:boolean;relationOptions?:Record<string,any[]>;onSubmit:(v:any)=>Promise<void>}){const[v,setV]=useState<any>(initial??{});const renderControl=(f:Field)=>{const opts=relationOptions[f.name]??[];const inputValue=f.type==='date'&&typeof v[f.name]==='string'?v[f.name].slice(0,10):f.type==='datetime-local'&&typeof v[f.name]==='string'?v[f.name].slice(0,16):v[f.name]??'';if(f.type==='checkbox')return <div className="field-check"><input type="checkbox" checked={v[f.name]===true} onChange={e=>setV({...v,[f.name]:e.target.checked})}/><span><b>{f.label}</b>{f.help&&<small>{f.help}</small>}</span></div>;if(f.optionsPath)return <select value={v[f.name]??''} onChange={e=>setV({...v,[f.name]:e.target.value})} required={f.required}><option value="">Выберите…</option>{opts.map(o=><option key={o.id} value={o.id}>{f.optionLabel?f.optionLabel(o):o.name??o.id}</option>)}</select>;if(f.options)return <select value={v[f.name]??''} onChange={e=>setV({...v,[f.name]:e.target.value})} required={f.required}><option value="">Выберите…</option>{f.options.map(o=><option key={o} value={o}>{enumLabel(o)}</option>)}</select>;if(f.type==='textarea')return <textarea rows={4} value={v[f.name]??''} placeholder={fieldPlaceholder(f)} onChange={e=>setV({...v,[f.name]:e.target.value})}/>;return <input type={f.type??'text'} value={inputValue} placeholder={fieldPlaceholder(f)} onChange={e=>setV({...v,[f.name]:f.type==='number'?(e.target.value===''?undefined:Number(e.target.value)):e.target.value})} required={f.required}/>;};return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(clean(v))}}><div className="form-intro"><Info size={17}/><span>{initial?.id?'Вы редактируете существующую запись. Изменяйте только то, что действительно нужно.':'Заполните известные данные. Система сама проверит связи и обязательные поля.'} Обязательные поля отмечены <b>*</b>.</span></div><div className="entity-fields">{fields.map(f=><label key={f.name} className={f.type==='checkbox'?'checkbox-row field-wrapper':''}><span className="field-label">{f.type==='checkbox'?null:<>{f.label}{f.required&&<em>*</em>}</>}</span>{renderControl(f)}{f.type!=='checkbox'&&f.help&&<small className="field-help">{f.help}</small>}</label>)}</div><button className="primary-button save-button" disabled={saving}>{saving?<><Loader2 className="spin" size={16}/>Сохраняем…</>:<><Check size={16}/>Сохранить изменения</>}</button></form>}
+
+function clean(v:any){return Object.fromEntries(Object.entries(v).filter(([,x])=>x!==''&&x!==undefined))}
+function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal"><div className="modal-head"><strong>{title}</strong><button className="icon-button" onClick={onClose}><X size={17}/></button></div>{children}</div></div>}
+function LoadingPage({small=false}:{small?:boolean}){return <div className={small?'loading-small':'loading-page'}><Loader2 className="spin"/><span>Загрузка…</span></div>}
+function ErrorPanel({message,retry}:{message:string;retry:()=>Promise<any>|any}){return <div className="error-panel"><AlertTriangle/><div><strong>Не удалось загрузить данные</strong><p>{message}</p><button className="text-button" onClick={()=>void retry()}>Повторить</button></div></div>}
+function Empty({text}:{text:string}){return <div className="empty-state"><Activity size={20}/><span>{text}</span></div>}
+function formatDate(v:string){const d=new Date(v);return Number.isNaN(d.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric'}).format(d)}
+export default App;
