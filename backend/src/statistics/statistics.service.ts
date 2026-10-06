@@ -1288,11 +1288,14 @@ export class StatisticsService {
   async getDashboard() {
     const now = new Date();
 
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
     const currentStage = await this.prisma.stage.findFirst({
       where: {
         isDeleted: false,
         status: { not: 'CANCELLED' },
-        date: { gte: now },
+        date: { gte: todayStart },
       },
       orderBy: { date: 'asc' },
       select: {
