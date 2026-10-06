@@ -44,6 +44,14 @@ export class ParticipantsController {
     return this.participantsService.findTeams(request);
   }
 
+  @Roles('ADMIN', 'JUDGE')
+  @Get('participants/lookup')
+  findAllForOperations(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.participantsService.findAllForOperations(request);
+  }
+
   // =========================================================
   // PUBLIC PARTICIPANTS
   // =========================================================
