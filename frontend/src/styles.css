@@ -2013,3 +2013,17 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .config-detail-grid .detail-block{min-height:70px;padding:12px 14px;border:1px solid #e5e5e5;border-radius:13px;background:#fff}
 .config-detail-grid .detail-block span,.config-detail-grid .detail-block strong{display:block}.config-detail-grid .detail-block span{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em}.config-detail-grid .detail-block strong{margin-top:6px;font-size:12px;line-height:1.45;white-space:pre-wrap}
 @media(max-width:700px){.config-modal-hero{grid-template-columns:auto 1fr}.config-count{grid-column:2;text-align:left}.config-card{align-items:flex-start;flex-direction:column}.config-card-actions{width:100%}.config-card-actions button{flex:1}.config-basic-grid,.config-detail-grid{grid-template-columns:1fr}.config-stat-grid{grid-template-columns:1fr 1fr}}
+
+/* USD 2.0 · dashboard quick creation */
+.dashboard-create-actions{grid-template-columns:1fr!important;gap:8px!important}
+.dashboard-create-actions>button{display:flex!important;align-items:center;gap:12px;text-align:left;padding:12px 13px!important}
+.dashboard-create-actions>button>svg{flex:none}
+.dashboard-create-actions>button>span{display:flex;flex-direction:column;gap:2px}
+.dashboard-create-actions>button strong{font-size:13px}
+.dashboard-create-actions>button small{font-size:10px;color:#888}
+.quick-create-modal{display:flex;flex-direction:column;gap:14px}
+.quick-create-head{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid #e5e5e5;border-radius:15px;background:#f7f7f7}
+.quick-create-head>span{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#111;color:#fff}
+.quick-create-head strong{display:block;margin-top:3px;font-size:12px;line-height:1.4}
+.quick-create-form{gap:13px!important}
+.quick-create-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
