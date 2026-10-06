@@ -2734,6 +2734,7 @@ export class ImportsService {
         registrationCountry?: string;
       };
 
+      existingResultAction?: 'KEEP_EXISTING' | 'REPLACE';
       value?: number;
       place?: number | null;
       notes?: string | null;
@@ -2901,6 +2902,14 @@ export class ImportsService {
           'Для CREATE автомобиля необходимо указать марку, модель и регистрационный номер',
         );
       }
+    }
+
+    if (resolution.existingResultAction !== undefined &&
+      resolution.existingResultAction !== 'KEEP_EXISTING' &&
+      resolution.existingResultAction !== 'REPLACE') {
+      throw new BadRequestException(
+        'Для существующего результата можно выбрать только «Оставить существующий» или «Заменить»',
+      );
     }
 
     if (resolution.value !== undefined) {
