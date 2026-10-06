@@ -81,7 +81,7 @@ export async function apiPatch<T=any>(path:string,body:any){return request<T>(pa
 export async function apiPut<T=any>(path:string,body:any){return request<T>(path,{method:'PUT',body:JSON.stringify(body)});}
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
-export async function getMediaUrl(targetType:string,targetId:string){const path=targetType==='SITE_ASSET'?'/media/public/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId):'/media/view/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);const r=await apiGet<{success:boolean;url:string}>(path);return r.url;}
+export async function getMediaUrl(targetType:string,targetId:string){const path=targetType==='SITE_ASSET'?'/media/public-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId):'/media/view/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);const r=await apiGet<{success:boolean;url?:string}>(path);return r.url??`${API_BASE}${path}`;}
 
 export async function getSiteSettings(){return apiGet<any>('/site-settings');}
 export async function getPublicSiteSettings(){return apiGet<any>('/site-settings/public');}
@@ -126,6 +126,8 @@ export async function uploadSiteAsset(assetKey:string,file:File){
     log('prepared',{uploadTokenPresent:Boolean(prepared?.uploadToken),preparedKeys:Object.keys(prepared??{})});
     await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
     log('uploaded');
+    await completeMediaUpload(prepared.uploadToken);
+    log('completed');
     const url=`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`;
     log('view_ready',{url});
     return { url, publicPath:url };
