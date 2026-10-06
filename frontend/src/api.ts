@@ -6,7 +6,7 @@ let refreshPromise: Promise<AuthResponse | null> | null = null;
 
 export type Role = 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
 export type User = { id:string; email:string; name?:string|null; role:Role; emailVerifiedAt?:string|null; participantId?:string|null };
-export type AuthResponse = { success?:boolean; accessToken:string; user:User };
+export type AuthResponse = { success?:boolean; accessToken:string; refreshToken?:string; user:User };
 export type Dashboard = {
   success:boolean; generatedAt:string;
   overview:{participants:number;cars:number;stages:number;registrations:number;results:number;records:number;appearances?:number;currentRecords?:number};
@@ -66,9 +66,9 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   }
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
-export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;return r.user;}
-export async function refresh(){if(refreshPromise)return refreshPromise;refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST'},false).then(r=>{accessToken=r.accessToken;return r;}).catch(()=>{accessToken=null;return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
-export async function logout(){try{await request('/auth/logout',{method:'POST'},false);}finally{accessToken=null;}}
+export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
+export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch(()=>{accessToken=null;return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
+export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}finally{accessToken=null;localStorage.removeItem('usd_refresh_token');}}
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
