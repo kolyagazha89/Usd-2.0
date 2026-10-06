@@ -693,7 +693,8 @@ export class StatisticsService {
                   id: true,
                   name: true,
                   code: true,
-                  direction: { select: { name: true } },
+                  sortOrder: true,
+                  direction: { select: { name: true, sortOrder: true } },
                 },
               },
             },
@@ -821,7 +822,8 @@ export class StatisticsService {
           return [...grouped.values()]
             .sort(
               (a, b) =>
-                (a.class.direction?.name ?? '').localeCompare(b.class.direction?.name ?? '', 'ru') ||
+                (a.class.direction?.sortOrder ?? 0) - (b.class.direction?.sortOrder ?? 0) ||
+                (a.class.sortOrder ?? 0) - (b.class.sortOrder ?? 0) ||
                 a.class.name.localeCompare(b.class.name, 'ru'),
             )
             .map((item) => ({
