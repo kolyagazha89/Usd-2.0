@@ -18,6 +18,14 @@ export class NameNormalizerService {
     'kamenshchikov': 'Каменщиков',
     'kamenshikov': 'Каменщиков',
     'kamynin': 'Камынин',
+    'mokhov': 'Мохов',
+    'kosolapov': 'Косолапов',
+    'vasily': 'Василий',
+    'vasiliy': 'Василий',
+    'vasili': 'Василий',
+    'vasilii': 'Василий',
+    'vassily': 'Василий',
+    'wassily': 'Василий',
 
     // Имена
     'daniil': 'Даниил',
@@ -119,7 +127,7 @@ export class NameNormalizerService {
         return this.transliteration[lower];
       }
 
-      return this.capitalizeRussian(word);
+      return this.transliterateLatinWord(word);
     });
 
     return normalizedWords.join(' ');
@@ -140,6 +148,42 @@ export class NameNormalizerService {
       .slice(0, 2)
       .join(' ')
       .toLowerCase();
+  }
+
+  private transliterateLatinWord(value: string): string {
+    const lower = value.toLowerCase();
+    if (!/^[a-z]+$/.test(lower)) {
+      return this.capitalizeRussian(value);
+    }
+
+    const digraphs: Record<string, string> = {
+      shch: 'щ', zh: 'ж', kh: 'х', ts: 'ц', ch: 'ч', sh: 'ш',
+      yu: 'ю', ya: 'я', yo: 'ё', ye: 'е', yi: 'ы',
+      ey: 'ей', iy: 'ий', y: 'й',
+    };
+    const letters: Record<string, string> = {
+      a: 'а', b: 'б', c: 'к', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'х',
+      i: 'и', j: 'дж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п',
+      q: 'к', r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', w: 'в', x: 'кс',
+      z: 'з',
+    };
+
+    let rest = lower;
+    let result = '';
+    const orderedDigraphs = Object.keys(digraphs).sort((a, b) => b.length - a.length);
+    while (rest.length > 0) {
+      const digraph = orderedDigraphs.find((key) => rest.startsWith(key));
+      if (digraph) {
+        result += digraphs[digraph];
+        rest = rest.slice(digraph.length);
+        continue;
+      }
+      const letter = rest[0];
+      result += letters[letter] ?? letter;
+      rest = rest.slice(1);
+    }
+
+    return this.capitalizeRussian(result);
   }
 
   private capitalizeRussian(value: string): string {
