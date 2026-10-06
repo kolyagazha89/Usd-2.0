@@ -56,34 +56,50 @@ function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
 function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
-  const[logo,setLogo]=useState('');
-  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(active&&r?.url)loadBrandLogo(r.url,u=>{if(active)setLogo(u)})}).catch(()=>{});return()=>{active=false}},[]);function Page({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
- if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
- if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
- if(path.startsWith('/admin/cars'))return <CarsPage user={user}/>;
- if(path.startsWith('/admin/seasons'))return <SeasonsPage/>;
- if(path.startsWith('/admin/stages/'))return <StageDetailPage stageId={path.split('/')[3]} go={go}/>;
- if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user}/>
- if(path.startsWith('/admin/classes'))return <ClassesPage/>;
- if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
- if(path.startsWith('/admin/inspections'))return <InspectionsPage user={user}/>;
- if(path.startsWith('/admin/results'))return <ResultsPage user={user}/>;
- if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
- if(path.startsWith('/admin/historical-results'))return <HistoricalPage/>;
- if(path.startsWith('/admin/import'))return <ImportPage/>;
- if(path.startsWith('/admin/records'))return <RecordsPage/>;
- if(path.startsWith('/admin/statistics'))return <StatisticsPage/>;
- if(path.startsWith('/admin/users'))return <UsersPage/>;
- if(path.startsWith('/admin/audit'))return <AuditPage/>;
- if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
- if(path.startsWith('/admin/partners'))return <PartnersPage/>;
- if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
- if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
- return <Coming title="Пользователи" icon={UserRound} user={user}/>;
- }
- return <Page path={path} go={go} user={user}/>;
+ const[logo,setLogo]=useState(readBrandLogo());
+ useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(r?.url)loadBrandLogo(r.url,u=>{if(active){cacheBrandLogo(u);setLogo(u)}})}).catch(()=>{});return()=>{active=false}},[]);
+ const visibleNav=nav.filter(x=>x.roles.includes(user.role));
+ const sections=[...new Set(visibleNav.map(x=>x.section))];
+ const Page=({path,go,user}:{path:string;go:(p:string)=>void;user:User})=>{
+  if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
+  if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
+  if(path.startsWith('/admin/cars'))return <CarsPage user={user}/>;
+  if(path.startsWith('/admin/seasons'))return <SeasonsPage/>;
+  if(path.startsWith('/admin/stages/'))return <StageDetailPage stageId={path.split('/')[3]} go={go}/>;
+  if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user}/>;
+  if(path.startsWith('/admin/classes'))return <ClassesPage/>;
+  if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
+  if(path.startsWith('/admin/inspections'))return <InspectionsPage user={user}/>;
+  if(path.startsWith('/admin/results'))return <ResultsPage user={user}/>;
+  if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
+  if(path.startsWith('/admin/historical-results'))return <HistoricalPage/>;
+  if(path.startsWith('/admin/import'))return <ImportPage/>;
+  if(path.startsWith('/admin/records'))return <RecordsPage/>;
+  if(path.startsWith('/admin/statistics'))return <StatisticsPage/>;
+  if(path.startsWith('/admin/users'))return <UsersPage/>;
+  if(path.startsWith('/admin/audit'))return <AuditPage/>;
+  if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
+  if(path.startsWith('/admin/partners'))return <PartnersPage/>;
+  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
+  if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
+  return <Coming title="Страница не найдена" icon={Info} user={user}/>;
+ };
+ return <div className="admin-shell">
+  <header className="topbar">
+   <div className="topbar-left"><button className="icon-button mobile-menu-button" onClick={()=>setMobileOpen(!mobileOpen)} aria-label="Меню"><Menu size={20}/></button><button className="brand-button" onClick={()=>go('/admin')} aria-label="USD"><span className="brand-image-wrap">{logo?<img src={logo} className="brand-logo" alt="USD"/>:<span className="brand-mark">USD</span>}</span><span className="brand-title">USD 2.0</span></button></div>
+   <div className="topbar-right"><div className="user-chip"><span className="user-avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><span className="user-meta"><strong>{roleName[user.role]}</strong><small>{user.email}</small></span></div><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={18}/></button></div>
+  </header>
+  <div className="admin-body">
+   <aside className={`sidebar ${mobileOpen?'open':''}`}>
+    <div className="sidebar-brand">{logo?<img src={logo} className="sidebar-logo" alt="USD"/>:<span className="brand-mark">USD</span>}<div><strong>USD 2.0</strong><small>Панель управления</small></div></div>
+    <nav className="sidebar-nav">{sections.map(section=><div className="nav-section" key={section}><div className="nav-section-title">{section}</div>{visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=path===item.path||(item.path!=='/admin'&&path.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>)}</nav>
+    <div className="sidebar-footer"><div className="role-badge"><ShieldAlert size={14}/><span>{roleName[user.role]}</span></div></div>
+   </aside>
+   {mobileOpen&&<button className="sidebar-overlay" aria-label="Закрыть меню" onClick={()=>setMobileOpen(false)}/>}
+   <main className="admin-main"><Page path={path} go={go} user={user}/></main>
+  </div>
+ </div>;
 }
-
 function DashboardPage({go}:{go:(p:string)=>void}){
  const[data,setData]=useState<Dashboard|null>(null),[error,setError]=useState('');
  const load=()=>{setError('');return getDashboard().then(setData).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки'));};
