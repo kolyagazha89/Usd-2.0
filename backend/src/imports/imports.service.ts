@@ -1825,6 +1825,10 @@ export class ImportsService {
       historicalResults &&
       databaseParticipant.status === 'MATCHED'
     ) {
+      // Historical results must prefer the canonical Participant from the
+      // database. The Registration sheet is only auxiliary data (car/number).
+      // Otherwise every historical import can create a duplicate participant
+      // when the sheet contains a spelling that already exists in the DB.
       participant = {
         ...databaseParticipant,
         source: 'DATABASE',
