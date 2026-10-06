@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { MediaService } from './media.service';
 import { Public } from '../auth/public.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
@@ -38,6 +39,20 @@ export class MediaController {
   @Get('public/:targetType/:targetId')
   publicView(@Param('targetType') targetType: MediaTargetType, @Param('targetId') targetId: string) {
     return this.mediaService.getSignedPublicMediaUrl(targetType, targetId);
+  }
+
+  @Public()
+  @Get('public-file/:targetType/:targetId')
+  async publicFile(
+    @Param('targetType') targetType: MediaTargetType,
+    @Param('targetId') targetId: string,
+    @Res() response: Response,
+  ) {
+    const media = await this.mediaService.getPublicMediaFile(targetType, targetId);
+    response.setHeader('Content-Type', media.contentType);
+    response.setHeader('Content-Length', String(media.body.length));
+    response.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+    response.send(media.body);
   }
 
   @Put('upload')
