@@ -23,6 +23,7 @@ jobs:
               out[fn]={}
               for ws in wb.worksheets:
                   out[fn][ws.title]=[list(row) for row in ws.iter_rows(values_only=True)]
+          pathlib.Path("tmp").mkdir(exist_ok=True)
           pathlib.Path("tmp/full-xlsx-data.json").write_text(json.dumps(out,ensure_ascii=False,default=str),encoding="utf-8")
           print({fn:{s:len(rows) for s,rows in sheets.items()} for fn,sheets in out.items()})
           PY
