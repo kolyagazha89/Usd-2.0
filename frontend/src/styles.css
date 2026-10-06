@@ -1942,3 +1942,17 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .detail-actions{justify-content:stretch}
  .detail-actions>*{flex:1 1 100%}
 }
+
+/* Detail/card spacing hardening */
+.modal-backdrop .modal>.poster-modal-content,
+.modal-backdrop .modal>.stage-class-modal-head,
+.modal-backdrop .modal>.stage-class-modal-list,
+.modal-backdrop .modal>.stage-class-settings{margin-left:24px;margin-right:24px}
+.modal-backdrop .modal>.poster-modal-content{padding:24px 0 24px}
+.modal-backdrop .modal>.form.modal-form{padding:22px 24px 24px}
+.modal-backdrop .modal>.modal-quick-actions{margin:0 24px 18px;padding:14px;border:1px solid #e4e7e9;border-radius:12px;background:#fafbfb}
+@media(max-width:700px){
+ .modal-backdrop .modal>.poster-modal-content{padding:18px 0}
+ .modal-backdrop .modal>.form.modal-form{padding:18px 16px 20px}
+ .modal-backdrop .modal>.modal-quick-actions{margin:0 16px 14px}
+}
