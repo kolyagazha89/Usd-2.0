@@ -4435,6 +4435,13 @@ export class ImportsService {
             | null = null;
 
           /*
+           * Флаг перераспределения номера в историческом импорте.
+           * Нужен ниже, когда первичный номер результата применяется
+           * к уже найденной/созданной регистрации.
+           */
+          let historicalNumberAllocated = false;
+
+          /*
            * Явное ручное разрешение:
            * USE_EXISTING.
            */
@@ -5233,8 +5240,6 @@ export class ImportsService {
              * Важно: запоминаем факт перераспределения. Ниже нельзя второй раз
              * пытаться вернуть регистрацию на исходный конфликтующий номер.
              */
-            let historicalNumberAllocated = false;
-
             if (historicalImport) {
               const existingByImportedNumber =
                 importedRegistrationsByNumber.get(participantNumber) ?? null;
