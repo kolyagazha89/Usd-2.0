@@ -914,3 +914,5 @@ function ErrorPanel({message,retry}:{message:string;retry:()=>Promise<any>|any})
 function Empty({text}:{text:string}){return <div className="empty-state"><Activity size={20}/><span>{text}</span></div>}
 function formatDate(v:string){const d=new Date(v);return Number.isNaN(d.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric'}).format(d)}
 export default App;
+
+// CI shell verification marker.
