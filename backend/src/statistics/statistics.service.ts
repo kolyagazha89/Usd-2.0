@@ -672,7 +672,7 @@ export class StatisticsService {
       this.loadResults({
         registration: { stageId },
       }),
-      this.prisma.inspection.findMany({ where: { registration: { stageId } }, select: { status: true } }),
+      this.prisma.inspection.findMany({ where: { registration: { stageId } }, select: { registrationId: true, status: true } }),
     ]);
 
     const ids = [...new Set(results.map(
