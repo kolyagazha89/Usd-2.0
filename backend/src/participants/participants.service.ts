@@ -130,6 +130,21 @@ export class ParticipantsService {
     });
   }
 
+  async findTeams(request: AuthenticatedRequest) {
+    await this.requireAdmin(request);
+    const rows = await this.prisma.participant.findMany({
+      where: { team: { not: null } },
+      distinct: ['team'],
+      orderBy: { team: 'asc' },
+      select: { team: true },
+    });
+    return rows
+      .map((row) => row.team?.trim())
+      .filter((team): team is string => Boolean(team))
+      .filter((team, index, all) => all.indexOf(team) === index)
+      .map((name) => ({ name }));
+  }
+
   // =========================================================
   // PUBLIC PARTICIPANTS
   // =========================================================
