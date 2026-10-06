@@ -1875,3 +1875,28 @@ body:has(.modal-backdrop){overflow:hidden!important}
   }
   .modal-backdrop .modal-head{min-height:56px!important;padding:14px 16px!important}
 }
+
+
+.debug-panel{
+  margin:12px 0;
+  padding:12px;
+  border:1px solid #e2a4a4;
+  border-radius:12px;
+  background:#fff7f7;
+}
+.debug-panel summary{cursor:pointer;font-weight:700;color:#8b1e1e}
+.debug-panel pre{
+  margin:10px 0;
+  padding:12px;
+  max-height:320px;
+  overflow:auto;
+  white-space:pre-wrap;
+  word-break:break-word;
+  font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;
+  background:#17191c;
+  color:#f3f4f6;
+  border-radius:8px;
+}
+
+
+.debug-panel{margin:12px 0;padding:12px;border:1px solid #e2a4a4;border-radius:12px;background:#fff7f7}.debug-panel summary{cursor:pointer;font-weight:700;color:#8b1e1e}.debug-panel pre{margin:10px 0;padding:12px;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;background:#17191c;color:#f3f4f6;border-radius:8px}@media(max-width:560px){.debug-panel pre{max-height:45vh;font-size:10px}}

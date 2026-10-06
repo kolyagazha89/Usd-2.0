@@ -156,6 +156,7 @@ async function bootstrap() {
       'Content-Type',
       'Authorization',
       'X-CSRF-Token',
+      'X-Upload-Token',
     ],
     maxAge: 86400,
   });
