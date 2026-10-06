@@ -118,7 +118,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
  </div>;
 }
 function DashboardPage({go}:{go:(p:string)=>void}){
- const[data,setData]=useState<Dashboard|null>(null),[error,setError]=useState('');
+ const[data,setData]=useState<Dashboard|null>(null),[error,setError]=useState(''),[quick,setQuick]=useState<'STAGE'|'PARTICIPANT'|'CAR'|null>(null);
  const load=()=>{setError('');return getDashboard().then(setData).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки'));};
  useEffect(()=>{void load()},[]);
  if(error)return <ErrorPanel message={error} retry={load}/>;
@@ -136,22 +136,16 @@ function DashboardPage({go}:{go:(p:string)=>void}){
     <PanelTitle title={stage?'Рабочий этап':'Ближайший этап'} icon={Flag} action="Открыть этап" onAction={()=>stage&&go('/admin/stages/'+stage.id)}/>
     {stage?<button className="dashboard-feature" onClick={()=>go('/admin/stages/'+stage.id)}>
       <div className="stage-number large">{stage.stageNumber}</div>
-      <div className="stage-main"><strong>{stage.name}</strong><span>{stage.city||'—'} · {formatDate(stage.date)}</span><small className="stage-statuses"><span className={'status '+(stage.registrationOpen?'open':'')}>{stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</span><span className={'status status-stage '+String(stage.status||'').toLowerCase()}>{enumLabel(stage.status)}</span></small></div>
+      <div className="stage-main"><strong>{stage.name}</strong><span>{stage.city||'—'} · {formatDate(stage.date)}</span><small className="stage-statuses"><span className="status">{stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта'}</span><span className={'status status-stage '+String(stage.status||'').toLowerCase()}>{enumLabel(stage.status)}</span></small></div>
       <ChevronRight size={20}/>
     </button>:<Empty text="Будущих этапов пока нет"/>}
    </div>
    <div className="panel dashboard-command-panel">
-    <PanelTitle title="Быстрые действия" icon={Activity}/>
-    <div className="dashboard-actions">
-     <button onClick={()=>go('/admin/stages')}><Plus size={17}/><span>Создать этап</span></button>
-     <button onClick={()=>go('/admin/participants')}><UserRound size={17}/><span>Новый участник</span></button>
-     <button onClick={()=>go('/admin/inspections')}><ShieldAlert size={17}/><span>Инспекция</span></button>
-     <button onClick={()=>go('/admin/results')}><Trophy size={17}/><span>Внести результат</span></button>
-     <button onClick={()=>go('/admin/import')}><FileInput size={17}/><span>Импорт</span></button>
-     <button onClick={()=>go('/admin/registrations')}><ClipboardCheck size={17}/><span>Регистрации</span></button>
-     <button onClick={()=>go('/admin/stages')}><Activity size={17}/><span>Центр этапа</span></button>
-     <button onClick={()=>go('/admin/site-settings')}><Settings2 size={17}/><span>Настройки сайта</span></button>
-     <button onClick={()=>go('/admin/assistant')}><Bot size={17}/><span>Ассистент USD</span></button>
+    <PanelTitle title="Быстро создать" icon={Plus}/>
+    <div className="dashboard-actions dashboard-create-actions">
+     <button onClick={()=>setQuick('STAGE')}><Plus size={17}/><span><strong>Создать этап</strong><small>Новый этап чемпионата</small></span></button>
+     <button onClick={()=>setQuick('PARTICIPANT')}><UserRound size={17}/><span><strong>Добавить участника</strong><small>Создать профиль участника</small></span></button>
+     <button onClick={()=>setQuick('CAR')}><CarFront size={17}/><span><strong>Добавить автомобиль</strong><small>Привязать авто к участнику</small></span></button>
     </div>
    </div>
   </section>
@@ -167,7 +161,31 @@ function DashboardPage({go}:{go:(p:string)=>void}){
    <div className="panel"><PanelTitle title="Ближайшие этапы" icon={CalendarDays} action="Все" onAction={()=>go('/admin/stages')}/>{data.upcomingStages.length?data.upcomingStages.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages/'+s.id)}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div><span className={'status '+(s.registrationOpen?'open':'')}>{s.registrationOpen?'Открыта':'Закрыта'}</span><ChevronRight size={16}/></button>):<Empty text="Нет запланированных этапов"/>}</div>
    <div className="panel"><PanelTitle title="Последние этапы" icon={History} action="Все" onAction={()=>go('/admin/stages')}/>{data.recentStages.length?data.recentStages.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages/'+s.id)}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div><ChevronRight size={16}/></button>):<Empty text="История этапов пока пуста"/>}</div>
   </section>
+  {quick&&<QuickCreateModal kind={quick} onClose={()=>setQuick(null)} onSaved={async()=>{setQuick(null);await load()}}/>}
  </PageFrame>
+}
+
+function QuickCreateModal({kind,onClose,onSaved}:{kind:'STAGE'|'PARTICIPANT'|'CAR';onClose:()=>void;onSaved:()=>Promise<void>}){
+ const [v,setV]=useState<any>({status:'DRAFT',registrationOpen:false,isPublic:true}),[options,setOptions]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ const isStage=kind==='STAGE',isParticipant=kind==='PARTICIPANT';
+ useEffect(()=>{let cancelled=false;(async()=>{try{if(isStage){setOptions(listData(await apiGet<any>('/seasons')))}else if(!isParticipant){setOptions(listData(await apiGet<any>('/admin/participants')))}}catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Не удалось загрузить данные')}finally{if(!cancelled)setLoading(false)}})();return()=>{cancelled=true}},[kind]);
+ const submit=async()=>{setSaving(true);setError('');try{
+   if(isStage){const body={stageNumber:Number(v.stageNumber),name:String(v.name||'').trim(),city:v.city?.trim()||undefined,date:v.date?v.date+'T12:00:00':undefined,status:v.status||'DRAFT',registrationOpen:!!v.registrationOpen,venue:v.venue?.trim()||undefined,address:v.address?.trim()||undefined,seasonId:v.seasonId};const created=await apiPost<any>('/stages',body);const stage=created?.stage??created?.data??created;if(stage?.id){const classes=listData(await apiGet<any>('/classes'));const ids=classes.filter((x:any)=>x.isActive!==false).map((x:any)=>x.id);if(ids.length)await apiPut('/stages/'+stage.id+'/classes',{classIds:ids})}
+   }else if(isParticipant){await apiPost('/participants',{lastName:v.lastName?.trim(),firstName:v.firstName?.trim(),middleName:v.middleName?.trim()||undefined,city:v.city?.trim()||undefined,team:v.team?.trim()||undefined,phone:v.phone?.trim()||undefined,isPublic:!!v.isPublic})}
+   else {if(!v.participantId)throw new Error('Выберите участника');await apiPost('/participants/'+encodeURIComponent(v.participantId)+'/cars',{brand:v.brand?.trim(),model:v.model?.trim(),registrationNumber:v.registrationNumber?.trim()||undefined,registrationCountry:v.registrationCountry||'RU',color:v.color?.trim()||undefined})}
+   await onSaved()
+ }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить')}finally{setSaving(false)}};
+ const title=isStage?'Создать этап':isParticipant?'Добавить участника':'Добавить автомобиль';
+ return <Modal title={title} onClose={onClose}>
+  <div className="quick-create-modal">
+   <div className="quick-create-head"><span>{isStage?<CalendarDays size={20}/>:isParticipant?<UserRound size={20}/>:<CarFront size={20}/>}</span><div><span className="eyebrow">БЫСТРОЕ СОЗДАНИЕ</span><strong>{isStage?'Заполните только главное — остальное можно настроить позже.':isParticipant?'Создайте профиль за несколько секунд.':'Добавьте автомобиль и сразу привяжите его к участнику.'}</strong></div></div>
+   {error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}
+   {loading&&!isParticipant?<LoadingPage small/>:<div className="form quick-create-form">
+    {isStage?<><div className="form-grid-3"><label>№ этапа<input type="number" value={v.stageNumber??''} onChange={e=>setV({...v,stageNumber:e.target.value})} required/></label><label>Название<input placeholder="Например: Тюмень" value={v.name??''} onChange={e=>setV({...v,name:e.target.value})} required/></label><label>Дата<input type="date" value={v.date??''} onChange={e=>setV({...v,date:e.target.value})} required/></label></div><div className="form-grid-3"><label>Сезон<select value={v.seasonId??''} onChange={e=>setV({...v,seasonId:e.target.value})}><option value="">Выберите сезон</option>{options.map(x=><option key={x.id} value={x.id}>{x.year}{x.name?' · '+x.name:''}</option>)}</select></label><label>Город<input value={v.city??''} onChange={e=>setV({...v,city:e.target.value})}/></label><label>Статус<select value={v.status} onChange={e=>setV({...v,status:e.target.value})}><option value="DRAFT">Черновик</option><option value="PUBLISHED">Опубликован</option></select></label></div></>:isParticipant?<div className="form-grid-3"><label>Фамилия<input value={v.lastName??''} onChange={e=>setV({...v,lastName:e.target.value})} required/></label><label>Имя<input value={v.firstName??''} onChange={e=>setV({...v,firstName:e.target.value})} required/></label><label>Отчество<input value={v.middleName??''} onChange={e=>setV({...v,middleName:e.target.value})}/></label><label>Город<input value={v.city??''} onChange={e=>setV({...v,city:e.target.value})}/></label><label>Команда<input value={v.team??''} onChange={e=>setV({...v,team:e.target.value})}/></label><label>Телефон<input value={v.phone??''} onChange={e=>setV({...v,phone:e.target.value})}/></label></div>:<><label>Участник<select value={v.participantId??''} onChange={e=>setV({...v,participantId:e.target.value})}><option value="">Выберите участника</option>{options.map(x=><option key={x.id} value={x.id}>{[x.lastName,x.firstName,x.middleName].filter(Boolean).join(' ')}{x.team?' · '+x.team:''}</option>)}</select></label><div className="form-grid-3"><label>Марка<input value={v.brand??''} onChange={e=>setV({...v,brand:e.target.value})} required/></label><label>Модель<input value={v.model??''} onChange={e=>setV({...v,model:e.target.value})} required/></label><label>Госномер<input value={v.registrationNumber??''} onChange={e=>setV({...v,registrationNumber:e.target.value})}/></label></div><div className="form-grid-3"><label>Страна<select value={v.registrationCountry??'RU'} onChange={e=>setV({...v,registrationCountry:e.target.value})}><option>RU</option><option>KZ</option><option>BY</option><option>AM</option><option>GE</option></select></label><label>Цвет<input value={v.color??''} onChange={e=>setV({...v,color:e.target.value})}/></label></div></>}
+    <div className="quick-create-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button" type="button" disabled={saving||loading||(isStage&&(!v.stageNumber||!v.name||!v.date||!v.seasonId))||(isParticipant&&(!v.lastName||!v.firstName))||(!isStage&&!isParticipant&&(!v.participantId||!v.brand||!v.model))} onClick={()=>void submit()}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Создать</>}</button></div>
+   </div>}
+  </div>
+ </Modal>
 }
 function StageMini({title,items,go}:{title:string;items:any[];go:(p:string)=>void}){return <div className="panel"><PanelTitle title={title} icon={CalendarDays} action="Все этапы" onAction={()=>go('/admin/stages')}/>{items.length?items.map(s=><button className="stage-row" key={s.id} onClick={()=>go('/admin/stages')}><div className="stage-number">{s.stageNumber}</div><div className="stage-main"><strong>{s.name}</strong><span>{s.city||'—'} · {formatDate(s.date)}</span></div>{s.registrationOpen!==undefined&&<span className={`status ${s.registrationOpen?'open':''}`}>{s.registrationOpen?'Открыта':'Закрыта'}</span>}<ChevronRight size={16}/></button>):<Empty text="Нет данных"/>}</div>}
 
