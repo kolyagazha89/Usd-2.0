@@ -145,7 +145,7 @@ export class ImportsService {
         ? await this.buildHistoricalFallbackNumbers(stage.id, registrations, results)
         : undefined;
 
-    const resultPreview = results.map(
+    const resultPreview = await Promise.all(
       (row, index) =>
         this.previewResultRow(
           row,
@@ -153,6 +153,7 @@ export class ImportsService {
           participantMatches,
           registrationParticipants,
           stageClasses,
+          body.stageId,
           body.historicalResults === true,
           historicalNumberMap,
         ),
@@ -1722,6 +1723,7 @@ export class ImportsService {
     >,
     registrationParticipantIndex: RegistrationParticipantIndex,
     stageClasses: Array<any>,
+    stageId: string,
     historicalResults = false,
     fallbackParticipantNumbers?: Map<string, number>,
   ) {
@@ -2013,6 +2015,56 @@ export class ImportsService {
       );
     }
 
+    let existingResult: any = null;
+    let existingResultState: 'NONE' | 'SAME' | 'CONFLICT' = 'NONE';
+
+    if (
+      foundClass &&
+      participant.status === 'MATCHED' &&
+      participant.matches.length === 1 &&
+      participantNumber !== null &&
+      resultValue !== null
+    ) {
+      const existingRegistration = await this.prisma.registration.findUnique({
+        where: { stageId_participantNumber: { stageId, participantNumber } },
+        select: { id: true, participantId: true },
+      });
+
+      if (existingRegistration && existingRegistration.participantId === participant.matches[0].id) {
+        const registrationClass = await this.prisma.registrationClass.findUnique({
+          where: {
+            registrationId_classId: {
+              registrationId: existingRegistration.id,
+              classId: foundClass.class.id,
+            },
+          },
+          select: { id: true },
+        });
+
+        if (registrationClass) {
+          existingResult = await this.prisma.result.findUnique({
+            where: { registrationClassId: registrationClass.id },
+            select: { id: true, value: true, place: true, unit: true },
+          });
+
+          if (existingResult) {
+            const importedPlace = this.numberValue(this.getImportFieldValue(row, ['Место', 'place']));
+            const sameValue = Math.abs(Number(existingResult.value) - Number(resultValue)) < 0.0005;
+            const samePlace = (existingResult.place ?? null) === (importedPlace ?? null);
+
+            if (sameValue && samePlace && existingResult.unit === 'DB') {
+              existingResultState = 'SAME';
+            } else {
+              existingResultState = 'CONFLICT';
+              warnings.push(
+                `Строка ${rowNumber}: результат уже существует и отличается. В базе: ${Number(existingResult.value)}${existingResult.place !== null ? ` (место ${existingResult.place})` : ''}; в импорте: ${Number(resultValue)}${importedPlace !== null ? ` (место ${importedPlace})` : ''}. Выберите, какой вариант оставить.`,
+              );
+            }
+          }
+        }
+      }
+    }
+
     return {
       rowNumber,
 
@@ -2148,6 +2200,14 @@ export class ImportsService {
       result: resultValue,
 
       unit: 'DB',
+
+      existingResult: existingResult ? {
+        state: existingResultState,
+        resultId: existingResult.id,
+        value: Number(existingResult.value),
+        place: existingResult.place,
+        unit: existingResult.unit,
+      } : { state: 'NONE' },
 
       recordAllowed:
         !isBassRace,
@@ -5464,43 +5524,53 @@ export class ImportsService {
 
           let resultId: string;
 
-          if (existingResult) {
-            throw new BadRequestException(
-              `Для регистрации ${registrationId} и класса ${classId} результат уже существует; импорт не может молча переиспользовать существующий результат`,
-            );
-          } else {
-            const result =
-              await tx.result.create({
-                data: {
-                  registrationId,
+          let resultId: string;
 
-                  registrationClassId:
-                    registrationClass.id,
+          const importedValueNumber = Number(value);
+          const existingValueNumber = existingResult ? Number(existingResult.value) : null;
+          const sameExistingResult = Boolean(
+            existingResult &&
+            Number.isFinite(importedValueNumber) &&
+            Number.isFinite(existingValueNumber) &&
+            Math.abs(importedValueNumber - existingValueNumber!) < 0.0005 &&
+            (place ?? null) === (existingResult.place ?? null) &&
+            existingResult.unit === unit,
+          );
 
-                  value,
+          if (existingResult && sameExistingResult) {
+            resultId = existingResult.id;
+          } else if (existingResult) {
+            const conflictAction = String(resolution?.existingResultAction ?? '').toUpperCase();
 
-                  unit:
-                    stageClass.class.unit,
-
-                  place,
-
-                  notes,
-
-                  isBest:
-                    false,
-
-                  isHistorical:
-                    historicalResults,
-
-                  verificationStatus:
-                    historicalResults
-                      ? 'PENDING'
-                      : 'NOT_REQUIRED',
-                },
+            if (conflictAction === 'KEEP_EXISTING') {
+              resultId = existingResult.id;
+            } else if (conflictAction === 'REPLACE') {
+              const replaced = await tx.result.update({
+                where: { id: existingResult.id },
+                data: { value, unit, place, notes },
               });
+              resultId = replaced.id;
+            } else {
+              throw new BadRequestException(
+                `Строка ${row.rowNumber}: результат уже существует и отличается от импортируемого. Выберите «Оставить существующий» или «Заменить».`,
+              );
+            }
+          } else {
+            const result = await tx.result.create({
+              data: {
+                registrationId,
+                registrationClassId: registrationClass.id,
+                value,
+                unit: stageClass.class.unit,
+                place,
+                notes,
+                isBest: false,
+                isHistorical: historicalResults,
+                verificationStatus: historicalResults ? 'PENDING' : 'NOT_REQUIRED',
+              },
+            });
 
-            resultId =
-              result.id;
+            resultId = result.id;
 
             if (historicalResults) {
               const existingInspection = await tx.inspection.findUnique({
