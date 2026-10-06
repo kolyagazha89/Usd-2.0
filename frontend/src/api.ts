@@ -103,16 +103,17 @@ export async function uploadSiteAsset(assetKey:string,file:File){
   if(file.size<=0) throw new Error('Файл пустой');
   if(file.size>10*1024*1024) throw new Error('Размер изображения не должен превышать 10 МБ');
   const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId:assetKey,contentType:file.type});
-  let directUploadOk=false;
-  try{
-    const upload=await fetch(prepared.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});
-    directUploadOk=upload.ok;
-  }catch{}
-  if(!directUploadOk){
-    await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
-  }else{
-    await apiPost<any>('/media/complete',{uploadToken:prepared.uploadToken});
-  }
+  // Always upload through the API. Browser-side PUT to S3 is intentionally avoided:
+  // it requires bucket CORS configuration and was the source of intermittent "Failed to fetch"
+  // errors in production. The backend performs the signed S3 upload and validation.
+  await request<any>('/media/upload',{
+    method:'PUT',
+    headers:{
+      'Content-Type':file.type,
+      'X-Upload-Token':prepared.uploadToken,
+    },
+    body:file,
+  },false);
   const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
   return { url:view.url, publicPath:'/media/public/SITE_ASSET/'+encodeURIComponent(assetKey) };
 }
