@@ -1291,11 +1291,20 @@ export class StatisticsService {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    // "Рабочий этап" means an event scheduled for the current calendar day.
+    // Future stages must stay in "Ближайшие этапы" and must never leak into
+    // the working-stage or recent-stage blocks.
     const currentStage = await this.prisma.stage.findFirst({
       where: {
         isDeleted: false,
         status: { not: 'CANCELLED' },
-        date: { gte: todayStart },
+        date: {
+          gte: todayStart,
+          lt: tomorrowStart,
+        },
       },
       orderBy: { date: 'asc' },
       select: {
@@ -1364,7 +1373,10 @@ export class StatisticsService {
       this.prisma.stage.findMany({
         where: {
           isDeleted: false,
-          date: { lt: now },
+          status: { not: 'CANCELLED' },
+          // "Последние этапы" are completed calendar days only.
+          // This explicitly excludes today's working stage and all future stages.
+          date: { lt: todayStart },
         },
         orderBy: { date: 'desc' },
         take: 5,
