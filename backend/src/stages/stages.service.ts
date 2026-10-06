@@ -220,7 +220,7 @@ export class StagesService {
 
     const updated = await this.prisma.stage.update({
       where: { id },
-      data: { isDeleted: true, status: 'CANCELLED', registrationOpen: false },
+      data: { status: 'CANCELLED', registrationOpen: false, isDeleted: false },
       include: { season: true },
     });
 
