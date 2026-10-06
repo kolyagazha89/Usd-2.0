@@ -657,7 +657,7 @@ export class StatisticsService {
       throw new NotFoundException('Этап не найден');
     }
 
-    const [registrations, results] = await Promise.all([
+    const [registrations, results, inspections] = await Promise.all([
       this.prisma.registration.findMany({
         where: {
           stageId,
@@ -672,6 +672,7 @@ export class StatisticsService {
       this.loadResults({
         registration: { stageId },
       }),
+      this.prisma.inspection.findMany({ where: { registration: { stageId } }, select: { registrationId: true, status: true } }),
     ]);
 
     const ids = [...new Set(results.map(
@@ -737,6 +738,12 @@ export class StatisticsService {
             registration.carId,
           ),
         ).size,
+        inspections: {
+          total: inspections.length,
+          passed: inspections.filter((inspection) => inspection.status === 'PASSED').length,
+          failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
+          pending: Math.max(0, registrations.length - new Set(inspections.map((inspection) => inspection.registrationId)).size),
+        },
         appearances: eligibleResults.length,
         classResults: [...classes.values()]
           .sort(
@@ -987,6 +994,85 @@ export class StatisticsService {
         class: result.registrationClass.class,
         stage: result.registration.stage,
       })),
+    };
+  }
+
+
+  async getSeasonAnalytics(seasonId: string) {
+    const season = await this.prisma.season.findUnique({
+      where: { id: seasonId },
+      select: { id: true, name: true, year: true, status: true },
+    });
+    if (!season) throw new NotFoundException('Сезон не найден');
+
+    const registrations = await this.prisma.registration.findMany({
+      where: { stage: { seasonId }, status: 'ACTIVE' },
+      select: {
+        id: true,
+        participantId: true,
+        carId: true,
+        participant: { select: { id: true, firstName: true, lastName: true, middleName: true, team: true } },
+        configurationSnapshot: true,
+      },
+    });
+
+    const total = registrations.length;
+    const withTeam = registrations.filter((r) => !!r.participant.team?.trim()).length;
+    const teamMap = new Map<string, { registrations: number; participants: Set<string> }>();
+    for (const r of registrations) {
+      const team = r.participant.team?.trim() || 'Без команды';
+      const item = teamMap.get(team) ?? { registrations: 0, participants: new Set<string>() };
+      item.registrations += 1;
+      item.participants.add(r.participantId);
+      teamMap.set(team, item);
+    }
+
+    const isolationMap = new Map<string, number>();
+    const brandMap = new Map<string, number>();
+    const addBrand = (value: unknown) => {
+      if (typeof value !== 'string') return;
+      const brand = value.trim();
+      if (!brand) return;
+      brandMap.set(brand, (brandMap.get(brand) ?? 0) + 1);
+    };
+    const readSnapshot = (raw: unknown) => {
+      if (!raw || typeof raw !== 'object') return;
+      const x = raw as Record<string, any>;
+      if (typeof x.vibrationIsolation === 'string' && x.vibrationIsolation.trim()) {
+        const key = x.vibrationIsolation.trim();
+        isolationMap.set(key, (isolationMap.get(key) ?? 0) + 1);
+      }
+      for (const key of ['headUnits', 'audioComponents', 'amplifiers', 'batteries', 'generators']) {
+        const list = Array.isArray(x[key]) ? x[key] : [];
+        for (const item of list) {
+          if (!item || typeof item !== 'object') continue;
+          addBrand(item.brand);
+        }
+      }
+    };
+    registrations.forEach((r) => readSnapshot(r.configurationSnapshot));
+
+    const pct = (n: number) => total ? Number(((n / total) * 100).toFixed(1)) : 0;
+    const teams = [...teamMap.entries()]
+      .map(([name, value]) => ({ name, registrations: value.registrations, participants: value.participants.size, percent: pct(value.registrations) }))
+      .sort((a, b) => b.registrations - a.registrations || a.name.localeCompare(b.name, 'ru'));
+
+    return {
+      success: true,
+      season,
+      registrations: {
+        total,
+        withTeam,
+        withoutTeam: total - withTeam,
+        withoutTeamPercent: pct(total - withTeam),
+      },
+      teams,
+      vibrationIsolation: [...isolationMap.entries()]
+        .map(([name, count]) => ({ name, count, percent: pct(count) }))
+        .sort((a, b) => b.count - a.count),
+      configurationBrands: [...brandMap.entries()]
+        .map(([brand, count]) => ({ brand, count, percent: pct(count) }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 

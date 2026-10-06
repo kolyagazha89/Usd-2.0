@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
+import { StatisticsService } from '../statistics/statistics.service';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
 @Injectable()
 export class AssistantService {
-  constructor(private readonly prisma: PrismaService, private readonly dataQuality: DataQualityService) {}
+  constructor(private readonly prisma: PrismaService, private readonly dataQuality: DataQualityService, private readonly statistics: StatisticsService) {}
 
   async list() {
     const items = await this.prisma.assistantRequest.findMany({

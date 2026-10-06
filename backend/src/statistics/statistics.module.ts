@@ -7,5 +7,6 @@ import { DataQualityService } from '../data-quality/data-quality.service';
 @Module({
   controllers: [StatisticsController],
   providers: [StatisticsService, DataQualityService],
+  exports: [StatisticsService],
 })
 export class StatisticsModule {}
