@@ -1917,3 +1917,28 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .stage-result-item{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #e0e3e6;border-radius:10px;padding:10px 11px;background:#fff}
 .stage-result-place{width:30px;height:30px;border-radius:8px;background:#111;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:900}
 @media(max-width:560px){.stage-results-summary{grid-template-columns:1fr}.stage-result-item{grid-template-columns:32px minmax(0,1fr);}.stage-result-item>strong{grid-column:2}}
+
+
+/* USD detail cards / table UX */
+.data-table tbody tr.clickable-row{cursor:pointer;transition:background .14s ease,transform .14s ease}
+.data-table tbody tr.clickable-row:hover{background:#f7f8f9!important}
+.data-table tbody tr.clickable-row td:first-child{position:relative}
+.detail-card-body{padding:24px!important;display:grid;gap:22px}
+.detail-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:2px 0 4px}
+.detail-hero h2{margin:5px 0 5px;font-size:23px;line-height:1.15;letter-spacing:-.02em}
+.detail-hero p{margin:0;color:#737a81;font-size:13px;line-height:1.5}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.detail-grid>div{min-width:0;padding:13px 14px;border:1px solid #e4e7e9;border-radius:12px;background:#fafbfb}
+.detail-grid span{display:block;margin-bottom:5px;font-size:10px;line-height:1.2;color:#858b91;text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.detail-grid strong{display:block;font-size:13px;line-height:1.45;color:#202328;white-space:pre-wrap;word-break:break-word}
+.detail-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px;padding-top:2px}
+.inspection-confirm-box{display:grid;gap:12px;padding:16px;border:1px solid #e4b0b6;border-radius:13px;background:#fff8f8}
+.inspection-confirm-box label{display:grid;gap:7px;font-size:12px;font-weight:700}
+.inspection-confirm-box textarea{width:100%;box-sizing:border-box}
+@media(max-width:700px){
+ .detail-card-body{padding:18px!important;gap:18px}
+ .detail-hero{flex-direction:column}
+ .detail-grid{grid-template-columns:1fr}
+ .detail-actions{justify-content:stretch}
+ .detail-actions>*{flex:1 1 100%}
+}
