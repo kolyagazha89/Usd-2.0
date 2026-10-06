@@ -57,7 +57,7 @@ function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div class
 
 function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
  const[logo,setLogo]=useState(readBrandLogo());
- useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(r?.url)loadBrandLogo(r.url,u=>{if(active){cacheBrandLogo(u);setLogo(u)}})}).catch(()=>{});return()=>{active=false}},[]);
+ useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
  const visibleNav=nav.filter(x=>x.roles.includes(user.role));
  const sections=[...new Set(visibleNav.map(x=>x.section))];
  const Page=({path,go,user}:{path:string;go:(p:string)=>void;user:User})=>{
