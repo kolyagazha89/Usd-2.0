@@ -5501,6 +5501,26 @@ export class ImportsService {
 
             resultId =
               result.id;
+
+            if (historicalResults) {
+              const existingInspection = await tx.inspection.findUnique({
+                where: { registrationId },
+                select: { id: true },
+              });
+
+              if (!existingInspection) {
+                await tx.inspection.create({
+                  data: {
+                    registrationId,
+                    status: 'PASSED',
+                    checkedByUserId: request?.user.sub ?? null,
+                    createdByUserId: request?.user.sub ?? null,
+                    checkedByName: 'Исторический импорт',
+                    notes: 'Автоматически пройдено при историческом импорте',
+                  },
+                });
+              }
+            }
           }
 
           await tx.importRow.update(
