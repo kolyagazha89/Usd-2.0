@@ -606,6 +606,18 @@ function ImportPage(){
      setJob(r.importJob);setRows(r.importJob?.rows??[]);
    }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}
  };
+ const refreshHistoricalStage=async()=>{
+   setLoading(true);setError('');setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');
+   try{
+     const r=await prepareHistoricalImport();
+     setHistoricalPrepare(r);
+     const prepared=Array.isArray(r?.prepared)?r.prepared:[];
+     const current=prepared.find((x:any)=>x.stageId===stageId) ?? prepared[0];
+     if(current?.stageId)setStageId(current.stageId);
+     if(current?.importJobId){setHistoricalJobId(current.importJobId);await refreshJob(current.importJobId)}
+   }catch(e){setError(e instanceof Error?e.message:'Не удалось обновить исторический импорт')}
+   finally{setLoading(false)}
+ };
  const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:JSON.parse(resolution||'{}')});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
  const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPost('/imports/'+job.id+'/commit',{});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось завершить импорт')}finally{setLoading(false)}}; const resolveExistingResult=async(row:any,action:'KEEP_EXISTING'|'REPLACE')=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+row.id+'/resolve',{resolution:{existingResultAction:action}});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение результата')}finally{setLoading(false)}};
  const visibleRows=mode==='HISTORICAL'?rows.filter((r:any)=>r.type==='RESULT'):rows;
@@ -620,7 +632,7 @@ function ImportPage(){
    const values=Array.isArray(r.warnings)?r.warnings.map((message:any)=>({row:r.rowNumber,message:String(message)})):[r.warnings].filter(Boolean).map((message:any)=>({row:r.rowNumber,message:String(message)}));
    return values;
  });
- return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{if(mode==='NORMAL'){setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}else{void refreshJob(job.id)}}}><RefreshCw size={14}/>{mode==='NORMAL'?'Обновить превью':'Обновить импорт'}</button>:undefined}>
+ return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{if(mode==='NORMAL'){setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}else{void refreshHistoricalStage()}}}><RefreshCw size={14}/>{mode==='NORMAL'?'Обновить превью':'Заново подготовить'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
   <div className="import-grid">
