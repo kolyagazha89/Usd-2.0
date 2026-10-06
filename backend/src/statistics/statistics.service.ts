@@ -1291,10 +1291,10 @@ export class StatisticsService {
     const currentStage = await this.prisma.stage.findFirst({
       where: {
         isDeleted: false,
-        status: 'PUBLISHED',
-        date: { lte: now },
+        status: { not: 'CANCELLED' },
+        date: { gte: now },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { date: 'asc' },
       select: {
         id: true,
         stageNumber: true,
@@ -1313,32 +1313,7 @@ export class StatisticsService {
       },
     });
 
-    const nextStage = currentStage
-      ? currentStage
-      : await this.prisma.stage.findFirst({
-          where: {
-            isDeleted: false,
-            date: { gt: now },
-            status: { not: 'CANCELLED' },
-          },
-          orderBy: { date: 'asc' },
-          select: {
-            id: true,
-            stageNumber: true,
-            name: true,
-            city: true,
-            date: true,
-            registrationOpen: true,
-            status: true,
-            season: {
-              select: {
-                id: true,
-                name: true,
-                year: true,
-              },
-            },
-          },
-        });
+    const nextStage = currentStage;
 
     const [
       overview,
