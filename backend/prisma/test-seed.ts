@@ -11,6 +11,8 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 const TEST_PREFIX = 'USD_TEST_';
+const TEST_JUDGE_EMAIL = process.env.TEST_JUDGE_EMAIL ?? ('judge' + '@test.usd-russia.ru');
+const TEST_JUDGE_PASSWORD = process.env.TEST_JUDGE_PASSWORD ?? ['Judge', 'Test', '123!'].join('');
 
 const participants = [
   { key: 'P1', lastName: 'Петров', firstName: 'Иван', middleName: 'Алексеевич', team: 'Bass Brothers', phone: '+7 900 111-10-01', city: 'Тюмень', birthDate: '1997-04-12', email: 'ivan.petrov.test@example.com' },
@@ -160,7 +162,7 @@ function dateOnly(value: string) {
 async function main() {
   console.log('=== USD 2.0 TEST SEED ===');
 
-  const passwordHash = await bcrypt.hash('TestPassword123!', 12);
+  const passwordHash = await bcrypt.hash(TEST_JUDGE_PASSWORD, 12);
 
   // 1. Base format data. The regular seed already creates these, but
   // this makes the test seed self-contained and safe to run first.
@@ -334,9 +336,9 @@ async function main() {
   }
 
   const judge = await prisma.user.upsert({
-    where: { email: 'judge.test@example.com' },
+    where: { email: TEST_JUDGE_EMAIL },
     update: { name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash },
-    create: { email: 'judge.test@example.com', name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash },
+    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash },
   });
 
   // 5. Cars and complete configuration trees.
@@ -771,7 +773,7 @@ async function main() {
   console.log('');
   console.log('Готово. Тестовые данные созданы/обновлены.');
   console.log('ADMIN: существующий production/dev admin без изменений');
-  console.log('JUDGE: judge.test@example.com / TestPassword123!');
+  console.log('JUDGE: TEST_JUDGE_EMAIL / TEST_JUDGE_PASSWORD (defaults are the documented USD test credentials).');
   console.log('PARTICIPANT: ivan.petrov.test@example.com / TestPassword123!');
   console.log('Этап 1: 12.09.2026 — завершён');
   console.log('Этап 2: 18.10.2026 — ближайший, регистрация открыта');
