@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   BadRequestException,
   Injectable,
@@ -481,6 +483,187 @@ export class ImportsService {
       registrationPreview,
       resultPreview,
     };
+  }
+
+  async prepareHistoricalXlsxImport(request: AuthenticatedRequest) {
+    const sourcePath = join(process.cwd(), 'data', 'historical-xlsx.json');
+    let source: any;
+    try {
+      source = JSON.parse(readFileSync(sourcePath, 'utf8'));
+    } catch {
+      throw new BadRequestException('Исторический XLSX snapshot не найден в deployment');
+    }
+
+    const registrationWorkbook = source['USD _ Регистрация.xlsx'] ?? {};
+    const resultsWorkbook = source['USD _ Результаты.xlsx'] ?? {};
+
+    const mappings = [
+      { year: 2026, number: 3, name: 'Открытие Волгоград', city: 'Волгоград', date: '2026-05-16', reg: 'Открытие Волгоград', result: 'open_volgograd2026' },
+      { year: 2026, number: 4, name: 'Астрахань', city: 'Астрахань', date: '2026-05-23', reg: 'Астрахань', result: 'astraxan' },
+      { year: 2026, number: 5, name: 'Ижевск', city: 'Ижевск', date: '2026-05-30', reg: 'Ижевск', result: 'ijevsk' },
+      { year: 2026, number: 6, name: 'Липецк', city: 'Липецк', date: '2026-06-20', reg: 'Липецк', result: 'lipetsk' },
+      { year: 2026, number: 7, name: 'Орел', city: 'Орел', date: '2026-07-04', reg: 'Орел', result: 'orel' },
+      { year: 2026, number: 8, name: 'Смоленск', city: 'Смоленск', date: '2026-07-11', reg: 'Смоленск', result: 'smolensk' },
+      { year: 2026, number: 9, name: 'Ростов-на-Дону', city: 'Ростов-на-Дону', date: '2026-07-19', reg: 'Ростов', result: 'rostov-on-don' },
+      { year: 2026, number: 10, name: 'Самара', city: 'Самара', date: '2026-08-15', reg: 'Самара', result: 'samara' },
+      { year: 2026, number: 11, name: 'Ростов-на-Дону — 05.09', city: 'Ростов-на-Дону', date: '2026-09-05', reg: 'Ростов 05.09', result: null },
+      { year: 2026, number: 12, name: 'Финал Волгоград', city: 'Волгоград', date: '2026-09-12', reg: 'финал Волгоград', result: 'final_volg2026' },
+      { year: 2025, number: 1, name: 'Финал Волгоград 2025', city: 'Волгоград', date: '2025-09-13', reg: null, result: 'final_volgograd2025' },
+    ] as const;
+
+    const prepared: any[] = [];
+
+    for (const mapping of mappings) {
+      let season = await this.prisma.season.findUnique({ where: { year: mapping.year } });
+      if (!season) {
+        season = await this.prisma.season.create({
+          data: {
+            year: mapping.year,
+            name: `USD ${mapping.year}`,
+            status: mapping.year === 2026 ? 'ACTIVE' : 'ARCHIVED',
+            isActive: true,
+          },
+        });
+      }
+
+      const existingStage = await this.prisma.stage.findUnique({
+        where: { seasonId_stageNumber: { seasonId: season.id, stageNumber: mapping.number } },
+      });
+
+      const stage = existingStage
+        ? await this.prisma.stage.update({
+            where: { id: existingStage.id },
+            data: {
+              name: mapping.name,
+              city: mapping.city,
+              date: new Date(`${mapping.date}T12:00:00.000Z`),
+              status: 'COMPLETED',
+              registrationOpen: false,
+              isDeleted: false,
+            },
+          })
+        : await this.prisma.stage.create({
+            data: {
+              seasonId: season.id,
+              stageNumber: mapping.number,
+              name: mapping.name,
+              city: mapping.city,
+              date: new Date(`${mapping.date}T12:00:00.000Z`),
+              status: 'COMPLETED',
+              registrationOpen: false,
+              isDeleted: false,
+            },
+          });
+
+      const existingJobs = await this.prisma.importJob.findMany({
+        where: { stageId: stage.id },
+        select: { id: true, status: true, metadata: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      const existingHistoricalJob = existingJobs.find((job) => (job.metadata as any)?.source === 'HISTORICAL_XLSX');
+
+      if (existingHistoricalJob) {
+        prepared.push({
+          stageId: stage.id,
+          stageNumber: mapping.number,
+          stageName: stage.name,
+          importJobId: existingHistoricalJob.id,
+          status: existingHistoricalJob.status,
+          reused: true,
+        });
+        continue;
+      }
+
+      const registrations = mapping.reg ? this.rowsFromSheet(registrationWorkbook[mapping.reg]) : [];
+      const results = mapping.result ? this.resultRowsFromSheet(resultsWorkbook[mapping.result]) : [];
+
+      const classNames = new Set<string>();
+      for (const row of registrations) {
+        for (const key of ['SPL', 'BF SPL', 'BDW SPL', 'Bass Race', 'SPL Hurricane']) {
+          const value = this.stringValue(row[key]);
+          if (value && value.toLowerCase() !== 'yes') classNames.add(this.mapClassName(value));
+        }
+      }
+      for (const row of results) {
+        const value = this.stringValue(row['Класс']);
+        if (value) classNames.add(this.mapClassName(value));
+      }
+
+      const allClasses = await this.prisma.class.findMany({ where: { isActive: true } });
+      const classesByName = new Map(allClasses.map((item) => [this.normalizeClassName(item.name), item]));
+      for (const className of classNames) {
+        const classItem = classesByName.get(this.normalizeClassName(className));
+        if (!classItem) continue;
+        await this.prisma.stageClass.upsert({
+          where: { stageId_classId: { stageId: stage.id, classId: classItem.id } },
+          update: { isActive: true },
+          create: { stageId: stage.id, classId: classItem.id },
+        });
+      }
+
+      const result = await this.previewStage(
+        { stageId: stage.id, registrations, results, historicalResults: true },
+        request,
+      );
+
+      await this.prisma.importJob.update({
+        where: { id: result.importJobId },
+        data: {
+          metadata: {
+            source: 'HISTORICAL_XLSX',
+            workbookRegistrationSheet: mapping.reg,
+            workbookResultSheet: mapping.result,
+            historicalResults: true,
+            stageNumber: mapping.number,
+            stageName: mapping.name,
+          },
+        },
+      });
+
+      prepared.push({
+        stageId: stage.id,
+        stageNumber: mapping.number,
+        stageName: stage.name,
+        importJobId: result.importJobId,
+        status: 'DRAFT',
+        reused: false,
+        registrations: registrations.length,
+        results: results.length,
+        warnings: result.warnings?.length ?? 0,
+      });
+    }
+
+    return {
+      success: true,
+      source: { file: 'historical-xlsx.json', workbooks: ['USD _ Регистрация.xlsx', 'USD _ Результаты.xlsx'] },
+      prepared,
+      message: 'Исторические данные подготовлены как DRAFT ImportJob. Нерешённые WARNING не коммитятся.',
+    };
+  }
+
+  private rowsFromSheet(sheet: any): Record<string, unknown>[] {
+    if (!Array.isArray(sheet) || sheet.length === 0) return [];
+    const headers = Array.isArray(sheet[0]) ? sheet[0] : [];
+    return sheet.slice(1)
+      .filter((row: any[]) => Array.isArray(row) && row.some((value) => value !== null && value !== undefined && String(value).trim() !== ''))
+      .map((row: any[]) => {
+        const output: Record<string, unknown> = {};
+        headers.forEach((header: any, index: number) => {
+          if (header === null || header === undefined || String(header).trim() === '') return;
+          output[String(header)] = row[index] ?? null;
+        });
+        return output;
+      });
+  }
+
+  private resultRowsFromSheet(sheet: any): Record<string, unknown>[] {
+    const rows = this.rowsFromSheet(sheet);
+    let currentClass = '';
+    return rows.map((row) => {
+      const rawClass = this.stringValue(row['Класс']);
+      if (rawClass) currentClass = rawClass;
+      return { ...row, 'Класс': currentClass };
+    }).filter((row) => this.stringValue(row['Класс']) && this.stringValue(row['ФИО']));
   }
 
   private buildParticipantIndex(
@@ -2295,6 +2478,10 @@ export class ImportsService {
       Nolim: 'NoLim',
       'Mad-x': 'Mad-X',
       'Mad-X': 'Mad-X',
+      'Bass Race 129.9': 'BassRace 129.9',
+      'Bass Race 139.9': 'BassRace 139.9',
+      'Bass Race 149.9': 'BassRace 149.9',
+      'Bass Race 159.9': 'BassRace 159.9',
     };
 
     return (
