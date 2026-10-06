@@ -1720,3 +1720,31 @@ html,body{
 .stage-registration-toggle{border:1px solid #cfd3d7;background:#fff;color:#222;border-radius:9px;height:34px;padding:0 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
 .stage-registration-toggle:hover{border-color:#222;transform:translateY(-1px)}
 .stage-registration-toggle.open{border-color:#9bcaa8;background:#f4fbf6;color:#18753a}
+
+/* Global modal system: every dialog is portaled to body and owns its viewport */
+body:has(.modal-backdrop){overflow:hidden!important}
+.modal-backdrop{
+  position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+  padding:clamp(12px,3vh,28px) clamp(12px,3vw,28px)!important;
+  display:flex!important;align-items:flex-start!important;justify-content:center!important;
+  box-sizing:border-box!important;overflow-y:auto!important;overflow-x:hidden!important;
+  z-index:2147483000!important;background:rgba(7,8,9,.62)!important;
+  backdrop-filter:blur(14px) saturate(.82)!important;-webkit-backdrop-filter:blur(14px) saturate(.82)!important;
+  overscroll-behavior:contain!important;
+}
+.modal-backdrop .modal{
+  position:relative!important;width:min(920px,100%)!important;max-width:920px!important;
+  max-height:calc(100dvh - 24px)!important;margin:0 auto!important;
+  overflow-x:hidden!important;overflow-y:auto!important;box-sizing:border-box!important;
+  flex:0 0 auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;
+  border-radius:18px!important;
+}
+.modal-backdrop .modal-head{
+  position:sticky!important;top:0!important;z-index:10!important;
+  background:inherit!important;
+}
+.modal-form-error{margin:14px 18px 0!important}
+@media(max-width:700px){
+  .modal-backdrop{padding:8px!important}
+  .modal-backdrop .modal{width:100%!important;max-height:calc(100dvh - 16px)!important;border-radius:16px!important}
+}
