@@ -35,7 +35,8 @@ export class ParticipantsService {
     const number = this.normalizeRegistrationNumber(value);
 
     const patterns: Record<RegistrationCountry, RegExp> = {
-      RU: /^[ABEKMHOPCTYX]\d{3}[ABEKMHOPCTYX]{2}\d{2,3}$/,
+      // Russian plates use Cyrillic letters; accept legacy Latin lookalikes too.
+      RU: /^[ABEKMHOPCTYXАВЕКМНОРСТУХ]\d{3}[ABEKMHOPCTYXАВЕКМНОРСТУХ]{2}\d{2,3}$/,
 
       NO: /^[A-Z]{2}\s?\d{5}$/,
 
