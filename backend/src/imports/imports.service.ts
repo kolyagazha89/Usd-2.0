@@ -140,6 +140,29 @@ export class ImportsService {
         ),
       );
 
+    // Проверяем дубли номеров внутри самого файла до Commit.
+    const importedNumberRows = new Map<number, number[]>();
+    registrations.forEach((row, index) => {
+      const number = this.parseParticipantNumber(this.getImportFieldValue(row, [
+        'Номер участника', '№ участника', 'Номер', 'participantNumber',
+      ]));
+      if (number !== null) {
+        const list = importedNumberRows.get(number) ?? [];
+        list.push(index + 1);
+        importedNumberRows.set(number, list);
+      }
+    });
+    for (const [number, rowNumbers] of importedNumberRows) {
+      if (rowNumbers.length < 2) continue;
+      for (const rowNumber of rowNumbers) {
+        const preview = registrationPreview[rowNumber - 1];
+        if (preview) {
+          preview.warnings.push(`Строка ${rowNumber}: номер участника ${number} указан ещё в строках ${rowNumbers.filter((n) => n !== rowNumber).join(', ')} этого импорта`);
+          preview.status = 'WARNING';
+        }
+      }
+    }
+
     const historicalNumberMap =
       body.historicalResults === true
         ? await this.buildHistoricalFallbackNumbers(stage.id, registrations, results)
@@ -1589,13 +1612,21 @@ export class ImportsService {
             ? participant.matches[0].id
             : null;
 
-        if (
-          matchedParticipantId &&
-          existingByNumber.participantId !==
-          matchedParticipantId
-        ) {
+        const isSameParticipant =
+          !!matchedParticipantId &&
+          existingByNumber.participantId === matchedParticipantId;
+
+        if (!isSameParticipant) {
+          const owner = await this.prisma.participant.findUnique({
+            where: { id: existingByNumber.participantId },
+            select: { lastName: true, firstName: true, middleName: true },
+          });
+          const ownerName = owner
+            ? [owner.lastName, owner.firstName, owner.middleName].filter(Boolean).join(' ')
+            : 'участник из базы';
+          const importedName = rawName || 'участник из импорта';
           warnings.push(
-            `Строка ${rowNumber}: номер участника ${participantNumber} уже принадлежит другому участнику на этом этапе`,
+            `Строка ${rowNumber}: номер участника ${participantNumber} уже принадлежит другому участнику на этом этапе. В базе: ${ownerName}; в импорте: ${importedName}`,
           );
         }
       }
@@ -4434,7 +4465,7 @@ export class ImportsService {
 
               if (occupiedNumber && occupiedNumber.registrationId !== registrationId) {
                 throw new BadRequestException(
-                  'Номер участника ' + participantNumber + ' уже зарезервирован другой регистрацией',
+                  'Строка ' + row.rowNumber + ': номер участника ' + participantNumber + ' уже зарезервирован другой регистрацией',
                 );
               }
 
@@ -4934,7 +4965,7 @@ export class ImportsService {
                   participantId
               ) {
                 throw new BadRequestException(
-                  `Номер участника ${participantNumber} уже принадлежит другому участнику`,
+                  `Строка ${row.rowNumber}: номер участника ${participantNumber} уже принадлежит другому участнику на этом этапе`,
                 );
               }
             }
