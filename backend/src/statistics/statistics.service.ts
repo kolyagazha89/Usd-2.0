@@ -65,6 +65,7 @@ type ResultRow = {
       direction: {
         id: string;
         name: string;
+        sortOrder: number;
       };
     };
   };
@@ -748,8 +749,10 @@ export class StatisticsService {
         classResults: [...classes.values()]
           .sort(
             (a, b) =>
-              a.class.sortOrder -
-              b.class.sortOrder,
+              (a.class.direction?.sortOrder ?? 0) -
+                (b.class.direction?.sortOrder ?? 0) ||
+              a.class.sortOrder - b.class.sortOrder ||
+              a.class.name.localeCompare(b.class.name, 'ru'),
           )
           .map((item) => ({
             class: item.class,
@@ -757,6 +760,21 @@ export class StatisticsService {
             appearances: item.appearances,
             firstPlaces: item.firstPlaces,
             podiums: item.podiums,
+            results: eligibleResults
+              .filter((result) => result.registrationClass.classId === item.class.id)
+              .sort((a, b) =>
+                (a.place ?? Number.MAX_SAFE_INTEGER) - (b.place ?? Number.MAX_SAFE_INTEGER) ||
+                Number(b.value) - Number(a.value),
+              )
+              .map((result) => ({
+                id: result.id,
+                value: result.value.toString(),
+                unit: result.unit,
+                place: result.place,
+                participant: result.registration.participant,
+                participantNumber: result.registration.participantNumber,
+                car: result.registration.car,
+              })),
             bestResult: item.bestResult
               ? {
                   value: item.bestResult.value.toString(),
@@ -785,6 +803,7 @@ export class StatisticsService {
             select: {
               id: true,
               name: true,
+              sortOrder: true,
             },
           },
         },
