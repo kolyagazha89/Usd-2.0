@@ -93,6 +93,25 @@ export class InspectionsService {
     return { success: true, processed: registrations.length, notes: normalized };
   }
 
+  async passPending(stageId: string, actor: Actor) {
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId, status: 'ACTIVE', inspection: null },
+      select: { id: true },
+      orderBy: { participantNumber: 'asc' },
+    });
+    if (!registrations.length) {
+      return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
+    }
+    for (const registration of registrations) {
+      await this.create(
+        { registrationId: registration.id, status: 'PASSED' },
+        actor,
+      );
+    }
+    return { success: true, processed: registrations.length };
+  }
+
+
   async create(
     data: { registrationId: string; status: InspectionStatus; notes?: string },
     actor: Actor,
