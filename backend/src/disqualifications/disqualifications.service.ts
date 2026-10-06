@@ -7,6 +7,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CompetitionRecalculationService } from './competition-recalculation.service';
+import { Prisma } from '../generated/prisma/client';
 
 type DisqualificationScope =
   | 'STAGE'
@@ -164,21 +165,10 @@ export class DisqualificationsService {
       }
     }
 
-    const lockKey = [
-      body.participantId,
-      body.scope,
-      body.stageId ?? '',
-      body.seasonId ?? '',
-    ].join(':');
-
     const disqualification = await this.prisma.$transaction(async (tx) => {
-      // Serialize duplicate active disqualification creation for the same
-      // participant/scope/target. The pre-existing check was outside the
-      // transaction and was therefore race-prone.
-      await tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(hashtext(${lockKey}))
-      `;
-
+      // Keep the duplicate check and insert in one serializable transaction.
+      // This avoids database-specific advisory-lock calls while still
+      // preventing two concurrent requests from creating the same active DQ.
       const existing = await tx.disqualification.findFirst({
         where: {
           participantId: body.participantId,
@@ -230,6 +220,8 @@ export class DisqualificationsService {
       });
 
       return created;
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     /*
