@@ -1715,7 +1715,7 @@ export class ImportsService {
     return map;
   }
 
-  private previewResultRow(
+  private async previewResultRow(
     row: ImportRow,
     rowNumber: number,
     participantIndex: Map<
@@ -2031,7 +2031,7 @@ export class ImportsService {
         select: { id: true, participantId: true },
       });
 
-      if (existingRegistration && existingRegistration.participantId === participant.matches[0].id) {
+      if (existingRegistration) {
         const registrationClass = await this.prisma.registrationClass.findUnique({
           where: {
             registrationId_classId: {
@@ -5528,11 +5528,12 @@ export class ImportsService {
                 },
                 select: {
                   id: true,
+                  value: true,
+                  place: true,
+                  unit: true,
                 },
               },
             );
-
-          let resultId: string;
 
           let resultId: string;
 
