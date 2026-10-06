@@ -601,8 +601,9 @@ export class ImportsService {
         });
       }
 
+      const historicalResults = mapping.result !== null;
       const result = await this.previewStage(
-        { stageId: stage.id, registrations, results, historicalResults: true },
+        { stageId: stage.id, registrations, results, historicalResults },
         request,
       );
 
@@ -613,7 +614,7 @@ export class ImportsService {
             source: 'HISTORICAL_XLSX',
             workbookRegistrationSheet: mapping.reg,
             workbookResultSheet: mapping.result,
-            historicalResults: true,
+            historicalResults,
             stageNumber: mapping.number,
             stageName: mapping.name,
           },
