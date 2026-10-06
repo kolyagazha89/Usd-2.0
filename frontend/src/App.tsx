@@ -148,9 +148,9 @@ function DashboardPage({go}:{go:(p:string)=>void}){
           <div><span>Прошли</span><strong>{stageStats.inspections?.passed??0}</strong><small>допущены</small></div>
           <div><span>Не прошли</span><strong>{stageStats.inspections?.failed??0}</strong><small>требуют внимания</small></div>
         </div>
-        <div className="working-summary-columns">
-          <div className="working-summary-block"><div className="working-summary-title">Регистрации по классам</div>{stageStats.registrationClasses?.length?<div className="working-summary-list">{stageStats.registrationClasses.map((x:any)=><div className="working-summary-row" key={x.class.id}><span><strong>{x.class.name}</strong><small>{x.class.direction?.name||'—'}</small></span><b>{x.registrations}</b><em>{x.participants} уч. · {x.cars} авто</em></div>)}</div>:<span className="muted">Регистраций по классам пока нет</span>}</div>
-          <div className="working-summary-block"><div className="working-summary-title">Статус инспекций</div>{stageStats.inspectionDetails?.length?<div className="working-summary-list">{stageStats.inspectionDetails.map((x:any)=><div className="working-summary-row" key={x.registrationId}><span><strong>№{x.participantNumber} · {[x.participant?.lastName,x.participant?.firstName].filter(Boolean).join(' ')||'—'}</strong><small>{[x.car?.brand,x.car?.model].filter(Boolean).join(' ')||'—'}</small></span><b className={x.status==='PASSED'?'good-text':'bad-text'}>{x.status==='PASSED'?'Прошёл':'Не прошёл'}</b></div>)}</div>:<span className="muted">Инспекций пока нет</span>}{stageStats.pendingRegistrations?.length?<div className="working-summary-pending"><strong>Ожидают проверки: {stageStats.pendingRegistrations.length}</strong><span>{stageStats.pendingRegistrations.slice(0,5).map((x:any)=>'№'+x.participantNumber).join(', ')}{stageStats.pendingRegistrations.length>5?'…':''}</span></div>:null}</div>
+        <div className="working-summary-links">
+          <button className="working-summary-link" onClick={e=>{e.stopPropagation();go('/admin/registrations?stageId='+stage.id)}}><span>Регистрации</span><strong>Подробнее</strong><ChevronRight size={15}/></button>
+          <button className="working-summary-link" onClick={e=>{e.stopPropagation();go('/admin/inspections?stageId='+stage.id)}}><span>Инспекции</span><strong>Подробнее</strong><ChevronRight size={15}/></button>
         </div>
       </div>}
     </div>:<Empty text="Будущих этапов пока нет"/>}
