@@ -146,7 +146,7 @@ export class ImportsService {
         : undefined;
 
     const resultPreview = await Promise.all(
-      (row, index) =>
+      results.map((row, index) =>
         this.previewResultRow(
           row,
           index + 1,
@@ -157,6 +157,7 @@ export class ImportsService {
           body.historicalResults === true,
           historicalNumberMap,
         ),
+      ),
     );
 
     const participantsNew = new Set<string>();
@@ -2052,7 +2053,7 @@ export class ImportsService {
             const sameValue = Math.abs(Number(existingResult.value) - Number(resultValue)) < 0.0005;
             const samePlace = (existingResult.place ?? null) === (importedPlace ?? null);
 
-            if (sameValue && samePlace && existingResult.unit === 'DB') {
+            if (sameValue && samePlace && existingResult.unit === foundClass.class.unit) {
               existingResultState = 'SAME';
             } else {
               existingResultState = 'CONFLICT';
