@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-type ApiError = Error & { status?: number };
+type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
 
@@ -44,9 +44,23 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
     if(!response.ok){
       const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
       e.status=response.status;
+      e.responseBody=data;
+      e.requestPath=path;
+      if(new URLSearchParams(window.location.search).get('debug')==='1'){
+        e.debug=JSON.stringify({type:'http_error',method:init.method??'GET',url:path,status:response.status,response:data},null,2);
+        console.error('[USD DEBUG]',e.debug);
+      }
       throw e;
     }
     return data as T;
+  } catch (error) {
+    const e=error as ApiError;
+    if(new URLSearchParams(window.location.search).get('debug')==='1' && !e.debug){
+      e.requestPath=path;
+      e.debug=JSON.stringify({type:e.name==='AbortError'?'timeout':'network_or_browser_error',method:init.method??'GET',url:path,message:e.message,name:e.name,online:navigator.onLine,userAgent:navigator.userAgent,origin:window.location.origin,apiBase:API_BASE},null,2);
+      console.error('[USD DEBUG]',e.debug,error);
+    }
+    throw error;
   } finally {
     window.clearTimeout(timeout);
   }
@@ -102,19 +116,20 @@ export async function uploadSiteAsset(assetKey:string,file:File){
   if(!file.type) throw new Error('Не удалось определить тип изображения');
   if(file.size<=0) throw new Error('Файл пустой');
   if(file.size>10*1024*1024) throw new Error('Размер изображения не должен превышать 10 МБ');
-  const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId:assetKey,contentType:file.type});
-  // Always upload through the API. Browser-side PUT to S3 is intentionally avoided:
-  // it requires bucket CORS configuration and was the source of intermittent "Failed to fetch"
-  // errors in production. The backend performs the signed S3 upload and validation.
-  await request<any>('/media/upload',{
-    method:'PUT',
-    headers:{
-      'Content-Type':file.type,
-      'X-Upload-Token':prepared.uploadToken,
-    },
-    body:file,
-  },false);
-  const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
-  return { url:view.url, publicPath:'/media/public/SITE_ASSET/'+encodeURIComponent(assetKey) };
+  const debug=new URLSearchParams(window.location.search).get('debug')==='1';
+  const log=(step:string,extra:any={})=>{if(debug)console.info('[USD MEDIA DEBUG]',JSON.stringify({step,assetKey,file:{name:file.name,type:file.type,size:file.size},...extra},null,2));};
+  log('start');
+  try{
+    const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId:assetKey,contentType:file.type});
+    log('prepared',{uploadTokenPresent:Boolean(prepared?.uploadToken),preparedKeys:Object.keys(prepared??{})});
+    await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+    log('uploaded');
+    const view=await apiGet<any>('/media/view/SITE_ASSET/'+encodeURIComponent(assetKey));
+    log('view_ready',{urlPresent:Boolean(view?.url)});
+    return { url:view.url, publicPath:'/media/public/SITE_ASSET/'+encodeURIComponent(assetKey) };
+  }catch(error){
+    log('failed',{error:String(error),debug:(error as ApiError)?.debug});
+    throw error;
+  }
 }
 export async function getPublicSiteAsset(assetKey:string){return apiGet<any>('/media/public/SITE_ASSET/'+encodeURIComponent(assetKey));}
