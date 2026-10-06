@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info} from 'lucide-react';
+import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
@@ -21,7 +21,9 @@ const nav=[
  {section:'Данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
  {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
  {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
- {section:'Система',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
+ {section:'Справочники',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
+ {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
+ {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
 ];
@@ -80,6 +82,8 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage/>;
+  if(path.startsWith('/admin/vibration'))return <ReferencePlaceholderPage title="Виброизоляция" icon={Layers} description="Справочник материалов виброизоляции и шумоизоляции для конфигураций автомобилей." />;
+  if(path.startsWith('/admin/components'))return <ReferencePlaceholderPage title="Комплектующие" icon={Package} description="Единый справочник компонентов автозвука: динамики, усилители, аккумуляторы, генераторы и головные устройства." />;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
@@ -874,6 +878,7 @@ function GlobalSearch({onClose,go}:{onClose:()=>void;go:(p:string)=>void}){
  useEffect(()=>{const t=setTimeout(async()=>{if(q.trim().length<2){setResults([]);return}setLoading(true);try{const r=await apiGet<any>('/statistics/participants?search='+encodeURIComponent(q.trim())+'&limit=12');const ps=listData(r).map((x:any)=>({type:'Участник',title:[x.lastName,x.firstName,x.middleName].filter(Boolean).join(' '),path:'/admin/participants'}));const cs=listData(await apiGet<any>('/cars')).filter((x:any)=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())).slice(0,8).map((x:any)=>({type:'Автомобиль',title:[x.brand,x.model,x.registrationNumber].filter(Boolean).join(' '),path:'/admin/cars'}));setResults([...ps,...cs])}catch{setResults([])}finally{setLoading(false)}},220);return()=>clearTimeout(t)},[q]);
  return <div className="search-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="global-search"><div className="global-search-head"><Search size={18}/><input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Участник, автомобиль, госномер…"/><button className="icon-button" onClick={onClose}><X size={17}/></button></div>{loading?<LoadingPage small/>:results.length?<div className="global-search-results">{results.map((r,i)=><button key={i} onClick={()=>{onClose();go(r.path)}}><span>{r.type}</span><strong>{r.title}</strong><ChevronRight size={16}/></button>)}</div>:<div className="global-search-empty">{q.length>1?'Ничего не найдено':'Начни вводить минимум 2 символа'}</div>}</div></div>}
 
+function ReferencePlaceholderPage({title,icon:Icon,description}:{title:string;icon:any;description:string}){return <PageFrame title={title} subtitle="Справочник USD"><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел подготовлен</h2><p>{description}</p><p className="muted">Структура раздела добавлена в админ-панель. Следующим шагом подключим хранение, поиск, редактирование и использование позиций в конфигурациях автомобилей.</p></div></PageFrame>}
 function Coming({title,icon:Icon,user}:{title:string;icon:any;user:User}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
 
 function PageFrame({title,subtitle,children,action,showHelp=true}:{title:string;subtitle:string;children:React.ReactNode;action?:React.ReactNode;showHelp?:boolean}){
