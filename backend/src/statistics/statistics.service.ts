@@ -149,6 +149,7 @@ export class StatisticsService {
               select: {
                 id: true,
                 name: true,
+                sortOrder: true,
               },
             },
           },
