@@ -13,6 +13,7 @@ const prisma = new PrismaClient({ adapter });
 const TEST_PREFIX = 'USD_TEST_';
 const TEST_JUDGE_EMAIL = process.env.TEST_JUDGE_EMAIL ?? ('judge' + '@test.usd-russia.ru');
 const TEST_JUDGE_PASSWORD = process.env.TEST_JUDGE_PASSWORD ?? ['Judge', 'Test', '123!'].join('');
+const TEST_PARTICIPANT_PASSWORD = process.env.TEST_PARTICIPANT_PASSWORD ?? 'TestPassword123!';
 
 const participants = [
   { key: 'P1', lastName: 'Петров', firstName: 'Иван', middleName: 'Алексеевич', team: 'Bass Brothers', phone: '+7 900 111-10-01', city: 'Тюмень', birthDate: '1997-04-12', email: 'ivan.petrov.test@example.com' },
@@ -162,7 +163,8 @@ function dateOnly(value: string) {
 async function main() {
   console.log('=== USD 2.0 TEST SEED ===');
 
-  const passwordHash = await bcrypt.hash(TEST_JUDGE_PASSWORD, 12);
+  const judgePasswordHash = await bcrypt.hash(TEST_JUDGE_PASSWORD, 12);
+  const participantPasswordHash = await bcrypt.hash(TEST_PARTICIPANT_PASSWORD, 12);
 
   // 1. Base format data. The regular seed already creates these, but
   // this makes the test seed self-contained and safe to run first.
@@ -321,7 +323,7 @@ async function main() {
         isActive: true,
         emailVerifiedAt: new Date(),
         participantId: participant.id,
-        passwordHash,
+        passwordHash: participantPasswordHash,
       },
       create: {
         email: p.email,
@@ -330,7 +332,7 @@ async function main() {
         isActive: true,
         emailVerifiedAt: new Date(),
         participantId: participant.id,
-        passwordHash,
+        passwordHash: participantPasswordHash,
       },
     });
   }
