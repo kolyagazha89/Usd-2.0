@@ -75,7 +75,7 @@ const classDefs = [
 ] as const;
 
 function loadSource() {
-  const file = path.join(__dirname, 'data', 'historical-xlsx.json');
+  const file = path.join(process.cwd(), 'src', 'scripts', 'data', 'historical-xlsx.json');
   return JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, Record<string, unknown[][]>>;
 }
 
