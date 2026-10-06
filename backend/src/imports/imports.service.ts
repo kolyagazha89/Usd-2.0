@@ -5189,13 +5189,13 @@ export class ImportsService {
               ?.action ===
             'CREATE'
           ) {
-            const participantNumber =
+            let participantNumber =
               resolution
                 .registration
                 .participantNumber;
 
 
-            const primaryParticipantNumber =
+            let primaryParticipantNumber =
               (importJob.metadata as any)?.historicalResults === true &&
               Number.isInteger(resolution?.registration?.primaryParticipantNumber) &&
               resolution.registration.primaryParticipantNumber > 0
@@ -5208,6 +5208,37 @@ export class ImportsService {
               throw new BadRequestException(
                 `Некорректный номер участника для строки ${row.rowNumber}`,
               );
+            }
+
+            const historicalBassRace =
+              (importJob.metadata as any)?.historicalResults === true &&
+              normalized?.class?.isBassRace === true;
+
+            if (historicalBassRace) {
+              const existingByImportedNumber =
+                importedRegistrationsByNumber.get(participantNumber) ?? null;
+              const existingByNumber = await tx.registration.findUnique({
+                where: {
+                  stageId_participantNumber: {
+                    stageId: importJob.stageId,
+                    participantNumber,
+                  },
+                },
+                select: { id: true, participantId: true },
+              });
+
+              if (
+                (existingByNumber && existingByNumber.participantId !== participantId) ||
+                Boolean(existingByImportedNumber && existingByImportedNumber !== registrationId)
+              ) {
+                const allocatedNumber = await this.allocateFreeImportNumber(
+                  tx,
+                  importJob.stageId,
+                  participantNumber,
+                );
+                participantNumber = allocatedNumber;
+                primaryParticipantNumber = allocatedNumber;
+              }
             }
 
             if (!participantId) {
