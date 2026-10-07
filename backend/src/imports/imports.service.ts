@@ -4958,7 +4958,13 @@ export class ImportsService {
                   });
 
             if (classNumberRecord && classNumberRecord.registrationId !== registrationId) {
-              if (historicalResults && isBassRaceClass) {
+              if (historicalResults) {
+                /*
+                 * В архиве номер не должен блокировать импорт.
+                 * Если он уже занят другой регистрацией, выдаём
+                 * этой исторической записи следующий свободный номер.
+                 * Это относится ко всем классам, а не только BassRace.
+                 */
                 const originalNumber = classNumber;
                 const allocatedNumber = await this.allocateFreeImportNumber(
                   tx,
