@@ -674,7 +674,7 @@ export class ImportsService {
             if (row.status === 'WARNING') {
               await tx.importRow.update({
                 where: { id: row.id },
-                data: { status: 'READY', resolution: null },
+                data: { status: 'READY', resolution: Prisma.JsonNull },
               });
             }
             continue;
