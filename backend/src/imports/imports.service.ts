@@ -646,6 +646,195 @@ export class ImportsService {
     };
   }
 
+
+  async autoCommitHistoricalImport(request: AuthenticatedRequest) {
+    const prepared = await this.prepareHistoricalXlsxImport(request);
+    const report: Array<{
+      stageNumber: number;
+      stageName: string;
+      importJobId: string;
+      committed: boolean;
+      autoResolved: number;
+      skipped: Array<{ rowNumber: number; warnings: string[] }>;
+    }> = [];
+
+    for (const item of prepared.prepared) {
+      const job = await this.prisma.importJob.findUnique({
+        where: { id: item.importJobId },
+        include: { rows: true },
+      });
+      if (!job) continue;
+
+      let autoResolved = 0;
+      const skipped: Array<{ rowNumber: number; warnings: string[] }> = [];
+
+      await this.prisma.$transaction(async (tx) => {
+        for (const row of job.rows) {
+          if (row.type === 'REGISTRATION') {
+            if (row.status === 'WARNING') {
+              await tx.importRow.update({
+                where: { id: row.id },
+                data: { status: 'READY', resolution: null },
+              });
+            }
+            continue;
+          }
+
+          if (row.status !== 'WARNING') continue;
+
+          const normalized = row.normalizedData as any;
+          const warnings = Array.isArray(row.warnings)
+            ? row.warnings.map((value: any) => String(value))
+            : [];
+
+          const classId =
+            typeof normalized?.class?.classId === 'string'
+              ? normalized.class.classId
+              : null;
+          const value =
+            typeof normalized?.result === 'number' &&
+            Number.isFinite(normalized.result)
+              ? normalized.result
+              : null;
+          const participantNumber =
+            Number.isInteger(normalized?.participantNumber) &&
+            normalized.participantNumber > 0
+              ? normalized.participantNumber
+              : null;
+          const rawName =
+            this.stringValue(normalized?.participant?.rawName) ||
+            this.stringValue(
+              this.getImportFieldValue(row.rawData as any, [
+                'ФИО',
+                'Фамилия и имя',
+                'participantName',
+              ]),
+            );
+
+          if (!classId || value === null || participantNumber === null || !rawName) {
+            skipped.push({ rowNumber: row.rowNumber, warnings });
+            continue;
+          }
+
+          const participantMatches = Array.isArray(normalized?.participant?.matches)
+            ? normalized.participant.matches
+            : [];
+          const databaseMatch =
+            participantMatches.find(
+              (match: any) => typeof match?.id === 'string',
+            ) ?? null;
+
+          const resolution: any = {
+            participant: databaseMatch
+              ? {
+                  action: 'USE_EXISTING',
+                  participantId: databaseMatch.id,
+                }
+              : {
+                  action: 'CREATE',
+                  fullName: this.normalizedDisplayName(rawName),
+                  team: null,
+                  email: null,
+                },
+            registration: {
+              action: 'CREATE',
+              participantNumber,
+              primaryParticipantNumber: participantNumber,
+            },
+            classId,
+            value,
+            place:
+              normalized?.place === null ||
+              normalized?.place === undefined
+                ? null
+                : Number(normalized.place),
+            car: {
+              action: 'CREATE',
+              brand: 'Не указано',
+              model:
+                this.stringValue(normalized?.car?.model) ||
+                'Автомобиль не указан',
+              ...(this.stringValue(normalized?.car?.plateNumber)
+                ? {
+                    registrationNumber:
+                      this.stringValue(normalized?.car?.plateNumber),
+                  }
+                : {}),
+              registrationCountry: 'RU',
+            },
+          };
+
+          if (
+            normalized?.existingResult?.state === 'SAME' ||
+            normalized?.existingResult?.state === 'CONFLICT'
+          ) {
+            resolution.existingResultAction = 'REPLACE';
+          }
+
+          await tx.importRow.update({
+            where: { id: row.id },
+            data: { status: 'RESOLVED', resolution },
+          });
+          autoResolved += 1;
+        }
+      });
+
+      if (skipped.length) {
+        report.push({
+          stageNumber: item.stageNumber,
+          stageName: item.stageName,
+          importJobId: item.importJobId,
+          committed: false,
+          autoResolved,
+          skipped,
+        });
+        continue;
+      }
+
+      try {
+        await this.commitImport(item.importJobId, request);
+        report.push({
+          stageNumber: item.stageNumber,
+          stageName: item.stageName,
+          importJobId: item.importJobId,
+          committed: true,
+          autoResolved,
+          skipped: [],
+        });
+      } catch (error) {
+        const fresh = await this.prisma.importJob.findUnique({
+          where: { id: item.importJobId },
+          include: { rows: true },
+        });
+        const remaining = fresh?.rows
+          .filter((row) => row.type === 'RESULT' && row.status !== 'COMMITTED')
+          .map((row) => ({
+            rowNumber: row.rowNumber,
+            warnings: Array.isArray(row.warnings)
+              ? row.warnings.map((value: any) => String(value))
+              : [String((error as Error)?.message ?? error)],
+          })) ?? [];
+        report.push({
+          stageNumber: item.stageNumber,
+          stageName: item.stageName,
+          importJobId: item.importJobId,
+          committed: false,
+          autoResolved,
+          skipped: remaining,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      source: prepared.source,
+      prepared: prepared.prepared.length,
+      committed: report.filter((item) => item.committed).length,
+      errors: report.filter((item) => !item.committed),
+      report,
+    };
+  }
+
   private rowsFromSheet(sheet: any): Record<string, unknown>[] {
     if (!Array.isArray(sheet) || sheet.length === 0) return [];
     const headers = Array.isArray(sheet[0]) ? sheet[0] : [];
@@ -3216,11 +3405,10 @@ export class ImportsService {
 
       if (action === 'CREATE' &&
         (!resolution.car.brand?.trim() ||
-          !resolution.car.model?.trim() ||
-          !resolution.car.registrationNumber?.trim())
+          !resolution.car.model?.trim())
       ) {
         throw new BadRequestException(
-          'Для CREATE автомобиля необходимо указать марку, модель и регистрационный номер',
+          'Для CREATE автомобиля необходимо указать марку и модель',
         );
       }
     }
@@ -4026,9 +4214,7 @@ export class ImportsService {
           typeof resolution.car.brand !== 'string' ||
           !resolution.car.brand.trim() ||
           typeof resolution.car.model !== 'string' ||
-          !resolution.car.model.trim() ||
-          typeof resolution.car.registrationNumber !== 'string' ||
-          !resolution.car.registrationNumber.trim()
+          !resolution.car.model.trim()
         ) {
           throw new BadRequestException(
             `Строка ${row.rowNumber}: недостаточно данных для создания автомобиля`,
