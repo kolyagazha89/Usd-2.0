@@ -649,15 +649,61 @@ export class ImportsService {
   private rowsFromSheet(sheet: any): Record<string, unknown>[] {
     if (!Array.isArray(sheet) || sheet.length === 0) return [];
     const headers = Array.isArray(sheet[0]) ? sheet[0] : [];
+
     return sheet.slice(1)
-      .filter((row: any[]) => Array.isArray(row) && row.some((value) => value !== null && value !== undefined && String(value).trim() !== ''))
+      .filter(
+        (row: any[]) =>
+          Array.isArray(row) &&
+          row.some(
+            (value) =>
+              value !== null &&
+              value !== undefined &&
+              String(value).trim() !== '',
+          ),
+      )
       .map((row: any[]) => {
         const output: Record<string, unknown> = {};
         headers.forEach((header: any, index: number) => {
-          if (header === null || header === undefined || String(header).trim() === '') return;
+          if (
+            header === null ||
+            header === undefined ||
+            String(header).trim() === ''
+          ) {
+            return;
+          }
+
           output[String(header)] = row[index] ?? null;
         });
+
         return output;
+      })
+      .filter((output) => {
+        /*
+         * Некоторые исторические XLSX содержат хвостовые строки, где
+         * заполнен только номер участника (например 181..200), а ФИО,
+         * автомобиль, класс и остальные поля пустые. Это не реальные
+         * регистрации и не должны превращаться в WARNING-строки импорта.
+         *
+         * Для регистрационной таблицы считаем строку пустой, если кроме
+         * номера участника в ней нет ни одного содержательного поля.
+         */
+        const participantNumberKey = [
+          'Номер участника',
+          '№ участника',
+          'participantNumber',
+        ].find((key) => Object.prototype.hasOwnProperty.call(output, key));
+
+        if (!participantNumberKey) return true;
+
+        const meaningfulFields = Object.entries(output).filter(
+          ([key, value]) =>
+            key !== participantNumberKey &&
+            value !== null &&
+            value !== undefined &&
+            String(value).trim() !== '',
+        );
+
+        return meaningfulFields.length > 0;
       });
   }
 
