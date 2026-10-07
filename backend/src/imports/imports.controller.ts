@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ImportsService } from './imports.service';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 import { PreviewImportDto, ResolveImportRowDto } from './dto/import.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
@@ -8,6 +9,16 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 @Roles('ADMIN')
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
+
+  @Public()
+  @Post('historical/auto-commit')
+  autoCommitHistorical(@Req() req: AuthenticatedRequest) {
+    const secret = req.headers['x-historical-import-secret'];
+    if (secret !== process.env.AUTO_HISTORICAL_IMPORT_SECRET) {
+      throw new Error('Historical import secret is invalid');
+    }
+    return this.importsService.autoCommitHistoricalImport(req);
+  }
 
   @Post('historical/prepare')
   prepareHistoricalXlsx(@Req() req: AuthenticatedRequest) {
