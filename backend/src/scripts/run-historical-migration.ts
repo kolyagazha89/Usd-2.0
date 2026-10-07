@@ -9,18 +9,6 @@ async function main() {
   try {
     const prisma = app.get(PrismaService);
 
-    const alreadyImported = await prisma.importJob.count({
-      where: {
-        status: 'COMMITTED',
-        metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
-      },
-    });
-
-    if (alreadyImported >= 11) {
-      console.log('Historical migration already completed; nothing to do.');
-      return;
-    }
-
     const historicalJobs = await prisma.importJob.findMany({
       where: {
         metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
