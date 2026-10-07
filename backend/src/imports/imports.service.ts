@@ -3656,6 +3656,63 @@ export class ImportsService {
     return candidate;
   }
 
+  /**
+   * BassRace в историческом архиве допускает повторение напечатанного номера
+   * между заездами/участниками. При конфликте внутри одного этапа выдаём
+   * следующий номер после максимального номера, уже использованного результатами
+   * этапа, а не просто ближайший свободный номер от исходного.
+   */
+  private async allocateNextHistoricalBassRaceNumber(
+    tx: Prisma.TransactionClient,
+    stageId: string,
+  ): Promise<number> {
+    const [resultRows, registrationNumbers] = await Promise.all([
+      tx.result.findMany({
+        where: {
+          registration: {
+            stageId,
+          },
+        },
+        select: {
+          registration: {
+            select: {
+              participantNumber: true,
+            },
+          },
+          registrationClass: {
+            select: {
+              number: {
+                select: {
+                  number: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      tx.registrationNumber.findMany({
+        where: { stageId },
+        select: { number: true },
+      }),
+    ]);
+
+    let maxNumber = 0;
+
+    for (const row of resultRows) {
+      maxNumber = Math.max(
+        maxNumber,
+        row.registration.participantNumber,
+        row.registrationClass.number.number,
+      );
+    }
+
+    for (const row of registrationNumbers) {
+      maxNumber = Math.max(maxNumber, row.number);
+    }
+
+    return maxNumber + 1;
+  }
+
   private async ensureRegistrationNumber(
     tx: Prisma.TransactionClient,
     data: {
@@ -5914,10 +5971,17 @@ export class ImportsService {
               occupiedBassRaceNumber &&
               occupiedBassRaceNumber.registrationId !== registrationId
             ) {
-              classNumber = await this.allocateFreeImportNumber(
+              /*
+               * BassRace: одинаковый исходный номер в архиве не блокирует импорт.
+               * Если этот номер уже принадлежит другой регистрации, автоматически
+               * выдаём следующий номер после максимального номера этапа.
+               *
+               * Если такой же номер уже есть у обычного класса этой ЖЕ регистрации,
+               * это нормально: конфликт отсутствует, номер переиспользуется.
+               */
+              classNumber = await this.allocateNextHistoricalBassRaceNumber(
                 tx,
                 importJob.stageId,
-                classNumber,
               );
             }
           }
