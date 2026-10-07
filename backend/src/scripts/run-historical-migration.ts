@@ -20,8 +20,21 @@ async function main() {
     });
 
     if (committedHistoricalStages.length >= expectedHistoricalStages) {
-      console.log(`Historical migration already completed: ${committedHistoricalStages.length}/${expectedHistoricalStages} stages. Skipping.`);
-      return;
+      const committedStageIds = committedHistoricalStages.map(job => job.stageId);
+      const historicalResultCount = await prisma.result.count({
+        where: { registration: { stageId: { in: committedStageIds } } },
+      });
+
+      if (historicalResultCount > 0) {
+        console.log(
+          `Historical migration already completed: ${committedHistoricalStages.length}/${expectedHistoricalStages} stages, ${historicalResultCount} results. Skipping.`,
+        );
+        return;
+      }
+
+      console.log(
+        `Historical migration marker exists for ${committedHistoricalStages.length} stages, but no historical results exist. Re-running clean migration.`,
+      );
     }
 
     const historicalJobs = await prisma.importJob.findMany({
