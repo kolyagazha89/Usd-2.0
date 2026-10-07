@@ -131,8 +131,21 @@ export class StagesService {
     const hasOperationalFields = ['stageNumber', 'date', 'latitude', 'longitude', 'status', 'registrationOpen', 'registrationStartsAt', 'registrationEndsAt']
       .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
 
-    if ((stage.status === 'COMPLETED' || stage.status === 'CANCELLED') && hasOperationalFields) {
-      throw new BadRequestException('Завершённый или отменённый этап можно корректировать только по текстовым полям');
+    /*
+     * ADMIN имеет полный доступ к этапам. Ограничение на изменение
+     * операционных полей после завершения/отмены действует только
+     * для не-администраторов (например, JUDGE).
+     */
+    const isAdmin = request.user.role === 'ADMIN';
+
+    if (
+      !isAdmin &&
+      (stage.status === 'COMPLETED' || stage.status === 'CANCELLED') &&
+      hasOperationalFields
+    ) {
+      throw new BadRequestException(
+        'Завершённый или отменённый этап можно корректировать только по текстовым полям',
+      );
     }
 
     if (dto.stageNumber !== undefined && dto.stageNumber !== stage.stageNumber) {
