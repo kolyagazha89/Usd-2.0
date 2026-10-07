@@ -378,7 +378,7 @@ export class ImportsService {
                             preview.place,
                           car: {
                             action: 'CREATE',
-                            brand: preview.car?.model || preview.car?.plateNumber ? 'Импорт' : 'Неизвестно',
+                            brand: 'Не указано',
                             model: preview.car?.model || 'Автомобиль не указан',
                             registrationNumber: preview.car?.plateNumber || undefined,
                             registrationCountry: 'RU',
