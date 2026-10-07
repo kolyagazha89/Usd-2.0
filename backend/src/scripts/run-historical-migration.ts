@@ -9,6 +9,21 @@ async function main() {
   try {
     const prisma = app.get(PrismaService);
 
+    const expectedHistoricalStages = 10;
+    const committedHistoricalStages = await prisma.importJob.findMany({
+      where: {
+        status: 'COMMITTED',
+        metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
+      },
+      select: { stageId: true },
+      distinct: ['stageId'],
+    });
+
+    if (committedHistoricalStages.length >= expectedHistoricalStages) {
+      console.log(`Historical migration already completed: ${committedHistoricalStages.length}/${expectedHistoricalStages} stages. Skipping.`);
+      return;
+    }
+
     const historicalJobs = await prisma.importJob.findMany({
       where: {
         metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
