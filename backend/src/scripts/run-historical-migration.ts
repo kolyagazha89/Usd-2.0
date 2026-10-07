@@ -15,7 +15,7 @@ async function main() {
         status: 'COMMITTED',
         metadata: {
           path: ['source'],
-          equals: 'HISTORICAL_XLSX_AUTO',
+          equals: 'HISTORICAL_XLSX',
         },
       },
     });
