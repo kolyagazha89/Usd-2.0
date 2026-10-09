@@ -214,9 +214,7 @@ export class RecordsService {
 
     const results = await tx.result.findMany({
       where: {
-        registrationClass: {
-          classId,
-        },
+        registrationClass: { classId },
         OR: [
           { isHistorical: false },
           { isHistorical: true, verificationStatus: 'VERIFIED' },
@@ -228,17 +226,14 @@ export class RecordsService {
             id: true,
             participantId: true,
             stageId: true,
+            carId: true,
             source: true,
             status: true,
             registeredAt: true,
             participant: true,
             car: true,
             stage: {
-              select: {
-                id: true,
-                seasonId: true,
-                date: true,
-              },
+              select: { id: true, seasonId: true, date: true },
             },
           },
         },
@@ -258,7 +253,6 @@ export class RecordsService {
         },
       },
       orderBy: [
-        { value: 'desc' },
         { registration: { stage: { date: 'asc' } } },
         { createdAt: 'asc' },
         { id: 'asc' },
@@ -266,97 +260,88 @@ export class RecordsService {
     });
 
     const eligible: any[] = [];
-
     for (const result of results) {
-      if (result.registration.status !== 'ACTIVE') {
-        continue;
-      }
-
+      if (result.registration.status !== 'ACTIVE') continue;
       const disqualified = await this.isResultDisqualified(
         tx,
         result.registration.participantId,
         result.registration.stageId,
         result.registration.stage.seasonId,
       );
-
-      if (!disqualified) {
-        eligible.push(result);
-      }
+      if (!disqualified) eligible.push(result);
     }
 
+    // Rebuild the record timeline chronologically. A record entry is created
+    // every time a result strictly exceeds the best value seen so far. Equal
+    // values keep the earlier record holder. Historical entries are retained;
+    // only the final record-setting result is marked current.
+    eligible.sort((a, b) =>
+      new Date(a.registration.stage.date).getTime() - new Date(b.registration.stage.date).getTime()
+      || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      || String(a.id).localeCompare(String(b.id)),
+    );
+
     await tx.record.updateMany({
-      where: {
-        classId,
-        isCurrent: true,
-      },
+      where: { classId, isCurrent: true },
       data: { isCurrent: false },
     });
-
     await tx.result.updateMany({
-      where: {
-        registrationClass: { classId },
-        isBest: true,
-      },
+      where: { registrationClass: { classId }, isBest: true },
       data: { isBest: false },
     });
 
-    if (eligible.length === 0) {
-      return [];
+    let bestValue = Number.NEGATIVE_INFINITY;
+    const recordBreakers: any[] = [];
+    for (const result of eligible) {
+      const value = Number(result.value);
+      if (Number.isFinite(value) && value > bestValue) {
+        bestValue = value;
+        recordBreakers.push(result);
+      }
     }
 
-    // Results are already sorted by value DESC, then earliest createdAt.
-    // Therefore the first item wins ties in favour of the earlier result.
-    const winner = eligible[0];
+    if (recordBreakers.length === 0) return [];
 
+    const winner = recordBreakers[recordBreakers.length - 1];
     await tx.result.update({
       where: { id: winner.id },
       data: { isBest: true },
     });
 
-    const existingRecord = await tx.record.findFirst({
-      where: { resultId: winner.id },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (existingRecord) {
-      const record = await tx.record.update({
-        where: { id: existingRecord.id },
-        data: {
-          classId,
-          seasonId: winner.registration.stage.seasonId,
-          stageId: winner.registration.stageId,
-          participantId: winner.registration.participantId,
-          carId: winner.registration.carId,
-          value: winner.value,
-          unit: winner.unit,
-          achievedAt: winner.registration.stage.date,
-          isCurrent: true,
-          notes: winner.notes,
-        },
-        include: this.publicInclude,
+    const recordRows: any[] = [];
+    for (const recordResult of recordBreakers) {
+      const isCurrent = recordResult.id === winner.id;
+      const data = {
+        classId,
+        seasonId: recordResult.registration.stage.seasonId,
+        stageId: recordResult.registration.stageId,
+        participantId: recordResult.registration.participantId,
+        carId: recordResult.registration.carId ?? null,
+        resultId: recordResult.id,
+        value: recordResult.value,
+        unit: recordResult.unit,
+        achievedAt: recordResult.registration.stage.date,
+        isCurrent,
+        notes: recordResult.notes,
+      };
+      const existingRecord = await tx.record.findFirst({
+        where: { resultId: recordResult.id },
+        orderBy: { createdAt: 'desc' },
       });
-
-      return [record];
+      const saved = existingRecord
+        ? await tx.record.update({
+            where: { id: existingRecord.id },
+            data: { ...data, resultId: undefined },
+            include: this.publicInclude,
+          })
+        : await tx.record.create({
+            data,
+            include: this.publicInclude,
+          });
+      recordRows.push(saved);
     }
 
-    const record = await tx.record.create({
-      data: {
-        classId,
-        seasonId: winner.registration.stage.seasonId,
-        stageId: winner.registration.stageId,
-        participantId: winner.registration.participantId,
-        carId: winner.registration.carId,
-        resultId: winner.id,
-        value: winner.value,
-        unit: winner.unit,
-        achievedAt: winner.registration.stage.date,
-        isCurrent: true,
-        notes: winner.notes,
-      },
-      include: this.publicInclude,
-    });
-
-    return [record];
+    return recordRows;
   }
 
   async findAll() {
