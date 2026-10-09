@@ -31,7 +31,6 @@ describe('RecordsService', () => {
       result: {
         findMany: jest.fn().mockResolvedValue(
           [...results].sort((a, b) =>
-            Number(b.value) - Number(a.value) ||
             a.registration.stage.date.getTime() - b.registration.stage.date.getTime() ||
             a.createdAt.getTime() - b.createdAt.getTime() ||
             a.id.localeCompare(b.id),
@@ -135,7 +134,7 @@ describe('RecordsService', () => {
       result('third', 160, '2026-03-01T10:00:00.000Z'),
       result('first', 150, '2026-01-01T10:00:00.000Z'),
       result('second', 155, '2026-02-01T10:00:00.000Z'),
-      result('not-a-record', 152, '2026-01-15T10:00:00.000Z'),
+      result('not-a-record', 149, '2026-01-15T10:00:00.000Z'),
     ]);
 
     await service.recalculateCurrentRecord('class-1');
@@ -170,7 +169,7 @@ describe('RecordsService', () => {
     const tx = setupRecalc([
       result('new', 160, '2026-03-01T10:00:00.000Z'),
       result('old', 155, '2026-02-01T10:00:00.000Z'),
-    ]);
+    ], old);
 
     await service.recalculateCurrentRecord('class-1');
 
