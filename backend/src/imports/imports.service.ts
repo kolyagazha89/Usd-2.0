@@ -291,7 +291,7 @@ export class ImportsService {
         data: {
           stageId: stage.id,
           status: 'DRAFT',
-          createdByUserId: request?.user.sub ?? null,
+          createdByUserId: request?.user?.sub ?? null,
 
           summary,
 
@@ -432,7 +432,7 @@ export class ImportsService {
         },
       });
 
-    if (request) {
+    if (request?.user?.sub) {
       await this.prisma.auditLog.create({
         data: {
           userId: request.user.sub,
@@ -3501,7 +3501,7 @@ export class ImportsService {
         },
       });
 
-    if (request) {
+    if (request?.user?.sub) {
       await this.prisma.auditLog.create({
         data: {
           userId: request.user.sub,
@@ -6302,8 +6302,8 @@ export class ImportsService {
                   data: {
                     registrationId,
                     status: 'PASSED',
-                    checkedByUserId: request?.user.sub ?? null,
-                    createdByUserId: request?.user.sub ?? null,
+                    checkedByUserId: request?.user?.sub ?? null,
+                    createdByUserId: request?.user?.sub ?? null,
                     checkedByName: 'Исторический импорт',
                     notes: 'Автоматически пройдено при историческом импорте',
                   },
@@ -6359,7 +6359,7 @@ export class ImportsService {
           },
         );
 
-        if (request) {
+        if (request?.user?.sub) {
           await tx.auditLog.create({
             data: {
               userId: request.user.sub,
