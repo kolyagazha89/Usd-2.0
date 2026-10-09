@@ -81,34 +81,105 @@ export class InspectionsService {
 
   async failPending(stageId: string, notes: string | undefined, actor: Actor) {
     const normalized = notes?.trim() || 'Не прошёл общую техническую проверку перед въездом';
-    const registrations = await this.prisma.registration.findMany({
-      where: { stageId, status: 'ACTIVE', inspection: null },
-      select: { id: true },
-      orderBy: { participantNumber: 'asc' },
-    });
-    if (!registrations.length) return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
-    for (const registration of registrations) {
-      await this.create({ registrationId: registration.id, status: 'FAILED', notes: normalized }, actor);
-    }
-    return { success: true, processed: registrations.length, notes: normalized };
+    return this.prisma.$transaction(async (tx) => {
+      const stage = await tx.stage.findUnique({
+        where: { id: stageId },
+        select: { id: true, isDeleted: true, status: true },
+      });
+      if (!stage) throw new NotFoundException('Этап не найден');
+      if (stage.isDeleted || stage.status === 'CANCELLED') {
+        throw new ConflictException('Нельзя завершить инспекции отменённого этапа');
+      }
+
+      const registrations = await tx.registration.findMany({
+        where: { stageId, status: 'ACTIVE', inspection: null },
+        select: { id: true },
+        orderBy: { participantNumber: 'asc' },
+      });
+      if (!registrations.length) {
+        return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
+      }
+
+      const createdAt = new Date();
+      await tx.inspection.createMany({
+        data: registrations.map(({ id }) => ({
+          registrationId: id,
+          status: 'FAILED' as const,
+          notes: normalized,
+          checkedByUserId: actor.userId,
+          createdByUserId: actor.userId,
+          createdAt,
+          updatedAt: createdAt,
+        })),
+      });
+      await tx.auditLog.createMany({
+        data: registrations.map(({ id }) => ({
+          userId: actor.userId,
+          action: 'INSPECTION_CREATED',
+          entity: 'Inspection',
+          entityId: id,
+          ipAddress: actor.ipAddress ?? null,
+          metadata: {
+            registrationId: id,
+            status: 'FAILED',
+            notes: normalized,
+            bulk: true,
+          },
+        })),
+      });
+      return { success: true, processed: registrations.length, notes: normalized };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async passPending(stageId: string, actor: Actor) {
-    const registrations = await this.prisma.registration.findMany({
-      where: { stageId, status: 'ACTIVE', inspection: null },
-      select: { id: true },
-      orderBy: { participantNumber: 'asc' },
-    });
-    if (!registrations.length) {
-      return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
-    }
-    for (const registration of registrations) {
-      await this.create(
-        { registrationId: registration.id, status: 'PASSED' },
-        actor,
-      );
-    }
-    return { success: true, processed: registrations.length };
+    return this.prisma.$transaction(async (tx) => {
+      const stage = await tx.stage.findUnique({
+        where: { id: stageId },
+        select: { id: true, isDeleted: true, status: true },
+      });
+      if (!stage) throw new NotFoundException('Этап не найден');
+      if (stage.isDeleted || stage.status === 'CANCELLED') {
+        throw new ConflictException('Нельзя завершить инспекции отменённого этапа');
+      }
+
+      const registrations = await tx.registration.findMany({
+        where: { stageId, status: 'ACTIVE', inspection: null },
+        select: { id: true },
+        orderBy: { participantNumber: 'asc' },
+      });
+      if (!registrations.length) {
+        return { success: true, processed: 0, message: 'Ожидающих проверку регистраций нет' };
+      }
+
+      const createdAt = new Date();
+      await tx.inspection.createMany({
+        data: registrations.map(({ id }) => ({
+          registrationId: id,
+          status: 'PASSED' as const,
+          notes: null,
+          checkedByUserId: actor.userId,
+          createdByUserId: actor.userId,
+          createdAt,
+          updatedAt: createdAt,
+        })),
+      });
+      await tx.auditLog.createMany({
+        data: registrations.map(({ id }) => ({
+          userId: actor.userId,
+          action: 'INSPECTION_CREATED',
+          entity: 'Inspection',
+          entityId: id,
+          ipAddress: actor.ipAddress ?? null,
+          metadata: {
+            registrationId: id,
+            status: 'PASSED',
+            notes: null,
+            bulk: true,
+          },
+        })),
+      });
+      return { success: true, processed: registrations.length };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
 
