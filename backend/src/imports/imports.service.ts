@@ -6443,6 +6443,20 @@ export class ImportsService {
   async checkImport(
     importJobId: string,
   ) {
+    const importJob = await this.prisma.importJob.findUnique({
+      where: { id: importJobId },
+      select: {
+        id: true,
+        status: true,
+        stageId: true,
+        metadata: true,
+        stage: { select: { id: true, name: true, city: true, date: true, status: true } },
+      },
+    });
+    if (!importJob) {
+      throw new NotFoundException(`ImportJob ${importJobId} не найден`);
+    }
+
     const rows =
       await this.prisma.importRow.findMany(
         {
@@ -6636,6 +6650,8 @@ export class ImportsService {
       success: true,
 
       importJobId,
+
+      importJob,
 
       rows:
         rows.length,
