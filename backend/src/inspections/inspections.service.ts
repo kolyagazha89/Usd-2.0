@@ -112,15 +112,19 @@ export class InspectionsService {
           updatedAt: createdAt,
         })),
       });
+      const createdInspections = await tx.inspection.findMany({
+        where: { registrationId: { in: registrations.map(({ id }) => id) } },
+        select: { id: true, registrationId: true },
+      });
       await tx.auditLog.createMany({
-        data: registrations.map(({ id }) => ({
+        data: createdInspections.map((inspection) => ({
           userId: actor.userId,
           action: 'INSPECTION_CREATED',
           entity: 'Inspection',
-          entityId: id,
+          entityId: inspection.id,
           ipAddress: actor.ipAddress ?? null,
           metadata: {
-            registrationId: id,
+            registrationId: inspection.registrationId,
             status: 'FAILED',
             notes: normalized,
             bulk: true,
@@ -163,15 +167,19 @@ export class InspectionsService {
           updatedAt: createdAt,
         })),
       });
+      const createdInspections = await tx.inspection.findMany({
+        where: { registrationId: { in: registrations.map(({ id }) => id) } },
+        select: { id: true, registrationId: true },
+      });
       await tx.auditLog.createMany({
-        data: registrations.map(({ id }) => ({
+        data: createdInspections.map((inspection) => ({
           userId: actor.userId,
           action: 'INSPECTION_CREATED',
           entity: 'Inspection',
-          entityId: id,
+          entityId: inspection.id,
           ipAddress: actor.ipAddress ?? null,
           metadata: {
-            registrationId: id,
+            registrationId: inspection.registrationId,
             status: 'PASSED',
             notes: null,
             bulk: true,
