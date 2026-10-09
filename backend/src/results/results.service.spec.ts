@@ -14,6 +14,7 @@ describe('ResultsService', () => {
   const records: any = {
     createFromResultIfEligible: jest.fn(),
     syncAfterResultUpdate: jest.fn(),
+    recalculateCurrentRecord: jest.fn(),
   };
 
   const ranking: any = {
@@ -41,6 +42,73 @@ describe('ResultsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new ResultsService(prisma, records, ranking);
+  });
+
+  it('rejects result deletion by a judge and requires explicit confirmation', async () => {
+    await expect(service.remove('result-1', { confirmed: true, reason: 'Ошибка' }, judgeRequest))
+      .rejects.toThrow('Удалять результаты может только администратор');
+    await expect(service.remove('result-1', { confirmed: false, reason: 'Ошибка' }, adminRequest))
+      .rejects.toThrow('Для удаления результата необходимо явное подтверждение');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('deletes an official result with an audit snapshot and recalculates records and places', async () => {
+    const tx: any = {
+      result: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'result-1',
+          value: { toString: () => '150.000' },
+          unit: 'DB',
+          place: 2,
+          notes: 'old',
+          registrationId: 'registration-1',
+          registrationClassId: 'registration-class-1',
+          isHistorical: false,
+          registration: {
+            stageId: 'stage-1',
+            stage: { id: 'stage-1', stageNumber: 1, name: 'Stage 1', seasonId: 'season-1' },
+            participant: { id: 'participant-1', firstName: 'Ivan', lastName: 'Ivanov', middleName: null },
+            car: { id: 'car-1', brand: 'Lada', model: 'Vesta', registrationNumber: 'A001AA' },
+          },
+          registrationClass: {
+            classId: 'class-1',
+            class: { id: 'class-1', name: 'Limited 2.0', code: 'L20', unit: 'DB' },
+          },
+        }),
+        delete: jest.fn().mockResolvedValue({ id: 'result-1' }),
+      },
+      record: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    };
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+
+    const response = await service.remove('result-1', { confirmed: true, reason: 'Ошибочно введён результат' }, adminRequest);
+
+    expect(tx.record.deleteMany).toHaveBeenCalledWith({ where: { resultId: 'result-1' } });
+    expect(tx.result.delete).toHaveBeenCalledWith({ where: { id: 'result-1' } });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: 'RESULT_DELETED',
+        entityId: 'result-1',
+        metadata: expect.objectContaining({ reason: 'Ошибочно введён результат' }),
+      }),
+    }));
+    expect(records.recalculateCurrentRecord).toHaveBeenCalledWith('class-1');
+    expect(ranking.recalculateByStageClass).toHaveBeenCalledWith('stage-1', 'class-1');
+    expect(response).toEqual({ success: true, id: 'result-1', postProcessingWarnings: [] });
+  });
+
+  it('does not delete historical results through the official-result endpoint', async () => {
+    const tx: any = {
+      result: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'historical-1', isHistorical: true }),
+        delete: jest.fn(),
+      },
+    };
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(service.remove('historical-1', { confirmed: true, reason: 'Correction' }, adminRequest))
+      .rejects.toThrow('Исторический результат удаляется только через специальный workflow');
+    expect(tx.result.delete).not.toHaveBeenCalled();
   });
 
   it('rejects result creation from a participant at the service boundary', async () => {
