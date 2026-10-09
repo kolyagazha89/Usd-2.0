@@ -586,6 +586,7 @@ model SiteSettings {
   legal        Json
   footer       Json
   registration Json
+  catalogs     Json     @default("{\"vibrationBrands\":[\"STP\",\"ComfortMat\",\"Audior\",\"Global\"],\"componentBrands\":[],\"componentModels\":[]}")
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 }
