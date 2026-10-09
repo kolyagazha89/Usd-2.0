@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsObject, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUrl, IsUUID, MaxLength } from 'class-validator';
 
 export class PreviewImportDto {
   @IsUUID()
@@ -17,6 +17,17 @@ export class PreviewImportDto {
   @IsOptional()
   @IsBoolean()
   historicalResults?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  sourceFilename?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(512)
+  sourcePostUrl?: string;
 }
 
 export class ResolveImportRowDto {
