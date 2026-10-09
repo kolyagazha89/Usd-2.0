@@ -720,4 +720,97 @@ export class ResultsService {
 
     return this.findOneAdmin(updated.result.id);
   }
+
+  async remove(
+    id: string,
+    body: { confirmed: boolean; reason: string },
+    request: AuthenticatedRequest,
+  ) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Удалять результаты может только администратор');
+    }
+    if (body.confirmed !== true) {
+      throw new ConflictException('Для удаления результата необходимо явное подтверждение');
+    }
+    const reason = body.reason?.trim();
+    if (!reason) {
+      throw new ConflictException('Укажите причину удаления результата');
+    }
+
+    const removed = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.result.findUnique({
+        where: { id },
+        include: {
+          registration: {
+            include: {
+              stage: { select: { id: true, stageNumber: true, name: true, seasonId: true } },
+              participant: { select: { id: true, firstName: true, lastName: true, middleName: true } },
+              car: { select: { id: true, brand: true, model: true, registrationNumber: true } },
+            },
+          },
+          registrationClass: {
+            include: { class: { select: { id: true, name: true, code: true, unit: true } } },
+          },
+        },
+      });
+      if (!existing) throw new NotFoundException('Результат не найден');
+      if (existing.isHistorical) {
+        throw new ConflictException('Исторический результат удаляется только через специальный workflow');
+      }
+
+      const snapshot = {
+        value: existing.value.toString(),
+        unit: existing.unit,
+        place: existing.place,
+        notes: existing.notes,
+        registrationId: existing.registrationId,
+        registrationClassId: existing.registrationClassId,
+        classId: existing.registrationClass.classId,
+        stageId: existing.registration.stageId,
+        participant: existing.registration.participant,
+        car: existing.registration.car,
+        stage: existing.registration.stage,
+      };
+
+      await tx.record.deleteMany({ where: { resultId: id } });
+      await tx.result.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'RESULT_DELETED',
+          entity: 'Result',
+          entityId: id,
+          ipAddress: request.ip,
+          metadata: { before: snapshot, reason },
+        },
+      });
+
+      return {
+        id,
+        stageId: existing.registration.stageId,
+        classId: existing.registrationClass.classId,
+      };
+    }, { isolationLevel: 'Serializable' });
+
+    const postProcessingWarnings: string[] = [];
+    try {
+      await this.recordsService.recalculateCurrentRecord(removed.classId);
+    } catch (error) {
+      postProcessingWarnings.push(
+        'Результат удалён, но пересчёт рекордов не завершился: ' +
+        (error instanceof Error ? error.message : 'неизвестная ошибка'),
+      );
+    }
+    try {
+      await this.rankingService.recalculateByStageClass(removed.stageId, removed.classId);
+    } catch (error) {
+      postProcessingWarnings.push(
+        'Результат удалён, но пересчёт мест не завершился: ' +
+        (error instanceof Error ? error.message : 'неизвестная ошибка'),
+      );
+    }
+
+    return { success: true, id: removed.id, postProcessingWarnings };
+  }
+
 }
