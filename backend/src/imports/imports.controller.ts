@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { ImportsService } from './imports.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
@@ -13,9 +13,16 @@ export class ImportsController {
   @Public()
   @Post('historical/auto-commit')
   autoCommitHistorical(@Req() req: AuthenticatedRequest) {
-    const secret = req.headers['x-historical-import-secret'];
-    if (secret !== process.env.AUTO_HISTORICAL_IMPORT_SECRET) {
-      throw new Error('Historical import secret is invalid');
+    const configuredSecret = process.env.AUTO_HISTORICAL_IMPORT_SECRET;
+    const suppliedSecret = req.headers['x-historical-import-secret'];
+    // Never allow an unconfigured secret to authenticate an empty request.
+    if (
+      typeof configuredSecret !== 'string' ||
+      configuredSecret.length < 32 ||
+      typeof suppliedSecret !== 'string' ||
+      suppliedSecret !== configuredSecret
+    ) {
+      throw new UnauthorizedException('Historical import secret is invalid');
     }
     return this.importsService.autoCommitHistoricalImport(req);
   }
