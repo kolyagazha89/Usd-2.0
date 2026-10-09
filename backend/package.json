@@ -12,7 +12,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node src/scripts/migrate-safe.js && node dist/src/scripts/run-historical-migration.js && node dist/main.js",
+    "start:prod": "node src/scripts/migrate-safe.js && node dist/main.js",
     "lint": "oxlint --type-aware src/ test/",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
@@ -21,7 +21,8 @@
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "admin:create": "tsx src/scripts/create-admin.ts",
     "prisma:generate": "prisma generate",
-    "db:seed:test": "tsx prisma/test-seed.ts"
+    "db:seed:test": "tsx prisma/test-seed.ts",
+    "historical:import:replace": "tsx src/scripts/run-historical-migration.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
