@@ -62,7 +62,7 @@ describe('RecordsService', () => {
         }),
       },
       disqualification: {
-        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
       },
     };
 
@@ -186,9 +186,14 @@ describe('RecordsService', () => {
       result('bad', 170, '2026-04-01T10:00:00.000Z', { seasonId: 'season-1' }),
       result('good', 160, '2026-03-01T10:00:00.000Z', { seasonId: 'season-1' }),
     ]);
-    tx.disqualification.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 'dq-1' });
+    tx.disqualification.findMany.mockResolvedValue([
+      {
+        participantId: 'participant-bad',
+        scope: 'STAGE',
+        stageId: 'stage-bad',
+        seasonId: null,
+      },
+    ]);
 
     await service.recalculateCurrentRecord('class-1');
 
