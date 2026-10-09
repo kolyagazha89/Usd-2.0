@@ -7,7 +7,7 @@ export type SiteSettingsShape = {
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
-  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:{vibrationBrands:string[];componentBrands:Array<{id:string;category:string;name:string;isActive?:boolean}>;componentModels:Array<{id:string;category:string;brand:string;model:string;isActive?:boolean}>};updatedAt?:string;
+  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:{vibrationBrands:string[];componentBrands:Array<{id:string;category:string;name:string;isActive?:boolean}>;componentModels:Array<{id:string;category:string;brand:string;model:string;isActive?:boolean}>};stagePosters:Record<string,string>;updatedAt?:string;
 };
 
 const DEFAULTS:SiteSettingsShape={
@@ -24,6 +24,7 @@ const DEFAULTS:SiteSettingsShape={
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
   registration:{enabled:true,price:2000,additionalClassPrice:2000},
   catalogs:{vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},
+  stagePosters:{},
 };
 
 @Injectable()
@@ -36,24 +37,27 @@ export class SiteSettingsService{
   private shape(row:any):SiteSettingsShape{
     const storedRegistration=this.merge(DEFAULTS.registration,row?.registration) as Record<string,unknown>;
     const storedCatalogs=storedRegistration.__adminCatalogs;
+    const storedStagePosters=storedRegistration.__stagePosters;
     const registration={...storedRegistration};
     delete registration.__adminCatalogs;
+    delete registration.__stagePosters;
     return {
       branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.merge(DEFAULTS.homepage,row?.homepage),
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
-      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration,catalogs:this.merge(DEFAULTS.catalogs,storedCatalogs),
+      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration,catalogs:this.merge(DEFAULTS.catalogs,storedCatalogs),stagePosters:this.merge(DEFAULTS.stagePosters,storedStagePosters),
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
-  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:s.registration}};}
+  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:s.registration,stagePosters:s.stagePosters}};}
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
     const catalogs=this.merge(current.catalogs,input.catalogs);
+    const stagePosters=this.merge(current.stagePosters,input.stagePosters);
     const registration=this.merge(current.registration,input.registration) as Record<string,unknown>;
-    const storedRegistration={...registration,__adminCatalogs:catalogs};
+    const storedRegistration={...registration,__adminCatalogs:catalogs,__stagePosters:stagePosters};
     const next={
       branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
       stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
