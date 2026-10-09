@@ -555,7 +555,7 @@ function resultSheetRows(values:any){
 function ImportPage(){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
  const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);
- const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}'); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');
+ const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}'); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const prepareHistorical=async()=>{setLoading(true);setError('');setHistoricalPrepare(null);setHistoricalJobId('');try{const r=await prepareHistoricalImport();setHistoricalPrepare(r);const prepared=Array.isArray(r?.prepared)?r.prepared:[];const first=prepared[0];if(first?.importJobId){setHistoricalJobId(first.importJobId);setStageId(first.stageId);await refreshJob(first.importJobId)}const x=await apiGet('/stages');setStages(listData(x))}catch(e){setError(e instanceof Error?e.message:'Не удалось подготовить исторический XLSX импорт')}finally{setLoading(false)}}; const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
  useEffect(()=>{
    const load=async()=>{
@@ -611,6 +611,7 @@ function ImportPage(){
      setJob(r.importJob);setRows(r.importJob?.rows??[]);
    }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}
  };
+ const checkImportInDatabase=async()=>{if(!job?.id)return;setLoading(true);setError('');try{const r=await apiGet<any>('/imports/'+job.id+'/check');setDbCheck(r)}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить импорт в базе данных')}finally{setLoading(false)}};
  const refreshHistoricalStage=async()=>{
    setLoading(true);setError('');setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');
    try{
@@ -658,6 +659,7 @@ function ImportPage(){
       {blockingWarnCount===0&&job.status==='DRAFT'&&<button className="primary-button" disabled={loading} onClick={()=>void commit()}>4. Подтвердить и записать импорт</button>}
       {blockingWarnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>{mode==='HISTORICAL'?'Исправьте предупреждения в строках результатов. Лист «Регистрация» используется только как справочник и сам по себе ничего не создаёт.':'Есть предупреждения. Пока остаётся хотя бы один WARNING — запись заблокирована.'}</span></div>}
       {job.status==='COMMITTED'&&job.metadata?.historicalResults===true&&<div className="notice"><Check size={17}/><span>Архив записан в базу. Исторические результаты пока ожидают подтверждения и не появятся публично, пока администратор не подтвердит их. После импорта откройте <a href="/admin/historical-results">«История результатов»</a> и нажмите «Подтвердить все».</span></div>}{job.status==='COMMITTED'&&job.metadata?.historicalResults!==true&&<div className="notice"><Check size={17}/><span>Импорт успешно записан в базу USD. Пересчёт рейтингов и рекордов выполнен для затронутых классов, если ниже не указаны предупреждения.</span></div>}
+      {job.status==='COMMITTED'&&<div className="panel import-db-check"><PanelTitle title="Проверка фактической записи" icon={Check}/><p className="settings-help">Проверяем не сообщение об успехе, а реальные записи, которые сейчас читаются из базы данных.</p><button className="secondary-button compact" disabled={loading} onClick={()=>void checkImportInDatabase()}>{loading?'Проверяем базу…':'Проверить импорт в БД'}</button>{dbCheck?.importJobId===job.id&&<div className="import-summary"><div><b>{dbCheck.rows??0}</b><span>строк импорта</span></div><div><b>{dbCheck.participants?.length??0}</b><span>участников</span></div><div><b>{dbCheck.registrations?.length??0}</b><span>регистраций</span></div><div><b>{dbCheck.results?.length??0}</b><span>результатов</span></div><div><b>{dbCheck.records?.length??0}</b><span>связей с рекордами</span></div></div>}</div>}
     </>:<Empty text="После Preview здесь появится отчёт по каждой строке"/>}
    </div>
   </div>
