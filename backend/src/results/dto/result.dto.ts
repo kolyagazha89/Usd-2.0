@@ -53,3 +53,13 @@ export class UpdateResultDto {
   @MaxLength(2000)
   notes?: string | null;
 }
+
+
+export class DeleteResultDto {
+  @IsBoolean()
+  confirmed!: boolean;
+
+  @IsString()
+  @MaxLength(1000)
+  reason!: string;
+}
