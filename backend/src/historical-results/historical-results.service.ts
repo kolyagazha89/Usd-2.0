@@ -491,7 +491,14 @@ export class HistoricalResultsService {
     const pending = await this.prisma.result.findMany({
       where: { isHistorical: true, verificationStatus: 'PENDING' },
       select: { id: true },
-      orderBy: { createdAt: 'asc' },
+      // Process the archive in competition-date order so each class's record
+      // history is reconstructed chronologically, not in arbitrary import order.
+      orderBy: [
+        { registration: { stage: { date: 'asc' } } },
+        { registrationClass: { classId: 'asc' } },
+        { createdAt: 'asc' },
+        { id: 'asc' },
+      ],
     });
     let processed = 0;
     for (const item of pending) {
