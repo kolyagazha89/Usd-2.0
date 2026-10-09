@@ -7,7 +7,7 @@ export type SiteSettingsShape = {
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
-  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;updatedAt?:string;
+  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:{vibrationBrands:string[];componentBrands:Array<{id:string;category:string;name:string;isActive?:boolean}>;componentModels:Array<{id:string;category:string;brand:string;model:string;isActive?:boolean}>};updatedAt?:string;
 };
 
 const DEFAULTS:SiteSettingsShape={
@@ -23,6 +23,7 @@ const DEFAULTS:SiteSettingsShape={
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
   registration:{enabled:true,price:2000,additionalClassPrice:2000},
+  catalogs:{vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},
 };
 
 @Injectable()
@@ -38,7 +39,7 @@ export class SiteSettingsService{
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
-      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,
+      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
@@ -51,7 +52,7 @@ export class SiteSettingsService{
       stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
       navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
-      footer:input.footer??current.footer,registration:input.registration??current.registration,
+      footer:input.footer??current.footer,registration:input.registration??current.registration,catalogs:this.merge(current.catalogs,input.catalogs),
     };
     const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
     await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections:Object.keys(input)}}});
