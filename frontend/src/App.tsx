@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
+import * as XLSX from 'xlsx';
 import './catalog.css';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -554,7 +555,7 @@ function resultSheetRows(values:any){
 }
 function ImportPage(){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
- const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);
+ const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);const[uploadedFile,setUploadedFile]=useState<File|null>(null);
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}'); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const prepareHistorical=async()=>{setLoading(true);setError('');setHistoricalPrepare(null);setHistoricalJobId('');try{const r=await prepareHistoricalImport();setHistoricalPrepare(r);const prepared=Array.isArray(r?.prepared)?r.prepared:[];const first=prepared[0];if(first?.importJobId){setHistoricalJobId(first.importJobId);setStageId(first.stageId);await refreshJob(first.importJobId)}const x=await apiGet('/stages');setStages(listData(x))}catch(e){setError(e instanceof Error?e.message:'Не удалось подготовить исторический XLSX импорт')}finally{setLoading(false)}}; const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
  useEffect(()=>{
@@ -605,6 +606,28 @@ function ImportPage(){
      }else setRows([]);
    }catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить Preview')}finally{setLoading(false)}
  };
+ const previewUploaded=async()=>{
+   setLoading(true);setError('');setJob(null);setRows([]);setResult(null);setDbCheck(null);
+   try{
+     if(!stageId||!uploadedFile)throw new Error('Выберите этап и XLSX-файл');
+     const workbook=XLSX.read(await uploadedFile.arrayBuffer(),{type:'array',cellDates:false});
+     const sheetNames=workbook.SheetNames;
+     if(!sheetNames.includes('Результаты'))throw new Error('В XLSX отсутствует лист «Результаты»');
+     if(mode==='HISTORICAL'&&!sheetNames.includes('Регистрация'))throw new Error('Для исторического импорта в XLSX нужен лист «Регистрация»');
+     const resultValues=XLSX.utils.sheet_to_json(workbook.Sheets['Результаты'],{header:1,defval:''}) as any[];
+     const results=resultSheetRows(resultValues);
+     if(!results.length)throw new Error('Лист «Результаты» пустой или не содержит строк данных');
+     let registrations:any[]=[];
+     if(mode==='HISTORICAL'){
+       const regValues=XLSX.utils.sheet_to_json(workbook.Sheets['Регистрация'],{header:1,defval:''}) as any[];
+       registrations=sheetRows(regValues);
+       if(!registrations.length)throw new Error('Лист «Регистрация» пустой или не содержит строк данных');
+     }
+     const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL'});
+     setResult(r);setJob(r.importJob);
+     if(r.importJob?.id){const full=await apiGet<any>('/imports/'+r.importJob.id);setJob(full.importJob);setRows(full.importJob?.rows??[])}
+   }catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать XLSX-файл')}finally{setLoading(false)}
+ };
  const refreshJob=async(id:string)=>{
    try{
      const r=await apiGet<any>('/imports/'+id);
@@ -645,10 +668,10 @@ function ImportPage(){
    <div className="panel form">
     <div className="segmented"><button className={mode==='NORMAL'?'selected':''} onClick={()=>changeMode('NORMAL')}>Обычный импорт</button><button className={mode==='HISTORICAL'?'selected':''} onClick={()=>changeMode('HISTORICAL')}>Исторический</button></div><div className="notice historical-source-action"><div><strong>Архив XLSX 2025–2026</strong><br/><span>Подготовит все найденные исторические этапы и создаст DRAFT ImportJob. Ничего не будет записано в чемпионат, пока предупреждения не решены.</span></div><button className="secondary-button compact" disabled={loading} onClick={()=>void prepareHistorical()}>{loading?'Подготавливаем…':'Подготовить архив'}</button></div>{historicalPrepare?.prepared&&<div className="import-example"><b>Подготовлено этапов: {historicalPrepare.prepared.length}</b><br/><span>Выберите этап выше — его архивный импорт уже открыт справа.</span></div>}
     {!google?.connected?<div className="notice"><AlertTriangle size={16}/><span>Google аккаунт ещё не подключён.</span><button className="primary-button compact" onClick={()=>void connectGoogle()}>Подключить Google</button></div>:<div className="notice"><Check size={16}/><span>Подключён: <strong>{google.email}</strong></span></div>}
-    <label>Этап<select value={stageId} onChange={e=>{const id=e.target.value;setStageId(id);setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');if(mode==='HISTORICAL'){const p=(historicalPrepare?.prepared??[]).find((x:any)=>x.stageId===id);if(p?.importJobId){setHistoricalJobId(p.importJobId);void refreshJob(p.importJobId)}}}}><option value="">Выберите этап</option>{(mode==='HISTORICAL'&&historicalPrepare?.prepared?.length&&!spreadsheetId?stages.filter((s:any)=>historicalPrepare.prepared.some((p:any)=>p.stageId===s.id)):stages).map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
-    <label>{mode==='HISTORICAL'?'Архивная Google Таблица':'Google Таблица'}<select value={spreadsheetId} onChange={e=>setSpreadsheetId(e.target.value)} disabled={!google?.connected}><option value="">Выберите таблицу</option>{spreadsheets.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{mode==='HISTORICAL'&&<div className="settings-help">Для старого этапа: загрузите исходные таблицы из публикации VK в Google Drive, выберите здесь таблицу с листами «Результаты» и «Регистрация». Результаты останутся на проверке администратора.</div>}
+    <label>Этап<select value={stageId} onChange={e=>{const id=e.target.value;setStageId(id);setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');if(mode==='HISTORICAL'&&!uploadedFile){const p=(historicalPrepare?.prepared??[]).find((x:any)=>x.stageId===id);if(p?.importJobId){setHistoricalJobId(p.importJobId);void refreshJob(p.importJobId)}}}}><option value="">Выберите этап</option>{(mode==='HISTORICAL'&&historicalPrepare?.prepared?.length&&!spreadsheetId&&!uploadedFile?stages.filter((s:any)=>historicalPrepare.prepared.some((p:any)=>p.stageId===s.id)):stages).map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
+    <label>{mode==='HISTORICAL'?'Архивная Google Таблица':'Google Таблица'}<select value={spreadsheetId} onChange={e=>setSpreadsheetId(e.target.value)} disabled={!google?.connected}><option value="">Выберите таблицу</option>{spreadsheets.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{mode==='HISTORICAL'&&<div className="settings-help">Для старого этапа: загрузите исходные таблицы из публикации VK в Google Drive, выберите здесь таблицу с листами «Результаты» и «Регистрация». Результаты останутся на проверке администратора.</div>}<label>Или загрузить XLSX из публикации VK<input type="file" accept=".xlsx,.xls,.xlsm" onChange={e=>{setUploadedFile(e.target.files?.[0]??null);setSpreadsheetId('');setSpreadsheet(null);setJob(null);setRows([]);setResult(null);setDbCheck(null)}}/></label>{uploadedFile&&<div className="notice"><FileInput size={16}/><span>Файл: <strong>{uploadedFile.name}</strong>. Перед записью строки будут проверены на конфликты.</span></div>}
     {spreadsheet&&<div className="import-example"><b>{spreadsheet.title}</b><br/>Регистрация: {registrationSheet?'найден':'не найден'}<br/>Результаты: {resultSheet?'найден':'не найден'}</div>}
-    <button className="primary-button" disabled={loading||!stageId||!spreadsheetId||!google?.connected} onClick={()=>void preview()}>{loading?'Загружаем и проверяем…':mode==='HISTORICAL'?'Импортировать архивный этап и проверить':'1. Загрузить и запустить проверку'}</button>{mode==='HISTORICAL'&&historicalPrepare?.prepared?.length&&<div className="notice"><Check size={16}/><span>Архив уже подготовлен. Google Таблица больше не требуется — работа идёт с сохранёнными ImportJob.</span></div>}
+    <button className="primary-button" disabled={loading||!stageId||!spreadsheetId||!google?.connected} onClick={()=>void preview()}>{loading?'Загружаем и проверяем…':mode==='HISTORICAL'?'Импортировать архивный этап и проверить':'1. Загрузить и запустить проверку'}</button>{uploadedFile&&<button className="primary-button" disabled={loading||!stageId} onClick={()=>void previewUploaded()}>{loading?'Читаем XLSX и проверяем…':mode==='HISTORICAL'?'Проверить исторический XLSX':'Проверить XLSX-импорт'}</button>}{mode==='HISTORICAL'&&historicalPrepare?.prepared?.length&&<div className="notice"><Check size={16}/><span>Архив уже подготовлен. Google Таблица больше не требуется — работа идёт с сохранёнными ImportJob.</span></div>}
     {error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}
    </div>
    <div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>
