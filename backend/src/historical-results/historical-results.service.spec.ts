@@ -3,10 +3,11 @@ import { jest } from '@jest/globals';
 import { HistoricalResultsService } from './historical-results.service';
 
 describe('HistoricalResultsService', () => {
-  const prisma: any = { $transaction: jest.fn(), result: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), findUniqueOrThrow: jest.fn() } };
+  const prisma: any = { $transaction: jest.fn(), result: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), count: jest.fn() } };
   const records: any = {
     createFromResultIfEligible: jest.fn(),
     syncAfterResultUpdate: jest.fn(),
+    recalculateCurrentRecord: jest.fn(),
   };
   const ranking: any = { recalculateByStageClass: jest.fn() };
 
@@ -27,6 +28,7 @@ describe('HistoricalResultsService', () => {
       processed: 0,
       total: 0,
       remaining: 0,
+      postProcessingWarnings: [],
     });
 
     expect(prisma.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -38,6 +40,67 @@ describe('HistoricalResultsService', () => {
         { id: 'asc' },
       ],
     }));
+  });
+
+  it('bulk-verifies the archive in one transaction and recalculates unique stage/classes and records once per class', async () => {
+    prisma.result.findMany.mockResolvedValue([
+      {
+        id: 'result-1',
+        createdByUserId: 'admin-1',
+        registration: { stageId: 'stage-1' },
+        registrationClass: { classId: 'class-1' },
+      },
+      {
+        id: 'result-2',
+        createdByUserId: 'admin-2',
+        registration: { stageId: 'stage-1' },
+        registrationClass: { classId: 'class-1' },
+      },
+      {
+        id: 'result-3',
+        createdByUserId: 'admin-1',
+        registration: { stageId: 'stage-2' },
+        registrationClass: { classId: 'class-1' },
+      },
+    ]);
+    prisma.result.count.mockResolvedValue(0);
+    const tx: any = {
+      result: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) },
+      auditLog: { createMany: jest.fn().mockResolvedValue({ count: 3 }) },
+    };
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+    const service = new HistoricalResultsService(prisma, records, ranking);
+
+    await expect(service.verifyAll(admin1)).resolves.toEqual({
+      success: true,
+      processed: 3,
+      total: 3,
+      remaining: 0,
+      postProcessingWarnings: [],
+    });
+
+    expect(tx.result.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: { in: ['result-1', 'result-2', 'result-3'] },
+        verificationStatus: 'PENDING',
+      }),
+      data: expect.objectContaining({
+        verificationStatus: 'VERIFIED',
+        verifiedByUserId: 'admin-1',
+      }),
+    }));
+    expect(tx.auditLog.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.arrayContaining([
+        expect.objectContaining({ entityId: 'result-1', action: 'HISTORICAL_RESULT_VERIFIED' }),
+        expect.objectContaining({ entityId: 'result-2', action: 'HISTORICAL_RESULT_VERIFIED' }),
+        expect.objectContaining({ entityId: 'result-3', action: 'HISTORICAL_RESULT_VERIFIED' }),
+      ]),
+    }));
+    expect(ranking.recalculateByStageClass).toHaveBeenCalledTimes(2);
+    expect(ranking.recalculateByStageClass).toHaveBeenCalledWith('stage-1', 'class-1');
+    expect(ranking.recalculateByStageClass).toHaveBeenCalledWith('stage-2', 'class-1');
+    expect(records.recalculateCurrentRecord).toHaveBeenCalledTimes(1);
+    expect(records.recalculateCurrentRecord).toHaveBeenCalledWith('class-1');
   });
 
   it('allows creation only for ADMIN', async () => {
