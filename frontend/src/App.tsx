@@ -63,6 +63,7 @@ function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
 function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
+ const routePath=path.split('?')[0];
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
  const visibleNav=nav.filter(x=>x.roles.includes(user.role));
