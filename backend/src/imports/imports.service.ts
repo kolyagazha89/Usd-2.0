@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,6 +13,8 @@ import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { Prisma } from '../generated/prisma/client';
 import { RegistrationCountry } from '../generated/prisma/enums';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { RecordsService } from '../records/records.service';
+import { ResultsRankingService } from '../results/results-ranking.service';
 
 type ImportRow = Record<string, unknown>;
 
@@ -46,6 +49,8 @@ export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly nameNormalizer: NameNormalizerService,
+    @Optional() private readonly recordsService?: RecordsService,
+    @Optional() private readonly rankingService?: ResultsRankingService,
   ) {}
 
   async getImportJob(id: string) {
@@ -4316,7 +4321,7 @@ export class ImportsService {
     importId: string,
     request?: AuthenticatedRequest,
   ) {
-    return this.prisma.$transaction(
+    const committed = await this.prisma.$transaction(
       async (tx) => {
         // Serialize commits of the same import job. Without a row lock,
         // two concurrent requests could both observe DRAFT and execute the
@@ -6394,6 +6399,44 @@ export class ImportsService {
         };
       },
     );
+
+    // Persisted results must immediately participate in stage rankings and
+    // all-time record recalculation. Historical results stay PENDING and are
+    // recalculated by HistoricalResultsService only after explicit verification.
+    const postProcessingWarnings: string[] = [];
+    if (!committed.historicalResults) {
+      const pairs = new Map<string, { stageId: string; classId: string }>();
+      for (const row of committed.rows) {
+        if (row.type === 'RESULT' && row.classId) {
+          pairs.set(row.classId, {
+            stageId: (await this.prisma.importJob.findUnique({
+              where: { id: importId },
+              select: { stageId: true },
+            }))!.stageId,
+            classId: row.classId,
+          });
+        }
+      }
+      for (const pair of pairs.values()) {
+        try {
+          if (this.rankingService) {
+            await this.rankingService.recalculateByStageClass(pair.stageId, pair.classId);
+          }
+          if (this.recordsService) {
+            await this.recordsService.recalculateCurrentRecord(pair.classId);
+          }
+        } catch (error) {
+          postProcessingWarnings.push(
+            `Класс ${pair.classId}: ${error instanceof Error ? error.message : 'ошибка пересчёта рейтинга/рекорда'}`,
+          );
+        }
+      }
+    }
+
+    return {
+      ...committed,
+      ...(postProcessingWarnings.length ? { postProcessingWarnings } : {}),
+    };
   }
 
   async checkImport(
