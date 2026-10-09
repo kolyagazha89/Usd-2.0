@@ -274,8 +274,8 @@ export class RecordsService {
     // values keep the earlier record holder. Historical entries are retained;
     // only the final record-setting result is marked current.
     eligible.sort((a, b) =>
-      new Date(a.registration.stage.date).getTime() - new Date(b.registration.stage.date).getTime()
-      || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      a.registration.stage.date.getTime() - b.registration.stage.date.getTime()
+      || a.createdAt.getTime() - b.createdAt.getTime()
       || String(a.id).localeCompare(String(b.id)),
     );
 
