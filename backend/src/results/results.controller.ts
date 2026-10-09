@@ -11,7 +11,7 @@ import {
 import { ResultsService } from './results.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
-import { CreateResultDto, UpdateResultDto } from './dto/result.dto';
+import { CreateResultDto, DeleteResultDto, UpdateResultDto } from './dto/result.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('results')
@@ -80,4 +80,14 @@ export class ResultsController {
   ) {
     return this.resultsService.update(id, body, request);
   }
+  @Roles('ADMIN')
+  @Post(':id/delete')
+  remove(
+    @Param('id') id: string,
+    @Body() body: DeleteResultDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.resultsService.remove(id, body, request);
+  }
+
 }
