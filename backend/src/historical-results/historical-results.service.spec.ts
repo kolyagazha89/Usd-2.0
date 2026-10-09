@@ -18,6 +18,28 @@ describe('HistoricalResultsService', () => {
     jest.clearAllMocks();
   });
 
+  it('orders bulk archive verification by competition date to preserve chronological record history', async () => {
+    prisma.result.findMany.mockResolvedValue([]);
+    const service = new HistoricalResultsService(prisma, records, ranking);
+
+    await expect(service.verifyAll(admin1)).resolves.toEqual({
+      success: true,
+      processed: 0,
+      total: 0,
+      remaining: 0,
+    });
+
+    expect(prisma.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { isHistorical: true, verificationStatus: 'PENDING' },
+      orderBy: [
+        { registration: { stage: { date: 'asc' } } },
+        { registrationClass: { classId: 'asc' } },
+        { createdAt: 'asc' },
+        { id: 'asc' },
+      ],
+    }));
+  });
+
   it('allows creation only for ADMIN', async () => {
     const service = new HistoricalResultsService(prisma, records, ranking);
 
