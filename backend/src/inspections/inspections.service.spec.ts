@@ -28,19 +28,67 @@ describe('InspectionsService', () => {
 
   beforeEach(() => {
     tx = {
-      registration: { findUnique: jest.fn().mockResolvedValue(registration) },
+      stage: { findUnique: jest.fn().mockResolvedValue({ id: 'stage-1', isDeleted: false, status: 'PUBLISHED' }) },
+      registration: {
+        findUnique: jest.fn().mockResolvedValue(registration),
+        findMany: jest.fn().mockResolvedValue([{ id: 'registration-1' }]),
+      },
       inspection: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'inspection-new', registrationId: 'registration-1' }]),
         create: jest.fn().mockImplementation(async ({ data }) => ({ ...existing, ...data, id: 'inspection-new' })),
         update: jest.fn().mockImplementation(async ({ data }) => ({ ...existing, ...data })),
         delete: jest.fn().mockResolvedValue(existing),
       },
-      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+      auditLog: {
+        create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     prisma = {
       inspection: { findUnique: jest.fn().mockResolvedValue(existing) },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
     };
     service = new InspectionsService(prisma as PrismaService);
+  });
+
+  it('passes pending inspections in one audited transaction', async () => {
+    const result = await service.passPending('stage-1', actor);
+    expect(result).toEqual({ success: true, processed: 1 });
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(tx.inspection.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({
+        registrationId: 'registration-1',
+        status: 'PASSED',
+        checkedByUserId: actor.userId,
+      })],
+    }));
+    expect(tx.auditLog.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({
+        entity: 'Inspection',
+        entityId: 'inspection-new',
+        metadata: expect.objectContaining({ registrationId: 'registration-1', bulk: true }),
+      })],
+    }));
+  });
+
+  it('fails pending inspections with a required reason in one audited transaction', async () => {
+    const result = await service.failPending('stage-1', 'Не закреплён аккумулятор', actor);
+    expect(result).toEqual({ success: true, processed: 1, notes: 'Не закреплён аккумулятор' });
+    expect(tx.inspection.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({
+        registrationId: 'registration-1',
+        status: 'FAILED',
+        notes: 'Не закреплён аккумулятор',
+      })],
+    }));
+    expect(tx.auditLog.createMany).toHaveBeenCalled();
+  });
+
+  it('refuses bulk inspections on a cancelled stage', async () => {
+    tx.stage.findUnique.mockResolvedValue({ id: 'stage-1', isDeleted: false, status: 'CANCELLED' });
+    await expect(service.passPending('stage-1', actor)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.inspection.createMany).not.toHaveBeenCalled();
   });
 
   it('requires a comment when a check fails', async () => {
