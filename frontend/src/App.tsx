@@ -68,7 +68,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
  const visibleNav=nav.filter(x=>x.roles.includes(user.role));
  const sections=[...new Set(visibleNav.map(x=>x.section))];
  const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
- useEffect(()=>{const active=visibleNav.find(x=>x.path===path)||visibleNav.find(x=>x.path!=='/admin'&&path.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
+ useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
  const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??true)};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
  const Page=({path,go,user}:{path:string;go:(p:string)=>void;user:User})=>{
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
@@ -105,7 +105,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
     </button>
     <button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"><X size={18}/></button>
    </div>
-   <nav>{sections.map(section=>{const isOpen=openSections[section]??true;return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=path===item.path||(item.path!=='/admin'&&path.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
+   <nav>{sections.map(section=>{const isOpen=openSections[section]??true;return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=routePath===item.path||(item.path!=='/admin'&&routePath.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
    <div className="sidebar-bottom">
     <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{roleName[user.role]}</strong><small>{user.email}</small></div></div>
     <button className="logout-button" onClick={()=>void onLogout()}><LogOut size={15}/>Выйти</button>
@@ -115,7 +115,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
   <div className="main">
    <header className="topbar">
     <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
-    <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===path)?.label??'Панель управления'}</span></div>
+    <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
     <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
    <main className="content"><Page path={path} go={go} user={user}/></main>
