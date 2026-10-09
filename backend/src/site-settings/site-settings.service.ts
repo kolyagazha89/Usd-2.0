@@ -34,12 +34,16 @@ export class SiteSettingsService{
     return {...base,...value} as T;
   }
   private shape(row:any):SiteSettingsShape{
+    const storedRegistration=this.merge(DEFAULTS.registration,row?.registration) as Record<string,unknown>;
+    const storedCatalogs=storedRegistration.__adminCatalogs;
+    const registration={...storedRegistration};
+    delete registration.__adminCatalogs;
     return {
       branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.merge(DEFAULTS.homepage,row?.homepage),
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
-      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),
+      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration,catalogs:this.merge(DEFAULTS.catalogs,storedCatalogs),
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
@@ -47,12 +51,15 @@ export class SiteSettingsService{
   async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:s.registration}};}
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
+    const catalogs=this.merge(current.catalogs,input.catalogs);
+    const registration=this.merge(current.registration,input.registration) as Record<string,unknown>;
+    const storedRegistration={...registration,__adminCatalogs:catalogs};
     const next={
       branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
       stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
       navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
-      footer:input.footer??current.footer,registration:input.registration??current.registration,catalogs:this.merge(current.catalogs,input.catalogs),
+      footer:input.footer??current.footer,registration:storedRegistration,
     };
     const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
     await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections:Object.keys(input)}}});
