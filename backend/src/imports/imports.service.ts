@@ -6405,14 +6405,15 @@ export class ImportsService {
     // recalculated by HistoricalResultsService only after explicit verification.
     const postProcessingWarnings: string[] = [];
     if (!committed.historicalResults) {
+      const committedJob = await this.prisma.importJob.findUnique({
+        where: { id: importId },
+        select: { stageId: true },
+      });
       const pairs = new Map<string, { stageId: string; classId: string }>();
       for (const row of committed.rows) {
-        if (row.type === 'RESULT' && row.classId) {
+        if (row.type === 'RESULT' && row.classId && committedJob) {
           pairs.set(row.classId, {
-            stageId: (await this.prisma.importJob.findUnique({
-              where: { id: importId },
-              select: { stageId: true },
-            }))!.stageId,
+            stageId: committedJob.stageId,
             classId: row.classId,
           });
         }
