@@ -9,7 +9,8 @@ async function main() {
   try {
     const prisma = app.get(PrismaService);
 
-    const expectedHistoricalStages = 10;
+    // The current embedded snapshot has 11 configured stage mappings (2025–2026).
+    const expectedHistoricalStages = 11;
     const committedHistoricalStages = await prisma.importJob.findMany({
       where: {
         status: 'COMMITTED',
