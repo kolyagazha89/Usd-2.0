@@ -6605,6 +6605,10 @@ export class ImportsService {
             place: true,
 
             isBest: true,
+
+            isHistorical: true,
+
+            verificationStatus: true,
           },
         },
       );
