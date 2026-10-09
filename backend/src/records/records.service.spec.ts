@@ -114,7 +114,7 @@ describe('RecordsService', () => {
 
     const records = await service.recalculateCurrentRecord('class-1');
 
-    expect(records).toHaveLength(1);
+    expect(records).toHaveLength(2);
     expect(tx.result.update).toHaveBeenCalledWith({
       where: { id: '2' },
       data: { isBest: true },
@@ -128,6 +128,23 @@ describe('RecordsService', () => {
         }),
       }),
     );
+  });
+
+  it('retains every chronological record breaker and marks only the latest one current', async () => {
+    const tx = setupRecalc([
+      result('third', 160, '2026-03-01T10:00:00.000Z'),
+      result('first', 150, '2026-01-01T10:00:00.000Z'),
+      result('second', 155, '2026-02-01T10:00:00.000Z'),
+      result('not-a-record', 152, '2026-01-15T10:00:00.000Z'),
+    ]);
+
+    await service.recalculateCurrentRecord('class-1');
+
+    const savedIds = tx.record.create.mock.calls.map((call: any[]) => call[0].data.resultId);
+    expect(savedIds).toEqual(['first', 'second', 'third']);
+    expect(tx.record.create.mock.calls.map((call: any[]) => call[0].data.isCurrent))
+      .toEqual([false, false, true]);
+    expect(tx.record.create.mock.calls[0][0].data.carId).toBe('car-first');
   });
 
   it('keeps the earlier result when values are equal', async () => {
@@ -171,8 +188,8 @@ describe('RecordsService', () => {
       result('good', 160, '2026-03-01T10:00:00.000Z', { seasonId: 'season-1' }),
     ]);
     tx.disqualification.findFirst
-      .mockResolvedValueOnce({ id: 'dq-1' })
-      .mockResolvedValueOnce(null);
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'dq-1' });
 
     await service.recalculateCurrentRecord('class-1');
 
