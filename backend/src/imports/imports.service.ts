@@ -85,6 +85,8 @@ export class ImportsService {
       registrations?: ImportRow[];
       results?: ImportRow[];
       historicalResults?: boolean;
+      sourceFilename?: string;
+      sourcePostUrl?: string;
     },
     request?: AuthenticatedRequest,
   ) {
@@ -301,11 +303,15 @@ export class ImportsService {
           summary,
 
           metadata: {
-            source: 'PREVIEW',
+            source: body.historicalResults === true && body.sourceFilename
+              ? 'HISTORICAL_XLSX_UPLOAD'
+              : 'PREVIEW',
             stageId: stage.id,
             stageNumber: stage.stageNumber,
             stageName: stage.name,
             historicalResults: body.historicalResults === true,
+            sourceFilename: body.sourceFilename?.trim() || null,
+            sourcePostUrl: body.sourcePostUrl?.trim() || null,
           },
 
           rows: {
