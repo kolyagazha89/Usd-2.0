@@ -118,27 +118,6 @@ export class RecordsService {
     },
   } satisfies Prisma.RecordInclude;
 
-  private async isResultDisqualified(
-    tx: any,
-    participantId: string,
-    stageId: string,
-    seasonId: string,
-  ): Promise<boolean> {
-    const disqualification = await tx.disqualification.findFirst({
-      where: {
-        participantId,
-        status: 'ACTIVE',
-        OR: [
-          { scope: 'FORMAT' },
-          { scope: 'SEASON', seasonId },
-          { scope: 'STAGE', stageId },
-        ],
-      },
-      select: { id: true },
-    });
-
-    return Boolean(disqualification);
-  }
 
   private async getResultContext(tx: any, resultId: string) {
     const result = await tx.result.findUnique({
@@ -259,15 +238,34 @@ export class RecordsService {
       ],
     });
 
+    // Load active disqualifications once. Querying once per result becomes
+    // prohibitively expensive when rebuilding the all-time archive.
+    const activeDisqualifications = await tx.disqualification.findMany({
+      where: { status: 'ACTIVE' },
+      select: { participantId: true, scope: true, stageId: true, seasonId: true },
+    });
+    const formatDisqualified = new Set<string>();
+    const seasonDisqualified = new Set<string>();
+    const stageDisqualified = new Set<string>();
+    for (const item of activeDisqualifications) {
+      if (item.scope === 'FORMAT') formatDisqualified.add(item.participantId);
+      if (item.scope === 'SEASON' && item.seasonId) {
+        seasonDisqualified.add(`${item.participantId}:${item.seasonId}`);
+      }
+      if (item.scope === 'STAGE' && item.stageId) {
+        stageDisqualified.add(`${item.participantId}:${item.stageId}`);
+      }
+    }
+
     const eligible: any[] = [];
     for (const result of results) {
       if (result.registration.status !== 'ACTIVE') continue;
-      const disqualified = await this.isResultDisqualified(
-        tx,
-        result.registration.participantId,
-        result.registration.stageId,
-        result.registration.stage.seasonId,
-      );
+      const participantId = result.registration.participantId;
+      const stageId = result.registration.stageId;
+      const seasonId = result.registration.stage.seasonId;
+      const disqualified = formatDisqualified.has(participantId)
+        || seasonDisqualified.has(`${participantId}:${seasonId}`)
+        || stageDisqualified.has(`${participantId}:${stageId}`);
       if (!disqualified) eligible.push(result);
     }
 
