@@ -331,7 +331,18 @@ export class RecordsService {
       const saved = existingRecord
         ? await tx.record.update({
             where: { id: existingRecord.id },
-            data: { ...data, resultId: undefined },
+            data: {
+              classId: data.classId,
+              seasonId: data.seasonId,
+              stageId: data.stageId,
+              participantId: data.participantId,
+              carId: data.carId,
+              value: data.value,
+              unit: data.unit,
+              achievedAt: data.achievedAt,
+              isCurrent: data.isCurrent,
+              notes: data.notes,
+            },
             include: this.publicInclude,
           })
         : await tx.record.create({
