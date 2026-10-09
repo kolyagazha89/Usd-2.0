@@ -488,11 +488,16 @@ export class HistoricalResultsService {
     if (request.user.role !== 'ADMIN') {
       throw new ForbiddenException('Подтверждать исторические результаты может только администратор');
     }
+
     const pending = await this.prisma.result.findMany({
       where: { isHistorical: true, verificationStatus: 'PENDING' },
-      select: { id: true },
-      // Process the archive in competition-date order so each class's record
-      // history is reconstructed chronologically, not in arbitrary import order.
+      select: {
+        id: true,
+        createdByUserId: true,
+        registration: { select: { stageId: true } },
+        registrationClass: { select: { classId: true } },
+      },
+      // Stable chronological order makes archive verification deterministic.
       orderBy: [
         { registration: { stage: { date: 'asc' } } },
         { registrationClass: { classId: 'asc' } },
@@ -500,16 +505,85 @@ export class HistoricalResultsService {
         { id: 'asc' },
       ],
     });
-    let processed = 0;
+
+    if (pending.length === 0) {
+      return { success: true, processed: 0, total: 0, remaining: 0, postProcessingWarnings: [] };
+    }
+
+    const verifiedAt = new Date();
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.result.updateMany({
+        where: {
+          id: { in: pending.map((item: any) => item.id) },
+          isHistorical: true,
+          verificationStatus: 'PENDING',
+        },
+        data: {
+          verificationStatus: 'VERIFIED',
+          verifiedByUserId: request.user.sub,
+          verifiedAt,
+        },
+      });
+
+      await tx.auditLog.createMany({
+        data: pending.map((item: any) => ({
+          userId: request.user.sub,
+          action: 'HISTORICAL_RESULT_VERIFIED',
+          entity: 'Result',
+          entityId: item.id,
+          ipAddress: request.ip,
+          metadata: {
+            createdByUserId: item.createdByUserId,
+            verifiedByUserId: request.user.sub,
+            bulkVerification: true,
+          },
+        })),
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    // Recalculate each affected stage/class and each all-time class only once.
+    // Per-row recalculation made large archives quadratic and could time out.
+    const stageClasses = new Map<string, { stageId: string; classId: string }>();
+    const classIds = new Set<string>();
     for (const item of pending) {
+      const stageId = item.registration.stageId;
+      const classId = item.registrationClass.classId;
+      stageClasses.set(`${stageId}:${classId}`, { stageId, classId });
+      classIds.add(classId);
+    }
+
+    const postProcessingWarnings: string[] = [];
+    for (const pair of stageClasses.values()) {
       try {
-        await this.verify(item.id, request);
-        processed++;
-      } catch {
-        // One broken row must not prevent the administrator from confirming the rest.
+        await this.rankingService.recalculateByStageClass(pair.stageId, pair.classId);
+      } catch (error) {
+        postProcessingWarnings.push(
+          `Рейтинг этапа ${pair.stageId}, класс ${pair.classId}: ${error instanceof Error ? error.message : 'ошибка пересчёта'}`,
+        );
       }
     }
-    return { success: true, processed, total: pending.length, remaining: pending.length - processed };
+
+    for (const classId of classIds) {
+      try {
+        await this.recordsService.recalculateCurrentRecord(classId);
+      } catch (error) {
+        postProcessingWarnings.push(
+          `Рекорды класса ${classId}: ${error instanceof Error ? error.message : 'ошибка пересчёта'}`,
+        );
+      }
+    }
+
+    const remaining = await this.prisma.result.count({
+      where: { isHistorical: true, verificationStatus: 'PENDING' },
+    });
+
+    return {
+      success: remaining === 0 && postProcessingWarnings.length === 0,
+      processed: pending.length - remaining,
+      total: pending.length,
+      remaining,
+      postProcessingWarnings,
+    };
   }
 
   async verify(id: string, request: AuthenticatedRequest) {
