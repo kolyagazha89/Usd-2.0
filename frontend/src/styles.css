@@ -2180,11 +2180,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .data-table tbody{display:grid;gap:10px}
   .data-table tbody tr{display:grid;min-width:0;border:1px solid #dfe2e5;border-radius:13px;background:#fff;box-shadow:0 2px 7px rgba(9,10,11,.035);padding:7px 12px}
   .data-table tbody tr:hover{background:#fff}
-  .data-table td{display:grid;grid-template-columns:minmax(92px,.72fr) minmax(0,1.28fr);align-items:start;gap:12px;max-width:none;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;border-bottom:1px solid #edf0f2;padding:10px 0;font-size:13px;line-height:1.45;overflow-wrap:anywhere;word-break:normal}
+  .data-table td{display:block;max-width:none;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;border-bottom:1px solid #edf0f2;padding:10px 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere;word-break:normal}
   .data-table td:last-child{border-bottom:0}
-  .data-table td:before{content:attr(data-label);font-size:11px;line-height:1.45;font-weight:700;color:#62676e}
+  .data-table td:before{content:attr(data-label);display:block;margin-bottom:4px;font-size:11px;line-height:1.4;font-weight:700;color:#62676e}
   .data-table td.row-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;padding-top:10px}
-  .data-table td.row-actions:before{width:100%;flex-basis:100%}
+  .data-table td.row-actions:before{width:100%;flex-basis:100%;margin-bottom:0}
   .data-table td.row-actions .icon-button{width:40px;height:40px}
   .data-table td .table-sub{font-size:11px;line-height:1.4;white-space:normal}
   .data-table td .badge{justify-self:start;max-width:100%}
