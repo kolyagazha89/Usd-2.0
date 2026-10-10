@@ -2174,7 +2174,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 /* Mobile readability pass: larger type, real card rows instead of compressed tables */
 @media(max-width:600px){
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-  body{font-size:14px;-webkit-font-smoothing:antialiased}
+  body{font-size:14px;-webkit-font-smoothing:auto}
   .page-heading{align-items:flex-start;gap:12px;margin-bottom:18px}
   .page-heading h1{font-size:25px;line-height:1.16;letter-spacing:-.035em}
   .page-heading p{font-size:13px;line-height:1.45;max-width:100%}
