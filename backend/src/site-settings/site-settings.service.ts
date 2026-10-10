@@ -7,7 +7,7 @@ export type SiteSettingsShape = {
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
-  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:{vibrationBrands:string[];componentBrands:Array<{id:string;category:string;name:string;isActive?:boolean}>;componentModels:Array<{id:string;category:string;brand:string;model:string;isActive?:boolean}>};stagePosters:Record<string,string>;updatedAt?:string;
+  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:{teams:string[];vibrationBrands:string[];componentBrands:Array<{id:string;category:string;name:string;isActive?:boolean}>;componentModels:Array<{id:string;category:string;brand:string;model:string;isActive?:boolean}>};stagePosters:Record<string,string>;updatedAt?:string;
 };
 
 const DEFAULTS:SiteSettingsShape={
@@ -23,7 +23,7 @@ const DEFAULTS:SiteSettingsShape={
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
   registration:{enabled:true,price:2000,additionalClassPrice:2000},
-  catalogs:{vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},
+  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},
   stagePosters:{},
 };
 
