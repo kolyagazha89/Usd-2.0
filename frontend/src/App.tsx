@@ -63,16 +63,7 @@ function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:
 
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
-function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
- const routePath=path.split('?')[0];
- const[logo,setLogo]=useState(readBrandLogo());
- useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
- const visibleNav=nav.filter(x=>x.roles.includes(user.role));
- const sections=[...new Set(visibleNav.map(x=>x.section))];
- const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
- useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
- const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??true)};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
- const Page=({path,go,user}:{path:string;go:(p:string)=>void;user:User})=>{
+function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage/>;
@@ -98,7 +89,17 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
- };
+ }
+
+function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
+ const routePath=path.split('?')[0];
+ const[logo,setLogo]=useState(readBrandLogo());
+ useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
+ const visibleNav=nav.filter(x=>x.roles.includes(user.role));
+ const sections=[...new Set(visibleNav.map(x=>x.section))];
+ const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
+ useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
+ const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??true)};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
  return <div className="app-shell">
   <aside className={`sidebar ${mobileOpen?'open':''}`}>
    <div className="sidebar-top">
@@ -121,7 +122,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
     <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
     <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
-   <main className="content"><Page path={path} go={go} user={user}/></main>
+   <main className="content"><PageContent path={path} go={go} user={user}/></main>
   </div>
  </div>;
 }
@@ -1060,8 +1061,8 @@ function TeamsPage(){
  const load=async()=>{setLoading(true);setError('');try{const [r,p]=await Promise.all([getSiteSettings(),apiGet<any>('/admin/participants')]);const raw=r?.settings??{};const stored=Array.isArray(raw.catalogs?.teams)?raw.catalogs.teams:[];const people=listData(p);const discovered=people.map((x:any)=>String(x.team??'').trim()).filter(Boolean);const all=[...stored,...discovered].filter((name:string,index:number,array:string[])=>array.findIndex(x=>x.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))===index).sort((a:string,b:string)=>a.localeCompare(b,'ru'));setSettings({...raw,catalogs:{...(raw.catalogs??{}),teams:all}});setTeams(all);setParticipants(people)}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить справочник команд')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  const save=async(next:string[])=>{if(!settings)return;setSaving(true);setError('');setNotice('');try{const catalogs={...(settings.catalogs??{}),teams:next};const result=await updateSiteSettings({...settings,catalogs});const raw=result?.settings??{};setSettings({...settings,...raw,catalogs:{...catalogs,...(raw.catalogs??{}),teams:next}});setTeams(next);setNotice('Справочник команд сохранён')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить команды')}finally{setSaving(false)}};
- const add=async()=>{const name=newName.trim().replace(/\\s+/g,' ');if(!name)return;if(teams.some(x=>x.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))){setError('Такая команда уже есть в справочнике');return}await save([...teams,name].sort((a,b)=>a.localeCompare(b,'ru')));setNewName('')};
- const rename=async(oldName:string)=>{const value=window.prompt('Новое название команды',oldName);if(value===null)return;const name=value.trim().replace(/\\s+/g,' ');if(!name||name===oldName)return;if(teams.some(x=>x!==oldName&&x.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))){setError('Команда с таким названием уже существует');return}setSaving(true);setError('');setNotice('');try{for(const p of participants.filter((x:any)=>String(x.team??'').trim()===oldName)){await apiPatch('/participants/'+encodeURIComponent(p.id),{team:name})}setParticipants(current=>current.map((p:any)=>String(p.team??'').trim()===oldName?{...p,team:name}:p));await save(teams.map(x=>x===oldName?name:x).sort((a,b)=>a.localeCompare(b,'ru')))}catch(e){setError(e instanceof Error?e.message:'Не удалось переименовать команду. Проверьте участников с этим названием.')}finally{setSaving(false)}};
+ const add=async()=>{const name=newName.trim().replace(/\s+/g,' ');if(!name)return;if(teams.some(x=>x.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))){setError('Такая команда уже есть в справочнике');return}await save([...teams,name].sort((a,b)=>a.localeCompare(b,'ru')));setNewName('')};
+ const rename=async(oldName:string)=>{const value=window.prompt('Новое название команды',oldName);if(value===null)return;const name=value.trim().replace(/\s+/g,' ');if(!name||name===oldName)return;if(teams.some(x=>x!==oldName&&x.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))){setError('Команда с таким названием уже существует');return}setSaving(true);setError('');setNotice('');try{for(const p of participants.filter((x:any)=>String(x.team??'').trim()===oldName)){await apiPatch('/participants/'+encodeURIComponent(p.id),{team:name})}setParticipants(current=>current.map((p:any)=>String(p.team??'').trim()===oldName?{...p,team:name}:p));await save(teams.map(x=>x===oldName?name:x).sort((a,b)=>a.localeCompare(b,'ru')))}catch(e){setError(e instanceof Error?e.message:'Не удалось переименовать команду. Проверьте участников с этим названием.')}finally{setSaving(false)}};
  const remove=async(name:string)=>{if(!window.confirm('Удалить команду «'+name+'» из справочника и очистить её у '+participants.filter((x:any)=>String(x.team??'').trim()===name).length+' участников?'))return;setSaving(true);setError('');try{for(const p of participants.filter((x:any)=>String(x.team??'').trim()===name)){await apiPatch('/participants/'+encodeURIComponent(p.id),{team:null})}setParticipants(current=>current.map((p:any)=>String(p.team??'').trim()===name?{...p,team:null}:p));await save(teams.filter(x=>x!==name))}catch(e){setError(e instanceof Error?e.message:'Не удалось удалить команду. Часть участников могла остаться без изменений.')}finally{setSaving(false)}};
  const filtered=teams.filter(x=>x.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
  return <PageFrame title="Команды" subtitle="Единый справочник команд участников USD" action={<button className="secondary-button compact" onClick={()=>void load()} disabled={loading||saving}><RefreshCw size={14}/>Обновить</button>}>
