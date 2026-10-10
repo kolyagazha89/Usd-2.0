@@ -353,16 +353,29 @@ export class RecordsService {
     return recordRows;
   }
 
-  async findAll() {
-    return this.prisma.record.findMany({
-      where: {
-        result: {
-          registration: {
-            participant: { isPublic: true },
-            car: { isPublic: true },
+  private publicRecordWhere() {
+    return {
+      result: {
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+        registration: {
+          status: 'ACTIVE',
+          stage: {
+            isDeleted: false,
+            status: { in: ['PUBLISHED', 'COMPLETED'] },
           },
+          participant: { isPublic: true },
+          car: { isPublic: true },
         },
       },
+    };
+  }
+
+  async findAll() {
+    return this.prisma.record.findMany({
+      where: this.publicRecordWhere(),
       include: this.publicInclude,
       orderBy: [
         { class: { sortOrder: 'asc' } },
@@ -376,12 +389,7 @@ export class RecordsService {
     return this.prisma.record.findMany({
       where: {
         isCurrent: true,
-        result: {
-          registration: {
-            participant: { isPublic: true },
-            car: { isPublic: true },
-          },
-        },
+        ...this.publicRecordWhere(),
       },
       include: this.publicInclude,
       orderBy: [
@@ -404,12 +412,7 @@ export class RecordsService {
     return this.prisma.record.findMany({
       where: {
         classId,
-        result: {
-          registration: {
-            participant: { isPublic: true },
-            car: { isPublic: true },
-          },
-        },
+        ...this.publicRecordWhere(),
       },
       include: this.publicInclude,
       orderBy: [
@@ -424,12 +427,7 @@ export class RecordsService {
     return this.prisma.record.findMany({
       where: {
         seasonId,
-        result: {
-          registration: {
-            participant: { isPublic: true },
-            car: { isPublic: true },
-          },
-        },
+        ...this.publicRecordWhere(),
       },
       include: this.publicInclude,
       orderBy: { achievedAt: 'desc' },
@@ -440,12 +438,7 @@ export class RecordsService {
     const record = await this.prisma.record.findUnique({
       where: {
         id,
-        result: {
-          registration: {
-            participant: { isPublic: true },
-            car: { isPublic: true },
-          },
-        },
+        ...this.publicRecordWhere(),
       },
       include: this.publicInclude,
     });
