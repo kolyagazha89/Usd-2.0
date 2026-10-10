@@ -2308,3 +2308,96 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .data-table td { font-size: 13px; }
   .team-directory-actions .secondary-button { padding-inline: 9px !important; }
 }
+
+
+/* USD 2.0 — mobile readability pass (final override)
+   Avoid tiny metadata, fractional grids and transform/filter blur on small screens. */
+@media (max-width: 600px) {
+  html, body, #root {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .content, .page, .panel, .panel *, .data-table, .data-table * {
+    min-width: 0;
+  }
+  .page-heading { gap: 10px; margin-bottom: 16px; }
+  .page-heading h1 { font-size: clamp(23px, 6vw, 27px); line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
+  .page-heading p, .panel p, .muted { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+  .panel { padding: 14px; border-radius: 15px; }
+  .panel strong, .team-directory-name strong { line-height: 1.4; overflow-wrap: anywhere; }
+  .panel small, .panel .table-sub, .team-directory-name span { font-size: 12px; line-height: 1.45; }
+  .kpi-card, .dashboard-kpi, .dashboard-alert, .dashboard-stage-card,
+  .race-command, .stage-card, .registration-card, .team-directory-row {
+    transform: none !important;
+    filter: none !important;
+    -webkit-backface-visibility: visible;
+    backface-visibility: visible;
+  }
+  .data-table:not(.disqualification-table) tbody tr {
+    padding: 11px 12px !important;
+    margin: 0 0 10px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 3px 12px rgba(16, 20, 24, .045) !important;
+  }
+  .data-table:not(.disqualification-table) tbody td {
+    display: grid !important;
+    grid-template-columns: minmax(84px, .8fr) minmax(0, 1.2fr) !important;
+    align-items: start;
+    gap: 10px !important;
+    padding: 9px 2px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  .data-table:not(.disqualification-table) tbody td:before {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0;
+  }
+  .data-table:not(.disqualification-table) tbody td > * { max-width: 100%; }
+  .toolbar, .resource-toolbar, .inspection-toolbar {
+    gap: 9px;
+    align-items: stretch;
+  }
+  .search-box { min-width: 0 !important; width: 100%; }
+  .primary-button, .secondary-button, .danger-button {
+    min-height: 44px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+  .team-directory-intro { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+  .team-directory-intro p { margin: 5px 0 0; }
+  .team-directory-count { min-width: 48px; text-align: right; }
+  .team-directory-count strong { display: block; font-size: 23px; line-height: 1.1; }
+  .team-directory-count span { font-size: 11px; }
+  .team-directory-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 13px 0; }
+  .team-directory-mark { width: 36px; height: 36px; }
+  .team-directory-name { min-width: 0; align-self: center; }
+  .team-directory-name strong { display: block; font-size: 14px; }
+  .team-directory-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+  .team-directory-actions .secondary-button { justify-content: center; padding: 0 10px !important; font-size: 12px; }
+  .team-directory-actions .icon-button { width: 44px; height: 44px; }
+  .team-add-row { display: grid !important; grid-template-columns: minmax(0, 1fr); }
+  .team-add-row input, .team-add-row .primary-button { width: 100%; min-width: 0; }
+  .catalog-add-row input, .catalog-add-row select { flex-basis: 100%; width: 100%; }
+}
+
+@media (max-width: 380px) {
+  .content { padding: 12px 8px 24px !important; }
+  .page { padding: 10px !important; }
+  .panel { padding: 12px; }
+  .data-table:not(.disqualification-table) tbody td {
+    grid-template-columns: minmax(72px, .72fr) minmax(0, 1.28fr) !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+  }
+  .data-table:not(.disqualification-table) tbody td:before { font-size: 10.5px !important; }
+  .team-directory-intro { grid-template-columns: 36px minmax(0, 1fr); }
+  .team-directory-count { grid-column: 2; text-align: left; }
+  .team-directory-count strong { display: inline; margin-right: 5px; font-size: 19px; }
+}
