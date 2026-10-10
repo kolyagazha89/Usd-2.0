@@ -2248,3 +2248,63 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .data-table td:before{font-size:10px}
   .page-heading h1{font-size:23px}
 }
+
+
+/* Mobile card polish — prioritize crisp type and predictable wrapping on small screens. */
+@media (max-width: 600px) {
+  html, body {
+    text-rendering: auto;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+    font-kerning: normal;
+  }
+  .content, .page, .panel, .panel * {
+    min-width: 0;
+  }
+  .panel, .empty-card, .dashboard-stage-card, .dashboard-info, .team-directory-row,
+  .data-table tbody tr, .kpi-card, .race-command, .stage-card, .registration-card {
+    -webkit-backface-visibility: visible;
+    backface-visibility: visible;
+    transform: none;
+    filter: none;
+  }
+  .page-heading h1 { font-size: 25px; line-height: 1.18; letter-spacing: -.025em; }
+  .page-heading p { font-size: 14px; line-height: 1.5; }
+  .panel { padding: 15px; }
+  .panel-title h2 { font-size: 16px; line-height: 1.35; letter-spacing: 0; }
+  .panel-title p, .panel > p, .panel .muted { font-size: 13px; line-height: 1.55; }
+  .data-table td { font-size: 14px; line-height: 1.5; letter-spacing: 0; }
+  .data-table td:before { font-size: 11px; letter-spacing: .015em; }
+  .data-table td .table-sub, .data-table td small { font-size: 12px; line-height: 1.45; }
+  .stage-main strong { font-size: 16px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+  .stage-main span { font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+  .stage-main small { font-size: 11px; line-height: 1.35; }
+  .registration-total strong { font-size: 34px; }
+  .registration-total span, .registration-breakdown span { font-size: 11px; line-height: 1.35; letter-spacing: .025em; }
+  .registration-breakdown strong { font-size: 24px; }
+  .dashboard-info-grid span { font-size: 13px; line-height: 1.4; }
+  .dashboard-info-grid strong { font-size: 27px; }
+  .race-command { padding: 16px; gap: 12px; }
+  .race-command strong { font-size: 19px; line-height: 1.25; }
+  .race-command small { font-size: 13px; line-height: 1.45; }
+  .kpi-card { padding: 13px; gap: 10px; }
+  .kpi-card strong, .kpi-card .kpi-value { font-size: 25px; line-height: 1.1; }
+  .kpi-card span, .kpi-card small { font-size: 12px; line-height: 1.4; }
+  .team-directory-intro { padding: 15px; }
+  .team-directory-intro strong { font-size: 15px; line-height: 1.4; }
+  .team-directory-intro p { font-size: 13px; line-height: 1.55; }
+  .team-directory-row { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 13px; }
+  .team-directory-name strong { font-size: 15px; line-height: 1.4; }
+  .team-directory-name span { font-size: 13px; line-height: 1.4; }
+  .team-directory-actions { gap: 8px; }
+  .team-directory-actions button { min-height: 42px; }
+  .toolbar .row-count { font-size: 12px; }
+  .badge, .status { font-size: 11px; }
+}
+@media (max-width: 380px) {
+  .content { padding: 12px 8px; }
+  .panel { padding: 12px; }
+  .data-table tbody tr { padding: 7px 10px; }
+  .data-table td { font-size: 13px; }
+  .team-directory-actions .secondary-button { padding-inline: 9px !important; }
+}
