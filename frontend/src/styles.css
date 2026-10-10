@@ -2151,6 +2151,26 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .participant-detail-cars{margin-top:18px;padding-top:18px;border-top:1px solid var(--border,#ddd)}.participant-car-list{display:grid;gap:8px;margin-top:10px}.participant-car-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid var(--border,#ddd);border-radius:12px}.participant-car-item>div{display:grid;gap:3px}.participant-car-item span{font-size:12px;opacity:.72}
 
 
+/* Teams directory */
+.team-directory-intro{display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:20px}
+.team-directory-icon,.team-directory-mark{display:grid;place-items:center;flex:0 0 auto;background:#fff0f2;color:var(--red-dark);border:1px solid #f0c5ca;border-radius:12px}
+.team-directory-icon{width:48px;height:48px}
+.team-directory-intro>div:nth-child(2){min-width:0;flex:1}
+.team-directory-intro>div:nth-child(2)>strong{font-size:15px;line-height:1.4}
+.team-directory-intro p{font-size:12px;line-height:1.6;color:var(--muted);margin:5px 0 0}
+.team-directory-count{min-width:82px;padding-left:18px;border-left:1px solid var(--line);display:grid;gap:3px}
+.team-directory-count strong{font-size:28px;line-height:1;letter-spacing:-.04em}
+.team-directory-count span{font-size:11px;color:var(--muted)}
+.team-directory-panel .team-add-row{margin:0 0 14px}
+.team-directory-list{display:grid;gap:8px}
+.team-directory-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:13px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:#fff;min-width:0}
+.team-directory-mark{width:38px;height:38px;border-radius:10px}
+.team-directory-name{display:grid;gap:4px;min-width:0}
+.team-directory-name strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.team-directory-name span{font-size:11px;color:var(--muted)}
+.team-directory-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.team-directory-actions .icon-button{flex:0 0 auto}
+
 /* Mobile readability pass: larger type, real card rows instead of compressed tables */
 @media(max-width:600px){
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
