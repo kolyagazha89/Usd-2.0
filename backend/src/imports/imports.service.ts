@@ -3066,15 +3066,14 @@ export class ImportsService {
     if (existingParticipant) {
       const email = this.stringValue(participant.email);
       if (email) {
-        const existingLegacyEmail =
-          await tx.participantLegacyEmail.findFirst({
-            where: { participantId: existingParticipant.id, email },
-          });
-        if (!existingLegacyEmail) {
-          await tx.participantLegacyEmail.create({
-            data: { participantId: existingParticipant.id, email },
-          });
-        }
+        // participantId is the primary key: a participant can have only one
+        // legacy-email row. Upsert is idempotent and avoids P2002 when a later
+        // import contains a different email for the same participant.
+        await tx.participantLegacyEmail.upsert({
+          where: { participantId: existingParticipant.id },
+          create: { participantId: existingParticipant.id, email },
+          update: {},
+        });
       }
       return existingParticipant;
     }
@@ -3103,13 +3102,13 @@ export class ImportsService {
       );
 
     if (email) {
-      await tx.participantLegacyEmail.create({
-        data: {
-          participantId:
-            createdParticipant.id,
-
+      await tx.participantLegacyEmail.upsert({
+        where: { participantId: createdParticipant.id },
+        create: {
+          participantId: createdParticipant.id,
           email,
         },
+        update: {},
       });
     }
 
