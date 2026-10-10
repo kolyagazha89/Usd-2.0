@@ -1,0 +1,3 @@
+ALTER TABLE "SiteSettings"
+  ADD COLUMN IF NOT EXISTS "catalogs" JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS "partners" JSONB NOT NULL DEFAULT '[]'::jsonb;
