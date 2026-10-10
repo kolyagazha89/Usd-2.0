@@ -38,6 +38,7 @@ describe('SiteSettingsService admin catalogs', () => {
 
   it('persists catalogs and stage posters without exposing internal fields in registration settings', async () => {
     const catalogs = {
+      teams: ['Bass Syndicate', 'Tyumen Sound'],
       vibrationBrands: ['STP', 'ComfortMat'],
       componentBrands: [{ id: 'brand-1', category: 'AMPLIFIER', name: 'Deaf Bonce', isActive: true }],
       componentModels: [{ id: 'model-1', category: 'AMPLIFIER', brand: 'Deaf Bonce', model: 'AAB-4900.1D', isActive: true }],
