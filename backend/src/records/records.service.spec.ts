@@ -246,6 +246,30 @@ describe('RecordsService', () => {
     expect(tx.record.create).not.toHaveBeenCalled();
   });
 
+  it('filters pending historical results and unpublished stages from public record queries', async () => {
+    await service.findAll();
+
+    expect(prisma.record.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        result: {
+          OR: [
+            { isHistorical: false },
+            { isHistorical: true, verificationStatus: 'VERIFIED' },
+          ],
+          registration: {
+            status: 'ACTIVE',
+            stage: {
+              isDeleted: false,
+              status: { in: ['PUBLISHED', 'COMPLETED'] },
+            },
+            participant: { isPublic: true },
+            car: { isPublic: true },
+          },
+        },
+      },
+    }));
+  });
+
   it('does not expose car registration number in public records', () => {
     const includeText = JSON.stringify(service['publicInclude']);
     expect(includeText).not.toContain('registrationNumber');
