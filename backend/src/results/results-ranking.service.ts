@@ -207,6 +207,10 @@ export class ResultsRankingService {
           registrationClassId: {
             in: registrationClassIds,
           },
+          OR: [
+            { isHistorical: false },
+            { isHistorical: true, verificationStatus: 'VERIFIED' },
+          ],
         },
         data: {
           place: null,
