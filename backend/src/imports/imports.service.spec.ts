@@ -235,3 +235,57 @@ describe('ImportsService.createImportRegistration', () => {
     ).rejects.toBe(error);
   });
 });
+
+
+describe('ImportsService.commitImport', () => {
+  it('does not let warning-only Registration helper rows block a historical Results import', async () => {
+    const importJob = {
+      id: 'import-1',
+      stageId: 'stage-1',
+      status: 'DRAFT',
+      metadata: { historicalResults: true },
+      rows: [{
+        id: 'registration-row-1',
+        type: 'REGISTRATION',
+        rowNumber: 2,
+        status: 'WARNING',
+        resolution: null,
+        rawData: {},
+        normalizedData: null,
+        warnings: ['Участник отсутствует в таблице результатов'],
+      }],
+    };
+    const tx: any = {
+      $queryRaw: jest.fn(async () => []),
+      importJob: {
+        findUnique: jest.fn(async () => importJob),
+        update: jest.fn(async () => ({ ...importJob, status: 'COMMITTED' })),
+      },
+      auditLog: { create: jest.fn(async () => ({ id: 'audit-1' })) },
+    };
+    const prisma: any = {
+      $transaction: jest.fn(async (callback: any) => callback(tx)),
+    };
+    const service = new ImportsService(
+      prisma as PrismaService,
+      new NameNormalizerService(),
+    );
+    const request: any = {
+      user: { sub: 'admin-1', role: 'ADMIN' },
+      ip: '127.0.0.1',
+    };
+
+    await expect(service.commitImport('import-1', request)).resolves.toMatchObject({
+      success: true,
+      importJobId: 'import-1',
+      status: 'COMMITTED',
+      historicalResults: true,
+      rows: [],
+    });
+
+    expect(tx.importJob.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'import-1' },
+      data: { status: 'COMMITTED' },
+    }));
+  });
+});
