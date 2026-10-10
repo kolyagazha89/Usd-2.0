@@ -4424,8 +4424,15 @@ export class ImportsService {
           );
         }
 
+        // In historical mode the Registration sheet is only a helper
+        // for resolving participants/cars. Its rows are not imported and
+        // must not block committing authoritative Results rows.
+        const rowsForCommitValidation = historicalResults
+          ? importJob.rows.filter((row) => row.type === 'RESULT')
+          : importJob.rows;
+
         const unsupportedStatuses =
-          importJob.rows.filter(
+          rowsForCommitValidation.filter(
             (row) =>
               row.status !== 'READY' &&
               row.status !== 'RESOLVED',
@@ -4444,7 +4451,7 @@ export class ImportsService {
 
         await this.validateResolvedRowsForCommit(
           tx,
-          importJob,
+          { ...importJob, rows: rowsForCommitValidation },
         );
 
 
