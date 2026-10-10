@@ -4408,6 +4408,7 @@ export class ImportsService {
         const invalidResolvedRows =
           importJob.rows.filter(
             (row) =>
+              (!historicalResults || row.type === 'RESULT') &&
               row.status === 'RESOLVED' &&
               (!row.resolution ||
                 typeof row.resolution !== 'object'),
