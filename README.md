@@ -1,27 +1,11 @@
-# USD 2.0
+# USD 2.0 — project handoff
 
-USD 2.0 is the single-company digital operating platform for Ultimate Sound Destruction: public championship website, participant self-service, event operations, and company management in one product.
+**Before every substantial development block, read [Development status](docs/DEVELOPMENT_STATUS.md), check Git history, ask the owner a short requirements survey, then implement the agreed scope end-to-end.** Keep the status/checklist updated with evidence. A commit or successful build does not mean a feature is merged, deployed, or production-verified.
 
-## Project architecture and product decisions
-
-**Start here before making architectural changes:**
-
-- [Product architecture](docs/PRODUCT_ARCHITECTURE.md) — product scope, system modules, ADMIN/JUDGE rules, CMS, notifications, security and staged delivery.
-- [Offline mode and synchronization](docs/OFFLINE_MODE.md) — venue local hub, device fallback, offline QR lookup, durable operations, sync, conflict handling and acceptance tests.
-- [Phase 1 checklist and release gates](docs/PHASE_1_STATUS.md) — implementation status, validation blockers, and what remains before Phase 1 can be called complete.
-- [Production security notes](docs/PRODUCTION_SECURITY.md) — operational security checklist.
-- [OpenAI / development setup notes](docs/OPENAI_SETUP.md) — repository-specific development notes.
-
-### Non-negotiable decisions
-
-- One company: USD. No multi-tenant architecture.
-- ADMIN has full access to every existing and future module; do not require manual grants for new modules.
-- JUDGE can work across stages and enter results; editing/deleting results remains ADMIN-only.
-- One account per person, with configurable roles and server-enforced permissions.
-- Offline event operation is a core requirement. A prepared local event hub is the preferred mode for multiple judges at venues without internet; PWA/IndexedDB is a device fallback.
-- Never merge/deploy a feature merely because code was committed. Verify CI, migrations, authorization, and the relevant end-to-end workflow first.
-
-The architecture documents describe intended requirements. They do not imply that every documented feature has already been implemented.
+- [Development status and next steps](docs/DEVELOPMENT_STATUS.md)
+- [Product architecture and non-negotiable rules](docs/PRODUCT_ARCHITECTURE.md)
+- [Phase 1 release checklist](docs/PHASE_1_STATUS.md)
+- [Current public release scope and handoff](docs/DEVELOPMENT_STATUS.md)
 
 ---
 

@@ -1,56 +1,53 @@
 # USD 2.0 — Phase 1 delivery checklist
 
-This is the working acceptance checklist for P0. A code commit is not considered complete until the relevant build, tests, authorization checks, and end-to-end workflow have passed. The checklist must be updated with evidence rather than optimistic estimates.
+This is the acceptance checklist. A code commit is not complete until the relevant build/tests and authorization/end-to-end checks pass. A merge, deploy and production verification are separate states.
 
-## Status key
+## Reconciliation — 2026-10-12
 
-- `DONE — CODE`: implementation is present but may still need verification.
-- `BLOCKED — VALIDATION`: code exists; validation is blocked and the feature is not cleared for release.
-- `TODO`: not implemented yet.
+- Before reconciliation, GitHub compare showed the feature branch 33 commits ahead and 9 behind `main`; older notes stating 32/6 were stale.
+- Reconciliation is represented by a two-parent integration commit on `feature/qr-checkin-and-platform-foundation`. It preserves the feature tree and carries forward the main versions of `.github/workflows/frontend.yml`, `README.md`, `backend/src/imports/imports.service.spec.ts`, `frontend/package.json` and `frontend/src/api.ts`, plus the canonical status checklist.
+- The feature branch is not yet merged into `main`, not confirmed deployed and not release-ready.
+- Main Backend CI passed on `64ff5839` (run [38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756)); main Frontend CI passed on `8ed4078e` (run [38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332)).
+- Feature Frontend CI passed before reconciliation (run [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826)); Backend CI on the reconciled candidate is still required.
+- The earlier deploy workflow built but skipped Cloudflare publish due to missing credentials (run [38177954189](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954189)). No production deployment or migration is claimed.
 
-## Current repository reconciliation — 2026-10-12
+## P0 acceptance checklist
 
-Read this section together with [the canonical development status on main](https://github.com/kolyagazha89/Usd-2.0/blob/main/docs/DEVELOPMENT_STATUS.md) before starting work.
-
-- This checklist and the public website/QR implementation are on `feature/qr-checkin-and-platform-foundation` at `cb3070a2`; they are **not merged into main and are not confirmed deployed**.
-- GitHub compare reports the feature branch is 32 commits ahead and 6 behind `main`. Reconcile the six main-only commits (recent historical import/record/API URL fixes) before integration. Do not merge blindly; review `frontend/src/App.tsx` and backend/migration overlaps.
-- Feature branch Frontend CI passed: [run 38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826). Backend CI for the feature branch has not been verified in the currently inspected runs.
-- On `main`, Backend CI passed at `64ff5839` (build, lint, unit and E2E); Frontend CI passed at `8ed4078e`. The Frontend Deploy workflow built successfully but skipped the Cloudflare Worker publish step, so this is **not evidence of a new frontend deployment**.
-- The operator confirmed on 2026-10-12 that production admin login works and existing data is present. Preserve that working state; do not use production as a test database.
-
-## P0 checklist
-
-| Area | Status | Evidence / remaining work |
+| Area | State | Evidence / next action |
 |---|---|---|
-| Repository architecture and product constraints | DONE — CODE | [PRODUCT_ARCHITECTURE.md](./PRODUCT_ARCHITECTURE.md), [OFFLINE_MODE.md](./OFFLINE_MODE.md) |
-| Public stage visibility | DONE — CODE ON FEATURE BRANCH ONLY | `GET /stages/public` restricts visibility to non-deleted PUBLISHED/COMPLETED stages; verify no result/record privacy leaks and keep admin's full stage list intact |
-| Public website shell | DONE — CODE ON FEATURE BRANCH ONLY | Responsive public home, stages, results, records and rules routes exist on this branch; not in main and not confirmed live. Requires UI/data/privacy QA and CMS integration |
-| Participant cabinet registration list | DONE — CODE | Cabinet loads the participant's registrations and shows stage/car/class information |
-| QR credential storage | DONE — CODE | Random opaque token, SHA-256 hash stored in PostgreSQL, issue/resolve/revoke endpoints, audit events and migration |
-| Judge QR scanner and direct inspection opening | DONE — CODE | Camera scanner where BarcodeDetector is supported, manual token/link fallback, registration card and direct opening of the matching inspection modal |
-| Participant QR display | DONE — CODE | QR rendered locally in the participant cabinet; token is not sent to a third-party QR image service |
-| QR security and ownership boundaries | BLOCKED — VALIDATION | Tests/code exist on feature branch; feature-branch Backend CI is not yet verified. Validate role/ownership behavior, migration and end-to-end flows on disposable PostgreSQL |
-| Existing auth and ADMIN/JUDGE semantics | TODO — VERIFY | Run a permission regression matrix for admin, judge and participant across all routes; don't infer correctness from UI visibility |
-| Custom role editor (RBAC) | TODO | Data model, effective-permission resolver, admin UI, audit, last-admin protection and migration are not yet implemented |
-| Core CMS (homepage blocks, navigation, news, rules, SEO, preview/versioning) | TODO | Public pages currently use a starter shell and settings fallback; full content management and publishing workflow are not implemented |
-| Registration completion flow | TODO | Public stage CTA exists; full self-service stage/car/config/class selection, legal review, confirmation, edit/cancel and email flow need completion |
-| Legal document versioning and consent evidence | TODO | Separate consent purposes, immutable versions, revocation and retention workflows need implementation and legal review |
-| Transactional email and marketing mail separation | TODO | Delivery queue, templates, retries, unsubscribe/consent enforcement and delivery logs need implementation/verification |
-| Offline event operation | TODO — ARCHITECTURE ONLY | Architecture is documented; local hub, IndexedDB package/queue, synchronization API, idempotency and conflict UI are not implemented |
-| Backups, restore drill, monitoring and alerting | TODO — VERIFY | Documented operational requirement; verify actual schedules, recovery procedure and alert delivery |
-| CI build/lint/unit/e2e | MAIN GREEN; FEATURE BACKEND UNVERIFIED | Main Backend CI passed on `64ff5839` (run [38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756)); main Frontend CI passed on `8ed4078e` (run [38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332)); feature Frontend CI passed (run [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826)). Still required: run backend build/lint/unit/E2E on the feature branch or after branch reconciliation. Older startup failures are historical, not the current status |
-| Production database migration and deploy | NOT RUN | Intentionally not run from this feature branch. Do not deploy until validation and rollout review pass |
+| Branch reconciliation | INTEGRATION CANDIDATE ON FEATURE BRANCH | Run CI on exact candidate, inspect all jobs and compare diff before PR/merge |
+| Public home, stages, results, records, rules | CODE PRESENT ON FEATURE BRANCH | Mobile and desktop QA; verify routes, loading/empty/error states and links |
+| Public stage visibility | CODE PRESENT — VALIDATION OPEN | Confirm anonymous endpoint only exposes non-deleted PUBLISHED/COMPLETED stages |
+| Public results/records visibility | VALIDATION OPEN | Check result approval and privacy; no draft/private data leakage |
+| Site settings/assets | PARTIAL | Test missing settings/assets and fallback behavior; full CMS deferred |
+| Participant cabinet/self-service registration | DEFERRED FROM PUBLIC V1 | Next block after a separate requirements survey |
+| QR issue/scan/revoke and migration | CODE PRESENT — VALIDATION OPEN; OUTSIDE THIS BLOCK | Validate on disposable PostgreSQL; never run production migration without explicit approval |
+| ADMIN/JUDGE/participant/anonymous permission matrix | TODO — VERIFY | Server-side role and ownership tests |
+| Core CMS, news, navigation, SEO, draft/preview/versioning | TODO | Requirements survey and separate design agreement |
+| Legal versioning and consent evidence | TODO | Separate requirements and legal review |
+| Transactional email/retries/logs | TODO | Separate implementation and delivery tests |
+| Configurable RBAC | TODO | Preserve current ADMIN/JUDGE semantics; audit and last-active-admin protection |
+| Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
+| Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
+| Backend CI on reconciled candidate | REQUIRED | Build, lint, unit and E2E must pass on exact SHA |
+| Frontend CI on reconciled candidate | REQUIRED | Typecheck and build must pass on exact SHA |
+| Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
+
+## Public V1 boundaries agreed with owner
+
+- Include public home, stages, results, records and rules pages.
+- Do not make participant cabinet/self-service registration acceptance criteria for this release; that is the next block.
+- Agree on a new visual design separately before major design/CMS implementation.
+- Follow `docs/DEVELOPMENT_STATUS.md` as the canonical handoff and update this checklist with evidence after each block.
 
 ## Required release gate
 
-1. Reconcile the feature branch with the six main-only commits, then capture successful backend build/lint/unit/E2E and frontend typecheck/build on the exact candidate commit.
-2. Validate Prisma schema/migration on a disposable PostgreSQL database and verify generated client compatibility.
-3. Run QR issue/scan/revoke tests for ADMIN, JUDGE, participant owner, participant non-owner, cancelled registration, deleted/cancelled stage, invalid token, and already-inspected registration.
-4. Verify that public endpoints never return draft/unpublished stages or unapproved results.
-5. Test public pages and participant cabinet on narrow mobile screens and current iOS/Android browsers; verify camera permission and manual fallback.
-6. Complete the TODO P0 items above before calling Phase 1 complete.
-7. Review backup/restore, privacy/legal handling and deployment plan. Production migration/deploy requires an explicit, reviewed release decision.
+1. Run backend build/lint/unit/E2E and frontend typecheck/build on the exact reconciled candidate.
+2. Validate the QR Prisma migration on disposable PostgreSQL, without touching production.
+3. Test ADMIN/JUDGE/participant-owner/non-owner/anonymous authorization and public stage/result visibility.
+4. Test public pages at narrow mobile widths and desktop, including loading/empty/error states.
+5. Only then prepare a PR and explicit release/migration plan; production deployment remains separate.
 
 ## Current truth
 
-The QR foundation and public-site starter exist on this feature branch, but are **not merged into main, not confirmed deployed, and not release-ready**. Main CI is green; feature-branch Backend CI still needs verification. Offline synchronization, full CMS, configurable RBAC, legal/consent lifecycle, complete registration, email delivery, privacy/authorization QA, branch reconciliation and release validation remain open.
+Public-site starter code exists on the feature branch. It is not merged into `main`, not confirmed deployed and not release-ready. Participant cabinet/registration and QR work are deferred from public V1 acceptance, even where code is already present. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
