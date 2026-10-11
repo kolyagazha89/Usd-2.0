@@ -1,0 +1,1 @@
+ALTER TABLE "Record" ADD COLUMN "isManualOverride" BOOLEAN NOT NULL DEFAULT false;
