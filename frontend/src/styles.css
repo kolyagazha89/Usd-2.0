@@ -2443,3 +2443,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 .public-home-error{max-width:1196px;width:calc(100% - 44px);margin:20px auto 0;border:1px solid #74313a;border-radius:10px;padding:14px;color:#ff8b96;background:#241114;font-size:13px}
 @media(max-width:600px){.public-home-error{width:calc(100% - 32px);margin-top:14px}}
+
+.public-brand{flex:0 0 auto;max-width:100%}
+.public-brand-logo{display:block;max-width:150px;max-height:48px;width:auto;height:auto;object-fit:contain}
+.public-brand-name{max-width:180px}
+@media(max-width:420px){.public-brand-logo{max-width:108px;max-height:38px}.public-brand-name{font-size:8px!important;letter-spacing:1.2px!important;max-width:130px}}
