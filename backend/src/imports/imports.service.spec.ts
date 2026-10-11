@@ -62,7 +62,13 @@ function createTransactionClient(
     create: jest.fn(async () => {
       throw p2002Error();
     }),
-    findUnique: jest.fn(async () => existing),
+    findUnique: jest.fn(async (args: unknown) => {
+      const where = (args as { where?: Record<string, unknown> })?.where;
+      // Preflight by number should not collide in this P2002 recovery test.
+      // Recovery by stage+car must still return the existing registration.
+      if (where?.stageId_participantNumber) return null;
+      return existing;
+    }),
     update: jest.fn(async ({ data }: { data: Partial<RegistrationRow> }) => ({
       ...(existing as RegistrationRow),
       ...data,
@@ -71,6 +77,10 @@ function createTransactionClient(
 
   return {
     registration: client,
+    registrationNumber: {
+      findUnique: jest.fn(async () => null),
+      create: jest.fn(async () => ({ id: 'registration-number-1' })),
+    },
     carConfiguration: {
       findFirst: jest.fn(async () => ({
         id: 'legacy-config-1',
@@ -224,9 +234,14 @@ describe('ImportsService.createImportRegistration', () => {
         })),
       },
       registration: {
+        findUnique: jest.fn(async () => null),
         create: jest.fn(async () => {
           throw error;
         }),
+      },
+      registrationNumber: {
+        findUnique: jest.fn(async () => null),
+        create: jest.fn(async () => ({ id: 'registration-number-1' })),
       },
     } as unknown as Prisma.TransactionClient;
 
