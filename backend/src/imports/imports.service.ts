@@ -3733,9 +3733,8 @@ export class ImportsService {
         await tx.car.create({
           data: {
             participantId,
-            brand: 'Неизвестно',
-            model:
-              'Автомобиль не указан',
+            brand: 'Не указано',
+            model: 'Не указано',
             registrationNumber:
               technicalRegistrationNumber,
             registrationCountry: 'RU',
