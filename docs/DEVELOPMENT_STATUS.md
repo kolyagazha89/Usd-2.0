@@ -60,4 +60,4 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 ## Next action
 
-Branch reconciliation and baseline CI are complete. Public-site hardening is committed separately and must pass backend/frontend CI on its exact SHA. Then inspect workflow job details and verify anonymous stage/results/record privacy, deep links, missing assets and mobile breakpoints. A real hero photo can now be uploaded in Admin → Настройки сайта → Главная. PR #1 remains draft and `main` is unchanged. Do not merge/deploy or run a production migration without a separate release decision.
+Branch reconciliation and baseline CI are complete. Public-site hardening commits `495647d` and a follow-up layout/error-state correction are on the feature branch; run backend/frontend CI on the latest exact SHA. Then inspect workflow job details and verify anonymous stage/results/record privacy, deep links, missing assets and mobile breakpoints. A real hero photo can now be uploaded in Admin → Настройки сайта → Главная. PR #1 remains draft and `main` is unchanged. Do not merge/deploy or run a production migration without a separate release decision.

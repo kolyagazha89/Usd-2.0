@@ -2440,3 +2440,6 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .public-nav button{font-size:11px!important;padding:8px 9px!important}
  .public-hero-copy h1{font-size:40px!important}
 }
+
+.public-home-error{max-width:1196px;width:calc(100% - 44px);margin:20px auto 0;border:1px solid #74313a;border-radius:10px;padding:14px;color:#ff8b96;background:#241114;font-size:13px}
+@media(max-width:600px){.public-home-error{width:calc(100% - 32px);margin-top:14px}}

@@ -30,7 +30,7 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
 | Backend CI on reconciled candidate | PASS | Candidate `5a25cd6`; run [38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
-| Frontend CI on latest public-site follow-up | PENDING | Run typecheck/build on the exact new commit SHA and inspect all jobs |
+| Frontend CI on latest public-site follow-up | RUNNING / RECHECK REQUIRED | Run typecheck/build on the newest layout/error-state correction SHA and inspect all jobs |
 | Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
 
 ## Public V1 boundaries agreed with owner
