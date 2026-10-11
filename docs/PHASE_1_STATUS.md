@@ -16,10 +16,10 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Area | State | Evidence / next action |
 |---|---|---|
 | Branch reconciliation | INTEGRATION CANDIDATE ON FEATURE BRANCH | Run CI on exact candidate, inspect all jobs and compare diff before PR/merge |
-| Public home, stages, results, records, rules | QA FIXES IN PROGRESS | Responsive navigation/hero, API failure/loading states, stage deep links, hero photo upload and settings-driven visibility; exact-SHA CI and privacy verification pending |
+| Public home, stages, results, records, rules | IMPLEMENTED; CI PASS; MANUAL QA OPEN | Responsive navigation/hero, shared role-based login copy, stage deep links, result loading/errors, configured logo and hero-photo upload; anonymous API/browser QA remains before release |
 | Public stage visibility | CODE PRESENT — VALIDATION OPEN | Service filters non-deleted PUBLISHED/COMPLETED stages; verify anonymous behavior and no draft data leakage |
-| Public results/records visibility | VALIDATION OPEN | Check result approval and privacy; no draft/private data leakage |
-| Site settings/assets | PARTIAL — IMPROVED | Public homepage uses configured hero title/subtitle and supported block visibility/title/order; admin can upload a real hero photo. Full CMS and unimplemented homepage blocks remain deferred |
+| Public results/records visibility | CODE HARDENED; AUTOMATED CI PASS; MANUAL QA OPEN | Results filter to published/completed stages and public participant/car flags; all public record queries now exclude deleted/unpublished stages. Verify anonymous endpoints against live candidate |
+| Site settings/assets | PARTIAL — IMPROVED | Admin-managed logo and hero photo upload/display, title/subtitle and supported homepage visibility/title/order are wired. Actual branded photo still needs upload; full CMS/unimplemented blocks deferred |
 | Participant cabinet/self-service registration | DEFERRED FROM PUBLIC V1 | Next block after a separate requirements survey |
 | QR issue/scan/revoke and migration | CODE PRESENT — VALIDATION OPEN; OUTSIDE THIS BLOCK | Validate on disposable PostgreSQL; never run production migration without explicit approval |
 | ADMIN/JUDGE/participant/anonymous permission matrix | TODO — VERIFY | Server-side role and ownership tests |
@@ -29,8 +29,8 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Configurable RBAC | TODO | Preserve current ADMIN/JUDGE semantics; audit and last-active-admin protection |
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
-| Backend CI on reconciled candidate | PASS | Candidate `5a25cd6`; run [38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
-| Frontend CI on latest public-site follow-up | RUNNING / RECHECK REQUIRED | Run typecheck/build on the newest layout/error-state correction SHA and inspect all jobs |
+| Backend CI on latest public V1 code | PASS | Candidate `dd455e1`; [run 38181056848](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38181056848) — Prisma generate/migrate, audit, build, lint, unit and E2E passed on disposable PostgreSQL |
+| Frontend CI on latest public V1 code | PASS | Candidate `dd455e1`; [run 38181056830](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38181056830) — typecheck and production build passed |
 | Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
 
 ## Public V1 boundaries agreed with owner
@@ -50,4 +50,4 @@ This is the acceptance checklist. A code commit is not complete until the releva
 
 ## Current truth
 
-Public-site code and baseline fixes pass CI on `5a25cd6`; this follow-up hardens responsive behavior, API failure/loading states, stage deep links and admin-managed hero photography, and awaits exact-SHA CI. The branch remains unmerged and not confirmed deployed. Participant cabinet/registration and QR work remain outside public V1 acceptance. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
+Public V1 code passes backend and frontend CI on `dd455e1`. Remaining release gates are manual browser/mobile QA, anonymous API privacy checks and Cloudflare preview/publish verification. The real hero photo must be uploaded in site settings; the UI has a fallback until then. PR #1 remains draft, main is unchanged and production was not deployed/migrated. Participant cabinet/registration and QR work remain outside public V1 acceptance. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
