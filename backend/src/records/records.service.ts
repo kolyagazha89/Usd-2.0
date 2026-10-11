@@ -593,6 +593,7 @@ export class RecordsService {
           registration: {
             participant: { isPublic: true },
             car: { isPublic: true },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
@@ -613,6 +614,7 @@ export class RecordsService {
           registration: {
             participant: { isPublic: true },
             car: { isPublic: true },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
@@ -641,6 +643,7 @@ export class RecordsService {
           registration: {
             participant: { isPublic: true },
             car: { isPublic: true },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
@@ -661,6 +664,7 @@ export class RecordsService {
           registration: {
             participant: { isPublic: true },
             car: { isPublic: true },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
@@ -677,6 +681,7 @@ export class RecordsService {
           registration: {
             participant: { isPublic: true },
             car: { isPublic: true },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
