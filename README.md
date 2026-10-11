@@ -3,8 +3,8 @@
 **Before every substantial development block, read [Development status](docs/DEVELOPMENT_STATUS.md), check Git history, ask the owner a short requirements survey, then implement the agreed scope end-to-end.** Keep the status/checklist updated with evidence. A commit or successful build does not mean a feature is merged, deployed, or production-verified.
 
 - [Development status and next steps](docs/DEVELOPMENT_STATUS.md)
-- [Product architecture and non-negotiable rules](docs/PRODUCT_ARCHITECTURE.md) (currently documented on the public/QR feature branch)
-- [Phase 1 release checklist](docs/PHASE_1_STATUS.md) (currently documented on the public/QR feature branch)
+- [Product architecture and non-negotiable rules](https://github.com/kolyagazha89/Usd-2.0/blob/feature/qr-checkin-and-platform-foundation/docs/PRODUCT_ARCHITECTURE.md) (public/QR feature branch)
+- [Phase 1 release checklist](https://github.com/kolyagazha89/Usd-2.0/blob/feature/qr-checkin-and-platform-foundation/docs/PHASE_1_STATUS.md) (public/QR feature branch)
 
 ---
 
