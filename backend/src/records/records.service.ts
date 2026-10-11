@@ -502,6 +502,13 @@ export class RecordsService {
     )) {
       throw new ConflictException('Дисквалифицированный результат не может стать рекордом');
     }
+    if (
+      result.id !== record.resultId &&
+      result.place !== 1 &&
+      Number(result.value) <= Number(record.value)
+    ) {
+      throw new ConflictException('Для подтверждения рекорда на финале нужно занять 1-е место в этом классе или превысить действующее значение рекорда');
+    }
 
     const cls = result.registrationClass.class;
     if (
