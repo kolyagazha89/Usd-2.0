@@ -602,7 +602,7 @@ function ImportPage(){
        registrations=sheetRows(regValues);
        if(!registrations.length)throw new Error('Лист «Регистрация» пустой или не содержит строк данных');
      }
-     const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL',sourceFilename:uploadedFile.name,sourcePostUrl:sourcePostUrl.trim()||undefined});
+     const r=await apiPost<any>('/imports/stage/preview',{stageId,registrations,results,historicalResults:mode==='HISTORICAL',sourceFilename:uploadedFile?.name??spreadsheet?.title??undefined,sourcePostUrl:sourcePostUrl.trim()||undefined});
      setResult(r);setJob(r.importJob);
      if(r.importJob?.id){
        const full=await apiGet<any>('/imports/'+r.importJob.id);
