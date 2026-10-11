@@ -379,7 +379,7 @@ export class ImportsService {
                           car: {
                             action: 'CREATE',
                             brand: 'Не указано',
-                            model: preview.car?.model || 'Автомобиль не указан',
+                            model: preview.car?.model || 'Не указано',
                             registrationNumber: preview.car?.plateNumber || undefined,
                             registrationCountry: 'RU',
                           },
@@ -3751,10 +3751,9 @@ export class ImportsService {
         data: {
           participantId,
           brand:
-            brand || 'Неизвестно',
+            brand || 'Не указано',
           model:
-            model ||
-            'Автомобиль не указан',
+            model || 'Не указано',
           registrationNumber:
             plateNumber ||
             `IMPORT-${participantId
