@@ -6094,7 +6094,7 @@ export class ImportsService {
             );
           }
 
-          const historicalOrResolvedNumber =
+          let historicalOrResolvedNumber =
             resolution?.participantNumber ??
             normalized?.participantNumber ??
             this.parseParticipantNumber(
@@ -6126,7 +6126,10 @@ export class ImportsService {
             historicalOrResolvedNumber > 0 &&
             historicalOrResolvedNumber !== primaryNumber
           ) {
-            const occupied = await tx.registration.findUnique({
+            // В исторических результатах исходные номера могут конфликтовать
+            // с регистрациями/резервами, созданными ранее в этом же импорте.
+            // Не останавливаем весь импорт: назначаем этой регистрации свободный номер.
+            let occupied = await tx.registration.findUnique({
               where: {
                 stageId_participantNumber: {
                   stageId: importJob.stageId,
@@ -6136,15 +6139,7 @@ export class ImportsService {
               select: { id: true },
             });
 
-            if (occupied && occupied.id !== registrationId) {
-              throw new BadRequestException(
-                'Строка ' + row.rowNumber + ': номер участника ' +
-                historicalOrResolvedNumber +
-                ' уже принадлежит другой регистрации на этом этапе',
-              );
-            }
-
-            const existingNumber = await tx.registrationNumber.findUnique({
+            let existingNumber = await tx.registrationNumber.findUnique({
               where: {
                 stageId_number: {
                   stageId: importJob.stageId,
@@ -6153,12 +6148,48 @@ export class ImportsService {
               },
             });
 
-            if (existingNumber && existingNumber.registrationId !== registrationId) {
-              throw new BadRequestException(
-                'Строка ' + row.rowNumber + ': номер участника ' +
-                historicalOrResolvedNumber +
-                ' уже зарезервирован другой регистрацией',
+            if (
+              (occupied && occupied.id !== registrationId) ||
+              (existingNumber && existingNumber.registrationId !== registrationId)
+            ) {
+              let allocatedNumber = await this.allocateFreeImportNumber(
+                tx,
+                importJob.stageId,
+                historicalOrResolvedNumber + 1,
               );
+
+              // Проверяем обе таблицы: старые данные могут содержать номер
+              // регистрации без соответствующей записи в RegistrationNumber.
+              while (true) {
+                occupied = await tx.registration.findUnique({
+                  where: {
+                    stageId_participantNumber: {
+                      stageId: importJob.stageId,
+                      participantNumber: allocatedNumber,
+                    },
+                  },
+                  select: { id: true },
+                });
+                existingNumber = await tx.registrationNumber.findUnique({
+                  where: {
+                    stageId_number: {
+                      stageId: importJob.stageId,
+                      number: allocatedNumber,
+                    },
+                  },
+                });
+                if (
+                  (!occupied || occupied.id === registrationId) &&
+                  (!existingNumber || existingNumber.registrationId === registrationId)
+                ) break;
+                allocatedNumber = await this.allocateFreeImportNumber(
+                  tx,
+                  importJob.stageId,
+                  allocatedNumber + 1,
+                );
+              }
+
+              historicalOrResolvedNumber = allocatedNumber;
             }
 
             const oldPrimary = await tx.registrationNumber.findFirst({
