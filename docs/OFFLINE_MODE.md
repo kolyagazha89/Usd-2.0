@@ -23,6 +23,8 @@ The hub is the local authority for the event while disconnected:
 
 A local hub is the best option when multiple judges must work simultaneously without internet. It must be prepared, tested, secured and powered before the event. It must not expose its local admin API to the public internet.
 
+**Mobile camera / HTTPS constraint:** browser camera access generally requires a secure context. Do not assume that opening an HTTP page at a private LAN IP will allow QR scanning on every phone. The implementation must test target iOS/Android browsers and choose a secure-context strategy before the event (for example, a pre-installed PWA served from its valid HTTPS origin with a deliberately designed local sync channel, or a venue hostname with a valid certificate and local DNS). Provide a non-camera fallback such as manual registration-number search and, where supported, scanning an uploaded QR image. Avoid mixed-content requests and never make a certificate/DNS setup a last-minute event-day dependency.
+
 ### Level B — device offline mode (fallback)
 
 A judge's phone or laptop can hold a controlled local event package in IndexedDB and a durable queue of pending operations. A PWA service worker caches the app shell and essential assets, but event data and writes live in IndexedDB, not only in browser cache storage.
