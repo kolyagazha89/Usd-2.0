@@ -6,9 +6,9 @@ This is the acceptance checklist. A code commit is not complete until the releva
 
 - Before reconciliation, GitHub compare showed the feature branch 33 commits ahead and 9 behind `main`; older notes stating 32/6 were stale.
 - Reconciliation is represented by a two-parent integration commit on `feature/qr-checkin-and-platform-foundation`. It preserves the feature tree and carries forward the main versions of `.github/workflows/frontend.yml`, `README.md`, `backend/src/imports/imports.service.spec.ts`, `frontend/package.json` and `frontend/src/api.ts`, plus the canonical status checklist.
-- The feature branch is not yet merged into `main`, not confirmed deployed and not release-ready.
+- Draft PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) is open. The feature branch is not yet merged into `main`, not confirmed deployed and not release-ready.
 - Main Backend CI passed on `64ff5839` (run [38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756)); main Frontend CI passed on `8ed4078e` (run [38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332)).
-- Feature Frontend CI passed before reconciliation (run [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826)); Backend CI on the reconciled candidate is still required.
+- Reconciled candidate `9b463088a6c37e45b533aaa7ec01821d57830115`: Frontend CI passed (typecheck/build, [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595)); Backend CI passed (Prisma generate/migrate on disposable PostgreSQL, audit, build, lint, unit and E2E, [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618)).
 - The earlier deploy workflow built but skipped Cloudflare publish due to missing credentials (run [38177954189](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954189)). No production deployment or migration is claimed.
 
 ## P0 acceptance checklist
@@ -29,7 +29,7 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Configurable RBAC | TODO | Preserve current ADMIN/JUDGE semantics; audit and last-active-admin protection |
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
-| Backend CI on reconciled candidate | REQUIRED | Build, lint, unit and E2E must pass on exact SHA |
+| Backend CI on reconciled candidate | PASS | Candidate `9b463088`; run [38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
 | Frontend CI on reconciled candidate | REQUIRED | Typecheck and build must pass on exact SHA |
 | Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
 

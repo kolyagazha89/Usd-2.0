@@ -18,10 +18,10 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 - `main` before reconciliation: `71b697c0b1f668aa6bdd054f1f2f1969c8b17329`.
 - Public/QR feature branch before reconciliation: `6897fa6bcac1d036d9d7448b4e11b2d6496ea241`.
 - GitHub comparison before reconciliation showed 33 feature-only commits and 9 main-only commits (the old checklist's 32/6 was stale).
-- Reconciliation preserves feature/public code and brings forward main's current versions of the frontend workflow, README links, import regression test, package install script and API URL normalization. The integration commit has both branch tips as parents; it remains on the feature branch pending CI and review.
+- Reconciliation commit `eb858087d391f6178c880716d51dfcf3f8a19b83` has both branch tips as parents, so the branch is now 34 commits ahead and 0 behind `main`. Follow-up commit `9b463088a6c37e45b533aaa7ec01821d57830115` adds an explicit backend CI trigger for this integration branch. Draft PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) is open; it is not merged into `main`.
 - Main backend CI passed on `64ff5839`: build, lint, unit and E2E, [run 38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756).
 - Main frontend CI passed on `8ed4078e`, [run 38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332).
-- Feature frontend CI passed before reconciliation, [run 38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826). Backend CI on the reconciled candidate still needs to run.
+- Reconciled candidate CI passed on `9b463088`: frontend typecheck/build [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595); backend build, lint, unit tests, E2E, Prisma generation and migration against disposable PostgreSQL [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618). The earlier feature frontend run is [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826).
 - The frontend deploy workflow previously built but skipped Cloudflare publish because credentials were unavailable, [run 38177954189](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954189). This is not deployment evidence.
 - No production migration or deployment is authorized by this work block.
 
@@ -60,4 +60,4 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 ## Next action
 
-Run/inspect CI for the reconciled feature-branch candidate. Fix any failures, rerun CI, and update this document and `docs/PHASE_1_STATUS.md` with exact evidence. Do not begin the public design/CMS block until its requirements survey has been answered.
+Branch reconciliation and CI validation are complete on candidate `9b463088`; PR #1 remains draft and `main` is unchanged. Continue public pages QA on the feature branch (home, stages, results, records, rules), focusing on anonymous visibility/privacy and mobile/loading/empty/error states. Before a major visual redesign or CMS block, ask the owner a short design/requirements survey. Do not merge/deploy or run a production migration without a separate release decision.
