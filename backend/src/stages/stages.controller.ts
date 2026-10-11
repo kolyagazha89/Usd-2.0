@@ -16,6 +16,12 @@ export class StagesController {
   }
 
   @Public()
+  @Get('public')
+  findPublished() {
+    return this.stagesService.findPublished();
+  }
+
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.stagesService.findOne(id);
