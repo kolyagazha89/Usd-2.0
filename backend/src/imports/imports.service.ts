@@ -3823,13 +3823,22 @@ export class ImportsService {
     stageId: string,
     preferredNumber: number,
   ): Promise<number> {
-    const rows = await tx.registrationNumber.findMany({
-      where: { stageId },
-      select: { number: true },
-      orderBy: { number: 'asc' },
-    });
+    const [numberRows, registrations] = await Promise.all([
+      tx.registrationNumber.findMany({
+        where: { stageId },
+        select: { number: true },
+        orderBy: { number: 'asc' },
+      }),
+      tx.registration.findMany({
+        where: { stageId },
+        select: { participantNumber: true },
+      }),
+    ]);
 
-    const used = new Set(rows.map((row) => row.number));
+    const used = new Set([
+      ...numberRows.map((row) => row.number),
+      ...registrations.map((registration) => registration.participantNumber),
+    ]);
     let candidate = preferredNumber;
 
     if (!Number.isInteger(candidate) || candidate <= 0) {
@@ -3978,6 +3987,36 @@ export class ImportsService {
     };
 
     try {
+      // Historical imports may encounter stale reservations from earlier attempts.
+      // Resolve the conflict before creating the registration itself.
+      let participantNumber = data.participantNumber;
+      const reserved = await tx.registrationNumber.findUnique({
+        where: {
+          stageId_number: {
+            stageId: data.stageId,
+            number: participantNumber,
+          },
+        },
+        select: { registrationId: true },
+      });
+      const occupiedRegistration = await tx.registration.findUnique({
+        where: {
+          stageId_participantNumber: {
+            stageId: data.stageId,
+            participantNumber,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (reserved || occupiedRegistration) {
+        participantNumber = await this.allocateFreeImportNumber(
+          tx,
+          data.stageId,
+          participantNumber + 1,
+        );
+      }
+
       const registration = await tx.registration.create({
         data: {
           stageId: data.stageId,
@@ -3985,7 +4024,7 @@ export class ImportsService {
           carId: data.carId,
           configurationVersionId: version.id,
           configurationSnapshot,
-          participantNumber: data.participantNumber,
+          participantNumber,
           source: 'IMPORT',
           status: 'ACTIVE',
         },
@@ -3994,7 +4033,7 @@ export class ImportsService {
       await this.ensureRegistrationNumber(tx, {
         stageId: data.stageId,
         registrationId: registration.id,
-        number: data.participantNumber,
+        number: participantNumber,
         isPrimary: true,
       });
 
