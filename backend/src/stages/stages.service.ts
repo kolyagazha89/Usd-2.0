@@ -19,6 +19,14 @@ export class StagesService {
     });
   }
 
+  async findPublished() {
+    return this.prisma.stage.findMany({
+      where: { isDeleted: false, status: 'PUBLISHED' },
+      orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
+      include: { season: true },
+    });
+  }
+
   async findOne(id: string) {
     const stage = await this.prisma.stage.findFirst({
       where: { id, isDeleted: false },
