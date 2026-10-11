@@ -2401,3 +2401,42 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .team-directory-count { grid-column: 2; text-align: left; }
   .team-directory-count strong { display: inline; margin-right: 5px; font-size: 19px; }
 }
+
+
+/* Public V1 — responsive motorsport site */
+.public-site{overflow-x:clip}
+.public-header-inner{width:100%}
+.public-nav{max-width:100%}
+.public-home-main{display:flex;flex-direction:column}
+.public-hero{width:100%}
+.public-hero-layout{width:100%}
+.public-hero-copy{min-width:0}
+.public-hero-visual{min-width:0;width:100%}
+.public-hero-fallback{max-width:100%;min-width:0}
+.public-hero-photo-frame{position:relative;width:min(100%,560px);aspect-ratio:1.2;overflow:hidden;border:1px solid #444047;border-radius:16px;box-shadow:0 28px 90px #0009;background:#161619}
+.public-hero-photo-frame:after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(10,10,11,.08),rgba(10,10,11,.55));pointer-events:none}
+.public-hero-photo{display:block;width:100%;height:100%;object-fit:cover}
+.public-next-stage{width:100%}
+.public-nav button{white-space:nowrap}
+.homepage-hero-upload{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);align-items:center;gap:18px;margin:18px 0 24px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fafbfc}
+.homepage-hero-preview{aspect-ratio:16/9;min-width:0;border-radius:10px;overflow:hidden;background:#171719;display:grid;place-items:center;color:#858a90;font-size:11px;font-weight:900;letter-spacing:.12em}
+.homepage-hero-preview img{width:100%;height:100%;object-fit:cover}
+.homepage-hero-upload .settings-help{margin:6px 0 12px}
+@media(max-width:760px){
+ .public-header-inner{justify-content:center!important;padding:12px 16px!important;gap:12px!important}
+ .public-header-inner>button:first-child{margin-right:auto}
+ .public-nav{width:100%;display:flex!important;overflow-x:auto;flex-wrap:nowrap!important;padding:0 0 4px;scrollbar-width:thin}
+ .public-nav button{flex:0 0 auto;font-size:12px!important;padding:9px 11px!important}
+ .public-hero-layout{grid-template-columns:minmax(0,1fr)!important;gap:26px!important;padding:54px 18px 56px!important}
+ .public-hero-copy h1{font-size:clamp(40px,12vw,64px)!important;letter-spacing:-.055em!important}
+ .public-hero-visual{min-height:0!important}
+ .public-hero-photo-frame{aspect-ratio:1.1}
+ .public-next-stage{padding:42px 18px 52px!important}
+ .homepage-hero-upload{grid-template-columns:1fr}
+ .homepage-hero-preview{max-width:100%;width:100%}
+}
+@media(max-width:420px){
+ .public-header-inner{padding:12px!important}
+ .public-nav button{font-size:11px!important;padding:8px 9px!important}
+ .public-hero-copy h1{font-size:40px!important}
+}

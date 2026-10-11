@@ -16,10 +16,10 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Area | State | Evidence / next action |
 |---|---|---|
 | Branch reconciliation | INTEGRATION CANDIDATE ON FEATURE BRANCH | Run CI on exact candidate, inspect all jobs and compare diff before PR/merge |
-| Public home, stages, results, records, rules | CODE PRESENT ON FEATURE BRANCH | Mobile and desktop QA; verify routes, loading/empty/error states and links |
+| Public home, stages, results, records, rules | QA FIXES IN PROGRESS | Responsive navigation/hero, API failure/loading states, stage deep links, hero photo upload and settings-driven visibility; exact-SHA CI and privacy verification pending |
 | Public stage visibility | CODE PRESENT — VALIDATION OPEN | Service filters non-deleted PUBLISHED/COMPLETED stages; verify anonymous behavior and no draft data leakage |
 | Public results/records visibility | VALIDATION OPEN | Check result approval and privacy; no draft/private data leakage |
-| Site settings/assets | PARTIAL — QA FIXES ADDED | Frontend unwraps public settings; rules text and allowlisted legal links are wired. Test missing settings/assets and homepage configuration behavior; full CMS deferred |
+| Site settings/assets | PARTIAL — IMPROVED | Public homepage uses configured hero title/subtitle and supported block visibility/title/order; admin can upload a real hero photo. Full CMS and unimplemented homepage blocks remain deferred |
 | Participant cabinet/self-service registration | DEFERRED FROM PUBLIC V1 | Next block after a separate requirements survey |
 | QR issue/scan/revoke and migration | CODE PRESENT — VALIDATION OPEN; OUTSIDE THIS BLOCK | Validate on disposable PostgreSQL; never run production migration without explicit approval |
 | ADMIN/JUDGE/participant/anonymous permission matrix | TODO — VERIFY | Server-side role and ownership tests |
@@ -30,7 +30,7 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
 | Backend CI on reconciled candidate | PASS | Candidate `5a25cd6`; run [38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
-| Frontend CI on reconciled candidate | REQUIRED | Typecheck and build must pass on exact SHA |
+| Frontend CI on latest public-site follow-up | PENDING | Run typecheck/build on the exact new commit SHA and inspect all jobs |
 | Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
 
 ## Public V1 boundaries agreed with owner
@@ -50,4 +50,4 @@ This is the acceptance checklist. A code commit is not complete until the releva
 
 ## Current truth
 
-Public-site starter code and the first public-page QA fixes exist on the feature branch. The tested code candidate `5a25cd6` passes frontend and backend CI, but is not merged into `main`, not confirmed deployed and not release-ready. Participant cabinet/registration and QR work are deferred from public V1 acceptance, even where code is already present. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
+Public-site code and baseline fixes pass CI on `5a25cd6`; this follow-up hardens responsive behavior, API failure/loading states, stage deep links and admin-managed hero photography, and awaits exact-SHA CI. The branch remains unmerged and not confirmed deployed. Participant cabinet/registration and QR work remain outside public V1 acceptance. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
