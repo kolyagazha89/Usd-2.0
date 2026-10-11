@@ -6123,8 +6123,7 @@ export class ImportsService {
             !isBassRace &&
             !historicalNumberAllocated &&
             historicalOrResolvedNumber &&
-            historicalOrResolvedNumber > 0 &&
-            historicalOrResolvedNumber !== primaryNumber
+            historicalOrResolvedNumber > 0
           ) {
             // В исторических результатах исходные номера могут конфликтовать
             // с регистрациями/резервами, созданными ранее в этом же импорте.
