@@ -222,6 +222,34 @@ export class RegistrationsService {
     };
   }
 
+  async revokeQrToken(registrationId: string, request: AuthenticatedRequest) {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+      select: { id: true, participantId: true, stageId: true, participantNumber: true },
+    });
+    if (!registration) throw new NotFoundException('Регистрация не найдена');
+    if (request.user.role === 'PARTICIPANT' && registration.participantId !== request.user.participantId) {
+      throw new ForbiddenException('Нет доступа к этой регистрации');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.registrationQrToken.updateMany({
+        where: { registrationId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'REGISTRATION_QR_REVOKED',
+          entity: 'Registration',
+          entityId: registrationId,
+          ipAddress: request.ip ?? null,
+          metadata: { stageId: registration.stageId, participantNumber: registration.participantNumber, revokedCount: revoked.count },
+        },
+      });
+      return revoked;
+    });
+    return { success: true, revoked: result.count > 0 };
+  }
   async resolveQrToken(token: string, request: AuthenticatedRequest) {
     if (request.user.role !== 'ADMIN' && request.user.role !== 'JUDGE') {
       throw new ForbiddenException('Сканирование доступно только судье или администратору');
