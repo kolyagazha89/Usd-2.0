@@ -6263,6 +6263,49 @@ export class ImportsService {
             }
           }
 
+          // Final guard: class-number reservations have their own unique namespace.
+          // In historical imports, a stale reservation must not abort the whole import.
+          if (historicalResults && !isBassRace && classNumber > 0) {
+            const reservedClassNumber = await tx.registrationNumber.findUnique({
+              where: {
+                stageId_number: {
+                  stageId: importJob.stageId,
+                  number: classNumber,
+                },
+              },
+              select: { registrationId: true },
+            });
+
+            if (
+              reservedClassNumber &&
+              reservedClassNumber.registrationId !== registrationId
+            ) {
+              classNumber = await this.allocateFreeImportNumber(
+                tx,
+                importJob.stageId,
+                classNumber + 1,
+              );
+
+              while (importedRegistrationsByNumber.has(classNumber)) {
+                classNumber = await this.allocateFreeImportNumber(
+                  tx,
+                  importJob.stageId,
+                  classNumber + 1,
+                );
+              }
+
+              // Keep the registration's primary number and the class reservation aligned.
+              await tx.registration.update({
+                where: { id: registrationId },
+                data: { participantNumber: classNumber },
+              });
+              await tx.registrationNumber.updateMany({
+                where: { registrationId },
+                data: { isPrimary: false },
+              });
+            }
+          }
+
           const registrationNumber = await this.ensureRegistrationNumber(tx, {
             stageId: importJob.stageId,
             registrationId,
