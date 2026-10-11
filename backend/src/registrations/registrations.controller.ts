@@ -39,6 +39,15 @@ export class RegistrationsController {
     return this.registrationsService.issueQrToken(id, request);
   }
 
+  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Delete(':id/qr-token')
+  revokeQrToken(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.registrationsService.revokeQrToken(id, request);
+  }
+
   @Roles('ADMIN', 'JUDGE')
   @Get()
   findAll(
