@@ -21,7 +21,7 @@ export class StagesService {
 
   async findPublished() {
     return this.prisma.stage.findMany({
-      where: { isDeleted: false, status: 'PUBLISHED' },
+      where: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
       orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
       include: { season: true },
     });
@@ -29,7 +29,7 @@ export class StagesService {
 
   async findPublishedOne(id: string) {
     const stage = await this.prisma.stage.findFirst({
-      where: { id, isDeleted: false, status: 'PUBLISHED' },
+      where: { id, isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
       include: {
         season: true,
         stageClasses: {
@@ -39,7 +39,7 @@ export class StagesService {
         },
       },
     });
-    if (!stage) throw new NotFoundException('Опубликованный этап не найден');
+    if (!stage) throw new NotFoundException('Этап не найден или не опубликован');
     return stage;
   }
 
