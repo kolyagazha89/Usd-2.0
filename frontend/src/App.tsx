@@ -849,7 +849,7 @@ function RecordsPage({user}:{user:User}){
   catch(e){setEditError(e instanceof Error?e.message:'Не удалось сохранить рекорд')}
   finally{setSaving(false)}
  };
- const candidateLabel=(x:any)=>{const p=x.registration?.participant;const stage=x.registration?.stage;const car=x.registration?.car;return `${[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'Участник без имени'} · ${stage?.name??'Этап без названия'} ${stage?.season?.year??''} · ${x.value??'—'} ${x.unit??''}${car?[ ` · ${car.brand??''} ${car.model??''}` .join('').trim()]:''}`};
+ const candidateLabel=(x:any)=>{const p=x.registration?.participant;const stage=x.registration?.stage;const car=x.registration?.car;const carLabel=[car?.brand,car?.model].filter(Boolean).join(' ');return `${[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'Участник без имени'} · ${stage?.name??'Этап без названия'} ${stage?.season?.year??''} · ${x.value??'—'} ${x.unit??''}${carLabel?' · '+carLabel:''}`};
  return <PageFrame title="Рекорды" subtitle="Текущие действующие рекорды чемпионата" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
   {error&&<ErrorPanel message={error} retry={load}/>}
   <div className="panel table-wrap">
