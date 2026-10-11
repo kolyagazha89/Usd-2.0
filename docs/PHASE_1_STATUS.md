@@ -8,18 +8,28 @@ This is the working acceptance checklist for P0. A code commit is not considered
 - `BLOCKED — VALIDATION`: code exists; validation is blocked and the feature is not cleared for release.
 - `TODO`: not implemented yet.
 
+## Current repository reconciliation — 2026-10-12
+
+Read this section together with [the canonical development status on main](https://github.com/kolyagazha89/Usd-2.0/blob/main/docs/DEVELOPMENT_STATUS.md) before starting work.
+
+- This checklist and the public website/QR implementation are on `feature/qr-checkin-and-platform-foundation` at `cb3070a2`; they are **not merged into main and are not confirmed deployed**.
+- GitHub compare reports the feature branch is 32 commits ahead and 6 behind `main`. Reconcile the six main-only commits (recent historical import/record/API URL fixes) before integration. Do not merge blindly; review `frontend/src/App.tsx` and backend/migration overlaps.
+- Feature branch Frontend CI passed: [run 38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826). Backend CI for the feature branch has not been verified in the currently inspected runs.
+- On `main`, Backend CI passed at `64ff5839` (build, lint, unit and E2E); Frontend CI passed at `8ed4078e`. The Frontend Deploy workflow built successfully but skipped the Cloudflare Worker publish step, so this is **not evidence of a new frontend deployment**.
+- The operator confirmed on 2026-10-12 that production admin login works and existing data is present. Preserve that working state; do not use production as a test database.
+
 ## P0 checklist
 
 | Area | Status | Evidence / remaining work |
 |---|---|---|
 | Repository architecture and product constraints | DONE — CODE | [PRODUCT_ARCHITECTURE.md](./PRODUCT_ARCHITECTURE.md), [OFFLINE_MODE.md](./OFFLINE_MODE.md) |
-| Public stage visibility | DONE — CODE | Added `GET /stages/public`, restricted to non-deleted PUBLISHED/COMPLETED stages; keep admin's existing stage list intact |
-| Public website shell | DONE — CODE | Responsive public home, stages, results, records and rules routes in the React app; requires UI/data QA and CMS integration |
+| Public stage visibility | DONE — CODE ON FEATURE BRANCH ONLY | `GET /stages/public` restricts visibility to non-deleted PUBLISHED/COMPLETED stages; verify no result/record privacy leaks and keep admin's full stage list intact |
+| Public website shell | DONE — CODE ON FEATURE BRANCH ONLY | Responsive public home, stages, results, records and rules routes exist on this branch; not in main and not confirmed live. Requires UI/data/privacy QA and CMS integration |
 | Participant cabinet registration list | DONE — CODE | Cabinet loads the participant's registrations and shows stage/car/class information |
 | QR credential storage | DONE — CODE | Random opaque token, SHA-256 hash stored in PostgreSQL, issue/resolve/revoke endpoints, audit events and migration |
 | Judge QR scanner and direct inspection opening | DONE — CODE | Camera scanner where BarcodeDetector is supported, manual token/link fallback, registration card and direct opening of the matching inspection modal |
 | Participant QR display | DONE — CODE | QR rendered locally in the participant cabinet; token is not sent to a third-party QR image service |
-| QR security and ownership boundaries | BLOCKED — VALIDATION | Unit tests added; must run tests and verify authenticated role/ownership behavior against a real test database |
+| QR security and ownership boundaries | BLOCKED — VALIDATION | Tests/code exist on feature branch; feature-branch Backend CI is not yet verified. Validate role/ownership behavior, migration and end-to-end flows on disposable PostgreSQL |
 | Existing auth and ADMIN/JUDGE semantics | TODO — VERIFY | Run a permission regression matrix for admin, judge and participant across all routes; don't infer correctness from UI visibility |
 | Custom role editor (RBAC) | TODO | Data model, effective-permission resolver, admin UI, audit, last-admin protection and migration are not yet implemented |
 | Core CMS (homepage blocks, navigation, news, rules, SEO, preview/versioning) | TODO | Public pages currently use a starter shell and settings fallback; full content management and publishing workflow are not implemented |
@@ -28,12 +38,12 @@ This is the working acceptance checklist for P0. A code commit is not considered
 | Transactional email and marketing mail separation | TODO | Delivery queue, templates, retries, unsubscribe/consent enforcement and delivery logs need implementation/verification |
 | Offline event operation | TODO — ARCHITECTURE ONLY | Architecture is documented; local hub, IndexedDB package/queue, synchronization API, idempotency and conflict UI are not implemented |
 | Backups, restore drill, monitoring and alerting | TODO — VERIFY | Documented operational requirement; verify actual schedules, recovery procedure and alert delivery |
-| CI build/lint/unit/e2e | BLOCKED — REPOSITORY-WIDE ACTIONS STARTUP FAILURE | Root cause category isolated: not a source compile/test failure and not the runner label. Last verified successful runs: backend `37916670589` and frontend `37916603988` on 2026-10-09 (real runner IDs, all steps passed). On 2026-10-11, workflows on `main` and feature branches began failing before job setup: e.g. main backend `38128147262`, feature frontend `38171552193`, feature backend `38171552177`; jobs report `runner_id: 0`, empty steps, zero billable ms/no logs. Changing `ubuntu-slim` to `ubuntu-latest` did not help. Other workflows, including frontend deploy, also failed in the same window. This matches recent GitHub Community reports of private-repository `startup_failure` / zero-job Actions failures, but does not prove the same internal cause. Next: repo owner checks Actions settings, billing/quota, and runner policy; if those are normal, open GitHub Support with run IDs and ask them to inspect workflow initialization/job-graph provisioning. Do not keep changing application code to chase this infrastructure symptom |
+| CI build/lint/unit/e2e | MAIN GREEN; FEATURE BACKEND UNVERIFIED | Main Backend CI passed on `64ff5839` (run [38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756)); main Frontend CI passed on `8ed4078e` (run [38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332)); feature Frontend CI passed (run [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826)). Still required: run backend build/lint/unit/E2E on the feature branch or after branch reconciliation. Older startup failures are historical, not the current status |
 | Production database migration and deploy | NOT RUN | Intentionally not run from this feature branch. Do not deploy until validation and rollout review pass |
 
 ## Required release gate
 
-1. Restore a working CI runner and capture successful backend build, lint, unit and e2e checks, plus frontend typecheck/build.
+1. Reconcile the feature branch with the six main-only commits, then capture successful backend build/lint/unit/E2E and frontend typecheck/build on the exact candidate commit.
 2. Validate Prisma schema/migration on a disposable PostgreSQL database and verify generated client compatibility.
 3. Run QR issue/scan/revoke tests for ADMIN, JUDGE, participant owner, participant non-owner, cancelled registration, deleted/cancelled stage, invalid token, and already-inspected registration.
 4. Verify that public endpoints never return draft/unpublished stages or unapproved results.
@@ -43,4 +53,4 @@ This is the working acceptance checklist for P0. A code commit is not considered
 
 ## Current truth
 
-The QR foundation and public-site starter are code-complete enough for validation, but **Phase 1 is not complete and is not release-ready**. Offline synchronization, full CMS, configurable RBAC, legal/consent lifecycle, complete registration, email delivery, and release validation remain open.
+The QR foundation and public-site starter exist on this feature branch, but are **not merged into main, not confirmed deployed, and not release-ready**. Main CI is green; feature-branch Backend CI still needs verification. Offline synchronization, full CMS, configurable RBAC, legal/consent lifecycle, complete registration, email delivery, privacy/authorization QA, branch reconciliation and release validation remain open.
