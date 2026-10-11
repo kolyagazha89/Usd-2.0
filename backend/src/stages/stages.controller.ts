@@ -9,7 +9,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class StagesController {
   constructor(private readonly stagesService: StagesService) {}
 
-  @Public()
+  @Roles('ADMIN', 'JUDGE')
   @Get()
   findAll() {
     return this.stagesService.findAll();
@@ -22,6 +22,12 @@ export class StagesController {
   }
 
   @Public()
+  @Get('public/:id')
+  findPublishedOne(@Param('id') id: string) {
+    return this.stagesService.findPublishedOne(id);
+  }
+
+  @Roles('ADMIN', 'JUDGE')
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.stagesService.findOne(id);
