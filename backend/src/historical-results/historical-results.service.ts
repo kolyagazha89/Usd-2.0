@@ -488,21 +488,96 @@ export class HistoricalResultsService {
     if (request.user.role !== 'ADMIN') {
       throw new ForbiddenException('Подтверждать исторические результаты может только администратор');
     }
+
+    // Confirm pending historical rows in one short transaction. The previous
+    // implementation recalculated records/rankings for every row, repeatedly
+    // touching the same classes and often exceeding the proxy request timeout.
     const pending = await this.prisma.result.findMany({
       where: { isHistorical: true, verificationStatus: 'PENDING' },
-      select: { id: true },
+      select: {
+        id: true,
+        createdByUserId: true,
+        registration: { select: { stageId: true } },
+        registrationClass: { select: { classId: true } },
+      },
       orderBy: { createdAt: 'asc' },
     });
-    let processed = 0;
+
+    if (pending.length === 0) {
+      return { success: true, processed: 0, total: 0, remaining: 0 };
+    }
+
+    const now = new Date();
+    const ids = pending.map((item) => item.id);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.result.updateMany({
+        where: {
+          id: { in: ids },
+          isHistorical: true,
+          verificationStatus: 'PENDING',
+        },
+        data: {
+          verificationStatus: 'VERIFIED',
+          verifiedByUserId: request.user.sub,
+          verifiedAt: now,
+        },
+      });
+
+      await tx.auditLog.createMany({
+        data: pending.map((item) => ({
+          userId: request.user.sub,
+          action: 'HISTORICAL_RESULT_VERIFIED',
+          entity: 'Result',
+          entityId: item.id,
+          ipAddress: request.ip,
+          metadata: {
+            createdByUserId: item.createdByUserId,
+            verifiedByUserId: request.user.sub,
+            bulk: true,
+          },
+        })),
+      });
+    });
+
+    // Recalculate once per distinct class/stage pair, rather than once per
+    // result. This keeps the request bounded even for large imported finals.
+    const classIds = [...new Set(pending.map((item) => item.registrationClass.classId))];
+    const rankingKeys = new Map<string, { stageId: string; classId: string }>();
     for (const item of pending) {
+      const key = `${item.registration.stageId}:${item.registrationClass.classId}`;
+      rankingKeys.set(key, {
+        stageId: item.registration.stageId,
+        classId: item.registrationClass.classId,
+      });
+    }
+
+    let recordErrors = 0;
+    for (const classId of classIds) {
       try {
-        await this.verify(item.id, request);
-        processed++;
-      } catch {
-        // One broken row must not prevent the administrator from confirming the rest.
+        await this.recordsService.recalculateCurrentRecord(classId);
+      } catch (error) {
+        // Keep verification durable even if a concurrent record update races.
+        // A later recalculation can safely rebuild the current record.
+        recordErrors++;
       }
     }
-    return { success: true, processed, total: pending.length, remaining: pending.length - processed };
+
+    for (const item of rankingKeys.values()) {
+      try {
+        await this.rankingService.recalculateByStageClass(item.stageId, item.classId);
+      } catch {
+        // Do not roll back verified historical results because of a ranking
+        // recalculation issue; it can be recalculated independently.
+      }
+    }
+
+    return {
+      success: true,
+      processed: pending.length,
+      total: pending.length,
+      remaining: 0,
+      recordRecalculationWarnings: recordErrors,
+    };
   }
 
   async verify(id: string, request: AuthenticatedRequest) {
