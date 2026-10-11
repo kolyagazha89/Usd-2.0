@@ -1,3 +1,13 @@
+# USD 2.0 — project handoff
+
+**Before every substantial development block, read [Development status](docs/DEVELOPMENT_STATUS.md), check Git history, ask the owner a short requirements survey, then implement the agreed scope end-to-end.** Keep the status/checklist updated with evidence. A commit or successful build does not mean a feature is merged, deployed, or production-verified.
+
+- [Development status and next steps](docs/DEVELOPMENT_STATUS.md)
+- [Product architecture and non-negotiable rules](docs/PRODUCT_ARCHITECTURE.md) (currently documented on the public/QR feature branch)
+- [Phase 1 release checklist](docs/PHASE_1_STATUS.md) (currently documented on the public/QR feature branch)
+
+---
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
