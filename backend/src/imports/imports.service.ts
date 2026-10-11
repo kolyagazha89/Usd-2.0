@@ -5541,6 +5541,26 @@ export class ImportsService {
             if (historicalImport) {
               const existingByImportedNumber =
                 importedRegistrationsByNumber.get(participantNumber) ?? null;
+
+              // Repeated result rows for the same person (one row per class)
+              // must reuse the registration already created for that participant.
+              // Comparing registrationId here is insufficient: for a CREATE
+              // resolution it is normally null even when this number is already
+              // mapped to the same participant.
+              const mappedRegistration = existingByImportedNumber
+                ? await tx.registration.findUnique({
+                    where: { id: existingByImportedNumber },
+                    select: { id: true, participantId: true },
+                  })
+                : null;
+
+              if (
+                mappedRegistration &&
+                mappedRegistration.participantId === participantId
+              ) {
+                registrationId = mappedRegistration.id;
+              }
+
               const existingByNumber = await tx.registration.findUnique({
                 where: {
                   stageId_participantNumber: {
@@ -5560,18 +5580,31 @@ export class ImportsService {
               const importedNumberBelongsToAnotherRegistration =
                 Boolean(
                   existingByImportedNumber &&
-                  existingByImportedNumber !== registrationId,
+                  existingByImportedNumber !== registrationId &&
+                  mappedRegistration?.participantId !== participantId,
                 );
 
               if (
                 numberBelongsToAnotherParticipant ||
                 importedNumberBelongsToAnotherRegistration
               ) {
-                const allocatedNumber = await this.allocateFreeImportNumber(
+                let allocatedNumber = await this.allocateFreeImportNumber(
                   tx,
                   importJob.stageId,
                   participantNumber,
                 );
+
+                // The in-memory map is also authoritative during this transaction:
+                // never allocate a number already mapped to an imported registration,
+                // even if its RegistrationNumber row has not been created yet.
+                while (importedRegistrationsByNumber.has(allocatedNumber)) {
+                  allocatedNumber = await this.allocateFreeImportNumber(
+                    tx,
+                    importJob.stageId,
+                    allocatedNumber + 1,
+                  );
+                }
+
                 participantNumber = allocatedNumber;
                 primaryParticipantNumber = allocatedNumber;
                 historicalNumberAllocated = true;
