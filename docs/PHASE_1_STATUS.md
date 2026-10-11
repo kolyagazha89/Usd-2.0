@@ -28,7 +28,7 @@ This is the working acceptance checklist for P0. A code commit is not considered
 | Transactional email and marketing mail separation | TODO | Delivery queue, templates, retries, unsubscribe/consent enforcement and delivery logs need implementation/verification |
 | Offline event operation | TODO — ARCHITECTURE ONLY | Architecture is documented; local hub, IndexedDB package/queue, synchronization API, idempotency and conflict UI are not implemented |
 | Backups, restore drill, monitoring and alerting | TODO — VERIFY | Documented operational requirement; verify actual schedules, recovery procedure and alert delivery |
-| CI build/lint/unit/e2e | BLOCKED — VALIDATION | GitHub jobs fail before any steps start (runner ID 0, empty steps, no logs). This is not evidence of a source compile failure; runner/account configuration must be restored, then all checks rerun |
+| CI build/lint/unit/e2e | BLOCKED — VALIDATION | Re-ran both checks and changed the frontend runner label from `ubuntu-slim` to standard `ubuntu-latest`; the new runs still fail in ~2 seconds with `runner_id: 0`, empty `steps`, and no runner name/logs (runs `38171552177`, `38171552193`). This points to Actions runner/repository-account execution configuration, not a source-level build failure. The connected GitHub tooling can inspect runs but cannot change repository Actions settings; an owner must verify Actions availability/billing/runner policy, then rerun all checks |
 | Production database migration and deploy | NOT RUN | Intentionally not run from this feature branch. Do not deploy until validation and rollout review pass |
 
 ## Required release gate
