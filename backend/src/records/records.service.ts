@@ -513,6 +513,13 @@ export class RecordsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      const existingResultRecord = result.id === record.resultId
+        ? null
+        : await tx.record.findUnique({ where: { resultId: result.id } });
+      if (existingResultRecord && existingResultRecord.classId !== record.classId) {
+        throw new ConflictException('У выбранного результата уже есть запись рекорда в другом классе');
+      }
+
       await tx.record.updateMany({
         where: { classId: record.classId, isCurrent: true },
         data: { isCurrent: false },
@@ -522,8 +529,16 @@ export class RecordsService {
         data: { isBest: false },
       });
 
+      const targetRecordId = existingResultRecord?.id ?? id;
+      if (targetRecordId !== id) {
+        await tx.record.update({
+          where: { id },
+          data: { isCurrent: false, isManualOverride: false },
+        });
+      }
+
       const saved = await tx.record.update({
-        where: { id },
+        where: { id: targetRecordId },
         data: {
           classId: record.classId,
           seasonId: result.registration.stage.seasonId,
