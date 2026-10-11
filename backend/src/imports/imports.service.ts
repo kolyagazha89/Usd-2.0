@@ -6566,6 +6566,7 @@ export class ImportsService {
             committedRows,
         };
       },
+      { maxWait: 10_000, timeout: 120_000 },
     );
   }
 
