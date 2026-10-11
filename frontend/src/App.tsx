@@ -141,7 +141,7 @@ function QrCheckinPage(){
     <div><small className="muted">Этап</small><p style={{margin:'5px 0 0',fontWeight:600}}>{reg.stage?.name||'Этап'}</p><small className="muted">{reg.stage?.city||''}</small></div>
    </div>
    <div style={{marginTop:16}}><strong>Классы</strong><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>{(reg.classes||[]).map((item:any)=><span key={item.id} className="badge">{item.class?.name||item.class?.code||'Класс'} · №{item.number?.number??reg.participantNumber}</span>)}</div></div>
-   <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:20}}><button className="primary-button" onClick={()=>{history.pushState({},'','/admin/inspections?stageId='+encodeURIComponent(reg.stageId));window.dispatchEvent(new PopStateEvent('popstate'))}}>Открыть инспекцию этапа</button><button className="secondary-button" onClick={()=>{setResult(null);setToken('');setError('')}}>Следующий участник</button></div>
+   <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:20}}><button className="primary-button" onClick={()=>{history.pushState({},'','/admin/inspections?stageId='+encodeURIComponent(reg.stageId)+'&registrationId='+encodeURIComponent(reg.id));window.dispatchEvent(new PopStateEvent('popstate'))}}>Открыть инспекцию этапа</button><button className="secondary-button" onClick={()=>{setResult(null);setToken('');setError('')}}>Следующий участник</button></div>
   </div>}
  </PageFrame>
 }
@@ -430,8 +430,9 @@ function ConfigurationDetails({configuration,onClose,onEdit}:{configuration:any;
  </div>{onEdit&&isCurrent&&<div className="modal-actions"><button className="primary-button" onClick={onEdit}><Pencil size={15}/>Редактировать текущую версию</button></div>}</Modal>
 }
 function SeasonsPage(){return <ResourcePage title="Сезоны" subtitle="Сезонная структура чемпионата" path="/seasons" columns={[{key:'year',label:'Год'},{key:'name',label:'Название'},{key:'status',label:'Статус'},{key:'description',label:'Описание'}]} fields={[{name:'year',label:'Год',type:'number',required:true},{name:'name',label:'Название',required:true},{name:'status',label:'Статус',options:['DRAFT','ACTIVE','ARCHIVED']},{name:'description',label:'Описание',type:'textarea'}]} create={v=>apiPost('/seasons',{year:Number(v.year),name:String(v.name??'').trim(),description:v.description||undefined})} update={(id,v)=>apiPatch('/seasons/'+id,{name:v.name!==undefined?String(v.name).trim():undefined,description:v.description??undefined,status:v.status})}/>}
-function InspectionRow({registration:r,user,onSaved,readOnly}:{registration:any;user:User;onSaved:()=>Promise<any>;readOnly:boolean}){
- const[busy,setBusy]=useState(false),[error,setError]=useState(''),[open,setOpen]=useState(false),[noteOpen,setNoteOpen]=useState(false),[notes,setNotes]=useState(r.inspection?.notes??'');
+function InspectionRow({registration:r,user,onSaved,readOnly,autoOpen=false}:{registration:any;user:User;onSaved:()=>Promise<any>;readOnly:boolean;autoOpen?:boolean}){
+ const[busy,setBusy]=useState(false),[error,setError]=useState(''),[open,setOpen]=useState(false),[autoOpenHandled,setAutoOpenHandled]=useState(false),[noteOpen,setNoteOpen]=useState(false),[notes,setNotes]=useState(r.inspection?.notes??'');
+ useEffect(()=>{if(autoOpen&&!autoOpenHandled){setOpen(true);setAutoOpenHandled(true)}},[autoOpen,autoOpenHandled]);
  const inspection=r.inspection, canEdit=!readOnly&&(!inspection||(user.role==='ADMIN'||inspection.checkedByUserId===user.id||inspection.createdByUserId===user.id));
  const save=async(status:'PASSED'|'FAILED')=>{if(status==='FAILED'&&!notes.trim()){setNoteOpen(true);setError('Для статуса «Не прошёл» укажите причину');return}setBusy(true);setError('');try{if(inspection){await apiPatch('/inspections/'+inspection.id,{status,notes:notes.trim()||null})}else{await apiPost('/inspections',{registrationId:r.id,status,notes:notes.trim()||undefined})}await onSaved();setNoteOpen(false);setOpen(false)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить инспекцию')}finally{setBusy(false)}};
  const classes=(r.classes??[]).map((x:any)=>x.class?.name).filter(Boolean).join(', '),status=inspection?.status;
@@ -508,6 +509,7 @@ function InspectionsPage({user}:{user:User}){
  </PageFrame>
 }
 function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readOnly:boolean}){
+ const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false);
  const load=()=>{setLoading(true);setError('');return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE').then(r=>setRows(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
  useEffect(()=>{void load()},[stageId]);
@@ -534,7 +536,7 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
   {readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Инспекции доступны только для просмотра — изменения отключены.</span></div>}
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
   <div className="panel table-wrap">
-   {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load} readOnly={readOnly}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
+   {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load} readOnly={readOnly} autoOpen={r.id===initialRegistrationId}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
   </div>
   {registerOpen&&<InspectionRegistrationModal stageId={stageId} onClose={()=>setRegisterOpen(false)} onSaved={async()=>{setRegisterOpen(false);await load()}}/>}
  </>;
