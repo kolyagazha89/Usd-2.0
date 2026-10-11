@@ -141,6 +141,7 @@ function QrCheckinPage(){
     <div><small className="muted">Этап</small><p style={{margin:'5px 0 0',fontWeight:600}}>{reg.stage?.name||'Этап'}</p><small className="muted">{reg.stage?.city||''}</small></div>
    </div>
    <div style={{marginTop:16}}><strong>Классы</strong><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>{(reg.classes||[]).map((item:any)=><span key={item.id} className="badge">{item.class?.name||item.class?.code||'Класс'} · №{item.number?.number??reg.participantNumber}</span>)}</div></div>
+   {reg.configurationSnapshot&&<div style={{marginTop:16,padding:14,borderRadius:10,background:'var(--surface-muted,#f7f7f7)'}}><strong>Конфигурация автомобиля</strong><p style={{margin:'6px 0 0'}}>{reg.configurationSnapshot.configurationName||reg.configurationSnapshot.name||'Снимок конфигурации'}</p><small className="muted">Версия {reg.configurationSnapshot.version??'—'} · данные на момент регистрации</small></div>}
    <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:20}}><button className="primary-button" onClick={()=>{history.pushState({},'','/admin/inspections?stageId='+encodeURIComponent(reg.stageId)+'&registrationId='+encodeURIComponent(reg.id));window.dispatchEvent(new PopStateEvent('popstate'))}}>Открыть инспекцию этапа</button><button className="secondary-button" onClick={()=>{setResult(null);setToken('');setError('')}}>Следующий участник</button></div>
   </div>}
  </PageFrame>
