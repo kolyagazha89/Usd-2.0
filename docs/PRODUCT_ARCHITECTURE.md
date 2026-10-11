@@ -48,6 +48,10 @@ The current small team must be able to work without organizational bureaucracy. 
 - Content, mailing campaigns, documents, analytics and integrations.
 - Health monitoring, audit, backups and tested restoration.
 
+## Offline operation is a core requirement
+
+Events must continue when mobile data, public internet, DNS, CDN or the public site is unavailable. Use a prepared event package and PWA local persistence for single-device fallback, plus a venue local hub and Wi-Fi for shared multi-judge work. Offline operations must be durable, idempotent, auditable, versioned and explicitly synchronized; conflicts must never silently overwrite critical data. See [OFFLINE_MODE.md](./OFFLINE_MODE.md) for the detailed architecture, security model, synchronization protocol and acceptance tests.
+
 ## QR registration / inspection workflow
 
 1. After a registration is confirmed, issue an opaque, cryptographically random QR credential. Store only a hash of the credential in PostgreSQL; do not encode personal data or a predictable registration ID in the QR.
