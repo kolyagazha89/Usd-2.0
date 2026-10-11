@@ -8,6 +8,7 @@ USD 2.0 is the single-company digital operating platform for Ultimate Sound Dest
 
 - [Product architecture](docs/PRODUCT_ARCHITECTURE.md) — product scope, system modules, ADMIN/JUDGE rules, CMS, notifications, security and staged delivery.
 - [Offline mode and synchronization](docs/OFFLINE_MODE.md) — venue local hub, device fallback, offline QR lookup, durable operations, sync, conflict handling and acceptance tests.
+- [Phase 1 checklist and release gates](docs/PHASE_1_STATUS.md) — implementation status, validation blockers, and what remains before Phase 1 can be called complete.
 - [Production security notes](docs/PRODUCTION_SECURITY.md) — operational security checklist.
 - [OpenAI / development setup notes](docs/OPENAI_SETUP.md) — repository-specific development notes.
 
