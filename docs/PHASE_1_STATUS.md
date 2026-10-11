@@ -8,7 +8,7 @@ This is the acceptance checklist. A code commit is not complete until the releva
 - Reconciliation is represented by a two-parent integration commit on `feature/qr-checkin-and-platform-foundation`. It preserves the feature tree and carries forward the main versions of `.github/workflows/frontend.yml`, `README.md`, `backend/src/imports/imports.service.spec.ts`, `frontend/package.json` and `frontend/src/api.ts`, plus the canonical status checklist.
 - Draft PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) is open. The feature branch is not yet merged into `main`, not confirmed deployed and not release-ready.
 - Main Backend CI passed on `64ff5839` (run [38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756)); main Frontend CI passed on `8ed4078e` (run [38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332)).
-- Reconciled candidate `9b463088a6c37e45b533aaa7ec01821d57830115`: Frontend CI passed (typecheck/build, [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595)); Backend CI passed (Prisma generate/migrate on disposable PostgreSQL, audit, build, lint, unit and E2E, [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618)).
+- Initial reconciled candidate `9b463088a6c37e45b533aaa7ec01821d57830115` passed frontend [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595) and backend [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618). After public QA fixes, candidate `5a25cd6327860a69bdca8d853d76f327b4cf7de9` also passed frontend [run 38179416418](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416418) and backend [run 38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410), including migration rehearsal on disposable PostgreSQL.
 - The earlier deploy workflow built but skipped Cloudflare publish due to missing credentials (run [38177954189](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954189)). No production deployment or migration is claimed.
 
 ## P0 acceptance checklist
@@ -17,9 +17,9 @@ This is the acceptance checklist. A code commit is not complete until the releva
 |---|---|---|
 | Branch reconciliation | INTEGRATION CANDIDATE ON FEATURE BRANCH | Run CI on exact candidate, inspect all jobs and compare diff before PR/merge |
 | Public home, stages, results, records, rules | CODE PRESENT ON FEATURE BRANCH | Mobile and desktop QA; verify routes, loading/empty/error states and links |
-| Public stage visibility | CODE PRESENT — VALIDATION OPEN | Confirm anonymous endpoint only exposes non-deleted PUBLISHED/COMPLETED stages |
+| Public stage visibility | CODE PRESENT — VALIDATION OPEN | Service filters non-deleted PUBLISHED/COMPLETED stages; verify anonymous behavior and no draft data leakage |
 | Public results/records visibility | VALIDATION OPEN | Check result approval and privacy; no draft/private data leakage |
-| Site settings/assets | PARTIAL | Test missing settings/assets and fallback behavior; full CMS deferred |
+| Site settings/assets | PARTIAL — QA FIXES ADDED | Frontend unwraps public settings; rules text and allowlisted legal links are wired. Test missing settings/assets and homepage configuration behavior; full CMS deferred |
 | Participant cabinet/self-service registration | DEFERRED FROM PUBLIC V1 | Next block after a separate requirements survey |
 | QR issue/scan/revoke and migration | CODE PRESENT — VALIDATION OPEN; OUTSIDE THIS BLOCK | Validate on disposable PostgreSQL; never run production migration without explicit approval |
 | ADMIN/JUDGE/participant/anonymous permission matrix | TODO — VERIFY | Server-side role and ownership tests |
@@ -29,7 +29,7 @@ This is the acceptance checklist. A code commit is not complete until the releva
 | Configurable RBAC | TODO | Preserve current ADMIN/JUDGE semantics; audit and last-active-admin protection |
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify actual configuration and perform documented restore drill |
-| Backend CI on reconciled candidate | PASS | Candidate `9b463088`; run [38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
+| Backend CI on reconciled candidate | PASS | Candidate `5a25cd6`; run [38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410) — Prisma generate/migrate, audit, build, lint, unit and E2E all passed on disposable PostgreSQL |
 | Frontend CI on reconciled candidate | REQUIRED | Typecheck and build must pass on exact SHA |
 | Production migration/deployment | NOT AUTHORIZED IN THIS BLOCK | Separate release decision after CI, migration rehearsal and privacy QA |
 
@@ -50,4 +50,4 @@ This is the acceptance checklist. A code commit is not complete until the releva
 
 ## Current truth
 
-Public-site starter code exists on the feature branch. It is not merged into `main`, not confirmed deployed and not release-ready. Participant cabinet/registration and QR work are deferred from public V1 acceptance, even where code is already present. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.
+Public-site starter code and the first public-page QA fixes exist on the feature branch. The tested code candidate `5a25cd6` passes frontend and backend CI, but is not merged into `main`, not confirmed deployed and not release-ready. Participant cabinet/registration and QR work are deferred from public V1 acceptance, even where code is already present. Full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain open.

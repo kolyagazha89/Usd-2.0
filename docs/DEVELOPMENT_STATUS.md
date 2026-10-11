@@ -18,10 +18,10 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 - `main` before reconciliation: `71b697c0b1f668aa6bdd054f1f2f1969c8b17329`.
 - Public/QR feature branch before reconciliation: `6897fa6bcac1d036d9d7448b4e11b2d6496ea241`.
 - GitHub comparison before reconciliation showed 33 feature-only commits and 9 main-only commits (the old checklist's 32/6 was stale).
-- Reconciliation commit `eb858087d391f6178c880716d51dfcf3f8a19b83` has both branch tips as parents, so the branch is now 34 commits ahead and 0 behind `main`. Follow-up commit `9b463088a6c37e45b533aaa7ec01821d57830115` adds an explicit backend CI trigger for this integration branch. Draft PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) is open; it is not merged into `main`.
+- Reconciliation commit `eb858087d391f6178c880716d51dfcf3f8a19b83` has both branch tips as parents; latest Git compare confirms the branch is based on current `main` with 0 commits behind. Follow-up `9b463088a6c37e45b533aaa7ec01821d57830115` enables backend CI on this integration branch. Public QA fixes are in code candidate `5a25cd6327860a69bdca8d853d76f327b4cf7de9`. Draft PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) remains open and unmerged.
 - Main backend CI passed on `64ff5839`: build, lint, unit and E2E, [run 38178192756](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38178192756).
 - Main frontend CI passed on `8ed4078e`, [run 38177954332](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954332).
-- Reconciled candidate CI passed on `9b463088`: frontend typecheck/build [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595); backend build, lint, unit tests, E2E, Prisma generation and migration against disposable PostgreSQL [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618). The earlier feature frontend run is [38174414826](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38174414826).
+- Initial reconciled candidate CI passed on `9b463088`: frontend [run 38179098595](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098595), backend [run 38179098618](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179098618). After public-page fixes and the allowlisted legal-settings test, CI also passed on code candidate `5a25cd6327860a69bdca8d853d76f327b4cf7de9`: frontend [run 38179416418](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416418); backend build/lint/unit/E2E and disposable-PostgreSQL migration [run 38179416410](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38179416410).
 - The frontend deploy workflow previously built but skipped Cloudflare publish because credentials were unavailable, [run 38177954189](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38177954189). This is not deployment evidence.
 - No production migration or deployment is authorized by this work block.
 
@@ -39,8 +39,8 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 |---|---|---|
 | Branch reconciliation | INTEGRATION CANDIDATE ON FEATURE BRANCH | Run backend and frontend CI on exact candidate; inspect failed jobs and fix regressions |
 | Public routes: home/stages/results/records/rules | CODE PRESENT ON FEATURE BRANCH | After CI, QA responsive layout, empty/loading/error states and anonymous access/data visibility |
-| Public stage endpoint | CODE PRESENT ON FEATURE BRANCH | Verify only non-deleted PUBLISHED/COMPLETED stages are exposed |
-| Public site settings | PARTIAL | Confirm public pages degrade safely when settings/assets are missing; full CMS is later work |
+| Public stage endpoint | CODE PRESENT — VALIDATION OPEN | Service filters non-deleted PUBLISHED/COMPLETED; anonymous API privacy verification still required |
+| Public site settings | PARTIAL — QA FIXES COMMITTED | Frontend now unwraps the `{success, settings}` response; public legal endpoint exposes only allowlisted public fields; rules page uses registration rules text and configured legal links. Full CMS/homepage block rendering remains later work |
 | Participant cabinet and self-service registration | DEFERRED FROM PUBLIC V1 | Keep outside the acceptance scope of this block; survey before next block |
 | QR check-in / QR credentials | CODE PRESENT, VALIDATION DEFERRED | Do not run production migration; validate separately with disposable PostgreSQL before release |
 | Full CMS, news, SEO, preview/version history | TODO | Requirements survey and design agreement first |
@@ -60,4 +60,4 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 ## Next action
 
-Branch reconciliation and CI validation are complete on candidate `9b463088`; PR #1 remains draft and `main` is unchanged. Continue public pages QA on the feature branch (home, stages, results, records, rules), focusing on anonymous visibility/privacy and mobile/loading/empty/error states. Before a major visual redesign or CMS block, ask the owner a short design/requirements survey. Do not merge/deploy or run a production migration without a separate release decision.
+Branch reconciliation and CI validation are complete on code candidate `5a25cd6`; latest checks pass. PR #1 remains draft and `main` is unchanged. Continue public pages QA (home, stages, results, records, rules), focusing on anonymous visibility/privacy and mobile/loading/empty/error states. Before a major visual redesign or CMS block, ask the owner a short design/requirements survey. Do not merge/deploy or run a production migration without a separate release decision.
