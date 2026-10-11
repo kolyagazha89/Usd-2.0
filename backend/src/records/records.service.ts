@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Injectable()
 export class RecordsService {
@@ -212,6 +213,51 @@ export class RecordsService {
       return [];
     }
 
+    const manualRecord = await tx.record.findFirst({
+      where: { classId, isCurrent: true, isManualOverride: true },
+      include: {
+        result: {
+          include: {
+            registration: {
+              select: {
+                participantId: true,
+                stageId: true,
+                status: true,
+                stage: { select: { seasonId: true } },
+              },
+            },
+            registrationClass: { select: { classId: true } },
+          },
+        },
+      },
+    });
+
+    if (manualRecord?.result) {
+      const result = manualRecord.result;
+      const valid =
+        result.registration.status === 'ACTIVE' &&
+        result.registrationClass.classId === classId &&
+        (!result.isHistorical || result.verificationStatus === 'VERIFIED') &&
+        !(await this.isResultDisqualified(
+          tx,
+          result.registration.participantId,
+          result.registration.stageId,
+          result.registration.stage.seasonId,
+        ));
+
+      if (valid) {
+        return [await tx.record.findUniqueOrThrow({
+          where: { id: manualRecord.id },
+          include: this.publicInclude,
+        })];
+      }
+
+      await tx.record.update({
+        where: { id: manualRecord.id },
+        data: { isCurrent: false, isManualOverride: false },
+      });
+    }
+
     const results = await tx.result.findMany({
       where: {
         registrationClass: {
@@ -357,6 +403,165 @@ export class RecordsService {
     });
 
     return [record];
+  }
+
+  async findManualCandidates(classId: string) {
+    const classItem = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: { direction: true },
+    });
+    if (!classItem) throw new NotFoundException('Класс не найден');
+    if (
+      classItem.direction?.name?.trim().toLowerCase() === 'bassrace' ||
+      classItem.code?.trim().toLowerCase().startsWith('bassrace') ||
+      classItem.name?.trim().toLowerCase().startsWith('bassrace')
+    ) {
+      throw new ConflictException('Для Bass Race исторические рекорды не ведутся');
+    }
+
+    const results = await this.prisma.result.findMany({
+      where: {
+        registrationClass: { classId },
+        registration: { status: 'ACTIVE' },
+        OR: [
+          { isHistorical: false },
+          { isHistorical: true, verificationStatus: 'VERIFIED' },
+        ],
+      },
+      include: {
+        registration: {
+          include: {
+            participant: true,
+            car: true,
+            stage: { include: { season: true } },
+          },
+        },
+        registrationClass: { include: { class: { include: { direction: true } } } },
+      },
+      orderBy: [
+        { registration: { stage: { date: 'desc' } } },
+        { value: 'desc' },
+        { createdAt: 'asc' },
+      ],
+    });
+
+    const candidates = [];
+    for (const result of results) {
+      if (await this.isResultDisqualified(
+        this.prisma,
+        result.registration.participantId,
+        result.registration.stageId,
+        result.registration.stage.seasonId,
+      )) continue;
+      candidates.push(result);
+    }
+    return candidates;
+  }
+
+  async updateManualRecord(
+    id: string,
+    resultId: string,
+    notes: string | null | undefined,
+    request: AuthenticatedRequest,
+  ) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ConflictException('Изменять рекорды может только администратор');
+    }
+
+    const record = await this.prisma.record.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException('Рекорд не найден');
+
+    const result = await this.prisma.result.findUnique({
+      where: { id: resultId },
+      include: {
+        registration: {
+          include: {
+            participant: true,
+            car: true,
+            stage: { include: { season: true } },
+          },
+        },
+        registrationClass: { include: { class: { include: { direction: true } } } },
+      },
+    });
+    if (!result) throw new NotFoundException('Результат не найден');
+    if (result.registrationClass.classId !== record.classId) {
+      throw new ConflictException('Нельзя назначить рекорд результату из другого класса');
+    }
+    if (result.registration.status !== 'ACTIVE') {
+      throw new ConflictException('Нельзя назначить рекорд отменённой регистрации');
+    }
+    if (result.isHistorical && result.verificationStatus !== 'VERIFIED') {
+      throw new ConflictException('Сначала подтвердите исторический результат');
+    }
+    if (await this.isResultDisqualified(
+      this.prisma,
+      result.registration.participantId,
+      result.registration.stageId,
+      result.registration.stage.seasonId,
+    )) {
+      throw new ConflictException('Дисквалифицированный результат не может стать рекордом');
+    }
+
+    const cls = result.registrationClass.class;
+    if (
+      cls.direction?.name?.trim().toLowerCase() === 'bassrace' ||
+      cls.code?.trim().toLowerCase().startsWith('bassrace') ||
+      cls.name?.trim().toLowerCase().startsWith('bassrace')
+    ) {
+      throw new ConflictException('Для Bass Race исторические рекорды не ведутся');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.record.updateMany({
+        where: { classId: record.classId, isCurrent: true },
+        data: { isCurrent: false },
+      });
+      await tx.result.updateMany({
+        where: { registrationClass: { classId: record.classId }, isBest: true },
+        data: { isBest: false },
+      });
+
+      const saved = await tx.record.update({
+        where: { id },
+        data: {
+          classId: record.classId,
+          seasonId: result.registration.stage.seasonId,
+          stageId: result.registration.stageId,
+          participantId: result.registration.participantId,
+          carId: result.registration.carId,
+          resultId: result.id,
+          value: result.value,
+          unit: result.unit,
+          achievedAt: result.registration.stage.date,
+          isCurrent: true,
+          isManualOverride: true,
+          notes: notes?.trim() || result.notes || null,
+        },
+        include: this.adminInclude,
+      });
+
+      await tx.result.update({ where: { id: result.id }, data: { isBest: true } });
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'RECORD_MANUALLY_ASSIGNED',
+          entity: 'Record',
+          entityId: saved.id,
+          ipAddress: request.ip,
+          metadata: {
+            classId: record.classId,
+            resultId: result.id,
+            stageId: result.registration.stageId,
+            participantId: result.registration.participantId,
+            value: result.value.toString(),
+          },
+        },
+      });
+      return saved;
+    });
+
+    return updated;
   }
 
   async findAll() {
