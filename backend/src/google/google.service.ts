@@ -209,7 +209,9 @@ export class GoogleService {
 
   async getSheetValues(spreadsheetId: string, sheet: string) {
     const token = await this.accessToken();
-    const range = encodeURIComponent(sheet);
+    // Quote sheet titles so tabs containing spaces, punctuation, or apostrophes work in A1 notation.
+    const quotedSheet = `'${sheet.replace(/'/g, "''")}'`;
+    const range = encodeURIComponent(quotedSheet);
     const data = await this.fetchWithToken(token, this.sheetsUrl + '/' + encodeURIComponent(spreadsheetId) + '/values/' + range + '?majorDimension=ROWS');
     return {
       range: data.range,
