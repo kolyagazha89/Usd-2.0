@@ -13,7 +13,7 @@ This is the working acceptance checklist for P0. A code commit is not considered
 | Area | Status | Evidence / remaining work |
 |---|---|---|
 | Repository architecture and product constraints | DONE — CODE | [PRODUCT_ARCHITECTURE.md](./PRODUCT_ARCHITECTURE.md), [OFFLINE_MODE.md](./OFFLINE_MODE.md) |
-| Public stage visibility | DONE — CODE | Added `GET /stages/public`, restricted to non-deleted PUBLISHED stages; keep admin's existing stage list intact |
+| Public stage visibility | DONE — CODE | Added `GET /stages/public`, restricted to non-deleted PUBLISHED/COMPLETED stages; keep admin's existing stage list intact |
 | Public website shell | DONE — CODE | Responsive public home, stages, results, records and rules routes in the React app; requires UI/data QA and CMS integration |
 | Participant cabinet registration list | DONE — CODE | Cabinet loads the participant's registrations and shows stage/car/class information |
 | QR credential storage | DONE — CODE | Random opaque token, SHA-256 hash stored in PostgreSQL, issue/resolve/revoke endpoints, audit events and migration |
