@@ -5795,16 +5795,45 @@ export class ImportsService {
                     select: { id: true },
                   });
 
-                  if (occupiedNumber && occupiedNumber.id !== registrationId) {
-                    throw new BadRequestException(
-                      `Номер участника ${primaryParticipantNumber} уже принадлежит другой регистрации на этом этапе`,
+                  const target = await tx.registrationNumber.findUnique({
+                    where: {
+                      stageId_number: {
+                        stageId: importJob.stageId,
+                        number: primaryParticipantNumber,
+                      },
+                    },
+                    select: { id: true, registrationId: true },
+                  });
+
+                  // RegistrationNumber has its own unique number namespace.
+                  // A number can be free in Registration.participantNumber but
+                  // already reserved by another registration (e.g. a class number).
+                  // Never update oldPrimary onto that reserved number.
+                  if (
+                    (occupiedNumber && occupiedNumber.id !== registrationId) ||
+                    (target && target.registrationId !== registrationId)
+                  ) {
+                    let allocatedNumber = await this.allocateFreeImportNumber(
+                      tx,
+                      importJob.stageId,
+                      primaryParticipantNumber,
                     );
+                    while (importedRegistrationsByNumber.has(allocatedNumber)) {
+                      allocatedNumber = await this.allocateFreeImportNumber(
+                        tx,
+                        importJob.stageId,
+                        allocatedNumber + 1,
+                      );
+                    }
+                    primaryParticipantNumber = allocatedNumber;
+                    participantNumber = allocatedNumber;
+                    historicalNumberAllocated = true;
                   }
 
                   const oldPrimary = await tx.registrationNumber.findFirst({
                     where: { registrationId, isPrimary: true },
                   });
-                  const target = await tx.registrationNumber.findUnique({
+                  const finalTarget = await tx.registrationNumber.findUnique({
                     where: {
                       stageId_number: {
                         stageId: importJob.stageId,
@@ -5813,13 +5842,13 @@ export class ImportsService {
                     },
                   });
 
-                  if (target && target.registrationId === registrationId) {
+                  if (finalTarget && finalTarget.registrationId === registrationId) {
                     await tx.registrationNumber.updateMany({
                       where: { registrationId },
                       data: { isPrimary: false },
                     });
                     await tx.registrationNumber.update({
-                      where: { id: target.id },
+                      where: { id: finalTarget.id },
                       data: { isPrimary: true },
                     });
                   } else if (oldPrimary) {
