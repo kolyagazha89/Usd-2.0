@@ -27,6 +27,22 @@ export class StagesService {
     });
   }
 
+  async findPublishedOne(id: string) {
+    const stage = await this.prisma.stage.findFirst({
+      where: { id, isDeleted: false, status: 'PUBLISHED' },
+      include: {
+        season: true,
+        stageClasses: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          include: { class: { include: { direction: true } } },
+        },
+      },
+    });
+    if (!stage) throw new NotFoundException('Опубликованный этап не найден');
+    return stage;
+  }
+
   async findOne(id: string) {
     const stage = await this.prisma.stage.findFirst({
       where: { id, isDeleted: false },
