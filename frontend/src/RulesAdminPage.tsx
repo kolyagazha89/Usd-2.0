@@ -1,19 +1,43 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { CheckCircle2, FileClock, FileText, Loader2, UploadCloud } from 'lucide-react';
 import { apiPost, getSiteSettings, updateSiteSettings, uploadRulesDocx } from './api';
 
-type Block = { type: 'heading' | 'paragraph' | 'list-item' | 'table'; level?: number; text?: string; ordered?: boolean; rows?: string[][]; };
+type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
+type Block = { type: 'heading' | 'paragraph' | 'list-item' | 'table'; level?: number; text?: string; runs?: InlineRun[]; ordered?: boolean; rows?: string[][]; cellRuns?: InlineRun[][][]; };
 type Revision = { id: string; targetId: string; fileName: string; url: string; createdAt: string; blocks: Block[]; publishedAt?: string; };
 type DocumentState = { published?: Revision | null; publishedVersions?: Revision[]; drafts?: Revision[]; };
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const newId = () => globalThis.crypto?.randomUUID?.() ?? 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); });
 
+function safePreviewHref(value: unknown): string {
+  const candidate = String(value ?? '').trim();
+  if (!candidate) return '';
+  if (candidate.startsWith('#')) return candidate;
+  try {
+    const url = new URL(candidate, window.location.origin);
+    return ['http:', 'https:', 'mailto:'].includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+}
+
+function inlineContent(runs: InlineRun[] | undefined, fallback: string): ReactNode {
+  if (!Array.isArray(runs) || !runs.length) return fallback;
+  return runs.map((run, i) => {
+    let content: ReactNode = run.text;
+    if (run.bold) content = <strong>{content}</strong>;
+    if (run.italic) content = <em>{content}</em>;
+    const href = safePreviewHref(run.href);
+    if (href) content = <a href={href} target={href.startsWith('mailto:') || href.startsWith('#') ? undefined : '_blank'} rel={href.startsWith('mailto:') || href.startsWith('#') ? undefined : 'noopener noreferrer'}>{content}</a>;
+    return <span key={i}>{content}</span>;
+  });
+}
+
 function Preview({ blocks }: { blocks: Block[] }) {
   return <div className="rules-admin-preview">{blocks.map((b,i) => {
-    if (b.type === 'heading') { const level=Math.min(4,Math.max(2,b.level??2)); return level===2?<h2 key={i}>{b.text}</h2>:level===3?<h3 key={i}>{b.text}</h3>:<h4 key={i}>{b.text}</h4>; }
-    if (b.type === 'table') return <div className="table-wrap" key={i}><table><tbody>{(b.rows??[]).map((row,j)=><tr key={j}>{row.map((cell,k)=>j===0?<th key={k}>{cell}</th>:<td key={k}>{cell}</td>)}</tr>)}</tbody></table></div>;
-    if (b.type === 'list-item') return <div key={i} style={{paddingLeft:Math.min(6,b.level??0)*18+12}} className="rules-admin-list-item">{b.ordered?'1.':'•'} {b.text}</div>;
-    return <p key={i}>{b.text}</p>;
+    if (b.type === 'heading') { const level=Math.min(4,Math.max(2,b.level??2)); return level===2?<h2 key={i}>{inlineContent(b.runs, b.text ?? '')}</h2>:level===3?<h3 key={i}>{inlineContent(b.runs, b.text ?? '')}</h3>:<h4 key={i}>{inlineContent(b.runs, b.text ?? '')}</h4>; }
+    if (b.type === 'table') return <div className="table-wrap" key={i}><table><tbody>{(b.rows??[]).map((row,j)=><tr key={j}>{row.map((cell,k)=>{const value=inlineContent(b.cellRuns?.[j]?.[k],cell);return j===0?<th key={k}>{value}</th>:<td key={k}>{value}</td>;})}</tr>)}</tbody></table></div>;
+    if (b.type === 'list-item') return <div key={i} style={{paddingLeft:Math.min(6,b.level??0)*18+12}} className="rules-admin-list-item">{b.ordered?'1.':'•'} {inlineContent(b.runs,b.text??'')}</div>;
+    return <p key={i}>{inlineContent(b.runs,b.text??'')}</p>;
   })}</div>;
 }
 

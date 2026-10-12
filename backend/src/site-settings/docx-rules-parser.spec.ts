@@ -52,10 +52,47 @@ describe('parseDocxRules', () => {
       <w:sectPr/></w:body></w:document>`;
     const numbering = `<w:numbering><w:abstractNum w:abstractNumId="3"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum><w:num w:numId="7"><w:abstractNumId w:val="3"/></w:num></w:numbering>`;
     const blocks = parseDocxRules(makeDocx({ 'word/document.xml': document, 'word/numbering.xml': numbering }));
-    expect(blocks[0]).toEqual({ type: 'heading', level: 1, text: 'Limited 2.0' });
-    expect(blocks[1]).toEqual({ type: 'paragraph', text: 'Основной текст.' });
-    expect(blocks[2]).toEqual({ type: 'list-item', ordered: true, level: 0, text: 'Пункт списка' });
-    expect(blocks[3]).toEqual({ type: 'table', rows: [['Класс', 'Значение'], ['Limited', '45k']] });
+    expect(blocks[0]).toMatchObject({ type: 'heading', level: 1, text: 'Limited 2.0' });
+    expect(blocks[1]).toMatchObject({ type: 'paragraph', text: 'Основной текст.' });
+    expect(blocks[2]).toMatchObject({ type: 'list-item', ordered: true, level: 0, text: 'Пункт списка' });
+    expect(blocks[3]).toMatchObject({ type: 'table', rows: [['Класс', 'Значение'], ['Limited', '45k']] });
+  });
+
+
+  it('preserves bold, italic and safe external hyperlinks in paragraphs and table cells', () => {
+    const document = `<?xml version="1.0"?><w:document xmlns:w="x" xmlns:r="y"><w:body>
+      <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Жирный</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve"> курсив</w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:rPr><w:b/></w:rPr><w:t> ссылка</w:t></w:r></w:hyperlink></w:p>
+      <w:tbl><w:tr><w:tc><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Официальный источник</w:t></w:r></w:hyperlink></w:p></w:tc></w:tr></w:tbl>
+    </w:body></w:document>`;
+    const relationships = `<Relationships><Relationship Id="rId1" Type="hyperlink" Target="https://usd-russia.ru/rules" TargetMode="External"/></Relationships>`;
+    const blocks = parseDocxRules(makeDocx({
+      'word/document.xml': document,
+      'word/_rels/document.xml.rels': relationships,
+    }));
+    expect(blocks[0]).toMatchObject({
+      type: 'paragraph',
+      text: 'Жирный курсив ссылка',
+      runs: [
+        { text: 'Жирный', bold: true },
+        { text: ' курсив', italic: true },
+        { text: ' ссылка', bold: true, href: 'https://usd-russia.ru/rules' },
+      ],
+    });
+    expect(blocks[1]).toMatchObject({
+      type: 'table',
+      rows: [['Официальный источник']],
+      cellRuns: [[[ { text: 'Официальный источник', href: 'https://usd-russia.ru/rules' } ]]],
+    });
+  });
+
+  it('drops unsafe external hyperlink schemes', () => {
+    const document = `<w:document xmlns:w="x" xmlns:r="y"><w:body><w:p><w:hyperlink r:id="rId1"><w:r><w:t>небезопасно</w:t></w:r></w:hyperlink></w:p></w:body></w:document>`;
+    const relationships = `<Relationships><Relationship Id="rId1" Type="hyperlink" Target="javascript:alert(1)" TargetMode="External"/></Relationships>`;
+    const [block] = parseDocxRules(makeDocx({
+      'word/document.xml': document,
+      'word/_rels/document.xml.rels': relationships,
+    }));
+    expect(block).toMatchObject({ type: 'paragraph', text: 'небезопасно', runs: [{ text: 'небезопасно' }] });
   });
 
   it('rejects data that is not a DOCX archive', () => {
