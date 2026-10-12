@@ -1,8 +1,7 @@
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -165,137 +164,6 @@ export class RegistrationsService {
       ],
       include: this.registrationInclude,
     });
-  }
-
-  async issueQrToken(registrationId: string, request: AuthenticatedRequest) {
-    const registration = await this.prisma.registration.findUnique({
-      where: { id: registrationId },
-      select: {
-        id: true,
-        participantId: true,
-        participantNumber: true,
-        stageId: true,
-        status: true,
-        stage: { select: { isDeleted: true, status: true } },
-      },
-    });
-
-    if (!registration) throw new NotFoundException('Регистрация не найдена');
-    if (
-      request.user.role === 'PARTICIPANT' &&
-      registration.participantId !== request.user.participantId
-    ) {
-      throw new ForbiddenException('Нет доступа к этой регистрации');
-    }
-    if (registration.status !== 'ACTIVE' || registration.stage.isDeleted || registration.stage.status === 'CANCELLED') {
-      throw new ConflictException('Для этой регистрации нельзя выпустить QR-код');
-    }
-
-    // The raw credential is returned only to the authenticated owner/staff once.
-    // The database stores only its SHA-256 hash; issuing again rotates the credential.
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.registrationQrToken.upsert({
-        where: { registrationId },
-        create: { registrationId, tokenHash },
-        update: { tokenHash, revokedAt: null },
-      });
-      await tx.auditLog.create({
-        data: {
-          userId: request.user.sub,
-          action: 'REGISTRATION_QR_ISSUED',
-          entity: 'Registration',
-          entityId: registrationId,
-          ipAddress: request.ip ?? null,
-          metadata: { stageId: registration.stageId, participantNumber: registration.participantNumber },
-        },
-      });
-    });
-
-    return {
-      token,
-      registrationId: registration.id,
-      stageId: registration.stageId,
-      participantNumber: registration.participantNumber,
-    };
-  }
-
-  async revokeQrToken(registrationId: string, request: AuthenticatedRequest) {
-    const registration = await this.prisma.registration.findUnique({
-      where: { id: registrationId },
-      select: { id: true, participantId: true, stageId: true, participantNumber: true },
-    });
-    if (!registration) throw new NotFoundException('Регистрация не найдена');
-    if (request.user.role === 'PARTICIPANT' && registration.participantId !== request.user.participantId) {
-      throw new ForbiddenException('Нет доступа к этой регистрации');
-    }
-    const result = await this.prisma.$transaction(async (tx) => {
-      const revoked = await tx.registrationQrToken.updateMany({
-        where: { registrationId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      await tx.auditLog.create({
-        data: {
-          userId: request.user.sub,
-          action: 'REGISTRATION_QR_REVOKED',
-          entity: 'Registration',
-          entityId: registrationId,
-          ipAddress: request.ip ?? null,
-          metadata: { stageId: registration.stageId, participantNumber: registration.participantNumber, revokedCount: revoked.count },
-        },
-      });
-      return revoked;
-    });
-    return { success: true, revoked: result.count > 0 };
-  }
-  async resolveQrToken(token: string, request: AuthenticatedRequest) {
-    if (request.user.role !== 'ADMIN' && request.user.role !== 'JUDGE') {
-      throw new ForbiddenException('Сканирование доступно только судье или администратору');
-    }
-    const normalized = typeof token === 'string' ? token.trim() : '';
-    if (normalized.length < 30 || normalized.length > 200) {
-      throw new BadRequestException('Некорректный QR-код');
-    }
-
-    const tokenHash = createHash('sha256').update(normalized).digest('hex');
-    const qrToken = await this.prisma.registrationQrToken.findUnique({
-      where: { tokenHash },
-      include: {
-        registration: {
-          include: {
-            ...this.registrationInclude,
-            inspection: true,
-          },
-        },
-      },
-    });
-
-    if (!qrToken || qrToken.revokedAt || !qrToken.registration) {
-      throw new NotFoundException('QR-код недействителен или отозван');
-    }
-    const registration = qrToken.registration;
-    if (registration.status !== 'ACTIVE' || registration.stage.isDeleted || registration.stage.status === 'CANCELLED') {
-      throw new ConflictException('Регистрация или этап больше не активны');
-    }
-
-    await this.prisma.auditLog.create({
-      data: {
-        userId: request.user.sub,
-        action: 'REGISTRATION_QR_SCANNED',
-        entity: 'Registration',
-        entityId: registration.id,
-        ipAddress: request.ip ?? null,
-        metadata: { stageId: registration.stageId, participantNumber: registration.participantNumber },
-      },
-    });
-
-    return {
-      registration,
-      inspectionStatus: registration.inspection?.status ?? 'PENDING',
-      alreadyInspected: Boolean(registration.inspection),
-    };
   }
 
   async findOne(id: string) {
