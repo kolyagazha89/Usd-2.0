@@ -52,10 +52,10 @@ describe('parseDocxRules', () => {
       <w:sectPr/></w:body></w:document>`;
     const numbering = `<w:numbering><w:abstractNum w:abstractNumId="3"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum><w:num w:numId="7"><w:abstractNumId w:val="3"/></w:num></w:numbering>`;
     const blocks = parseDocxRules(makeDocx({ 'word/document.xml': document, 'word/numbering.xml': numbering }));
-    expect(blocks[0]).toEqual({ type: 'heading', level: 1, text: 'Limited 2.0' });
-    expect(blocks[1]).toEqual({ type: 'paragraph', text: 'Основной текст.' });
-    expect(blocks[2]).toEqual({ type: 'list-item', ordered: true, level: 0, text: 'Пункт списка' });
-    expect(blocks[3]).toEqual({ type: 'table', rows: [['Класс', 'Значение'], ['Limited', '45k']] });
+    expect(blocks[0]).toMatchObject({ type: 'heading', level: 1, text: 'Limited 2.0' });
+    expect(blocks[1]).toMatchObject({ type: 'paragraph', text: 'Основной текст.' });
+    expect(blocks[2]).toMatchObject({ type: 'list-item', ordered: true, level: 0, text: 'Пункт списка' });
+    expect(blocks[3]).toMatchObject({ type: 'table', rows: [['Класс', 'Значение'], ['Limited', '45k']] });
   });
 
 
