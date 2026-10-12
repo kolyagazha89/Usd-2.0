@@ -55,6 +55,14 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 4. Cloudflare Worker Build succeeded on main; verify direct route refreshes in production before marking the block fully acceptance-tested.
 5. Production migration is not part of this release.
 
+## Public archive and logo reliability follow-up — 2026-10-12
+
+- Owner deferred the Term-LAB / SPL-Lab adapter; measurement PR #9 was closed unmerged. No production migration was run.
+- On branch `fix/public-site-finalization`, public result endpoints now show imported historical results for published/completed stages even while their historical verification status is PENDING. Public cards label these rows as archive entries awaiting verification.
+- Official record eligibility remains unchanged: the records domain still requires historical results to be VERIFIED.
+- Public logo loading now prioritizes the stable public asset endpoint and handles the race where the configured URL fails before the public endpoint URL arrives.
+- Backend regression test added. CI, merge/deploy and live production checks remain pending. Do not mark the fix complete until the public logo and imported results are confirmed on the deployed Worker.
+
 ## Current truth
 
 Public V1 is merged and CI is green. Cloudflare's production Worker Build succeeded on merge commit `f3c625f`; the separate GitHub Actions publish job was skipped because its Cloudflare secrets are missing, so the native Cloudflare build is the current deployment evidence. Live route/refresh verification and mobile/anonymous privacy QA remain open. QR check-in, participant self-service, full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain separate work.

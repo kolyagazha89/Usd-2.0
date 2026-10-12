@@ -386,10 +386,6 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
     }).then((results) => this.sanitizePublicResult(results));
@@ -436,10 +432,6 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
@@ -467,16 +459,17 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
     }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
+  /**
+   * A published stage makes its imported results visible in the public archive.
+   * Historical verification gates record eligibility, not display of the source result;
+   * RecordsService continues to require VERIFIED historical results for records.
+   */
   async findByStage(stageId: string) {
     await this.assertPublicStage(stageId);
 
@@ -486,10 +479,6 @@ export class ResultsService {
           stageId,
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [
