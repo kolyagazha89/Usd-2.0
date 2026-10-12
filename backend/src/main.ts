@@ -92,7 +92,7 @@ async function bootstrap() {
 
   expressApp.use(
     express.raw({
-      type: ['image/jpeg', 'image/png', 'image/webp'],
+      type: ['image/jpeg', 'image/png', 'image/webp', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
       limit: '10mb',
     }),
   );
