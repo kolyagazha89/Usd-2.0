@@ -106,12 +106,15 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
 }
 
 
-function publicResultUnit(value:any){
+function publicResultUnit(value:any,classItem?:any){
  const unit=String(value??'').trim().toUpperCase();
+ const className=String(classItem?.name??'').trim().toLowerCase();
+ const direction=String(classItem?.direction?.name??'').trim().toLowerCase();
+ // Storm Wall is measured in metres per second; the remaining USD directions use dB.
+ if(unit==='MPS'||unit==='M/S'||unit==='М/С'||className==='storm wall'||direction==='hurrican')return 'м/с';
  if(unit==='DB'||unit==='DBS'||unit==='ДБ')return 'дБ';
- if(unit==='MPS'||unit==='M/S'||unit==='М/С')return 'м/с';
- if(unit==='OTHER')return '';
- return value||'дБ';
+ // OTHER/empty is not a reason to hide the unit on a public result card.
+ return 'дБ';
 }
 function publicResultValue(value:any){
  if(value===null||value===undefined||value==='')return '—';
@@ -133,7 +136,7 @@ function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'s
   const context=[stageName,stageDate?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(new Date(stageDate)):null].filter(Boolean).join(' · ');
   return <article className="public-result-card" key={r.id||i}>
    <div className="public-result-card-top"><span className="public-result-place">{placeLabel}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
-   <div className="public-result-measure"><strong>{value}</strong><span>{publicResultUnit(r.unit||classItem?.unit)}</span></div>
+   <div className="public-result-measure"><strong>{value}</strong><span>{publicResultUnit(r.unit||classItem?.unit,classItem)}</span></div>
    <div className="public-result-card-bottom"><div className="public-result-person"><strong>{name}</strong><span>{car}</span>{context&&<span className="public-result-context">{context}</span>}</div><span className="public-result-arrow" aria-hidden>↗</span></div>
   </article>
  })}</div>;
@@ -146,7 +149,7 @@ function PublicRecordCards({rows}:{rows:any[]}){
   const car=[r.car?.brand,r.car?.model].filter(Boolean).join(' ')||[r.result?.registration?.car?.brand,r.result?.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
   return <article className="public-record-card" key={r.id||i}>
    <div className="public-record-overline"><span>USD / RECORD</span><span className="public-record-index">{String(i+1).padStart(2,'0')}</span></div>
-   <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit)}</small></div>
+   <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit,r.class||r.result?.registrationClass?.class)}</small></div>
    <div className="public-record-class">{r.class?.name||r.className||'Спортивный класс'}</div>
    <div className="public-record-divider"/>
    <strong className="public-record-person">{name}</strong><span className="public-record-car">{car}</span>
