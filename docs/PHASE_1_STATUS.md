@@ -121,3 +121,15 @@ Public V1 is merged and CI is green. Cloudflare's production Worker Build succee
 ### Current release gate
 
 Code is on main; production verification is not yet complete. Confirm the newest Railway deployment reaches SUCCESS, the Cloudflare native Worker publishes the latest main commit, and the five public routes load/refresh correctly. No production database migration is required for this block.
+
+## Owner decision and next public-site tasks — 2026-10-12
+
+- Measurement-device integration (Term-LAB / SPL-Lab) is explicitly deferred for the foreseeable future. Do not resume without separate owner authorization; no migration is authorized.
+- Tracking: [Issue #11 — Public site QA and Word-based regulation publishing](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+- [ ] Verify direct navigation and refresh on live `/`, `/stages`, `/results`, `/records`, `/rules`.
+- [ ] Verify anonymous public API privacy and visibility of imported historical results under the approved archive rules.
+- [ ] Verify logo cold-load behavior and fallback.
+- [ ] Responsive QA on narrow mobile screens; loading, empty and error states.
+- [ ] Record production evidence and blockers; do not equate a successful build with a verified deployment.
+- [ ] Future feature, after a requirements survey: Admin-managed DOCX regulation import, preview/editable section hierarchy, safe structured rendering on `/rules`, TOC/anchors/search, original file download, draft/publish, immutable version history and historical-stage version preservation.
+- Regulation management is tracked but not implemented yet. No production migration is part of this task.
