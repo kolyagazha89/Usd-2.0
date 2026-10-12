@@ -100,20 +100,39 @@ export class AuthService {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
-    await this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: normalizedEmail,
         passwordHash,
         name: null,
         role: 'PARTICIPANT',
         isActive: true,
-        emailVerifiedAt: new Date(),
       },
     });
 
+    const rawToken = this.generateToken();
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: this.hashToken(rawToken),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    let emailSent = true;
+    try {
+      await this.mailService.sendVerificationEmail(user.email, rawToken);
+    } catch {
+      // Keep the pending account so the user can request another message.
+      emailSent = false;
+    }
+
     return {
       success: true,
-      message: 'Аккаунт создан. Теперь можно войти.',
+      emailSent,
+      message: emailSent
+        ? 'Аккаунт создан. Проверьте почту и подтвердите email перед входом.'
+        : 'Аккаунт создан, но письмо не отправилось. Проверьте адрес и запросите письмо повторно.',
     };
   }
 
@@ -525,25 +544,23 @@ export class AuthService {
      * legacy email участника должен совпадать с подтверждённым email аккаунта.
      * Профили без сохранённого legacy email привязываются только администратором.
      */
-    const userEmail = user.email;
-    const ownershipVerifiedCandidates: typeof candidates = [];
-    for (const candidate of candidates) {
+    const userEmail = user.email.trim().toLowerCase();
+    const candidatesWithOwnership = await Promise.all(candidates.map(async (candidate) => {
       const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
         where: { participantId: candidate.id },
         select: { email: true },
       });
-      if (
+      const canSelfLink = Boolean(
         legacyEmail?.email &&
-        legacyEmail.email.trim().toLowerCase() === userEmail.trim().toLowerCase()
-      ) {
-        ownershipVerifiedCandidates.push(candidate);
-      }
-    }
+        legacyEmail.email.trim().toLowerCase() === userEmail
+      );
+      return { ...candidate, canSelfLink };
+    }));
 
     return {
       success: true,
-      found: ownershipVerifiedCandidates.length,
-      candidates: ownershipVerifiedCandidates.map(({ user: _user, ...participant }) => participant),
+      found: candidatesWithOwnership.length,
+      candidates: candidatesWithOwnership.map(({ user: _user, ...participant }) => participant),
     };
   }
 
@@ -613,8 +630,8 @@ export class AuthService {
     return String(value ?? '')
       .normalize('NFKC')
       .replace(/ё/gi, 'е')
-      .replace(/[^a-zа-я0-9\\s-]/gi, ' ')
-      .replace(/\\s+/g, ' ')
+      .replace(/[^a-zа-я0-9\s-]/gi, ' ')
+      .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
   }
