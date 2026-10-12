@@ -386,10 +386,6 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
     }).then((results) => this.sanitizePublicResult(results));
@@ -436,10 +432,6 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
@@ -467,10 +459,6 @@ export class ResultsService {
         registration: {
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
@@ -486,10 +474,6 @@ export class ResultsService {
           stageId,
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
-        OR: [
-          { isHistorical: false },
-          { isHistorical: true, verificationStatus: 'VERIFIED' },
-        ],
       },
       include: this.publicInclude,
       orderBy: [
