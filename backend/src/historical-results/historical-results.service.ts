@@ -37,12 +37,28 @@ export class HistoricalResultsService {
   /** Keep verified history visible without exposing details of private cars. */
   private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(result: T): T {
     const car = result.registration?.car;
-    if (!car || car.isPublic !== false) return result;
+    const participant = result.registration?.participant;
+    const hideCar = Boolean(car && car.isPublic === false);
+    const hideParticipant = Boolean(participant && participant.isPublic === false);
+    if (!hideCar && !hideParticipant) return result;
     return {
       ...result,
       registration: {
         ...result.registration,
-        car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+        ...(hideCar ? {
+          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+        } : {}),
+        ...(hideParticipant ? {
+          participant: {
+            ...participant,
+            lastName: 'Участник скрыт',
+            firstName: '',
+            middleName: null,
+            team: null,
+            city: null,
+            photoUrl: null,
+          },
+        } : {}),
       },
     } as T;
   }
@@ -158,7 +174,6 @@ export class HistoricalResultsService {
         registration: {
           ...(stageId ? { stageId } : {}),
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
-          participant: { isPublic: true },
         },
       },
       include: this.publicInclude(),
@@ -177,7 +192,6 @@ export class HistoricalResultsService {
         isHistorical: true,
         verificationStatus: 'VERIFIED',
         registration: {
-          participant: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
       },
