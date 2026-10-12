@@ -79,3 +79,10 @@ Public V1 is merged and CI is green. Cloudflare's production Worker Build succee
 - Public URLs render the public site for authenticated participants as well as ADMIN/JUDGE users; the participant portal remains available on `/login`, `/admin...`, and `/participant...`.
 - Frontend CI [run 38211339825](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339825) and backend CI [run 38211339834](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339834) passed. No API/schema change or production migration.
 - Owner observed the public site appearing after the earlier fix. Independent direct live Worker/API verification, anonymous privacy QA and real-device mobile QA remain open because the current verification environment cannot resolve the production hosts.
+
+
+## Startup historical-import safety fix — 2026-10-12
+
+- Code review found `backend/src/scripts/run-historical-migration.ts` could delete all stages/results associated with historical XLSX import jobs during normal service startup when the expected 10 committed stages/results check did not pass.
+- Branch `fix/protect-historical-data-on-startup`, commit `adb72c7e81e4ec53d460ac2881b290e0c1a38e86`, removes destructive cleanup from startup. If historical import data already exists, startup logs its state and skips automatic re-import; only a clean database starts the initial historical import. Explicit reconciliation must happen through a controlled admin workflow.
+- This is a data-protection fix. It does not restore any data that may already have been deleted by an earlier startup. Railway deployment/log inspection is currently blocked by the connected Railway identity having only viewer permissions for the target service; current production migration outcome remains unverified.
