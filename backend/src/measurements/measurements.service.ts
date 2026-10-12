@@ -219,8 +219,8 @@ export class MeasurementsService {
     if (session.status === 'REJECTED') return session;
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.measurementSession.update({
-        where: { id },
+      const transition = await tx.measurementSession.updateMany({
+        where: { id, status: 'RECEIVED' },
         data: {
           status: 'REJECTED',
           reviewedByUserId: request.user.sub,
@@ -228,6 +228,13 @@ export class MeasurementsService {
           reviewNote: input.note.trim(),
         },
       });
+      if (transition.count !== 1) {
+        const current = await tx.measurementSession.findUnique({ where: { id } });
+        if (!current) throw new NotFoundException('Измерение не найдено');
+        if (current.status === 'REJECTED') return current;
+        throw new ConflictException('Измерение уже подтверждено и связано с официальным результатом');
+      }
+      const updated = await tx.measurementSession.findUnique({ where: { id } });
       await tx.auditLog.create({
         data: {
           userId: request.user.sub,
