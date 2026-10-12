@@ -70,3 +70,9 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 ## Next action
 
 Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live Worker, check anonymous privacy behavior and review narrow mobile widths on a real phone. The design PR is merged, frontend/backend CI pass, frontend production bundle passes, and Cloudflare's native main-branch Worker Build succeeds. The separate GitHub Wrangler publish job is still skipped because the two Cloudflare secrets are absent; the successful native Worker Build is the active release evidence, but direct live route verification remains open. Upload the real USD car/event hero photo in Admin → Настройки сайта → Главная; until then the CSS fallback remains.
+
+## Public-route regression fix — 2026-10-12
+
+- Root cause found after owner reported `/` showed the admin “Раздел готовится” page: `App()` rendered the admin `Shell` for every authenticated non-participant, including public paths. `PageContent` only handles `/admin...`, so `/` fell through to the generic placeholder.
+- Fix prepared in PR [#3](https://github.com/kolyagazha89/Usd-2.0/pull/3), branch `fix/public-site-authenticated-routing`, commit `3d671986c2c34c6162ea48d8f07018c4336735c9`: public routes remain on `PublicSite` for ADMIN/JUDGE sessions; authenticated ADMIN/JUDGE opening `/login` redirects to `/admin`; participant portal and `/admin` routes are preserved.
+- Validation/deployment state: PR open; CI and production Worker/live-route verification not yet confirmed. Do not mark fixed in production until the merge and active Cloudflare deployment are verified.

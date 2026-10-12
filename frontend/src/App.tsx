@@ -46,9 +46,13 @@ function App(){
  useEffect(()=>{document.title=path.startsWith('/admin')?'USD — Админ-панель':path==='/login'?'Вход — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
+ useEffect(()=>{if(user&&user.role!=='PARTICIPANT'&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  if(booting)return <Splash/>;
  if(!user){if(path==='/login'||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT')go('/admin')}}/>;return <PublicSite path={path} go={go}/>;}
  if(user.role==='PARTICIPANT')return <ParticipantPortal user={user} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
+ // Public routes must remain public even when an ADMIN or JUDGE session is active.
+ // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
+ if(!path.startsWith('/admin')){if(path==='/login')return <Splash/>;return <PublicSite path={path} go={go}/>;}
  return <Shell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}}/>;
 }
 function Splash(){const[logo,setLogo]=useState('');useEffect(()=>{let active=true;const load=async()=>{const splash=await getPublicSiteAsset('branding-splashLogoUrl').catch(()=>null);const main=splash?.url?null:await getPublicSiteAsset('branding-logoUrl').catch(()=>null);const url=splash?.url||main?.url;if(url)loadBrandLogo(url,u=>{if(active)setLogo(u)})};void load();return()=>{active=false}},[]);return <div className="splash"><div className="splash-brand">{logo?<img src={logo} alt="USD" decoding="async"/>:<div className="brand-mark">USD</div>}</div><div className="loader"/></div>}function LoginScreen({onLogin}:{onLogin:(e:string,p:string)=>Promise<void>}){
