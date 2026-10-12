@@ -11,6 +11,11 @@ import { parseDocxRules } from './docx-rules-parser';
 export class SiteSettingsController{
   constructor(private readonly service:SiteSettingsService, private readonly mediaService: MediaService){}
   @Roles('ADMIN') @Get() getAdmin(){return this.service.getAdmin();}
-  @Roles('ADMIN') @Post('rules/preview') async previewRules(@Body() body: RulesDocumentTargetDto) {\n    const file = await this.mediaService.getSiteAssetBuffer(body.targetId);\n    try { return { success: true, targetId: body.targetId, blocks: parseDocxRules(file) }; }\n    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Не удалось прочитать DOCX'); }\n  }\n  @Roles('ADMIN') @Patch() update(@Body() body:Record<string,unknown>,@Req() req:AuthenticatedRequest){return this.service.update(body,req.user.sub);}
+  @Roles('ADMIN') @Post('rules/preview') async previewRules(@Body() body: RulesDocumentTargetDto) {
+    const file = await this.mediaService.getSiteAssetBuffer(body.targetId);
+    try { return { success: true, targetId: body.targetId, blocks: parseDocxRules(file) }; }
+    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Не удалось прочитать DOCX'); }
+  }
+  @Roles('ADMIN') @Patch() update(@Body() body:Record<string,unknown>,@Req() req:AuthenticatedRequest){return this.service.update(body,req.user.sub);}
   @Public() @Get('public') getPublic(){return this.service.getPublic();}
 }
