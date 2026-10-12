@@ -150,3 +150,12 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - [ ] Validate frontend CI and merge review.
 - [ ] Verify the live `/rules` route and refresh behavior after deployment.
 - [ ] DOCX importer, faithful rich-text/table/list rendering, original DOCX download and revision history remain out of this scope and are not implemented by this page-only change.
+
+
+## Public results recovery and phase handoff — 2026-10-12
+
+- Branch `fix/public-results-stage-discovery`, commit `42e6fe62d5ad03fcc06bdda9571b583b9d98dc9c`: when opening `/results` without an explicit stage ID, an empty default stage no longer prevents visitors from finding imported/public results on another published or completed stage. Explicit `stageId` links and deliberate selector choices remain respected.
+- No API/schema change or production migration. Frontend CI/merge and live route verification are pending.
+- Public Phase 2 includes: public home, stages, results, records and rules; Word regulation upload/preview/publish; imported historical result visibility; logo fallback; responsive cards; anonymous privacy and direct-route QA. PRs #14 and #15 implement the Word publishing and homepage logo/archive recovery portions; the new results-page recovery is in review.
+- Remaining Phase 2 release gate: verify all five routes and refreshes, imported results and logo cold-load, anonymous API privacy, narrow-mobile layouts, and loading/empty/error states. Live production verification has not been independently completed from the current environment.
+- Phase 3 direction: finish participant self-service and the participant cabinet (historical-profile matching/linking, profile, cars/configurations, stage registrations and status), only after the public release gate. Term-LAB/SPL-Lab integration remains deferred; no device adapter or related production migration is authorized.
