@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import * as XLSX from 'xlsx';
 import PublicRulesPage from './PublicRulesPage';
+import RulesAdminPage from './RulesAdminPage';
 import './catalog.css';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -29,6 +30,7 @@ const nav=[
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
  {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
+ {section:'Система',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
 ];
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
@@ -197,6 +199,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components"/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
+  if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
  }
