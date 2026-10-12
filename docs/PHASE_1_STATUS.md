@@ -55,13 +55,15 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 4. Cloudflare Worker Build succeeded on main; verify direct route refreshes in production before marking the block fully acceptance-tested.
 5. Production migration is not part of this release.
 
-## Public archive and logo reliability follow-up — 2026-10-12
+## Public archive and logo reliability follow-up — merged 2026-10-12
 
-- Owner deferred the Term-LAB / SPL-Lab adapter; measurement PR #9 was closed unmerged. No production migration was run.
-- On branch `fix/public-site-finalization`, public result endpoints now show imported historical results for published/completed stages even while their historical verification status is PENDING. Public cards label these rows as archive entries awaiting verification.
+- Owner deferred the Term-LAB / SPL-Lab adapter; measurement PR [#9](https://github.com/kolyagazha89/Usd-2.0/pull/9) was closed unmerged. No production migration was run.
+- Public-site fix PR [#10](https://github.com/kolyagazha89/Usd-2.0/pull/10) merged to `main` as `4ed445d1217b377983e2e18bd7eea14f79a6ea84`.
+- Public result endpoints now show imported historical results for published/completed stages even while their historical verification status is PENDING. Public cards label these rows as archive entries awaiting verification.
 - Official record eligibility remains unchanged: the records domain still requires historical results to be VERIFIED.
 - Public logo loading now prioritizes the stable public asset endpoint and handles the race where the configured URL fails before the public endpoint URL arrives.
-- Backend regression test added. CI, merge/deploy and live production checks remain pending. Do not mark the fix complete until the public logo and imported results are confirmed on the deployed Worker.
+- Frontend CI and production bundle passed on main: [frontend CI](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893705), [frontend bundle](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893881). Backend CI is still running: [run 38225893704](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893704).
+- GitHub's Wrangler publish job skipped due missing Cloudflare secrets. Native Cloudflare production build and live HTTP verification remain unconfirmed; direct checks from this environment fail at DNS resolution. No production migration or data mutation.
 
 ## Current truth
 
