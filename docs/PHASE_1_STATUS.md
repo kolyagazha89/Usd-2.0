@@ -12,6 +12,13 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 - The separate GitHub Actions Wrangler publish job was skipped because Cloudflare secrets are absent in GitHub Actions; Cloudflare native Worker Build reports success. Direct live route verification is still open.
 - QR check-in UI/API/schema/migration were removed from this release candidate. No production migration was run.
 
+## Public visual system block — 2026-10-12
+
+- Owner approved one unified premium style across home, stages, results, records and rules; full CMS expansion is out of scope.
+- Feature branch: `feature/public-visual-system`, current head `88f26a6936559841e6ac8d63beee5449b1be0919`.
+- Added responsive visual tokens, typography, hero/image treatment, card/table/rules styling, focus states and reduced-motion support. API, schema, permissions and production migrations unchanged.
+- CI for the current head is pending; mobile QA, anonymous privacy QA, PR merge, deployment and live verification are not complete.
+
 ## P0 acceptance checklist
 
 | Area | State | Evidence / next action |
