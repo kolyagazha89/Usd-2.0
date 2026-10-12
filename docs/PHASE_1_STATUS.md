@@ -86,3 +86,11 @@ Public V1 is merged and CI is green. Cloudflare's production Worker Build succee
 - Code review found `backend/src/scripts/run-historical-migration.ts` could delete all stages/results associated with historical XLSX import jobs during normal service startup when the expected 10 committed stages/results check did not pass.
 - Branch `fix/protect-historical-data-on-startup`, commit `adb72c7e81e4ec53d460ac2881b290e0c1a38e86`, removes destructive cleanup from startup. If historical import data already exists, startup logs its state and skips automatic re-import; only a clean database starts the initial historical import. Explicit reconciliation must happen through a controlled admin workflow.
 - This is a data-protection fix. It does not restore any data that may already have been deleted by an earlier startup. Railway deployment/log inspection is currently blocked by the connected Railway identity having only viewer permissions for the target service; current production migration outcome remains unverified.
+
+
+## Public homepage blocks completed — 2026-10-12
+
+- PR [#6](https://github.com/kolyagazha89/Usd-2.0/pull/6) merged as `b9a13ad25e6c47431eb35b48c4a04adc15f30d94`.
+- Homepage now renders configured live stream, live results with a configurable refresh interval, latest public results, current records, and public participant cards. The sections respect CMS block enablement, configured order, and homepage visibility toggles.
+- Frontend CI passed [run 38212018150](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018150); backend CI passed build, lint, unit and E2E steps in [run 38212018146](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018146). Container cleanup was still finishing at the last check.
+- Production Worker/API route verification and Railway historical-migration logs remain outstanding: the connected Railway identity currently receives a viewer-permission error for the production service, and direct HTTP checks from the tool environment cannot resolve the production hosts.
