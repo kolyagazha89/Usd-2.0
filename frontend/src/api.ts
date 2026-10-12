@@ -131,7 +131,7 @@ export async function uploadSiteAsset(assetKey:string,file:File){
     log('prepared',{uploadTokenPresent:Boolean(prepared?.uploadToken),preparedKeys:Object.keys(prepared??{})});
     await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
     log('uploaded');
-    await completeMediaUpload(prepared.uploadToken);
+    // /media/upload validates and completes the upload on the API side.
     log('completed');
     const url=`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`;
     log('view_ready',{url});
@@ -149,6 +149,6 @@ export async function uploadRulesDocx(targetId:string,file:File){
   if(!file.name.toLowerCase().endsWith('.docx')) throw new Error('Разрешён только формат .docx');
   const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId,contentType});
   await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':contentType,'X-Upload-Token':prepared.uploadToken},body:file},false);
-  await completeMediaUpload(prepared.uploadToken);
+  // /media/upload already completes the upload; calling /media/complete again invalidates the consumed token.
   return {url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(targetId)}`,targetId};
 }
