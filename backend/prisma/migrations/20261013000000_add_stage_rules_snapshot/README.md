@@ -1,0 +1,1 @@
+Migration notes for stage rules snapshots.
