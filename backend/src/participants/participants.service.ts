@@ -21,6 +21,19 @@ export class ParticipantsService {
   // REGISTRATION NUMBER
   // =========================================================
 
+  private validatePhone(value: string | null | undefined): string | null {
+    const phone = this.optionalText(value);
+    if (!phone) return null;
+    if (!/^\+?[0-9 ()().-]+$/.test(phone) || (phone.includes('+') && !phone.startsWith('+'))) {
+      throw new BadRequestException('Некорректный номер телефона. Используйте международный формат, например +7 999 123-45-67');
+    }
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15 || /^([0-9])\1+$/.test(digits)) {
+      throw new BadRequestException('Номер телефона должен содержать от 7 до 15 цифр');
+    }
+    return phone;
+  }
+
   private normalizeRegistrationNumber(value: string): string {
     return value
       .trim()
@@ -131,17 +144,26 @@ export class ParticipantsService {
   }
 
   async findTeams(request: AuthenticatedRequest) {
-    await this.requireAdmin(request);
-    const rows = await this.prisma.participant.findMany({
-      where: { team: { not: null } },
-      distinct: ['team'],
-      orderBy: { team: 'asc' },
-      select: { team: true },
-    });
-    return rows
-      .map((row) => row.team?.trim())
-      .filter((team): team is string => Boolean(team))
-      .filter((team, index, all) => all.indexOf(team) === index)
+    const user = await this.getAuthenticatedUser(request);
+    if (!['ADMIN', 'PARTICIPANT'].includes(user.role)) {
+      throw new ForbiddenException('Нет доступа к справочнику команд');
+    }
+    const [rows, settings] = await Promise.all([
+      this.prisma.participant.findMany({
+        where: { team: { not: null } },
+        distinct: ['team'],
+        orderBy: { team: 'asc' },
+        select: { team: true },
+      }),
+      this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { catalogs: true } }),
+    ]);
+    const catalog = (settings?.catalogs as any)?.teams;
+    const names = [
+      ...rows.map((row) => row.team?.trim()).filter((team): team is string => Boolean(team)),
+      ...(Array.isArray(catalog) ? catalog.map((team: unknown) => String(team).trim()) : []),
+    ];
+    return [...new Set(names.filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ru'))
       .map((name) => ({ name }));
   }
 
@@ -612,7 +634,7 @@ export class ParticipantsService {
       this.optionalText(body.team);
 
     const phone =
-      this.optionalText(body.phone);
+      this.validatePhone(body.phone);
 
     const photoUrl =
       this.optionalText(body.photoUrl);
@@ -765,7 +787,7 @@ export class ParticipantsService {
         team:
           this.optionalText(body.team),
         phone:
-          this.optionalText(body.phone),
+          this.validatePhone(body.phone),
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
@@ -893,7 +915,7 @@ export class ParticipantsService {
 
     if (body.phone !== undefined) {
       data.phone =
-        this.optionalText(body.phone);
+        this.validatePhone(body.phone);
     }
 
     if (body.photoUrl !== undefined) {
