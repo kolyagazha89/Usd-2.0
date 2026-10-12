@@ -144,17 +144,26 @@ export class ParticipantsService {
   }
 
   async findTeams(request: AuthenticatedRequest) {
-    await this.requireAdmin(request);
-    const rows = await this.prisma.participant.findMany({
-      where: { team: { not: null } },
-      distinct: ['team'],
-      orderBy: { team: 'asc' },
-      select: { team: true },
-    });
-    return rows
-      .map((row) => row.team?.trim())
-      .filter((team): team is string => Boolean(team))
-      .filter((team, index, all) => all.indexOf(team) === index)
+    const user = await this.getAuthenticatedUser(request);
+    if (!['ADMIN', 'PARTICIPANT'].includes(user.role)) {
+      throw new ForbiddenException('Нет доступа к справочнику команд');
+    }
+    const [rows, settings] = await Promise.all([
+      this.prisma.participant.findMany({
+        where: { team: { not: null } },
+        distinct: ['team'],
+        orderBy: { team: 'asc' },
+        select: { team: true },
+      }),
+      this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { catalogs: true } }),
+    ]);
+    const catalog = (settings?.catalogs as any)?.teams;
+    const names = [
+      ...rows.map((row) => row.team?.trim()).filter((team): team is string => Boolean(team)),
+      ...(Array.isArray(catalog) ? catalog.map((team: unknown) => String(team).trim()) : []),
+    ];
+    return [...new Set(names.filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ru'))
       .map((name) => ({ name }));
   }
 
