@@ -169,6 +169,7 @@ export class MediaService {
     if (targetType !== MediaTargetType.SITE_ASSET) {
       throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
     }
+    if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
