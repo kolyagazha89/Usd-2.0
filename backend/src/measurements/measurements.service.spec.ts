@@ -93,7 +93,6 @@ describe('MeasurementsService', () => {
         registrationId: input.registrationId,
         registrationClassId: input.registrationClassId,
         value: 151.25,
-        unit: undefined,
         confirmed: true,
       }),
       'measurement-id',
