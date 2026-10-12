@@ -2614,6 +2614,9 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-header-inner{flex-wrap:nowrap!important}
 .public-nav{flex-wrap:nowrap!important;white-space:nowrap}
 .public-result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+/* Homepage result sections are intentionally arranged into two rows on wide screens. */
+.public-result-grid-live{grid-template-columns:repeat(4,minmax(0,1fr))}
+.public-result-grid-latest{grid-template-columns:repeat(3,minmax(0,1fr))}
 .public-result-card{min-width:0;position:relative;overflow:hidden;padding:20px 21px 18px;border:1px solid #303137;border-radius:15px;background:linear-gradient(135deg,#191a1e 0%,#111215 62%,#1a0d10 100%);box-shadow:0 12px 30px rgba(0,0,0,.16)}
 .public-result-card:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:#e31b2d}
 .public-result-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -2651,7 +2654,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .public-nav::-webkit-scrollbar{display:none}
  .public-nav button{padding:8px 9px!important;font-size:11px!important;flex:0 0 auto}
  .public-nav button:last-child{padding:8px 10px!important}
- .public-result-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+ .public-result-grid,.public-result-grid-live,.public-result-grid-latest{grid-template-columns:minmax(0,1fr);gap:10px}
  .public-result-card{padding:17px 17px 15px;border-radius:13px}
  .public-result-place{font-size:22px}
  .public-result-measure{margin:15px 0 13px}
@@ -2663,7 +2666,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .public-record-value{font-size:43px;margin-top:20px}
  .public-record-class{font-size:16px}
 }
-@media(min-width:761px) and (max-width:1050px){.public-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.public-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:761px) and (max-width:1050px){.public-result-grid,.public-result-grid-live,.public-result-grid-latest{grid-template-columns:repeat(2,minmax(0,1fr))}.public-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
 .public-stage-select{display:block;max-width:500px;margin-bottom:24px;color:#b9b9bf;font-size:13px}
