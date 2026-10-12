@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { FileClock, Search } from 'lucide-react';
 
-type Props = { settings: any; go: (path: string) => void };
+type Props = { settings: any; go: (path: string) => void; rulesText?: string };
 
-export default function PublicRulesPage({ settings, go }: Props) {
+export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
-  const source = String(settings?.registration?.rulesText || '').trim();
+  const source = String(rulesText || settings?.registration?.rulesText || '').trim();
   const legal = settings?.legal || {};
   const links = ([
     ['rulesUrl', 'Полный регламент'],
@@ -38,12 +38,13 @@ export default function PublicRulesPage({ settings, go }: Props) {
   }
 
   const needle = query.trim().toLocaleLowerCase('ru');
-  const filtered = sections.map((section) => ({
-    ...section,
-    body: section.body.filter((line) => !needle || (section.title + ' ' + line).toLocaleLowerCase('ru').includes(needle)),
-  })).filter((section) =>
-    !needle || section.title.toLocaleLowerCase('ru').includes(needle) || section.body.length > 0,
-  );
+  const filtered = sections.map((section) => {
+    const titleMatches = !needle || section.title.toLocaleLowerCase('ru').includes(needle);
+    return {
+      ...section,
+      body: titleMatches ? section.body : section.body.filter((line) => !needle || line.toLocaleLowerCase('ru').includes(needle)),
+    };
+  }).filter((section) => !needle || section.title.toLocaleLowerCase('ru').includes(needle) || section.body.length > 0);
 
   return (
     <div className="public-rules-page">
