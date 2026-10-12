@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const isAllowedType = (type: string, targetType: MediaTargetType) =>
+  ALLOWED_IMAGE_TYPES.has(type) || (targetType === MediaTargetType.SITE_ASSET && type === DOCX_TYPE);
 
 @Injectable()
 export class MediaService {
@@ -113,7 +116,7 @@ export class MediaService {
   }
 
   async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string) {
-    if (!ALLOWED_TYPES.has(contentType.toLowerCase())) throw new BadRequestException('Разрешены только JPG, PNG и WebP');
+    if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
     await this.ensureTargetAccess(userId, role, targetType, targetId);
     const token = crypto.randomBytes(32).toString('hex');
     const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
@@ -244,9 +247,32 @@ export class MediaService {
     }
   }
 
+  private async validateDocxSignature(key: string) {
+    const response = await fetch(this.presignedUrl('GET', key, null, 60));
+    if (!response.ok) throw new BadRequestException('Не удалось проверить загруженный DOCX');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
+      throw new BadRequestException('Файл не является корректным DOCX');
+    }
+  }
+
+  async getSiteAssetBuffer(targetId: string) {
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: { targetType: MediaTargetType.SITE_ASSET, targetId, contentType: DOCX_TYPE, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { objectKey: true },
+    });
+    if (!upload) throw new BadRequestException('Загруженный документ не найден');
+    const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
+    if (!response.ok) throw new BadRequestException('Не удалось получить DOCX из хранилища');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) throw new BadRequestException('Некорректный размер DOCX');
+    return bytes;
+  }
+
   async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string) {
     if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Размер изображения должен быть от 1 байта до 10 MB');
+      throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
     }
     const upload = await this.prisma.mediaUpload.findUnique({
       where: { tokenHash: this.hashToken(uploadToken) },
@@ -276,12 +302,18 @@ export class MediaService {
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
     const object = await this.headObject(upload.objectKey);
     if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Размер изображения должен быть от 1 байта до 10 MB');
+      throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
     }
     if (object.contentType !== upload.contentType) {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
-    await this.validateImageSignature(upload.objectKey, upload.contentType);
+    if (ALLOWED_IMAGE_TYPES.has(upload.contentType)) {
+      await this.validateImageSignature(upload.objectKey, upload.contentType);
+    } else if (upload.contentType === DOCX_TYPE && upload.targetType === MediaTargetType.SITE_ASSET) {
+      await this.validateDocxSignature(upload.objectKey);
+    } else {
+      throw new BadRequestException('Недопустимый тип файла для этой загрузки');
+    }
     await this.prisma.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
     // The bucket is private. Store the S3 object URL internally; clients must not
     // use it directly. A signed GET URL can be generated when media delivery is added.
