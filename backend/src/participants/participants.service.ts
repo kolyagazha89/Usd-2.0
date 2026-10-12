@@ -34,7 +34,7 @@ export class ParticipantsService {
   }
 
   private normalizeRegistrationNumber(value: string): string {
-    return value.trim().toUpperCase().replace(/\\s+/g, ' ');
+    return value.trim().toUpperCase().replace(/\s+/g, ' ');
   }
 
   private validateRegistrationNumber(
