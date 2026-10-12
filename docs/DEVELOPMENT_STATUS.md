@@ -34,7 +34,7 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 ## Public visual system block — 2026-10-12
 
 - Owner approved one consistent premium visual system for all five existing public routes: home, stages, results, records and rules. Full CMS expansion remains out of scope.
-- Feature branch: `feature/public-visual-system`; current implementation head: `88f26a6936559841e6ac8d63beee5449b1be0919`.
+- Feature branch: `feature/public-visual-system`; visual implementation commit: `88f26a6936559841e6ac8d63beee5449b1be0919`. Use PR #2's current head SHA as the source of truth for CI; checklist commits may advance it.
 - Changes: Manrope/Inter typography; black/white/red tokens; stronger motorsport hero; image frame/fallback; consistent stage cards, result/record tables, rules panel, focus states, reduced-motion support, responsive mobile navigation and layouts.
 - Semantic hooks added to existing public page/card/table markup; no API contracts, data model, permissions, or production migrations changed.
 - Current validation state: CI has not yet been confirmed for this head. PR review, CI, mobile QA, anonymous privacy QA and production route checks are separate gates. Do not merge or deploy on the basis of the commits alone.
