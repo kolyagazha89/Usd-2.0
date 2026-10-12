@@ -100,60 +100,20 @@ export class AuthService {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
-    const user =
-      await this.prisma.user.create({
-        data: {
-          email: normalizedEmail,
-          passwordHash,
-          name: null,
-          role: 'PARTICIPANT',
-          isActive: true,
-        },
-      });
-
-    const rawToken =
-      this.generateToken();
-
-    const tokenHash =
-      this.hashToken(rawToken);
-
-    await this.prisma.emailVerificationToken.create({
+    await this.prisma.user.create({
       data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: new Date(
-          Date.now() +
-            24 * 60 * 60 * 1000,
-        ),
+        email: normalizedEmail,
+        passwordHash,
+        name: null,
+        role: 'PARTICIPANT',
+        isActive: true,
+        emailVerifiedAt: new Date(),
       },
     });
 
-    try {
-      await this.mailService.sendVerificationEmail(
-        user.email,
-        rawToken,
-      );
-    } catch (error) {
-      await this.prisma.emailVerificationToken.deleteMany({
-        where: {
-          userId: user.id,
-          tokenHash,
-        },
-      });
-
-      await this.prisma.user.delete({
-        where: {
-          id: user.id,
-        },
-      });
-
-      throw error;
-    }
-
     return {
       success: true,
-      message:
-        'Регистрация выполнена. Проверьте email для подтверждения аккаунта.',
+      message: 'Аккаунт создан. Теперь можно войти.',
     };
   }
 
