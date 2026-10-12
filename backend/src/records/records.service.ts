@@ -694,7 +694,12 @@ export class RecordsService {
         },
       },
       include: this.publicInclude,
-      orderBy: { achievedAt: 'desc' },
+      orderBy: [
+        { class: { direction: { sortOrder: 'asc' } } },
+        { class: { sortOrder: 'asc' } },
+        { achievedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
     }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
 
