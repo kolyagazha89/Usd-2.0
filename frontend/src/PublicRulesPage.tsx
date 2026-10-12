@@ -49,10 +49,10 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   }, [source]);
 
   const needle = query.trim().toLocaleLowerCase('ru');
-  const documentHeadings = documentBlocks
+  const documentHeadings: { id: string; title: string; index: number }[] = documentBlocks
     .map((block: any, index: number) => ({ block, index }))
     .filter(({ block }: { block: any }) => block.type === 'heading')
-    .map(({ block, index }: { block: any; index: number }) => ({ id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }))
+    .map(({ block, index }: { block: any; index: number }): { id: string; title: string; index: number } => ({ id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }))
     .filter((heading: { title: string }) => !needle || heading.title.toLocaleLowerCase('ru').includes(needle));
   const visibleDocumentBlocks = documentBlocks
     .map((block: any) => {
