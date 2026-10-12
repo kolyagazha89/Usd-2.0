@@ -117,6 +117,16 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Build truth: initial intermediate backend deploys failed on a TypeScript overload after participant redaction was added. The overload was corrected; a later deployment for the latest UI commit was still BUILDING during the last check, after the backend TypeScript build had progressed to image export. Verify the newest Railway deployment reaches SUCCESS before claiming production deployment.
 - Cloudflare Worker direct route checks remain inaccessible from the current environment. The GitHub Wrangler publish job skips without CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; Cloudflare's native Git-connected build is independent and must be checked separately. Real event/car hero photo remains an owner-managed upload in Admin → Настройки сайта → Главная.
 
+## Public archive and logo reliability fix — 2026-10-12
+
+- Owner explicitly deferred the Term-LAB / SPL-Lab adapter; do not continue measurement-adapter work in the current block. The unmerged measurement PR #9 was closed at owner direction; its schema migration was never run and none of its changes were merged.
+- Current branch: `fix/public-site-finalization`, based on `main` at `3cb6bc044ae1db203c61935f2b2f41825d2cd7d3`.
+- Root cause found for imported historical results not appearing: the public ResultsService queries filtered historical rows to `verificationStatus: VERIFIED`, while the historical XLSX import intentionally creates rows as `PENDING`. This made the public result pages empty even though the imported stage was published.
+- Fix: public result endpoints now show historical rows attached to published/completed stages; pending historical rows are visibly labelled `АРХИВ · ОЖИДАЕТ ПРОВЕРКИ`. This changes visibility only. `RecordsService` still requires verified historical results before they can create/hold official records.
+- Fix: public header logo now prioritizes the stable public asset endpoint, retries the alternate configured URL, and resets failed-image state when the public asset URL arrives. This removes a race where the settings URL could fail before the canonical public URL loaded.
+- Added backend regression coverage for published-stage imported-result visibility. CSS badge styles added for pending archive rows.
+- Pending gates: frontend/backend CI on this branch, PR review, merge/deploy, then direct live verification of logo, imported result rows, all five routes, and narrow mobile layout. No production migration or data mutation.
+ 
 ### Current next action
 
 Finish deployment verification for the newest main commit, then perform one consolidated QA pass across /, /stages, /results, /records and /rules at desktop and narrow mobile widths, plus anonymous API privacy checks. Do not ask the owner to test one change at a time; deliver the consolidated release only after those gates are green.
