@@ -19,6 +19,7 @@ import { RecordsModule } from '../records/records.module';
   ],
   exports: [
     ResultsRankingService,
+    ResultsService,
   ],
 })
 export class ResultsModule {}
