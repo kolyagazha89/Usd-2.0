@@ -115,7 +115,7 @@ export class ParticipantsService {
     ];
     const canonical = new Map<string, string>();
     for (const raw of names) {
-      const name = raw.replace(/\\s+/g, ' ').trim();
+      const name = raw.replace(/\s+/g, ' ').trim();
       const key = name.toLocaleLowerCase('ru');
       if (name && !canonical.has(key)) canonical.set(key, name);
     }
@@ -144,12 +144,12 @@ export class ParticipantsService {
       ...rows.map((row) => row.team?.trim()).filter((name): name is string => Boolean(name)),
       ...(Array.isArray(catalog) ? catalog.map((name: unknown) => String(name).trim()) : []),
     ];
-    const key = team.replace(/\\s+/g, ' ').toLocaleLowerCase('ru');
-    const match = names.find((name) => name.replace(/\\s+/g, ' ').toLocaleLowerCase('ru') === key);
+    const key = team.replace(/\s+/g, ' ').toLocaleLowerCase('ru');
+    const match = names.find((name) => name.replace(/\s+/g, ' ').toLocaleLowerCase('ru') === key);
     if (!match) {
       throw new BadRequestException('Выберите команду из справочника или укажите «Без команды»');
     }
-    return match.replace(/\\s+/g, ' ').trim();
+    return match.replace(/\s+/g, ' ').trim();
   }
 
   async findAllForOperations(request: AuthenticatedRequest) {
