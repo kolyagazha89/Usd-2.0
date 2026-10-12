@@ -141,3 +141,12 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Planned regulation feature (not yet implemented): dedicated Admin section accepts one large `.docx`; parse Word heading hierarchy, paragraphs, lists, numbering, tables and links into a safe structured document; provide preview and section-structure correction; publish `/rules` with table of contents, stable anchors, responsive tables and search; retain original DOCX download; draft/preview/publish workflow; immutable revisions and restoration; preserve versions applicable to historical stages.
 - Implementation constraints: sanitize all imported content; handle malformed/large files and Cyrillic/nested lists/wide tables; agree size/storage/version policy in a short requirements survey before the feature block; no production migration without explicit authorization.
 - This is backlog/task tracking only, not a claim that the DOCX importer or live production QA is complete.
+
+
+## Public-site code review and live-check attempt — 2026-10-12
+
+- Static review of current `main` source completed for public stage, result, participant and site-settings endpoints.
+- Code-level findings: public stages are filtered to non-deleted PUBLISHED/COMPLETED stages; public result queries enforce published/completed stage visibility and redact participant/car profile fields when their `isPublic` flag is false; public participant list/profile paths filter private profiles and non-public cars. These are code-review observations, not proof of production runtime behavior.
+- Attempted to open the live Cloudflare Worker homepage and Railway public stages endpoint from the available verification environment. Both returned inaccessible/host resolution errors; therefore live deployment, route refreshes, anonymous runtime privacy and logo behavior remain UNVERIFIED.
+- Latest docs-only status commits passed Backend CI: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894) and [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These runs do not substitute for frontend CI or live browser QA.
+- Track remaining acceptance work in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11). Do not claim production QA complete until a reachable browser/session verifies the actual deployment.
