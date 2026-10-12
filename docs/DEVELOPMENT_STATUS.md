@@ -150,3 +150,14 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Attempted to open the live Cloudflare Worker homepage and Railway public stages endpoint from the available verification environment. Both returned inaccessible/host resolution errors; therefore live deployment, route refreshes, anonymous runtime privacy and logo behavior remain UNVERIFIED.
 - Latest docs-only status commits passed Backend CI: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894) and [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These runs do not substitute for frontend CI or live browser QA.
 - Track remaining acceptance work in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11). Do not claim production QA complete until a reachable browser/session verifies the actual deployment.
+
+
+## Public regulation reading page integration — 2026-10-12
+
+- Started from current `main` to avoid merging the divergent older `feature/public-rules-reading-experience` branch wholesale.
+- Added `frontend/src/PublicRulesPage.tsx` and integrated it into the existing `/rules` route without changing routing, API contracts, authorization or database schema.
+- The page provides a clear unpublished state instead of invented rules, section navigation, Russian-language text search, links to configured legal documents, and calls to action to stages.
+- Added responsive dark motorsport styling in `frontend/src/styles.css`; CSS is imported by `frontend/src/main.tsx`.
+- Configured document links are restricted to HTTP(S) or same-origin URLs before rendering.
+- This is a presentation improvement over the current plain-text rules field, not the DOCX importer. DOCX parsing, rich tables/lists, original-file storage/download, draft/publish and immutable version history remain future work requiring the already-agreed requirements survey before implementation.
+- Current branch: `feature/public-rules-page-main-integration`. CI and live deployment/route verification are pending. Do not merge or claim production completion until CI is green and the pull request is reviewed.
