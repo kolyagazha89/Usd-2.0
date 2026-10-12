@@ -71,3 +71,11 @@ Public V1 is merged and CI is green. Cloudflare's production Worker Build succee
 - Frontend CI [run 38210454477](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454477) and backend CI [run 38210454285](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454285) completed successfully after the ADMIN/JUDGE routing fix. The owner confirmed that the public site appeared.
 - Code review identified that an authenticated PARTICIPANT was routed to the participant portal regardless of URL. Branch `fix/public-routes-for-participants`, commit `8dbdf4a7a2b23cd6b5eeaf5f196e9fe2ef9061a7`, narrows the portal guard to `/login`, `/admin...`, and `/participant...` so public routes remain accessible in a participant session. CI/merge pending.
 - Live anonymous API and direct-route checks remain unverified by the assistant environment because the Worker and Railway API URLs are not reachable from it. Owner observation is recorded separately and is not presented as independent HTTP verification.
+
+
+## Participant-session public routing fix — merged 2026-10-12
+
+- PR [#4](https://github.com/kolyagazha89/Usd-2.0/pull/4) merged to `main` as `4470244e190d5f6801028611e694a7f31bd4f3a6`.
+- Public URLs render the public site for authenticated participants as well as ADMIN/JUDGE users; the participant portal remains available on `/login`, `/admin...`, and `/participant...`.
+- Frontend CI [run 38211339825](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339825) and backend CI [run 38211339834](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339834) passed. No API/schema change or production migration.
+- Owner observed the public site appearing after the earlier fix. Independent direct live Worker/API verification, anonymous privacy QA and real-device mobile QA remain open because the current verification environment cannot resolve the production hosts.
