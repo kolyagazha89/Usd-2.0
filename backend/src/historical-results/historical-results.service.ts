@@ -35,7 +35,7 @@ export class HistoricalResultsService {
   }
 
   /** Keep verified history visible without exposing details of private cars. */
-  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(result: T): T {
+  private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(result: T): T {
     const car = result.registration?.car;
     const participant = result.registration?.participant;
     const hideCar = Boolean(car && car.isPublic === false);
