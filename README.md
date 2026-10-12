@@ -2,8 +2,8 @@
 
 **Before every substantial development block, read [Development status](docs/DEVELOPMENT_STATUS.md), check Git history, ask the owner a short requirements survey, then implement the agreed scope end-to-end.** Keep the status/checklist updated with evidence. A commit or successful build does not mean a feature is merged, deployed, or production-verified.
 
+- [Development status and next steps](docs/DEVELOPMENT_STATUS.md)
 - [Measurement device integration](docs/MEASUREMENT_INTEGRATION.md)
-
 - [Product architecture and non-negotiable rules](docs/PRODUCT_ARCHITECTURE.md)
 - [Phase 1 release checklist](docs/PHASE_1_STATUS.md)
 - [Current public release scope and handoff](docs/DEVELOPMENT_STATUS.md)
