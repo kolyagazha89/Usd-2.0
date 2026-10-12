@@ -113,9 +113,43 @@ export class ParticipantsService {
       ...rows.map((row) => row.team?.trim()).filter((team): team is string => Boolean(team)),
       ...(Array.isArray(catalog) ? catalog.map((team: unknown) => String(team).trim()) : []),
     ];
-    return [...new Set(names.filter(Boolean))]
+    const canonical = new Map<string, string>();
+    for (const raw of names) {
+      const name = raw.replace(/\\s+/g, ' ').trim();
+      const key = name.toLocaleLowerCase('ru');
+      if (name && !canonical.has(key)) canonical.set(key, name);
+    }
+    return [...canonical.values()]
       .sort((a, b) => a.localeCompare(b, 'ru'))
       .map((name) => ({ name }));
+  }
+
+  private async validateTeam(value: string | null | undefined): Promise<string | null> {
+    const team = this.optionalText(value);
+    if (!team) return null;
+
+    const [rows, settings] = await Promise.all([
+      this.prisma.participant.findMany({
+        where: { team: { not: null } },
+        distinct: ['team'],
+        select: { team: true },
+      }),
+      this.prisma.siteSettings.findUnique({
+        where: { id: 'default' },
+        select: { catalogs: true },
+      }),
+    ]);
+    const catalog = (settings?.catalogs as any)?.teams;
+    const names = [
+      ...rows.map((row) => row.team?.trim()).filter((name): name is string => Boolean(name)),
+      ...(Array.isArray(catalog) ? catalog.map((name: unknown) => String(name).trim()) : []),
+    ];
+    const key = team.replace(/\\s+/g, ' ').toLocaleLowerCase('ru');
+    const match = names.find((name) => name.replace(/\\s+/g, ' ').toLocaleLowerCase('ru') === key);
+    if (!match) {
+      throw new BadRequestException('Выберите команду из справочника или укажите «Без команды»');
+    }
+    return match.replace(/\\s+/g, ' ').trim();
   }
 
   async findAllForOperations(request: AuthenticatedRequest) {
@@ -582,7 +616,7 @@ export class ParticipantsService {
       this.optionalText(body.city);
 
     const team =
-      this.optionalText(body.team);
+      await this.validateTeam(body.team);
 
     const phone =
       this.validatePhone(body.phone);
@@ -687,9 +721,13 @@ export class ParticipantsService {
         user.participantId,
       );
 
+    const validatedBody = { ...body };
+    if (Object.prototype.hasOwnProperty.call(body, 'team')) {
+      validatedBody.team = await this.validateTeam(body.team);
+    }
     return this.updateParticipantInternal(
       participantId,
-      body,
+      validatedBody,
     );
   }
 
