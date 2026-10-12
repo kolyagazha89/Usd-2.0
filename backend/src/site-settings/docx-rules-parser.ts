@@ -48,11 +48,11 @@ function decodeXml(value: string): string {
     .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
     .replace(/&#x([\da-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/\s+/g, ' ').trim();
+    ;
 }
 
 function paragraphText(xml: string): string {
-  return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(match => decodeXml(match[1])).join('');
+  return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(match => decodeXml(match[1])).join('').replace(/\s+/g, ' ').trim();
 }
 
 function parseParagraph(xml: string, orderedByNumId: Map<string, boolean>): RulesBlock | null {
