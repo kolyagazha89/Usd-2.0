@@ -33,37 +33,37 @@ const NATIONAL_LENGTHS: Record<string, [number, number]> = {
 export function isValidInternationalPhone(value: string | null | undefined): boolean {
   const phone = (value ?? '').trim();
   if (!phone) return true;
-  if (!/^\\+[1-9][0-9 ()().-]*$/.test(phone)) return false;
-  const digits = phone.slice(1).replace(/\\D/g, '');
-  if (digits.length < 8 || digits.length > 15 || /^(\\d)\\1+$/.test(digits)) return false;
+  if (!/^\+[1-9][0-9 ()().-]*$/.test(phone)) return false;
+  const digits = phone.slice(1).replace(/\D/g, '');
+  if (digits.length < 8 || digits.length > 15 || /^(\d)\1+$/.test(digits)) return false;
   const callingCode = [...PHONE_CODES].sort((a,b) => b.length-a.length).find(code => digits.startsWith(code));
   if (!callingCode) return false;
   const national = digits.length - callingCode.length;
   const [min,max] = NATIONAL_LENGTHS[callingCode] ?? [4,12];
-  return national >= min && national <= max && !/^(\\d)\\1+$/.test(digits.slice(callingCode.length));
+  return national >= min && national <= max && !/^(\d)\1+$/.test(digits.slice(callingCode.length));
 }
 export function isValidRegistrationPlate(country: string, value: string): boolean {
-  let number = value.trim().toUpperCase().replace(/\\s+/g, ' ');
+  let number = value.trim().toUpperCase().replace(/\s+/g, ' ');
   if (!number || number.length > 16) return false;
   if (country === 'RU') {
     const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
     number = [...number].map(ch => lookalikes[ch] ?? ch).join('');
   }
   const patterns: Record<string,RegExp> = {
-    RU:/^[АВЕКМНОРСТУХ]\\d{3}[АВЕКМНОРСТУХ]{2}\\d{2,3}$/,
-    NO:/^[A-Z]{2} ?\\d{5}$/,
-    FI:/^[A-Z]{2,3}-?\\d{1,3}$/,
-    EE:/^\\d{3} ?[A-Z]{3}$/,
-    LV:/^[A-Z]{2}-?\\d{1,4}$/,
-    LT:/^[A-Z]{3}-?\\d{3}$/,
+    RU:/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/,
+    NO:/^[A-Z]{2} ?\d{5}$/,
+    FI:/^[A-Z]{2,3}-?\d{1,3}$/,
+    EE:/^\d{3} ?[A-Z]{3}$/,
+    LV:/^[A-Z]{2}-?\d{1,4}$/,
+    LT:/^[A-Z]{3}-?\d{3}$/,
     PL:/^[A-Z]{1,3}[A-Z0-9]{4,7}$/,
-    BY:/^\\d{4} ?[A-Z]{2}-?\\d{1,2}$/,
-    UA:/^[A-Z]{2} ?\\d{4} ?[A-Z]{2}$/,
-    GE:/^[A-Z]{2}-?\\d{3}-?[A-Z]{2}$/,
-    AZ:/^\\d{2}-?[A-Z]{2}-?\\d{3}$/,
-    KZ:/^\\d{3} ?[A-Z]{1,3} ?\\d{2,3}$/,
+    BY:/^\d{4} ?[A-Z]{2}-?\d{1,2}$/,
+    UA:/^[A-Z]{2} ?\d{4} ?[A-Z]{2}$/,
+    GE:/^[A-Z]{2}-?\d{3}-?[A-Z]{2}$/,
+    AZ:/^\d{2}-?[A-Z]{2}-?\d{3}$/,
+    KZ:/^\d{3} ?[A-Z]{1,3} ?\d{2,3}$/,
     CN:/^[A-Z][A-Z0-9] ?[A-Z0-9]{5}$/,
-    MN:/^\\d{4} ?[A-Z]{2,3}$/,
+    MN:/^\d{4} ?[A-Z]{2,3}$/,
     KP:/^(?=.*[A-Z0-9])[A-Z0-9 -]{3,10}$/,
     US:/^[A-Z0-9][A-Z0-9 -]{1,7}$/
   };
