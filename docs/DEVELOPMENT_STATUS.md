@@ -31,11 +31,21 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 4. Agree on a new visual design separately before a major design/CMS block.
 5. Git checklists are the source of truth; survey before each major block and update statuses after work.
 
+## Public visual system block — 2026-10-12
+
+- Owner approved one consistent premium visual system for all five existing public routes: home, stages, results, records and rules. Full CMS expansion remains out of scope.
+- Feature branch: `feature/public-visual-system`; visual implementation commit: `88f26a6936559841e6ac8d63beee5449b1be0919`. Use PR #2's current head SHA as the source of truth for CI; checklist commits may advance it.
+- Changes: Manrope/Inter typography; black/white/red tokens; stronger motorsport hero; image frame/fallback; consistent stage cards, result/record tables, rules panel, focus states, reduced-motion support, responsive mobile navigation and layouts.
+- Semantic hooks added to existing public page/card/table markup; no API contracts, data model, permissions, or production migrations changed.
+- Validation evidence for code candidate `e1f0a2a5111fb3a30fead8c526d7e2c6cccd516d`: Frontend CI passed [run 38209780256](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209780256); Backend CI passed [run 38209780267](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209780267). Subsequent branch commits only clarify this checklist. Cloudflare Workers Build check failed for the PR branch [build b73cb488](https://dash.cloudflare.com/d7ec254ad62bb3a09d2c32bb5f443cbf/workers/services/view/usd-2-0/production/builds/b73cb488-bc42-44ec-bca3-3d17538cc6c5); detailed log access is unavailable here, so cause remains unresolved. Mobile QA, anonymous privacy QA and production route checks remain open. Do not merge or deploy based on CI alone.
+- Media dependency: the real USD car/event hero photo still needs to be uploaded in Admin → Настройки сайта → Главная; CSS fallback remains available.
+
 ## Public website status
 
 | Area | State | Next action |
 |---|---|---|
 | Public home, stages, results, records and rules | MERGED TO MAIN; FRONTEND CI PASS | Confirm each live route in a browser after Cloudflare production build |
+| Premium public visual system | FEATURE BRANCH; FRONTEND/BACKEND CI PASS; CLOUDFLARE PR BUILD FAILED | Diagnose Worker build failure; complete mobile/anonymous QA before merge |
 | Direct route fallback | CONFIGURED; LIVE HTTP CHECK OPEN | `frontend/wrangler.jsonc` uses `not_found_handling: single-page-application`; verify direct navigation and refresh on each route |
 | Public stage endpoint | CODE IMPLEMENTED; LIVE PRIVACY QA OPEN | Confirm anonymous access returns only non-deleted PUBLISHED/COMPLETED stages |
 | Public results and records | CODE HARDENED; LIVE PRIVACY QA OPEN | Confirm unpublished/deleted stages and private participant/car data are excluded |
@@ -59,4 +69,4 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 ## Next action
 
-Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live Worker. The production Worker Build succeeded on merge commit `f3c625f`, but direct HTTP/browser verification is not available from this environment, so do not mark the live-route gate complete until the routes are confirmed. Upload the real USD car/event photo in Admin → Настройки сайта → Главная; until then the visual fallback remains.
+For the design block, investigate the failed Cloudflare Worker Build check on PR #2 (details link in the block above), then complete mobile and anonymous privacy QA before deciding on merge. Frontend and backend CI passed on the code candidate; checklist-only commits followed. Separately, the original production gate remains open: open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live Worker. The production Worker Build succeeded on merge commit `f3c625f`, but direct HTTP/browser verification is not available from this environment, so do not mark the live-route gate complete until the routes are confirmed. Upload the real USD car/event photo in Admin → Настройки сайта → Главная; until then the visual fallback remains.
