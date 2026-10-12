@@ -648,8 +648,8 @@ export class ResultsService {
           ) {
             throw new ConflictException('Данные измерения не совпадают с подтверждаемым результатом');
           }
-          await tx.measurementSession.update({
-            where: { id: session.id },
+          const sessionUpdate = await tx.measurementSession.updateMany({
+            where: { id: session.id, status: 'RECEIVED' },
             data: {
               status: 'ACCEPTED',
               reviewedByUserId: request.user.sub,
@@ -658,6 +658,9 @@ export class ResultsService {
               resultId: result.id,
             },
           });
+          if (sessionUpdate.count !== 1) {
+            throw new ConflictException('Измерение уже обработано');
+          }
           await tx.auditLog.create({
             data: {
               userId: request.user.sub,
