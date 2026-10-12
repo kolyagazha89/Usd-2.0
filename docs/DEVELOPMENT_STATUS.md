@@ -107,3 +107,16 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Homepage now renders configured live stream, live results with a configurable refresh interval, latest public results, current records, and public participant cards. The sections respect CMS block enablement, configured order, and homepage visibility toggles.
 - Frontend CI passed [run 38212018150](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018150); backend CI passed build, lint, unit and E2E steps in [run 38212018146](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018146). Container cleanup was still finishing at the last check.
 - Production Worker/API route verification and Railway historical-migration logs remain outstanding: the connected Railway identity currently receives a viewer-permission error for the production service, and direct HTTP checks from the tool environment cannot resolve the production hosts.
+
+## Unified public-site finishing pass — 2026-10-12
+
+- Owner asked for the first public phase to be completed as one coherent pass before testing, rather than asking for incremental visual reviews.
+- Updated primary nav to Главная / Рекорды / Этапы / Регламент; results remain reachable from home/stage CTAs. Result and record pages now use bespoke responsive cards with real class units (дБ/м/с), locale-formatted values, non-fabricated places, participant/car privacy redaction, and stage context.
+- Fixed nearest-upcoming-stage ordering and selected latest results based on stage date. Restyled public stage cards and status/actions. No schema change, database mutation, or production migration.
+- Relevant commits on main: c8b1e6c3676d9fd1825c1b3e0daf9d57a168bc5d, 4a6250ebe304b547b1f435173339318d8730b182, a6fba28967ec8862e09351cb3985bca78fb4201f, plus backend privacy commits 47c0fcab120c1a35cd5191338d6386203ffb3dd2 and 43cdcdddea350b697803eba34fe0c0b8a42ba8ac.
+- Build truth: initial intermediate backend deploys failed on a TypeScript overload after participant redaction was added. The overload was corrected; a later deployment for the latest UI commit was still BUILDING during the last check, after the backend TypeScript build had progressed to image export. Verify the newest Railway deployment reaches SUCCESS before claiming production deployment.
+- Cloudflare Worker direct route checks remain inaccessible from the current environment. The GitHub Wrangler publish job skips without CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; Cloudflare's native Git-connected build is independent and must be checked separately. Real event/car hero photo remains an owner-managed upload in Admin → Настройки сайта → Главная.
+
+### Current next action
+
+Finish deployment verification for the newest main commit, then perform one consolidated QA pass across /, /stages, /results, /records and /rules at desktop and narrow mobile widths, plus anonymous API privacy checks. Do not ask the owner to test one change at a time; deliver the consolidated release only after those gates are green.
