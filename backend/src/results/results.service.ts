@@ -20,7 +20,16 @@ export class ResultsService {
   ) {}
 
   /** Keep confirmed results public while redacting details of private cars. */
-  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(result: T): T {
+  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+    result: T,
+  ): T;
+  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+    result: T | null,
+  ): T | null;
+  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+    result: T | null,
+  ): T | null {
+    if (!result) return result;
     const car = result.registration?.car;
     if (!car || car.isPublic !== false) return result;
     return {
@@ -374,7 +383,9 @@ export class ResultsService {
       throw new NotFoundException('Результат не найден');
     }
 
-    await this.assertPublicStage(result.registration.stage.id);
+    const stageId = result.registration?.stage?.id;
+    if (!stageId) throw new NotFoundException('Результат не найден');
+    await this.assertPublicStage(stageId);
 
     return result;
   }
