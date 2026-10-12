@@ -493,6 +493,7 @@ export class ResultsService {
       },
       include: this.publicInclude,
       orderBy: [
+        { registrationClass: { class: { direction: { sortOrder: 'asc' } } } },
         { registrationClass: { class: { sortOrder: 'asc' } } },
         { place: 'asc' },
         { createdAt: 'asc' },
@@ -514,6 +515,7 @@ export class ResultsService {
       where: { registration: { stageId } },
       include: this.adminInclude,
       orderBy: [
+        { registrationClass: { class: { direction: { sortOrder: 'asc' } } } },
         { registrationClass: { class: { sortOrder: 'asc' } } },
         { place: 'asc' },
         { createdAt: 'asc' },
