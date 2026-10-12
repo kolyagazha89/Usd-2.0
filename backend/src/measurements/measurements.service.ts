@@ -89,6 +89,13 @@ export class MeasurementsService {
     if (!registrationClass) {
       throw new ConflictException('Выбранный класс не относится к этой регистрации');
     }
+    const stageClass = await this.prisma.stageClass.findUnique({
+      where: { stageId_classId: { stageId: registration.stageId, classId: registrationClass.class.id } },
+      select: { isActive: true },
+    });
+    if (!stageClass?.isActive) {
+      throw new ConflictException('Класс не допущен к данному этапу');
+    }
     if (registrationClass.class.unit !== input.unit) {
       throw new ConflictException('Единица измерения не совпадает с единицей класса');
     }
@@ -176,25 +183,20 @@ export class MeasurementsService {
       throw new ConflictException('Отклонённое измерение нельзя подтвердить повторно');
     }
 
-    const result = await this.resultsService.create({
-      registrationId: session.registrationId,
-      registrationClassId: session.registrationClassId,
-      value: Number(session.value),
-      place: input.place,
-      notes: input.note?.trim() || 'Результат подтверждён из приложения измерений',
-      confirmed: true,
-    }, request);
-
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.measurementSession.update({
+    try {
+      return await this.resultsService.createFromMeasurement({
+        registrationId: session.registrationId,
+        registrationClassId: session.registrationClassId,
+        value: Number(session.value),
+        place: input.place,
+        notes: 'Результат подтверждён из приложения измерений',
+        confirmed: true,
+      }, id, input.note?.trim() || null, request);
+    } catch (error) {
+      // A concurrent retry may observe the Result conflict after the first request
+      // committed both the official result and the accepted session atomically.
+      const current = await this.prisma.measurementSession.findUnique({
         where: { id },
-        data: {
-          status: 'ACCEPTED',
-          reviewedByUserId: request.user.sub,
-          reviewedAt: new Date(),
-          reviewNote: input.note?.trim() || null,
-          resultId: result.id,
-        },
         include: {
           registrationClass: { include: { class: true } },
           capturedByUser: { select: { id: true, name: true, role: true } },
@@ -202,18 +204,9 @@ export class MeasurementsService {
           result: { select: { id: true, value: true, unit: true, place: true } },
         },
       });
-      await tx.auditLog.create({
-        data: {
-          userId: request.user.sub,
-          action: 'MEASUREMENT_ACCEPTED',
-          entity: 'MeasurementSession',
-          entityId: id,
-          ipAddress: request.ip,
-          metadata: { resultId: result.id, place: input.place ?? null },
-        },
-      });
-      return updated;
-    });
+      if (current?.status === 'ACCEPTED') return current;
+      throw error;
+    }
   }
 
   async reject(id: string, input: RejectMeasurementDto, request: AuthenticatedRequest) {
