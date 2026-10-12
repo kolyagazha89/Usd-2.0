@@ -24,7 +24,13 @@ export class StagesService {
     return this.prisma.stage.findMany({
       where: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
       orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
-      include: { season: true },
+      select: {
+        id: true, seasonId: true, stageNumber: true, name: true, city: true,
+        date: true, description: true, venue: true, address: true,
+        latitude: true, longitude: true, status: true, registrationOpen: true,
+        registrationStartsAt: true, registrationEndsAt: true, isDeleted: true,
+        legacyId: true, createdAt: true, updatedAt: true, season: true,
+      },
     });
   }
 
