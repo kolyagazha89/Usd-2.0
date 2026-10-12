@@ -51,7 +51,8 @@ function App(){
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
  useEffect(()=>{if(user&&user.role!=='PARTICIPANT'&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  if(booting)return <Splash/>;
- if(path==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;\n if(!user){if(path==='/login'||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT')go('/admin')}}/>;return <PublicSite path={path} go={go}/>;}
+ if(path==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ if(!user){if(path==='/login'||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT')go('/admin')}}/>;return <PublicSite path={path} go={go}/>;}
  if(user.role==='PARTICIPANT'&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
  // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
