@@ -9,11 +9,12 @@ describe('StagesService public visibility', () => {
     },
   };
   const audit: any = {};
+  const siteSettings: any = { getPublishedRulesSnapshot: async () => null };
   let service: StagesService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new StagesService(prisma, audit);
+    service = new StagesService(prisma, audit, siteSettings);
   });
 
   it('lists only non-deleted published and completed stages publicly', async () => {
