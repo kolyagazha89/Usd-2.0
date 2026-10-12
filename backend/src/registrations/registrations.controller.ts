@@ -22,33 +22,6 @@ export class RegistrationsController {
   ) {}
 
   @Roles('ADMIN', 'JUDGE')
-  @Post('qr/resolve')
-  resolveQr(
-    @Req() request: AuthenticatedRequest,
-    @Body() body: { token?: string },
-  ) {
-    return this.registrationsService.resolveQrToken(body.token ?? '', request);
-  }
-
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
-  @Post(':id/qr-token')
-  issueQrToken(
-    @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
-    return this.registrationsService.issueQrToken(id, request);
-  }
-
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
-  @Delete(':id/qr-token')
-  revokeQrToken(
-    @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
-    return this.registrationsService.revokeQrToken(id, request);
-  }
-
-  @Roles('ADMIN', 'JUDGE')
   @Get()
   findAll(
     @Query('stageId') stageId?: string,
