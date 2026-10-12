@@ -125,7 +125,8 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Fix: public result endpoints now show historical rows attached to published/completed stages; pending historical rows are visibly labelled `АРХИВ · ОЖИДАЕТ ПРОВЕРКИ`. This changes visibility only. `RecordsService` still requires verified historical results before they can create/hold official records.
 - Fix: public header logo now prioritizes the stable public asset endpoint, retries the alternate configured URL, and resets failed-image state when the public asset URL arrives. This removes a race where the settings URL could fail before the canonical public URL loaded.
 - Added backend regression coverage for published-stage imported-result visibility. CSS badge styles added for pending archive rows.
-- Pending gates: frontend/backend CI on this branch, PR review, merge/deploy, then direct live verification of logo, imported result rows, all five routes, and narrow mobile layout. No production migration or data mutation.
+- Frontend CI passed: [run 38225472424](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225472424). Backend CI passed (Prisma generation, test migrations, build, lint, unit and E2E): [run 38225472467](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225472467). PR [#10](https://github.com/kolyagazha89/Usd-2.0/pull/10) is open; latest tested commit `f81956037c8da97d79a95edfacf87309dd5b9e6b`. No production migration or data mutation.
+- Still pending: owner-reviewed merge, Cloudflare native production build/deployment, then live verification of logo, imported result rows, all five routes, anonymous privacy, and narrow mobile layout. The current tool environment cannot independently reach the production Worker/API, so don't claim live success from CI alone.
  
 ### Current next action
 
