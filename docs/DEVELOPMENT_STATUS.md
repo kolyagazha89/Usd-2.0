@@ -161,3 +161,13 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Configured document links are restricted to HTTP(S) or same-origin URLs before rendering.
 - This is a presentation improvement over the current plain-text rules field, not the DOCX importer. DOCX parsing, rich tables/lists, original-file storage/download, draft/publish and immutable version history remain future work requiring the already-agreed requirements survey before implementation.
 - Current branch: `feature/public-rules-page-main-integration`. CI and live deployment/route verification are pending. Do not merge or claim production completion until CI is green and the pull request is reviewed.
+
+
+## Public-results default-stage recovery — 2026-10-12
+
+- Follow-up branch `fix/public-results-stage-discovery`, implementation commit `42e6fe62d5ad03fcc06bdda9571b583b9d98dc9c`.
+- On a direct visit to `/results` with no explicit `stageId`, the page now probes public PUBLISHED/COMPLETED stages newest-first when the default stage has no rows and selects the first stage that actually has public results. This complements PR #15's homepage archive discovery; imported archive rows remain governed by the existing public ResultsService visibility rules.
+- A URL with an explicit `?stageId=...` is respected, and changing the stage selector disables automatic discovery so an intentional empty-stage selection stays intentional.
+- No backend/API/schema changes and no production migration. Frontend CI and merge are pending; production behavior remains unverified until the code is merged and the public route is checked.
+- Stage 2 remains the public-site delivery/QA block: complete the five routes, logo, imported results, rules publishing, responsive states, and privacy checks. Do not call the block fully production-verified until live route and anonymous API checks can be run.
+- Stage 3 candidate: participant self-service and cabinet completion, scoped separately after the public release gate. Device measurement integration (Term-LAB/SPL-Lab) remains explicitly deferred.
