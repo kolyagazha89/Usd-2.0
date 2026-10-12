@@ -21,6 +21,19 @@ export class ParticipantsService {
   // REGISTRATION NUMBER
   // =========================================================
 
+  private validatePhone(value: string | null | undefined): string | null {
+    const phone = this.optionalText(value);
+    if (!phone) return null;
+    if (!/^\\+?[0-9 ()().-]+$/.test(phone) || (phone.includes('+') && !phone.startsWith('+'))) {
+      throw new BadRequestException('Некорректный номер телефона. Используйте международный формат, например +7 999 123-45-67');
+    }
+    const digits = phone.replace(/\\D/g, '');
+    if (digits.length < 7 || digits.length > 15 || /^([0-9])\\1+$/.test(digits)) {
+      throw new BadRequestException('Номер телефона должен содержать от 7 до 15 цифр');
+    }
+    return phone;
+  }
+
   private normalizeRegistrationNumber(value: string): string {
     return value
       .trim()
@@ -612,7 +625,7 @@ export class ParticipantsService {
       this.optionalText(body.team);
 
     const phone =
-      this.optionalText(body.phone);
+      this.validatePhone(body.phone);
 
     const photoUrl =
       this.optionalText(body.photoUrl);
@@ -765,7 +778,7 @@ export class ParticipantsService {
         team:
           this.optionalText(body.team),
         phone:
-          this.optionalText(body.phone),
+          this.validatePhone(body.phone),
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
@@ -893,7 +906,7 @@ export class ParticipantsService {
 
     if (body.phone !== undefined) {
       data.phone =
-        this.optionalText(body.phone);
+        this.validatePhone(body.phone);
     }
 
     if (body.photoUrl !== undefined) {
