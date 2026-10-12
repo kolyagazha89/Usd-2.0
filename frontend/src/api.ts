@@ -149,5 +149,6 @@ export async function uploadRulesDocx(targetId:string,file:File){
   if(!file.name.toLowerCase().endsWith('.docx')) throw new Error('Разрешён только формат .docx');
   const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId,contentType});
   await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':contentType,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  await completeMediaUpload(prepared.uploadToken);
   return {url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(targetId)}`,targetId};
 }
