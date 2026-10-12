@@ -15,9 +15,9 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 ## Public visual system block — 2026-10-12
 
 - Owner approved one unified premium style across home, stages, results, records and rules; full CMS expansion is out of scope.
-- Feature branch: `feature/public-visual-system`; visual implementation commit `88f26a6936559841e6ac8d63beee5449b1be0919`. Use PR #2's current head SHA as the source of truth for CI.
+- PR #2 [merged](https://github.com/kolyagazha89/Usd-2.0/pull/2) to `main` as `a22dae511f9c37b8bb0bc52859e355b30be878a7`.
 - Added responsive visual tokens, typography, hero/image treatment, card/table/rules styling, focus states and reduced-motion support. API, schema, permissions and production migrations unchanged.
-- Frontend CI passed [run 38209780256](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209780256) and backend CI passed [run 38209780267](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209780267) on code candidate `e1f0a2a5111fb3a30fead8c526d7e2c6cccd516d`; following commits only updated checklists. Cloudflare Workers Build check failed for PR branch [build b73cb488](https://dash.cloudflare.com/d7ec254ad62bb3a09d2c32bb5f443cbf/workers/services/view/usd-2-0/production/builds/b73cb488-bc42-44ec-bca3-3d17538cc6c5); its detailed log is inaccessible here, so cause is unresolved. Mobile QA, anonymous privacy QA, merge, deployment and live verification remain incomplete.
+- Merge-commit Frontend CI passed [run 38210055084](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210055084); Backend CI passed [run 38210055069](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210055069); frontend production bundle passed [run 38210055243](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210055243); Cloudflare Workers Build on `main` succeeded [build 92067b77](https://dash.cloudflare.com/d7ec254ad62bb3a09d2c32bb5f443cbf/workers/services/view/usd-2-0/production/builds/92067b77-214f-45fa-b1c3-5970083f18c7). GitHub's separate Wrangler publish job was skipped because `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are empty; native Cloudflare Worker Build succeeded. Live-route browser verification, anonymous privacy QA and real-device mobile QA remain open.
 
 ## P0 acceptance checklist
 
@@ -38,7 +38,7 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 | Offline operation | ARCHITECTURE ONLY | Local hub, queue, sync and conflict UI are not implemented |
 | Backups/restore/monitoring | NOT VERIFIED | Verify configuration and perform a documented restore drill |
 | Production migration | NOT PART OF THIS RELEASE | No production migration authorized or run |
-| Production deployment | WORKER BUILD PASS; LIVE ROUTE CHECK OPEN | Cloudflare production build succeeded; verify `/`, `/stages`, `/results`, `/records`, `/rules` in a browser |
+| Production deployment | MAIN WORKER BUILD PASS; LIVE ROUTE CHECK OPEN | Cloudflare native Worker Build succeeded; separate GitHub Wrangler publish job skipped due missing secrets; verify `/`, `/stages`, `/results`, `/records`, `/rules` in a browser |
 
 ## Public V1 boundaries agreed with owner
 
