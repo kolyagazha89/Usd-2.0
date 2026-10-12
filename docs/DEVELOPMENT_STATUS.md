@@ -132,3 +132,12 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 ### Current next action
 
 Finish deployment verification for the newest main commit, then perform one consolidated QA pass across /, /stages, /results, /records and /rules at desktop and narrow mobile widths, plus anonymous API privacy checks. Do not ask the owner to test one change at a time; deliver the consolidated release only after those gates are green.
+
+## Owner decision — public-site continuation and regulation management — 2026-10-12
+
+- Owner explicitly deferred Term-LAB / SPL-Lab device integration for the foreseeable future. Do not resume implementation, merge the closed measurement PR, or run related migrations without a separate explicit authorization.
+- Added tracking issue [#11 — Public site QA and Word-based regulation publishing](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+- Current priority remains finishing the existing public website: direct-route/refresh QA for `/`, `/stages`, `/results`, `/records`, `/rules`; anonymous API privacy checks; logo cold-load reliability; responsive/mobile and loading/empty/error-state QA; document evidence here and in the Phase 1 checklist.
+- Planned regulation feature (not yet implemented): dedicated Admin section accepts one large `.docx`; parse Word heading hierarchy, paragraphs, lists, numbering, tables and links into a safe structured document; provide preview and section-structure correction; publish `/rules` with table of contents, stable anchors, responsive tables and search; retain original DOCX download; draft/preview/publish workflow; immutable revisions and restoration; preserve versions applicable to historical stages.
+- Implementation constraints: sanitize all imported content; handle malformed/large files and Cyrillic/nested lists/wide tables; agree size/storage/version policy in a short requirements survey before the feature block; no production migration without explicit authorization.
+- This is backlog/task tracking only, not a claim that the DOCX importer or live production QA is complete.
