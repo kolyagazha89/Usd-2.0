@@ -31,12 +31,28 @@ export class ResultsService {
   ): T | null {
     if (!result) return result;
     const car = result.registration?.car;
-    if (!car || car.isPublic !== false) return result;
+    const participant = result.registration?.participant;
+    const hideCar = Boolean(car && car.isPublic === false);
+    const hideParticipant = Boolean(participant && participant.isPublic === false);
+    if (!hideCar && !hideParticipant) return result;
     return {
       ...result,
       registration: {
         ...result.registration,
-        car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+        ...(hideCar ? {
+          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+        } : {}),
+        ...(hideParticipant ? {
+          participant: {
+            ...participant,
+            lastName: 'Участник скрыт',
+            firstName: '',
+            middleName: null,
+            team: null,
+            city: null,
+            photoUrl: null,
+          },
+        } : {}),
       },
     } as T;
   }
@@ -368,7 +384,6 @@ export class ResultsService {
       where: {
         id,
         registration: {
-          participant: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -419,7 +434,6 @@ export class ResultsService {
       where: {
         registrationId,
         registration: {
-          participant: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -451,7 +465,6 @@ export class ResultsService {
       where: {
         registrationClassId,
         registration: {
-          participant: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -471,7 +484,6 @@ export class ResultsService {
       where: {
         registration: {
           stageId,
-          participant: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
