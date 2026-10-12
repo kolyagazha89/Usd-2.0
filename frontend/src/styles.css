@@ -2713,3 +2713,62 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .public-result-card,.public-record-card,.public-stage-card,.public-stage-actions button{transition:none!important}
  .public-result-card:hover,.public-record-card:hover,.public-stage-card:hover{transform:none!important}
 }
+
+
+/* USD regulations page — readable long-form document and mobile navigation */
+.public-rules-page{width:min(1180px,100%);box-sizing:border-box;margin:0 auto;padding:clamp(28px,5vw,58px) 22px 76px;color:#f5f5f7}
+.public-rules-hero{position:relative;overflow:hidden;padding:clamp(28px,5vw,54px);border:1px solid #34343a;border-radius:18px;background:radial-gradient(ellipse at 90% 0%,rgba(237,38,56,.17),transparent 42%),linear-gradient(135deg,#19191d,#101012 70%);box-shadow:0 20px 55px rgba(0,0,0,.2)}
+.public-rules-kicker{display:flex;align-items:center;gap:10px;color:#ff6574;font-size:10px;font-weight:900;letter-spacing:.17em}
+.public-rules-kicker span{width:23px;height:2px;background:#ed2638}
+.public-rules-hero h2{margin:22px 0 14px;font-size:clamp(36px,6vw,66px);line-height:1;letter-spacing:-.065em;font-weight:950}
+.public-rules-hero h2 span{color:#ed2638}
+.public-rules-hero>p{max-width:720px;margin:0;color:#b9bac2;font-size:15px;line-height:1.8}
+.public-rules-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:27px}
+.public-rules-actions button,.public-rules-registration-note button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:12px 16px;border:1px solid #ed2638;border-radius:8px;background:#ed2638;color:#fff;font-weight:850;font-size:12px;cursor:pointer}
+.public-rules-actions a{color:#ff7884;font-size:12px;font-weight:800;text-decoration:none}
+.public-rules-actions a:hover,.public-rules-doc-links a:hover{color:#fff}
+.public-rules-layout{display:grid;grid-template-columns:minmax(220px,270px) minmax(0,1fr);align-items:start;gap:22px;margin-top:22px}
+.public-rules-sidebar,.public-rules-document{min-width:0;border:1px solid #303035;border-radius:14px;background:#131315}
+.public-rules-sidebar{position:sticky;top:92px;padding:20px}
+.public-rules-sidebar-label{color:#ff6574;font-size:9px;font-weight:900;letter-spacing:.14em}
+.public-rules-search{display:flex;align-items:center;gap:9px;margin:15px 0 13px;padding:0 11px;min-height:42px;border:1px solid #38383e;border-radius:8px;background:#0d0d0f;color:#8e8e97}
+.public-rules-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#f7f7f8;font:inherit;font-size:12px}
+.public-rules-sidebar nav{display:grid;gap:4px;max-height:55vh;overflow:auto}
+.public-rules-sidebar nav a{padding:9px 10px;border-radius:7px;color:#c3c3cb;text-decoration:none;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.public-rules-sidebar nav a:hover{background:#242428;color:#fff}
+.public-rules-sidebar-note{margin-top:16px;padding-top:14px;border-top:1px solid #2c2c31;color:#73737d;font-size:10px;line-height:1.6}
+.public-rules-document{padding:clamp(18px,3vw,32px)}
+.public-rules-document-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid #303035;color:#777780;font-size:9px;font-weight:900;letter-spacing:.13em}
+.public-rules-section{display:grid;grid-template-columns:35px minmax(0,1fr);gap:14px;padding:26px 0;border-bottom:1px solid #29292e;scroll-margin-top:100px}
+.public-rules-section:last-of-type{border-bottom:0}
+.public-rules-section-number{padding-top:4px;color:#ed2638;font-size:12px;font-weight:950;letter-spacing:.05em}
+.public-rules-section h3{margin:0 0 13px;color:#fff;font-size:clamp(17px,2vw,21px);line-height:1.35;letter-spacing:-.025em;overflow-wrap:anywhere}
+.public-rules-section p{margin:0 0 12px;color:#c3c3cb;font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
+.public-rules-section p:last-child{margin-bottom:0}
+.public-rules-empty{padding:28px 0;color:#a4a4ad;font-size:13px}
+.public-rules-doc-links{display:grid;gap:8px;margin-top:20px;padding-top:18px;border-top:1px solid #303035}
+.public-rules-doc-links a{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #36363c;border-radius:8px;color:#ff7884;text-decoration:none;font-size:12px;font-weight:750;overflow-wrap:anywhere}
+.public-rules-not-published{display:grid;grid-template-columns:54px minmax(0,1fr);gap:18px;margin-top:22px;padding:clamp(22px,4vw,34px);border:1px solid #34343a;border-radius:14px;background:linear-gradient(135deg,#151517,#101012)}
+.public-rules-not-published-icon{width:50px;height:50px;display:grid;place-items:center;border:1px solid #4a2a30;border-radius:12px;background:#251317;color:#ff6877}
+.public-rules-not-published h3{margin:10px 0;color:#f4f4f6;font-size:clamp(20px,3vw,26px);letter-spacing:-.035em}
+.public-rules-not-published p{max-width:750px;margin:0;color:#aeb0b8;font-size:13px;line-height:1.8}
+.public-rules-registration-note{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:22px;padding:22px 24px;border:1px solid #303035;border-radius:13px;background:#131315}
+.public-rules-registration-note>div{display:grid;gap:5px}
+.public-rules-registration-note strong{color:#f5f5f7;font-size:14px}
+.public-rules-registration-note span{color:#999ba4;font-size:12px;line-height:1.6}
+@media(max-width:760px){
+ .public-rules-page{padding:22px 12px 48px}
+ .public-rules-hero{padding:25px 20px;border-radius:13px}
+ .public-rules-hero>p{font-size:13px}
+ .public-rules-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+ .public-rules-sidebar{position:static;padding:15px}
+ .public-rules-sidebar nav{display:flex;max-height:none;overflow-x:auto;gap:6px;padding-bottom:4px}
+ .public-rules-sidebar nav a{flex:0 0 auto;max-width:220px;border:1px solid #303035}
+ .public-rules-sidebar-note{display:none}
+ .public-rules-document{padding:17px 15px}
+ .public-rules-section{grid-template-columns:25px minmax(0,1fr);gap:10px;padding:21px 0}
+ .public-rules-section p{font-size:12px;line-height:1.8}
+ .public-rules-not-published{grid-template-columns:minmax(0,1fr);gap:12px;padding:21px}
+ .public-rules-registration-note{padding:18px}
+ .public-rules-registration-note button{width:100%}
+}
