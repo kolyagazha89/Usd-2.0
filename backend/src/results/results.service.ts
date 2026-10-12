@@ -19,6 +19,19 @@ export class ResultsService {
     private readonly rankingService: ResultsRankingService,
   ) {}
 
+  /** Keep confirmed results public while redacting details of private cars. */
+  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(result: T): T {
+    const car = result.registration?.car;
+    if (!car || car.isPublic !== false) return result;
+    return {
+      ...result,
+      registration: {
+        ...result.registration,
+        car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+      },
+    } as T;
+  }
+
   private readonly publicInclude = {
     registration: {
       select: {
@@ -347,7 +360,6 @@ export class ResultsService {
         id,
         registration: {
           participant: { isPublic: true },
-          car: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -356,7 +368,7 @@ export class ResultsService {
         ],
       },
       include: this.publicInclude,
-    });
+    }).then((results) => this.sanitizePublicResult(results));
 
     if (!result) {
       throw new NotFoundException('Результат не найден');
@@ -397,7 +409,6 @@ export class ResultsService {
         registrationId,
         registration: {
           participant: { isPublic: true },
-          car: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -407,7 +418,7 @@ export class ResultsService {
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
-    });
+    }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
   async findByRegistrationClass(registrationClassId: string) {
@@ -430,7 +441,6 @@ export class ResultsService {
         registrationClassId,
         registration: {
           participant: { isPublic: true },
-          car: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -440,7 +450,7 @@ export class ResultsService {
       },
       include: this.publicInclude,
       orderBy: [{ place: 'asc' }, { createdAt: 'asc' }],
-    });
+    }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
   async findByStage(stageId: string) {
@@ -451,7 +461,6 @@ export class ResultsService {
         registration: {
           stageId,
           participant: { isPublic: true },
-          car: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -465,7 +474,7 @@ export class ResultsService {
         { place: 'asc' },
         { createdAt: 'asc' },
       ],
-    });
+    }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
   async findByStageAdmin(stageId: string) {
