@@ -14,14 +14,30 @@ export class RecordsService {
   /** Keep public records visible while redacting details of private cars. */
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
-    if (!car || car.isPublic !== false) return record;
+    const participant = record.result?.registration?.participant;
+    const hideCar = Boolean(car && car.isPublic === false);
+    const hideParticipant = Boolean(participant && participant.isPublic === false);
+    if (!hideCar && !hideParticipant) return record;
     return {
       ...record,
       result: {
         ...record.result,
         registration: {
           ...record.result?.registration,
-          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+          ...(hideCar ? {
+            car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+          } : {}),
+          ...(hideParticipant ? {
+            participant: {
+              ...participant,
+              lastName: 'Участник скрыт',
+              firstName: '',
+              middleName: null,
+              team: null,
+              city: null,
+              photoUrl: null,
+            },
+          } : {}),
         },
       },
     } as T;
@@ -607,7 +623,6 @@ export class RecordsService {
       where: {
         result: {
           registration: {
-            participant: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -627,7 +642,6 @@ export class RecordsService {
         isCurrent: true,
         result: {
           registration: {
-            participant: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -655,7 +669,6 @@ export class RecordsService {
         classId,
         result: {
           registration: {
-            participant: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -675,7 +688,6 @@ export class RecordsService {
         seasonId,
         result: {
           registration: {
-            participant: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -691,7 +703,6 @@ export class RecordsService {
         id,
         result: {
           registration: {
-            participant: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
