@@ -7,12 +7,12 @@ export default function PublicRulesPage({ settings, go }: Props) {
   const [query, setQuery] = useState('');
   const source = String(settings?.registration?.rulesText || '').trim();
   const legal = settings?.legal || {};
-  const links: [string, string][] = [
+  const links = ([
     ['rulesUrl', 'Полный регламент'],
     ['termsUrl', 'Условия участия'],
     ['privacyUrl', 'Политика конфиденциальности'],
     ['consentUrl', 'Согласие на обработку данных'],
-  ].filter(([key]) => typeof legal[key] === 'string' && legal[key].trim());
+  ] as [string, string][]).filter(([key]) => typeof legal[key] === 'string' && legal[key].trim());
 
   const isHeading = (line: string) =>
     /^(раздел|глава|приложение|часть)\s+[\wА-ЯЁа-яёIVX.-]+|^\d+(?:\.\d+)*[.)]?\s+|^[А-ЯЁ\s—–-]{9,}:?$/.test(line.trim());
