@@ -57,7 +57,11 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
     .map((block: any) => {
       if (!needle) return block;
       if (block.type === 'table') {
-        const rows = (block.rows ?? []).filter((row: string[]) => row.some(cell => cell.toLocaleLowerCase('ru').includes(needle)));
+        const allRows = (block.rows ?? []) as string[][];
+        const matches = (row: string[]) => row.some(cell => cell.toLocaleLowerCase('ru').includes(needle));
+        const header = allRows[0];
+        const bodyMatches = allRows.slice(1).filter(matches);
+        const rows = header && matches(header) ? allRows : bodyMatches.length ? [header, ...bodyMatches] : [];
         return rows.length ? { ...block, rows } : null;
       }
       return String(block.text ?? '').toLocaleLowerCase('ru').includes(needle) ? block : null;
