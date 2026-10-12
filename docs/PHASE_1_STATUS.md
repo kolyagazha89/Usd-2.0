@@ -141,3 +141,12 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - Attempted live access to the Cloudflare Worker and Railway public stages endpoint; both were inaccessible from the current verification environment. Live route/refresh, anonymous API privacy, and logo cold-load QA remain open.
 - Backend CI passed after the status/backlog updates: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894), [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These docs-only runs do not validate frontend code or production behavior.
 - Remaining work tracked in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+
+
+## Regulation page integration follow-up — 2026-10-12
+
+- [x] Implement a dedicated public rules reading page using the existing CMS-managed rules text and legal links.
+- [x] Add section navigation, search, explicit unpublished state and responsive layout.
+- [ ] Validate frontend CI and merge review.
+- [ ] Verify the live `/rules` route and refresh behavior after deployment.
+- [ ] DOCX importer, faithful rich-text/table/list rendering, original DOCX download and revision history remain out of this scope and are not implemented by this page-only change.
