@@ -2669,3 +2669,43 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-stage-select{display:block;max-width:500px;margin-bottom:24px;color:#b9b9bf;font-size:13px}
 .public-stage-select select{display:block;width:100%;margin-top:8px;background:#171719;color:#fff;border:1px solid #3a3a40;border-radius:10px;padding:14px;min-height:48px}
 .public-stage-select select:focus{outline:2px solid rgba(227,27,45,.45);outline-offset:2px}
+
+
+/* Final first-release refinements: cards read as competition UI, not data tables */
+.public-result-card,.public-record-card,.public-stage-card{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.public-result-card:hover,.public-record-card:hover{transform:translateY(-2px);border-color:#57575e;box-shadow:0 18px 42px rgba(0,0,0,.25)}
+.public-result-context{display:block;margin-top:2px;color:#777b84!important;font-size:10px!important;line-height:1.35!important}
+.public-record-card{display:flex;flex-direction:column;align-items:stretch}
+.public-record-stage{margin-top:auto;padding-top:16px}
+.public-stage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.public-stage-card{min-width:0;display:flex;flex-direction:column;align-items:stretch;padding:clamp(19px,2.5vw,28px);border:1px solid #303035;border-radius:15px;background:radial-gradient(ellipse at 100% 0%,rgba(226,29,47,.09),transparent 42%),linear-gradient(145deg,#18181b,#101012 70%);box-shadow:0 14px 36px rgba(0,0,0,.15)}
+.public-stage-card:hover{transform:translateY(-3px);border-color:#57575e;box-shadow:0 20px 48px rgba(0,0,0,.24)}
+.public-stage-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#ff6574;font-size:11px;font-weight:900;letter-spacing:.09em}
+.public-stage-card-top i{font-style:normal;color:#6d6d75;padding:0 3px}
+.public-stage-status{display:inline-flex;align-items:center;min-height:25px;padding:5px 8px;border:1px solid #39393f;border-radius:6px;color:#9b9ba3;font-size:9px;letter-spacing:.055em}
+.public-stage-status.is-open{border-color:rgba(226,29,47,.4);background:rgba(226,29,47,.1);color:#ff7c88}
+.public-stage-card h2{margin:22px 0 10px;font-size:clamp(22px,2.5vw,29px);font-weight:850;line-height:1.15;letter-spacing:-.045em;color:#f6f6f8;overflow-wrap:anywhere}
+.public-stage-date{font-size:19px;font-weight:850;letter-spacing:-.025em;color:#fff}
+.public-stage-location{margin:7px 0 0;color:#a8a8b1;font-size:13px;line-height:1.5}
+.public-stage-description{margin:16px 0 0;color:#c6c6cd;font-size:13px;line-height:1.65}
+.public-stage-address{margin:9px 0 0;color:#81818a;font-size:12px;line-height:1.5}
+.public-stage-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:auto;padding-top:23px}
+.public-stage-actions button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:43px;padding:11px 14px;border-radius:8px;font-size:12px;font-weight:800;transition:background .15s ease,border-color .15s ease}
+.public-stage-primary{background:#e21d2f;border:1px solid #e21d2f;color:#fff}
+.public-stage-primary:hover{background:#bd1525;border-color:#bd1525}
+.public-stage-secondary{background:transparent;border:1px solid #414147;color:#f4f4f6}
+.public-stage-secondary:hover{background:#202024;border-color:#696970}
+.public-stage-actions span{font-size:15px;color:#ff7b87}
+@media(max-width:760px){
+ .public-stage-grid{grid-template-columns:minmax(0,1fr);gap:11px}
+ .public-stage-card{padding:18px;border-radius:13px}
+ .public-stage-card h2{margin-top:19px;font-size:23px}
+ .public-stage-date{font-size:18px}
+ .public-stage-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+ .public-stage-actions button{width:100%;min-height:45px}
+ .public-result-context{font-size:10px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .public-result-card,.public-record-card,.public-stage-card,.public-stage-actions button{transition:none!important}
+ .public-result-card:hover,.public-record-card:hover,.public-stage-card:hover{transform:none!important}
+}
