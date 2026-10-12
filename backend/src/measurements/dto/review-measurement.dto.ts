@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class AcceptMeasurementDto {
   @IsOptional()
@@ -17,5 +17,6 @@ export class RejectMeasurementDto {
   @IsString()
   @MinLength(3)
   @MaxLength(2000)
+  @Matches(/\\S/)
   note!: string;
 }
