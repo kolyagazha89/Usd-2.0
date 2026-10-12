@@ -31,7 +31,7 @@ function readZipEntry(buffer: Buffer, wanted: string): Buffer {
       const start = localOffset + 30 + localNameLength + localExtraLength;
       const compressed = buffer.subarray(start, start + compressedSize);
       if (method === 0) return Buffer.from(compressed);
-      if (method === 8) return inflateRawSync(compressed);
+      if (method === 8) return inflateRawSync(compressed, { maxOutputLength: 20 * 1024 * 1024 });
       throw new Error('Неподдерживаемый способ сжатия DOCX');
     }
     offset += 46 + nameLength + extraLength + commentLength;
@@ -55,7 +55,7 @@ function paragraphText(xml: string): string {
   return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(match => decodeXml(match[1])).join('');
 }
 
-function parseParagraph(xml: string): RulesBlock | null {
+function parseParagraph(xml: string, orderedByNumId: Map<string, boolean>): RulesBlock | null {
   const text = paragraphText(xml);
   if (!text) return null;
   const style = xml.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] ?? '';
@@ -64,7 +64,8 @@ function parseParagraph(xml: string): RulesBlock | null {
   const numPr = xml.match(/<w:numPr\b[\s\S]*?<\/w:numPr>/)?.[0] ?? '';
   if (numPr) {
     const level = Number(numPr.match(/<w:ilvl\b[^>]*w:val="(\d+)"/)?.[1] ?? 0);
-    const ordered = /decimal|lowerLetter|upperLetter|lowerRoman|upperRoman/i.test(xml);
+    const numId = numPr.match(/<w:numId\\b[^>]*w:val="(\\d+)"/)?.[1] ?? '';
+    const ordered = orderedByNumId.get(numId) ?? false;
     return { type: 'list-item', ordered, level: Math.min(level, 8), text };
   }
   return { type: 'paragraph', text };
@@ -75,6 +76,22 @@ export function parseDocxRules(buffer: Buffer): RulesBlock[] {
   const document = readZipEntry(buffer, 'word/document.xml').toString('utf8');
   const body = document.match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body>/)?.[1];
   if (!body) throw new Error('Не удалось прочитать текст DOCX');
+  const orderedByNumId = new Map<string, boolean>();
+  try {
+    const numbering = readZipEntry(buffer, 'word/numbering.xml').toString('utf8');
+    const orderedByAbstract = new Map<string, boolean>();
+    for (const match of numbering.matchAll(/<w:abstractNum\\b([^>]*)>([\\s\\S]*?)<\\/w:abstractNum>/g)) {
+      const abstractId = match[1].match(/w:abstractNumId="(\\d+)"/)?.[1];
+      if (!abstractId) continue;
+      const formats = [...match[2].matchAll(/<w:numFmt\\b[^>]*w:val="([^"]+)"/g)].map(item => item[1]);
+      orderedByAbstract.set(abstractId, formats.some(format => format !== 'bullet' && format !== 'none'));
+    }
+    for (const match of numbering.matchAll(/<w:num\\b([^>]*)>([\\s\\S]*?)<\\/w:num>/g)) {
+      const numId = match[1].match(/w:numId="(\\d+)"/)?.[1];
+      const abstractId = match[2].match(/<w:abstractNumId\\b[^>]*w:val="(\\d+)"/)?.[1];
+      if (numId && abstractId) orderedByNumId.set(numId, orderedByAbstract.get(abstractId) ?? false);
+    }
+  } catch { /* Some Word documents do not define numbering styles. */ }
   const blocks: RulesBlock[] = [];
   const elements = body.match(/<w:p\b[\s\S]*?<\/w:p>|<w:tbl\b[\s\S]*?<\/w:tbl>/g) ?? [];
   for (const element of elements) {
@@ -86,7 +103,7 @@ export function parseDocxRules(buffer: Buffer): RulesBlock[] {
       ).filter(row => row.some(cell => cell.length));
       if (rows.length) blocks.push({ type: 'table', rows });
     } else {
-      const block = parseParagraph(element);
+      const block = parseParagraph(element, orderedByNumId);
       if (block) blocks.push(block);
     }
     if (blocks.length > 10000) throw new Error('Документ содержит слишком много элементов для предпросмотра');
