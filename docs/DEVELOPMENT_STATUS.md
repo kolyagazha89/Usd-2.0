@@ -186,3 +186,12 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Railway's first production deployment for the merge commit remained in `BUILDING` with no new build logs after 2026-10-12 19:04 UTC. The same `main` source was reconnected to trigger a fresh build at 19:06 UTC; runtime deployment remains pending and must be confirmed before claiming production behavior is live.
 - Live HTTP checks for the public Worker and Railway API still fail at DNS resolution from the current execution environment, so public routes, logo cold-load and anonymous API behavior remain runtime-unverified.
 - No database schema change or production data migration.
+
+
+## DOCX rich-formatting pass — 2026-10-12
+
+- PR [#29](https://github.com/kolyagazha89/Usd-2.0/pull/29) preserves Word bold/italic runs and clickable external links in headings, paragraphs, list items and table cells while retaining flattened text for existing search/compatibility.
+- Unsafe link schemes are dropped at parse time and again before rendering. Admin preview and public /rules use React text rendering; no imported HTML is executed.
+- Added regression tests for bold/italic, links in paragraphs/table cells and rejection of unsafe schemes. Backend CI passed build, lint, unit and E2E on run [38296715212](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715212); Frontend CI passed on run [38296715211](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715211).
+- No schema change, database migration, or production data mutation. The original DOCX remains the downloadable source. Deployment and live /rules verification are separate release gates.
+- Still outstanding in the broader public-site block: live direct-route/refresh QA for all five routes, anonymous runtime privacy checks, cold-load logo verification, real-device mobile/loading/empty/error QA, and upload of the selected real USD hero photo. Regulation follow-ups include editable section hierarchy, restoration of prior revisions and rules snapshots tied to historical stages.
