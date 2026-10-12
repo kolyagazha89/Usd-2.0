@@ -32,6 +32,8 @@ model User {
   googleOAuthStates        GoogleOAuthState[]
   googleConnections        GoogleConnection[] @relation("GoogleConnectionConnectedBy")
   resultsCreated           Result[]             @relation("ResultCreatedBy")
+  measurementsCaptured     MeasurementSession[]  @relation("MeasurementCapturedBy")
+  measurementsReviewed     MeasurementSession[]  @relation("MeasurementReviewedBy")
   resultsVerified          Result[]             @relation("ResultVerifiedBy")
   participant              Participant?             @relation(fields: [participantId], references: [id])
   assistantRequestsCreated  AssistantRequest[]      @relation("AssistantRequestCreatedBy")
@@ -416,6 +418,7 @@ model Registration {
   classes    RegistrationClass[]
   inspection Inspection?
   results    Result[]
+  measurementSessions MeasurementSession[]
 
   @@unique([stageId, participantNumber])
   @@unique([stageId, carId])
@@ -453,6 +456,7 @@ model RegistrationClass {
   registration   Registration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   number         RegistrationNumber @relation(fields: [numberId], references: [id])
   results        Result[]
+  measurementSessions MeasurementSession[]
 
   @@unique([registrationId, classId])
   @@index([registrationId])
@@ -498,6 +502,7 @@ model Result {
   createdAt           DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
   records             Record[]
+  measurementSession  MeasurementSession? @relation("MeasurementResult")
   registrationClass   RegistrationClass @relation(fields: [registrationClassId], references: [id], onDelete: Cascade)
   registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   createdByUser       User?             @relation("ResultCreatedBy", fields: [createdByUserId], references: [id])
@@ -512,6 +517,41 @@ model Result {
   @@index([registrationClassId])
   @@index([place])
   @@index([isBest])
+}
+
+model MeasurementSession {
+  id                  String            @id @default(uuid())
+  registrationId      String
+  registrationClassId String
+  deviceType          String
+  deviceSerial        String?
+  measurementType     String
+  value               Decimal           @db.Decimal(10, 3)
+  unit                ResultUnit
+  frequencyHz         Decimal?          @db.Decimal(10, 2)
+  durationMs          Int?
+  measuredAt          DateTime          @db.Timestamptz(3)
+  rawData             Json?
+  idempotencyKey      String            @unique
+  status              MeasurementStatus @default(RECEIVED)
+  capturedByUserId    String
+  reviewedByUserId    String?
+  reviewedAt          DateTime?         @db.Timestamptz(3)
+  reviewNote          String?
+  resultId            String?           @unique
+  createdAt           DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
+  registration        Registration      @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  registrationClass   RegistrationClass @relation(fields: [registrationClassId], references: [id], onDelete: Restrict)
+  capturedByUser      User              @relation("MeasurementCapturedBy", fields: [capturedByUserId], references: [id])
+  reviewedByUser      User?             @relation("MeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
+  result              Result?           @relation("MeasurementResult", fields: [resultId], references: [id], onDelete: SetNull)
+
+  @@index([registrationId, createdAt])
+  @@index([registrationClassId, status])
+  @@index([status, measuredAt])
+  @@index([capturedByUserId])
+  @@index([reviewedByUserId])
 }
 
 model Record {
@@ -751,6 +791,12 @@ enum ResultUnit {
   DB
   MPS
   OTHER
+}
+
+enum MeasurementStatus {
+  RECEIVED
+  ACCEPTED
+  REJECTED
 }
 
 enum ResultVerificationStatus {
