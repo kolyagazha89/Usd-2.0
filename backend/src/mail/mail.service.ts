@@ -13,8 +13,11 @@ export class MailService {
       port: Number(
         process.env.SMTP_PORT ?? 465,
       ),
+      // Port 465 uses implicit TLS; port 587 normally uses STARTTLS.
       secure:
-        process.env.SMTP_SECURE === 'true',
+        process.env.SMTP_SECURE === 'true' ||
+        (process.env.SMTP_SECURE !== 'false' &&
+          Number(process.env.SMTP_PORT ?? 465) === 465),
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
