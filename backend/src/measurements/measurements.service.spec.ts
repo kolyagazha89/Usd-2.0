@@ -8,7 +8,7 @@ describe('MeasurementsService', () => {
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
   };
-  const results: any = { create: jest.fn() };
+  const results: any = { create: jest.fn(), createFromMeasurement: jest.fn() };
   let service: MeasurementsService;
 
   const judgeRequest: any = {
@@ -69,6 +69,38 @@ describe('MeasurementsService', () => {
     await expect(service.create(input, judgeRequest)).rejects.toThrow(
       'Idempotency-Key уже использован для другого измерения',
     );
+  });
+
+  it('delegates acceptance to the atomic official-result workflow', async () => {
+    prisma.measurementSession.findUnique.mockResolvedValue({
+      id: 'measurement-id',
+      registrationId: input.registrationId,
+      registrationClassId: input.registrationClassId,
+      value: 151.25,
+      status: 'RECEIVED',
+    });
+    results.createFromMeasurement.mockResolvedValue({
+      id: 'measurement-id',
+      status: 'ACCEPTED',
+      result: { id: 'result-id', value: 151.25, unit: 'DB', place: 1 },
+    });
+
+    const accepted = await service.accept('measurement-id', { place: 1, note: 'Проверено судьёй' }, judgeRequest);
+
+    expect(accepted.status).toBe('ACCEPTED');
+    expect(results.createFromMeasurement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        registrationId: input.registrationId,
+        registrationClassId: input.registrationClassId,
+        value: 151.25,
+        unit: undefined,
+        confirmed: true,
+      }),
+      'measurement-id',
+      'Проверено судьёй',
+      judgeRequest,
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('rejects a unit that differs from the registered class unit', async () => {
