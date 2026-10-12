@@ -1,6 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
 import * as XLSX from 'xlsx';
-import { QRCodeSVG } from 'qrcode.react';
 import './catalog.css';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -10,7 +9,6 @@ const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
  {section:'Соревнование',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
  {section:'Соревнование',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {section:'Соревнование',label:'QR-въезд',path:'/admin/qr-checkin',icon:Search,roles:['ADMIN','JUDGE']},
  {section:'Соревнование',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
  {section:'Соревнование',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
  {section:'Справочники',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
@@ -97,95 +95,15 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
 
 function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:(u:User)=>void;onLogout:()=>Promise<void>}){
  const[name,setName]=useState(''),[candidates,setCandidates]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
- const [registrations,setRegistrations]=useState<any[]>([]),[qrTokens,setQrTokens]=useState<Record<string,string>>({}),[qrLoading,setQrLoading]=useState<string|null>(null),[registrationLoading,setRegistrationLoading]=useState(false);
  const search=async()=>{setError('');setLoading(true);try{const r=await findHistoricalProfileCandidates(name);setCandidates(r.candidates??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось выполнить поиск')}finally{setLoading(false)}};
  const link=async(id:string)=>{setError('');setLoading(true);try{await linkHistoricalProfile(id);const r=await refresh();if(r?.user)onUserChange(r.user)}catch(e){setError(e instanceof Error?e.message:'Не удалось привязать профиль')}finally{setLoading(false)}};
  const create=async()=>{const parts=name.trim().split(/\s+/).filter(Boolean);if(parts.length<2){setError('Укажите минимум фамилию и имя');return}setLoading(true);try{await apiPost('/participants/me',{lastName:parts[0],firstName:parts[1],middleName:parts.slice(2).join(' ')||null,isPublic:true});const r=await refresh();if(r?.user)onUserChange(r.user)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать профиль')}finally{setLoading(false)}};
- const loadRegistrations=async()=>{setRegistrationLoading(true);setError('');try{const data=await apiGet<any>('/registrations/me');setRegistrations(listData<any>(data))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить регистрации')}finally{setRegistrationLoading(false)}};
- useEffect(()=>{if(user.participantId)void loadRegistrations()},[user.participantId]);
- const issueQr=async(id:string)=>{setQrLoading(id);setError('');try{const r=await apiPost<{token:string}>('/registrations/'+encodeURIComponent(id)+'/qr-token',{});setQrTokens(prev=>({...prev,[id]:r.token}))}catch(e){setError(e instanceof Error?e.message:'Не удалось сформировать QR-код')}finally{setQrLoading(null)}};
- if(user.participantId)return <div className="public-page" style={{maxWidth:1100,margin:'0 auto',padding:'28px 18px 60px'}}>
-  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap',marginBottom:24}}><div><div className="eyebrow">USD · Личный кабинет</div><h1 style={{margin:'8px 0'}}>Мои регистрации</h1><p className="muted" style={{margin:0}}>Регистрации на этапы и QR-код для быстрой проверки на въезде.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="secondary-button" onClick={()=>void loadRegistrations()} disabled={registrationLoading}><RefreshCw size={16}/>{registrationLoading?'Обновляем…':'Обновить'}</button><button className="text-button" onClick={()=>void onLogout()}>Выйти</button></div></div>
-  {error&&<div className="form-error" role="alert" style={{marginBottom:16}}><AlertTriangle size={16}/>{error}</div>}
-  {registrationLoading?<div className="panel">Загружаем регистрации…</div>:registrations.length===0?<div className="panel" style={{padding:28,textAlign:'center'}}><ClipboardCheck size={32}/><h2>Регистраций пока нет</h2><p className="muted">Когда появится регистрация на этап, здесь будут её детали и QR-код для судей.</p></div>:<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))',gap:16}}>{registrations.map((reg:any)=><article className="panel" key={reg.id} style={{padding:20,minWidth:0}}>
-   <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'start'}}><div><div className="eyebrow">Участник №{reg.participantNumber}</div><h2 style={{margin:'5px 0 4px',fontSize:20}}>{reg.stage?.name||'Этап USD'}</h2><p className="muted" style={{margin:0}}>{[reg.stage?.city,reg.stage?.date?new Date(reg.stage.date).toLocaleDateString('ru-RU'):null].filter(Boolean).join(' · ')}</p></div><span className={'status '+(reg.status==='ACTIVE'?'open':'')}>{reg.status==='ACTIVE'?'Активна':'Отменена'}</span></div>
-   <div style={{marginTop:16}}><strong>Автомобиль</strong><p style={{margin:'4px 0'}}>{[reg.car?.brand,reg.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан'}</p><small className="muted">{reg.car?.registrationNumber||'Без госномера'}</small></div>
-   <div style={{marginTop:14}}><strong>Классы</strong><div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:8}}>{(reg.classes||[]).map((item:any)=><span className="badge" key={item.id}>{item.class?.name||item.class?.code||'Класс'}</span>)}</div></div>
-   {reg.status==='ACTIVE'&&<div style={{marginTop:18,borderTop:'1px solid var(--border,#e5e5e5)',paddingTop:16}}>
-    {qrTokens[reg.id]?<div style={{display:'grid',justifyItems:'center',gap:10,textAlign:'center'}}><div style={{background:'#fff',padding:12,borderRadius:12}}><QRCodeSVG value={qrTokens[reg.id]} size={200} level="Q" includeMargin/></div><strong>QR-код для въезда</strong><p className="muted" style={{fontSize:12,margin:0}}>Покажите этот код судье. Код хранится в этом сеансе; если сформировать новый, предыдущий станет недействительным.</p><div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}><button className="secondary-button" onClick={()=>void issueQr(reg.id)} disabled={qrLoading===reg.id}>{qrLoading===reg.id?'Формируем…':'Обновить QR-код'}</button><button className="text-button" onClick={async()=>{if(!window.confirm('Отозвать текущий QR-код? Судья больше не сможет использовать этот код; при необходимости можно выпустить новый.'))return;try{await apiDelete('/registrations/'+encodeURIComponent(reg.id)+'/qr-token');setQrTokens(prev=>{const next={...prev};delete next[reg.id];return next})}catch(e){setError(e instanceof Error?e.message:'Не удалось отозвать QR-код')}}}>Отозвать QR</button></div></div>:<div><p className="muted" style={{fontSize:13}}>Сформируйте персональный QR-код. Он не содержит открытых персональных данных.</p><button className="primary-button" onClick={()=>void issueQr(reg.id)} disabled={qrLoading===reg.id}>{qrLoading===reg.id?'Формируем QR…':'Показать QR-код'}</button></div>}
-   </div>}
-  </article>)}</div>}
- </div>;
+ if(user.participantId)return <div className="center-page"><div className="empty-card"><div className="brand-mark">USD</div><h2>Личный кабинет участника</h2><p className="muted">Профиль привязан. Здесь будет ваша история выступлений, автомобили и регистрации.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>;
  return <div className="center-page"><div className="empty-card participant-match-card"><div className="brand-mark">USD</div><div className="eyebrow">Личный кабинет участника</div><h2>Найти вашу историю USD</h2><p className="muted">Если вы уже участвовали в USD, мы найдём исторический профиль и предложим связать его с вашим аккаунтом.</p><label>Фамилия, имя и отчество<input value={name} onChange={e=>setName(e.target.value)} placeholder="Иванов Иван Иванович" autoComplete="name"/></label><button className="primary-button" onClick={()=>void search()} disabled={loading||name.trim().length<3}>{loading?'Ищем…':'Найти мою историю'}<ChevronRight size={18}/></button>{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}{candidates.map((c:any)=><div className="historical-match-card" key={c.id}><div><strong>{[c.lastName,c.firstName,c.middleName].filter(Boolean).join(' ')}</strong><span>{[c.team,c.city].filter(Boolean).join(' · ')||'Исторический участник'}</span><small>{c._count?.registrations??0} выступлений</small></div><button className="primary-button compact" onClick={()=>void link(c.id)} disabled={loading}>Да, это я</button></div>)}{!loading&&name.trim().length>=3&&candidates.length===0&&<><p className="muted">Совпадений не найдено.</p><button className="secondary-button" onClick={()=>void create()}>Создать новый профиль</button></>}<button className="text-button" onClick={()=>void onLogout()}>Выйти</button></div></div>;
 }
 
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
-
-function QrCheckinPage(){
- const [token,setToken]=useState(''),[scanning,setScanning]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<any|null>(null),[cameraMessage,setCameraMessage]=useState('');
- const resolve=async(raw?:string)=>{
-  const input=(raw??token).trim();
-  if(!input){setError('Вставьте содержимое QR-кода или отсканируйте его камерой.');return}
-  let value=input;
-  try{const url=new URL(input);value=url.searchParams.get('token')||url.pathname.split('/').filter(Boolean).pop()||input}catch{}
-  setLoading(true);setError('');setResult(null);
-  try{const data=await apiPost<any>('/registrations/qr/resolve',{token:value});setResult(data)}catch(e){setError(e instanceof Error?e.message:'Не удалось найти регистрацию по QR-коду')}finally{setLoading(false)}
- };
- useEffect(()=>{
-  if(!scanning)return;
-  let stopped=false,stream:MediaStream|null=null,frame=0;
-  const video=document.getElementById('usd-qr-video') as HTMLVideoElement|null;
-  const run=async()=>{
-   try{
-    const Detector=(window as any).BarcodeDetector;
-    if(!Detector){setCameraMessage('Этот браузер не поддерживает чтение QR камерой. Вставьте содержимое QR-кода вручную или используйте системную камеру.');setScanning(false);return}
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    if(stopped){stream.getTracks().forEach(t=>t.stop());return}
-    if(video){video.srcObject=stream;await video.play()}
-    setCameraMessage('Наведите камеру на QR-код участника.');
-    const detector=new Detector({formats:['qr_code']});
-    const tick=async()=>{
-     if(stopped||!video)return;
-     try{if(video.readyState>=2){const codes=await detector.detect(video);if(codes?.[0]?.rawValue){stopped=true;setScanning(false);setToken(codes[0].rawValue);void resolve(codes[0].rawValue);return}}}catch{}
-     if(!stopped)frame=requestAnimationFrame(()=>void tick());
-    };
-    frame=requestAnimationFrame(()=>void tick());
-   }catch(e){setCameraMessage(e instanceof Error?e.message:'Не удалось включить камеру. Проверьте разрешение на доступ к камере.');setScanning(false)}
-  };
-  void run();
-  return()=>{stopped=true;cancelAnimationFrame(frame);stream?.getTracks().forEach(t=>t.stop());if(video)video.srcObject=null};
- },[scanning]);
- const reg=result?.registration,participant=reg?.participant,car=reg?.car;
- return <PageFrame title="QR-въезд" subtitle="Сканирование регистрации и быстрый переход к инспекции" action={<span className="status open">Доступно судье</span>}>
-  <div className="panel" style={{maxWidth:900,margin:'0 auto'}}>
-   <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}><div style={{width:44,height:44,borderRadius:12,background:'var(--surface-muted,#f2f2f2)',display:'grid',placeItems:'center'}}><Search size={22}/></div><div><h2 style={{margin:0}}>Найти участника по QR</h2><p className="muted" style={{margin:'4px 0 0'}}>QR-код не содержит личных данных. Проверка выполняется сервером.</p></div></div>
-   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:18,alignItems:'start',marginTop:18}}>
-    <div>
-     <label style={{display:'block',fontWeight:600,marginBottom:8}} htmlFor="usd-qr-token">Содержимое QR-кода</label>
-     <textarea id="usd-qr-token" value={token} onChange={e=>setToken(e.target.value)} rows={4} placeholder="Вставьте токен или ссылку из QR-кода" style={{width:'100%',resize:'vertical'}}/>
-     <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}><button className="primary-button" disabled={loading} onClick={()=>void resolve()}>{loading?'Проверяем…':'Найти участника'}</button><button className="secondary-button" type="button" onClick={()=>{setResult(null);setError('');setToken('');setCameraMessage('');setScanning(v=>!v)}}>{scanning?'Остановить камеру':'Сканировать камерой'}</button></div>
-     {cameraMessage&&<p className="muted" role="status" style={{marginTop:10}}>{cameraMessage}</p>}
-     {error&&<div role="alert" style={{marginTop:12,padding:12,borderRadius:10,border:'1px solid #e7b8b8',color:'#a32222',background:'#fff7f7'}}>{error}</div>}
-    </div>
-    <div>
-     {scanning?<video id="usd-qr-video" playsInline muted style={{width:'100%',maxHeight:320,background:'#111',borderRadius:12,objectFit:'cover'}}/>:<div style={{minHeight:190,border:'1px dashed var(--border,#ccc)',borderRadius:12,display:'grid',placeItems:'center',padding:20,textAlign:'center'}}><div><Search size={30}/><p style={{fontWeight:600,marginBottom:4}}>Камера готова к запуску</p><p className="muted" style={{margin:0}}>На iPhone может потребоваться открыть сайт по HTTPS и разрешить доступ к камере.</p></div></div>}
-    </div>
-   </div>
-  </div>
-  {reg&&<div className="panel" style={{maxWidth:900,margin:'18px auto 0'}}>
-   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,flexWrap:'wrap'}}><div><p className="muted" style={{margin:'0 0 5px'}}>Регистрация подтверждена</p><h2 style={{margin:'0 0 6px'}}>Участник №{reg.participantNumber}</h2><div>{[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ')||'Имя не указано'}</div></div><span className={'status '+(result.inspectionStatus==='PASSED'?'open':'')}>{result.inspectionStatus==='PASSED'?'Техосмотр пройден':result.inspectionStatus==='FAILED'?'Техосмотр не пройден':'Ожидает техосмотра'}</span></div>
-   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginTop:18}}>
-    <div><small className="muted">Автомобиль</small><p style={{margin:'5px 0 0',fontWeight:600}}>{[car?.brand,car?.model].filter(Boolean).join(' ')||'Автомобиль не указан'}</p><small className="muted">{[car?.registrationCountry,car?.registrationNumber].filter(Boolean).join(' · ')||'Без госномера'}</small></div>
-    <div><small className="muted">Команда / город</small><p style={{margin:'5px 0 0',fontWeight:600}}>{participant?.team||'Без команды'}</p><small className="muted">{participant?.city||'Город не указан'}</small></div>
-    <div><small className="muted">Этап</small><p style={{margin:'5px 0 0',fontWeight:600}}>{reg.stage?.name||'Этап'}</p><small className="muted">{reg.stage?.city||''}</small></div>
-   </div>
-   <div style={{marginTop:16}}><strong>Классы</strong><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>{(reg.classes||[]).map((item:any)=><span key={item.id} className="badge">{item.class?.name||item.class?.code||'Класс'} · №{item.number?.number??reg.participantNumber}</span>)}</div></div>
-   {reg.configurationSnapshot&&<div style={{marginTop:16,padding:14,borderRadius:10,background:'var(--surface-muted,#f7f7f7)'}}><strong>Конфигурация автомобиля</strong><p style={{margin:'6px 0 0'}}>{reg.configurationSnapshot.configurationName||reg.configurationSnapshot.name||'Снимок конфигурации'}</p><small className="muted">Версия {reg.configurationSnapshot.version??'—'} · данные на момент регистрации</small></div>}
-   <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:20}}><button className="primary-button" onClick={()=>{history.pushState({},'','/admin/inspections?stageId='+encodeURIComponent(reg.stageId)+'&registrationId='+encodeURIComponent(reg.id));window.dispatchEvent(new PopStateEvent('popstate'))}}>Открыть инспекцию этапа</button><button className="secondary-button" onClick={()=>{setResult(null);setToken('');setError('')}}>Следующий участник</button></div>
-  </div>}
- </PageFrame>
-}
 
 function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
@@ -197,7 +115,6 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user}/>;
   if(path.startsWith('/admin/classes'))return <ClassesPage/>;
   if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
-  if(path.startsWith('/admin/qr-checkin'))return <QrCheckinPage/>;
   if(path.startsWith('/admin/inspections'))return <InspectionsPage user={user}/>;
   if(path.startsWith('/admin/results'))return <ResultsPage user={user}/>;
   if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
