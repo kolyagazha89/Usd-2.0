@@ -322,6 +322,7 @@ model Stage {
   registrationStartsAt DateTime?
   registrationEndsAt   DateTime?
   isDeleted            Boolean            @default(false)
+  rulesSnapshot        Json?
   legacyId             String?            @unique
   createdAt            DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
