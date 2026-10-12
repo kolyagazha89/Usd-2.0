@@ -16,7 +16,10 @@ function safeDocumentUrl(value: unknown): string {
 
 export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
-  const source = String(rulesText || settings?.registration?.rulesText || '').trim();
+  const published = settings?.registration?.rulesDocument?.published ?? null;
+  const documentBlocks = Array.isArray(published?.blocks) ? published.blocks : [];
+  const source = String(documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : rulesText || settings?.registration?.rulesText || '').trim();
+  const publishedUrl = safeDocumentUrl(published?.url);
   const legal = settings?.legal || {};
   const links = ([
     ['rulesUrl', 'Полный регламент'],
@@ -46,6 +49,26 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   }, [source]);
 
   const needle = query.trim().toLocaleLowerCase('ru');
+  const documentHeadings: { id: string; title: string; index: number }[] = documentBlocks
+    .map((block: any, index: number) => ({ block, index }))
+    .filter(({ block }: { block: any }) => block.type === 'heading')
+    .map(({ block, index }: { block: any; index: number }): { id: string; title: string; index: number } => ({ id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }))
+    .filter((heading: { title: string }) => !needle || heading.title.toLocaleLowerCase('ru').includes(needle));
+  const visibleDocumentBlocks = documentBlocks
+    .map((block: any) => {
+      if (!needle) return block;
+      if (block.type === 'table') {
+        const allRows = (block.rows ?? []) as string[][];
+        const matches = (row: string[]) => row.some(cell => cell.toLocaleLowerCase('ru').includes(needle));
+        const header = allRows[0];
+        const bodyMatches = allRows.slice(1).filter(matches);
+        const rows = header && matches(header) ? allRows : bodyMatches.length ? [header, ...bodyMatches] : [];
+        return rows.length ? { ...block, rows } : null;
+      }
+      return String(block.text ?? '').toLocaleLowerCase('ru').includes(needle) ? block : null;
+    })
+    .filter(Boolean) as any[];
+
   const filtered = sections.map(section => {
     const titleMatches = !needle || section.title.toLocaleLowerCase('ru').includes(needle);
     return { ...section, body: titleMatches ? section.body : section.body.filter(line => line.toLocaleLowerCase('ru').includes(needle)) };
@@ -71,13 +94,24 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
               <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Найти пункт…" aria-label="Поиск по регламенту" />
             </label>
             <nav aria-label="Оглавление регламента">
-              {filtered.map(section => <a key={section.id} href={'#' + section.id}>{section.title}</a>)}
+              {documentBlocks.length ? documentHeadings.map(heading => <a key={heading.id} href={'#' + heading.id}>{heading.title}</a>) : filtered.map(section => <a key={section.id} href={'#' + section.id}>{section.title}</a>)}
             </nav>
             <div className="public-rules-sidebar-note">Показан текст, опубликованный организаторами USD в настройках сайта.</div>
           </aside>
           <div className="public-rules-document">
-            <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{sections.length} {sections.length === 1 ? 'РАЗДЕЛ' : sections.length < 5 ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ'}</span></div>
-            {filtered.length ? filtered.map((section, index) => (
+            <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{(documentBlocks.length ? documentHeadings.length : sections.length)} {(documentBlocks.length ? documentHeadings.length : sections.length) === 1 ? 'РАЗДЕЛ' : (documentBlocks.length ? documentHeadings.length : sections.length) < 5 ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ'}</span></div>
+            {documentBlocks.length ? (visibleDocumentBlocks.length ? <div className="public-rules-rich-document">
+              {visibleDocumentBlocks.map((block: any, index: number) => {
+                if (block.type === 'heading') {
+                  const level = Math.min(4, Math.max(2, Number(block.level) || 2));
+                  const originalIndex = documentBlocks.indexOf(block); const headingId = 'rules-doc-heading-' + originalIndex; return level === 2 ? <h3 id={headingId} key={index}>{block.text}</h3> : level === 3 ? <h4 id={headingId} key={index}>{block.text}</h4> : <h5 id={headingId} key={index}>{block.text}</h5>;
+                }
+                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{block.ordered ? '1.' : '•'}</span>{block.text}</div>;
+                if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>;
+                return <p key={index}>{block.text}</p>;
+              })}
+              {publishedUrl && <p className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a><span>Редакция от {new Date(published.publishedAt || published.createdAt).toLocaleDateString('ru-RU')}</span></p>}
+            </div> : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>) : filtered.length ? filtered.map((section, index) => (
               <section className="public-rules-section" id={section.id} key={section.id}>
                 <div className="public-rules-section-number">{String(index + 1).padStart(2, '0')}</div>
                 <div><h3>{section.title}</h3>{section.body.map((line, lineIndex) => <p key={lineIndex}>{line}</p>)}</div>

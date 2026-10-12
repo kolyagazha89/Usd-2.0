@@ -142,3 +142,13 @@ export async function uploadSiteAsset(assetKey:string,file:File){
   }
 }
 export async function getPublicSiteAsset(assetKey:string){return {success:true,url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`};}
+
+export async function uploadRulesDocx(targetId:string,file:File){
+  const contentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if(file.size<=0||file.size>10*1024*1024) throw new Error('Размер DOCX должен быть от 1 байта до 10 МБ');
+  if(!file.name.toLowerCase().endsWith('.docx')) throw new Error('Разрешён только формат .docx');
+  const prepared=await apiPost<any>('/media/prepare',{targetType:'SITE_ASSET',targetId,contentType});
+  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':contentType,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  await completeMediaUpload(prepared.uploadToken);
+  return {url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(targetId)}`,targetId};
+}
