@@ -465,6 +465,11 @@ export class ResultsService {
     }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
+  /**
+   * A published stage makes its imported results visible in the public archive.
+   * Historical verification gates record eligibility, not display of the source result;
+   * RecordsService continues to require VERIFIED historical results for records.
+   */
   async findByStage(stageId: string) {
     await this.assertPublicStage(stageId);
 
