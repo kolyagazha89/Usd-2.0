@@ -171,3 +171,16 @@ Finish deployment verification for the newest main commit, then perform one cons
 - No backend/API/schema changes and no production migration. Frontend CI and merge are pending; production behavior remains unverified until the code is merged and the public route is checked.
 - Stage 2 remains the public-site delivery/QA block: complete the five routes, logo, imported results, rules publishing, responsive states, and privacy checks. Do not call the block fully production-verified until live route and anonymous API checks can be run.
 - Stage 3 candidate: participant self-service and cabinet completion, scoped separately after the public release gate. Device measurement integration (Term-LAB/SPL-Lab) remains explicitly deferred.
+
+
+## Participant profile validation — 2026-10-12
+
+- Branch: `fix/profile-international-validation`; pull request [#27](https://github.com/kolyagazha89/Usd-2.0/pull/27).
+- Centralized browser-side international phone and vehicle plate checks in `frontend/src/profile-validation.ts`; the participant portal uses them before saving.
+- Added equivalent server-side validation in `backend/src/participants/profile-validation.ts`; participant create/update and car create/update use the service guards, so bypassing browser validation does not bypass validation.
+- Phone input now requires an explicit international country prefix, a recognized calling code, plausible national-number length, and rejects repeated-digit/obviously malformed values. This is syntax/plausibility validation, not proof that a phone number is assigned or reachable.
+- Plate validation covers the existing 16 USD country choices: RU, BY, KZ, US, FI, NO, EE, LV, LT, PL, UA, GE, AZ, CN, MN, KP. Russian Latin lookalikes are normalized for checking; US validation remains generic because formats vary by state.
+- Added backend unit cases for accepted/rejected international phones and plates.
+- Profile team editing already uses a native select sourced from `GET /participants/teams`; server-side profile create/update now rejects arbitrary team values and matches existing/catalog team names case-insensitively. The team list is deduplicated case-insensitively.
+- CI is running for the latest branch commit. Do not merge or claim production deployment until Backend CI and Frontend CI pass, then merge and verify the deployed profile flow.
+- No database schema change or production data migration.
