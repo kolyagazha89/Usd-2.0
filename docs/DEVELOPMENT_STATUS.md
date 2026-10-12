@@ -84,3 +84,11 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Owner confirmed the public site appeared after that fix. This is owner-observed production behavior; independent direct HTTP verification from the current tool environment still fails to reach the Cloudflare Worker/API.
 - QA found one related route consistency issue in the code: a signed-in PARTICIPANT was sent to the participant portal for every URL, preventing public pages from rendering during that session. Follow-up branch `fix/public-routes-for-participants` changes the guard so the participant portal stays on `/login`, `/admin...`, and `/participant...`, while public paths render the public site. This is a narrow routing fix; no API, schema, or production migration changes.
 - Current follow-up commit: `8dbdf4a7a2b23cd6b5eeaf5f196e9fe2ef9061a7`; CI/merge pending. Continue to distinguish CI success, Cloudflare build/deploy, and live anonymous/mobile verification.
+
+
+## Participant-session public routing fix — merged 2026-10-12
+
+- PR [#4](https://github.com/kolyagazha89/Usd-2.0/pull/4) merged to `main` as `4470244e190d5f6801028611e694a7f31bd4f3a6`.
+- The participant portal is now limited to `/login`, `/admin...`, and `/participant...`; signed-in participants can navigate public paths without being trapped in the portal. ADMIN/JUDGE public routing fix remains intact.
+- Frontend CI passed [run 38211339825](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339825); backend CI passed [run 38211339834](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339834), including build, lint, unit tests and E2E tests. No API/schema change or production migration.
+- Owner confirmed the public site appeared after the earlier route fix. Independent direct HTTP verification of the Worker and Railway API remains blocked by DNS resolution in the current tool environment. Cloudflare's new active build/deployment and anonymous live-route behavior therefore remain unverified here; do not mark release QA fully closed until these are checked.
