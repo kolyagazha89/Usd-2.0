@@ -112,7 +112,7 @@ function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'s
   const name=[participant?.lastName,participant?.firstName].filter(Boolean).join(' ')||'Участник USD';
   const car=[r.registration?.car?.brand,r.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
   const className=r.registrationClass?.class?.name||r.class?.name||'Класс не указан';
-  const value=r.value??r.score??r.result??'—';
+  const value=r.value??r.score??r.result?.value??(typeof r.result==='string'||typeof r.result==='number'?r.result:'—');
   const place=r.place??r.position??i+1;
   return <article className="public-result-card" key={r.id||i}>
    <div className="public-result-card-top"><span className="public-result-place">{String(place).padStart(2,'0')}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
