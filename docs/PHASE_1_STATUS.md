@@ -133,3 +133,11 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - [ ] Record production evidence and blockers; do not equate a successful build with a verified deployment.
 - [ ] Future feature, after a requirements survey: Admin-managed DOCX regulation import, preview/editable section hierarchy, safe structured rendering on `/rules`, TOC/anchors/search, original file download, draft/publish, immutable version history and historical-stage version preservation.
 - Regulation management is tracked but not implemented yet. No production migration is part of this task.
+
+
+## Public-site code review and external verification — 2026-10-12
+
+- Static source review found public stage/result visibility guards and participant/car privacy sanitization in place on `main`; runtime behavior remains unverified.
+- Attempted live access to the Cloudflare Worker and Railway public stages endpoint; both were inaccessible from the current verification environment. Live route/refresh, anonymous API privacy, and logo cold-load QA remain open.
+- Backend CI passed after the status/backlog updates: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894), [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These docs-only runs do not validate frontend code or production behavior.
+- Remaining work tracked in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
