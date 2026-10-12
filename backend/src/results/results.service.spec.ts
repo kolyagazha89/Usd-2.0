@@ -157,7 +157,7 @@ describe('ResultsService', () => {
           value: 150.123,
           status: 'RECEIVED',
         }),
-        update: jest.fn().mockResolvedValue({ id: 'measurement-1', status: 'ACCEPTED' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       ...overrides,
     };
@@ -191,8 +191,8 @@ describe('ResultsService', () => {
       judgeRequest,
     );
 
-    expect(tx.measurementSession.update).toHaveBeenCalledWith({
-      where: { id: 'measurement-1' },
+    expect(tx.measurementSession.updateMany).toHaveBeenCalledWith({
+      where: { id: 'measurement-1', status: 'RECEIVED' },
       data: expect.objectContaining({
         status: 'ACCEPTED',
         reviewedByUserId: 'judge-1',
