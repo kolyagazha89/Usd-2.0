@@ -36,7 +36,7 @@ export class ParticipantsController {
     return this.participantsService.findAllAdmin(request);
   }
 
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Get('participants/teams')
   findTeams(
     @Req() request: AuthenticatedRequest,
