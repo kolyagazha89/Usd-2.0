@@ -19,6 +19,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const published = settings?.registration?.rulesDocument?.published ?? null;
   const documentBlocks = Array.isArray(published?.blocks) ? published.blocks : [];
   const source = String(rulesText || settings?.registration?.rulesText || (documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : '')).trim();
+  const publishedUrl = safeDocumentUrl(published?.url);
   const legal = settings?.legal || {};
   const links = ([
     ['rulesUrl', 'Полный регламент'],
@@ -109,7 +110,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
                 if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>;
                 return <p key={index}>{block.text}</p>;
               })}
-              {published?.url && <p className="public-rules-original-doc"><a href={published.url} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a><span>Редакция от {new Date(published.publishedAt || published.createdAt).toLocaleDateString('ru-RU')}</span></p>}
+              {publishedUrl && <p className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a><span>Редакция от {new Date(published.publishedAt || published.createdAt).toLocaleDateString('ru-RU')}</span></p>}
             </div> : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>) : filtered.length ? filtered.map((section, index) => (
               <section className="public-rules-section" id={section.id} key={section.id}>
                 <div className="public-rules-section-number">{String(index + 1).padStart(2, '0')}</div>
