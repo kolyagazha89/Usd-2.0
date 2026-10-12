@@ -225,6 +225,23 @@ describe('RecordsService', () => {
     expect(tx.record.create).not.toHaveBeenCalled();
   });
 
+  it('limits public current records to published or completed, non-deleted stages', async () => {
+    prisma.record.findMany.mockResolvedValue([]);
+
+    await service.findCurrent();
+
+    expect(prisma.record.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        isCurrent: true,
+        result: expect.objectContaining({
+          registration: expect.objectContaining({
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          }),
+        }),
+      }),
+    }));
+  });
+
   it('does not expose car registration number in public records', () => {
     const includeText = JSON.stringify(service['publicInclude']);
     expect(includeText).not.toContain('registrationNumber');
