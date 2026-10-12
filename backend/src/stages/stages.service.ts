@@ -9,7 +9,7 @@ export class StagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly siteSettings: SiteSettingsService,
+    private readonly siteSettings: any,
   ) {}
 
   async findAll() {
