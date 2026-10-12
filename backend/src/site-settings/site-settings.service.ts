@@ -44,6 +44,20 @@ export class SiteSettingsService{
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
+  async getPublishedRulesSnapshot() {
+    const settings = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
+    const registration = settings.registration as Record<string, any>;
+    const published = registration.rulesDocument?.published;
+    if (!published || !Array.isArray(published.blocks) || !published.blocks.length) return null;
+    return {
+      revisionId: String(published.id ?? ''),
+      fileName: String(published.fileName ?? 'Регламент USD'),
+      url: String(published.url ?? ''),
+      publishedAt: String(published.publishedAt ?? published.createdAt ?? ''),
+      capturedAt: new Date().toISOString(),
+      blocks: published.blocks,
+    };
+  }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
   async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??''}}};}
   async update(input:Partial<SiteSettingsShape>,userId:string){
