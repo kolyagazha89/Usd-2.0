@@ -17,6 +17,6 @@ export class RejectMeasurementDto {
   @IsString()
   @MinLength(3)
   @MaxLength(2000)
-  @Matches(/\\S/)
+  @Matches(/\S/)
   note!: string;
 }
