@@ -108,14 +108,17 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Frontend CI passed [run 38212018150](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018150); backend CI passed build, lint, unit and E2E steps in [run 38212018146](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018146). Container cleanup was still finishing at the last check.
 - Production Worker/API route verification and Railway historical-migration logs remain outstanding: the connected Railway identity currently receives a viewer-permission error for the production service, and direct HTTP checks from the tool environment cannot resolve the production hosts.
 
-## Measurement integration API foundation — in progress
+## Measurement integration API foundation — PR ready for owner review
 
 - Owner asked to continue to the next block in one coherent pass while preserving the USD architecture and keeping Git handoff notes current.
-- Branch: `feature/measurement-ingestion-foundation`. This block adds a raw `MeasurementSession` model and authenticated intake/review API for the agreed Term-LAB / SPL-Lab → USD API → PostgreSQL → official Result flow.
-- Added idempotent capture, class/unit/registration/inspection validation, a 32 KiB device-payload cap, explicit ACCEPTED/REJECTED review states, staff-only endpoints and audit events. Acceptance delegates to the existing `ResultsService`; it does not create a parallel result/ranking system.
-- Migration `20261012120000_measurement_session_intake` is committed on the feature branch only. It has **not** been run on production. No production deployment or data mutation is authorized by this branch.
-- CI, merge, Railway deployment and production verification are separate gates and remain pending until their evidence is checked. The concrete installed Term-LAB / SPL-Lab transport/export protocol remains a follow-up adapter requirement; the core API intentionally does not assume an undocumented device protocol.
-- Next action: verify Prisma generation/build/lint/unit/E2E, inspect and fix every failure, then open a PR with the CI evidence. Keep the public-route/logo/live imported-results verification outstanding; do not mark it complete based on code alone.
+- Branch: `feature/measurement-ingestion-foundation`; review PR: [#9](https://github.com/kolyagazha89/Usd-2.0/pull/9). Current validated code commit before this status-only update: `967b44553c54e7e9ecc91a305f9faeb9b20f0ae0`.
+- Added the raw `MeasurementSession` model and authenticated intake/review API for the agreed Term-LAB / SPL-Lab → USD API → PostgreSQL → official Result flow.
+- Added idempotent capture, class/unit/registration/inspection/stage-class validation, a 32 KiB device-payload cap, explicit ACCEPTED/REJECTED review states, staff-only endpoints and audit events. Official result creation and measurement acceptance are one transaction through the existing `ResultsService`; no parallel ranking/records path was created. Competing accept/reject requests use guarded state transitions.
+- Automated backend CI passed at the validated code commit: [run 38223745143](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38223745143) (Prisma generation, migrations against CI PostgreSQL, build, lint, unit tests, E2E tests).
+- Migration `20261012120000_measurement_session_intake` exists on the feature branch only. It has **not** been run on production. PR #9 is intentionally unmerged: production migration/deployment requires the reviewed deployment step and must not be inferred from a green CI run.
+- The concrete installed Term-LAB / SPL-Lab transport/export protocol remains a follow-up adapter requirement; the core API intentionally does not assume an undocumented device protocol.
+- The duplicate public imported-results PR [#8](https://github.com/kolyagazha89/Usd-2.0/pull/8) was closed as superseded because the current `main` already returns official results and redacts private participant/car fields. Live production verification of imported results and the public logo is still outstanding; do not mark it complete based on code alone.
+- Next action after owner review: confirm the migration/deployment plan, merge/deploy the API foundation, then implement the device-specific adapter against the actual installed software protocol.
 
 ## Unified public-site finishing pass — 2026-10-12
 
