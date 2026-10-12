@@ -79,8 +79,11 @@ export class SiteSettingsService{
       versions.push(version);
     };
     for (const version of Array.isArray(currentDocument.publishedVersions) ? currentDocument.publishedVersions : []) addVersion(version);
-    for (const version of Array.isArray(incomingDocument.publishedVersions) ? incomingDocument.publishedVersions : []) addVersion(version);
     const currentPublished = currentDocument.published ?? null;
+    const currentPublishedId = String(currentPublished?.id ?? '');
+    for (const version of Array.isArray(incomingDocument.publishedVersions) ? incomingDocument.publishedVersions : []) {
+      if (String(version?.id ?? '') !== currentPublishedId) addVersion(version);
+    }
     const incomingPublished = incomingDocument.published ?? currentPublished;
     let published = incomingPublished;
     if (currentPublished && incomingPublished?.id === currentPublished.id) published = currentPublished;
