@@ -9,6 +9,7 @@ export class StagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly siteSettings: SiteSettingsService,
   ) {}
 
   async findAll() {
@@ -126,6 +127,7 @@ export class StagesService {
       registrationStartsAt: dto.registrationStartsAt ? this.parseDate(dto.registrationStartsAt, 'Некорректная дата начала регистрации') : null,
       registrationEndsAt: dto.registrationEndsAt ? this.parseDate(dto.registrationEndsAt, 'Некорректная дата окончания регистрации') : null,
       isDeleted: false,
+      rulesSnapshot: (dto.status ?? 'DRAFT') === 'PUBLISHED' ? await this.siteSettings.getPublishedRulesSnapshot() : null,
     };
 
     if (data.registrationStartsAt && data.registrationEndsAt && data.registrationStartsAt > data.registrationEndsAt) {
@@ -215,6 +217,9 @@ export class StagesService {
     }
 
     const data: any = {
+      ...(dto.status === 'PUBLISHED' && stage.status !== 'PUBLISHED' && !stage.rulesSnapshot
+        ? { rulesSnapshot: await this.siteSettings.getPublishedRulesSnapshot() }
+        : {}),
       ...(dto.stageNumber !== undefined ? { stageNumber: dto.stageNumber } : {}),
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
