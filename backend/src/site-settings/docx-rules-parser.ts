@@ -99,8 +99,8 @@ function parseRuns(xml: string, targets: Map<string, string>): RulesInlineRun[] 
     const properties = runXml.match(/<w:rPr\b[\s\S]*?<\/w:rPr>/)?.[0] ?? '';
     const boldTag = properties.match(/<w:b\b([^>]*)\/?\s*>/);
     const italicTag = properties.match(/<w:i\b([^>]*)\/?\s*>/);
-    const bold = Boolean(boldTag) && attributes(boldTag[1])['w:val'] !== '0' && attributes(boldTag[1]).['w:val'] !== 'false';
-    const italic = Boolean(italicTag) && attributes(italicTag[1])['w:val'] !== '0' && attributes(italicTag[1]).['w:val'] !== 'false';
+    const bold = Boolean(boldTag) && attributes(boldTag[1])['w:val'] !== '0' && attributes(boldTag[1])['w:val'] !== 'false';
+    const italic = Boolean(italicTag) && attributes(italicTag[1])['w:val'] !== '0' && attributes(italicTag[1])['w:val'] !== 'false';
     const next: RulesInlineRun = { text };
     if (bold) next.bold = true;
     if (italic) next.italic = true;
