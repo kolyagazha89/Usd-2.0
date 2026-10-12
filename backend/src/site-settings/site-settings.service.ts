@@ -45,7 +45,7 @@ export class SiteSettingsService{
     };
   }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
-  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:s.registration,partners:s.partners,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??''}}};}
+  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??''}}};}
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
     const next={
