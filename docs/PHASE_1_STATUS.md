@@ -62,7 +62,7 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 - Public result endpoints now show imported historical results for published/completed stages even while their historical verification status is PENDING. Public cards label these rows as archive entries awaiting verification.
 - Official record eligibility remains unchanged: the records domain still requires historical results to be VERIFIED.
 - Public logo loading now prioritizes the stable public asset endpoint and handles the race where the configured URL fails before the public endpoint URL arrives.
-- Frontend CI and production bundle passed on main: [frontend CI](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893705), [frontend bundle](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893881). Backend CI is still running: [run 38225893704](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893704).
+- Frontend CI and production bundle passed on main: [frontend CI](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893705), [frontend bundle](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893881). Backend CI passed on main code commit `4ed445d`: [run 38225893704](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38225893704), including build, lint, unit and E2E tests.
 - GitHub's Wrangler publish job skipped due missing Cloudflare secrets. Native Cloudflare production build and live HTTP verification remain unconfirmed; direct checks from this environment fail at DNS resolution. No production migration or data mutation.
 
 ## Current truth
