@@ -10,6 +10,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegistrationCountry } from '../generated/prisma/enums';
+import { isValidInternationalPhone, isValidRegistrationPlate } from './profile-validation';
 
 @Injectable()
 export class ParticipantsService {
@@ -24,21 +25,16 @@ export class ParticipantsService {
   private validatePhone(value: string | null | undefined): string | null {
     const phone = this.optionalText(value);
     if (!phone) return null;
-    if (!/^\+?[0-9 ()().-]+$/.test(phone) || (phone.includes('+') && !phone.startsWith('+'))) {
-      throw new BadRequestException('Некорректный номер телефона. Используйте международный формат, например +7 999 123-45-67');
-    }
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 7 || digits.length > 15 || /^([0-9])\1+$/.test(digits)) {
-      throw new BadRequestException('Номер телефона должен содержать от 7 до 15 цифр');
+    if (!isValidInternationalPhone(phone)) {
+      throw new BadRequestException(
+        'Некорректный номер телефона. Укажите международный номер с кодом страны, например +7 999 123-45-67',
+      );
     }
     return phone;
   }
 
   private normalizeRegistrationNumber(value: string): string {
-    return value
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, ' ');
+    return value.trim().toUpperCase().replace(/\\s+/g, ' ');
   }
 
   private validateRegistrationNumber(
@@ -46,56 +42,11 @@ export class ParticipantsService {
     value: string,
   ): string {
     const number = this.normalizeRegistrationNumber(value);
-
-    const patterns: Record<RegistrationCountry, RegExp> = {
-      // Russian plates use Cyrillic letters; accept legacy Latin lookalikes too.
-      RU: /^[ABEKMHOPCTYXАВЕКМНОРСТУХ]\d{3}[ABEKMHOPCTYXАВЕКМНОРСТУХ]{2}\d{2,3}$/,
-
-      NO: /^[A-Z]{2}\s?\d{5}$/,
-
-      FI: /^[A-Z]{2,3}-?\d{1,3}$/,
-
-      EE: /^\d{3}\s?[A-Z]{3}$/,
-
-      LV: /^[A-Z]{2}-?\d{1,4}$/,
-
-      LT: /^[A-Z]{3}-?\d{3}$/,
-
-      PL: /^[A-Z]{1,3}[A-Z0-9]{4,7}$/,
-
-      BY: /^\d{4}\s?[A-Z]{2}-?\d{1,2}$/,
-
-      UA: /^[A-Z]{2}\s?\d{4}\s?[A-Z]{2}$/,
-
-      GE: /^[A-Z]{2}-?\d{3}-?[A-Z]{2}$/,
-
-      AZ: /^\d{2}-?[A-Z]{2}-?\d{3}$/,
-
-      KZ: /^\d{3}\s?[A-Z]{1,3}\s?\d{2,3}$/,
-
-      // English-only input for USD.
-      // The real Chinese plate system contains a Chinese
-      // province character, but USD input is intentionally
-      // limited to Latin letters/numbers.
-      CN: /^[A-Z][A-Z0-9]\s?[A-Z0-9]{5}$/,
-
-      MN: /^\d{4}\s?[A-Z]{2,3}$/,
-
-      KP: /^[A-Z0-9 -]{3,10}$/,
-
-      // US plates differ by state, so we use a deliberately
-      // moderate generic validation.
-      US: /^[A-Z0-9][A-Z0-9 -]{1,7}$/,
-    };
-
-    const pattern = patterns[country];
-
-    if (!pattern.test(number)) {
+    if (!isValidRegistrationPlate(country, number)) {
       throw new BadRequestException(
         `Некорректный регистрационный номер для страны ${country}`,
       );
     }
-
     return number;
   }
 
