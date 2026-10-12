@@ -165,9 +165,9 @@ Finish deployment verification for the newest main commit, then perform one cons
 
 ## Public-results default-stage recovery — 2026-10-12
 
-- Follow-up branch `fix/public-results-stage-discovery`, implementation commit `42e6fe62d5ad03fcc06bdda9571b583b9d98dc9c`.
+- PR [#16](https://github.com/kolyagazha89/Usd-2.0/pull/16) merged to `main` as `75c4812d7d303edc3832bcca14915e7023a1c138`; implementation commit `9612a53097a5162c7990bd02d73cac1baa2e8721`.
 - On a direct visit to `/results` with no explicit `stageId`, the page now probes public PUBLISHED/COMPLETED stages newest-first when the default stage has no rows and selects the first stage that actually has public results. This complements PR #15's homepage archive discovery; imported archive rows remain governed by the existing public ResultsService visibility rules.
 - A URL with an explicit `?stageId=...` is respected, and changing the stage selector disables automatic discovery so an intentional empty-stage selection stays intentional.
 - No backend/API/schema changes and no production migration. Frontend CI and merge are pending; production behavior remains unverified until the code is merged and the public route is checked.
-- Stage 2 remains the public-site delivery/QA block: complete the five routes, logo, imported results, rules publishing, responsive states, and privacy checks. Do not call the block fully production-verified until live route and anonymous API checks can be run.
-- Stage 3 candidate: participant self-service and cabinet completion, scoped separately after the public release gate. Device measurement integration (Term-LAB/SPL-Lab) remains explicitly deferred.
+- Phase 2 code delivery is complete and merged: five public routes, Word-based regulation publishing, homepage logo/archive recovery, and results-page stage discovery. Phase 2 production acceptance is still OPEN for direct-route/refresh, anonymous API privacy, logo cold-load, imported archive display, and narrow-mobile checks.
+- Phase 3 proposed scope: participant self-service and cabinet completion (profile, historical-profile linking, garage/configuration, stage pre-registration and registration status). Before implementation, run the short owner requirements survey and define acceptance criteria. Device measurement integration (Term-LAB/SPL-Lab) remains explicitly deferred.
