@@ -58,3 +58,9 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 ## Current truth
 
 Public V1 is merged and CI is green. Cloudflare's production Worker Build succeeded on merge commit `f3c625f`; the separate GitHub Actions publish job was skipped because its Cloudflare secrets are missing, so the native Cloudflare build is the current deployment evidence. Live route/refresh verification and mobile/anonymous privacy QA remain open. QR check-in, participant self-service, full CMS, legal/email workflows, offline operation, RBAC and operational recovery validation remain separate work.
+
+## Public-route regression fix — 2026-10-12
+
+- Owner reported the public homepage showed the admin placeholder after login. Root cause: authenticated ADMIN/JUDGE users were always routed to the admin shell for every path; `/` was not a valid admin page.
+- Fix proposed in [PR #3](https://github.com/kolyagazha89/Usd-2.0/pull/3), commit `3d671986c2c34c6162ea48d8f07018c4336735c9`: public routes render `PublicSite` for logged-in admins/judges; `/login` for an already authenticated ADMIN/JUDGE redirects to `/admin`; participant portal and admin routes remain unchanged.
+- Status: PR open; CI, merge, Cloudflare active deployment, and live-route verification remain pending.
