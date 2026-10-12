@@ -1,7 +1,31 @@
 import { useMemo, useState } from 'react';
 import { FileClock, Search } from 'lucide-react';
 
+type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type Props = { settings: any; go: (path: string) => void; rulesText?: string };
+
+function safeInlineHref(value: unknown): string {
+  const candidate = String(value ?? '').trim();
+  if (!candidate) return '';
+  if (candidate.startsWith('#')) return candidate;
+  try {
+    const url = new URL(candidate, window.location.origin);
+    if (url.protocol === 'mailto:' || url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+  } catch { /* Unsafe or malformed imported link. */ }
+  return '';
+}
+
+function renderInline(runs: InlineRun[] | undefined, fallbackText: string, keyPrefix: string) {
+  if (!Array.isArray(runs) || !runs.length) return fallbackText;
+  return runs.map((run, index) => {
+    let content: React.ReactNode = run.text;
+    if (run.bold) content = <strong>{content}</strong>;
+    if (run.italic) content = <em>{content}</em>;
+    const href = safeInlineHref(run.href);
+    if (href) content = <a href={href} key={keyPrefix + '-link-' + index} target={href.startsWith('mailto:') || href.startsWith('#') ? undefined : '_blank'} rel={href.startsWith('mailto:') || href.startsWith('#') ? undefined : 'noopener noreferrer'}>{content}</a>;
+    return <span key={keyPrefix + '-' + index}>{content}</span>;
+  });
+}
 
 function safeDocumentUrl(value: unknown): string {
   const candidate = String(value ?? '').trim();
@@ -60,10 +84,15 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
       if (block.type === 'table') {
         const allRows = (block.rows ?? []) as string[][];
         const matches = (row: string[]) => row.some(cell => cell.toLocaleLowerCase('ru').includes(needle));
-        const header = allRows[0];
-        const bodyMatches = allRows.slice(1).filter(matches);
-        const rows = header && matches(header) ? allRows : bodyMatches.length ? [header, ...bodyMatches] : [];
-        return rows.length ? { ...block, rows } : null;
+        const indexedRows = allRows.map((row, index) => ({ row, index }));
+        const header = indexedRows[0];
+        const bodyMatches = indexedRows.slice(1).filter(({ row }) => matches(row));
+        const selected = header && matches(header.row) ? indexedRows : bodyMatches.length ? [header, ...bodyMatches] : [];
+        return selected.length ? {
+          ...block,
+          rows: selected.map(({ row }) => row),
+          ...(Array.isArray(block.cellRuns) ? { cellRuns: selected.map(({ index }) => block.cellRuns[index]) } : {}),
+        } : null;
       }
       return String(block.text ?? '').toLocaleLowerCase('ru').includes(needle) ? block : null;
     })
@@ -104,11 +133,15 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
               {visibleDocumentBlocks.map((block: any, index: number) => {
                 if (block.type === 'heading') {
                   const level = Math.min(4, Math.max(2, Number(block.level) || 2));
-                  const originalIndex = documentBlocks.indexOf(block); const headingId = 'rules-doc-heading-' + originalIndex; return level === 2 ? <h3 id={headingId} key={index}>{block.text}</h3> : level === 3 ? <h4 id={headingId} key={index}>{block.text}</h4> : <h5 id={headingId} key={index}>{block.text}</h5>;
+                  const originalIndex = documentBlocks.indexOf(block); const headingId = 'rules-doc-heading-' + originalIndex; return level === 2 ? <h3 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h3> : level === 3 ? <h4 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h4> : <h5 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h5>;
                 }
-                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{block.ordered ? '1.' : '•'}</span>{block.text}</div>;
-                if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => rowIndex === 0 ? <th key={cellIndex}>{cell}</th> : <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>;
-                return <p key={index}>{block.text}</p>;
+                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{block.ordered ? '1.' : '•'}</span>{renderInline(block.runs, block.text, 'list-' + index)}</div>;
+                if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => {
+                  const runs = block.cellRuns?.[rowIndex]?.[cellIndex];
+                  const value = renderInline(runs, cell, 'table-' + index + '-' + rowIndex + '-' + cellIndex);
+                  return rowIndex === 0 ? <th key={cellIndex}>{value}</th> : <td key={cellIndex}>{value}</td>;
+                })}</tr>)}</tbody></table></div>;
+                return <p key={index}>{renderInline(block.runs, block.text, 'paragraph-' + index)}</p>;
               })}
               {publishedUrl && <p className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a><span>Редакция от {new Date(published.publishedAt || published.createdAt).toLocaleDateString('ru-RU')}</span></p>}
             </div> : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>) : filtered.length ? filtered.map((section, index) => (
