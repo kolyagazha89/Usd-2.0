@@ -9,6 +9,9 @@ describe('ResultsService', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    stage: {
+      findUnique: jest.fn(),
+    },
   };
 
   const records: any = {
@@ -41,6 +44,27 @@ describe('ResultsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new ResultsService(prisma, records, ranking);
+  });
+
+  it('includes imported historical results on published public stages before record verification', async () => {
+    prisma.stage.findUnique.mockResolvedValue({
+      id: 'stage-1',
+      status: 'PUBLISHED',
+      isDeleted: false,
+    });
+    prisma.result.findMany.mockResolvedValue([]);
+
+    await service.findByStage('stage-1');
+
+    expect(prisma.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        registration: {
+          stageId: 'stage-1',
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+        },
+      },
+      include: expect.any(Object),
+    }));
   });
 
   it('rejects result creation from a participant at the service boundary', async () => {
