@@ -141,3 +141,12 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - Attempted live access to the Cloudflare Worker and Railway public stages endpoint; both were inaccessible from the current verification environment. Live route/refresh, anonymous API privacy, and logo cold-load QA remain open.
 - Backend CI passed after the status/backlog updates: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894), [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These docs-only runs do not validate frontend code or production behavior.
 - Remaining work tracked in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+
+
+## Public regulation reader — PR #12 — 2026-10-12
+
+- [x] Add responsive public regulation reader with section navigation, anchors, search, legal links and explicit empty state.
+- [x] Frontend CI passed: [run 38236325102](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38236325102).
+- [ ] Review and merge PR #12: https://github.com/kolyagazha89/Usd-2.0/pull/12.
+- [ ] Verify `/rules` on the live Worker and on a real mobile device after deployment.
+- DOCX upload, preview, publication workflow and immutable version history remain future work in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11); this PR does not claim those features are implemented.
