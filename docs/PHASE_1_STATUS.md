@@ -159,3 +159,11 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - Public Phase 2 includes: public home, stages, results, records and rules; Word regulation upload/preview/publish; imported historical result visibility; logo fallback; responsive cards; anonymous privacy and direct-route QA. PRs #14 and #15 implement the Word publishing and homepage logo/archive recovery portions; the new results-page recovery is in review.
 - Remaining Phase 2 release gate: verify all five routes and refreshes, imported results and logo cold-load, anonymous API privacy, narrow-mobile layouts, and loading/empty/error states. Live production verification has not been independently completed from the current environment.
 - Phase 3 direction: finish participant self-service and the participant cabinet (historical-profile matching/linking, profile, cars/configurations, stage registrations and status), only after the public release gate. Term-LAB/SPL-Lab integration remains deferred; no device adapter or related production migration is authorized.
+
+
+## DOCX rich-formatting follow-up — 2026-10-12
+
+- PR [#29](https://github.com/kolyagazha89/Usd-2.0/pull/29) adds structured inline runs for bold/italic text and safe clickable hyperlinks throughout Word headings, paragraphs, list items and table cells. Both Admin preview and public /rules render the same structure without inserting uploaded HTML.
+- Parser safety and compatibility tests cover formatted runs, table-cell links and unsafe URL schemes. Backend CI passed build/lint/unit/E2E [run 38296715212](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715212); Frontend CI passed [run 38296715211](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715211).
+- No schema or production migration. Keep the original DOCX download as the authoritative source.
+- Public Phase 2 remains open until live route/refresh checks, anonymous privacy, logo cold-load, mobile and loading/empty/error states are verified. Regulation backlog still includes editable section structure, restoring a prior published revision and preserving the exact regulation applicable to each historical stage.
