@@ -19,14 +19,14 @@ export class ResultsService {
     private readonly rankingService: ResultsRankingService,
   ) {}
 
-  /** Keep confirmed results public while redacting details of private cars. */
+  /** Keep confirmed results public while redacting private participant and car details. */
   private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(
     result: T,
   ): T;
-  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+  private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(
     result: T | null,
   ): T | null;
-  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+  private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(
     result: T | null,
   ): T | null {
     if (!result) return result;
