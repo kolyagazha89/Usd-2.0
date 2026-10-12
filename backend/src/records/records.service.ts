@@ -11,7 +11,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class RecordsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Keep public records visible while redacting details of private cars. */
+  /** Keep official records visible while redacting private participant and car details. */
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
