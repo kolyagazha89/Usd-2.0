@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import PublicRulesPage from './PublicRulesPage';
 import RulesAdminPage from './RulesAdminPage';
 import './catalog.css';
+import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
@@ -172,9 +173,6 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
   </article>
  })}</div>;
 }
-
-const isValidInternationalPhone=(value:string)=>{const v=value.trim();if(!v)return true;if(!/^\+?[0-9 ()().-]+$/.test(v))return false;const digits=v.replace(/\D/g,'');return digits.length>=7&&digits.length<=15&&!/^([0-9])\1+$/.test(digits)&&(!v.includes('+')||v.startsWith('+'))};
-const isValidPlate=(country:string,value:string)=>{const n=value.trim().toUpperCase().replace(/\s+/g,' ');const p:Record<string,RegExp>={RU:/^[ABEKMHOPCTYXАВЕКМНОРСТУХ]\d{3}[ABEKMHOPCTYXАВЕКМНОРСТУХ]{2}\d{2,3}$/,NO:/^[A-Z]{2}\s?\d{5}$/,FI:/^[A-Z]{2,3}-?\d{1,3}$/,EE:/^\d{3}\s?[A-Z]{3}$/,LV:/^[A-Z]{2}-?\d{1,4}$/,LT:/^[A-Z]{3}-?\d{3}$/,PL:/^[A-Z]{1,3}[A-Z0-9]{4,7}$/,BY:/^\d{4}\s?[A-Z]{2}-?\d{1,2}$/,UA:/^[A-Z]{2}\s?\d{4}\s?[A-Z]{2}$/,GE:/^[A-Z]{2}-?\d{3}-?[A-Z]{2}$/,AZ:/^\d{2}-?[A-Z]{2}-?\d{3}$/,KZ:/^\d{3}\s?[A-Z]{1,3}\s?\d{2,3}$/,CN:/^[A-Z][A-Z0-9]\s?[A-Z0-9]{5}$/,MN:/^\d{4}\s?[A-Z]{2,3}$/,KP:/^[A-Z0-9 -]{3,10}$/,US:/^[A-Z0-9][A-Z0-9 -]{1,7}$/};return !!p[country]?.test(n)};
 
 function ParticipantPortal({user,onUserChange,onLogout}:{user:User;onUserChange:(u:User)=>void;onLogout:()=>Promise<void>}){
  const[name,setName]=useState(''),[candidates,setCandidates]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
