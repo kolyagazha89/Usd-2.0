@@ -86,6 +86,19 @@ export class ParticipantsService {
     return number;
   }
 
+
+  private normalizeAndValidatePhone(value: string | null | undefined): string | null {
+    const phone = value?.trim();
+    if (!phone) return null;
+    const normalized = phone.replace(/[().\s-]/g, '');
+    if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
+      throw new BadRequestException(
+        'Телефон должен быть в международном формате: + и 8–15 цифр (например, +79991234567)',
+      );
+    }
+    return normalized;
+  }
+
   // =========================================================
   // ADMIN PARTICIPANTS
   // =========================================================
@@ -131,7 +144,10 @@ export class ParticipantsService {
   }
 
   async findTeams(request: AuthenticatedRequest) {
-    await this.requireAdmin(request);
+    const user = await this.getAuthenticatedUser(request);
+    if (user.role !== 'ADMIN' && user.role !== 'PARTICIPANT') {
+      throw new ForbiddenException('Нет доступа к списку команд');
+    }
     const rows = await this.prisma.participant.findMany({
       where: { team: { not: null } },
       distinct: ['team'],
@@ -612,7 +628,7 @@ export class ParticipantsService {
       this.optionalText(body.team);
 
     const phone =
-      this.optionalText(body.phone);
+      this.normalizeAndValidatePhone(body.phone);
 
     const photoUrl =
       this.optionalText(body.photoUrl);
@@ -765,7 +781,7 @@ export class ParticipantsService {
         team:
           this.optionalText(body.team),
         phone:
-          this.optionalText(body.phone),
+          this.normalizeAndValidatePhone(body.phone),
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
@@ -893,7 +909,7 @@ export class ParticipantsService {
 
     if (body.phone !== undefined) {
       data.phone =
-        this.optionalText(body.phone);
+        this.normalizeAndValidatePhone(body.phone);
     }
 
     if (body.photoUrl !== undefined) {
