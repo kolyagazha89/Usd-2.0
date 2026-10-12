@@ -416,7 +416,6 @@ model Registration {
   classes    RegistrationClass[]
   inspection Inspection?
   results    Result[]
-  qrToken    RegistrationQrToken?
 
   @@unique([stageId, participantNumber])
   @@unique([stageId, carId])
@@ -426,19 +425,6 @@ model Registration {
   @@index([carId])
   @@index([status])
   @@index([source])
-}
-
-
-model RegistrationQrToken {
-  id             String        @id @default(uuid())
-  registrationId String        @unique
-  tokenHash      String        @unique
-  revokedAt      DateTime?     @db.Timestamptz(3)
-  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
-  registration   Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-
-  @@index([revokedAt])
 }
 
 model RegistrationNumber {
