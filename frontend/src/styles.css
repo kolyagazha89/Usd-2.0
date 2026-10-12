@@ -2558,3 +2558,52 @@ body:has(.modal-backdrop){overflow:hidden!important}
 @media(prefers-reduced-motion:reduce){
  .public-site *,.public-site *:before,.public-site *:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
 }
+
+
+/* USD public mobile polish: compact one-line navigation and soft result cards */
+@media(max-width:700px){
+  .public-header-inner{display:flex!important;flex-wrap:nowrap!important;gap:8px!important;padding:0 10px!important;min-height:64px!important;overflow:hidden}
+  .public-brand{gap:0!important;flex:0 0 auto!important}
+  .public-brand-logo{width:auto!important;max-width:42px!important;max-height:40px!important}
+  .public-brand-name{display:none!important}
+  .public-nav{display:flex!important;flex:1 1 auto!important;min-width:0!important;max-width:calc(100% - 46px);overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;gap:2px!important;scrollbar-width:none!important;white-space:nowrap!important}
+  .public-nav::-webkit-scrollbar{display:none!important}
+  .public-nav button{flex:0 0 auto!important;min-height:35px!important;padding:8px 8px!important;font-size:10px!important;letter-spacing:-.02em!important;border-radius:8px!important}
+  .public-nav button:last-child{padding:8px 10px!important}
+  .public-table-wrap{overflow:visible!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}
+  .public-table-wrap table{display:block!important;width:100%!important;min-width:0!important;border:0!important;border-collapse:separate!important;border-spacing:0!important;background:transparent!important}
+  .public-table-wrap thead{display:none!important}
+  .public-table-wrap tbody{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+  .public-table-wrap tbody tr{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:0!important;min-width:0!important;padding:8px 14px!important;border:1px solid rgba(255,255,255,.09)!important;border-radius:14px!important;background:linear-gradient(145deg,#171719 0%,#111113 100%)!important;box-shadow:0 8px 24px rgba(0,0,0,.16)!important;overflow:hidden}
+  .public-table-wrap tbody tr:hover{background:linear-gradient(145deg,#1b191b 0%,#121214 100%)!important}
+  .public-table-wrap tbody td{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:18px!important;width:100%!important;min-width:0!important;padding:9px 0!important;border:0!important;border-bottom:1px solid rgba(255,255,255,.055)!important;background:transparent!important;white-space:normal!important;text-align:right!important;font-size:12px!important;line-height:1.45!important;overflow-wrap:anywhere!important}
+  .public-table-wrap tbody td:last-child{border-bottom:0!important}
+  .public-table-wrap tbody td:before{content:"";display:block;flex:0 0 auto;max-width:42%;color:#93939d!important;font-size:10px!important;font-weight:750!important;letter-spacing:.045em!important;text-transform:uppercase!important;text-align:left!important}
+  .public-home-live-results .public-table-wrap tbody td:nth-child(1):before,
+  .public-home-latest-results .public-table-wrap tbody td:nth-child(1):before,
+  .public-page-results .public-table-wrap tbody td:nth-child(1):before{content:"Место"}
+  .public-home-live-results .public-table-wrap tbody td:nth-child(2):before,
+  .public-home-latest-results .public-table-wrap tbody td:nth-child(2):before,
+  .public-page-results .public-table-wrap tbody td:nth-child(2):before{content:"Участник"}
+  .public-home-live-results .public-table-wrap tbody td:nth-child(3):before,
+  .public-home-latest-results .public-table-wrap tbody td:nth-child(3):before,
+  .public-page-results .public-table-wrap tbody td:nth-child(3):before{content:"Автомобиль"}
+  .public-home-live-results .public-table-wrap tbody td:nth-child(4):before,
+  .public-home-latest-results .public-table-wrap tbody td:nth-child(4):before,
+  .public-page-results .public-table-wrap tbody td:nth-child(4):before{content:"Класс"}
+  .public-home-live-results .public-table-wrap tbody td:nth-child(5):before,
+  .public-home-latest-results .public-table-wrap tbody td:nth-child(5):before,
+  .public-page-results .public-table-wrap tbody td:nth-child(5):before{content:"Результат"}
+  .public-page-records .public-table-wrap tbody td:nth-child(1):before{content:"Класс"}
+  .public-page-records .public-table-wrap tbody td:nth-child(2):before{content:"Рекорд"}
+  .public-page-records .public-table-wrap tbody td:nth-child(3):before{content:"Участник"}
+  .public-page-records .public-table-wrap tbody td:nth-child(4):before{content:"Автомобиль"}
+  .public-page-records .public-table-wrap tbody td:nth-child(5):before{content:"Этап"}
+  .public-table-wrap tbody tr td:first-child{color:#f5f5f7!important;font-weight:800!important}
+  .public-table-wrap tbody tr td:first-child:after{content:"";display:block}
+}
+@media(max-width:380px){
+  .public-header-inner{gap:6px!important;padding:0 8px!important}
+  .public-brand-logo{max-width:36px!important;max-height:36px!important}
+  .public-nav button{font-size:9px!important;padding:7px 7px!important}
+}
