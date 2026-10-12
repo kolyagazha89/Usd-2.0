@@ -450,8 +450,8 @@ export class ResultsService {
       where: {
         registration: {
           stageId,
-          participant: { isPublic: true },
-          car: { isPublic: true },
+          // Official published results are public competition data. The participant/car
+          // profile visibility flags control directory cards, not result rows.
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
