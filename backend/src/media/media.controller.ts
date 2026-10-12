@@ -50,6 +50,9 @@ export class MediaController {
   ) {
     const media = await this.mediaService.getPublicMediaFile(targetType, targetId);
     response.setHeader('Content-Type', media.contentType);
+    if (media.contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      response.setHeader('Content-Disposition', 'attachment; filename="reglament-usd.docx"');
+    }
     response.setHeader('Content-Length', String(media.body.length));
     response.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
     response.send(media.body);
