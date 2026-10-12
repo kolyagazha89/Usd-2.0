@@ -64,7 +64,7 @@ function parseParagraph(xml: string, orderedByNumId: Map<string, boolean>): Rule
   const numPr = xml.match(/<w:numPr\b[\s\S]*?<\/w:numPr>/)?.[0] ?? '';
   if (numPr) {
     const level = Number(numPr.match(/<w:ilvl\b[^>]*w:val="(\d+)"/)?.[1] ?? 0);
-    const numId = numPr.match(/<w:numId\\b[^>]*w:val="(\\d+)"/)?.[1] ?? '';
+    const numId = numPr.match(/<w:numId\b[^>]*w:val="(\d+)"/)?.[1] ?? '';
     const ordered = orderedByNumId.get(numId) ?? false;
     return { type: 'list-item', ordered, level: Math.min(level, 8), text };
   }
@@ -80,15 +80,15 @@ export function parseDocxRules(buffer: Buffer): RulesBlock[] {
   try {
     const numbering = readZipEntry(buffer, 'word/numbering.xml').toString('utf8');
     const orderedByAbstract = new Map<string, boolean>();
-    for (const match of numbering.matchAll(/<w:abstractNum\\b([^>]*)>([\\s\\S]*?)<\\/w:abstractNum>/g)) {
-      const abstractId = match[1].match(/w:abstractNumId="(\\d+)"/)?.[1];
+    for (const match of numbering.matchAll(/<w:abstractNum\b([^>]*)>([\s\S]*?)<\/w:abstractNum>/g)) {
+      const abstractId = match[1].match(/w:abstractNumId="(\d+)"/)?.[1];
       if (!abstractId) continue;
-      const formats = [...match[2].matchAll(/<w:numFmt\\b[^>]*w:val="([^"]+)"/g)].map(item => item[1]);
+      const formats = [...match[2].matchAll(/<w:numFmt\b[^>]*w:val="([^"]+)"/g)].map(item => item[1]);
       orderedByAbstract.set(abstractId, formats.some(format => format !== 'bullet' && format !== 'none'));
     }
-    for (const match of numbering.matchAll(/<w:num\\b([^>]*)>([\\s\\S]*?)<\\/w:num>/g)) {
-      const numId = match[1].match(/w:numId="(\\d+)"/)?.[1];
-      const abstractId = match[2].match(/<w:abstractNumId\\b[^>]*w:val="(\\d+)"/)?.[1];
+    for (const match of numbering.matchAll(/<w:num\b([^>]*)>([\s\S]*?)<\/w:num>/g)) {
+      const numId = match[1].match(/w:numId="(\d+)"/)?.[1];
+      const abstractId = match[2].match(/<w:abstractNumId\b[^>]*w:val="(\d+)"/)?.[1];
       if (numId && abstractId) orderedByNumId.set(numId, orderedByAbstract.get(abstractId) ?? false);
     }
   } catch { /* Some Word documents do not define numbering styles. */ }
