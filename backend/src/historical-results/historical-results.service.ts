@@ -34,6 +34,19 @@ export class HistoricalResultsService {
     }
   }
 
+  /** Keep verified history visible without exposing details of private cars. */
+  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(result: T): T {
+    const car = result.registration?.car;
+    if (!car || car.isPublic !== false) return result;
+    return {
+      ...result,
+      registration: {
+        ...result.registration,
+        car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+      },
+    } as T;
+  }
+
   private include() {
     return {
       registration: {
@@ -146,7 +159,6 @@ export class HistoricalResultsService {
           ...(stageId ? { stageId } : {}),
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           participant: { isPublic: true },
-          car: { isPublic: true },
         },
       },
       include: this.publicInclude(),
@@ -155,7 +167,7 @@ export class HistoricalResultsService {
         { place: 'asc' },
         { createdAt: 'asc' },
       ],
-    });
+    }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
   async findPublicOne(id: string) {
@@ -166,7 +178,6 @@ export class HistoricalResultsService {
         verificationStatus: 'VERIFIED',
         registration: {
           participant: { isPublic: true },
-          car: { isPublic: true },
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
       },
@@ -177,7 +188,7 @@ export class HistoricalResultsService {
       throw new NotFoundException('Исторический результат не найден');
     }
 
-    return result;
+    return this.sanitizePublicResult(result);
   }
 
   async findPending() {
