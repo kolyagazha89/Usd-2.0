@@ -527,6 +527,32 @@ export class ResultsService {
     data: CreateResultDto,
     request: AuthenticatedRequest,
   ) {
+    return this.createInternal(data, request);
+  }
+
+  async createFromMeasurement(
+    data: CreateResultDto,
+    measurementSessionId: string,
+    reviewNote: string | null,
+    request: AuthenticatedRequest,
+  ) {
+    await this.createInternal(data, request, { measurementSessionId, reviewNote });
+    return this.prisma.measurementSession.findUnique({
+      where: { id: measurementSessionId },
+      include: {
+        registrationClass: { include: { class: true } },
+        capturedByUser: { select: { id: true, name: true, role: true } },
+        reviewedByUser: { select: { id: true, name: true, role: true } },
+        result: { select: { id: true, value: true, unit: true, place: true } },
+      },
+    });
+  }
+
+  private async createInternal(
+    data: CreateResultDto,
+    request: AuthenticatedRequest,
+    measurementReview?: { measurementSessionId: string; reviewNote: string | null },
+  ) {
     if (!['ADMIN', 'JUDGE'].includes(request.user.role)) {
       throw new ForbiddenException('Недостаточно прав для внесения результата');
     }
@@ -595,9 +621,54 @@ export class ResultsService {
               value: data.value,
               unit: registrationClass.class.unit,
               place: data.place ?? null,
+              source: measurementReview ? 'MEASUREMENT_SESSION' : 'MANUAL',
             },
           },
         });
+
+        if (measurementReview) {
+          const session = await tx.measurementSession.findUnique({
+            where: { id: measurementReview.measurementSessionId },
+            select: {
+              id: true,
+              registrationId: true,
+              registrationClassId: true,
+              value: true,
+              status: true,
+            },
+          });
+          if (!session) throw new NotFoundException('Измерение не найдено');
+          if (session.status !== 'RECEIVED') {
+            throw new ConflictException('Измерение уже обработано');
+          }
+          if (
+            session.registrationId !== data.registrationId ||
+            session.registrationClassId !== data.registrationClassId ||
+            Number(session.value) !== data.value
+          ) {
+            throw new ConflictException('Данные измерения не совпадают с подтверждаемым результатом');
+          }
+          await tx.measurementSession.update({
+            where: { id: session.id },
+            data: {
+              status: 'ACCEPTED',
+              reviewedByUserId: request.user.sub,
+              reviewedAt: new Date(),
+              reviewNote: measurementReview.reviewNote,
+              resultId: result.id,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              userId: request.user.sub,
+              action: 'MEASUREMENT_ACCEPTED',
+              entity: 'MeasurementSession',
+              entityId: session.id,
+              ipAddress: request.ip,
+              metadata: { resultId: result.id, place: data.place ?? null },
+            },
+          });
+        }
 
         return {
           result,
