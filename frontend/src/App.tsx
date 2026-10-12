@@ -49,7 +49,7 @@ function App(){
  useEffect(()=>{if(user&&user.role!=='PARTICIPANT'&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  if(booting)return <Splash/>;
  if(!user){if(path==='/login'||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT')go('/admin')}}/>;return <PublicSite path={path} go={go}/>;}
- if(user.role==='PARTICIPANT')return <ParticipantPortal user={user} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
+ if(user.role==='PARTICIPANT'&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
  // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
  if(!path.startsWith('/admin')){if(path==='/login')return <Splash/>;return <PublicSite path={path} go={go}/>;}

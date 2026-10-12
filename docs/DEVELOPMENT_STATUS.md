@@ -76,3 +76,11 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Root cause: `App()` rendered the admin `Shell` for every authenticated non-participant, including public paths. Since `PageContent` only handles `/admin...`, `/` fell through to the generic “Раздел готовится” page.
 - Fix merged via [PR #3](https://github.com/kolyagazha89/Usd-2.0/pull/3) as `a4284c7c45d211a61143b7158bea3eabb53c78e0`: public routes remain on `PublicSite` for ADMIN/JUDGE sessions; an authenticated ADMIN/JUDGE opening `/login` is redirected to `/admin`; participant portal and `/admin` routes are preserved.
 - Validation state at reconciliation: Frontend CI run [38210454477](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454477) and Backend CI run [38210454285](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454285) were still running. Live Worker access from the current verification environment fails at DNS resolution, so production UI and active deployment cannot yet be claimed verified. Next action: confirm both CI runs and Cloudflare's active production deployment, then ask owner to refresh the public URL.
+
+
+## Public-route QA follow-up — 2026-10-12
+
+- Frontend CI [run 38210454477](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454477) and backend CI [run 38210454285](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454285) completed successfully after the ADMIN/JUDGE public-routing fix.
+- Owner confirmed the public site appeared after that fix. This is owner-observed production behavior; independent direct HTTP verification from the current tool environment still fails to reach the Cloudflare Worker/API.
+- QA found one related route consistency issue in the code: a signed-in PARTICIPANT was sent to the participant portal for every URL, preventing public pages from rendering during that session. Follow-up branch `fix/public-routes-for-participants` changes the guard so the participant portal stays on `/login`, `/admin...`, and `/participant...`, while public paths render the public site. This is a narrow routing fix; no API, schema, or production migration changes.
+- Current follow-up commit: `8dbdf4a7a2b23cd6b5eeaf5f196e9fe2ef9061a7`; CI/merge pending. Continue to distinguish CI success, Cloudflare build/deploy, and live anonymous/mobile verification.
