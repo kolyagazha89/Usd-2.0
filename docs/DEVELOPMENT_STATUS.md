@@ -16,12 +16,12 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 - Repository: `kolyagazha89/Usd-2.0`.
 - Production frontend: Cloudflare Worker `usd-2-0`; backend: Railway; production API: `https://usd-api-production.up.railway.app`.
-- Current `main` before this release remains `71b697c0b1f668aa6bdd054f1f2f1969c8b17329`; it has not been changed by this feature branch.
-- Public V1 implementation is on `feature/qr-checkin-and-platform-foundation`, PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1).
-- Latest code cleanup commit before checklist-only updates: `45ddab1dbd2a048d8e2ac4537a6f1044206f04d2`. It removes QR check-in UI/API/schema/migration from this release scope.
-- Earlier public V1 code candidate `dd455e1a3237f8d2fcf71dc7a018e9ca63590cef` passed frontend build/typecheck [run 38181056830](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38181056830) and backend build/lint/unit/E2E [run 38181056848](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38181056848). CI is being rerun after the QR scope cleanup; do not treat those earlier runs as evidence for the cleaned-up head.
-- Current `main` Cloudflare Worker Build passed on `71b697c` on 2026-10-11. Worker Build checks for the feature-branch commits failed, and therefore the public-site code has not been verified as published. The separate GitHub deploy workflow previously skipped its publish job because Cloudflare secrets were missing.
-- No production migration has been run.
+- Public V1 PR [#1](https://github.com/kolyagazha89/Usd-2.0/pull/1) merged on 2026-10-12 as `f3c625ffed6bdc6d8337fc2eb734015e5316da72`.
+- Final merged code candidate `b2115a9d056dcefa6a4a58b8297d643b39b10410` passed frontend CI [run 38209225196](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209225196) and backend CI [run 38209225339](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209225339).
+- Merge-commit validation passed: frontend CI [run 38209343973](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209343973), backend CI [run 38209344027](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38209344027).
+- Cloudflare Worker Build for merge commit `f3c625f` succeeded: [production build](https://dash.cloudflare.com/d7ec254ad62bb3a09d2c32bb5f443cbf/workers/services/view/usd-2-0/production/builds/730fe3df-0aea-4248-8f52-4a84498a6e78).
+- GitHub Actions' separate `Frontend Deploy` workflow passed its build but skipped the Wrangler publish job because its repository secrets are not configured. Cloudflare's native Worker Build reports success; direct HTTP verification of the live public routes remains open.
+- No QR schema migration or other production migration was run. QR check-in UI/API/schema/migration were removed from this release candidate.
 
 ## Agreed block scope (owner confirmed 2026-10-12)
 
@@ -35,13 +35,13 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 | Area | State | Next action |
 |---|---|---|
-| Public home, stages, results, records and rules | IMPLEMENTED ON FEATURE BRANCH; FINAL CI PENDING | Verify CI on cleaned-up head, then merge/release and open every deep link on the live Worker |
-| Direct route fallback | CONFIGURED | `frontend/wrangler.jsonc` uses `not_found_handling: single-page-application`; live behavior still needs verification after publish |
-| Public stage endpoint | CODE IMPLEMENTED; PRIVACY QA OPEN | Confirm anonymous access returns only non-deleted PUBLISHED/COMPLETED stages |
-| Public results and records | CODE HARDENED; PRIVACY QA OPEN | Confirm unpublished/deleted stages and private participant/car data are excluded |
+| Public home, stages, results, records and rules | MERGED TO MAIN; FRONTEND CI PASS | Confirm each live route in a browser after Cloudflare production build |
+| Direct route fallback | CONFIGURED; LIVE HTTP CHECK OPEN | `frontend/wrangler.jsonc` uses `not_found_handling: single-page-application`; verify direct navigation and refresh on each route |
+| Public stage endpoint | CODE IMPLEMENTED; LIVE PRIVACY QA OPEN | Confirm anonymous access returns only non-deleted PUBLISHED/COMPLETED stages |
+| Public results and records | CODE HARDENED; LIVE PRIVACY QA OPEN | Confirm unpublished/deleted stages and private participant/car data are excluded |
 | Public site settings | PARTIAL — IMPROVED | Public allowlist, configured rules/legal links, homepage title/subtitle/blocks and hero asset are wired; full CMS is out of scope |
 | Participant cabinet/self-service registration | DEFERRED | Do not expand acceptance criteria in this block |
-| QR check-in and QR schema migration | DEFERRED; REMOVED FROM THIS RELEASE BRANCH | Revisit only after a separate requirements survey and authorization/migration QA |
+| QR check-in and QR schema migration | DEFERRED; NOT IN PUBLIC V1 | Revisit only after a separate requirements survey and authorization/migration QA |
 | Full CMS, news, SEO, preview/version history | TODO | Requirements survey and design agreement first |
 | Legal versioning, consent evidence, transactional email | TODO | Separate requirements and security/legal review |
 | Configurable RBAC | TODO | Preserve current ADMIN/JUDGE rules; server-side authorization and regression matrix |
@@ -50,13 +50,13 @@ Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before 
 
 ## Release gates
 
-- Backend build, lint, unit and E2E pass on the exact cleaned-up candidate.
-- Frontend typecheck/build passes on the same candidate.
-- Anonymous public API does not leak unpublished stages or private/unapproved data.
+- Backend build, lint, unit and E2E pass on the merged candidate.
+- Frontend typecheck/build passes on the merged candidate.
+- Anonymous public API does not leak draft/unpublished stages or private/unapproved data; live privacy QA remains open.
 - Mobile QA covers narrow screens and current iOS/Android browsers.
-- Merge/release only after candidate checks; no production migration is part of this release.
-- Cloudflare publish and live verification are marked complete only after the main-branch Worker Build succeeds and the deployed routes are checked.
+- No production migration is part of this release.
+- Cloudflare production Worker Build succeeded; live route/refresh verification remains the final external check.
 
 ## Next action
 
-Finish CI on the cleaned-up feature head. Then merge/release the public-only candidate and verify the live Worker routes `/`, `/stages`, `/results`, `/records` and `/rules`. The currently deployed `main` does not yet contain these public pages. If the Worker Build fails again on main, inspect the Cloudflare build logs before claiming publication. PR #1 is open and unmerged until these gates are satisfied.
+Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live Worker. The production Worker Build succeeded on merge commit `f3c625f`, but direct HTTP/browser verification is not available from this environment, so do not mark the live-route gate complete until the routes are confirmed. Upload the real USD car/event photo in Admin → Настройки сайта → Главная; until then the visual fallback remains.
