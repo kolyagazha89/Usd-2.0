@@ -9,6 +9,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
   MinLength,
 } from 'class-validator';
@@ -24,6 +25,7 @@ export class CreateMeasurementDto {
   @IsString()
   @MinLength(1)
   @MaxLength(50)
+  @Matches(/\\S/)
   deviceType!: string;
 
   @IsOptional()
@@ -34,6 +36,7 @@ export class CreateMeasurementDto {
   @IsString()
   @MinLength(1)
   @MaxLength(60)
+  @Matches(/\\S/)
   measurementType!: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })
@@ -66,5 +69,6 @@ export class CreateMeasurementDto {
   @IsString()
   @MinLength(8)
   @MaxLength(128)
+  @Matches(/\\S/)
   idempotencyKey!: string;
 }
