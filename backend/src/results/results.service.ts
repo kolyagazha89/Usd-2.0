@@ -20,7 +20,7 @@ export class ResultsService {
   ) {}
 
   /** Keep confirmed results public while redacting details of private cars. */
-  private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
+  private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(
     result: T,
   ): T;
   private sanitizePublicResult<T extends { registration?: { car?: any } | null }>(
