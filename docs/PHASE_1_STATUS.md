@@ -64,3 +64,10 @@ Public V1 is merged and CI is green. Cloudflare's production Worker Build succee
 - Owner reported the public homepage showed the admin placeholder after login. Root cause: authenticated ADMIN/JUDGE users were always routed to the admin shell for every path; `/` was not a valid admin page.
 - Fix merged via [PR #3](https://github.com/kolyagazha89/Usd-2.0/pull/3) as `a4284c7c45d211a61143b7158bea3eabb53c78e0`: public routes render `PublicSite` for logged-in admins/judges; `/login` redirects an authenticated ADMIN/JUDGE to `/admin`; participant portal and admin routes remain unchanged.
 - Status at reconciliation: frontend CI [run 38210454477](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454477) and backend CI [run 38210454285](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454285) were still running. Live Worker verification is blocked by DNS/network access from the current environment; production deployment is not yet confirmed.
+
+
+## Public-route QA follow-up — 2026-10-12
+
+- Frontend CI [run 38210454477](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454477) and backend CI [run 38210454285](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38210454285) completed successfully after the ADMIN/JUDGE routing fix. The owner confirmed that the public site appeared.
+- Code review identified that an authenticated PARTICIPANT was routed to the participant portal regardless of URL. Branch `fix/public-routes-for-participants`, commit `8dbdf4a7a2b23cd6b5eeaf5f196e9fe2ef9061a7`, narrows the portal guard to `/login`, `/admin...`, and `/participant...` so public routes remain accessible in a participant session. CI/merge pending.
+- Live anonymous API and direct-route checks remain unverified by the assistant environment because the Worker and Railway API URLs are not reachable from it. Owner observation is recorded separately and is not presented as independent HTTP verification.
