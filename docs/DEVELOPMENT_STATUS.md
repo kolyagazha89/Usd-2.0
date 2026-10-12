@@ -108,6 +108,15 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - Frontend CI passed [run 38212018150](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018150); backend CI passed build, lint, unit and E2E steps in [run 38212018146](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38212018146). Container cleanup was still finishing at the last check.
 - Production Worker/API route verification and Railway historical-migration logs remain outstanding: the connected Railway identity currently receives a viewer-permission error for the production service, and direct HTTP checks from the tool environment cannot resolve the production hosts.
 
+## Measurement integration API foundation — in progress
+
+- Owner asked to continue to the next block in one coherent pass while preserving the USD architecture and keeping Git handoff notes current.
+- Branch: `feature/measurement-ingestion-foundation`. This block adds a raw `MeasurementSession` model and authenticated intake/review API for the agreed Term-LAB / SPL-Lab → USD API → PostgreSQL → official Result flow.
+- Added idempotent capture, class/unit/registration/inspection validation, a 32 KiB device-payload cap, explicit ACCEPTED/REJECTED review states, staff-only endpoints and audit events. Acceptance delegates to the existing `ResultsService`; it does not create a parallel result/ranking system.
+- Migration `20261012120000_measurement_session_intake` is committed on the feature branch only. It has **not** been run on production. No production deployment or data mutation is authorized by this branch.
+- CI, merge, Railway deployment and production verification are separate gates and remain pending until their evidence is checked. The concrete installed Term-LAB / SPL-Lab transport/export protocol remains a follow-up adapter requirement; the core API intentionally does not assume an undocumented device protocol.
+- Next action: verify Prisma generation/build/lint/unit/E2E, inspect and fix every failure, then open a PR with the CI evidence. Keep the public-route/logo/live imported-results verification outstanding; do not mark it complete based on code alone.
+
 ## Unified public-site finishing pass — 2026-10-12
 
 - Owner asked for the first public phase to be completed as one coherent pass before testing, rather than asking for incremental visual reviews.
