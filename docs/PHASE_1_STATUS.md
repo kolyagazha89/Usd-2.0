@@ -15,7 +15,7 @@ This is the acceptance checklist. A code commit is not complete until relevant b
 ## Public visual system block — 2026-10-12
 
 - Owner approved one unified premium style across home, stages, results, records and rules; full CMS expansion is out of scope.
-- Feature branch: `feature/public-visual-system`, current head `88f26a6936559841e6ac8d63beee5449b1be0919`.
+- Feature branch: `feature/public-visual-system`; visual implementation commit `88f26a6936559841e6ac8d63beee5449b1be0919`. Use PR #2's current head SHA as the source of truth for CI.
 - Added responsive visual tokens, typography, hero/image treatment, card/table/rules styling, focus states and reduced-motion support. API, schema, permissions and production migrations unchanged.
 - CI for the current head is pending; mobile QA, anonymous privacy QA, PR merge, deployment and live verification are not complete.
 
