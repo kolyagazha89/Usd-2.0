@@ -67,6 +67,59 @@ describe('ResultsService', () => {
     }));
   });
 
+  it('redacts private participant and car details from public result rows', async () => {
+    prisma.stage.findUnique.mockResolvedValue({
+      id: 'stage-1',
+      status: 'PUBLISHED',
+      isDeleted: false,
+    });
+    prisma.result.findMany.mockResolvedValue([
+      {
+        id: 'result-private-1',
+        registration: {
+          id: 'registration-1',
+          participant: {
+            id: 'participant-1',
+            lastName: 'Private',
+            firstName: 'Person',
+            middleName: 'Secret',
+            team: 'Private Team',
+            city: 'Private City',
+            photoUrl: 'https://example.invalid/person.jpg',
+            isPublic: false,
+          },
+          car: {
+            id: 'car-1',
+            brand: 'Private Brand',
+            model: 'Private Model',
+            color: 'red',
+            photoUrl: 'https://example.invalid/car.jpg',
+            isPublic: false,
+          },
+        },
+      },
+    ]);
+
+    const results = await service.findByStage('stage-1');
+
+    expect(results[0].registration?.participant).toMatchObject({
+      lastName: 'Участник скрыт',
+      firstName: '',
+      middleName: null,
+      team: null,
+      city: null,
+      photoUrl: null,
+      isPublic: false,
+    });
+    expect(results[0].registration?.car).toMatchObject({
+      brand: 'Автомобиль скрыт',
+      model: '',
+      color: null,
+      photoUrl: null,
+      isPublic: false,
+    });
+  });
+
   it('rejects result creation from a participant at the service boundary', async () => {
     const participantRequest = {
       user: { sub: 'participant-user', role: 'PARTICIPANT' },

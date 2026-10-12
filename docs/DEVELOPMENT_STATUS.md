@@ -182,5 +182,7 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Plate validation covers the existing 16 USD country choices: RU, BY, KZ, US, FI, NO, EE, LV, LT, PL, UA, GE, AZ, CN, MN, KP. Russian Latin lookalikes are normalized for checking; US validation remains generic because formats vary by state.
 - Added backend unit cases for accepted/rejected international phones and plates.
 - Profile team editing already uses a native select sourced from `GET /participants/teams`; server-side profile create/update now rejects arbitrary team values and matches existing/catalog team names case-insensitively. The team list is deduplicated case-insensitively.
-- CI is running for the latest branch commit. Do not merge or claim production deployment until Backend CI and Frontend CI pass, then merge and verify the deployed profile flow.
+- PR #27 was merged to `main` as `cbfd59c0cff9b440541f0fef75624709b2ffb69d`. Latest branch Backend CI (build, lint, unit, E2E) and Frontend CI passed before merge; the native Cloudflare Workers build for the merge commit also succeeded.
+- Railway's first production deployment for the merge commit remained in `BUILDING` with no new build logs after 2026-10-12 19:04 UTC. The same `main` source was reconnected to trigger a fresh build at 19:06 UTC; runtime deployment remains pending and must be confirmed before claiming production behavior is live.
+- Live HTTP checks for the public Worker and Railway API still fail at DNS resolution from the current execution environment, so public routes, logo cold-load and anonymous API behavior remain runtime-unverified.
 - No database schema change or production data migration.
