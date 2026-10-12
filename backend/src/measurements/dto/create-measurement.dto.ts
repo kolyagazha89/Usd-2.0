@@ -6,6 +6,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -14,14 +15,10 @@ import {
 import { ResultUnit } from '../../generated/prisma/enums';
 
 export class CreateMeasurementDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(36)
+  @IsUUID()
   registrationId!: string;
 
-  @IsString()
-  @MinLength(1)
-  @MaxLength(36)
+  @IsUUID()
   registrationClassId!: string;
 
   @IsString()
