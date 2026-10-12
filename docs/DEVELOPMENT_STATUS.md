@@ -150,3 +150,13 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Attempted to open the live Cloudflare Worker homepage and Railway public stages endpoint from the available verification environment. Both returned inaccessible/host resolution errors; therefore live deployment, route refreshes, anonymous runtime privacy and logo behavior remain UNVERIFIED.
 - Latest docs-only status commits passed Backend CI: [run 38234428894](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234428894) and [run 38234436546](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38234436546). These runs do not substitute for frontend CI or live browser QA.
 - Track remaining acceptance work in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11). Do not claim production QA complete until a reachable browser/session verifies the actual deployment.
+
+
+## Public regulation page reading experience — PR #12 — 2026-10-12
+
+- Implemented a dedicated responsive `PublicRulesPage` component for `/rules`: dark/red USD styling, section parsing from existing admin-published `registration.rulesText`, generated section navigation/anchors, text search, legal document links and a truthful empty state when no rule text is published.
+- Added mobile-specific layout for table of contents, long-form paragraphs, links and call-to-action.
+- Frontend CI passed on the implementation head: [run 38236325102](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38236325102).
+- PR #12 is open for review: https://github.com/kolyagazha89/Usd-2.0/pull/12. It is not merged or deployed. No backend changes or migrations.
+- This is an interim reader over the existing text field, not the planned DOCX import/version management. DOCX import remains tracked in [Issue #11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+- Live route and real-device QA remain unverified due the previously recorded inability to reach the deployed hosts from the current verification environment.
