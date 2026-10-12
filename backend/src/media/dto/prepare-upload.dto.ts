@@ -10,7 +10,7 @@ export class PrepareUploadDto {
   targetId!: string;
 
   @IsString()
-  @IsIn(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon'])
+  @IsIn(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
   contentType!: string;
 }
 
