@@ -64,12 +64,12 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
  const route=path.split('?')[0],page=route==='/stages'?'stages':route==='/results'?'results':route==='/records'?'records':route==='/rules'?'rules':'home';
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(active)setPublicLogoUrl(r.url)}).catch(()=>{});return()=>{active=false}},[]);
  useEffect(()=>{let alive=true;setLoading(true);setError('');Promise.allSettled([apiGet<any>('/stages/public'),apiGet<any>('/records/current'),apiGet<any>('/site-settings/public')]).then(([stageResult,recordResult,settingsResult])=>{if(!alive)return;const failures:string[]=[];const available=stageResult.status==='fulfilled'?listData<any>(stageResult.value):[];if(stageResult.status==='fulfilled')setStages(available);else failures.push('этапы');if(recordResult.status==='fulfilled')setRecords(listData<any>(recordResult.value));else failures.push('рекорды');if(settingsResult.status==='fulfilled')setSettings(settingsResult.value?.settings??settingsResult.value??{});else failures.push('настройки сайта');setSelectedStageId(current=>available.some((x:any)=>x.id===current)?current:(available[0]?.id??''));if(failures.length)setError('Не удалось загрузить: '+failures.join(', ')+'. Проверьте соединение и обновите страницу.')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[]);
- useEffect(()=>{if(page!=='home')return;const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='latest-results');if(block?.enabled===false){setLatestResults([]);return}const eligible=[...stages.filter((s:any)=>s.status==='COMPLETED'),...stages.filter((s:any)=>s.status==='PUBLISHED'&&new Date(s.date).getTime()<Date.now())];const target=eligible[0];if(!target){setLatestResults([]);return}let alive=true;apiGet<any>('/results/stage/'+encodeURIComponent(target.id)).then(r=>{if(alive)setLatestResults(listData<any>(r).slice(0,5))}).catch(()=>{if(alive)setLatestResults([])});return()=>{alive=false}},[page,stages,settings.homepage?.blocks]);
+ useEffect(()=>{if(page!=='home')return;const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='latest-results');if(block?.enabled===false){setLatestResults([]);return}const eligible=[...stages.filter((s:any)=>s.status==='COMPLETED'||(s.status==='PUBLISHED'&&new Date(s.date).getTime()<Date.now()))].sort((a:any,b:any)=>new Date(b.date).getTime()-new Date(a.date).getTime());const target=eligible[0];if(!target){setLatestResults([]);return}let alive=true;apiGet<any>('/results/stage/'+encodeURIComponent(target.id)).then(r=>{if(alive)setLatestResults(listData<any>(r).slice(0,5))}).catch(()=>{if(alive)setLatestResults([])});return()=>{alive=false}},[page,stages,settings.homepage?.blocks]);
  useEffect(()=>{if(page!=='home'||settings.liveResults?.enabled===false){setLiveResultsRows([]);return}const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='live-results');if(block?.enabled===false||settings.homepage?.showLiveResults===false){setLiveResultsRows([]);return}const targetId=settings.liveResults?.stageId||stages.find((s:any)=>s.status==='PUBLISHED')?.id;if(!targetId||!stages.some((s:any)=>s.id===targetId&&(s.status==='PUBLISHED'||s.status==='COMPLETED'))){setLiveResultsRows([]);return}let alive=true;const load=()=>apiGet<any>('/results/stage/'+encodeURIComponent(targetId)).then(r=>{if(alive)setLiveResultsRows(listData<any>(r).slice(0,8))}).catch(()=>{if(alive)setLiveResultsRows([])});void load();const interval=Math.min(60,Math.max(5,Number(settings.liveResults?.refreshSeconds)||5))*1000;const timer=window.setInterval(()=>void load(),interval);return()=>{alive=false;window.clearInterval(timer)}},[page,stages,settings.liveResults?.enabled,settings.liveResults?.stageId,settings.liveResults?.refreshSeconds,settings.homepage?.blocks,settings.homepage?.showLiveResults]);
  useEffect(()=>{if(page!=='home')return;const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='participants');if(block?.enabled===false){setParticipants([]);return}let alive=true;apiGet<any>('/participants').then(r=>{if(alive)setParticipants(listData<any>(r).slice(0,6))}).catch(()=>{if(alive)setParticipants([])});return()=>{alive=false}},[page,settings.homepage?.blocks]);
  useEffect(()=>{if(page!=='results'||!selectedStageId){setResults([]);setResultsLoading(false);return}let alive=true;setResults([]);setResultsLoading(true);setError('');apiGet<any>('/results/stage/'+encodeURIComponent(selectedStageId)).then(r=>{if(alive)setResults(listData<any>(r))}).catch(e=>{if(alive)setError(e instanceof Error?e.message:'Не удалось загрузить результаты')}).finally(()=>{if(alive)setResultsLoading(false)});return()=>{alive=false}},[page,selectedStageId]);
- const publicStages=stages.filter((s:any)=>s.status==='PUBLISHED'||s.status==='COMPLETED'),publishedStages=publicStages.filter((s:any)=>s.status==='PUBLISHED'),upcoming=publishedStages.filter((s:any)=>new Date(s.date).getTime()>=Date.now()).slice(0,3);
- const defaultNavItems:any[]=[['/stages','Этапы'],['/results','Результаты'],['/records','Рекорды'],['/rules','Правила']];const allowedPublicPaths=new Set(defaultNavItems.map((item:any)=>item[0]));const configuredNavItems=(settings.navigation?.items??[]).filter((item:any)=>item?.enabled!==false&&allowedPublicPaths.has(item?.path)).sort((a:any,b:any)=>(a.sortOrder??0)-(b.sortOrder??0)).map((item:any)=>[item.path,item.label||defaultNavItems.find((x:any)=>x[0]===item.path)?.[1]]);const navItems=configuredNavItems.length?configuredNavItems:defaultNavItems;const blockEnabled=(id:string,fallback=true)=>{const item=(settings.homepage?.blocks??[]).find((b:any)=>b.id===id);return item?item.enabled!==false:fallback};const blockTitle=(id:string,fallback:string)=>((settings.homepage?.blocks??[]).find((b:any)=>b.id===id)?.title||fallback);const blockOrder=(id:string,fallback:number)=>{const i=(settings.homepage?.blocks??[]).findIndex((b:any)=>b.id===id);return i<0?fallback:i};
+ const publicStages=stages.filter((s:any)=>s.status==='PUBLISHED'||s.status==='COMPLETED'),publishedStages=publicStages.filter((s:any)=>s.status==='PUBLISHED'),upcoming=publishedStages.filter((s:any)=>new Date(s.date).getTime()>=Date.now()).sort((a:any,b:any)=>new Date(a.date).getTime()-new Date(b.date).getTime()).slice(0,3);
+ const defaultNavItems:any[]=[['/','Главная'],['/records','Рекорды'],['/stages','Этапы'],['/rules','Регламент']];const allowedPublicPaths=new Set(defaultNavItems.map((item:any)=>item[0]));const configuredNavItems=(settings.navigation?.items??[]).filter((item:any)=>item?.enabled!==false&&allowedPublicPaths.has(item?.path)).sort((a:any,b:any)=>(a.sortOrder??0)-(b.sortOrder??0)).map((item:any)=>[item.path,item.label||defaultNavItems.find((x:any)=>x[0]===item.path)?.[1]]);const navItems=configuredNavItems.length?configuredNavItems:defaultNavItems;const blockEnabled=(id:string,fallback=true)=>{const item=(settings.homepage?.blocks??[]).find((b:any)=>b.id===id);return item?item.enabled!==false:fallback};const blockTitle=(id:string,fallback:string)=>((settings.homepage?.blocks??[]).find((b:any)=>b.id===id)?.title||fallback);const blockOrder=(id:string,fallback:number)=>{const i=(settings.homepage?.blocks??[]).findIndex((b:any)=>b.id===id);return i<0?fallback:i};
  const siteValue=(...keys:string[])=>{for(const key of keys){const v=settings?.[key]?.value??settings?.[key];if(typeof v==='string'&&v.trim())return v}return ''};
  const formatStageDate=(value:any)=>{const d=new Date(value);return Number.isNaN(d.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d)};
  const pageTitle=page==='stages'?'Этапы чемпионата':page==='results'?'Результаты соревнований':page==='records'?'Рекорды USD':page==='rules'?'Правила и документы':'Звук. Мощность. Характер.';
@@ -106,34 +106,51 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
 }
 
 
+function publicResultUnit(value:any){
+ const unit=String(value??'').trim().toUpperCase();
+ if(unit==='DB'||unit==='DBS'||unit==='ДБ')return 'дБ';
+ if(unit==='MPS'||unit==='M/S'||unit==='М/С')return 'м/с';
+ if(unit==='OTHER')return '';
+ return value||'дБ';
+}
+function publicResultValue(value:any){
+ if(value===null||value===undefined||value==='')return '—';
+ const numeric=Number(value);
+ return Number.isFinite(numeric)?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:3}).format(numeric):String(value);
+}
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
   const participant=r.participant||r.registration?.participant;
-  const name=[participant?.lastName,participant?.firstName].filter(Boolean).join(' ')||'Участник USD';
+  const name=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
   const car=[r.registration?.car?.brand,r.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
-  const className=r.registrationClass?.class?.name||r.class?.name||'Класс не указан';
-  const value=r.value??r.score??r.result?.value??(typeof r.result==='string'||typeof r.result==='number'?r.result:'—');
-  const place=r.place??r.position??i+1;
+  const classItem=r.registrationClass?.class||r.class;
+  const className=classItem?.name||'Класс не указан';
+  const value=publicResultValue(r.value??r.score??r.result?.value??(typeof r.result==='string'||typeof r.result==='number'?r.result:null));
+  const place=r.place??r.position??null;
+  const placeLabel=place!==null&&place!==undefined&&Number.isFinite(Number(place))?String(place).padStart(2,'0'):'—';
+  const stageName=r.registration?.stage?.name||r.stage?.name||'';
+  const stageDate=r.registration?.stage?.date||r.stage?.date;
+  const context=[stageName,stageDate?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(new Date(stageDate)):null].filter(Boolean).join(' · ');
   return <article className="public-result-card" key={r.id||i}>
-   <div className="public-result-card-top"><span className="public-result-place">{String(place).padStart(2,'0')}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
-   <div className="public-result-measure"><strong>{value}</strong><span>{r.unit||r.registrationClass?.class?.unit||r.class?.unit||'дБ'}</span></div>
-   <div className="public-result-card-bottom"><div className="public-result-person"><strong>{name}</strong><span>{car}</span></div><span className="public-result-arrow" aria-hidden>↗</span></div>
+   <div className="public-result-card-top"><span className="public-result-place">{placeLabel}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
+   <div className="public-result-measure"><strong>{value}</strong><span>{publicResultUnit(r.unit||classItem?.unit)}</span></div>
+   <div className="public-result-card-bottom"><div className="public-result-person"><strong>{name}</strong><span>{car}</span>{context&&<span className="public-result-context">{context}</span>}</div><span className="public-result-arrow" aria-hidden>↗</span></div>
   </article>
  })}</div>;
 }
 function PublicRecordCards({rows}:{rows:any[]}){
  return <div className="public-record-grid">{rows.map((r:any,i:number)=>{
-  const value=r.value??r.result?.value??'—';
+  const value=publicResultValue(r.value??r.result?.value);
   const participant=r.participant||r.result?.registration?.participant;
-  const name=[participant?.lastName,participant?.firstName].filter(Boolean).join(' ')||'Участник USD';
+  const name=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
   const car=[r.car?.brand,r.car?.model].filter(Boolean).join(' ')||[r.result?.registration?.car?.brand,r.result?.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
   return <article className="public-record-card" key={r.id||i}>
    <div className="public-record-overline"><span>USD / RECORD</span><span className="public-record-index">{String(i+1).padStart(2,'0')}</span></div>
-   <div className="public-record-value">{value}<small>{r.unit||r.result?.unit||r.class?.unit||'дБ'}</small></div>
+   <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit)}</small></div>
    <div className="public-record-class">{r.class?.name||r.className||'Спортивный класс'}</div>
    <div className="public-record-divider"/>
    <strong className="public-record-person">{name}</strong><span className="public-record-car">{car}</span>
-   <span className="public-record-stage">{r.stage?.name||r.result?.stage?.name||'История USD'}</span>
+   <span className="public-record-stage">{r.stage?.name||r.result?.registration?.stage?.name||'История USD'}</span>
   </article>
  })}</div>;
 }
