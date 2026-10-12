@@ -21,17 +21,14 @@ export class StagesService {
   }
 
   async findPublished() {
-    return this.prisma.stage.findMany({
+    const stages = await this.prisma.stage.findMany({
       where: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
       orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
-      select: {
-        id: true, seasonId: true, stageNumber: true, name: true, city: true,
-        date: true, description: true, venue: true, address: true,
-        latitude: true, longitude: true, status: true, registrationOpen: true,
-        registrationStartsAt: true, registrationEndsAt: true, isDeleted: true,
-        legacyId: true, createdAt: true, updatedAt: true, season: true,
-      },
+      include: { season: true },
     });
+    return stages.map((stage: any) => Object.fromEntries(
+      Object.entries(stage).filter(([key]) => key !== 'rulesSnapshot'),
+    ));
   }
 
   async findPublishedOne(id: string) {
