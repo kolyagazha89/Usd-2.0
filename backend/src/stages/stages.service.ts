@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -9,7 +9,7 @@ export class StagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly siteSettings: any,
+    @Inject('SiteSettingsService') private readonly siteSettings: any,
   ) {}
 
   async findAll() {
