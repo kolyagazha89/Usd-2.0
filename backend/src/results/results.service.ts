@@ -446,12 +446,10 @@ export class ResultsService {
   async findByStage(stageId: string) {
     await this.assertPublicStage(stageId);
 
-    return this.prisma.result.findMany({
+    const results = await this.prisma.result.findMany({
       where: {
         registration: {
           stageId,
-          // Official published results are public competition data. The participant/car
-          // profile visibility flags control directory cards, not result rows.
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
         },
         OR: [
@@ -465,6 +463,46 @@ export class ResultsService {
         { place: 'asc' },
         { createdAt: 'asc' },
       ],
+    });
+
+    // A private participant/car must not suppress the official result row.
+    // Keep the score visible while masking private profile fields in public output.
+    return results.map((result: any) => {
+      const registration = result.registration;
+      const participant = registration?.participant;
+      const car = registration?.car;
+      return {
+        ...result,
+        registration: {
+          ...registration,
+          participant: participant?.isPublic
+            ? participant
+            : participant
+              ? {
+                  id: participant.id,
+                  lastName: 'Участник',
+                  firstName: null,
+                  middleName: null,
+                  team: null,
+                  city: null,
+                  photoUrl: null,
+                  isPublic: false,
+                }
+              : null,
+          car: car?.isPublic
+            ? car
+            : car
+              ? {
+                  id: car.id,
+                  brand: 'Автомобиль',
+                  model: null,
+                  color: null,
+                  photoUrl: null,
+                  isPublic: false,
+                }
+              : null,
+        },
+      };
     });
   }
 
