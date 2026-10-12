@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { FileClock, Search } from 'lucide-react';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
@@ -18,7 +19,7 @@ function safeInlineHref(value: unknown): string {
 function renderInline(runs: InlineRun[] | undefined, fallbackText: string, keyPrefix: string) {
   if (!Array.isArray(runs) || !runs.length) return fallbackText;
   return runs.map((run, index) => {
-    let content: React.ReactNode = run.text;
+    let content: ReactNode = run.text;
     if (run.bold) content = <strong>{content}</strong>;
     if (run.italic) content = <em>{content}</em>;
     const href = safeInlineHref(run.href);
