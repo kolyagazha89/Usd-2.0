@@ -92,3 +92,10 @@ Open and refresh `/`, `/stages`, `/results`, `/records` and `/rules` on the live
 - The participant portal is now limited to `/login`, `/admin...`, and `/participant...`; signed-in participants can navigate public paths without being trapped in the portal. ADMIN/JUDGE public routing fix remains intact.
 - Frontend CI passed [run 38211339825](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339825); backend CI passed [run 38211339834](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38211339834), including build, lint, unit tests and E2E tests. No API/schema change or production migration.
 - Owner confirmed the public site appeared after the earlier route fix. Independent direct HTTP verification of the Worker and Railway API remains blocked by DNS resolution in the current tool environment. Cloudflare's new active build/deployment and anonymous live-route behavior therefore remain unverified here; do not mark release QA fully closed until these are checked.
+
+
+## Startup historical-import safety fix — 2026-10-12
+
+- Code review found `backend/src/scripts/run-historical-migration.ts` could delete all stages/results associated with historical XLSX import jobs during normal service startup when the expected 10 committed stages/results check did not pass.
+- Branch `fix/protect-historical-data-on-startup`, commit `adb72c7e81e4ec53d460ac2881b290e0c1a38e86`, removes destructive cleanup from startup. If historical import data already exists, startup logs its state and skips automatic re-import; only a clean database starts the initial historical import. Explicit reconciliation must happen through a controlled admin workflow.
+- This is a data-protection fix. It does not restore any data that may already have been deleted by an earlier startup. Railway deployment/log inspection is currently blocked by the connected Railway identity having only viewer permissions for the target service; current production migration outcome remains unverified.

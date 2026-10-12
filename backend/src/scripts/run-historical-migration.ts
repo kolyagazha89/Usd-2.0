@@ -10,68 +10,39 @@ async function main() {
     const prisma = app.get(PrismaService);
 
     const expectedHistoricalStages = 10;
-    const committedHistoricalStages = await prisma.importJob.findMany({
-      where: {
-        status: 'COMMITTED',
-        metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
-      },
-      select: { stageId: true },
-      distinct: ['stageId'],
-    });
-
-    if (committedHistoricalStages.length >= expectedHistoricalStages) {
-      const committedStageIds = committedHistoricalStages.map(job => job.stageId);
-      const historicalResultCount = await prisma.result.count({
-        where: { registration: { stageId: { in: committedStageIds } } },
-      });
-
-      if (historicalResultCount > 0) {
-        console.log(
-          `Historical migration already completed: ${committedHistoricalStages.length}/${expectedHistoricalStages} stages, ${historicalResultCount} results. Skipping.`,
-        );
-        return;
-      }
-
-      console.log(
-        `Historical migration marker exists for ${committedHistoricalStages.length} stages, but no historical results exist. Re-running clean migration.`,
-      );
-    }
-
     const historicalJobs = await prisma.importJob.findMany({
       where: {
         metadata: { path: ['source'], equals: 'HISTORICAL_XLSX' },
       },
-      select: { stageId: true },
+      select: { stageId: true, status: true },
     });
 
     const stageIds = [...new Set(historicalJobs.map(job => job.stageId))];
+    const committedStageIds = [...new Set(
+      historicalJobs.filter(job => job.status === 'COMMITTED').map(job => job.stageId),
+    )];
 
     if (stageIds.length > 0) {
-      console.log(`Dropping ${stageIds.length} previously imported historical stages before clean migration.`);
-
-      await prisma.$transaction(async tx => {
-        await tx.record.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.disqualification.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.result.deleteMany({
-          where: { registration: { stageId: { in: stageIds } } },
-        });
-        await tx.registrationClass.deleteMany({
-          where: { registration: { stageId: { in: stageIds } } },
-        });
-        await tx.inspection.deleteMany({
-          where: { registration: { stageId: { in: stageIds } } },
-        });
-        await tx.registration.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.registrationNumber.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.importJob.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.stageClass.deleteMany({ where: { stageId: { in: stageIds } } });
-        await tx.stage.deleteMany({ where: { id: { in: stageIds } } });
+      const historicalResultCount = await prisma.result.count({
+        where: { registration: { stageId: { in: stageIds } } },
       });
 
-      console.log('Historical stages/results cleanup completed.');
-    } else {
-      console.log('No previous historical import stages found; clean migration can start.');
+      if (committedStageIds.length >= expectedHistoricalStages && historicalResultCount > 0) {
+        console.log(
+          `Historical migration already completed: ${committedStageIds.length}/${expectedHistoricalStages} committed stages, ${historicalResultCount} results. Skipping.`,
+        );
+      } else {
+        console.warn(
+          `Historical import data already exists (${stageIds.length} stages, ${committedStageIds.length} committed, ${historicalResultCount} results). Automatic startup migration skipped to protect existing data. Reconcile historical imports explicitly from the admin workflow.`,
+        );
+      }
+
+      // Never delete existing stages/results during application startup.
+      // A partial or inconsistent import must be reconciled explicitly, not destructively reset.
+      return;
     }
+
+    console.log('No previous historical import stages found; initial migration can start.');
 
     const imports = app.get(ImportsService);
     const result = await imports.autoCommitHistoricalImport(undefined as any);
