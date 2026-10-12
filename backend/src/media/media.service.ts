@@ -147,7 +147,9 @@ export class MediaService {
     if (!targetId.startsWith('rules-draft-')) return true;
     const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } });
     const registration = row?.registration as Record<string, any> | null;
-    return registration?.rulesDocument?.published?.targetId === targetId;
+    const rules = registration?.rulesDocument;
+    return rules?.published?.targetId === targetId ||
+      Array.isArray(rules?.publishedVersions) && rules.publishedVersions.some((revision: any) => revision?.targetId === targetId);
   }
 
   async getSignedPublicMediaUrl(targetType: MediaTargetType, targetId: string) {
