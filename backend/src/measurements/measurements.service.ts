@@ -23,6 +23,15 @@ export class MeasurementsService {
     }
   }
 
+  private stableJson(value: unknown): string {
+    if (Array.isArray(value)) return '[' + value.map((item) => this.stableJson(item)).join(',') + ']';
+    if (value && typeof value === 'object') {
+      const object = value as Record<string, unknown>;
+      return '{' + Object.keys(object).sort().map((key) => JSON.stringify(key) + ':' + this.stableJson(object[key])).join(',') + '}';
+    }
+    return JSON.stringify(value) ?? 'null';
+  }
+
   private samePayload(existing: any, input: CreateMeasurementDto) {
     return existing.registrationId === input.registrationId
       && existing.registrationClassId === input.registrationClassId
@@ -33,7 +42,8 @@ export class MeasurementsService {
       && existing.unit === input.unit
       && (existing.frequencyHz == null ? input.frequencyHz == null : Number(existing.frequencyHz) === input.frequencyHz)
       && (existing.durationMs ?? null) === (input.durationMs ?? null)
-      && new Date(existing.measuredAt).getTime() === new Date(input.measuredAt).getTime();
+      && new Date(existing.measuredAt).getTime() === new Date(input.measuredAt).getTime()
+      && this.stableJson(existing.rawData ?? null) === this.stableJson(input.rawData ?? null);
   }
 
   private async existingByKey(idempotencyKey: string, input: CreateMeasurementDto) {
@@ -49,6 +59,10 @@ export class MeasurementsService {
     this.assertStaff(request);
     const duplicate = await this.existingByKey(input.idempotencyKey, input);
     if (duplicate) return duplicate;
+
+    if (input.rawData && this.stableJson(input.rawData).length > 32768) {
+      throw new ConflictException('Данные устройства превышают допустимый размер 32 КБ');
+    }
 
     const registration = await this.prisma.registration.findUnique({
       where: { id: input.registrationId },
