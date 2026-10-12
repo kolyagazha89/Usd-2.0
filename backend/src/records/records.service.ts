@@ -629,6 +629,7 @@ export class RecordsService {
       },
       include: this.publicInclude,
       orderBy: [
+        { class: { direction: { sortOrder: 'asc' } } },
         { class: { sortOrder: 'asc' } },
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
@@ -648,8 +649,8 @@ export class RecordsService {
       },
       include: this.publicInclude,
       orderBy: [
-        { class: { sortOrder: 'asc' } },
         { class: { direction: { sortOrder: 'asc' } } },
+        { class: { sortOrder: 'asc' } },
       ],
     }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
