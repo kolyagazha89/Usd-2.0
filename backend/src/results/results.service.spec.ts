@@ -9,6 +9,7 @@ describe('ResultsService', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    measurementSession: { findUnique: jest.fn() },
   };
 
   const records: any = {
@@ -148,6 +149,16 @@ describe('ResultsService', () => {
       auditLog: {
         create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
       },
+      measurementSession: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'measurement-1',
+          registrationId: 'registration-1',
+          registrationClassId: 'registration-class-1',
+          value: 150.123,
+          status: 'RECEIVED',
+        }),
+        update: jest.fn().mockResolvedValue({ id: 'measurement-1', status: 'ACCEPTED' }),
+      },
       ...overrides,
     };
 
@@ -157,6 +168,40 @@ describe('ResultsService', () => {
 
     return tx;
   }
+
+  it('accepts a measurement and creates its official result in the same transaction', async () => {
+    const tx = setupCreateTx();
+    prisma.result.findUnique.mockResolvedValue({ id: 'result-1' });
+    prisma.measurementSession.findUnique.mockResolvedValue({
+      id: 'measurement-1',
+      status: 'ACCEPTED',
+      resultId: 'result-1',
+    });
+
+    await service.createFromMeasurement(
+      {
+        registrationId: 'registration-1',
+        registrationClassId: 'registration-class-1',
+        value: 150.123,
+        notes: 'Результат подтверждён из приложения измерений',
+        confirmed: true,
+      },
+      'measurement-1',
+      'Проверено судьёй',
+      judgeRequest,
+    );
+
+    expect(tx.measurementSession.update).toHaveBeenCalledWith({
+      where: { id: 'measurement-1' },
+      data: expect.objectContaining({
+        status: 'ACCEPTED',
+        reviewedByUserId: 'judge-1',
+        reviewNote: 'Проверено судьёй',
+        resultId: 'result-1',
+      }),
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
 
   it('rejects a result when inspection is FAILED', async () => {
     setupCreateTx({
