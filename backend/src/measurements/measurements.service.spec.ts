@@ -4,6 +4,7 @@ import { MeasurementsService } from './measurements.service';
 describe('MeasurementsService', () => {
   const prisma: any = {
     registration: { findUnique: jest.fn() },
+    stageClass: { findUnique: jest.fn().mockResolvedValue({ isActive: true }) },
     measurementSession: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
