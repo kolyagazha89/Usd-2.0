@@ -12,7 +12,7 @@ export class RecordsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Keep public records visible while redacting details of private cars. */
-  private sanitizePublicRecord<T extends { result?: { registration?: { car?: any } | null } | null }>(record: T): T {
+  private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
     const hideCar = Boolean(car && car.isPublic === false);
