@@ -18,7 +18,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
   const published = settings?.registration?.rulesDocument?.published ?? null;
   const documentBlocks = Array.isArray(published?.blocks) ? published.blocks : [];
-  const source = String(rulesText || settings?.registration?.rulesText || (documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : '')).trim();
+  const source = String(documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : rulesText || settings?.registration?.rulesText || '').trim();
   const publishedUrl = safeDocumentUrl(published?.url);
   const legal = settings?.legal || {};
   const links = ([
