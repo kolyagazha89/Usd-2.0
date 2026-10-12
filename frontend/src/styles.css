@@ -2664,3 +2664,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
  .public-record-class{font-size:16px}
 }
 @media(min-width:761px) and (max-width:1050px){.public-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.public-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+.public-stage-select{display:block;max-width:500px;margin-bottom:24px;color:#b9b9bf;font-size:13px}
+.public-stage-select select{display:block;width:100%;margin-top:8px;background:#171719;color:#fff;border:1px solid #3a3a40;border-radius:10px;padding:14px;min-height:48px}
+.public-stage-select select:focus{outline:2px solid rgba(227,27,45,.45);outline-offset:2px}
