@@ -11,6 +11,22 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class RecordsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Keep public records visible while redacting details of private cars. */
+  private sanitizePublicRecord<T extends { result?: { registration?: { car?: any } | null } | null }>(record: T): T {
+    const car = record.result?.registration?.car;
+    if (!car || car.isPublic !== false) return record;
+    return {
+      ...record,
+      result: {
+        ...record.result,
+        registration: {
+          ...record.result?.registration,
+          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
+        },
+      },
+    } as T;
+  }
+
   private readonly publicInclude = {
     class: {
       include: {
@@ -592,7 +608,6 @@ export class RecordsService {
         result: {
           registration: {
             participant: { isPublic: true },
-            car: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -603,7 +618,7 @@ export class RecordsService {
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
       ],
-    });
+    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findCurrent() {
@@ -613,7 +628,6 @@ export class RecordsService {
         result: {
           registration: {
             participant: { isPublic: true },
-            car: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -623,7 +637,7 @@ export class RecordsService {
         { class: { sortOrder: 'asc' } },
         { class: { direction: { sortOrder: 'asc' } } },
       ],
-    });
+    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findByClass(classId: string) {
@@ -642,7 +656,6 @@ export class RecordsService {
         result: {
           registration: {
             participant: { isPublic: true },
-            car: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -653,7 +666,7 @@ export class RecordsService {
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
       ],
-    });
+    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findBySeason(seasonId: string) {
@@ -663,14 +676,13 @@ export class RecordsService {
         result: {
           registration: {
             participant: { isPublic: true },
-            car: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
       },
       include: this.publicInclude,
       orderBy: { achievedAt: 'desc' },
-    });
+    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findOne(id: string) {
@@ -680,7 +692,6 @@ export class RecordsService {
         result: {
           registration: {
             participant: { isPublic: true },
-            car: { isPublic: true },
             stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
           },
         },
@@ -692,7 +703,7 @@ export class RecordsService {
       throw new NotFoundException('Рекорд не найден');
     }
 
-    return record;
+    return this.sanitizePublicRecord(record);
   }
 
   async findCurrentAdmin() {
