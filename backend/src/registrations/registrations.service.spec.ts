@@ -210,6 +210,7 @@ describe('RegistrationsService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
       },
     });
     setupTransaction(tx);
