@@ -45,10 +45,10 @@ function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}c
 function cacheBrandLogo(url:string){try{localStorage.setItem(BRAND_LOGO_CACHE,url)}catch{}}
 function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;const img=new Image();img.decoding='async';img.onload=()=>onReady(url);img.onerror=()=>{};img.src=url}
 function App(){
- const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname),[mobileOpen,setMobileOpen]=useState(false);
+ const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname+location.search),[mobileOpen,setMobileOpen]=useState(false);
  useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
  useEffect(()=>{document.title=path.startsWith('/admin')?'USD — Админ-панель':path==='/login'?'Вход — USD':'USD — Ultimate Sound Destruction'},[path]);
- useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
+ useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
  useEffect(()=>{if(user&&user.role!=='PARTICIPANT'&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  if(booting)return <Splash/>;
