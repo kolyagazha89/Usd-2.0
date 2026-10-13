@@ -863,6 +863,8 @@ export class AuthService {
         isActive: true,
         emailVerifiedAt: true,
         participantId: true,
+        customRoleId: true,
+        customRole: { select: { id: true, key: true, name: true } },
         createdAt: true,
         updatedAt: true,
       },
