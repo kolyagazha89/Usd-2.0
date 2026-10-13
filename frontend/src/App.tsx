@@ -55,7 +55,8 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/statistics'))return 'statistics';
  if(path.startsWith('/admin/import'))return 'imports';
  if(path.startsWith('/admin/historical-results'))return 'historicalResults';
- if(path.startsWith('/admin/data-quality'))return 'imports';
+ if(path.startsWith('/admin/data-quality'))return 'statistics';
+ if(path.startsWith('/admin/audit'))return 'statistics';
  if(path.startsWith('/admin/assistant'))return 'assistant';
  if(path.startsWith('/admin/google'))return 'integrations';
  if(path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
