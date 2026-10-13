@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
 import PublicRulesPage from './PublicRulesPage';
 import RulesAdminPage from './RulesAdminPage';
@@ -627,12 +627,13 @@ function InspectionsPage({user}:{user:User}){
 }
 function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readOnly:boolean}){
  const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
- const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false);
+ const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false),[scanOpen,setScanOpen]=useState(false),[scannedRegistrationId,setScannedRegistrationId]=useState('');
  const load=()=>{setLoading(true);setError('');return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE').then(r=>setRows(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
  useEffect(()=>{void load()},[stageId]);
  const passed=rows.filter(r=>r.inspection?.status==='PASSED').length,failed=rows.filter(r=>r.inspection?.status==='FAILED').length,pending=rows.filter(r=>!r.inspection).length;
  const statusFiltered=rows.filter(r=>filter==='ALL'?true:filter==='PASSED'?r.inspection?.status==='PASSED':r.inspection?.status==='FAILED');
  const filtered=statusFiltered.filter(r=>{const q=search.trim().toLowerCase();if(!q)return true;return [r.participantNumber,r.participant?.lastName,r.participant?.firstName,r.participant?.middleName,r.participant?.team,r.car?.brand,r.car?.model,r.car?.registrationNumber,r.classes?.map((x:any)=>x.class?.name).join(' ')].filter(Boolean).join(' ').toLowerCase().includes(q)});
+ const handleQrScan=(raw:string)=>{let id=String(raw??'').trim(),qrStageId='';try{const parsed=new URL(id,window.location.origin);id=parsed.searchParams.get('registrationId')||parsed.searchParams.get('id')||parsed.pathname.match(/\\/registrations\\/([^/]+)/)?.[1]||id;qrStageId=parsed.searchParams.get('stageId')||''}catch{}if(qrStageId&&qrStageId!==stageId){setError('Этот QR-код относится к другому этапу. Выберите правильный этап и попробуйте снова.');setScanOpen(false);return}const match=rows.find((r:any)=>r.id===id||String(r.participantNumber)===id);if(!match){setError('Регистрация по этому QR-коду не найдена среди активных заявок выбранного этапа.');return}setScannedRegistrationId(match.id);setSearch(String(match.participantNumber??match.participant?.lastName??''));setScanOpen(false);setError('')};
  const passAll=async()=>{if(!pending)return;if(!window.confirm('Отметить прошедшими все ожидающие инспекции на этом этапе?'))return;setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/pass-pending',{});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};
  return <>
   <div className="inspection-summary">
@@ -644,7 +645,7 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
   <div className="inspection-toolbar">
    <div className="search-box"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по №, участнику, автомобилю, госномеру или классу"/></div>
    <select className="filter-select" value={filter} onChange={e=>setFilter(e.target.value as any)}><option value="ALL">Все</option><option value="PASSED">Прошли</option><option value="NOT_PASSED">Не прошли</option></select>
-   <button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={15}/>Обновить</button>
+   <button className="secondary-button compact" onClick={()=>setScanOpen(true)}><Search size={15}/>Сканировать QR</button><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={15}/>Обновить</button>
    {!readOnly&&pending>0&&<button className="primary-button compact" onClick={()=>void passAll()}><Check size={14}/>Прошли все ({pending})</button>}
    {!readOnly&&<button className="primary-button compact" onClick={()=>setRegisterOpen(true)}><Plus size={14}/>Зарегистрировать участника</button>}
    {!readOnly&&pending>0&&<button className="danger-button compact" onClick={async()=>{const note=window.prompt('Причина для всех ожидающих инспекций:','Не прошёл общую техническую проверку перед въездом');if(!note?.trim())return;setLoading(true);try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/fail-pending',{notes:note.trim()});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}}}><X size={14}/>Не прошли все ({pending})</button>}
@@ -653,10 +654,28 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
   {readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Инспекции доступны только для просмотра — изменения отключены.</span></div>}
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
   <div className="panel table-wrap">
-   {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load} readOnly={readOnly} autoOpen={r.id===initialRegistrationId}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
+   {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load} readOnly={readOnly} autoOpen={r.id===initialRegistrationId||r.id===scannedRegistrationId}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
   </div>
+  {scanOpen&&<QrInspectionScanner onDetected={handleQrScan} onClose={()=>setScanOpen(false)}/>}
   {registerOpen&&<InspectionRegistrationModal stageId={stageId} onClose={()=>setRegisterOpen(false)} onSaved={async()=>{setRegisterOpen(false);await load()}}/>}
  </>;
+}
+
+function QrInspectionScanner({onDetected,onClose}:{onDetected:(value:string)=>void;onClose:()=>void}){
+ const videoRef=useRef<HTMLVideoElement|null>(null);
+ const[manualValue,setManualValue]=useState('');
+ const[scannerError,setScannerError]=useState('');
+ useEffect(()=>{
+  let active=true,stream:MediaStream|null=null,timer:number|undefined;
+  const Detector=(window as any).BarcodeDetector;
+  if(!Detector){setScannerError('Автоматическое сканирование QR не поддерживается этим браузером. Вставьте значение QR-кода вручную ниже.');return()=>{active=false}}
+  if(!navigator.mediaDevices?.getUserMedia){setScannerError('Камера недоступна в этом браузере. Вставьте значение QR-кода вручную ниже.');return()=>{active=false}}
+  const detector=new Detector({formats:['qr_code']});
+  const scan=async()=>{if(!active||!videoRef.current||videoRef.current.readyState<2){if(active)timer=window.setTimeout(scan,250);return}try{const codes=await detector.detect(videoRef.current);const value=codes?.[0]?.rawValue;if(value){onDetected(value);return}}catch{setScannerError('Не удалось прочитать QR-код. Попробуйте улучшить освещение или введите значение вручную.')}if(active)timer=window.setTimeout(scan,250)};
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}).then(media=>{if(!active){media.getTracks().forEach(track=>track.stop());return}stream=media;if(videoRef.current){videoRef.current.srcObject=media;void videoRef.current.play().then(()=>{if(active)void scan()}).catch(()=>setScannerError('Не удалось запустить камеру. Введите значение QR-кода вручную.'))}}).catch(()=>setScannerError('Нет доступа к камере. Проверьте разрешение браузера или введите значение QR-кода вручную.'));
+  return()=>{active=false;if(timer!==undefined)window.clearTimeout(timer);stream?.getTracks().forEach(track=>track.stop());if(videoRef.current)videoRef.current.srcObject=null};
+ },[onDetected]);
+ return <Modal title="Сканирование QR-кода участника" onClose={onClose}><div className="form modal-form"><p className="muted">Наведите камеру на QR-код регистрации. Также можно вставить ID регистрации, номер участника или ссылку с параметром registrationId.</p><video ref={videoRef} playsInline muted style={{width:'100%',maxHeight:360,objectFit:'cover',background:'#09090b',borderRadius:12}}/>{scannerError&&<div className="notice"><AlertTriangle size={16}/><span>{scannerError}</span></div>}<label>Значение QR-кода<input value={manualValue} onChange={e=>setManualValue(e.target.value)} placeholder="ID регистрации, номер участника или ссылка"/></label><div className="resolution-footer"><button type="button" className="secondary-button" onClick={onClose}>Отмена</button><button type="button" className="primary-button" disabled={!manualValue.trim()} onClick={()=>onDetected(manualValue.trim())}>Найти регистрацию</button></div></div></Modal>;
 }
 
 function InspectionRegistrationModal({stageId,onClose,onSaved}:{stageId:string;onClose:()=>void;onSaved:()=>Promise<void>}){
