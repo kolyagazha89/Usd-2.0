@@ -143,6 +143,17 @@ export async function uploadSiteAsset(assetKey:string,file:File){
 }
 export async function getPublicSiteAsset(assetKey:string){return {success:true,url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`};}
 
+export async function uploadEntityPhoto(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOTO',targetId:string,file:File){
+  const allowed=['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type))throw new Error('Разрешены только JPG, PNG и WebP');
+  if(file.size<=0||file.size>10*1024*1024)throw new Error('Размер фотографии должен быть от 1 байта до 10 МБ');
+  const prepared=await apiPost<any>('/media/prepare',{targetType,targetId,contentType:file.type});
+  if(!prepared?.uploadToken)throw new Error('Сервер не подготовил загрузку фотографии');
+  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  return {photoUrl:prepared.photoUrl??null,url:await getMediaUrl(targetType,targetId)};
+}
+
+
 export async function uploadRulesDocx(targetId:string,file:File){
   const contentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if(file.size<=0||file.size>10*1024*1024) throw new Error('Размер DOCX должен быть от 1 байта до 10 МБ');
