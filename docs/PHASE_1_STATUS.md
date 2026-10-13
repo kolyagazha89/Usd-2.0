@@ -171,4 +171,4 @@ Code is on main; production verification is not yet complete. Confirm the newest
 
 ## Timeweb release gate — 2026-10-13
 
-The final hosting target is a Timeweb VPS. Deployment scaffolding is under review in [PR #44](https://github.com/kolyagazha89/Usd-2.0/pull/44); it is not a live deployment. Keep the current Tilda root and DNS records unchanged. Do not start the production API until the database backup has been verified and the existing production data/media migration plan is ready. Live acceptance remains pending until the VPS, object storage, HTTPS domains and end-to-end smoke tests are verified.
+The final hosting target is a Timeweb VPS. Deployment scaffolding in [PR #44](https://github.com/kolyagazha89/Usd-2.0/pull/44) is merged, and frontend/backend CI plus Docker Compose/image-build validation passed. It is not a live deployment. Keep the current Tilda root and DNS records unchanged. Do not start the production API until the database backup has been verified and the existing production data/media migration plan is ready. Live acceptance remains pending until the VPS, object storage, HTTPS domains and end-to-end smoke tests are verified.
