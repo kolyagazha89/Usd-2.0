@@ -28,6 +28,7 @@ const nav=[
  {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
  {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
  {section:'Справочники',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
+ {section:'Контент',label:'Новости',path:'/admin/news',icon:FileClock,roles:['ADMIN']},
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
  {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
@@ -274,6 +275,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage/>;
+  if(path.startsWith('/admin/news'))return <NewsPage/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components"/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
@@ -1185,6 +1187,30 @@ function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:
   <label>Фото / логотип<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setV({...v,file:e.target.files?.[0]??null})}/></label>
   {v.photoUrl&&<img className="partner-photo-preview" src={v.photoUrl} alt=""/>}
   <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
+ </form>
+}
+function NewsPage(){
+ const[news,setNews]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[modalError,setModalError]=useState('');
+ const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setNews(Array.isArray(r?.settings?.news)?r.settings.news:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить новости')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ const save=async(v:any)=>{setSaving(true);setModalError('');try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.news)?r.settings.news:[];const item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),title:String(v.title??'').trim(),excerpt:String(v.excerpt??'').trim(),body:String(v.body??'').trim(),publishedAt:v.publishedAt||new Date().toISOString().slice(0,10),isPublished:v.isPublished!==false,sortOrder:Number(v.sortOrder??0),photoUrl:modal?.photoUrl??null};if(!item.title)throw new Error('Укажите заголовок новости');if(v.file instanceof File){const uploaded=await uploadSiteAsset('news-'+item.id,v.file);item.photoUrl=uploaded.publicPath}const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];await updateSiteSettings({...r.settings,news:next});setModal(null);await load()}catch(e){setModalError(e instanceof Error?e.message:'Не удалось сохранить новость')}finally{setSaving(false)}};
+ const hide=async(id:string)=>{if(!confirm('Скрыть новость на сайте?'))return;try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.news)?r.settings.news:[];await updateSiteSettings({...r.settings,news:current.map((x:any)=>x.id===id?{...x,isPublished:false}:x)});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось скрыть новость')}};
+ return <PageFrame title="Новости" subtitle="Публикации USD для главной страницы" action={<button className="primary-button compact" onClick={()=>setModal({isPublished:true,publishedAt:new Date().toISOString().slice(0,10),sortOrder:0})}><Plus size={15}/>Добавить новость</button>}>
+ {error&&<ErrorPanel message={error} retry={load}/>}<div className="panel table-wrap">{loading?<LoadingPage small/>:news.length?<table className="data-table"><thead><tr><th>Дата</th><th>Заголовок</th><th>Статус</th><th/></tr></thead><tbody>{[...news].sort((a:any,b:any)=>String(b.publishedAt??'').localeCompare(String(a.publishedAt??''))).map((n:any)=><tr key={n.id}><td data-label="Дата">{n.publishedAt||'—'}</td><td data-label="Заголовок"><strong>{n.title}</strong><div className="muted">{n.excerpt||''}</div></td><td data-label="Статус"><span className={'badge '+(n.isPublished?'good':'')}>{n.isPublished?'Опубликована':'Скрыта'}</span></td><td data-label="Действия" className="row-actions"><button className="icon-button" onClick={()=>setModal(n)} title="Изменить">✎</button>{n.isPublished&&<button className="secondary-button compact" onClick={()=>void hide(n.id)}>Скрыть</button>}</td></tr>)}</tbody></table>:<Empty text="Новостей пока нет"/>}</div>
+ {modal&&<Modal title={modal.id?'Редактирование новости':'Новая новость'} onClose={()=>{setModal(null);setModalError('')}}>{modalError&&<div className="form-error modal-form-error"><AlertTriangle size={16}/><span>{modalError}</span></div>}<NewsForm value={modal} saving={saving} onSubmit={save}/></Modal>}
+ </PageFrame>
+}
+function NewsForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:(v:any)=>Promise<void>}){
+ const[v,setV]=useState<any>({...value});
+ return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
+ <label>Заголовок<input value={v.title??''} onChange={e=>setV({...v,title:e.target.value})} required maxLength={180}/></label>
+ <label>Краткое описание<textarea value={v.excerpt??''} onChange={e=>setV({...v,excerpt:e.target.value})} rows={2} maxLength={500}/></label>
+ <label>Текст новости<textarea value={v.body??''} onChange={e=>setV({...v,body:e.target.value})} rows={6}/></label>
+ <div className="form-grid-2"><label>Дата публикации<input type="date" value={String(v.publishedAt??'').slice(0,10)} onChange={e=>setV({...v,publishedAt:e.target.value})} required/></label><label>Порядок<input type="number" value={v.sortOrder??0} onChange={e=>setV({...v,sortOrder:Number(e.target.value)})}/></label></div>
+ <label>Обложка<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setV({...v,file:e.target.files?.[0]??null})}/></label>
+ {v.photoUrl&&<img className="partner-photo-preview" src={v.photoUrl} alt="Обложка новости"/>}
+ <label className="checkbox-row"><input type="checkbox" checked={v.isPublished!==false} onChange={e=>setV({...v,isPublished:e.target.checked})}/>Публиковать на сайте</label>
+ <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить новость'}</button>
  </form>
 }
 function SiteSettingsPage(){
