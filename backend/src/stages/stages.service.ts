@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
+import { SiteSettingsService } from '../site-settings/site-settings.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 
@@ -9,6 +10,7 @@ export class StagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    @Optional() private readonly siteSettings?: SiteSettingsService,
   ) {}
 
   async findAll() {
@@ -20,11 +22,12 @@ export class StagesService {
   }
 
   async findPublished() {
-    return this.prisma.stage.findMany({
+    const stages = await this.prisma.stage.findMany({
       where: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
       orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
       include: { season: true },
     });
+    return stages.map(({ rulesSnapshot: _rulesSnapshot, ...stage }: any) => stage);
   }
 
   async findPublishedOne(id: string) {
@@ -57,6 +60,11 @@ export class StagesService {
     });
     if (!stage) throw new NotFoundException('Этап не найден');
     return stage;
+  }
+
+  private async getPublishedRulesSnapshot() {
+    if (!this.siteSettings) return null;
+    return this.siteSettings.getPublishedRulesSnapshot();
   }
 
   private validateCoordinates(latitude?: number | null, longitude?: number | null) {
@@ -110,7 +118,10 @@ export class StagesService {
       throw new BadRequestException(`Этап №${dto.stageNumber} уже существует в сезоне ${season.year}`);
     }
 
+    const status = dto.status ?? 'DRAFT';
+    const rulesSnapshot = status === 'PUBLISHED' ? await this.getPublishedRulesSnapshot() : null;
     const data = {
+      ...(rulesSnapshot ? { rulesSnapshot: rulesSnapshot as any } : {}),
       seasonId: season.id,
       stageNumber: dto.stageNumber,
       name: dto.name.trim(),
@@ -214,7 +225,10 @@ export class StagesService {
       throw new BadRequestException('Дата начала регистрации не может быть позже даты окончания');
     }
 
+    const shouldCaptureRules = dto.status === 'PUBLISHED' && !stage.rulesSnapshot;
+    const rulesSnapshot = shouldCaptureRules ? await this.getPublishedRulesSnapshot() : null;
     const data: any = {
+      ...(rulesSnapshot ? { rulesSnapshot: rulesSnapshot as any } : {}),
       ...(dto.stageNumber !== undefined ? { stageNumber: dto.stageNumber } : {}),
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
