@@ -2901,3 +2901,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-news-card time{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#ff7884;font-weight:800}
 .public-news-card h3{font-size:20px;line-height:1.35;margin:10px 0 0}
 .public-news-card p{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+
+
+.public-site-footer .public-footer-identity{display:flex;flex-direction:column;gap:8px;min-width:0}
+.public-site-footer .public-footer-identity small{font-size:11px;color:#777780;line-height:1.6}
+.public-site-footer .public-footer-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12px}
+.public-site-footer .public-footer-links a{color:#c7c7ce;text-decoration:none}
+.public-site-footer .public-footer-links a:hover{color:#fff;text-decoration:underline}
+@media(max-width:640px){.public-site-footer .public-footer-links{align-items:flex-start;flex-direction:column;gap:10px}}
