@@ -348,15 +348,8 @@ export class MediaService {
       }
     }
 
-    // Delete older versions first and the latest last, so a failed S3 deletion
-    // leaves the currently displayed file available.
-    for (const upload of uploads) {
-      const response = await fetch(this.presignedUrl('DELETE', upload.objectKey, null, 60), { method: 'DELETE' });
-      if (!response.ok && response.status !== 404) {
-        throw new ServiceUnavailableException('Не удалось удалить файл из хранилища');
-      }
-    }
-
+    // Remove database references first. If object-store cleanup later fails,
+    // the asset is already detached from the public site/profile and can be retried safely.
     await this.prisma.$transaction(async (tx) => {
       if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
         await tx.participant.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
@@ -364,17 +357,31 @@ export class MediaService {
         await tx.car.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
       }
       await tx.mediaUpload.deleteMany({ where: { targetType, targetId: normalizedTargetId, completedAt: { not: null } } });
-      await tx.auditLog.create({
+    });
+
+    let storageCleanupPending = false;
+    for (const upload of uploads) {
+      try {
+        const response = await fetch(this.presignedUrl('DELETE', upload.objectKey, null, 60), { method: 'DELETE' });
+        if (!response.ok && response.status !== 404) storageCleanupPending = true;
+      } catch {
+        storageCleanupPending = true;
+      }
+    }
+    try {
+      await this.prisma.auditLog.create({
         data: {
           userId,
           action: 'MEDIA_ASSET_DELETED',
           entity: 'MediaUpload',
           entityId: normalizedTargetId,
-          metadata: { targetType, versionsDeleted: uploads.length },
+          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending },
         },
       });
-    });
-    return { success: true, targetType, targetId: normalizedTargetId, deletedVersions: uploads.length };
+    } catch {
+      // Media deletion should remain successful if audit storage is temporarily unavailable.
+    }
+    return { success: true, targetType, targetId: normalizedTargetId, deletedVersions: uploads.length, storageCleanupPending };
   }
 
   async getSiteAssetBuffer(targetId: string) {
