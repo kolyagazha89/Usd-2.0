@@ -2932,3 +2932,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-record-avatar{width:42px;height:42px;flex:0 0 42px;object-fit:cover;border-radius:50%;background:#25262b;border:1px solid #44454a}
 .public-record-avatar-placeholder{display:grid;place-items:center;color:#ff6572;font-weight:900;font-size:17px}
 .public-record-person-row .public-record-person{min-width:0;overflow-wrap:anywhere}
+
+.public-legal-document{max-width:860px;margin:0 auto;padding:clamp(20px,4vw,42px);border:1px solid #303035;border-radius:14px;background:#131315}
+.public-legal-text p{white-space:pre-wrap;line-height:1.8;color:#d0d0d6;margin:0 0 18px}
+.public-legal-operator{padding-top:18px;border-top:1px solid #303035;color:#aaa;font-size:12px;line-height:1.7}
+.public-footer-identity{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px}
+.public-footer-identity small{display:block;width:100%;color:#8e8e96}
+.public-footer-link-button{background:none;border:0;color:#ff6572;cursor:pointer;font:inherit;padding:0}
+.public-footer-link-button:hover{text-decoration:underline}
