@@ -295,7 +295,7 @@ export class MediaService {
     return referenced;
   }
 
-  async listSiteAssets(userId: string, role: string) {
+  async listSiteAssets(role: string) {
     if (role !== 'ADMIN') throw new ForbiddenException('Медиатека сайта доступна только администратору');
     const uploads = await this.prisma.mediaUpload.findMany({
       where: { targetType: MediaTargetType.SITE_ASSET, completedAt: { not: null } },
