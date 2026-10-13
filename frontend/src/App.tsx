@@ -179,6 +179,7 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
  const[name,setName]=useState(''),[candidates,setCandidates]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
  const[participant,setParticipant]=useState<any>(null),[cars,setCars]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]),[stages,setStages]=useState<any[]>([]);
  const[tab,setTab]=useState<'overview'|'profile'|'cars'|'registrations'>(()=>{try{const value=new URLSearchParams(location.search).get('tab');return value==='profile'||value==='cars'||value==='registrations'?value:'overview'}catch{return'overview'}}),[profile,setProfile]=useState<any>({}),[carForm,setCarForm]=useState<any|null>(null),[teamOptions,setTeamOptions]=useState<string[]>([]);
+ useEffect(()=>{try{const value=new URLSearchParams(path.split('?')[1]??'').get('tab');if(value==='profile'||value==='cars'||value==='registrations'||value==='overview')setTab(value)}catch{}},[path]);
  const[registerStage,setRegisterStage]=useState<any|null>(null),[stageClasses,setStageClasses]=useState<any[]>([]),[registerCarId,setRegisterCarId]=useState(''),[configurations,setConfigurations]=useState<any[]>([]),[registerConfigId,setRegisterConfigId]=useState(''),[registerClassIds,setRegisterClassIds]=useState<string[]>([]);
  const [saving,setSaving]=useState(false);
  const report=(e:any,fallback:string)=>setError(e instanceof Error?e.message:fallback);
