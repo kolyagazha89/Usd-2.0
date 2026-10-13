@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { MediaService } from './media.service';
 import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -56,6 +57,21 @@ export class MediaController {
     response.setHeader('Content-Length', String(media.body.length));
     response.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
     response.send(media.body);
+  }
+
+  @Roles('ADMIN')
+  @Get('site-assets')
+  listSiteAssets(@Req() request: AuthenticatedRequest) {
+    return this.mediaService.listSiteAssets(request.user.role);
+  }
+
+  @Roles('ADMIN')
+  @Delete('site-assets/:targetId')
+  deleteSiteAsset(
+    @Req() request: AuthenticatedRequest,
+    @Param('targetId') targetId: string,
+  ) {
+    return this.mediaService.deleteSiteAsset(request.user.sub, request.user.role, targetId);
   }
 
   @Put('upload')
