@@ -51,6 +51,7 @@ export class JwtAuthGuard implements CanActivate {
           isActive: true,
           participantId: true,
           customRoleId: true,
+          customRole: { select: { id: true, key: true, name: true, permissions: true } },
           emailVerifiedAt: true,
         },
       });
@@ -65,6 +66,7 @@ export class JwtAuthGuard implements CanActivate {
         role: user.role,
         participantId: user.participantId ?? undefined,
         customRoleId: user.customRoleId ?? undefined,
+        customRole: user.customRole ?? null,
       };
       return true;
     } catch (error) {
