@@ -85,6 +85,12 @@ export class RolesGuard implements CanActivate {
     if (request.user.role === 'ADMIN') return true;
 
     if (request.user.customRoleId) {
+      // User/role administration stays reserved to the permanent ADMIN role.
+      // A custom permission matrix must never grant the ability to assign ADMIN
+      // or manage the role system itself.
+      if (context.getClass().name === 'AuthController' && request.path.startsWith('/auth/admin/')) {
+        throw new ForbiddenException('Управление пользователями и ролями доступно только ADMIN');
+      }
       const module = controllerModule(context);
       const action = actionFor(request);
       // A judge may enter results, but cannot edit or delete them, even if a
