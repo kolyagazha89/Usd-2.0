@@ -100,9 +100,9 @@ export class MediaService {
     return url.toString();
   }
 
-  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     if (targetType === MediaTargetType.SITE_ASSET) {
-      if (role !== 'ADMIN') throw new ForbiddenException('Только администратор может управлять файлами сайта');
+      if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на управление файлами сайта');
       return;
     }
     if (role === 'ADMIN') return;
@@ -115,9 +115,9 @@ export class MediaService {
     if (!car) throw new ForbiddenException('Нет доступа к автомобилю');
   }
 
-  async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string) {
+  async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string, canManageSiteAssets = false) {
     if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
     const token = crypto.randomBytes(32).toString('hex');
     const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
     const key = `usd/${prefix}/${targetId}/${crypto.randomUUID()}`;
@@ -185,8 +185,8 @@ export class MediaService {
     return { body, contentType: upload.contentType };
   }
 
-  async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+  async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
 
     const upload = await this.prisma.mediaUpload.findFirst({
       where: {
@@ -295,8 +295,8 @@ export class MediaService {
     return referenced;
   }
 
-  async listMediaLibrary(role: string) {
-    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека доступна только администратору');
+  async listMediaLibrary(role: string, canManageSiteAssets = false) {
+    if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на просмотр медиатеки');
     const uploads = await this.prisma.mediaUpload.findMany({
       where: { completedAt: { not: null } },
       orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
@@ -329,8 +329,8 @@ export class MediaService {
     };
   }
 
-  async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
-    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека доступна только администратору');
+  async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на удаление медиа');
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     const normalizedTargetId = targetId.trim();
     if (!normalizedTargetId || normalizedTargetId.length > 200) throw new BadRequestException('Некорректный идентификатор медиа');
@@ -398,7 +398,7 @@ export class MediaService {
     return bytes;
   }
 
-  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string) {
+  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string, canManageSiteAssets = false) {
     if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
     }
@@ -408,7 +408,7 @@ export class MediaService {
     if (!upload || (upload.userId !== userId && role !== 'ADMIN') || upload.completedAt || upload.expiresAt < new Date()) {
       throw new BadRequestException('Недействительная загрузка');
     }
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
     if (upload.contentType !== contentType.toLowerCase()) {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
@@ -424,10 +424,10 @@ export class MediaService {
     return this.complete(userId, role, uploadToken);
   }
 
-  async complete(userId: string, role: string, uploadToken: string) {
+  async complete(userId: string, role: string, uploadToken: string, canManageSiteAssets = false) {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
     const object = await this.headObject(upload.objectKey);
     if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
