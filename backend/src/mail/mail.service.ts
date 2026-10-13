@@ -19,7 +19,7 @@ export class MailService {
     (process.env.NODE_ENV === 'production'
       ? 'https://app.usd-russia.ru'
       : 'http://localhost:5173')
-  ).replace(/\\/+$/, '');
+  ).replace(/\/+$/, '');
 
   private getTransporter(): nodemailer.Transporter {
     const host = process.env.SMTP_HOST?.trim();
