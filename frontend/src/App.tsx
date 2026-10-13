@@ -6,7 +6,7 @@ import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,getPublicEntityPhotoUrl,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -183,12 +183,13 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
   const participant=r.participant||r.result?.registration?.participant;
   const name=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
   const car=[r.car?.brand,r.car?.model].filter(Boolean).join(' ')||[r.result?.registration?.car?.brand,r.result?.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
+  const photoUrl=participant?.id&&participant?.isPublic!==false&&participant?.photoUrl?getPublicEntityPhotoUrl('PARTICIPANT_PHOTO',participant.id):'';
   return <article className="public-record-card" key={r.id||i}>
    <div className="public-record-overline"><span>USD / RECORD</span><span className="public-record-index">{String(i+1).padStart(2,'0')}</span></div>
    <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit,r.class||r.result?.registrationClass?.class)}</small></div>
    <div className="public-record-class">{r.class?.name||r.className||'Спортивный класс'}</div>
    <div className="public-record-divider"/>
-   <strong className="public-record-person">{name}</strong><span className="public-record-car">{car}</span>
+   <div className="public-record-person-row">{photoUrl?<img className="public-record-avatar" src={photoUrl} alt={name} loading="lazy"/>:<span className="public-record-avatar public-record-avatar-placeholder">{String(name||'USD').slice(0,1).toUpperCase()}</span>}<strong className="public-record-person">{name}</strong></div><span className="public-record-car">{car}</span>
    <span className="public-record-stage">{r.stage?.name||r.result?.registration?.stage?.name||'История USD'}</span>
   </article>
  })}</div>;
