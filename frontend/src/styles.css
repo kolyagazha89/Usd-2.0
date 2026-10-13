@@ -2851,3 +2851,17 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .configurations-page .config-card{padding:20px;border:1px solid #303036;border-radius:15px;background:#151518}
 .configurations-page .config-create-button{margin-top:0}
 @media(max-width:700px){.configurations-page-shell .participant-portal-main{padding:18px 14px 42px}.configurations-page-top{padding:22px 19px;border-radius:16px}.configurations-page .config-card{padding:15px}.configurations-page .config-card-actions{flex-wrap:wrap}.configurations-page .config-modal-hero{padding:17px;gap:12px}}
+
+
+/* Configuration workspace: full-page editing/details, no blocking modal overlays. */
+.configuration-editor-page,
+.configuration-details-page{width:100%;max-width:1120px;margin:0 auto;padding:clamp(16px,3vw,32px);display:flex;flex-direction:column;gap:20px;min-width:0}
+.configuration-subpage-header{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:clamp(18px,3vw,30px);border:1px solid var(--border,#2b2b2b);border-radius:20px;background:linear-gradient(135deg,rgba(225,29,46,.10),rgba(255,255,255,.025));}
+.configuration-subpage-header h1{margin:0;font-size:clamp(26px,4vw,40px);line-height:1.1;letter-spacing:-.035em}
+.configuration-subpage-header p{margin:0;color:var(--muted,#a1a1aa);max-width:720px;line-height:1.6}
+.configuration-editor-page>.form-error{margin:0}
+.configuration-editor-page>.config-editor{width:100%;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;gap:18px}
+.configuration-editor-page .config-editor-actions{position:sticky;bottom:12px;z-index:2;display:flex;justify-content:flex-end;padding:12px;border:1px solid var(--border,#2b2b2b);border-radius:16px;background:rgba(18,18,20,.94);backdrop-filter:blur(14px)}
+.configuration-details-page .config-details{width:100%;max-width:none}
+.configuration-page-actions{display:flex;justify-content:flex-end;gap:12px;padding-top:4px}
+@media(max-width:640px){.configuration-editor-page,.configuration-details-page{padding:12px;gap:14px}.configuration-subpage-header{padding:18px;border-radius:16px}.configuration-editor-page .config-editor-actions{bottom:8px}.configuration-page-actions .primary-button{width:100%;justify-content:center}}
