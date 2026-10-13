@@ -6,7 +6,7 @@ import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
+import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicMediaFileUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,type Dashboard,type Role,type User} from './api';
 
 const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -187,7 +187,7 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
    <div className="public-record-divider"/>
    <div className="public-record-person-row" style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
     {participant?.photoUrl
-      ? <img src={participant.photoUrl} alt={name} loading="lazy" style={{width:42,height:42,flex:'0 0 42px',objectFit:'cover',borderRadius:10,background:'#242428'}}/>
+      ? <img src={getPublicMediaFileUrl('PARTICIPANT_PHOTO',participant.id)} alt={name} loading="lazy" style={{width:42,height:42,flex:'0 0 42px',objectFit:'cover',borderRadius:10,background:'#242428'}} onError={e=>{e.currentTarget.style.display='none'}}/>
       : <div aria-hidden="true" style={{width:42,height:42,flex:'0 0 42px',display:'grid',placeItems:'center',borderRadius:10,background:'#29292e',color:'#ff6572',fontWeight:900}}>{String(participant?.firstName||participant?.lastName||'U').slice(0,1).toUpperCase()}</div>}
     <strong className="public-record-person">{name}</strong>
    </div>
