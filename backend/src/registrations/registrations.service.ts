@@ -75,8 +75,10 @@ export class RegistrationsService {
   };
 
 
-  private isBassRaceClass(className: string): boolean {
-    return className.trim().toLowerCase().startsWith('bassrace');
+  private isBassRaceClass(className: string, directionName = ''): boolean {
+    const normalize = (value: string) => value.trim().toLowerCase().replace(/[\s_-]/g, '');
+    return normalize(className).startsWith('bassrace') ||
+      normalize(directionName).includes('bassrace');
   }
 
   private async getActiveDisqualifications(
@@ -278,9 +280,9 @@ export class RegistrationsService {
       );
     }
 
-    if (classIds.length > 5) {
+    if (classIds.length > 32) {
       throw new BadRequestException(
-        'В одной регистрации можно выбрать не более 5 классов',
+        'В одной регистрации нельзя выбрать более 32 классов',
       );
     }
 
@@ -503,6 +505,7 @@ export class RegistrationsService {
                 select: {
                   directionId: true,
                   name: true,
+                  direction: { select: { name: true } },
                 },
               },
             },
@@ -523,7 +526,7 @@ export class RegistrationsService {
         // одного направления: каждое такое выступление
         // получает собственный зарезервированный номер.
         const nonBassRaceDirectionIds = stageClasses
-          .filter((item) => !this.isBassRaceClass(item.class.name))
+          .filter((item) => !this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.class.directionId);
 
         if (
@@ -622,7 +625,7 @@ export class RegistrationsService {
 
         const participantNumber = (lastNumber?.number ?? 0) + 1;
         const bassRaceClassIds = stageClasses
-          .filter((item) => this.isBassRaceClass(item.class.name))
+          .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.classId);
 
         const reservedNumbers = Array.from(
@@ -684,7 +687,7 @@ export class RegistrationsService {
 
         for (const classId of classIds) {
           const stageClass = stageClasses.find((item) => item.classId === classId)!;
-          const number = this.isBassRaceClass(stageClass.class.name)
+          const number = this.isBassRaceClass(stageClass.class.name, stageClass.class.direction?.name)
             ? createdNumbers[bassRaceIndex++] ?? primaryNumber
             : primaryNumber;
           numberByClassId.set(classId, number.id);

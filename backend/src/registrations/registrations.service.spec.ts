@@ -197,6 +197,46 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
 
+  it('allows all selected BassRace classes and reserves a distinct number for each', async () => {
+    const tx = baseTx({
+      stageClass: {
+        findMany: jest.fn().mockResolvedValue([
+          { classId: 'spl-1', participantLimit: null, class: { directionId: 'spl', name: 'SPL 1x2', direction: { name: 'SPL' } } },
+          { classId: 'br-129', participantLimit: null, class: { directionId: 'br', name: 'BassRace 129.9', direction: { name: 'BassRace' } } },
+          { classId: 'br-139', participantLimit: null, class: { directionId: 'br', name: 'BassRace 139.9', direction: { name: 'BassRace' } } },
+        ]),
+      },
+      registrationNumber: {
+        findFirst: jest.fn().mockResolvedValue({ number: 10 }),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'number-11', number: 11, isPrimary: true },
+          { id: 'number-12', number: 12, isPrimary: false },
+        ]),
+      },
+    });
+    setupTransaction(tx);
+
+    await service.create(participantRequest, {
+      ...requestBody,
+      classIds: ['spl-1', 'br-129', 'br-139'],
+    });
+
+    expect(tx.registrationNumber.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({ number: 11, isPrimary: true, registrationId: 'registration-1' }),
+        expect.objectContaining({ number: 12, isPrimary: false, registrationId: 'registration-1' }),
+      ],
+    });
+    expect(tx.registrationClass.createMany).toHaveBeenCalledWith({
+      data: [
+        { registrationId: 'registration-1', classId: 'spl-1', numberId: 'number-11' },
+        { registrationId: 'registration-1', classId: 'br-129', numberId: 'number-11' },
+        { registrationId: 'registration-1', classId: 'br-139', numberId: 'number-12' },
+      ],
+    });
+  });
+
   it('rejects two classes from the same direction', async () => {
     const tx = baseTx({
       stageClass: {
