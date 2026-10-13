@@ -60,18 +60,19 @@ export class MediaController {
   }
 
   @Roles('ADMIN')
-  @Get('site-assets')
-  listSiteAssets(@Req() request: AuthenticatedRequest) {
-    return this.mediaService.listSiteAssets(request.user.role);
+  @Get('library')
+  listMediaLibrary(@Req() request: AuthenticatedRequest) {
+    return this.mediaService.listMediaLibrary(request.user.role);
   }
 
   @Roles('ADMIN')
-  @Delete('site-assets/:targetId')
-  deleteSiteAsset(
+  @Delete('library/:targetType/:targetId')
+  deleteMediaAsset(
     @Req() request: AuthenticatedRequest,
+    @Param('targetType') targetType: MediaTargetType,
     @Param('targetId') targetId: string,
   ) {
-    return this.mediaService.deleteSiteAsset(request.user.sub, request.user.role, targetId);
+    return this.mediaService.deleteMediaAsset(request.user.sub, request.user.role, targetType, targetId);
   }
 
   @Put('upload')
