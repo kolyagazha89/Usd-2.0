@@ -119,6 +119,14 @@ export async function applyAssistantRequest(id:string){return apiPatch<any>('/as
 export async function getAssistantFunctions(){return apiGet<any>('/assistant/functions');}
 export async function executeAssistantFunction(code:string,body:any={}){return apiPost<any>('/assistant/functions/'+encodeURIComponent(code)+'/execute',body);}
 
+export async function uploadParticipantMedia(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOTO',targetId:string,file:File){
+  const allowed=['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type)) throw new Error('Разрешены изображения JPG, PNG и WebP');
+  if(file.size<=0||file.size>10*1024*1024) throw new Error('Размер изображения должен быть от 1 байта до 10 МБ');
+  const prepared=await apiPost<any>('/media/prepare',{targetType,targetId,contentType:file.type});
+  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  return getMediaUrl(targetType,targetId);
+}
 export async function uploadSiteAsset(assetKey:string,file:File){
   if(!file.type) throw new Error('Не удалось определить тип изображения');
   if(file.size<=0) throw new Error('Файл пустой');
