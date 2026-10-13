@@ -2834,3 +2834,20 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .registration-admin-class-group:first-child{border-top:0;padding-top:0}
 .registration-admin-class-group>strong{display:block;margin:0 0 7px;color:var(--text,#f1f1f4);font-size:12px;letter-spacing:.02em}
 .registration-admin-class-group .checkbox-row:has(input:disabled){opacity:.45}
+
+
+/* Dedicated participant car-configuration page */
+.configurations-page-shell{min-height:100vh;background:#0b0b0d;color:#f7f7f8}
+.configurations-page-shell .participant-portal-header{position:sticky;top:0;z-index:20;background:rgba(12,12,14,.92);backdrop-filter:blur(18px);border-bottom:1px solid #29292e}
+.configurations-page-shell .participant-portal-main{max-width:1120px;margin:0 auto;padding:28px 24px 72px}
+.configurations-page-top{margin-bottom:24px;padding:28px 32px;border:1px solid #323237;border-radius:20px;background:radial-gradient(ellipse at 90% 0%,rgba(223,45,54,.17),transparent 42%),linear-gradient(125deg,#1a1a1e,#111113 70%)}
+.configurations-page-top .registration-back-link{margin-bottom:12px}
+.configurations-page-top>.eyebrow{display:block;color:#f0646c;letter-spacing:.15em;font-size:10px;font-weight:850}
+.configurations-page-top h1{margin:10px 0;font-size:clamp(27px,4vw,38px);letter-spacing:-.04em;color:#fff}
+.configurations-page-top p{max-width:680px;margin:0;color:#b6b6bf;font-size:14px;line-height:1.7}
+.configurations-page .config-modal{display:grid;gap:18px}
+.configurations-page .config-modal-hero{padding:24px;border:1px solid #2e2e34;border-radius:17px;background:#151518}
+.configurations-page .config-list{display:grid;gap:12px}
+.configurations-page .config-card{padding:20px;border:1px solid #303036;border-radius:15px;background:#151518}
+.configurations-page .config-create-button{margin-top:0}
+@media(max-width:700px){.configurations-page-shell .participant-portal-main{padding:18px 14px 42px}.configurations-page-top{padding:22px 19px;border-radius:16px}.configurations-page .config-card{padding:15px}.configurations-page .config-card-actions{flex-wrap:wrap}.configurations-page .config-modal-hero{padding:17px;gap:12px}}

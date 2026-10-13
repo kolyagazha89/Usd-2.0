@@ -13,7 +13,7 @@ export class CreateRegistrationDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(5)
+  @ArrayMaxSize(32)
   @IsUUID('4', { each: true })
   classIds!: string[];
 
