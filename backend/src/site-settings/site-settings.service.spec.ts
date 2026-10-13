@@ -18,6 +18,14 @@ describe('SiteSettingsService.getPublic', () => {
             rulesText: 'Официальные правила',
             price: 2000,
           },
+          news: [
+            { id: 'draft', title: 'Черновик', isPublished: false },
+            { id: 'public', title: 'Опубликовано', isPublished: true },
+          ],
+          partners: [
+            { id: 'hidden', name: 'Скрытый', isActive: false },
+            { id: 'active', name: 'Активный', isActive: true },
+          ],
         }),
       },
     } as unknown as PrismaService;
@@ -34,8 +42,13 @@ describe('SiteSettingsService.getPublic', () => {
       consentUrl: '',
       termsUrl: '',
       rulesUrl: 'https://example.test/rules',
+      privacyText: '',
+      consentText: '',
+      termsText: '',
     });
     expect(response.settings.legal).not.toHaveProperty('internalNote');
+    expect(response.settings.news).toEqual([{ id: 'public', title: 'Опубликовано', isPublished: true }]);
+    expect(response.settings.partners).toEqual([{ id: 'active', name: 'Активный', isActive: true }]);
     expect(response.settings.registration).toMatchObject({
       rulesText: 'Официальные правила',
       price: 2000,

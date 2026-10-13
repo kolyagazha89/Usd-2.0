@@ -197,6 +197,37 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
 
+  it('allows the same participant to register a different car on the same stage', async () => {
+    const tx = baseTx({
+      car: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'car-2',
+          participantId: 'participant-1',
+          isActive: true,
+        }),
+      },
+      registration: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
+      },
+    });
+    setupTransaction(tx);
+
+    await expect(
+      service.create(participantRequest, {
+        ...requestBody,
+        carId: 'car-2',
+      }),
+    ).resolves.toEqual({ id: 'registration-car-2' });
+
+    expect(tx.registration.findUnique).toHaveBeenCalledWith({
+      where: { stageId_carId: { stageId: 'stage-1', carId: 'car-2' } },
+    });
+    expect(tx.registration.create).toHaveBeenCalled();
+  });
+
   it('allows more than five selected classes when multiple BassRace classes are included', async () => {
     const bassRaceClasses = [
       { classId: 'br-129', name: 'BassRace 129.9' },

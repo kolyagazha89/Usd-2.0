@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsNotEmpty,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   MaxLength,
 } from 'class-validator';
@@ -38,7 +39,7 @@ export class CreateParticipantDto {
   team?: string | null;
 
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber(undefined, { message: 'Введите корректный международный номер телефона с кодом страны' })
   @MaxLength(40)
   phone?: string | null;
 
@@ -80,7 +81,7 @@ export class UpdateParticipantDto {
   team?: string | null;
 
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber(undefined, { message: 'Введите корректный международный номер телефона с кодом страны' })
   @MaxLength(40)
   phone?: string | null;
 

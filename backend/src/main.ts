@@ -105,7 +105,7 @@ async function bootstrap() {
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader(
       'Permissions-Policy',
-      'camera=(), microphone=(), geolocation=()',
+      'camera=(self), microphone=(), geolocation=()',
     );
     response.setHeader(
       'Content-Security-Policy',
