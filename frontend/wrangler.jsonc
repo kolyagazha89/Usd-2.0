@@ -7,11 +7,7 @@
   },
   "routes": [
     {
-      "pattern": "usd-russia.ru",
-      "custom_domain": true
-    },
-    {
-      "pattern": "www.usd-russia.ru",
+      "pattern": "app.usd-russia.ru",
       "custom_domain": true
     }
   ],
