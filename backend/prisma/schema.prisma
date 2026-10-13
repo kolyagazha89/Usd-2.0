@@ -18,6 +18,7 @@ model User {
   createdAt                DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt                DateTime                 @updatedAt @db.Timestamptz(3)
   emailVerifiedAt          DateTime?                @db.Timestamptz(3)
+  lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
   auditLogs                AuditLog[]
   disqualificationsIssued  Disqualification[]       @relation("DisqualificationIssuedBy")
