@@ -2872,3 +2872,12 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-record-avatar{width:44px;height:44px;flex:0 0 44px;object-fit:cover;border-radius:50%;border:1px solid #3b3b42;background:#1a1a1e}
 .public-record-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#f5f5f6;font-size:12px;font-weight:850;letter-spacing:.04em}
 .public-record-person-row .public-record-person{min-width:0;overflow-wrap:anywhere}
+
+
+/* Event details: story poster and information use separate columns */
+.public-stage-detail-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px, min(36%, 390px));align-items:start;gap:24px}
+.public-stage-detail-card-top{grid-column:1/-1}
+.public-stage-detail-copy{grid-column:1;min-width:0}
+.public-stage-detail-poster{grid-column:2;grid-row:2;display:flex;justify-content:center;align-items:flex-start;min-width:0}
+.public-stage-detail-poster img{display:block;width:100%;max-width:390px;max-height:80vh;aspect-ratio:9/16;object-fit:contain;background:#090a0b;border:1px solid #303035;border-radius:12px}
+@media(max-width:760px){.public-stage-detail-card{grid-template-columns:minmax(0,1fr);gap:18px}.public-stage-detail-card-top,.public-stage-detail-copy,.public-stage-detail-poster{grid-column:1;grid-row:auto}.public-stage-detail-poster img{max-width:320px;max-height:none}}
