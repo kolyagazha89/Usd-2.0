@@ -85,11 +85,6 @@ export class RolesGuard implements CanActivate {
     if (request.user.role === 'ADMIN') return true;
 
     if (request.user.customRoleId) {
-      // The unified site media library is intentionally ADMIN-only. Custom media
-      // permissions still apply to permitted participant/car media endpoints.
-      if (context.getClass().name === 'MediaController' && request.path.startsWith('/media/library')) {
-        throw new ForbiddenException('Медиатека сайта доступна только ADMIN');
-      }
       // User/role administration stays reserved to the permanent ADMIN role.
       // A custom permission matrix must never grant the ability to assign ADMIN
       // or manage the role system itself.
