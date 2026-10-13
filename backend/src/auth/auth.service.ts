@@ -288,6 +288,9 @@ export class AuthService {
         where: {
           email: normalizedEmail,
         },
+        include: {
+          customRole: { select: { id: true, key: true, name: true, permissions: true } },
+        },
       });
 
     if (
