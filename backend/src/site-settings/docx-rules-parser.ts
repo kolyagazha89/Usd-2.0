@@ -22,6 +22,8 @@ function readZipEntry(buffer: Buffer, wanted: string): Buffer {
     if (offset + 46 > buffer.length || buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('Повреждён каталог DOCX');
     const method = buffer.readUInt16LE(offset + 10);
     const compressedSize = buffer.readUInt32LE(offset + 20);
+    const uncompressedSize = buffer.readUInt32LE(offset + 24);
+    if (uncompressedSize > MAX_UNCOMPRESSED_ENTRY) throw new Error('DOCX содержит слишком большой элемент');
     const nameLength = buffer.readUInt16LE(offset + 28);
     const extraLength = buffer.readUInt16LE(offset + 30);
     const commentLength = buffer.readUInt16LE(offset + 32);
@@ -38,7 +40,16 @@ function readZipEntry(buffer: Buffer, wanted: string): Buffer {
         if (compressed.length > MAX_UNCOMPRESSED_ENTRY) throw new Error('DOCX содержит слишком большой элемент');
         return Buffer.from(compressed);
       }
-      if (method === 8) return inflateRawSync(compressed, { maxOutputLength: MAX_UNCOMPRESSED_ENTRY });
+      if (method === 8) {
+        try {
+          return inflateRawSync(compressed, { maxOutputLength: MAX_UNCOMPRESSED_ENTRY });
+        } catch (error) {
+          if (error instanceof Error && /larger than|buffer too large|output length/i.test(error.message)) {
+            throw new Error('DOCX содержит слишком большой элемент');
+          }
+          throw new Error('Не удалось распаковать элемент DOCX');
+        }
+      }
       throw new Error('Неподдерживаемый способ сжатия DOCX');
     }
     offset += 46 + nameLength + extraLength + commentLength;
