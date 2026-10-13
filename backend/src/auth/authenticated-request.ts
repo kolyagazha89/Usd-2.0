@@ -7,5 +7,6 @@ export interface AuthenticatedRequest extends Request {
     role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
     participantId?: string;
     customRoleId?: string;
+    customRole?: { id: string; key: string; name: string; permissions: unknown } | null;
   };
 }
