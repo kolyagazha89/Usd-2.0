@@ -1,0 +1,44 @@
+name: Timeweb deployment validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.dockerignore"
+      - "frontend/Dockerfile"
+      - "frontend/.dockerignore"
+      - "frontend/nginx.conf"
+      - "deploy/timeweb/**"
+      - ".github/workflows/timeweb-deployment.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.dockerignore"
+      - "frontend/Dockerfile"
+      - "frontend/.dockerignore"
+      - "frontend/nginx.conf"
+      - "deploy/timeweb/**"
+      - ".github/workflows/timeweb-deployment.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    name: Validate Timeweb Docker deployment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare non-secret validation environment
+        run: cp deploy/timeweb/.env.example deploy/timeweb/.env
+
+      - name: Validate Compose configuration
+        run: docker compose --project-directory deploy/timeweb -f deploy/timeweb/docker-compose.yml config --quiet
+
+      - name: Build frontend and API images
+        run: docker compose --project-directory deploy/timeweb -f deploy/timeweb/docker-compose.yml build

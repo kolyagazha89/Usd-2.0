@@ -167,3 +167,8 @@ Code is on main; production verification is not yet complete. Confirm the newest
 - Parser safety and compatibility tests cover formatted runs, table-cell links and unsafe URL schemes. Backend CI passed build/lint/unit/E2E [run 38296715212](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715212); Frontend CI passed [run 38296715211](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715211).
 - No schema or production migration. Keep the original DOCX download as the authoritative source.
 - Public Phase 2 remains open until live route/refresh checks, anonymous privacy, logo cold-load, mobile and loading/empty/error states are verified. Regulation backlog still includes editable section structure, restoring a prior published revision and preserving the exact regulation applicable to each historical stage.
+
+
+## Timeweb release gate — 2026-10-13
+
+The final hosting target is a Timeweb VPS. Deployment scaffolding is under review in [PR #44](https://github.com/kolyagazha89/Usd-2.0/pull/44); it is not a live deployment. Keep the current Tilda root and DNS records unchanged. Do not start the production API until the database backup has been verified and the existing production data/media migration plan is ready. Live acceptance remains pending until the VPS, object storage, HTTPS domains and end-to-end smoke tests are verified.
