@@ -43,6 +43,8 @@ export function isValidInternationalPhone(value: string | null | undefined): boo
   const [min,max] = NATIONAL_LENGTHS[callingCode] ?? [4,12];
   return national >= min && national <= max && !/^(\d)\1+$/.test(digits.slice(callingCode.length));
 }
+const VALID_RUSSIAN_REGIONS = new Set(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '102', '113', '116', '121', '123', '124', '125', '126', '134', '136', '138', '142', '150', '152', '154', '159', '161', '163', '164', '173', '174', '177', '178', '186', '190', '196', '197', '199', '702', '716', '725', '750', '754', '761', '763', '774', '777', '790', '797', '799', '977']);
+
 export function isValidRegistrationPlate(country: string, value: string): boolean {
   let number = value.trim().toUpperCase().replace(/\s+/g, ' ');
   if (!number || number.length > 16) return false;
@@ -68,5 +70,10 @@ export function isValidRegistrationPlate(country: string, value: string): boolea
     KP:/^(?=.*[A-Z0-9])[A-Z0-9 -]{3,10}$/,
     US:/^[A-Z0-9][A-Z0-9 -]{1,7}$/
   };
-  return Boolean(patterns[country]?.test(number));
+  if (!patterns[country]?.test(number)) return false;
+  if (country === 'RU') {
+    const region = number.match(/(\d{2,3})$/)?.[1];
+    if (!region || !VALID_RUSSIAN_REGIONS.has(region)) return false;
+  }
+  return true;
 }
