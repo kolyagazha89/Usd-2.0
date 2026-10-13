@@ -28,6 +28,7 @@ const nav=[
  {section:'Данные',label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
  {section:'Данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
  {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
+ {section:'Система',label:'Роли и права',path:'/admin/roles',icon:LockKeyhole,roles:['ADMIN']},
  {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
  {section:'Справочники',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
  {section:'Контент',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
@@ -37,6 +38,30 @@ const nav=[
  {section:'Система',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
 ];
+
+function navPermissionModule(path:string):string {
+ if(path==='/admin')return 'statistics';
+ if(path.startsWith('/admin/stages'))return 'stages';
+ if(path.startsWith('/admin/registrations'))return 'registrations';
+ if(path.startsWith('/admin/inspections'))return 'inspections';
+ if(path.startsWith('/admin/results'))return 'results';
+ if(path.startsWith('/admin/records'))return 'records';
+ if(path.startsWith('/admin/participants'))return 'participants';
+ if(path.startsWith('/admin/teams'))return 'teams';
+ if(path.startsWith('/admin/cars'))return 'cars';
+ if(path.startsWith('/admin/seasons'))return 'seasons';
+ if(path.startsWith('/admin/classes'))return 'classes';
+ if(path.startsWith('/admin/disqualifications'))return 'disqualifications';
+ if(path.startsWith('/admin/statistics'))return 'statistics';
+ if(path.startsWith('/admin/import'))return 'imports';
+ if(path.startsWith('/admin/historical-results'))return 'historicalResults';
+ if(path.startsWith('/admin/data-quality'))return 'imports';
+ if(path.startsWith('/admin/assistant'))return 'assistant';
+ if(path.startsWith('/admin/google'))return 'integrations';
+ if(path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
+ return '';
+}
+
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
 const NAME_TRANSLITERATION:Record<string,string>={mokhov:'Мохов',kosolapov:'Косолапов',vasily:'Василий',vasiliy:'Василий',vasili:'Василий',vasilii:'Василий',vassily:'Василий',wassily:'Василий',vitaly:'Виталий',vitaliy:'Виталий',maksim:'Максим',maxim:'Максим',sergey:'Сергей',sergei:'Сергей',vladislav:'Владислав',konstantin:'Константин',shamil:'Шамиль',anton:'Антон',daniil:'Даниил',danil:'Данил',dmitry:'Дмитрий',dmitriy:'Дмитрий',nikrasov:'Никрасов',ruslan:'Руслан',yan:'Ян',damir:'Дамир',andrey:'Андрей',alexey:'Алексей',aleksey:'Алексей',ilnur:'Ильнур',artem:'Артем',ivan:'Иван',androsov:'Андросов',krasnov:'Краснов',yakovenko:'Яковенко',kashapov:'Кашапов',zorin:'Зорин',sobyanin:'Собянин',zhernakov:'Жернаков',naidanov:'Найданов',shtyagin:'Штягин',mihailov:'Михайлов',usolcev:'Усольцев',polikarpov:'Поликарпов',cvirko:'Цвирко',nizaforov:'Низафоров',aleksashin:'Алексашин',zamatov:'Заматов',sozontov:'Созонтов',tarasov:'Тарасов',bakulin:'Бакулин',zbarev:'Зубарев',zubarev:'Зубарев',ahmetov:'Ахметов',nikonov:'Никонов',permyakov:'Пермяков'};
@@ -58,12 +83,12 @@ function App(){
  useEffect(()=>{const route=path.split('?')[0];document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
- useEffect(()=>{if(user&&user.role!=='PARTICIPANT'&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
+ useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  useEffect(()=>{if(user?.role==='PARTICIPANT'&&path.startsWith('/login?')){const next=new URLSearchParams(path.split('?')[1]??'').get('next');if(next&&next.startsWith('/participant/register')){history.replaceState({},'',next);setPath(next)}}},[user,path]);
  if(booting)return <Splash/>;
  if(path==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
- if(!user){if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT'){const next=new URLSearchParams(path.split('?')[1]??'').get('next');const requested=path.startsWith('/admin/inspections')?path:(next&&next.startsWith('/admin/inspections')?next:'/admin');go(requested)}else{const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(next&&next.startsWith('/participant/register')?next:'/participant')}}}/>;return <PublicSite path={path} go={go}/>;}
- if(user.role==='PARTICIPANT'&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
+ if(!user){if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT'||loggedInUser.customRoleId){const next=new URLSearchParams(path.split('?')[1]??'').get('next');const requested=path.startsWith('/admin/inspections')?path:(next&&next.startsWith('/admin/inspections')?next:'/admin');go(requested)}else{const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(next&&next.startsWith('/participant/register')?next:'/participant')}}}/>;return <PublicSite path={path} go={go}/>;}
+ if(user.role==='PARTICIPANT'&&!user.customRoleId&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
  // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
  if(!path.startsWith('/admin')){if(path==='/login'){if(user.role==='ADMIN'||user.role==='JUDGE')return <Shell user={user} path='/admin' go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}}/>;return <Splash/>;}return <PublicSite path={path} go={go}/>;}
@@ -285,6 +310,7 @@ function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div class
 
 function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
+  if(path.startsWith('/admin/roles'))return <RolesPage/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage/>;
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin/>;}
@@ -318,7 +344,7 @@ function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:
  const routePath=path.split('?')[0];
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
- const visibleNav=nav.filter(x=>x.roles.includes(user.role));
+ const visibleNav=nav.filter(x=>{if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
  const sections=[...new Set(visibleNav.map(x=>x.section))];
  const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
  useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
@@ -1137,6 +1163,51 @@ function StatisticsPage(){
   </section>
  </PageFrame>
 }
+
+const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
+ {key:'stages',label:'Этапы',description:'Сезоны, этапы и параметры регистрации'},
+ {key:'registrations',label:'Регистрации',description:'Заявки, номера участников и оформление на месте'},
+ {key:'inspections',label:'Инспекции',description:'Чек-листы, статусы допуска и аудит'},
+ {key:'results',label:'Результаты',description:'Ввод и публикация соревновательных результатов'},
+ {key:'records',label:'Рекорды',description:'Текущие рекорды и история'},
+ {key:'participants',label:'Участники',description:'Профили и публичность участников'},
+ {key:'teams',label:'Команды',description:'Справочник команд'},
+ {key:'cars',label:'Автомобили',description:'Автомобили и конфигурации'},
+ {key:'seasons',label:'Сезоны',description:'Сезоны чемпионата'},
+ {key:'classes',label:'Классы',description:'Направления и классы'},
+ {key:'disqualifications',label:'Дисквалификации',description:'Назначение и снятие дисквалификаций'},
+ {key:'imports',label:'Импорт и качество данных',description:'Импорт, проверка и исправление данных'},
+ {key:'historicalResults',label:'Исторические результаты',description:'Архив и исторические выступления'},
+ {key:'statistics',label:'Статистика и панель',description:'Сводки, метрики и аналитика'},
+ {key:'siteSettings',label:'Настройки и контент сайта',description:'Новости, партнёры, медиа, регламент и настройки'},
+ {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
+ {key:'integrations',label:'Интеграции',description:'Google и внешние подключения'},
+ {key:'assistant',label:'Ассистент USD',description:'Запросы и действия ассистента'},
+];
+const ROLE_ACTIONS:Array<{key:string;label:string}>=[{key:'view',label:'Просмотр'},{key:'create',label:'Создание'},{key:'update',label:'Изменение'},{key:'delete',label:'Удаление'}];
+function RolesPage(){
+ const [roles,setRoles]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[editing,setEditing]=useState<any|null>(null);
+ const blank=()=>({key:'',name:'',description:'',permissions:{} as Record<string,string[]>});
+ const load=async()=>{setLoading(true);setError('');try{setRoles(listData<any>(await apiGet('/auth/admin/roles')))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить роли')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ const startNew=()=>{setEditing(blank());setNotice('');setError('')};
+ const toggle=(module:string,action:string,checked:boolean)=>setEditing((current:any)=>{const permissions={...(current?.permissions??{})};const next=new Set<string>(permissions[module]??[]);if(checked)next.add(action);else next.delete(action);if(next.size)permissions[module]=[...next];else delete permissions[module];return {...current,permissions}});
+ const save=async()=>{if(!editing)return;setSaving(true);setError('');setNotice('');try{if(editing.id)await apiPatch('/auth/admin/roles/'+encodeURIComponent(editing.id),{name:editing.name,description:editing.description||null,permissions:editing.permissions});else await apiPost('/auth/admin/roles',{key:editing.key,name:editing.name,description:editing.description||null,permissions:editing.permissions});setEditing(null);setNotice('Роль сохранена. Права проверяются сервером для каждого запроса.');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить роль')}finally{setSaving(false)}};
+ const remove=async(role:any)=>{if(role._count?.users){setError('Нельзя удалить роль, пока она назначена пользователям. Сначала снимите назначения.');return}if(!window.confirm('Удалить роль «'+role.name+'»?'))return;setError('');try{await apiDelete('/auth/admin/roles/'+encodeURIComponent(role.id));if(editing?.id===role.id)setEditing(null);setNotice('Роль удалена');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось удалить роль')}};
+ return <PageFrame title="Роли и права" subtitle="Настройте доступ по модулям. ADMIN всегда сохраняет полный доступ, а ограничения судьи на редактирование результатов действуют независимо от матрицы." action={<button className="primary-button compact" onClick={startNew}><Plus size={15}/>Создать роль</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>} {notice&&<div className="notice"><CheckCircle2 size={16}/><span>{notice}</span></div>}
+  <div className="roles-workspace"><section className="roles-list panel"><div className="roles-list-head"><div><span className="eyebrow">ДОСТУП</span><h2>Пользовательские роли</h2></div><span className="row-count">{roles.length} ролей</span></div>
+   {loading?<LoadingPage small/>:roles.length?roles.map(role=><article className={'role-summary '+(editing?.id===role.id?'active':'')} key={role.id}><div className="role-summary-main"><div className="role-summary-icon"><LockKeyhole size={17}/></div><div><strong>{role.name}</strong><small>{role.key} · {role._count?.users??0} пользователей</small><p>{role.description||'Без описания'}</p></div></div><div className="role-summary-actions"><button className="secondary-button compact" onClick={()=>{setEditing({...role,permissions:role.permissions??{}});setError('');setNotice('')}}><Pencil size={14}/>Настроить</button><button className="icon-button" aria-label="Удалить роль" disabled={!!role.isSystem||!!role._count?.users} onClick={()=>void remove(role)}><Trash2 size={15}/></button></div></article>):<Empty text="Пользовательских ролей пока нет"/>}
+  </section>
+  <section className="roles-editor panel"><div className="roles-editor-head"><span className="eyebrow">{editing?.id?'РЕДАКТИРОВАНИЕ':'НОВАЯ РОЛЬ'}</span><h2>{editing?.id?editing.name||'Настроить роль':'Создать роль'}</h2><p>Отмечайте только необходимые действия. Неотмеченное действие запрещено.</p></div>
+   {!editing?<div className="role-editor-empty"><LockKeyhole size={26}/><strong>Выберите роль слева или создайте новую</strong><span>Матрица разрешений появится здесь.</span></div>:<><div className="role-basic-fields"><label>Название<input value={editing.name} onChange={e=>setEditing((x:any)=>({...x,name:e.target.value}))} maxLength={100} required placeholder="Например, Старший судья"/></label>{!editing.id&&<label>Системный ключ<input value={editing.key} onChange={e=>setEditing((x:any)=>({...x,key:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'')}))} maxLength={50} required placeholder="senior-judge"/><small>Латиница, цифры и дефис; ключ нельзя изменить после создания.</small></label>}<label>Описание<textarea value={editing.description??''} onChange={e=>setEditing((x:any)=>({...x,description:e.target.value}))} rows={2} maxLength={500} placeholder="Для каких задач предназначена роль"/></label></div>
+    <div className="permission-matrix-head"><strong>Матрица разрешений</strong><span>Каждая галочка проверяется сервером</span></div><div className="permission-matrix">{ROLE_MODULES.map(module=><article className="permission-module" key={module.key}><div className="permission-module-copy"><strong>{module.label}</strong><small>{module.description}</small></div><div className="permission-actions">{ROLE_ACTIONS.map(action=><label key={action.key}><input type="checkbox" checked={(editing.permissions?.[module.key]??[]).includes(action.key)} onChange={e=>toggle(module.key,action.key,e.target.checked)}/><span>{action.label}</span></label>)}</div></article>)}</div>
+    <div className="role-editor-actions"><button className="secondary-button" onClick={()=>setEditing(null)}>Отмена</button><button className="primary-button" disabled={saving||!editing.name?.trim()||(!editing.id&&!editing.key?.trim())} onClick={()=>void save()}>{saving?'Сохраняем…':'Сохранить роль'}</button></div>
+   </>}
+  </section></div>
+ </PageFrame>
+}
+
 function UsersPage(){
  const[data,setData]=useState<any[]>([]),[search,setSearch]=useState(''),[role,setRoleFilter]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[modalError,setModalError]=useState(''),[saving,setSaving]=useState(false);
  const load=()=>{setLoading(true);const q=new URLSearchParams();if(search.trim())q.set('search',search.trim());if(role)q.set('role',role);return apiGet<any>('/auth/admin/users'+(q.toString()?'?'+q:'')).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки')).finally(()=>setLoading(false))};
