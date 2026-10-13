@@ -34,6 +34,9 @@ describe('SiteSettingsService.getPublic', () => {
       consentUrl: '',
       termsUrl: '',
       rulesUrl: 'https://example.test/rules',
+      privacyText: '',
+      consentText: '',
+      termsText: '',
     });
     expect(response.settings.legal).not.toHaveProperty('internalNote');
     expect(response.settings.registration).toMatchObject({
