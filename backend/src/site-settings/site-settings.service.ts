@@ -7,7 +7,7 @@ export type SiteSettingsShape = {
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
-  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:Record<string,unknown>;partners:Array<Record<string,unknown>>;updatedAt?:string;
+  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:Record<string,unknown>;partners:Array<Record<string,unknown>>;news:Array<Record<string,unknown>>;updatedAt?:string;
 };
 
 const DEFAULTS:SiteSettingsShape={
@@ -16,14 +16,14 @@ const DEFAULTS:SiteSettingsShape={
     {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
     {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
-    {id:'participants',enabled:true,title:'Участники'}],
+    {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
     heroTitle:'United Sound Derby',heroSubtitle:'Официальный чемпионат по автозвуку',
     showNextStage:true,showLatestResults:true,showRecords:true,showParticipants:true,showLiveStream:true,showLiveResults:true},
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
   registration:{enabled:true,price:2000,additionalClassPrice:2000},
-  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],
+  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],news:[],
 };
 
 @Injectable()
@@ -40,7 +40,7 @@ export class SiteSettingsService{
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
       legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,
-      catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),partners:Array.isArray(row?.partners)?row.partners:DEFAULTS.partners,
+      catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),partners:Array.isArray(row?.partners)?row.partners:DEFAULTS.partners,news:Array.isArray(row?.news)?row.news:DEFAULTS.news,
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
@@ -59,7 +59,7 @@ export class SiteSettingsService{
     };
   }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
-  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??''}}};}
+  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners,news:s.news,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??'',privacyText:s.legal.privacyText??'',consentText:s.legal.consentText??'',termsText:s.legal.termsText??''}}};}
   private mergeRegistration(currentValue: unknown, incomingValue: unknown): Record<string, any> {
     const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
       ? currentValue as Record<string, any> : DEFAULTS.registration;
@@ -105,7 +105,7 @@ export class SiteSettingsService{
       navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
       footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
-      catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,
+      catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
     };
     const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
     await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections:Object.keys(input)}}});
