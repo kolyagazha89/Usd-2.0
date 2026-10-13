@@ -14,9 +14,9 @@ export class MailService {
       host: process.env.SMTP_HOST,
       // Railway's outbound IPv6 route may be unavailable; force IPv4 for Gmail SMTP.
       family: 4,
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
       port: Number(
         process.env.SMTP_PORT ?? 465,
       ),
