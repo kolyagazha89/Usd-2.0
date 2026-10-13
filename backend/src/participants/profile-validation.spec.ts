@@ -31,7 +31,7 @@ describe('isValidInternationalPhone', () => {
 
 describe('isValidRegistrationPlate', () => {
   it.each([
-    ['RU', 'A123BC72'],
+    ['RU', 'A123BC72'],\n    ['RU', 'A123BC102'],
     ['NO', 'AB12345'],
     ['FI', 'ABC-123'],
     ['EE', '123ABC'],
@@ -52,7 +52,7 @@ describe('isValidRegistrationPlate', () => {
   });
 
   it.each([
-    ['RU', 'NOT A PLATE'],
+    ['RU', 'NOT A PLATE'],\n    ['RU', 'A123BC00'],\n    ['RU', 'A123BC100'],
     ['NO', 'A12345'],
     ['FI', '123-ABC'],
     ['EE', 'ABC123'],
