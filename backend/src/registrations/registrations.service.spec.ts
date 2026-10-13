@@ -197,16 +197,19 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a participant registering again on the same stage with another car', async () => {
+  it('allows the same participant to register a different car on the same stage', async () => {
     const tx = baseTx({
-      registration: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: 'existing-registration',
-          carId: 'another-car',
-          status: 'ACTIVE',
+      car: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'car-2',
+          participantId: 'participant-1',
+          isActive: true,
         }),
-        findUnique: jest.fn(),
-        create: jest.fn(),
+      },
+      registration: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
       },
     });
     setupTransaction(tx);
@@ -214,12 +217,14 @@ describe('RegistrationsService', () => {
     await expect(
       service.create(participantRequest, {
         ...requestBody,
-        carId: 'different-car',
+        carId: 'car-2',
       }),
-    ).rejects.toThrow('Вы уже зарегистрированы на этот этап');
+    ).resolves.toEqual({ id: 'registration-car-2' });
 
-    expect(tx.registration.create).not.toHaveBeenCalled();
-    expect(tx.registration.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.findUnique).toHaveBeenCalledWith({
+      where: { stageId_carId: { stageId: 'stage-1', carId: 'car-2' } },
+    });
+    expect(tx.registration.create).toHaveBeenCalled();
   });
 
   it('allows more than five selected classes when multiple BassRace classes are included', async () => {
