@@ -225,7 +225,7 @@ export class StagesService {
       throw new BadRequestException('Дата начала регистрации не может быть позже даты окончания');
     }
 
-    const shouldCaptureRules = dto.status === 'PUBLISHED' && !stage.rulesSnapshot;
+    const shouldCaptureRules = (dto.status === 'PUBLISHED' || stage.status === 'PUBLISHED') && !stage.rulesSnapshot;
     const rulesSnapshot = shouldCaptureRules ? await this.getPublishedRulesSnapshot() : null;
     const data: any = {
       ...(rulesSnapshot ? { rulesSnapshot: rulesSnapshot as any } : {}),
