@@ -268,11 +268,24 @@ export class AuthService {
     });
 
     // The cooldown is reserved before sending, so provider failures cannot be abused
-    // to hammer the mail service. The caller receives a generic response either way.
+    // to hammer the mail service. Keep the public response identical to avoid account
+    // enumeration; the registration flow itself explicitly reports emailSent=false.
     try {
       await this.mailService.sendVerificationEmail(user.email, rawToken);
     } catch {
-      throw new BadRequestException('Не удалось отправить письмо. Попробуйте позже.');
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            userId: user.id,
+            action: 'EMAIL_VERIFICATION_RESEND_FAILED',
+            entity: 'User',
+            entityId: user.id,
+            metadata: { failureCode: 'SMTP_SEND_FAILED' },
+          },
+        });
+      } catch {
+        // Never expose provider/database diagnostics through this public endpoint.
+      }
     }
 
     return genericResponse;
