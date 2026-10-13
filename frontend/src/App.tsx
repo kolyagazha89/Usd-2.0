@@ -185,7 +185,13 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
    <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit,r.class||r.result?.registrationClass?.class)}</small></div>
    <div className="public-record-class">{r.class?.name||r.className||'Спортивный класс'}</div>
    <div className="public-record-divider"/>
-   <strong className="public-record-person">{name}</strong><span className="public-record-car">{car}</span>
+   <div className="public-record-person-row" style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+    {participant?.photoUrl
+      ? <img src={participant.photoUrl} alt={name} loading="lazy" style={{width:42,height:42,flex:'0 0 42px',objectFit:'cover',borderRadius:10,background:'#242428'}}/>
+      : <div aria-hidden="true" style={{width:42,height:42,flex:'0 0 42px',display:'grid',placeItems:'center',borderRadius:10,background:'#29292e',color:'#ff6572',fontWeight:900}}>{String(participant?.firstName||participant?.lastName||'U').slice(0,1).toUpperCase()}</div>}
+    <strong className="public-record-person">{name}</strong>
+   </div>
+   <span className="public-record-car">{car}</span>
    <span className="public-record-stage">{r.stage?.name||r.result?.registration?.stage?.name||'История USD'}</span>
   </article>
  })}</div>;
