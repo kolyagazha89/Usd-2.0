@@ -2909,3 +2909,14 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-site-footer .public-footer-links a{color:#c7c7ce;text-decoration:none}
 .public-site-footer .public-footer-links a:hover{color:#fff;text-decoration:underline}
 @media(max-width:640px){.public-site-footer .public-footer-links{align-items:flex-start;flex-direction:column;gap:10px}}
+
+
+.public-stage-poster-placeholder{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:space-between;gap:18px;box-sizing:border-box;width:100%;aspect-ratio:9/16;min-height:0;overflow:hidden;padding:clamp(18px,3vw,30px);border:1px solid #38383f;border-radius:12px;background:radial-gradient(ellipse at 85% 10%,rgba(237,38,56,.32),transparent 40%),linear-gradient(150deg,#202024 0%,#0a0a0b 70%);color:#f8f8fa;text-align:left}
+.public-stage-poster-placeholder:before{content:"";position:absolute;inset:12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;pointer-events:none;z-index:-1}
+.poster-placeholder-brand{font-size:clamp(28px,4vw,42px);font-weight:950;letter-spacing:-.08em;border-left:4px solid #ed2638;padding-left:12px;line-height:1}
+.poster-placeholder-stage{color:#ff7580;font-size:11px;letter-spacing:.18em;font-weight:900}
+.public-stage-poster-placeholder strong{font-size:clamp(22px,3vw,36px);line-height:1.05;letter-spacing:-.04em;overflow-wrap:anywhere}
+.public-stage-poster-placeholder>span:not(.poster-placeholder-brand):not(.poster-placeholder-stage){font-size:13px;color:#c2c2c9;line-height:1.5}
+.public-stage-poster-placeholder small{font-size:9px;letter-spacing:.16em;color:#85858f;font-weight:800}
+.public-stage-detail-poster .public-stage-poster-placeholder{max-width:390px}
+@media(max-width:760px){.public-stage-poster-placeholder{max-width:320px;margin:0 auto;min-height:0}.poster-placeholder-brand{font-size:34px}.public-stage-poster-placeholder strong{font-size:30px}}
