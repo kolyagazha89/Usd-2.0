@@ -8,6 +8,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model Role {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  permissions Json     @default("{}")
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  users       User[]
+
+  @@index([isSystem])
+}
+
 model User {
   id                       String                   @id @default(uuid())
   email                    String                   @unique
@@ -19,6 +33,8 @@ model User {
   updatedAt                DateTime                 @updatedAt @db.Timestamptz(3)
   emailVerifiedAt          DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
+  customRoleId             String?
+  customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   auditLogs                AuditLog[]
   disqualificationsIssued  Disqualification[]       @relation("DisqualificationIssuedBy")
   disqualificationsRevoked Disqualification[]       @relation("DisqualificationRevokedBy")
@@ -38,6 +54,7 @@ model User {
   assistantRequestsApproved AssistantRequest[]      @relation("AssistantRequestApprovedBy")
 
   @@index([role])
+  @@index([customRoleId])
   @@index([isActive])
   @@index([emailVerifiedAt])
 }
