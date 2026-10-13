@@ -177,7 +177,7 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
 function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:string;go:(path:string)=>void;onUserChange:(u:User)=>void;onLogout:()=>Promise<void>}){
  const[name,setName]=useState(''),[candidates,setCandidates]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
  const[participant,setParticipant]=useState<any>(null),[cars,setCars]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]),[stages,setStages]=useState<any[]>([]);
- const[tab,setTab]=useState<'overview'|'profile'|'cars'|'registrations'>(()=>{try{const value=new URLSearchParams(location.search).get('tab');return value==='profile'||value==='cars'||value==='registrations'?value:'overview'}catch{return'overview'}}),[profile,setProfile]=useState<any>({}),[carForm,setCarForm]=useState<any|null>(null),[configCar,setConfigCar]=useState<any|null>(null),[teamOptions,setTeamOptions]=useState<string[]>([]);
+ const[tab,setTab]=useState<'overview'|'profile'|'cars'|'registrations'>(()=>{try{const value=new URLSearchParams(location.search).get('tab');return value==='profile'||value==='cars'||value==='registrations'?value:'overview'}catch{return'overview'}}),[profile,setProfile]=useState<any>({}),[carForm,setCarForm]=useState<any|null>(null),[teamOptions,setTeamOptions]=useState<string[]>([]);
  const[registerStage,setRegisterStage]=useState<any|null>(null),[stageClasses,setStageClasses]=useState<any[]>([]),[registerCarId,setRegisterCarId]=useState(''),[configurations,setConfigurations]=useState<any[]>([]),[registerConfigId,setRegisterConfigId]=useState(''),[registerClassIds,setRegisterClassIds]=useState<string[]>([]);
  const [saving,setSaving]=useState(false);
  const report=(e:any,fallback:string)=>setError(e instanceof Error?e.message:fallback);
@@ -418,7 +418,7 @@ function ParticipantsPage({go}:{go:(p:string)=>void}){return <ResourcePage title
 
 function CarsPage({user,go}:{user:User;go:(path:string)=>void}){
  const canEdit=user.role==='ADMIN';
- const [cars,setCars]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[modal,setModal]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[modalError,setModalError]=useState(''),[configCar,setConfigCar]=useState<any|null>(null),[saving,setSaving]=useState(false);
+ const [cars,setCars]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[modal,setModal]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[modalError,setModalError]=useState(''),[saving,setSaving]=useState(false);
  const load=async()=>{setLoading(true);setError('');try{setCars(listData(await apiGet<any>('/cars')))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки автомобилей')}finally{setLoading(false)}};
  useEffect(()=>{void load();apiGet<any>('/admin/participants').then(r=>setParticipants(listData(r))).catch(()=>{})},[]);
  const saveCar=async(v:any)=>{setSaving(true);setModalError('');try{const {participantId,...car}=v;if(modal?.id)await apiPatch('/cars/'+modal.id,car);else await apiPost('/participants/'+encodeURIComponent(participantId)+'/cars',car);setModal(null);await load()}catch(e){setModalError(e instanceof Error?e.message:'Ошибка сохранения автомобиля')}finally{setSaving(false)}};
