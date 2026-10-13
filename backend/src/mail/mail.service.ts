@@ -4,16 +4,17 @@ import {
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
+import { setDefaultResultOrder } from 'node:dns';
 import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class MailService {
+  // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
+  private static readonly ipv4First = setDefaultResultOrder('ipv4first');
   private readonly logger = new Logger(MailService.name);
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      // Railway's outbound IPv6 route may be unavailable; force IPv4 for Gmail SMTP.
-      family: 4,
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 20000,
