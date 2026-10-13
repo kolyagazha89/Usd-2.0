@@ -2865,3 +2865,19 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .configuration-details-page .config-details{width:100%;max-width:none}
 .configuration-page-actions{display:flex;justify-content:flex-end;gap:12px;padding-top:4px}
 @media(max-width:640px){.configuration-editor-page,.configuration-details-page{padding:12px;gap:14px}.configuration-subpage-header{padding:18px;border-radius:16px}.configuration-editor-page .config-editor-actions{bottom:8px}.configuration-page-actions .primary-button{width:100%;justify-content:center}}
+
+
+/* QA #45: keep the car configuration counter legible on every card background. */
+.participant-car-config-count{display:inline-flex;align-items:center;gap:3px;max-width:100%;width:max-content;padding:5px 9px;border-radius:999px;background:#25272b!important;color:#f5f6f7!important;border:1px solid #41454b;font-size:11px;font-weight:750;line-height:1.25;white-space:normal}
+.participant-car-config-count strong{color:#fff!important;font-weight:950}
+.participant-car-config-count span{color:#e0e3e6!important}
+.participant-car-card-clickable{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.participant-car-card-clickable:hover,.participant-car-card-clickable:focus-visible{transform:translateY(-2px);border-color:#e21d2f;box-shadow:0 12px 32px rgba(0,0,0,.12)}
+.participant-phone-field{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(0,1.4fr);gap:8px}
+.participant-phone-field select,.participant-phone-field input{min-width:0;width:100%}
+@media(max-width:560px){.participant-phone-field{grid-template-columns:1fr}.participant-phone-field select{height:46px}}
+/* QA #48: vertical Stories posters remain portrait and do not dominate stage detail pages. */
+.public-stage-detail{grid-template-columns:minmax(0,1fr) minmax(260px,360px);align-items:start}
+.public-stage-detail .public-stage-card{min-width:0}
+.public-stage-detail .public-stage-poster{width:100%;aspect-ratio:9/16;max-height:78vh;object-fit:contain;position:sticky;top:96px;margin:0!important}
+@media(max-width:760px){.public-stage-detail{grid-template-columns:1fr}.public-stage-detail .public-stage-poster{position:static;max-width:min(100%,340px);margin:8px auto 18px!important;max-height:none}}
