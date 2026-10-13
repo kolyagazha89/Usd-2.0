@@ -295,17 +295,18 @@ export class MediaService {
     return referenced;
   }
 
-  async listSiteAssets(role: string) {
-    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека сайта доступна только администратору');
+  async listMediaLibrary(role: string) {
+    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека доступна только администратору');
     const uploads = await this.prisma.mediaUpload.findMany({
-      where: { targetType: MediaTargetType.SITE_ASSET, completedAt: { not: null } },
+      where: { completedAt: { not: null } },
       orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
-      select: { id: true, targetId: true, contentType: true, completedAt: true, createdAt: true, objectKey: true },
+      select: { id: true, targetType: true, targetId: true, contentType: true, completedAt: true, createdAt: true, objectKey: true },
     });
     const seen = new Set<string>();
     const latest = uploads.filter((upload) => {
-      if (seen.has(upload.targetId)) return false;
-      seen.add(upload.targetId);
+      const key = upload.targetType + ':' + upload.targetId;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
     const referenced = await this.getReferencedSiteAssetIds();
@@ -314,34 +315,41 @@ export class MediaService {
       success: true,
       items: latest.map((upload) => ({
         id: upload.id,
+        targetType: upload.targetType,
         targetId: upload.targetId,
         contentType: upload.contentType,
         completedAt: upload.completedAt,
         createdAt: upload.createdAt,
         previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
-        isReferenced: referenced.has(upload.targetId),
-        canDelete: !referenced.has(upload.targetId),
+        isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
+          ? referenced.has(upload.targetId)
+          : true,
+        canDelete: upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId),
       })),
     };
   }
 
-  async deleteSiteAsset(userId: string, role: string, targetId: string) {
-    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека сайта доступна только администратору');
+  async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека доступна только администратору');
+    if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     const normalizedTargetId = targetId.trim();
     if (!normalizedTargetId || normalizedTargetId.length > 200) throw new BadRequestException('Некорректный идентификатор медиа');
     const uploads = await this.prisma.mediaUpload.findMany({
-      where: { targetType: MediaTargetType.SITE_ASSET, targetId: normalizedTargetId, completedAt: { not: null } },
+      where: { targetType, targetId: normalizedTargetId, completedAt: { not: null } },
       orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, objectKey: true, contentType: true },
     });
     if (!uploads.length) throw new NotFoundException('Медиафайл не найден');
-    const referenced = await this.getReferencedSiteAssetIds();
-    if (referenced.has(normalizedTargetId)) {
-      throw new ConflictException('Файл используется на сайте. Сначала замените его или уберите ссылку в соответствующем разделе.');
+
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      const referenced = await this.getReferencedSiteAssetIds();
+      if (referenced.has(normalizedTargetId)) {
+        throw new ConflictException('Файл используется на сайте. Сначала замените его или уберите ссылку в соответствующем разделе.');
+      }
     }
 
-    // Remove older versions first and the latest version last. If S3 rejects a
-    // delete, the current public asset remains available and database rows stay intact.
+    // Delete older versions first and the latest last, so a failed S3 deletion
+    // leaves the currently displayed file available.
     for (const upload of uploads) {
       const response = await fetch(this.presignedUrl('DELETE', upload.objectKey, null, 60), { method: 'DELETE' });
       if (!response.ok && response.status !== 404) {
@@ -349,23 +357,24 @@ export class MediaService {
       }
     }
 
-    await this.prisma.mediaUpload.deleteMany({
-      where: { targetType: MediaTargetType.SITE_ASSET, targetId: normalizedTargetId, completedAt: { not: null } },
-    });
-    try {
-      await this.prisma.auditLog.create({
+    await this.prisma.$transaction(async (tx) => {
+      if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+        await tx.participant.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
+      } else if (targetType === MediaTargetType.CAR_PHOTO) {
+        await tx.car.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
+      }
+      await tx.mediaUpload.deleteMany({ where: { targetType, targetId: normalizedTargetId, completedAt: { not: null } } });
+      await tx.auditLog.create({
         data: {
           userId,
-          action: 'SITE_ASSET_DELETED',
+          action: 'MEDIA_ASSET_DELETED',
           entity: 'MediaUpload',
           entityId: normalizedTargetId,
-          metadata: { versionsDeleted: uploads.length },
+          metadata: { targetType, versionsDeleted: uploads.length },
         },
       });
-    } catch {
-      // A logging outage must not make an already completed deletion appear to fail.
-    }
-    return { success: true, targetId: normalizedTargetId, deletedVersions: uploads.length };
+    });
+    return { success: true, targetType, targetId: normalizedTargetId, deletedVersions: uploads.length };
   }
 
   async getSiteAssetBuffer(targetId: string) {
