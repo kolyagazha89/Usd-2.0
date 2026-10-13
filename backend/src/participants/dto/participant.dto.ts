@@ -43,6 +43,11 @@ export class CreateParticipantDto {
   phone?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  photoUrl?: string | null;
+
+  @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
 }
