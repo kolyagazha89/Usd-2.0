@@ -2927,3 +2927,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .participant-profile-photo-row p{margin:0 0 10px;color:var(--muted);font-size:12px}
 .participant-profile-photo-row .file-picker{display:inline-flex}
 @media(max-width:560px){.participant-car-actions{width:100%}.participant-car-actions .secondary-button{flex:1}.participant-profile-photo-row{align-items:flex-start}}
+
+.public-record-person-row{display:flex;align-items:center;gap:10px;min-width:0}
+.public-record-avatar{width:42px;height:42px;flex:0 0 42px;object-fit:cover;border-radius:50%;background:#25262b;border:1px solid #44454a}
+.public-record-avatar-placeholder{display:grid;place-items:center;color:#ff6572;font-weight:900;font-size:17px}
+.public-record-person-row .public-record-person{min-width:0;overflow-wrap:anywhere}
