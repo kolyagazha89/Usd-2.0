@@ -562,26 +562,6 @@ export class RegistrationsService {
           }
         }
 
-        // Участник может отправить только одну активную предрегистрацию на этап.
-        // Повторную заявку блокируем на сервере, даже если запрос пришёл с другим carId.
-        // ADMIN/JUDGE остаются свободны оформлять регистрации на месте и импортировать историю.
-        if (request.user.role === 'PARTICIPANT') {
-          const existingParticipantRegistration = await tx.registration.findFirst({
-            where: {
-              stageId,
-              participantId,
-              status: 'ACTIVE',
-            },
-            select: { id: true },
-          });
-
-          if (existingParticipantRegistration) {
-            throw new ConflictException(
-              'Вы уже зарегистрированы на этот этап',
-            );
-          }
-        }
-
         // 8. Проверяем регистрацию этого автомобиля
         // на этом этапе.
         //
