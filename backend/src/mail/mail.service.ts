@@ -1,11 +1,11 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
-import { Logger } from '@nestjs/common';
 
 // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
