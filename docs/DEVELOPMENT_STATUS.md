@@ -1,6 +1,6 @@
 # USD 2.0 — Development status and source of truth
 
-Last reconciled: 2026-10-12. Read this file and `docs/PHASE_1_STATUS.md` before every work block. Update status only with evidence.
+Last reconciled: 2026-10-13. Read this file and `docs/PHASE_1_STATUS.md` before every work block. Update status only with evidence.
 
 ## Mandatory workflow
 
@@ -209,3 +209,13 @@ This section records changes merged after the previous status notes; it does not
 - Deployment status: repository CI success is not proof that the Cloudflare frontend or Railway API is serving this exact commit. Verify both independently before announcing production rollout.
 - Remaining release work: perform end-to-end browser QA across participant registration, car configurations, admin stage lifecycle, results/import, inspections, records, rules, and responsive layouts; review stale open PRs before porting anything; confirm deployment and smoke-test the production routes.
 
+
+
+## Release candidate and Timeweb handoff — 2026-10-13
+
+- PR [#43](https://github.com/kolyagazha89/Usd-2.0/pull/43) is merged as `ab66c9123108a02c588ab4c83e8bad3609a0973f`. It removes the configuration editor/details blocking modals and renders these workflows as full-page views. Frontend CI [run 38411405345](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38411405345) and backend CI [run 38411405454](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38411405454) passed.
+- The current deployment target decision is a purchased Timeweb VPS, not a final Cloudflare Worker deployment. The existing Railway/Cloudflare setup remains the current hosting until the owner explicitly approves a controlled cutover.
+- PR [#44](https://github.com/kolyagazha89/Usd-2.0/pull/44) adds Dockerfiles, Nginx SPA routing, Docker Compose, Caddy HTTPS for `app.usd-russia.ru` and `api.usd-russia.ru`, and the Timeweb deployment guide. Its frontend/backend/Docker checks must pass before merge.
+- No server has been provisioned or accessed; no DNS, nameserver, Tilda, live database, or production storage changes have been made.
+- Production is **not yet release-accepted**. Outstanding gates: complete CI, verify Docker builds, provision Timeweb and compatible object storage, take and test a database backup/restore, migrate existing production data and media, then run the end-to-end smoke test list in `deploy/timeweb/README.md` after explicit DNS approval.
+- Preserve the root `usd-russia.ru` Tilda site. Use the app/API subdomains for acceptance first; never start the API against an empty replacement database when existing USD history must be retained.
