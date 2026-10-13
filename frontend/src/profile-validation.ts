@@ -4,7 +4,7 @@
  * Length/calling-code checks intentionally reject obvious garbage; they do not
  * claim to prove that a number is assigned or reachable.
  */
-import { isValidPhoneNumber, parsePhoneNumberFromString } from 'libphonenumber-js';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 
 export function isValidInternationalPhone(value: string): boolean {
   const phone = value.trim();
