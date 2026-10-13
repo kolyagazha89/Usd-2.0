@@ -2,6 +2,8 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsObject,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -101,4 +103,47 @@ export class AdminUserActiveDto {
 export class AdminUserRoleDto {
   @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
   role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+}
+
+
+export class AdminCreateRoleDto {
+  @IsString()
+  @Matches(/^[a-z][a-z0-9-]{1,49}$/)
+  key!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string | null;
+
+  @IsObject()
+  permissions!: Record<string, unknown>;
+}
+
+export class AdminUpdateRoleDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string | null;
+
+  @IsOptional()
+  @IsObject()
+  permissions?: Record<string, unknown>;
+}
+
+export class AdminUserCustomRoleDto {
+  @IsOptional()
+  @IsString()
+  customRoleId?: string | null;
 }
