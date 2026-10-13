@@ -8,6 +8,10 @@ describe('isValidInternationalPhone', () => {
     '+31 6 12345678',
     '+49 151 23456789',
     '+91 9876543210',
+    '+375 29 123-45-67',
+    '+47 41234567',
+    '+372 5123456',
+    '+976 99112233',
   ])('accepts a plausible international number: %s', (phone) => {
     expect(isValidInternationalPhone(phone)).toBe(true);
   });
@@ -20,6 +24,9 @@ describe('isValidInternationalPhone', () => {
     'call me',
     '+7 +9991234567',
     '+7 999 12abc',
+    '+375 29 1234',
+    '+47 4123456',
+    '+976 9911223',
   ])('rejects malformed or implausible input: %s', (phone) => {
     expect(isValidInternationalPhone(phone)).toBe(false);
   });
@@ -31,7 +38,8 @@ describe('isValidInternationalPhone', () => {
 
 describe('isValidRegistrationPlate', () => {
   it.each([
-    ['RU', 'A123BC72'],\n    ['RU', 'A123BC102'],
+    ['RU', 'A123BC72'],
+    ['RU', 'A123BC102'],
     ['NO', 'AB12345'],
     ['FI', 'ABC-123'],
     ['EE', '123ABC'],
@@ -52,7 +60,9 @@ describe('isValidRegistrationPlate', () => {
   });
 
   it.each([
-    ['RU', 'NOT A PLATE'],\n    ['RU', 'A123BC00'],\n    ['RU', 'A123BC100'],
+    ['RU', 'NOT A PLATE'],
+    ['RU', 'A123BC00'],
+    ['RU', 'A123BC100'],
     ['NO', 'A12345'],
     ['FI', '123-ABC'],
     ['EE', 'ABC123'],
