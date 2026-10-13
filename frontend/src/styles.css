@@ -2948,3 +2948,9 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .qr-scanner-modal video{display:block;width:100%;max-height:52vh;min-height:220px;object-fit:cover;background:#08090a;border:1px solid #34363a;border-radius:12px}
 .qr-scanner-modal p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
 @media(max-width:600px){.qr-scanner-modal{min-width:0}.qr-scanner-modal video{min-height:180px}}
+
+.admin-stage-poster-template{display:flex;flex-direction:column;justify-content:space-between;gap:22px;aspect-ratio:9/16;width:min(100%,340px);margin:0 auto 14px;padding:clamp(20px,4vw,30px);border:1px solid #3c3034;border-radius:12px;color:#fff;background:radial-gradient(ellipse at 80% 18%,rgba(226,29,47,.32),transparent 36%),linear-gradient(145deg,#222328,#090a0b 62%,#300d13)}
+.admin-stage-poster-template span{font-size:10px;letter-spacing:.12em;color:#bcbcc3}
+.admin-stage-poster-template strong{font-size:clamp(24px,4vw,38px);line-height:1.04;letter-spacing:-.05em;overflow-wrap:anywhere}
+.admin-stage-poster-template b{font-size:20px;color:#ff5362}
+.admin-stage-poster-template small{font-size:11px;color:#c9c9cf}
