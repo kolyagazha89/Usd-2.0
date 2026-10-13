@@ -93,6 +93,7 @@ export async function getPublicSiteSettings(){return apiGet<any>('/site-settings
 export async function updateSiteSettings(body:any){return apiPatch<any>('/site-settings',body);}
 export async function prepareMediaUpload(targetType:string,targetId:string,contentType:string){return apiPost<any>('/media/prepare',{targetType,targetId,contentType});}
 export async function completeMediaUpload(uploadToken:string){return apiPost<any>('/media/complete',{uploadToken});}
+export function getPublicMediaFileUrl(targetType:string,targetId:string){return `${API_BASE}/media/public-file/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`;}
 export async function getPublicMediaUrl(targetType:string){const r=await apiGet<{success:boolean;url:string}>(`/media/public/${encodeURIComponent(targetType)}/default`);return r.url;}
 
 export async function getGoogleStatus(){return request<any>('/google/status');}
