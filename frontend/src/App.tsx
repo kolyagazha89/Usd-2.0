@@ -131,7 +131,7 @@ function StagePosterPlaceholder({stage}:{stage:any}){
  return <div className="public-stage-poster-placeholder" style={{width:'100%',aspectRatio:'9 / 16',minHeight:240,maxHeight:640,boxSizing:'border-box',borderRadius:10,background:'radial-gradient(ellipse at 80% 15%,rgba(237,38,56,.32),transparent 40%),linear-gradient(145deg,#242428,#09090b 68%,#310b12)',border:'1px solid #3b3034',padding:'clamp(18px,3vw,30px)',display:'flex',flexDirection:'column',justifyContent:'space-between',overflow:'hidden',margin:'12px 0'}}>
   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,fontSize:10,letterSpacing:2,color:'#aaa',fontWeight:800}}><span>USD / COMPETITION</span><span style={{color:'#ed2638'}}>LIVE</span></div>
   <div><div style={{fontSize:'clamp(12px,2vw,16px)',letterSpacing:3,color:'#ed2638',fontWeight:900}}>ULTIMATE SOUND DESTRUCTION</div><div style={{fontSize:'clamp(30px,5vw,58px)',fontWeight:950,letterSpacing:-2,lineHeight:1,margin:'14px 0'}}>ЭТАП {stage.stageNumber??'—'}</div><div style={{fontSize:'clamp(16px,2.5vw,25px)',fontWeight:800,lineHeight:1.2,overflowWrap:'anywhere'}}>{stage.name||'Афиша этапа'}</div></div>
-  <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'end',fontSize:12,color:'#b5b5bc'}}><span>{stage.city||'USD'}</span><strong style={{color:'#fff'}}>{stage.date?formatStageDate(stage.date):'СКОРО'}</strong></div>
+  <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'end',fontSize:12,color:'#b5b5bc'}}><span>{stage.city||'USD'}</span><strong style={{color:'#fff'}}>{stage.date?new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(stage.date)):'СКОРО'}</strong></div>
  </div>;
 }
 
