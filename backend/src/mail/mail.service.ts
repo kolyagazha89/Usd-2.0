@@ -4,9 +4,11 @@ import {
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -86,9 +88,11 @@ export class MailService {
           </div>
         `,
       });
-    } catch {
+    } catch (error) {
+      // Log SMTP diagnostics without logging tokens, email body, or credentials.
+      this.logger.error(`Verification email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
       throw new InternalServerErrorException(
-        'Не удалось отправить письмо подтверждения',
+        'Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.',
       );
     }
   }
