@@ -76,7 +76,7 @@ export class RegistrationsService {
 
 
   private isBassRaceClass(className: string, directionName = ''): boolean {
-    const normalize = (value: string) => value.trim().toLowerCase().replace(/[\\s_-]/g, '');
+    const normalize = (value: string) => value.trim().toLowerCase().replace(/[\s_-]/g, '');
     return normalize(className).startsWith('bassrace') ||
       normalize(directionName).includes('bassrace');
   }
