@@ -1,10 +1,14 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
-import { Logger } from '@nestjs/common';
+import { setDefaultResultOrder } from 'node:dns';
+
+// Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
+setDefaultResultOrder('ipv4first');
 
 @Injectable()
 export class MailService {
@@ -12,6 +16,9 @@ export class MailService {
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
       port: Number(
         process.env.SMTP_PORT ?? 465,
       ),
