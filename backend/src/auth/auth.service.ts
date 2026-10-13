@@ -214,61 +214,68 @@ export class AuthService {
   async resendVerificationEmail(
     email: string,
   ) {
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const genericResponse = {
+      success: true,
+      message: 'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
+    };
 
-    const user =
-      await this.prisma.user.findUnique({
-        where: {
-          email: normalizedEmail,
-        },
-      });
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, email: true, emailVerifiedAt: true },
+    });
 
-    /*
-     * Не раскрываем существование аккаунта.
-     */
-    if (
-      !user ||
-      user.emailVerifiedAt
-    ) {
-      return {
-        success: true,
-        message:
-          'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
-      };
-    }
+    // Keep the response identical for missing, verified and rate-limited accounts.
+    if (!user || user.emailVerifiedAt) return genericResponse;
 
-    await this.prisma.emailVerificationToken.deleteMany({
+    // Atomic per-account cooldown: concurrent requests cannot all pass this update.
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - 60_000);
+    const reservation = await this.prisma.user.updateMany({
       where: {
+        id: user.id,
+        emailVerifiedAt: null,
+        OR: [
+          { lastVerificationResendAt: null },
+          { lastVerificationResendAt: { lte: cutoff } },
+        ],
+      },
+      data: { lastVerificationResendAt: now },
+    });
+    if (reservation.count !== 1) return genericResponse;
+
+    await this.prisma.auditLog.create({
+      data: {
         userId: user.id,
+        action: 'EMAIL_VERIFICATION_RESEND_REQUESTED',
+        entity: 'User',
+        entityId: user.id,
+        metadata: { cooldownSeconds: 60 },
       },
     });
 
-    const rawToken =
-      this.generateToken();
+    await this.prisma.emailVerificationToken.deleteMany({
+      where: { userId: user.id },
+    });
 
+    const rawToken = this.generateToken();
     await this.prisma.emailVerificationToken.create({
       data: {
         userId: user.id,
-        tokenHash:
-          this.hashToken(rawToken),
-        expiresAt: new Date(
-          Date.now() +
-            24 * 60 * 60 * 1000,
-        ),
+        tokenHash: this.hashToken(rawToken),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    await this.mailService.sendVerificationEmail(
-      user.email,
-      rawToken,
-    );
+    // The cooldown is reserved before sending, so provider failures cannot be abused
+    // to hammer the mail service. The caller receives a generic response either way.
+    try {
+      await this.mailService.sendVerificationEmail(user.email, rawToken);
+    } catch {
+      throw new BadRequestException('Не удалось отправить письмо. Попробуйте позже.');
+    }
 
-    return {
-      success: true,
-      message:
-        'Если аккаунт требует подтверждения, новое письмо отправлено.',
-    };
+    return genericResponse;
   }
 
   async login(
