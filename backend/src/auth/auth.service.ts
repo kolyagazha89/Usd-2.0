@@ -735,7 +735,7 @@ export class AuthService {
         return role;
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002') {
         throw new ConflictException('Роль с таким ключом уже существует');
       }
       throw error;
