@@ -168,10 +168,23 @@ export class MediaService {
   }
 
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
-    if (targetType !== MediaTargetType.SITE_ASSET) {
-      throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
+    } else if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const participant = await this.prisma.participant.findFirst({
+        where: { id: targetId, isPublic: true },
+        select: { id: true },
+      });
+      if (!participant) throw new ForbiddenException('Публичное фото участника недоступно');
+    } else if (targetType === MediaTargetType.CAR_PHOTO) {
+      const car = await this.prisma.car.findFirst({
+        where: { id: targetId, isPublic: true, participant: { isPublic: true } },
+        select: { id: true },
+      });
+      if (!car) throw new ForbiddenException('Публичное фото автомобиля недоступно');
+    } else {
+      throw new ForbiddenException('Публичная выдача этого типа файлов запрещена');
     }
-    if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
