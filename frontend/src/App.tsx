@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import * as XLSX from 'xlsx';
-import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
+import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import PublicRulesPage from './PublicRulesPage';
 import RulesAdminPage from './RulesAdminPage';
 import './catalog.css';
@@ -42,7 +42,7 @@ const NAME_TRANSLITERATION:Record<string,string>={mokhov:'Мохов',kosolapov:
 const PHONE_COUNTRY_NAMES=new Intl.DisplayNames(['ru'],{type:'region'});
 const PHONE_COUNTRIES=getCountries().map(code=>[code,PHONE_COUNTRY_NAMES.of(code)||code,getCountryCallingCode(code),15] as const).sort((a,b)=>a[1].localeCompare(b[1],'ru'));
 function countryForPhone(value:string){return parsePhoneNumberFromString(String(value??''))?.country??'RU'}
-function formatPhoneForCountry(value:string,country:string){const entry=PHONE_COUNTRIES.find(x=>x[0]===country)??PHONE_COUNTRIES.find(x=>x[0]==='RU')!;const raw=String(value??'').trim();const parsed=parsePhoneNumberFromString(raw);if(parsed?.country)return parsed.formatInternational();let digits=raw.replace(/\D/g,'');if(raw.startsWith('+')){const current=[...PHONE_COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(x=>digits.startsWith(x[2]));if(current)digits=digits.slice(current[2].length)}else if(digits.startsWith(entry[2]))digits=digits.slice(entry[2].length);digits=digits.slice(0,15);const national=new AsYouType(country).input(digits);return '+'+entry[2]+(national?' '+national:'')}
+function formatPhoneForCountry(value:string,country:string){const entry=PHONE_COUNTRIES.find(x=>x[0]===country)??PHONE_COUNTRIES.find(x=>x[0]==='RU')!;const raw=String(value??'').trim();const parsed=parsePhoneNumberFromString(raw);if(parsed?.country)return parsed.formatInternational();let digits=raw.replace(/\D/g,'');if(raw.startsWith('+')){const current=[...PHONE_COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(x=>digits.startsWith(x[2]));if(current)digits=digits.slice(current[2].length)}else if(digits.startsWith(entry[2]))digits=digits.slice(entry[2].length);digits=digits.slice(0,15);const national=new AsYouType(country as CountryCode).input(digits);return '+'+entry[2]+(national?' '+national:'')}
 
 function displayCarName(car:any,fallback='Не указано'){if(!car)return fallback;const unknown=(value:any)=>!String(value??'').trim()||/^(импорт|неизвестно|не указано|автомобиль не указан|unknown|n\/a|—|-)$/i.test(String(value).trim());const model=String(car.model??'').trim();const brand=String(car.brand??'').trim();if(unknown(model))return unknown(brand)?fallback:brand;return [unknown(brand)?'':brand,model].filter(Boolean).join(' ')||fallback}
 function displayPersonName(value:any){if(!value)return '';return String(value).trim().replace(/\s+/g,' ').split(' ').map((word)=>{const key=word.toLowerCase();if(NAME_TRANSLITERATION[key])return NAME_TRANSLITERATION[key];if(/^[a-z]+$/i.test(word))return transliterateLatin(word);return word.charAt(0).toUpperCase()+word.slice(1).toLowerCase()}).join(' ')}
