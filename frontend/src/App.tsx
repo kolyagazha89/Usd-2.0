@@ -463,6 +463,8 @@ function ConfigurationsWorkspace({car,canEdit,onBack}:{car:any;canEdit:boolean;o
  useEffect(()=>{void load()},[car.id]);
  const open=async(id:string)=>{try{setDetails(await apiGet<any>('/configurations/'+id))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки конфигурации')}};
  const createVersion=async(id:string)=>{setVersionBusy(true);setError('');try{await apiPost('/configurations/'+id+'/versions',{});await load();await open(id)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать новую версию')}finally{setVersionBusy(false)}};
+ if(editing!==null)return <div className="configurations-page"><ConfigurationEditor carId={car.id} configuration={editing} onClose={()=>setEditing(null)} onSaved={async()=>{setEditing(null);await load()}}/></div>;
+ if(details)return <div className="configurations-page"><ConfigurationDetails configuration={details} onClose={()=>setDetails(null)} onEdit={canEdit?()=>{setDetails(null);setEditing(details)}:undefined}/></div>;
  return <div className="configurations-page">
   <div className="configurations-page-top"><button className="registration-back-link" onClick={onBack}><ChevronLeft size={16}/>Назад к автомобилям</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>Конфигурации автомобиля</h1><p>Управляйте составом оборудования и сохраняйте изменения отдельными версиями.</p></div>
   <div className="config-modal">
@@ -470,8 +472,6 @@ function ConfigurationsWorkspace({car,canEdit,onBack}:{car:any;canEdit:boolean;o
    {error&&<div className="notice"><AlertTriangle size={16}/><span>{error}</span></div>}
    {loading?<LoadingPage small/>:<>{!configs.length?<div className="config-empty"><div className="config-empty-icon"><Settings2 size={22}/></div><strong>Конфигураций пока нет</strong><span>Создайте первую конфигурацию, чтобы сохранить состав оборудования автомобиля.</span></div>:<div className="config-list">{configs.map(c=><article className="config-card" key={c.id}><div className="config-card-main"><div className="config-version"><span>АКТУАЛЬНАЯ</span><b>v{c.currentVersion}</b></div><div><h3>{c.name}</h3><p>{c.versions?.[0]?.additionalDescription||'Описание конфигурации не добавлено'}</p></div></div><div className="config-card-actions"><button className="secondary-button compact" onClick={()=>void open(c.id)}><Info size={14}/>Подробнее</button>{canEdit&&<><button className="secondary-button compact" onClick={()=>setEditing(c)}><Pencil size={14}/>Редактировать</button><button className="primary-button compact" disabled={versionBusy} onClick={()=>void createVersion(c.id)}><Plus size={14}/>Новая версия</button></>}</div></article>)}</div>}{canEdit&&<button className="config-create-button" onClick={()=>setEditing({})}><span><Plus size={18}/></span><div><strong>Создать конфигурацию</strong><small>Сохранить оборудование и текущую сборку автомобиля</small></div><ChevronRight size={18}/></button>}</>}
   </div>
-  {editing!==null&&<ConfigurationEditor carId={car.id} configuration={editing} onClose={()=>setEditing(null)} onSaved={async()=>{setEditing(null);await load()}}/>}
-  {details&&<ConfigurationDetails configuration={details} onClose={()=>setDetails(null)} onEdit={canEdit?()=>{setDetails(null);setEditing(details)}:undefined}/>}
  </div>
 }
 
@@ -490,8 +490,8 @@ function ConfigurationEditor({carId,configuration,onClose,onSaved}:{carId:string
  const remove=(key:string,i:number)=>setV((s:any)=>({...s,[key]:s[key].filter((_:any,n:number)=>n!==i)}));
  const add=(key:string,item:any)=>setV((s:any)=>({...s,[key]:[...s[key],item]}));
  const submit=async()=>{setSaving(true);setError('');try{const body=cleanConfig(v);if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
- return <Modal title={isNew?'Новая конфигурация':'Новая версия · '+configuration.name} onClose={onClose}>
-  {error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}
+ return <div className="configuration-editor-page"><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>К конфигурациям автомобиля</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{isNew?'Новая конфигурация':'Новая версия · '+configuration.name}</h1><p>{isNew?'Опишите оборудование и текущую сборку автомобиля.':'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.'}</p></header>
+  {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{error}</div>}
   <div className="form modal-form config-editor">
    <div className="config-editor-intro"><div className="config-editor-icon"><Settings2 size={20}/></div><div><span className="eyebrow">{isNew?'НОВАЯ КОНФИГУРАЦИЯ':'НОВАЯ ВЕРСИЯ'}</span><strong>{isNew?'Опишите текущую сборку автомобиля':'Сохраните изменения отдельной версией — история предыдущей сборки не потеряется.'}</strong></div></div>
    <div className="config-basic-grid"><label>Название конфигурации<input value={v.name} onChange={e=>setV({...v,name:e.target.value})} placeholder="Например: Сезон 2026 · Stage 2" required/></label><label>Виброизоляция<select value={v.vibrationIsolation} onChange={e=>setV({...v,vibrationIsolation:e.target.value})}><option value="">Не указана</option>{[...new Set<string>([...(catalogs.vibrationBrands??[]),...(v.vibrationIsolation&&!catalogs.vibrationBrands.includes(v.vibrationIsolation)?[v.vibrationIsolation]:[])])].map((x:string)=><option key={x} value={x}>{x}</option>)}</select><small className="field-help">Выберите марку из справочника «Виброизоляция».</small></label></div>
@@ -503,7 +503,7 @@ function ConfigurationEditor({carId,configuration,onClose,onSaved}:{carId:string
    <ConfigListEditor title="Генераторы" icon={Activity} items={v.generators} onAdd={()=>add('generators',{brand:'',model:'',quantity:1})} onRemove={i=>remove('generators',i)}>{(x:any,i:number)=><div className="form-grid-3"><select value={x.brand} onChange={e=>patch('generators',i,{brand:e.target.value,model:''})}><option value="">Марка</option>{brandOptions('GENERATOR',x.brand).map((b:string)=><option key={b} value={b}>{b}</option>)}</select><select value={x.model} onChange={e=>patch('generators',i,{model:e.target.value})}><option value="">Модель</option>{modelOptions('GENERATOR',x.brand,x.model).map((m:string)=><option key={m} value={m}>{m}</option>)}</select><input type="number" min="1" value={x.quantity} onChange={e=>patch('generators',i,{quantity:Number(e.target.value)})}/></div>}</ConfigListEditor>
    <div className="config-editor-actions"><button className="primary-button" disabled={saving||!v.name.trim()} onClick={()=>void submit()}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить конфигурацию</>}</button></div>
   </div>
- </Modal>
+ </div>
 }
 
 function ConfigListEditor({title,icon:Icon,items,onAdd,onRemove,children}:{title:string;icon:any;items:any[];onAdd:()=>void;onRemove:(i:number)=>void;children:(x:any,i:number)=>React.ReactNode}){
@@ -518,11 +518,11 @@ function cleanConfig(v:any){
 function ConfigurationDetails({configuration,onClose,onEdit}:{configuration:any;onClose:()=>void;onEdit?:()=>void}){
  const[versionNumber,setVersionNumber]=useState<number>(configuration.currentVersion??configuration.versions?.[0]?.version??1);
  const version=configuration.versions?.find((x:any)=>x.version===versionNumber)||configuration.versions?.[0];
- if(!version)return <Modal title="Конфигурация" onClose={onClose}><Empty text="Версия не найдена"/></Modal>;
+ if(!version)return <div className="configuration-details-page"><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>К конфигурациям автомобиля</button><h1>Конфигурация</h1></header><Empty text="Версия не найдена"/></div>;
  const names=(xs:any[])=>xs?.length?xs.map(x=>x.brand+' '+x.model+(x.quantity>1?' ×'+x.quantity:'')).join(', '):'—';
  const count=(xs:any[])=>xs?.reduce((n,x)=>n+(Number(x.quantity)||1),0)||0;
  const isCurrent=version.version===configuration.currentVersion;
- return <Modal title={configuration.name+' · v'+version.version} onClose={onClose}><div className="config-details">
+ return <div className="configuration-details-page"><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>К конфигурациям автомобиля</button><span className="eyebrow">ГАРАЖ USD / ИСТОРИЯ СБОРКИ</span><h1>{configuration.name} · v{version.version}</h1><p>Состав оборудования и история версий этой конфигурации.</p></header><div className="config-details">
   <div className="config-details-hero"><div className="config-details-badge">v{version.version}</div><div><span className="eyebrow">{isCurrent?'ТЕКУЩАЯ ВЕРСИЯ':'ИСТОРИЯ КОНФИГУРАЦИИ'}</span><h2>{configuration.name}</h2><p>{version.additionalDescription||'Без описания'}</p></div></div>
   {configuration.versions?.length>1&&<div className="config-version-history"><span className="eyebrow">ВЕРСИИ</span><div className="page-actions">{configuration.versions.map((v:any)=><button key={v.version} className={'secondary-button compact '+(v.version===version.version?'active':'')} onClick={()=>setVersionNumber(v.version)}>v{v.version}{v.version===configuration.currentVersion?' · текущая':''}</button>)}</div></div>}
   <div className="config-stat-grid"><div><span>Головные устройства</span><strong>{version.headUnits?.length||0}</strong></div><div><span>Аудиокомпоненты</span><strong>{count(version.audioComponents)}</strong></div><div><span>Усилители</span><strong>{count(version.amplifiers)}</strong></div><div><span>Питание</span><strong>{count(version.batteries)+count(version.generators)}</strong></div></div>
@@ -535,7 +535,7 @@ function ConfigurationDetails({configuration,onClose,onEdit}:{configuration:any;
    <div className="detail-block"><span>Аккумуляторы</span><strong>{names(version.batteries)}</strong></div>
    <div className="detail-block"><span>Генераторы</span><strong>{names(version.generators)}</strong></div>
   </div>
- </div>{onEdit&&isCurrent&&<div className="modal-actions"><button className="primary-button" onClick={onEdit}><Pencil size={15}/>Редактировать текущую версию</button></div>}</Modal>
+ </div>{onEdit&&isCurrent&&<div className="configuration-page-actions"><button className="primary-button" onClick={onEdit}><Pencil size={15}/>Редактировать текущую версию</button></div>}</div>
 }
 function SeasonsPage(){return <ResourcePage title="Сезоны" subtitle="Сезонная структура чемпионата" path="/seasons" columns={[{key:'year',label:'Год'},{key:'name',label:'Название'},{key:'status',label:'Статус'},{key:'description',label:'Описание'}]} fields={[{name:'year',label:'Год',type:'number',required:true},{name:'name',label:'Название',required:true},{name:'status',label:'Статус',options:['DRAFT','ACTIVE','ARCHIVED']},{name:'description',label:'Описание',type:'textarea'}]} create={v=>apiPost('/seasons',{year:Number(v.year),name:String(v.name??'').trim(),description:v.description||undefined})} update={(id,v)=>apiPatch('/seasons/'+id,{name:v.name!==undefined?String(v.name).trim():undefined,description:v.description??undefined,status:v.status})}/>}
 function InspectionRow({registration:r,user,onSaved,readOnly,autoOpen=false}:{registration:any;user:User;onSaved:()=>Promise<any>;readOnly:boolean;autoOpen?:boolean}){
