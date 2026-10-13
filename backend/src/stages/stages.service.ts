@@ -119,7 +119,7 @@ export class StagesService {
     }
 
     const status = dto.status ?? 'DRAFT';
-    const rulesSnapshot = status === 'PUBLISHED' ? await this.getPublishedRulesSnapshot() : null;
+    const rulesSnapshot = status === 'PUBLISHED' && !existing?.rulesSnapshot ? await this.getPublishedRulesSnapshot() : null;
     const data = {
       ...(rulesSnapshot ? { rulesSnapshot: rulesSnapshot as any } : {}),
       seasonId: season.id,
