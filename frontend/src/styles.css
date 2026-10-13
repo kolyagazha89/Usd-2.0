@@ -2829,3 +2829,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .registration-cancel:hover{color:#fff}
 @media(max-width:900px){.registration-layout{grid-template-columns:minmax(0,1fr) 285px;gap:14px}.registration-card{padding:19px}.registration-summary{padding:19px}.registration-hero{padding:28px}.registration-hero-mark{flex-basis:118px;border-radius:22px}.registration-hero-mark span{font-size:38px}}
 @media(max-width:700px){.registration-page-main{padding:16px 14px 44px}.registration-hero{padding:23px 19px;border-radius:17px}.registration-hero-mark{display:none}.registration-hero h1{font-size:32px}.registration-hero p{font-size:13px}.registration-hero-meta{gap:7px;margin-top:16px}.registration-hero-meta span{font-size:11px;padding:7px 8px}.registration-layout{grid-template-columns:minmax(0,1fr)}.registration-summary{position:static;grid-row:1}.registration-card{padding:17px;border-radius:15px}.registration-step-heading{gap:10px}.registration-step-heading>span{flex-basis:35px;height:35px}.registration-step-heading h2{font-size:18px}.registration-step-heading p{font-size:12px}.registration-count{font-size:11px;padding:7px}.registration-class-grid{grid-template-columns:minmax(0,1fr)}.registration-class-option{min-height:58px}.registration-summary h2{font-size:19px}.registration-page .participant-header-actions>span{display:none}}
+
+.registration-admin-class-group{padding:10px 0;border-top:1px solid var(--border,#34343a)}
+.registration-admin-class-group:first-child{border-top:0;padding-top:0}
+.registration-admin-class-group>strong{display:block;margin:0 0 7px;color:var(--text,#f1f1f4);font-size:12px;letter-spacing:.02em}
+.registration-admin-class-group .checkbox-row:has(input:disabled){opacity:.45}
