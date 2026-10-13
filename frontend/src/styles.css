@@ -2865,3 +2865,41 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .configuration-details-page .config-details{width:100%;max-width:none}
 .configuration-page-actions{display:flex;justify-content:flex-end;gap:12px;padding-top:4px}
 @media(max-width:640px){.configuration-editor-page,.configuration-details-page{padding:12px;gap:14px}.configuration-subpage-header{padding:18px;border-radius:16px}.configuration-editor-page .config-editor-actions{bottom:8px}.configuration-page-actions .primary-button{width:100%;justify-content:center}}
+
+/* Custom role permission workspace */
+.roles-workspace{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(0,1.5fr);gap:18px;align-items:start}
+.roles-list,.roles-editor{padding:20px;border-radius:18px}
+.roles-list-head,.roles-editor-head,.role-summary,.role-summary-main,.role-summary-actions,.permission-matrix-head,.role-editor-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.roles-list-head{margin-bottom:16px}
+.roles-list-head h2,.roles-editor-head h2{margin:4px 0 0;font-size:20px}
+.role-summary{padding:14px 0;border-top:1px solid var(--border,#e5e5e5);align-items:flex-start}
+.role-summary.active{background:var(--surface-muted,#f6f6f6);margin:0 -10px;padding:14px 10px;border-radius:12px}
+.role-summary-main{justify-content:flex-start;align-items:flex-start;flex:1;min-width:0}
+.role-summary-main>div:last-child{min-width:0}
+.role-summary-main strong,.role-summary-main small,.role-summary-main p{display:block}
+.role-summary-main small,.role-summary-main p,.roles-editor-head p{color:var(--muted,#707070);font-size:12px;margin:4px 0 0}
+.role-summary-main p{font-size:13px}
+.role-summary-icon{display:grid;place-items:center;width:36px;height:36px;flex:none;border:1px solid var(--border,#dedede);border-radius:11px}
+.role-summary-actions{flex:none}
+.roles-editor-head{display:block;margin-bottom:16px}
+.role-editor-empty{display:grid;justify-items:center;gap:10px;padding:50px 20px;color:var(--muted,#777);text-align:center}
+.role-editor-empty strong{color:var(--text,#222)}
+.role-basic-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.role-basic-fields label:last-child{grid-column:1/-1}
+.role-basic-fields label{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:13px}
+.role-basic-fields input,.role-basic-fields textarea{width:100%;box-sizing:border-box}
+.role-basic-fields small{font-weight:400;color:var(--muted,#777);font-size:11px}
+.permission-matrix-head{margin:12px 0;align-items:flex-end}
+.permission-matrix-head span{font-size:12px;color:var(--muted,#777)}
+.permission-matrix{display:grid;gap:8px}
+.permission-module{display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,1.1fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--border,#e5e5e5);border-radius:12px}
+.permission-module-copy strong,.permission-module-copy small{display:block}
+.permission-module-copy small{margin-top:4px;color:var(--muted,#777);font-size:11px;line-height:1.4}
+.permission-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.permission-actions label{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:5px;border:1px solid var(--border,#e5e5e5);border-radius:8px;font-size:11px;white-space:nowrap;cursor:pointer}
+.permission-actions input{accent-color:var(--accent,#d62828)}
+.role-editor-actions{justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#e5e5e5)}
+.user-role-controls{display:grid;gap:6px;min-width:170px}
+.user-role-controls small{color:var(--muted,#777);font-size:11px}
+@media(max-width:1000px){.roles-workspace{grid-template-columns:1fr}.roles-list{order:2}.roles-editor{order:1}}
+@media(max-width:640px){.role-basic-fields{grid-template-columns:1fr}.role-basic-fields label:last-child{grid-column:auto}.permission-module{grid-template-columns:1fr}.permission-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.roles-list,.roles-editor{padding:14px}.role-summary{flex-direction:column}.role-summary-actions{align-self:flex-end}}
