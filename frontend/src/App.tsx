@@ -12,31 +12,45 @@ import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageS
 
 const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
- {section:'Соревнование',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
- {section:'Соревнование',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {section:'Соревнование',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
- {section:'Соревнование',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
- {section:'Справочники',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
- {section:'Справочники',label:'Команды',path:'/admin/teams',icon:Users,roles:['ADMIN']},
- {section:'Справочники',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
+
+ // Оперативная работа на этапах
+ {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
+ {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
+ {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
+ {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
+
+ // Люди, команды и автомобили
+ {section:'Участники и автопарк',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
+ {section:'Участники и автопарк',label:'Команды',path:'/admin/teams',icon:Users,roles:['ADMIN']},
+ {section:'Участники и автопарк',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
+
+ // Итоги, рекорды и спортивный контроль
+ {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
+ {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
+
+ // Публичные материалы сайта
+ {section:'Контент сайта',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
+ {section:'Контент сайта',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
+ {section:'Контент сайта',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
+
+ // Справочники, используемые в регистрации и каталоге
  {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
  {section:'Справочники',label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
- {section:'Контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
- {section:'Контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
- {section:'Контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
- {section:'Данные',label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
- {section:'Данные',label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
- {section:'Данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
- {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
- {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
- {section:'Справочники',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
- {section:'Контент',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
  {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
+
+ // Импорт, история и качество данных
+ {section:'Импорт и данные',label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
+ {section:'Импорт и данные',label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
+ {section:'Импорт и данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
+
+ // Доступы, настройки и системные инструменты
+ {section:'Система',label:'Пользователи и доступы',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
+ {section:'Система',label:'Аудит действий',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
- {section:'Система',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
-];
+ ];
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
 const NAME_TRANSLITERATION:Record<string,string>={mokhov:'Мохов',kosolapov:'Косолапов',vasily:'Василий',vasiliy:'Василий',vasili:'Василий',vasilii:'Василий',vassily:'Василий',wassily:'Василий',vitaly:'Виталий',vitaliy:'Виталий',maksim:'Максим',maxim:'Максим',sergey:'Сергей',sergei:'Сергей',vladislav:'Владислав',konstantin:'Константин',shamil:'Шамиль',anton:'Антон',daniil:'Даниил',danil:'Данил',dmitry:'Дмитрий',dmitriy:'Дмитрий',nikrasov:'Никрасов',ruslan:'Руслан',yan:'Ян',damir:'Дамир',andrey:'Андрей',alexey:'Алексей',aleksey:'Алексей',ilnur:'Ильнур',artem:'Артем',ivan:'Иван',androsov:'Андросов',krasnov:'Краснов',yakovenko:'Яковенко',kashapov:'Кашапов',zorin:'Зорин',sobyanin:'Собянин',zhernakov:'Жернаков',naidanov:'Найданов',shtyagin:'Штягин',mihailov:'Михайлов',usolcev:'Усольцев',polikarpov:'Поликарпов',cvirko:'Цвирко',nizaforov:'Низафоров',aleksashin:'Алексашин',zamatov:'Заматов',sozontov:'Созонтов',tarasov:'Тарасов',bakulin:'Бакулин',zbarev:'Зубарев',zubarev:'Зубарев',ahmetov:'Ахметов',nikonov:'Никонов',permyakov:'Пермяков'};
