@@ -91,7 +91,7 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
   if(!candidates.length){setLatestResults([]);return}
   let alive=true;
   setLatestResults([]);
-  const direction=(row:any)=>String((row.registrationClass?.class??row.class)?.direction?.name??(row.registrationClass?.class??row.class)?.directionName??'').toLowerCase().replace(/[\\s_-]/g,'');
+  const direction=(row:any)=>String((row.registrationClass?.class??row.class)?.direction?.name??(row.registrationClass?.class??row.class)?.directionName??'').toLowerCase().replace(/[\s_-]/g,'');
   const value=(row:any)=>{const raw=row.value??row.score??row.result?.value;const n=Number(String(raw??'').replace(',','.'));return Number.isFinite(n)?n:Number.NEGATIVE_INFINITY};
   const sorted=(items:any[])=>items.sort((a:any,b:any)=>value(b)-value(a));
   const discover=async()=>{
