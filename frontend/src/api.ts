@@ -143,6 +143,19 @@ export async function uploadSiteAsset(assetKey:string,file:File){
 }
 export async function getPublicSiteAsset(assetKey:string){return {success:true,url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`};}
 
+
+async function uploadOwnedPhoto(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOTO',targetId:string,file:File){
+  if(!targetId)throw new Error('Не найден объект для загрузки фотографии');
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Разрешены только JPG, PNG и WebP');
+  if(file.size<=0||file.size>10*1024*1024)throw new Error('Размер изображения должен быть от 1 байта до 10 МБ');
+  const prepared=await apiPost<any>('/media/prepare',{targetType,targetId,contentType:file.type});
+  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  const publicPath=`${API_BASE}/media/public-file/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`;
+  return {url:publicPath,publicPath};
+}
+export async function uploadParticipantPhoto(participantId:string,file:File){return uploadOwnedPhoto('PARTICIPANT_PHOTO',participantId,file);}
+export async function uploadCarPhoto(carId:string,file:File){return uploadOwnedPhoto('CAR_PHOTO',carId,file);}
+
 export async function uploadRulesDocx(targetId:string,file:File){
   const contentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if(file.size<=0||file.size>10*1024*1024) throw new Error('Размер DOCX должен быть от 1 байта до 10 МБ');
