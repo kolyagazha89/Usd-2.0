@@ -2940,3 +2940,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-footer-identity small{display:block;width:100%;color:#8e8e96}
 .public-footer-link-button{background:none;border:0;color:#ff6572;cursor:pointer;font:inherit;padding:0}
 .public-footer-link-button:hover{text-decoration:underline}
+
+.participant-registration-qr-actions{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:10px}
+.participant-registration-qr{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;background:#fff;color:#151515;border-radius:12px;width:max-content;max-width:100%}
+.participant-registration-qr small{max-width:190px;text-align:center;color:#555;font-size:11px;line-height:1.4}
+.qr-scanner-modal{display:grid;gap:14px;min-width:min(520px,80vw)}
+.qr-scanner-modal video{display:block;width:100%;max-height:52vh;min-height:220px;object-fit:cover;background:#08090a;border:1px solid #34363a;border-radius:12px}
+.qr-scanner-modal p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+@media(max-width:600px){.qr-scanner-modal{min-width:0}.qr-scanner-modal video{min-height:180px}}
