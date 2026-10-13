@@ -5,6 +5,16 @@
     "directory": "./dist",
     "not_found_handling": "single-page-application"
   },
+  "routes": [
+    {
+      "pattern": "usd-russia.ru",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.usd-russia.ru",
+      "custom_domain": true
+    }
+  ],
   // Wrangler preview requires this block; assets are built from /frontend into ./dist.
   "previews": {}
 }
