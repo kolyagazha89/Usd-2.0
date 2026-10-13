@@ -1,5 +1,4 @@
 import { jest } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 describe('AuthService.resendVerificationEmail', () => {
@@ -77,13 +76,22 @@ describe('AuthService.resendVerificationEmail', () => {
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
-  it('reports mail delivery failure clearly while keeping the cooldown reserved', async () => {
+  it('records mail delivery failure safely without revealing account existence', async () => {
     mail.sendVerificationEmail.mockRejectedValue(new Error('provider failure'));
 
-    await expect(service.resendVerificationEmail('person@example.com'))
-      .rejects.toBeInstanceOf(BadRequestException);
+    const response = await service.resendVerificationEmail('person@example.com');
 
+    expect(response).toEqual({
+      success: true,
+      message: 'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
+    });
     expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
-    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(2);
+    expect(prisma.auditLog.create).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: 'EMAIL_VERIFICATION_RESEND_FAILED',
+        metadata: { failureCode: 'SMTP_SEND_FAILED' },
+      }),
+    }));
   });
 });
