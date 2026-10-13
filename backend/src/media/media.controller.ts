@@ -19,6 +19,7 @@ export class MediaController {
       body.targetType,
       body.targetId,
       body.contentType,
+      Boolean(request.user.customRoleId),
     );
   }
 
@@ -33,6 +34,7 @@ export class MediaController {
       request.user.role,
       targetType,
       targetId,
+      Boolean(request.user.customRoleId),
     );
   }
 
@@ -62,7 +64,7 @@ export class MediaController {
   @Roles('ADMIN')
   @Get('library')
   listMediaLibrary(@Req() request: AuthenticatedRequest) {
-    return this.mediaService.listMediaLibrary(request.user.role);
+    return this.mediaService.listMediaLibrary(request.user.role, Boolean(request.user.customRoleId));
   }
 
   @Roles('ADMIN')
@@ -72,7 +74,7 @@ export class MediaController {
     @Param('targetType') targetType: MediaTargetType,
     @Param('targetId') targetId: string,
   ) {
-    return this.mediaService.deleteMediaAsset(request.user.sub, request.user.role, targetType, targetId);
+    return this.mediaService.deleteMediaAsset(request.user.sub, request.user.role, targetType, targetId, Boolean(request.user.customRoleId));
   }
 
   @Put('upload')
@@ -88,11 +90,12 @@ export class MediaController {
       uploadToken,
       body,
       contentType,
+      Boolean(request.user.customRoleId),
     );
   }
 
   @Post('complete')
   complete(@Req() request: AuthenticatedRequest, @Body() body: CompleteUploadDto) {
-    return this.mediaService.complete(request.user.sub, request.user.role, body.uploadToken);
+    return this.mediaService.complete(request.user.sub, request.user.role, body.uploadToken, Boolean(request.user.customRoleId));
   }
 }
