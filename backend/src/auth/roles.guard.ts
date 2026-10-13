@@ -38,6 +38,7 @@ const CONTROLLER_MODULES: Record<string, string> = {
 
 function actionFor(request: Request): PermissionAction {
   const method = request.method.toUpperCase();
+  if (request.path.startsWith('/media/upload')) return 'create';
   if (method === 'GET' || method === 'HEAD') return 'view';
   if (method === 'DELETE') return 'delete';
   if (method === 'PUT' || method === 'PATCH') return 'update';
