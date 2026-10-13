@@ -37,6 +37,12 @@ describe('RolesGuard', () => {
     });
   });
 
+  it('treats media upload as a create action for custom roles', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { media: ['create'] } });
+    const ctx = context({ method: 'PUT', path: '/media/upload', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
   it('denies a custom role when the requested action is not granted', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { stages: ['view'] } });
     const ctx = context({ method: 'DELETE', path: '/stages/1', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } });
