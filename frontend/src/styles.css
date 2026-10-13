@@ -2865,3 +2865,10 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .configuration-details-page .config-details{width:100%;max-width:none}
 .configuration-page-actions{display:flex;justify-content:flex-end;gap:12px;padding-top:4px}
 @media(max-width:640px){.configuration-editor-page,.configuration-details-page{padding:12px;gap:14px}.configuration-subpage-header{padding:18px;border-radius:16px}.configuration-editor-page .config-editor-actions{bottom:8px}.configuration-page-actions .primary-button{width:100%;justify-content:center}}
+
+
+/* Public record participant identity */
+.public-record-person-row{display:flex;align-items:center;gap:12px;min-width:0}
+.public-record-avatar{width:44px;height:44px;flex:0 0 44px;object-fit:cover;border-radius:50%;border:1px solid #3b3b42;background:#1a1a1e}
+.public-record-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#f5f5f6;font-size:12px;font-weight:850;letter-spacing:.04em}
+.public-record-person-row .public-record-person{min-width:0;overflow-wrap:anywhere}
