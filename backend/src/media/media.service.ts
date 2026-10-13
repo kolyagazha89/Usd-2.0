@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -265,6 +265,107 @@ export class MediaService {
     if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
       throw new BadRequestException('Файл не является корректным DOCX');
     }
+  }
+
+  private async getReferencedSiteAssetIds(): Promise<Set<string>> {
+    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' } });
+    const referenced = new Set<string>();
+    const scan = (value: unknown, key = '') => {
+      if (typeof value === 'string') {
+        if (key === 'targetId' && value.trim()) referenced.add(value.trim());
+        const marker = '/media/public-file/SITE_ASSET/';
+        const index = value.indexOf(marker);
+        if (index >= 0) {
+          const raw = value.slice(index + marker.length).split(/[?#/]/, 1)[0];
+          if (raw) {
+            try { referenced.add(decodeURIComponent(raw)); } catch { referenced.add(raw); }
+          }
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) scan(item);
+        return;
+      }
+      if (value && typeof value === 'object') {
+        for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) scan(childValue, childKey);
+      }
+    };
+    scan(settings);
+    return referenced;
+  }
+
+  async listSiteAssets(userId: string, role: string) {
+    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека сайта доступна только администратору');
+    const uploads = await this.prisma.mediaUpload.findMany({
+      where: { targetType: MediaTargetType.SITE_ASSET, completedAt: { not: null } },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true, targetId: true, contentType: true, completedAt: true, createdAt: true, objectKey: true },
+    });
+    const seen = new Set<string>();
+    const latest = uploads.filter((upload) => {
+      if (seen.has(upload.targetId)) return false;
+      seen.add(upload.targetId);
+      return true;
+    });
+    const referenced = await this.getReferencedSiteAssetIds();
+    const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
+    return {
+      success: true,
+      items: latest.map((upload) => ({
+        id: upload.id,
+        targetId: upload.targetId,
+        contentType: upload.contentType,
+        completedAt: upload.completedAt,
+        createdAt: upload.createdAt,
+        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
+        isReferenced: referenced.has(upload.targetId),
+        canDelete: !referenced.has(upload.targetId),
+      })),
+    };
+  }
+
+  async deleteSiteAsset(userId: string, role: string, targetId: string) {
+    if (role !== 'ADMIN') throw new ForbiddenException('Медиатека сайта доступна только администратору');
+    const normalizedTargetId = targetId.trim();
+    if (!normalizedTargetId || normalizedTargetId.length > 200) throw new BadRequestException('Некорректный идентификатор медиа');
+    const uploads = await this.prisma.mediaUpload.findMany({
+      where: { targetType: MediaTargetType.SITE_ASSET, targetId: normalizedTargetId, completedAt: { not: null } },
+      orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, objectKey: true, contentType: true },
+    });
+    if (!uploads.length) throw new NotFoundException('Медиафайл не найден');
+    const referenced = await this.getReferencedSiteAssetIds();
+    if (referenced.has(normalizedTargetId)) {
+      throw new ConflictException('Файл используется на сайте. Сначала замените его или уберите ссылку в соответствующем разделе.');
+    }
+
+    // Remove older versions first and the latest version last. If S3 rejects a
+    // delete, the current public asset remains available and database rows stay intact.
+    for (const upload of uploads) {
+      const response = await fetch(this.presignedUrl('DELETE', upload.objectKey, null, 60), { method: 'DELETE' });
+      if (!response.ok && response.status !== 404) {
+        throw new ServiceUnavailableException('Не удалось удалить файл из хранилища');
+      }
+    }
+
+    await this.prisma.mediaUpload.deleteMany({
+      where: { targetType: MediaTargetType.SITE_ASSET, targetId: normalizedTargetId, completedAt: { not: null } },
+    });
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'SITE_ASSET_DELETED',
+          entity: 'MediaUpload',
+          entityId: normalizedTargetId,
+          metadata: { versionsDeleted: uploads.length },
+        },
+      });
+    } catch {
+      // A logging outage must not make an already completed deletion appear to fail.
+    }
+    return { success: true, targetId: normalizedTargetId, deletedVersions: uploads.length };
   }
 
   async getSiteAssetBuffer(targetId: string) {
