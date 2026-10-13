@@ -152,11 +152,26 @@ export class MediaService {
       Array.isArray(rules?.publishedVersions) && rules.publishedVersions.some((revision: any) => revision?.targetId === targetId);
   }
 
-  async getSignedPublicMediaUrl(targetType: MediaTargetType, targetId: string) {
-    if (targetType !== MediaTargetType.SITE_ASSET) {
-      throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
+  private async ensurePublicMediaAccess(targetType: MediaTargetType, targetId: string) {
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
+      return;
     }
-    if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
+    if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const participant = await this.prisma.participant.findUnique({ where: { id: targetId }, select: { isPublic: true } });
+      if (!participant?.isPublic) throw new ForbiddenException('Профиль участника не опубликован');
+      return;
+    }
+    if (targetType === MediaTargetType.CAR_PHOTO) {
+      const car = await this.prisma.car.findUnique({ where: { id: targetId }, select: { isPublic: true, participant: { select: { isPublic: true } } } });
+      if (!car?.isPublic || !car.participant.isPublic) throw new ForbiddenException('Автомобиль или профиль участника не опубликован');
+      return;
+    }
+    throw new ForbiddenException('Публичная выдача для этого типа файлов запрещена');
+  }
+
+  async getSignedPublicMediaUrl(targetType: MediaTargetType, targetId: string) {
+    await this.ensurePublicMediaAccess(targetType, targetId);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
@@ -168,10 +183,7 @@ export class MediaService {
   }
 
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
-    if (targetType !== MediaTargetType.SITE_ASSET) {
-      throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
-    }
-    if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
+    await this.ensurePublicMediaAccess(targetType, targetId);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
