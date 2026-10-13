@@ -95,6 +95,49 @@ describe('parseDocxRules', () => {
     expect(block).toMatchObject({ type: 'paragraph', text: 'небезопасно', runs: [{ text: 'небезопасно' }] });
   });
 
+  it('preserves duplicate headings, Cyrillic text, nested list levels and wide tables', () => {
+    const duplicateHeading = '<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Общие требования</w:t></w:r></w:p>';
+    const listItem = (level: number, text: string) => `<w:p><w:pPr><w:numPr><w:ilvl w:val="${level}"/><w:numId w:val="9"/></w:numPr></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+    const wideCells = Array.from({ length: 12 }, (_, index) =>
+      `<w:tc><w:p><w:r><w:t>Колонка ${index + 1}</w:t></w:r></w:p></w:tc>`,
+    ).join('');
+    const document = `<w:document xmlns:w="x"><w:body>
+      ${duplicateHeading}${duplicateHeading}
+      ${listItem(0, 'Первый пункт')}${listItem(1, 'Вложенный пункт')}${listItem(2, 'Глубокий пункт')}
+      <w:tbl><w:tr>${wideCells}</w:tr></w:tbl>
+    </w:body></w:document>`;
+    const numbering = '<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum><w:num w:numId="9"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
+    const blocks = parseDocxRules(makeDocx({ 'word/document.xml': document, 'word/numbering.xml': numbering }));
+
+    expect(blocks.filter(block => block.type === 'heading')).toHaveLength(2);
+    expect(blocks.filter(block => block.type === 'heading').map(block => block.text)).toEqual(['Общие требования', 'Общие требования']);
+    expect(blocks.filter(block => block.type === 'list-item').map(block => block.level)).toEqual([0, 1, 2]);
+    expect(blocks.filter(block => block.type === 'list-item').map(block => block.text)).toEqual(['Первый пункт', 'Вложенный пункт', 'Глубокий пункт']);
+    const table = blocks.find(block => block.type === 'table');
+    expect(table?.type === 'table' ? table.rows[0] : []).toHaveLength(12);
+    expect(table?.type === 'table' ? table.rows[0][11] : '').toBe('Колонка 12');
+  });
+
+  it('ignores empty paragraphs and empty tables but rejects an entirely empty document', () => {
+    const document = '<w:document xmlns:w="x"><w:body><w:p></w:p><w:tbl><w:tr><w:tc><w:p></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Содержимое</w:t></w:r></w:p></w:body></w:document>';
+    expect(parseDocxRules(makeDocx({ 'word/document.xml': document }))).toMatchObject([
+      { type: 'paragraph', text: 'Содержимое' },
+    ]);
+    const empty = '<w:document xmlns:w="x"><w:body><w:p></w:p><w:tbl><w:tr><w:tc><w:p></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+    expect(() => parseDocxRules(makeDocx({ 'word/document.xml': empty }))).toThrow('В документе не найден текст');
+  });
+
+  it('rejects malformed DOCX structure with a readable error', () => {
+    const malformed = '<w:document xmlns:w="x"><w:body><w:p><w:r><w:t>Оборванный документ</w:t></w:r></w:p>';
+    expect(() => parseDocxRules(makeDocx({ 'word/document.xml': malformed }))).toThrow('Не удалось прочитать текст DOCX');
+  });
+
+  it('rejects oversized uncompressed XML entries before decompressing them', () => {
+    const tooLarge = 'x'.repeat(20 * 1024 * 1024 + 1);
+    const document = `<w:document xmlns:w="x"><w:body><w:p><w:r><w:t>${tooLarge}</w:t></w:r></w:p></w:body></w:document>`;
+    expect(() => parseDocxRules(makeDocx({ 'word/document.xml': document }))).toThrow('DOCX содержит слишком большой элемент');
+  });
+
   it('rejects data that is not a DOCX archive', () => {
     expect(() => parseDocxRules(Buffer.from('not docx'))).toThrow('Файл не похож на DOCX');
   });
