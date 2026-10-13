@@ -195,3 +195,17 @@ Finish deployment verification for the newest main commit, then perform one cons
 - Added regression tests for bold/italic, links in paragraphs/table cells and rejection of unsafe schemes. Backend CI passed build, lint, unit and E2E on run [38296715212](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715212); Frontend CI passed on run [38296715211](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38296715211).
 - No schema change, database migration, or production data mutation. The original DOCX remains the downloadable source. Deployment and live /rules verification are separate release gates.
 - Still outstanding in the broader public-site block: live direct-route/refresh QA for all five routes, anonymous runtime privacy checks, cold-load logo verification, real-device mobile/loading/empty/error QA, and upload of the selected real USD hero photo. Regulation follow-ups include editable section hierarchy, restoration of prior revisions and rules snapshots tied to historical stages.
+
+
+## Engineering handoff — 2026-10-13
+
+This section records changes merged after the previous status notes; it does not mean the product is complete.
+
+- Main branch at handoff: `6ea3b48cb437a6203b84ffe09025b8701f485138`.
+- PR #36: registration DTO accepts multi-class selections up to 32 classes; regression tests cover more than five classes and the DTO limit.
+- PR #37: public `/results` selects the newest published/completed stage with public results when no `stageId` is supplied.
+- PR #38: participant portal keeps the selected tab synchronized with the `?tab=` URL when navigating back from dedicated configuration pages.
+- PR #39: frontend and backend phone validation now use explicit national-number lengths for Norway (+47), North Korea (+850), and Mongolia (+976), with backend regression cases. CI passed build, lint, unit tests and E2E tests for this change.
+- Deployment status: repository CI success is not proof that the Cloudflare frontend or Railway API is serving this exact commit. Verify both independently before announcing production rollout.
+- Remaining release work: perform end-to-end browser QA across participant registration, car configurations, admin stage lifecycle, results/import, inspections, records, rules, and responsive layouts; review stale open PRs before porting anything; confirm deployment and smoke-test the production routes.
+
