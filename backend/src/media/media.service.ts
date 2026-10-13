@@ -375,7 +375,7 @@ export class MediaService {
           action: 'MEDIA_ASSET_DELETED',
           entity: 'MediaUpload',
           entityId: normalizedTargetId,
-          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending },
+          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending, objectKeys: storageCleanupPending ? uploads.map((upload) => upload.objectKey) : [] },
         },
       });
     } catch {
