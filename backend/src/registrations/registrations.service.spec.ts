@@ -197,6 +197,31 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a participant registering again on the same stage with another car', async () => {
+    const tx = baseTx({
+      registration: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'existing-registration',
+          carId: 'another-car',
+          status: 'ACTIVE',
+        }),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
+    });
+    setupTransaction(tx);
+
+    await expect(
+      service.create(participantRequest, {
+        ...requestBody,
+        carId: 'different-car',
+      }),
+    ).rejects.toThrow('Вы уже зарегистрированы на этот этап');
+
+    expect(tx.registration.create).not.toHaveBeenCalled();
+    expect(tx.registration.findUnique).not.toHaveBeenCalled();
+  });
+
   it('allows more than five selected classes when multiple BassRace classes are included', async () => {
     const bassRaceClasses = [
       { classId: 'br-129', name: 'BassRace 129.9' },
