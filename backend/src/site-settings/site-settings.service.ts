@@ -44,8 +44,59 @@ export class SiteSettingsService{
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
   }
+  async getPublishedRulesSnapshot() {
+    const settings = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
+    const registration = settings.registration as Record<string, any>;
+    const published = registration.rulesDocument?.published;
+    if (!published || !Array.isArray(published.blocks) || !published.blocks.length) return null;
+    return {
+      revisionId: String(published.id ?? ''),
+      fileName: String(published.fileName ?? 'Регламент USD'),
+      url: String(published.url ?? ''),
+      publishedAt: String(published.publishedAt ?? published.createdAt ?? ''),
+      capturedAt: new Date().toISOString(),
+      blocks: published.blocks,
+    };
+  }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
   async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners,legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??''}}};}
+  private mergeRegistration(currentValue: unknown, incomingValue: unknown): Record<string, any> {
+    const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
+      ? currentValue as Record<string, any> : DEFAULTS.registration;
+    const incoming = incomingValue && typeof incomingValue === 'object' && !Array.isArray(incomingValue)
+      ? incomingValue as Record<string, any> : {};
+    const currentDocument = current.rulesDocument && typeof current.rulesDocument === 'object'
+      ? current.rulesDocument as Record<string, any> : {};
+    const incomingDocument = incoming.rulesDocument && typeof incoming.rulesDocument === 'object'
+      ? incoming.rulesDocument as Record<string, any> : {};
+    const versions: any[] = [];
+    const seen = new Set<string>();
+    const addVersion = (version: any) => {
+      if (!version || typeof version !== 'object' || !version.id) return;
+      const id = String(version.id);
+      if (seen.has(id)) return;
+      seen.add(id);
+      versions.push(version);
+    };
+    for (const version of Array.isArray(currentDocument.publishedVersions) ? currentDocument.publishedVersions : []) addVersion(version);
+    const currentPublished = currentDocument.published ?? null;
+    const currentPublishedId = String(currentPublished?.id ?? '');
+    for (const version of Array.isArray(incomingDocument.publishedVersions) ? incomingDocument.publishedVersions : []) {
+      if (String(version?.id ?? '') !== currentPublishedId) addVersion(version);
+    }
+    const incomingPublished = incomingDocument.published ?? currentPublished;
+    let published = incomingPublished;
+    if (currentPublished && incomingPublished?.id === currentPublished.id) published = currentPublished;
+    else if (currentPublished) addVersion(currentPublished);
+    const drafts = Array.isArray(incomingDocument.drafts)
+      ? incomingDocument.drafts
+      : Array.isArray(currentDocument.drafts) ? currentDocument.drafts : [];
+    return {
+      ...current,
+      ...incoming,
+      rulesDocument: { ...currentDocument, ...incomingDocument, published, publishedVersions: versions, drafts },
+    };
+  }
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
     const next={
@@ -53,7 +104,7 @@ export class SiteSettingsService{
       stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
       navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
-      footer:input.footer??current.footer,registration:input.registration??current.registration,
+      footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
       catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,
     };
     const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
