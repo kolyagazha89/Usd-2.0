@@ -109,10 +109,12 @@ describe('parseDocxRules', () => {
     const numbering = '<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum><w:num w:numId="9"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
     const blocks = parseDocxRules(makeDocx({ 'word/document.xml': document, 'word/numbering.xml': numbering }));
 
-    expect(blocks.filter(block => block.type === 'heading')).toHaveLength(2);
-    expect(blocks.filter(block => block.type === 'heading').map(block => block.text)).toEqual(['Общие требования', 'Общие требования']);
-    expect(blocks.filter(block => block.type === 'list-item').map(block => block.level)).toEqual([0, 1, 2]);
-    expect(blocks.filter(block => block.type === 'list-item').map(block => block.text)).toEqual(['Первый пункт', 'Вложенный пункт', 'Глубокий пункт']);
+    const headings = blocks.filter((block: any) => block.type === 'heading');
+    const listItems = blocks.filter((block: any) => block.type === 'list-item');
+    expect(headings).toHaveLength(2);
+    expect(headings.map((block: any) => block.text)).toEqual(['Общие требования', 'Общие требования']);
+    expect(listItems.map((block: any) => block.level)).toEqual([0, 1, 2]);
+    expect(listItems.map((block: any) => block.text)).toEqual(['Первый пункт', 'Вложенный пункт', 'Глубокий пункт']);
     const table = blocks.find(block => block.type === 'table');
     expect(table?.type === 'table' ? table.rows[0] : []).toHaveLength(12);
     expect(table?.type === 'table' ? table.rows[0][11] : '').toBe('Колонка 12');
