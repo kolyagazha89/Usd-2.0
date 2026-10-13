@@ -28,6 +28,7 @@ const nav=[
  {section:'Система',label:'Пользователи',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
  {section:'Система',label:'Аудит',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
  {section:'Справочники',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
+ {section:'Контент',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
  {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
@@ -284,6 +285,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage/>;
+  if(path.startsWith('/admin/news'))return <NewsPage/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components"/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage/>;
@@ -1197,6 +1199,21 @@ function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:
   <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
  </form>
 }
+
+function NewsPage(){
+ const[settings,setSettings]=useState<any|null>(null),[items,setItems]=useState<any[]>([]),[editing,setEditing]=useState<any|null>(null),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);setItems(Array.isArray(r.settings?.news)?r.settings.news:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить новости')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ const save=async()=>{if(!settings||!editing)return;if(!String(editing.title??'').trim()){setError('Укажите заголовок новости');return}setSaving(true);setError('');try{const id=editing.id??crypto.randomUUID();const item={...editing,id,title:String(editing.title).trim(),excerpt:String(editing.excerpt??'').trim(),body:String(editing.body??'').trim(),url:String(editing.url??'').trim(),isPublished:editing.isPublished!==false,publishedAt:editing.publishedAt||new Date().toISOString(),createdAt:editing.createdAt||new Date().toISOString()};const next=editing.id?items.map((x:any)=>x.id===id?item:x):[item,...items];await updateSiteSettings({...settings,news:next});setSettings({...settings,news:next});setItems(next);setEditing(null)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить новость')}finally{setSaving(false)}};
+ const toggle=async(item:any)=>{if(!settings)return;const next=items.map((x:any)=>x.id===item.id?{...x,isPublished:!x.isPublished}:x);try{await updateSiteSettings({...settings,news:next});setSettings({...settings,news:next});setItems(next)}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить публикацию')}};
+ const remove=async(item:any)=>{if(!settings||!window.confirm('Удалить новость «'+item.title+'»?'))return;const next=items.filter((x:any)=>x.id!==item.id);try{await updateSiteSettings({...settings,news:next});setSettings({...settings,news:next});setItems(next)}catch(e){setError(e instanceof Error?e.message:'Не удалось удалить новость')}};
+ return <PageFrame title="Новости" subtitle="Создание и публикация новостей на главной странице" action={<button className="primary-button compact" onClick={()=>setEditing({isPublished:true})}><Plus size={15}/>Создать новость</button>}>
+ {error&&<div className="notice"><AlertTriangle size={16}/><span>{error}</span></div>}
+ {editing&&<div className="panel news-editor"><PanelTitle title={editing.id?'Редактировать новость':'Новая новость'} icon={Bell}/><div className="settings-form-grid"><label>Заголовок<input value={editing.title??''} onChange={e=>setEditing({...editing,title:e.target.value})} maxLength={160}/></label><label>Ссылка на материал (HTTPS)<input type="url" value={editing.url??''} onChange={e=>setEditing({...editing,url:e.target.value})} placeholder="https://…"/></label><label className="settings-field-wide">Краткое описание<textarea rows={3} value={editing.excerpt??''} onChange={e=>setEditing({...editing,excerpt:e.target.value})} maxLength={500}/></label><label className="settings-field-wide">Полный текст<textarea rows={6} value={editing.body??''} onChange={e=>setEditing({...editing,body:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={editing.isPublished!==false} onChange={e=>setEditing({...editing,isPublished:e.target.checked})}/>Опубликована на сайте</label></div><div className="page-actions"><button className="primary-button compact" disabled={saving} onClick={()=>void save()}>{saving?'Сохраняем…':'Сохранить'}</button><button className="secondary-button compact" onClick={()=>setEditing(null)}>Отмена</button></div></div>}
+ <div className="panel table-wrap">{loading?<LoadingPage small/>:items.length?<table className="data-table"><thead><tr><th>Заголовок</th><th>Дата</th><th>Статус</th><th>Действия</th></tr></thead><tbody>{items.map((n:any)=><tr key={n.id}><td data-label="Заголовок"><strong>{n.title}</strong><small className="table-sub">{n.excerpt}</small></td><td data-label="Дата">{formatDate(n.publishedAt||n.createdAt)}</td><td data-label="Статус"><span className={'badge '+(n.isPublished?'good':'')}>{n.isPublished?'Опубликована':'Черновик'}</span></td><td className="row-actions"><button className="secondary-button compact" onClick={()=>setEditing({...n})}><Pencil size={14}/>Изменить</button><button className="secondary-button compact" onClick={()=>void toggle(n)}>{n.isPublished?'Скрыть':'Опубликовать'}</button><button className="icon-button" onClick={()=>void remove(n)} title="Удалить"><Trash2 size={14}/></button></td></tr>)}</tbody></table>:<Empty text="Новостей пока нет. Создайте первую публикацию."/>}</div>
+ </PageFrame>
+}
+
 function SiteSettingsPage(){
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings);for(const key of ['logoUrl','splashLogoUrl','mobileLogoUrl','faviconUrl']){getMediaUrl('SITE_ASSET','branding-'+key).then(url=>setPreview(x=>({...x,[key]:url}))).catch(()=>{})}getMediaUrl('SITE_ASSET','homepage-heroImageUrl').then(url=>setPreview(x=>({...x,heroImageUrl:url}))).catch(()=>{})}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить настройки')}try{const sr=await apiGet<any>('/stages');setStages(listData(sr))}catch{setStages([])}finally{setLoading(false)}};
