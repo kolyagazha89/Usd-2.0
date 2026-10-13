@@ -222,6 +222,9 @@ export class AuthService {
         where: {
           email: normalizedEmail,
         },
+        include: {
+          customRole: { select: { id: true, key: true, name: true, permissions: true } },
+        },
       });
 
     /*
@@ -351,6 +354,8 @@ export class AuthService {
           user.emailVerifiedAt,
         participantId:
           user.participantId,
+        customRoleId: user.customRoleId,
+        customRole: user.customRole,
       },
     };
   }
@@ -374,7 +379,7 @@ export class AuthService {
         const session =
           await tx.refreshSession.findUnique({
             where: { tokenHash },
-            include: { user: true },
+            include: { user: { include: { customRole: { select: { id: true, key: true, name: true, permissions: true } } } } },
           });
 
         if (!session) {
@@ -475,6 +480,8 @@ export class AuthService {
         role: result.role,
         emailVerifiedAt: result.emailVerifiedAt,
         participantId: result.participantId,
+        customRoleId: result.customRoleId,
+        customRole: result.customRole,
       },
     };
   }
