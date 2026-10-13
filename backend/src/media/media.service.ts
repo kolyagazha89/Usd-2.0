@@ -168,20 +168,45 @@ export class MediaService {
   }
 
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
-    if (targetType !== MediaTargetType.SITE_ASSET) {
-      throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      if (!(await this.isPublishedRulesDocument(targetId))) {
+        throw new ForbiddenException('Регламент ещё не опубликован');
+      }
+    } else if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const participant = await this.prisma.participant.findUnique({
+        where: { id: targetId },
+        select: { id: true, isPublic: true },
+      });
+      if (!participant || participant.isPublic !== true) {
+        throw new ForbiddenException('Публичный профиль участника недоступен');
+      }
+    } else if (targetType === MediaTargetType.CAR_PHOTO) {
+      const car = await this.prisma.car.findUnique({
+        where: { id: targetId },
+        select: { id: true, isPublic: true },
+      });
+      if (!car || car.isPublic !== true) {
+        throw new ForbiddenException('Фотография автомобиля скрыта настройками приватности');
+      }
+    } else {
+      throw new ForbiddenException('Этот тип файла нельзя показывать публично');
     }
-    if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
+
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new BadRequestException('Файл не найден');
+    if (targetType !== MediaTargetType.SITE_ASSET && !ALLOWED_IMAGE_TYPES.has(upload.contentType)) {
+      throw new ForbiddenException('Публично можно показывать только изображения');
+    }
     const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
     if (!response.ok) throw new BadRequestException('Не удалось получить файл из хранилища');
     const body = Buffer.from(await response.arrayBuffer());
-    if (!body.length) throw new BadRequestException('Файл пустой');
+    if (!body.length || body.length > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Некорректный размер файла');
+    }
     return { body, contentType: upload.contentType };
   }
 
