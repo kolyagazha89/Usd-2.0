@@ -48,7 +48,7 @@ export function isValidPlate(country: string, value: string): boolean {
   };
   if (!patterns[country]?.test(number)) return false;
   if (country === 'RU') {
-    const region = number.match(/(\\d{2,3})$/)?.[1];
+    const region = number.match(/(\d{2,3})$/)?.[1];
     if (!region || !VALID_RUSSIAN_REGIONS.has(region)) return false;
   }
   return true;
