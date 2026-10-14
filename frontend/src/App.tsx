@@ -396,7 +396,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/statistics'))return <StatisticsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/audit'))return <AuditPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey}/>;
+  if(path.startsWith('/admin/audit'))return <AuditPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel} humanize={humanize} humanizeAuditKey={humanizeAuditKey}/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
