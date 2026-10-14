@@ -206,6 +206,8 @@ export class RegistrationsService {
       configurationVersionId: string;
       source?: RegistrationSource;
       rulesAccepted?: boolean;
+      privacyConsent?: boolean;
+      termsAccepted?: boolean;
     },
   ) {
     const {
@@ -214,6 +216,11 @@ export class RegistrationsService {
       classIds,
       configurationVersionId,
     } = body;
+    const source = body.source ?? 'PRE_REGISTRATION';
+    let consentLegalVersion: string | null = null;
+    let registrationPrivacyConsentAt: Date | null = null;
+    let registrationTermsAcceptedAt: Date | null = null;
+    let consentCapturedByUserId: string | null = null;
 
     const participantId =
       request.user.role === 'PARTICIPANT'
@@ -236,14 +243,11 @@ export class RegistrationsService {
       );
     }
 
-    if (request.user.role === 'PARTICIPANT') {
-      const [legalRow, consentUser] = await Promise.all([
-        this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true, contacts: true, footer: true } }),
-        this.prisma.user.findUnique({
-          where: { id: request.user.sub },
-          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
-        }),
-      ]);
+    if (request.user.role === 'PARTICIPANT' || source === 'ON_SITE') {
+      const legalRow = await this.prisma.siteSettings.findUnique({
+        where: { id: 'default' },
+        select: { legal: true, contacts: true, footer: true },
+      });
       const legal = (legalRow?.legal ?? {}) as Record<string, any>;
       const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
         ?? (legalRow?.footer as Record<string, any> | null)?.email;
@@ -254,14 +258,33 @@ export class RegistrationsService {
         && Boolean(String(legal.consentText ?? '').trim())
         && Boolean(String(legal.termsText ?? '').trim())
         && Boolean(String(contactEmail ?? '').trim());
-      const currentConsents = legalReady && consentUser
-        && consentUser.privacyConsentAt && consentUser.privacyConsentVersion === 'privacy-v' + version
-        && consentUser.termsAcceptedAt && consentUser.termsVersion === 'terms-v' + version;
-      if (!currentConsents) {
-        throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
+      if (!legalReady) {
+        throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
+      }
+      consentLegalVersion = version;
+      if (request.user.role === 'PARTICIPANT') {
+        const consentUser = await this.prisma.user.findUnique({
+          where: { id: request.user.sub },
+          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+        });
+        const currentConsents = consentUser
+          && consentUser.privacyConsentAt && consentUser.privacyConsentVersion === 'privacy-v' + version
+          && consentUser.termsAcceptedAt && consentUser.termsVersion === 'terms-v' + version;
+        if (!currentConsents) {
+          throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
+        }
+        registrationPrivacyConsentAt = consentUser.privacyConsentAt;
+        registrationTermsAcceptedAt = consentUser.termsAcceptedAt;
+        consentCapturedByUserId = request.user.sub;
+      } else {
+        if (body.rulesAccepted !== true || body.privacyConsent !== true || body.termsAccepted !== true) {
+          throw new BadRequestException('Для регистрации на месте подтвердите согласие участника на обработку данных, пользовательское соглашение и ознакомление с регламентом');
+        }
+        registrationPrivacyConsentAt = new Date();
+        registrationTermsAcceptedAt = new Date();
+        consentCapturedByUserId = request.user.sub;
       }
     }
-
 
     if (
       request.user.role === 'PARTICIPANT' &&
@@ -332,8 +355,6 @@ export class RegistrationsService {
       );
     }
 
-    const source =
-      body.source ?? 'PRE_REGISTRATION';
 
     if (
       ![
@@ -706,6 +727,13 @@ export class RegistrationsService {
               generators: configurationVersion.generators,
             },
             participantNumber,
+            ...(consentLegalVersion ? {
+              privacyConsentAt: registrationPrivacyConsentAt,
+              privacyConsentVersion: 'privacy-v' + consentLegalVersion,
+              termsAcceptedAt: registrationTermsAcceptedAt,
+              termsVersion: 'terms-v' + consentLegalVersion,
+              consentCapturedByUserId,
+            } : {}),
             ...(body.rulesAccepted === true ? {
               rulesAcceptedAt: new Date(),
               rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),

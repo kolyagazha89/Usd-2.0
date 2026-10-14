@@ -428,6 +428,11 @@ model Registration {
   participantNumber Int
   rulesAcceptedAt DateTime? @db.Timestamptz(3)
   rulesVersion String?
+  privacyConsentAt DateTime? @db.Timestamptz(3)
+  privacyConsentVersion String?
+  termsAcceptedAt DateTime? @db.Timestamptz(3)
+  termsVersion String?
+  consentCapturedByUserId String?
 
   source       RegistrationSource
   status       RegistrationStatus @default(ACTIVE)

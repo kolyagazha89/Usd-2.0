@@ -19,6 +19,14 @@ describe('RegistrationsService rules consent', () => {
     prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: null, privacyConsentVersion: null, termsAcceptedAt: null, termsVersion: null });
   });
 
+  it('requires explicit legal and rules attestations for on-site registration', async () => {
+    const service = new RegistrationsService(prisma);
+    await expect(service.create({ user: { sub: 'judge-1', role: 'JUDGE' } } as any, {
+      ...body, source: 'ON_SITE', rulesAccepted: false, privacyConsent: false, termsAccepted: false,
+    })).rejects.toThrow('Для регистрации на месте подтвердите согласие участника');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('rejects participant registration when current legal consent versions are missing', async () => {
     const service = new RegistrationsService(prisma);
     await expect(service.create(request, { ...body, rulesAccepted: true }))

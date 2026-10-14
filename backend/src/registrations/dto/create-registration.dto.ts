@@ -25,6 +25,14 @@ export class CreateRegistrationDto {
   rulesAccepted?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  privacyConsent?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  termsAccepted?: boolean;
+
+  @IsOptional()
   @IsIn(['PRE_REGISTRATION', 'ON_SITE', 'IMPORT'])
   source?: 'PRE_REGISTRATION' | 'ON_SITE' | 'IMPORT';
 }
