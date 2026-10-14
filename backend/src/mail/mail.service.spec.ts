@@ -53,6 +53,20 @@ describe('MailService Resend delivery', () => {
     expect(body.text).toContain('/verify-email?token=token-123');
   });
 
+  it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM_EMAIL;
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+
+    const service = new MailService();
+
+    await expect(
+      service.sendVerificationEmail('person@example.com', 'token-123'),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
+  });
+
   it('does not treat a provider rejection as a successful send', async () => {
     process.env.RESEND_API_KEY = 'test-api-key';
     process.env.RESEND_FROM_EMAIL = 'USD <no-reply@example.com>';
