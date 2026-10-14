@@ -1,6 +1,9 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,CarFront,Check,ChevronLeft,ChevronRight,Info,Loader2,Pencil,Plus,RefreshCw,Settings2,X} from 'lucide-react';
+import {Activity,AlertTriangle,CarFront,Check,ChevronLeft,ChevronRight,Database,Gauge,Info,Loader2,Pencil,Plus,RefreshCw,Settings2,X} from 'lucide-react';
 import {apiGet,apiPost,apiPut,getSiteSettings,listData} from '../api';
+import {Empty,LoadingPage} from './AdminPrimitives';
+
+const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
 
 export function ConfigurationsPage({carId,go,admin=false,LoadingPage,displayCarName}:{carId:string;go:(path:string)=>void;admin?:boolean;LoadingPage:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string}){
  const[car,setCar]=useState<any|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
