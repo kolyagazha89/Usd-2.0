@@ -100,7 +100,7 @@ describe('AuthService.resendVerificationEmail', () => {
     expect(prisma.auditLog.create).toHaveBeenLastCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         action: 'EMAIL_VERIFICATION_RESEND_FAILED',
-        metadata: { failureCode: 'SMTP_SEND_FAILED' },
+        metadata: { failureCode: 'EMAIL_PROVIDER_SEND_FAILED' },
       }),
     }));
   });
