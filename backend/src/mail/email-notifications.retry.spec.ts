@@ -42,7 +42,7 @@ describe('EmailNotificationsService retry policy', () => {
     }));
     expect(mail.sendNotificationEmail).toHaveBeenCalledTimes(1);
     expect(prisma.emailNotificationLog.update).toHaveBeenLastCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'SENT', providerAcceptedAt: expect.any(Date) }),
+      data: expect.objectContaining({ status: 'PROVIDER_ACCEPTED', providerAcceptedAt: expect.any(Date) }),
     }));
   });
 
