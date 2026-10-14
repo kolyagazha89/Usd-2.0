@@ -4,6 +4,7 @@ import { MailService } from './mail.service';
 
 describe('MailService Resend delivery', () => {
   const originalApiKey = process.env.RESEND_API_KEY;
+  const originalFrontendUrl = process.env.FRONTEND_URL;
   const originalFrom = process.env.RESEND_FROM_EMAIL;
   const originalSmtpHost = process.env.SMTP_HOST;
   const originalSmtpUser = process.env.SMTP_USER;
@@ -22,6 +23,7 @@ describe('MailService Resend delivery', () => {
   afterEach(() => {
     for (const [key, value] of Object.entries({
       RESEND_API_KEY: originalApiKey,
+      FRONTEND_URL: originalFrontendUrl,
       RESEND_FROM_EMAIL: originalFrom,
       SMTP_HOST: originalSmtpHost,
       SMTP_USER: originalSmtpUser,
