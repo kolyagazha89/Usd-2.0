@@ -5,23 +5,10 @@ import { MailService } from './mail.service';
 
 type Notice = { eventKey: string; type: string; recipient: string; stageId: string; registrationId?: string; subject: string; heading: string; intro: string; details: string[]; href: string };
 
-function stageTimeZone(city?: string | null): string {
-  const value = String(city ?? '').toLocaleLowerCase('ru');
-  if (/(тюмен|екатеринбург|челябинск|курган|сургут|ханты-мансийск|нижневартовск)/.test(value)) return 'Asia/Yekaterinburg';
-  if (/омск/.test(value)) return 'Asia/Omsk';
-  if (/(новосибир|томск|барнаул|кемеров|красноярск|абакан)/.test(value)) return 'Asia/Novosibirsk';
-  if (/(иркутск|улан-удэ)/.test(value)) return 'Asia/Irkutsk';
-  if (/(владивосток|хабаровск)/.test(value)) return 'Asia/Vladivostok';
-  if (/калининград/.test(value)) return 'Europe/Kaliningrad';
-  return 'Europe/Moscow';
-}
-
 function formatStageDate(stage: { date: Date | string; city?: string | null }): string {
-  return new Date(stage.date).toLocaleString('ru-RU', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: stageTimeZone(stage.city),
-  });
+  // Stage dates are calendar dates normalized to UTC noon; no event start-time field exists.
+  // Show only the calendar date rather than inventing a local time from the storage timestamp.
+  return new Date(stage.date).toLocaleDateString('ru-RU', { dateStyle: 'long', timeZone: 'UTC' });
 }
 
 function escapeHtml(value: unknown): string {

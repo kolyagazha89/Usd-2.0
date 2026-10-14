@@ -36,6 +36,9 @@ describe('EmailNotificationsService reminder timing', () => {
     expect(prisma.emailNotificationLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ type: 'STAGE_REMINDER_3D' }),
     }));
+    const message = mail.sendNotificationEmail.mock.calls[0][0];
+    expect(message.text).toContain('Дата:');
+    expect(message.text).not.toContain('17:00');
   });
 
   it('uses the one-day trigger when the stage is 23 hours away', async () => {
