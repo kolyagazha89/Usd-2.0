@@ -27,7 +27,7 @@ import AuditPage from './admin/AuditPage';
 import CatalogPage from './admin/CatalogPage';
 import ParticipantsPage from './admin/ParticipantsPage';
 import ConfigurationsPage from './admin/ConfigurationsPage';
-import ResourcePage from './admin/ResourcePage';
+import ResourcePageModule from './admin/ResourcePage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -579,6 +579,7 @@ function EntityDetailModal({title,item,fields,columns,onClose,onEdit,onDelete,on
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">USD · ПОДРОБНАЯ ИНФОРМАЦИЯ</span><h2>{item.name||item.lastName||item.email||title}</h2><p>{title}</p></div><div className="page-actions">{item.status&&<span className="badge">{enumLabel(item.status)}</span>}<button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад</button></div></div><div className="detail-grid">{values.length?values.map((x,i)=><div key={x.label+i}><span>{x.label}</span><strong>{formatDetailValue(x.value,x.label)}</strong></div>):<div><span>Информация</span><strong>Нет данных для отображения</strong></div>}</div><div className="detail-actions">{extra}{onOpen&&<button className="secondary-button" onClick={onOpen}><ChevronRight size={16}/>Открыть раздел</button>}{onEdit&&<button className="primary-button" onClick={onEdit}><Pencil size={16}/>Редактировать</button>}{onDelete&&<button className="danger-button" onClick={()=>void onDelete()}><Trash2 size={16}/>Удалить</button>}</div></section>
 }
 function formatDetailValue(v:any,label=''){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='number')return String(v);if(typeof v==='string'&&v.includes('T')&&!Number.isNaN(Date.parse(v)))return formatDate(v);if(typeof v==='object')return Array.isArray(v)?(v.length?JSON.stringify(v):'Нет данных'):JSON.stringify(v);if(label.toLowerCase().includes('статус')||label.toLowerCase().includes('роль'))return enumLabel(v);return String(v)}
+function ResourcePage(props:any){return <ResourcePageModule {...props} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatCell={formatCell} getPath={getPath}/>}
 function LoadingPage({small=false}:{small?:boolean}){return <div className={small?'loading-small':'loading-page'}><Loader2 className="spin"/><span>Загрузка…</span></div>}
 function ErrorPanel({message,retry}:{message:string;retry:()=>Promise<any>|any}){return <div className="error-panel"><AlertTriangle/><div><strong>Не удалось загрузить данные</strong><p>{message}</p><button className="text-button" onClick={()=>void retry()}>Повторить</button></div></div>}
 function Empty({text}:{text:string}){return <div className="empty-state"><Activity size={20}/><span>{text}</span></div>}
