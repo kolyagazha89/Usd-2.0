@@ -3199,3 +3199,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .result-delete-confirm{max-width:560px;justify-content:flex-start}
 .result-delete-confirm input{min-width:150px;max-width:220px;flex:1}
 @media(max-width:640px){.result-delete-confirm input{max-width:none;min-width:0;flex-basis:100%}}
+
+.stage-registration-action{display:grid;gap:4px;justify-items:start;min-width:160px}
+.stage-registration-action .form-error{display:block;max-width:260px;white-space:normal;font-size:12px}
+.qr-scanner-page .qr-scanner-modal{max-width:760px;margin:0 auto}
