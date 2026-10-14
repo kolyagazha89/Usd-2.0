@@ -1,5 +1,5 @@
 import {Info} from 'lucide-react';
-import type {User} from '../api';
+import type {Role,User} from '../api';
 import RolesPage from './RolesPage';
 import HistoricalPage from './HistoricalPage';
 import ImportPage from './ImportPage';
@@ -26,7 +26,7 @@ import ConfigurationsPage from './ConfigurationsPage';
 import DashboardPage from './DashboardPage';
 import RulesAdminPage from '../RulesAdminPage';
 
-export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,PanelTitle,ResourcePage,EntityDetailModal,EntityForm,SearchableSelect,enumLabel,formatDate,displayCarName,displayPersonName,roleName,humanize,humanizeAuditKey,clean,isValidPlate,PublicResultCards,cacheBrandLogo}:{path:string;go:(p:string)=>void;user:User;PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;ResourcePage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;EntityForm:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;displayCarName:(car:any,fallback?:string)=>string;displayPersonName:(v:any)=>string;roleName:Record<string,string>;humanize:(v:string)=>string;humanizeAuditKey:(v:string)=>string;clean:(v:any)=>any;isValidPlate:(v:string,country?:string)=>boolean;PublicResultCards:React.ComponentType<any>;cacheBrandLogo:(url:string)=>void}){
+export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,PanelTitle,ResourcePage,EntityDetailModal,EntityForm,SearchableSelect,enumLabel,formatDate,displayCarName,displayPersonName,roleName,humanize,humanizeAuditKey,clean,isValidPlate,PublicResultCards,cacheBrandLogo}:{path:string;go:(p:string)=>void;user:User;PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;ResourcePage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;EntityForm:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;displayCarName:(car:any,fallback?:string)=>string;displayPersonName:(v:any)=>string;roleName:Record<Role,string>;humanize:(v:string)=>string;humanizeAuditKey:(v:string)=>string;clean:(v:any)=>any;isValidPlate:(country:string,value:string)=>boolean;PublicResultCards:React.ComponentType<any>;cacheBrandLogo:(url:string)=>void}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage} displayCarName={displayCarName}/>;
