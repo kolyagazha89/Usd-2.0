@@ -69,6 +69,7 @@ export class AuthService {
     email: string,
     password: string,
     privacyConsent: boolean,
+    termsAccepted: boolean,
     newsletterOptIn = false,
   ) {
     const normalizedEmail =
@@ -78,6 +79,10 @@ export class AuthService {
       throw new BadRequestException(
         'Email обязателен',
       );
+    }
+
+    if (termsAccepted !== true) {
+      throw new BadRequestException('Необходимо принять пользовательское соглашение');
     }
 
     if (privacyConsent !== true) {
@@ -115,6 +120,8 @@ export class AuthService {
         isActive: true,
         privacyConsentAt: new Date(),
         privacyConsentVersion: 'privacy-v1',
+        termsAcceptedAt: new Date(),
+        termsVersion: 'terms-v1',
         ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1' } : {}),
       },
     });
