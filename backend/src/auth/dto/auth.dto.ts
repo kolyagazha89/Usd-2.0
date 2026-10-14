@@ -22,6 +22,17 @@ export class RegisterDto {
   @MaxLength(128)
   password!: string;
 
+  @IsBoolean()
+  privacyConsent!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  newsletterOptIn?: boolean;
+}
+
+export class NewsletterConsentDto {
+  @IsBoolean()
+  consent!: boolean;
 }
 
 export class LoginDto {
