@@ -6,6 +6,7 @@ import {
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
+import { randomBytes } from 'node:crypto';
 
 // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -41,6 +42,86 @@ export class MailService {
     process.env.FRONTEND_URL ??
     'http://localhost:3000';
 
+  private async sendViaGmailApi(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
+    const clientId = process.env.GMAIL_CLIENT_ID?.trim();
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
+    const sender = process.env.GMAIL_SENDER_EMAIL?.trim();
+
+    if (!clientId || !clientSecret || !refreshToken || !sender) {
+      throw new Error('Gmail API configuration is incomplete: set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL');
+    }
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!tokenResponse.ok) {
+      this.logger.error(`Gmail OAuth token refresh failed (HTTP ${tokenResponse.status}).`);
+      throw new Error(`Gmail OAuth token refresh failed with HTTP ${tokenResponse.status}`);
+    }
+
+    const tokenData = await tokenResponse.json() as { access_token?: unknown };
+    if (typeof tokenData.access_token !== 'string' || !tokenData.access_token) {
+      throw new Error('Gmail OAuth token response did not include an access token');
+    }
+
+    const boundary = 'usd-' + randomBytes(16).toString('hex');
+    const encodedSubject = '=?UTF-8?B?' + Buffer.from(message.subject, 'utf8').toString('base64') + '?=';
+    const mime = [
+      'From: ' + sender,
+      'To: ' + message.to,
+      'Subject: ' + encodedSubject,
+      'MIME-Version: 1.0',
+      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+      '',
+      '--' + boundary,
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(message.text, 'utf8').toString('base64'),
+      '--' + boundary,
+      'Content-Type: text/html; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(message.html, 'utf8').toString('base64'),
+      '--' + boundary + '--',
+      '',
+    ].join('\r\n');
+
+    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + tokenData.access_token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: Buffer.from(mime, 'utf8').toString('base64url') }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      this.logger.error(`Gmail API rejected email (HTTP ${response.status}).`);
+      throw new Error(`Gmail API request failed with HTTP ${response.status}`);
+    }
+
+    let messageId = 'unknown';
+    try {
+      const result = await response.json() as { id?: unknown };
+      if (typeof result.id === 'string') messageId = result.id;
+    } catch {
+      // Gmail may accept a message without a parseable response body.
+    }
+    this.logger.log(`Gmail API accepted email (id=${messageId}); inbox delivery is not confirmed by API acceptance.`);
+  }
+
   private async sendMessage(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (apiKey) {
@@ -73,8 +154,23 @@ export class MailService {
       return;
     }
 
+    const gmailConfigured = Boolean(
+      process.env.GMAIL_CLIENT_ID?.trim()
+      && process.env.GMAIL_CLIENT_SECRET?.trim()
+      && process.env.GMAIL_REFRESH_TOKEN?.trim()
+      && process.env.GMAIL_SENDER_EMAIL?.trim(),
+    );
+    const gmailPartiallyConfigured = Boolean(
+      process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET
+      || process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL,
+    );
+    if (gmailConfigured || gmailPartiallyConfigured) {
+      await this.sendViaGmailApi(message);
+      return;
+    }
+
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
-      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or complete SMTP settings');
+      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, all four GMAIL_* variables, or complete SMTP settings');
     }
 
     await this.transporter.sendMail({
