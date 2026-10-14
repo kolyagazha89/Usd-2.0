@@ -3190,3 +3190,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .inline-confirm-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px}
 .inline-confirm-actions>span{font-size:12px;color:var(--muted,#6b7280)}
 @media(max-width:640px){.inline-confirm-actions{justify-content:flex-start}}
+
+.inspection-bulk-fail{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;max-width:100%}
+.inspection-bulk-fail label{min-width:220px;flex:1;display:grid;gap:5px;font-size:12px;color:var(--muted,#6b7280)}
+.inspection-bulk-fail textarea{width:100%;min-width:220px;resize:vertical}
+@media(max-width:640px){.inspection-bulk-fail{width:100%;align-items:stretch}.inspection-bulk-fail label{min-width:0;flex-basis:100%}.inspection-bulk-fail textarea{min-width:0}}
