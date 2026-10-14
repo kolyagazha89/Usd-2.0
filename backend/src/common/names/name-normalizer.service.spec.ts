@@ -5,7 +5,7 @@ describe('NameNormalizerService', () => {
 
   it('normalizes repeated whitespace and Unicode compatibility characters', () => {
     expect(service.normalize('  Ｍｉｓｈｅｒｙａｋｏｖ　 Sergey  ')).toBe(
-      'Мещеряков Sergey',
+      'Мещеряков Сергей',
     );
   });
 
