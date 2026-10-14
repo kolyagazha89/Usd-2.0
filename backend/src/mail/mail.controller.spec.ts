@@ -9,7 +9,7 @@ describe('MailController', () => {
     const controller = new MailController(mailService as any);
 
     expect(Reflect.getMetadata(ROLES_KEY, MailController.prototype.sendTestEmail)).toEqual(['ADMIN']);
-    await expect(controller.sendTestEmail({ email: 'not-an-email' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(() => controller.sendTestEmail({ email: 'not-an-email' })).toThrow(BadRequestException);
     expect(mailService.sendTestEmail).not.toHaveBeenCalled();
   });
 
