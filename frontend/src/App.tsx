@@ -7,6 +7,7 @@ import RulesAdminPage from './RulesAdminPage';
 import RolesPage from './admin/RolesPage';
 import HistoricalPage from './admin/HistoricalPage';
 import ImportPage from './admin/ImportPage';
+import CarsPage from './admin/CarsPage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
@@ -364,7 +365,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage/>;
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin/>;}
-  if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go}/>;
+  if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} isValidPlate={isValidPlate} clean={clean}/>;
   if(path.startsWith('/admin/seasons'))return <SeasonsPage/>;
   if(path.startsWith('/admin/stages/'))return <StageDetailPage stageId={path.split('/')[3]} go={go}/>;
   if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user}/>;
@@ -539,38 +540,6 @@ function ResourcePage({title,subtitle,path,columns,fields,create,update,remove,s
  return embedded?content:<PageFrame title={title} subtitle={subtitle} action={<div className="page-actions">{create&&<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить</button>}<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button></div>}>{content}</PageFrame>;
 }
 function ParticipantsPage({go}:{go:(p:string)=>void}){return <ResourcePage title="Участники" subtitle="Профили, команды и история выступлений" path="/admin/participants" columns={[{key:'lastName',label:'Фамилия'},{key:'firstName',label:'Имя'},{key:'city',label:'Город'},{key:'team',label:'Команда'},{key:'phone',label:'Телефон'},{key:'isPublic',label:'Публичный'}]} fields={[{name:'lastName',label:'Фамилия',required:true},{name:'firstName',label:'Имя',required:true},{name:'middleName',label:'Отчество'},{name:'city',label:'Город'},{name:'team',label:'Команда',optionsPath:'/participants/teams',optionLabel:(x:any)=>x.name},{name:'phone',label:'Телефон'},{name:'birthDate',label:'Дата рождения',type:'date'},{name:'isPublic',label:'Показывать профиль публично',type:'checkbox'}]} create={v=>apiPost('/participants',v)} update={(id,v)=>apiPatch('/participants/'+id,v)} remove={id=>apiDelete('/participants/'+id)} searchPlaceholder="ФИО, город, команда" showStatusFilter={false} detailLoader={async row=>{const cars=listData(await apiGet<any>('/participants/'+row.id+'/cars'));return {...row,cars}}} detailExtra={(item:any)=><div className="participant-detail-cars"><div className="eyebrow">АВТОМОБИЛИ УЧАСТНИКА</div>{item.cars?.length?<div className="participant-car-list">{item.cars.map((car:any)=><div className="participant-car-item" key={car.id}><div><strong>{displayCarName(car)}</strong><span>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')}</span></div><span className="badge">{car.configurations?.length??0} конф.</span></div>)}</div>:<span className="muted">Автомобилей нет</span>}</div>}/>}
-
-function CarsPage({user,go}:{user:User;go:(path:string)=>void}){
- const canEdit=user.role==='ADMIN';
- const [cars,setCars]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[modal,setModal]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[modalError,setModalError]=useState(''),[saving,setSaving]=useState(false);
- const load=async()=>{setLoading(true);setError('');try{setCars(listData(await apiGet<any>('/cars')))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки автомобилей')}finally{setLoading(false)}};
- useEffect(()=>{void load();apiGet<any>('/admin/participants').then(r=>setParticipants(listData(r))).catch(()=>{})},[]);
- const saveCar=async(v:any)=>{setSaving(true);setModalError('');try{const {participantId,...car}=v;if(modal?.id)await apiPatch('/cars/'+modal.id,car);else await apiPost('/participants/'+encodeURIComponent(participantId)+'/cars',car);setModal(null);await load()}catch(e){setModalError(e instanceof Error?e.message:'Ошибка сохранения автомобиля')}finally{setSaving(false)}};
- const removeCar=async(id:string)=>{if(!window.confirm('Деактивировать автомобиль?'))return;try{await apiDelete('/cars/'+id);await load()}catch(e){setError(e instanceof Error?e.message:'Ошибка деактивации')}};
- const filtered=cars.filter(c=>{const q=search.trim().toLowerCase();if(!q)return true;return [c.brand,c.model,c.registrationNumber,c.registrationCountry,c.color,c.participant?.lastName,c.participant?.firstName,c.participant?.team].filter(Boolean).join(' ').toLowerCase().includes(q)});
- const countries=['RU','NO','FI','EE','LV','LT','PL','BY','UA','GE','AZ','KZ','CN','MN','KP','US'];
- return <PageFrame title="Автомобили" subtitle="Автомобили участников и их конфигурации" action={canEdit?<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить автомобиль</button>:undefined}>
-  <div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Марка, модель, госномер, участник"/></div><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/></button><span className="row-count">{filtered.length} автомобилей</span></div>
-  {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
-  <div className="panel table-wrap">{loading?<LoadingPage small/>:<>{filtered.length?<table className="data-table"><thead><tr><th>Автомобиль</th><th>Участник</th><th>Госномер</th><th>Цвет</th><th>Конфигурации</th><th>Статус</th><th/></tr></thead><tbody>{filtered.map(car=><tr key={car.id} className="clickable-row" onClick={()=>setDetail(car)}><td data-label="Автомобиль"><strong>{displayCarName(car)}</strong></td><td data-label="Участник">{car.participant?[car.participant.lastName,car.participant.firstName].filter(Boolean).join(' '):'—'}</td><td data-label="Госномер">{car.registrationCountry} · {car.registrationNumber}</td><td data-label="Цвет">{car.color||'—'}</td><td data-label="Конфигурации"><button className="text-button" onClick={e=>{e.stopPropagation();go('/admin/cars/configurations?carId='+encodeURIComponent(car.id))}}>{car.configurations?.length??0} конф.</button></td><td data-label="Статус"><span className={"badge "+(car.isActive?'good':'')}>{car.isActive?'Активен':'Неактивен'}</span></td><td data-label="Действия" className="row-actions" onClick={e=>e.stopPropagation()}>{canEdit&&<><button className="icon-button" title="Изменить" onClick={()=>{setDetail(null);setModal(car)}}>✎</button>{car.isActive&&<button className="icon-button danger" title="Деактивировать" onClick={()=>void removeCar(car.id)}>×</button>}</>}</td></tr>)}</tbody></table>:<Empty text="Автомобилей пока нет"/>}</>}</div>
-  {modal!==null&&<CarModal value={modal} participants={participants} countries={countries} saving={saving} error={modalError} onClose={()=>{setModal(null);setModalError('')}} onSubmit={saveCar}/>}
-  
-  {detail&&<EntityDetailModal title="Автомобиль" item={detail} columns={[{key:'brand',label:'Марка'},{key:'model',label:'Модель'},{key:'registrationNumber',label:'Госномер'},{key:'registrationCountry',label:'Страна регистрации'},{key:'color',label:'Цвет'},{key:'isActive',label:'Статус'}]} onClose={()=>setDetail(null)} onEdit={canEdit?()=>{setDetail(null);setModal(detail)}:undefined} onDelete={canEdit&&detail.isActive?async()=>{setDetail(null);await removeCar(detail.id)}:undefined} extra={<button className="secondary-button" onClick={()=>{setDetail(null);go('/admin/cars/configurations?carId='+encodeURIComponent(detail.id))}}>Открыть конфигурации</button>}/>}
- </PageFrame>
-}
-function CarModal({value,participants,countries,saving,error,onClose,onSubmit}:{value:any;participants:any[];countries:string[];saving:boolean;error?:string;onClose:()=>void;onSubmit:(v:any)=>Promise<void>}){
- const [v,setV]=useState<any>({participantId:value.participantId??'',brand:value.brand??'',model:value.model??'',registrationCountry:value.registrationCountry??'RU',registrationNumber:value.registrationNumber??'',color:value.color??'',isPublic:value.isPublic??true});
- const [validationError,setValidationError]=useState('');
- const name=(p:any)=>[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ');
- return <Modal title={value.id?'Редактировать автомобиль':'Новый автомобиль'} onClose={onClose}>{(error||validationError)&&<div className="form-error modal-form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}<form className="form modal-form" onSubmit={e=>{e.preventDefault();setValidationError('');if(v.registrationNumber&&!isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber))){setValidationError('Госномер не соответствует формату выбранной страны.');return}void onSubmit(clean(v))}}>
- {!value.id&&<label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
- <div className="form-grid-2"><label>Марка<input value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} required/></label><label>Модель<input value={v.model} onChange={e=>setV({...v,model:e.target.value})} required/></label></div>
- <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:e.target.value.toUpperCase()})} required/></label></div>
- <label>Цвет<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!v.isPublic} onChange={e=>setV({...v,isPublic:e.target.checked})}/>Показывать автомобиль публично</label>
- <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить автомобиль'}</button>
- </form></Modal>
-}
-
 
 function ConfigurationsPage({carId,go,admin=false}:{carId:string;go:(path:string)=>void;admin?:boolean}){
  const[car,setCar]=useState<any|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
