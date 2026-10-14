@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorException, Logger } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 describe('MailService Resend delivery', () => {
@@ -29,7 +29,9 @@ describe('MailService Resend delivery', () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
+      json: async () => ({ id: 'email-accepted-id' }),
     } as Response);
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     const service = new MailService();
 
     await service.sendVerificationEmail('person@example.com', 'token-123');
@@ -51,6 +53,8 @@ describe('MailService Resend delivery', () => {
       subject: 'Подтверждение email — USD',
     });
     expect(body.text).toContain('/verify-email?token=token-123');
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Resend accepted email (id=email-accepted-id)'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
   it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
