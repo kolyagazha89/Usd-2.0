@@ -31,77 +31,11 @@ import ResourcePageModule from './admin/ResourcePage';
 import DashboardPage from './admin/DashboardPage';
 import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} from './admin/FormComponents';
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
+import AdminShell from './admin/AdminShell';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,getPublicEntityPhotoUrl,type Dashboard,type Role,type User} from './api';
-
-const nav=[
- {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
-
- // Оперативная работа на этапах
- {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
-
- // Люди, команды и автомобили
- {section:'Участники и автопарк',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
- {section:'Участники и автопарк',label:'Команды',path:'/admin/teams',icon:Users,roles:['ADMIN']},
- {section:'Участники и автопарк',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
-
- // Итоги, рекорды и спортивный контроль
- {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
- {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
- {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
-
- // Публичные материалы сайта
- {section:'Контент сайта',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
- {section:'Контент сайта',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
- {section:'Контент сайта',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
-
- // Справочники, используемые в регистрации и каталоге
- {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
- {section:'Справочники',label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
- {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
- {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
-
- // Импорт, история и качество данных
- {section:'Импорт и данные',label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
- {section:'Импорт и данные',label:'История результатов',path:'/admin/historical-results',icon:History,roles:['ADMIN']},
- {section:'Импорт и данные',label:'Контроль данных',path:'/admin/data-quality',icon:Database,roles:['ADMIN']},
-
- // Доступы, настройки и системные инструменты
- {section:'Система',label:'Пользователи и доступы',path:'/admin/users',icon:UserRound,roles:['ADMIN']},
- {section:'Система',label:'Медиатека',path:'/admin/media',icon:Layers,roles:['ADMIN']},
- {section:'Система',label:'Роли и права',path:'/admin/roles',icon:LockKeyhole,roles:['ADMIN']},
- {section:'Система',label:'Аудит действий',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
- {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
- {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
- ];
-function navPermissionModule(path:string):string {
- if(path==='/admin')return 'statistics';
- if(path.startsWith('/admin/stages'))return 'stages';
- if(path.startsWith('/admin/registrations'))return 'registrations';
- if(path.startsWith('/admin/inspections'))return 'inspections';
- if(path.startsWith('/admin/results'))return 'results';
- if(path.startsWith('/admin/records'))return 'records';
- if(path.startsWith('/admin/participants'))return 'participants';
- if(path.startsWith('/admin/teams'))return 'teams';
- if(path.startsWith('/admin/cars'))return 'cars';
- if(path.startsWith('/admin/seasons'))return 'seasons';
- if(path.startsWith('/admin/classes'))return 'classes';
- if(path.startsWith('/admin/disqualifications'))return 'disqualifications';
- if(path.startsWith('/admin/statistics'))return 'statistics';
- if(path.startsWith('/admin/import'))return 'imports';
- if(path.startsWith('/admin/historical-results'))return 'historicalResults';
- if(path.startsWith('/admin/data-quality')||path.startsWith('/admin/audit'))return 'statistics';
- if(path.startsWith('/admin/media'))return 'media';
- if(path.startsWith('/admin/assistant'))return 'assistant';
- if(path.startsWith('/admin/google'))return 'integrations';
- if(path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
- return '';
-}
 
 const roleName:Record<Role,string>={ADMIN:'Администратор',JUDGE:'Судья',PARTICIPANT:'Участник'};
 
@@ -133,8 +67,8 @@ function App(){
  if(user.role==='PARTICIPANT'&&!user.customRoleId&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
  // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
- if(!path.startsWith('/admin')){if(path==='/login'){if(user.role==='ADMIN'||user.role==='JUDGE')return <Shell user={user} path='/admin' go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}}/>;return <Splash/>;}return <PublicSite path={path} go={go}/>;}
- return <Shell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}}/>;
+ if(!path.startsWith('/admin')){if(path==='/login'){if(user.role==='ADMIN'||user.role==='JUDGE')return <AdminShell user={user} path='/admin' go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}} PageContent={PageContent} roleName={roleName} cacheBrandLogo={cacheBrandLogo}/>;return <Splash/>;}return <PublicSite path={path} go={go}/>;}
+ return <AdminShell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}} PageContent={PageContent} roleName={roleName} cacheBrandLogo={cacheBrandLogo}/>;
 }
 function Splash(){const[logo,setLogo]=useState('');useEffect(()=>{let active=true;const load=async()=>{const splash=await getPublicSiteAsset('branding-splashLogoUrl').catch(()=>null);const main=splash?.url?null:await getPublicSiteAsset('branding-logoUrl').catch(()=>null);const url=splash?.url||main?.url;if(url)loadBrandLogo(url,u=>{if(active)setLogo(u)})};void load();return()=>{active=false}},[]);return <div className="splash"><div className="splash-brand">{logo?<img src={logo} alt="USD" decoding="async"/>:<div className="brand-mark">USD</div>}</div><div className="loader"/></div>}function LoginScreen({onLogin}:{onLogin:(e:string,p:string)=>Promise<void>}){
  const[logo,setLogo]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false),[resending,setResending]=useState(false),[mode,setMode]=useState<'login'|'register'>('login');
@@ -415,42 +349,6 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
  }
 
-function Shell({user,path,go,mobileOpen,setMobileOpen,onLogout}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>}){
- const routePath=path.split('?')[0];
- const[logo,setLogo]=useState(readBrandLogo());
- useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
- const visibleNav=nav.filter(x=>{if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
- const sections=[...new Set(visibleNav.map(x=>x.section))];
- const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
- useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
- const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??true)};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
- return <div className="app-shell">
-  <aside className={`sidebar ${mobileOpen?'open':''}`}>
-   <div className="sidebar-top">
-    <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD 2.0">
-     <span className="brand-mark small">{logo?<img className="brand-logo-shell" src={logo} alt="USD"/>:<span>USD</span>}</span>
-     <span className="brand-title">USD <b>2.0</b></span>
-    </button>
-    <button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"><X size={18}/></button>
-   </div>
-   <nav>{sections.map(section=>{const isOpen=openSections[section]??true;return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=routePath===item.path||(item.path!=='/admin'&&routePath.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
-   <div className="sidebar-bottom">
-    <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{roleName[user.role]}</strong><small>{user.email}</small></div></div>
-    <button className="logout-button" onClick={()=>void onLogout()}><LogOut size={15}/>Выйти</button>
-   </div>
-  </aside>
-  {mobileOpen&&<button className="mobile-backdrop" aria-label="Закрыть меню" onClick={()=>setMobileOpen(false)}/>}
-  <div className="main">
-   <header className="topbar">
-    <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
-    <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
-    <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
-   </header>
-   <main className="content"><PageContent path={path} go={go} user={user}/></main>
-  </div>
- </div>;
-}
-type Field={name:string;label:string;type?:string;required?:boolean;options?:string[];optionsPath?:string;optionLabel?:(item:any)=>string;placeholder?:string;help?:string};
 function Coming({title,icon:Icon,user}:{title:string;icon:any;user:User}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
 
 
