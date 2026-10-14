@@ -182,14 +182,14 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     this.running = true;
     try {
       const now = new Date();
-      const inFourDays = new Date(now.getTime() + 96 * 60 * 60 * 1000);
+      const inThreeDays = new Date(now.getTime() + 72 * 60 * 60 * 1000);
       const stages = await this.prisma.stage.findMany({
-        where: { status: 'PUBLISHED', isDeleted: false, date: { gt: now, lte: inFourDays } },
+        where: { status: 'PUBLISHED', isDeleted: false, date: { gt: now, lte: inThreeDays } },
         select: { id: true, name: true, stageNumber: true, date: true, city: true, venue: true, address: true },
       });
       for (const stage of stages) {
         const hours = (new Date(stage.date).getTime() - now.getTime()) / 3600000;
-        const reminderType = hours > 48 ? 'STAGE_REMINDER_3D' : 'STAGE_REMINDER_1D';
+        const reminderType = hours > 24 ? 'STAGE_REMINDER_3D' : 'STAGE_REMINDER_1D';
         const eventKey = reminderType + ':' + stage.id;
         const registrations = await this.prisma.registration.findMany({
           where: { stageId: stage.id, status: 'ACTIVE' },
