@@ -51,6 +51,7 @@ describe('StagesService public visibility', () => {
 
 describe('StagesService rules snapshots', () => {
   const prisma: any = {
+    result: { count: jest.fn() },
     stage: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -72,6 +73,7 @@ describe('StagesService rules snapshots', () => {
   it('requires confirmation and audits results publication', async () => {
     const stage = { id: 'stage-1', status: 'PUBLISHED', resultsPublishedAt: null };
     prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.result.count.mockResolvedValue(1);
     prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data }));
     await expect(service.setResultsPublication('stage-1', true, false, request)).rejects.toThrow('Подтвердите изменение публикации результатов');
     expect(prisma.stage.update).not.toHaveBeenCalled();
