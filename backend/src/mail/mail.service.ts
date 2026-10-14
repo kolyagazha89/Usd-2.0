@@ -16,8 +16,6 @@ export class MailService {
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      // Railway's SMTP route may have no IPv6 egress; force DNS/socket selection to IPv4.
-      family: 4,
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 20000,
