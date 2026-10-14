@@ -202,6 +202,40 @@ export class MailService {
     this.logger.log(`SMTP accepted email (messageId=${messageId}, accepted=${acceptedCount}, rejected=${rejectedCount}); inbox delivery is not confirmed by SMTP acceptance.`);
   }
 
+  async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
+    const sentAt = new Date().toISOString();
+    try {
+      await this.sendMessage({
+        to: email,
+        subject: 'USD — проверка почтового канала',
+        text: [
+          'Это тестовое письмо из административной панели USD.',
+          '',
+          'Время запроса: ' + sentAt,
+          '',
+          'Если вы получили это письмо, доставка до этого ящика подтверждена.',
+          'Статус API сам по себе не подтверждает доставку.',
+        ].join('\n'),
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+          <h2>USD — проверка почтового канала</h2>
+          <p>Это тестовое письмо из административной панели USD.</p>
+          <p>Время запроса: ${sentAt}</p>
+          <p>Если вы получили это письмо, доставка до этого ящика подтверждена.</p>
+          <p style="color:#666;font-size:13px">Ответ почтового API не является подтверждением доставки.</p>
+        </div>`,
+      });
+      return {
+        success: true,
+        providerAccepted: true,
+        deliveryConfirmed: false,
+        message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
+      };
+    } catch (error) {
+      this.logger.error(`Test email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      throw new InternalServerErrorException('Почтовый провайдер не принял тестовое письмо. Проверьте конфигурацию почты в Railway.');
+    }
+  }
+
   async sendVerificationEmail(
     email: string,
     token: string,
