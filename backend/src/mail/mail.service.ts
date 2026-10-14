@@ -184,7 +184,7 @@ export class MailService {
     email: string,
     token: string,
   ): Promise<void> {
-    const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://usd-api-production.up.railway.app').replace(/\\/+$/, '');
+    const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://usd-api-production.up.railway.app').replace(/\/+$/, '');
     const verificationUrl =
       `${apiUrl}/auth/verify-email?token=${encodeURIComponent(token)}`;
 
