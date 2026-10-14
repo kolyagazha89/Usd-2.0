@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from './mail.service';
@@ -163,7 +163,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   async sendTestTrigger(type: 'STAGE_REGISTRATION_OPEN' | 'REGISTRATION_CONFIRMED' | 'STAGE_REMINDER_3D' | 'STAGE_REMINDER_1D', recipient: string, stageId?: string) {
     const stage = stageId ? await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false }, select: { id: true, name: true, stageNumber: true, date: true, city: true, venue: true, address: true } }) : null;
-    if (stageId && !stage) throw new Error('Этап не найден');
+    if (stageId && !stage) throw new BadRequestException('Этап не найден');
     const title = stage?.name ?? 'Тестовый этап USD';
     const heading = type === 'STAGE_REGISTRATION_OPEN' ? 'Тест: регистрация на этап открыта' : type === 'REGISTRATION_CONFIRMED' ? 'Тест: заявка подтверждена' : type === 'STAGE_REMINDER_3D' ? 'Тест: до этапа осталось 3 дня' : 'Тест: напоминание за 1 день';
     const details = [
