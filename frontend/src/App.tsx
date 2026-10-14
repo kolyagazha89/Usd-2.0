@@ -23,6 +23,7 @@ import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './admin/Compet
 import RegistrationsPage from './admin/RegistrationsPage';
 import InspectionsPage from './admin/InspectionsPage';
 import ResultsPage from './admin/ResultsPage';
+import AuditPage from './admin/AuditPage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -395,7 +396,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/statistics'))return <StatisticsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/audit'))return <AuditPage/>;
+  if(path.startsWith('/admin/audit'))return <AuditPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey}/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel} humanize={humanize} humanizeAuditKey={humanizeAuditKey}/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
@@ -644,48 +645,6 @@ function ConfigurationDetails({configuration,onClose,onEdit}:{configuration:any;
 }
 function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
 
-function AuditPage(){
- const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
- const[entity,setEntity]=useState(''),[action,setAction]=useState('');
- const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[entity,action]);
- const actions=[...new Set(data.map(x=>x.action).filter(Boolean))];
- return <PageFrame title="Аудит" subtitle="Понятная история: кто, что, где и когда изменил в системе." action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
-  <div className="audit-toolbar panel">
-   <label>Раздел<select value={entity} onChange={e=>setEntity(e.target.value)}><option value="">Все разделы</option>{['User','Participant','Car','CarConfiguration','Season','Stage','StageClass','Direction','Class','Registration','RegistrationClass','RegistrationNumber','Inspection','Result','Record','Disqualification','ImportJob','ImportRow','MediaUpload','AssistantRequest','SiteSettings'].map(x=><option key={x} value={x}>{auditEntityName(x)}</option>)}</select></label>
-   <label>Действие<select value={action} onChange={e=>setAction(e.target.value)}><option value="">Все действия</option>{actions.map(x=><option key={x} value={x}>{auditActionName(x)}</option>)}</select></label>
-   <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
-  </div>
-  {error&&<ErrorPanel message={error} retry={load}/>}
-  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x}/>)}</div>}
-  {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
- </PageFrame>
-}
-function AuditEntryCard({item}:{item:any}){
- const meta=item.metadata&&typeof item.metadata==='object'?item.metadata:{};
- const actor=item.user?.name||item.user?.email||'Система';
- const details=Object.entries(meta).filter(([k,v])=>v!==null&&v!==undefined&&k!=='password'&&!/id$/i.test(k)&&!/Ids$/i.test(k)).slice(0,8);
- return <article className="audit-entry">
-  <div className="audit-entry-icon"><FileClock size={17}/></div>
-  <div className="audit-entry-main">
-   <div className="audit-entry-head"><strong>{auditActionName(item.action)}</strong><time>{new Date(item.createdAt).toLocaleString('ru-RU')}</time></div>
-   <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{roleName[item.user?.role as Role]??'Система'}</span><span>·</span><span>{auditEntityName(item.entity)}</span></div>
-   {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v)}</strong></div>)}</div>}
-   {item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
-  </div>
- </article>
-}
-function auditEntityName(x:string){const m:Record<string,string>={Stage:'Этап',Registration:'Регистрация',Participant:'Участник',Car:'Автомобиль',Result:'Результат',Inspection:'Инспекция',ImportJob:'Импорт',AssistantRequest:'Запрос ассистента',SiteSettings:'Настройки сайта',User:'Пользователь',Disqualification:'Дисквалификация',Season:'Сезон',Class:'Класс',Direction:'Направление',Record:'Рекорд'};return m[x]??humanize(x)}
-function auditActionName(x:string){const m:Record<string,string>={
- CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',HISTORICAL_RESULT_CREATED:'Добавлен исторический результат',HISTORICAL_RESULT_VERIFIED:'Исторический результат подтверждён',HISTORICAL_RESULT_CORRECTED:'Исторический результат исправлен',INSPECTION_DELETED:'Инспекция удалена',ASSISTANT_AI_USED:'Ассистент ИИ использован',
- IMPORT_PREVIEW:'Предпросмотр импорта',IMPORT_COMMITTED:'Импорт зафиксирован',IMPORT_ROW_RESOLVED:'Строка импорта исправлена',
- INSPECTION_CREATED:'Инспекция создана',INSPECTION_UPDATED:'Инспекция изменена',RESULT_CREATED:'Результат внесён',RESULT_UPDATED:'Результат изменён',RESULT_DELETED:'Результат удалён',
- DISQUALIFICATION_CREATED:'Дисквалификация создана',DISQUALIFICATION_REVOKED:'Дисквалификация отозвана',
- ASSISTANT_CHAT_USED:'Использован чат ассистента',ASSISTANT_FUNCTION_EXECUTED:'Выполнена функция ассистента',ASSISTANT_REQUEST_CREATED:'Создан запрос ассистента',ASSISTANT_REQUEST_SUBMITTED:'Запрос отправлен на подтверждение',ASSISTANT_REQUEST_APPROVED:'Запрос подтверждён',ASSISTANT_REQUEST_REJECTED:'Запрос отклонён',ASSISTANT_REQUEST_APPLIED:'Запрос применён',
- SITE_SETTINGS_UPDATED:'Настройки сайта изменены',USER_CREATED:'Пользователь создан',USER_UPDATED:'Пользователь изменён'
- };if(m[x])return m[x];const words:Record<string,string>={CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',CREATED:'Создано',UPDATED:'Изменено',DELETED:'Удалено',VERIFIED:'Подтверждено',CORRECTED:'Исправлено',REVOKED:'Отозвано',COMMITTED:'Зафиксировано',RESOLVED:'Исправлено',USED:'Использован',EXECUTED:'Выполнено',SUBMITTED:'Отправлено',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',HISTORICAL:'Исторический',RESULT:'результат',INSPECTION:'инспекция',DISQUALIFICATION:'дисквалификация',REGISTRATION:'регистрация',IMPORT:'импорт',USER:'пользователь',CAR:'автомобиль',PARTICIPANT:'участник',STAGE:'этап',SEASON:'сезон',CLASS:'класс',ASSISTANT:'ассистент',FUNCTION:'функция',CHAT:'чат',SITE:'сайт',SETTINGS:'настройки',PREVIEW:'предпросмотр',ROW:'строка',DATA:'данные',QUALITY:'качество'};return x.split('_').map(w=>words[w]??w.toLowerCase()).join(' ')}
-function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск',entity:'Раздел',before:'До изменения',after:'После изменения',sections:'Изменённые разделы',model:'Модель ассистента'};return m[x]??humanize(x)}
-function formatAuditValue(v:any){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='string')return enumLabel(v);if(typeof v==='object')return JSON.stringify(v);return String(v)}
 function GlobalSearch({onClose,go}:{onClose:()=>void;go:(p:string)=>void}){
  const[q,setQ]=useState(''),[results,setResults]=useState<any[]>([]),[loading,setLoading]=useState(false);
  useEffect(()=>{const t=setTimeout(async()=>{if(q.trim().length<2){setResults([]);return}setLoading(true);try{const r=await apiGet<any>('/statistics/participants?search='+encodeURIComponent(q.trim())+'&limit=12');const ps=listData(r).map((x:any)=>({type:'Участник',title:[x.lastName,x.firstName,x.middleName].filter(Boolean).join(' '),path:'/admin/participants'}));const cs=listData(await apiGet<any>('/cars')).filter((x:any)=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())).slice(0,8).map((x:any)=>({type:'Автомобиль',title:[x.brand,x.model,x.registrationNumber].filter(Boolean).join(' '),path:'/admin/cars'}));setResults([...ps,...cs])}catch{setResults([])}finally{setLoading(false)}},220);return()=>clearTimeout(t)},[q]);
