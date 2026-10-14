@@ -257,8 +257,8 @@ export class MailService {
         `,
       });
     } catch (error) {
-      // Log SMTP diagnostics without logging tokens, email body, or credentials.
-      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
+      // Log provider diagnostics without logging tokens, email body, recipients, or credentials.
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.',
       );
