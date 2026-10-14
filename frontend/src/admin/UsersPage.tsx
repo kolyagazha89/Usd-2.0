@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,ChevronLeft,Plus,RefreshCw} from 'lucide-react';
+import {AlertTriangle,ChevronLeft,Plus,RefreshCw,Search} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData} from '../api';
 
 function UsersPage({PageFrame,ErrorPanel,LoadingPage,EntityForm,EntityDetailModal,formatDate}: {PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;EntityForm:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;formatDate:(value:string)=>string}){
