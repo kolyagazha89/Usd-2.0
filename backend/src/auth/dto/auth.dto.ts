@@ -25,6 +25,9 @@ export class RegisterDto {
   @IsBoolean()
   privacyConsent!: boolean;
 
+  @IsBoolean()
+  termsAccepted!: boolean;
+
   @IsOptional()
   @IsBoolean()
   newsletterOptIn?: boolean;
