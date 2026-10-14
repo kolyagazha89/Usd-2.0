@@ -5,7 +5,7 @@ import {isValidPlate} from '../../profile-validation';
 import {PageFrame,LoadingPage,ErrorPanel,Empty} from '../AdminUI';
 import {EntityDetailModal,Modal,clean} from '../AdminForms';
 
-function displayCarName(car:any){return [car?.brand,car?.model].filter(Boolean).join(' ')||'Автомобиль'}
+function displayCarName(car:any,fallback='Не указано'){if(!car)return fallback;const unknown=(value:any)=>!String(value??'').trim()||/^(импорт|неизвестно|не указано|автомобиль не указан|unknown|n\/a|—|-)$/i.test(String(value).trim());const model=String(car.model??'').trim();const brand=String(car.brand??'').trim();if(unknown(model))return unknown(brand)?fallback:brand;return [unknown(brand)?'':brand,model].filter(Boolean).join(' ')||fallback}
 
 export default function CarsPage({user,go,path}:{user:User;go:(path:string)=>void;path:string}){
  const canEdit=user.role==='ADMIN';
