@@ -385,7 +385,7 @@ function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div class
 function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage}/>;
+  if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin LoadingPage={LoadingPage} displayCarName={displayCarName}/>;}
   if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} isValidPlate={isValidPlate} clean={clean}/>;
@@ -395,7 +395,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/classes'))return <ClassesPage PageFrame={PageFrame} ResourcePage={ResourcePage}/>;
   if(path.startsWith('/admin/registrations'))return <RegistrationsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/inspections'))return <InspectionsPage key={path} user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>;
-  if(path.startsWith('/admin/results'))return <ResultsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} displayCarName={displayCarName}/>;
+  if(path.startsWith('/admin/results'))return <ResultsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} displayCarName={displayCarName} displayPersonName={displayPersonName}/>;
   if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} displayPersonName={displayPersonName} roleName={roleName} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/import'))return <ImportPage PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
