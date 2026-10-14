@@ -1,6 +1,8 @@
 ALTER TABLE "User"
   ADD COLUMN "privacyConsentAt" TIMESTAMPTZ(3),
   ADD COLUMN "privacyConsentVersion" TEXT,
+  ADD COLUMN "termsAcceptedAt" TIMESTAMPTZ(3),
+  ADD COLUMN "termsVersion" TEXT,
   ADD COLUMN "newsletterConsentAt" TIMESTAMPTZ(3),
   ADD COLUMN "newsletterConsentVersion" TEXT,
   ADD COLUMN "newsletterConsentRevokedAt" TIMESTAMPTZ(3);
