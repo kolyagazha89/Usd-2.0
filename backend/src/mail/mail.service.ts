@@ -71,7 +71,12 @@ export class MailService {
         throw new Error(`Resend API request failed with HTTP ${response.status}`);
       }
 
-      const providerResult = await response.json().catch(() => null) as { id?: unknown } | null;
+      let providerResult: { id?: unknown } | null = null;
+      try {
+        providerResult = await response.json() as { id?: unknown };
+      } catch {
+        // A successful HTTP response without a JSON body still means the provider accepted the request.
+      }
       const providerId = typeof providerResult?.id === 'string' ? providerResult.id : 'unknown';
       this.logger.log(`Resend accepted email (id=${providerId}); inbox delivery is not confirmed by API acceptance.`);
       return;
