@@ -7,7 +7,7 @@ export type SiteSettingsShape = {
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
-  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,string>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:Record<string,unknown>;partners:Array<Record<string,unknown>>;news:Array<Record<string,unknown>>;updatedAt?:string;
+  contacts:Record<string,string>;social:Record<string,string>;seo:Record<string,string>;legal:Record<string,any>;footer:Record<string,string>;registration:Record<string,unknown>;catalogs:Record<string,unknown>;partners:Array<Record<string,unknown>>;news:Array<Record<string,unknown>>;updatedAt?:string;
 };
 
 const DEFAULTS:SiteSettingsShape={
