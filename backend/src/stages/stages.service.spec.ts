@@ -80,7 +80,7 @@ describe('StagesService rules snapshots', () => {
     };
     prisma.stage.findFirst.mockResolvedValue(stage);
     prisma.season.findUnique.mockResolvedValue({ id: 'season-1', status: 'ACTIVE' });
-    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() });
+    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() }));
 
     await service.update('stage-1', { registrationOpen: true } as any, request);
 
@@ -97,7 +97,7 @@ describe('StagesService rules snapshots', () => {
     };
     prisma.stage.findFirst.mockResolvedValue(stage);
     prisma.season.findUnique.mockResolvedValue({ id: 'season-1', status: 'ACTIVE' });
-    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() });
+    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() }));
 
     await service.update('stage-1', { name: 'New name' } as any, request);
 
