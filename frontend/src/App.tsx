@@ -374,7 +374,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/results'))return <ResultsPage user={user}/>;
   if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
   if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/import'))return <ImportPage PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} Modal={Modal} enumLabel={enumLabel}/>;
+  if(path.startsWith('/admin/import'))return <ImportPage PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/records'))return <RecordsPage user={user}/>;
   if(path.startsWith('/admin/statistics'))return <StatisticsPage/>;
   if(path.startsWith('/admin/users'))return <UsersPage/>;
