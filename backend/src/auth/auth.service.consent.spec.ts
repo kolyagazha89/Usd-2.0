@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 describe('AuthService explicit consents', () => {
   const prisma: any = {
     user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), findFirst: jest.fn() },
+    siteSettings: { findUnique: jest.fn() },
     emailVerificationToken: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
     auditLog: { create: jest.fn() },
   };
@@ -15,6 +16,7 @@ describe('AuthService explicit consents', () => {
     jest.clearAllMocks();
     service = new AuthService(prisma, jwt, mail);
     prisma.user.findUnique.mockResolvedValue(null);
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {} });
     prisma.user.create.mockResolvedValue({ id: 'user-1', email: 'driver@example.com' });
     prisma.emailVerificationToken.create.mockResolvedValue({});
     mail.sendVerificationEmail.mockResolvedValue(undefined);

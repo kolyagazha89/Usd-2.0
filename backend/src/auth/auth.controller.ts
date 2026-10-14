@@ -17,7 +17,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -93,6 +93,18 @@ export class AuthController {
       body.termsAccepted,
       body.newsletterOptIn === true,
     );
+  }
+
+  @Get('legal-consent')
+  async getLegalConsent(@Req() request: Request) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.getLegalConsent(userId);
+  }
+
+  @Patch('legal-consent')
+  async updateLegalConsent(@Req() request: Request, @Body() body: LegalConsentDto) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.updateLegalConsent(userId, body.privacyConsent, body.termsAccepted);
   }
 
   @Get('newsletter-consent')

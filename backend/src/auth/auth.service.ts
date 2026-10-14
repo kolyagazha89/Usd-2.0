@@ -65,6 +65,81 @@ export class AuthService {
     );
   }
 
+  private async getApprovedLegalVersion(): Promise<string> {
+    const row = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { legal: true, contacts: true, footer: true },
+    });
+    const legal = (row?.legal ?? {}) as Record<string, any>;
+    const contactEmail = (row?.contacts as Record<string, any> | null)?.email
+      ?? (row?.footer as Record<string, any> | null)?.email;
+    const complete = legal.legalApproved === true
+      && Boolean(String(legal.legalVersion ?? '').trim())
+      && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.privacyText ?? '').trim())
+      && Boolean(String(legal.consentText ?? '').trim())
+      && Boolean(String(legal.termsText ?? '').trim())
+      && Boolean(String(contactEmail ?? '').trim());
+    if (!complete) {
+      throw new BadRequestException('Регистрация временно недоступна: организатор USD ещё не утвердил юридические документы');
+    }
+    return String(legal.legalVersion);
+  }
+
+  async getLegalConsent(userId: string) {
+    const [user, row] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+      }),
+      this.prisma.siteSettings.findUnique({
+        where: { id: 'default' },
+        select: { legal: true, contacts: true, footer: true },
+      }),
+    ]);
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    const legal = (row?.legal ?? {}) as Record<string, any>;
+    const contactEmail = (row?.contacts as Record<string, any> | null)?.email
+      ?? (row?.footer as Record<string, any> | null)?.email;
+    const legalReady = legal.legalApproved === true
+      && Boolean(String(legal.legalVersion ?? '').trim())
+      && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.privacyText ?? '').trim())
+      && Boolean(String(legal.consentText ?? '').trim())
+      && Boolean(String(legal.termsText ?? '').trim())
+      && Boolean(String(contactEmail ?? '').trim());
+    const version = legalReady ? String(legal.legalVersion) : null;
+    return {
+      legalReady,
+      version,
+      privacyAccepted: Boolean(version && user.privacyConsentAt && user.privacyConsentVersion === 'privacy-v' + version),
+      termsAccepted: Boolean(version && user.termsAcceptedAt && user.termsVersion === 'terms-v' + version),
+    };
+  }
+
+  async updateLegalConsent(userId: string, privacyConsent: boolean, termsAccepted: boolean) {
+    if (privacyConsent !== true || termsAccepted !== true) {
+      throw new BadRequestException('Необходимо подтвердить согласие на обработку данных и принять пользовательское соглашение');
+    }
+    const version = await this.getApprovedLegalVersion();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        privacyConsentAt: new Date(),
+        privacyConsentVersion: 'privacy-v' + version,
+        termsAcceptedAt: new Date(),
+        termsVersion: 'terms-v' + version,
+      },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        userId, action: 'LEGAL_CONSENT_UPDATED', entity: 'User', entityId: userId,
+        metadata: { privacyVersion: 'privacy-v' + version, termsVersion: 'terms-v' + version, source: 'account-or-registration' },
+      },
+    });
+    return { success: true, legalReady: true, version, privacyAccepted: true, termsAccepted: true };
+  }
+
   async register(
     email: string,
     password: string,
@@ -88,6 +163,8 @@ export class AuthService {
     if (privacyConsent !== true) {
       throw new BadRequestException('Необходимо подтвердить согласие на обработку персональных данных');
     }
+
+    const legalVersion = await this.getApprovedLegalVersion();
 
     if (normalizedPasswordInvalid(password)) {
       throw new BadRequestException(
@@ -119,9 +196,9 @@ export class AuthService {
         role: 'PARTICIPANT',
         isActive: true,
         privacyConsentAt: new Date(),
-        privacyConsentVersion: 'privacy-v1',
+        privacyConsentVersion: 'privacy-v' + legalVersion,
         termsAcceptedAt: new Date(),
-        termsVersion: 'terms-v1',
+        termsVersion: 'terms-v' + legalVersion,
         ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1' } : {}),
       },
     });

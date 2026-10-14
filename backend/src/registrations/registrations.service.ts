@@ -220,6 +220,32 @@ export class RegistrationsService {
         ? request.user.participantId
         : body.participantId;
 
+    if (request.user.role === 'PARTICIPANT') {
+      const [legalRow, consentUser] = await Promise.all([
+        this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true, contacts: true, footer: true } }),
+        this.prisma.user.findUnique({
+          where: { id: request.user.sub ?? request.user.id },
+          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+        }),
+      ]);
+      const legal = (legalRow?.legal ?? {}) as Record<string, any>;
+      const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
+        ?? (legalRow?.footer as Record<string, any> | null)?.email;
+      const version = String(legal.legalVersion ?? '');
+      const legalReady = legal.legalApproved === true && Boolean(version)
+        && Boolean(String(legal.ipName ?? '').trim())
+        && Boolean(String(legal.privacyText ?? '').trim())
+        && Boolean(String(legal.consentText ?? '').trim())
+        && Boolean(String(legal.termsText ?? '').trim())
+        && Boolean(String(contactEmail ?? '').trim());
+      const currentConsents = legalReady && consentUser
+        && consentUser.privacyConsentAt && consentUser.privacyConsentVersion === 'privacy-v' + version
+        && consentUser.termsAcceptedAt && consentUser.termsVersion === 'terms-v' + version;
+      if (!currentConsents) {
+        throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
+      }
+    }
+
     if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
       throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
     }

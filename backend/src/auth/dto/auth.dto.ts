@@ -33,6 +33,14 @@ export class RegisterDto {
   newsletterOptIn?: boolean;
 }
 
+export class LegalConsentDto {
+  @IsBoolean()
+  privacyConsent!: boolean;
+
+  @IsBoolean()
+  termsAccepted!: boolean;
+}
+
 export class NewsletterConsentDto {
   @IsBoolean()
   consent!: boolean;
