@@ -51,7 +51,8 @@ export class MailService {
     const googleStatus = await this.googleService.getStatus();
     if (googleStatus.connected) {
       const expectedSender = process.env.SMTP_USER?.trim().toLowerCase();
-      return !expectedSender || googleStatus.email?.trim().toLowerCase() === expectedSender;
+      const senderMatches = !expectedSender || googleStatus.email?.trim().toLowerCase() === expectedSender;
+      return senderMatches && await this.googleService.hasMailSendPermission();
     }
 
     return process.env.SMTP_EGRESS_ALLOWED === 'true'
