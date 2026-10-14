@@ -68,6 +68,8 @@ export class AuthService {
   async register(
     email: string,
     password: string,
+    privacyConsent: boolean,
+    newsletterOptIn = false,
   ) {
     const normalizedEmail =
       email.trim().toLowerCase();
@@ -76,6 +78,10 @@ export class AuthService {
       throw new BadRequestException(
         'Email обязателен',
       );
+    }
+
+    if (privacyConsent !== true) {
+      throw new BadRequestException('Необходимо подтвердить согласие на обработку персональных данных');
     }
 
     if (normalizedPasswordInvalid(password)) {
@@ -107,6 +113,9 @@ export class AuthService {
         name: null,
         role: 'PARTICIPANT',
         isActive: true,
+        privacyConsentAt: new Date(),
+        privacyConsentVersion: 'privacy-v1',
+        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1' } : {}),
       },
     });
 
@@ -134,6 +143,21 @@ export class AuthService {
         ? 'Аккаунт создан. Почтовый провайдер принял запрос, но фактическая доставка письма не подтверждена. Проверьте папку «Спам». Если письма нет, настройку почты нужно проверить.'
         : 'Аккаунт создан, но письмо не отправилось. Проверьте адрес и запросите письмо повторно.',
     };
+  }
+
+  async updateNewsletterConsent(userId: string, consent: boolean) {
+    const now = new Date();
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: consent
+        ? { newsletterConsentAt: now, newsletterConsentVersion: 'newsletter-v1', newsletterConsentRevokedAt: null }
+        : { newsletterConsentRevokedAt: now },
+      select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true },
+    });
+    await this.prisma.auditLog.create({
+      data: { userId, action: consent ? 'NEWSLETTER_CONSENT_GRANTED' : 'NEWSLETTER_CONSENT_REVOKED', entity: 'User', entityId: userId, metadata: { version: 'newsletter-v1', source: 'account-settings' } },
+    });
+    return { success: true, consent: Boolean(updated.newsletterConsentAt && !updated.newsletterConsentRevokedAt), message: consent ? 'Согласие на новости сохранено' : 'Рассылка новостей отключена' };
   }
 
   async verifyEmail(
