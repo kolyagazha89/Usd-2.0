@@ -5,7 +5,7 @@ describe('EmailNotificationsService reminder timing', () => {
   const prisma: any = {
     stage: { findMany: jest.fn() },
     registration: { findMany: jest.fn() },
-    emailNotificationLog: { findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
+    emailNotificationLog: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
   };
   const mail: any = { sendNotificationEmail: jest.fn() };
   let service: EmailNotificationsService;
