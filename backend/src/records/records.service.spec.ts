@@ -235,7 +235,7 @@ describe('RecordsService', () => {
         isCurrent: true,
         result: expect.objectContaining({
           registration: expect.objectContaining({
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           }),
         }),
       }),

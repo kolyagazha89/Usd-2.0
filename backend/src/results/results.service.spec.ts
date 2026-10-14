@@ -51,6 +51,7 @@ describe('ResultsService', () => {
       id: 'stage-1',
       status: 'PUBLISHED',
       isDeleted: false,
+      resultsPublishedAt: new Date('2026-01-01T00:00:00Z'),
     });
     prisma.result.findMany.mockResolvedValue([]);
 
@@ -60,11 +61,17 @@ describe('ResultsService', () => {
       where: {
         registration: {
           stageId: 'stage-1',
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
         },
       },
       include: expect.any(Object),
     }));
+  });
+
+  it('does not expose stage results before explicit publication', async () => {
+    prisma.stage.findUnique.mockResolvedValue({ id: 'stage-1', status: 'PUBLISHED', isDeleted: false, resultsPublishedAt: null });
+    await expect(service.findByStage('stage-1')).rejects.toThrow('Результаты этого этапа пока не опубликованы');
+    expect(prisma.result.findMany).not.toHaveBeenCalled();
   });
 
   it('redacts private participant and car details from public result rows', async () => {
@@ -72,6 +79,7 @@ describe('ResultsService', () => {
       id: 'stage-1',
       status: 'PUBLISHED',
       isDeleted: false,
+      resultsPublishedAt: new Date('2026-01-01T00:00:00Z'),
     });
     prisma.result.findMany.mockResolvedValue([
       {

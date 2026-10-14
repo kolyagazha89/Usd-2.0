@@ -365,14 +365,14 @@ export class ResultsService {
   private async assertPublicStage(stageId: string) {
     const stage = await this.prisma.stage.findUnique({
       where: { id: stageId },
-      select: { id: true, status: true, isDeleted: true },
+      select: { id: true, status: true, isDeleted: true, resultsPublishedAt: true },
     });
 
     if (!stage || stage.isDeleted) {
       throw new NotFoundException('Этап не найден');
     }
 
-    if (!['PUBLISHED', 'COMPLETED'].includes(stage.status)) {
+    if (!['PUBLISHED', 'COMPLETED'].includes(stage.status) || !stage.resultsPublishedAt) {
       throw new NotFoundException('Результаты этого этапа пока не опубликованы');
     }
 
@@ -384,7 +384,7 @@ export class ResultsService {
       where: {
         id,
         registration: {
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
         },
       },
       include: this.publicInclude,
@@ -430,7 +430,7 @@ export class ResultsService {
       where: {
         registrationId,
         registration: {
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
         },
       },
       include: this.publicInclude,
@@ -457,7 +457,7 @@ export class ResultsService {
       where: {
         registrationClassId,
         registration: {
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
         },
       },
       include: this.publicInclude,
@@ -477,7 +477,7 @@ export class ResultsService {
       where: {
         registration: {
           stageId,
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
         },
       },
       include: this.publicInclude,

@@ -46,6 +46,50 @@ export class StagesService {
     return stage;
   }
 
+  async setResultsPublication(
+    id: string,
+    published: boolean,
+    confirmed: boolean,
+    request: AuthenticatedRequest,
+  ) {
+    if (confirmed !== true) {
+      throw new BadRequestException('Подтвердите изменение публикации результатов');
+    }
+
+    const stage = await this.prisma.stage.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true, status: true, resultsPublishedAt: true },
+    });
+    if (!stage) throw new NotFoundException('Этап не найден');
+
+    if (published && !['PUBLISHED', 'COMPLETED'].includes(stage.status)) {
+      throw new BadRequestException('Сначала опубликуйте сам этап');
+    }
+    if (published) {
+      const resultCount = await this.prisma.result.count({ where: { registration: { stageId: id } } });
+      if (resultCount < 1) {
+        throw new BadRequestException('Нельзя опубликовать результаты: сначала внесите хотя бы один результат');
+      }
+    }
+
+    const updated = await this.prisma.stage.update({
+      where: { id },
+      data: { resultsPublishedAt: published ? (stage.resultsPublishedAt ?? new Date()) : null },
+      select: { id: true, status: true, resultsPublishedAt: true },
+    });
+
+    await this.audit.log({
+      userId: request.user.sub,
+      action: published ? 'STAGE_RESULTS_PUBLISHED' : 'STAGE_RESULTS_UNPUBLISHED',
+      entity: 'Stage',
+      entityId: id,
+      ipAddress: request.ip,
+      metadata: { published, previousPublishedAt: stage.resultsPublishedAt?.toISOString() ?? null },
+    });
+
+    return { success: true, stage: updated };
+  }
+
   async findOne(id: string) {
     const stage = await this.prisma.stage.findFirst({
       where: { id, isDeleted: false },

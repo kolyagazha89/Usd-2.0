@@ -338,6 +338,7 @@ model Stage {
   registrationOpen     Boolean            @default(false)
   registrationStartsAt DateTime?
   registrationEndsAt   DateTime?
+  resultsPublishedAt    DateTime?          @db.Timestamptz(3)
   isDeleted            Boolean            @default(false)
   rulesSnapshot        Json?
   legacyId             String?            @unique

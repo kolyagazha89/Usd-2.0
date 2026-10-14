@@ -6517,6 +6517,13 @@ export class ImportsService {
           });
         }
 
+        if (historicalResults) {
+          await tx.stage.update({
+            where: { id: importJob.stageId },
+            data: { resultsPublishedAt: new Date(), status: 'PUBLISHED', registrationOpen: false },
+          });
+        }
+
         await tx.importJob.update(
           {
             where: {

@@ -623,7 +623,7 @@ export class RecordsService {
       where: {
         result: {
           registration: {
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           },
         },
       },
@@ -643,7 +643,7 @@ export class RecordsService {
         isCurrent: true,
         result: {
           registration: {
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           },
         },
       },
@@ -670,7 +670,7 @@ export class RecordsService {
         classId,
         result: {
           registration: {
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           },
         },
       },
@@ -689,7 +689,7 @@ export class RecordsService {
         seasonId,
         result: {
           registration: {
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           },
         },
       },
@@ -709,7 +709,7 @@ export class RecordsService {
         id,
         result: {
           registration: {
-            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+            stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           },
         },
       },
