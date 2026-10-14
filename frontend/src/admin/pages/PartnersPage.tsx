@@ -1,14 +1,14 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,Empty,Loader2,Plus} from 'lucide-react';
+import {AlertTriangle,Loader2,Plus} from 'lucide-react';
 import {getSiteSettings,uploadSiteAsset,updateSiteSettings} from '../../api';
-import {PageFrame,ErrorPanel,LoadingPage,Empty as EmptyState} from '../AdminUI';
+import {PageFrame,ErrorPanel,LoadingPage,Empty} from '../AdminUI';
 
 export default function PartnersPage({go,path}:{go:(p:string)=>void;path:string}){
  const[partners,setPartners]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[modalError,setModalError]=useState(''),[confirmHideId,setConfirmHideId]=useState<string|null>(null);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setPartners(Array.isArray(r?.settings?.partners)?r.settings.partners:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  const route=path.split('?')[0];
- useEffect(()=>{if(route==='/admin/partners/new'){setModal(current=>current&&!current.id?current:{tier:'REGULAR',isActive:true,sortOrder:0});setModalError('');return}if(route.startsWith('/admin/partners/edit/')){const id=decodeURIComponent(route.slice('/admin/partners/edit/'.length));const item=partners.find((x:any)=>String(x.id)===id);if(item)setModal((current:any)=>current?.id===item.id?current:item);return}if(route==='/admin/partners'){setModal(null);setModalError('')}},[path,partners]);
+ useEffect(()=>{if(route==='/admin/partners/new'){setModal((current:any)=>current&&!current.id?current:{tier:'REGULAR',isActive:true,sortOrder:0});setModalError('');return}if(route.startsWith('/admin/partners/edit/')){const id=decodeURIComponent(route.slice('/admin/partners/edit/'.length));const item=partners.find((x:any)=>String(x.id)===id);if(item)setModal((current:any)=>current?.id===item.id?current:item);return}if(route==='/admin/partners'){setModal(null);setModalError('')}},[path,partners]);
  const save=async(v:any)=>{setSaving(true);setModalError('');try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];let item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),name:String(v.name??'').trim(),description:String(v.description??'').trim(),tier:v.tier||'REGULAR',website:String(v.website??'').trim(),isActive:v.isActive!==false,sortOrder:Number(v.sortOrder??0),photoUrl:modal?.photoUrl??null};if(v.file instanceof File){const uploaded=await uploadSiteAsset('partner-'+item.id,v.file);item.photoUrl=uploaded.publicPath}const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];await updateSiteSettings({...r.settings,partners:next});setModal(null);go('/admin/partners');await load()}catch(e){setModalError(e instanceof Error?e.message:'Не удалось сохранить партнёра')}finally{setSaving(false)}};
  const remove=async(id:string)=>{if(confirmHideId!==id){setConfirmHideId(id);return}try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];await updateSiteSettings({...r.settings,partners:current.map((x:any)=>x.id===id?{...x,isActive:false}:x)});setConfirmHideId(null);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить статус')}};
  const tierName=(x:string)=>x==='GENERAL'?'Генеральный':x==='PREMIUM'?'Премиальный':'Обычный';
