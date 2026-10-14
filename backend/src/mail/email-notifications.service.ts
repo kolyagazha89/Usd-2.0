@@ -89,6 +89,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     }
     if (!log) return;
     if (log.status === 'SENT') return;
+    if (log.status === 'FAILED' && (log.attempts >= 5 || log.updatedAt.getTime() > now.getTime() - 15 * 60 * 1000)) return;
     const staleSending = log.status === 'SENDING' && log.updatedAt.getTime() < now.getTime() - 10 * 60 * 1000;
     if (log.status === 'SENDING' && !staleSending) return;
     const claim = await this.prisma.emailNotificationLog.updateMany({
@@ -238,10 +239,76 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     }
   }
 
+  private async retryFailedOpeningNotifications() {
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+    const failed = await this.prisma.emailNotificationLog.findMany({
+      where: { type: 'STAGE_REGISTRATION_OPEN', status: 'FAILED', attempts: { lt: 5 }, updatedAt: { lte: cutoff } },
+      orderBy: { updatedAt: 'asc' },
+      take: 100,
+    });
+    for (const log of failed) {
+      const userId = log.eventKey.split(':').at(-1);
+      const stage = log.stageId ? await this.prisma.stage.findFirst({
+        where: { id: log.stageId, status: 'PUBLISHED', registrationOpen: true, isDeleted: false },
+        include: { season: true },
+      }) : null;
+      const user = userId ? await this.prisma.user.findFirst({
+        where: { id: userId, isActive: true, emailVerifiedAt: { not: null }, newsletterConsentAt: { not: null }, newsletterConsentRevokedAt: null },
+        select: { id: true, email: true },
+      }) : null;
+      if (!stage || !user || user.email !== log.recipient) {
+        await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
+        continue;
+      }
+      await this.dispatch({
+        eventKey: log.eventKey, type: 'STAGE_REGISTRATION_OPEN', recipient: user.email, stageId: stage.id,
+        subject: 'Открыта регистрация: ' + stage.name + ' — USD',
+        heading: 'Регистрация на этап открыта',
+        intro: 'Можно подать заявку на участие в этапе ' + stage.name + '.',
+        details: [
+          'Этап: ' + stage.name + ' · №' + stage.stageNumber,
+          'Дата: ' + formatStageDate(stage),
+          'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
+        ],
+        href: this.frontendUrl + '/stages/' + encodeURIComponent(stage.id),
+      });
+    }
+  }
+
+  private async retryFailedRegistrationConfirmations() {
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+    const failed = await this.prisma.emailNotificationLog.findMany({
+      where: { type: 'REGISTRATION_CONFIRMED', status: 'FAILED', attempts: { lt: 5 }, updatedAt: { lte: cutoff } },
+      orderBy: { updatedAt: 'asc' },
+      take: 100,
+    });
+    for (const log of failed) {
+      if (!log.registrationId) {
+        await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
+        continue;
+      }
+      const registration = await this.prisma.registration.findUnique({
+        where: { id: log.registrationId },
+        include: { stage: true, car: true, classes: { include: { class: true } } },
+      });
+      const user = registration ? await this.prisma.user.findFirst({
+        where: { participantId: registration.participantId, isActive: true, emailVerifiedAt: { not: null } },
+        select: { id: true, email: true },
+      }) : null;
+      if (!registration || !user || user.email !== log.recipient) {
+        await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
+        continue;
+      }
+      await this.registrationConfirmed(registration);
+    }
+  }
+
   async processReminders() {
     if (this.running) return;
     this.running = true;
     try {
+      await this.retryFailedOpeningNotifications();
+      await this.retryFailedRegistrationConfirmations();
       const now = new Date();
       const inThreeDays = new Date(now.getTime() + 72 * 60 * 60 * 1000);
       const stages = await this.prisma.stage.findMany({
