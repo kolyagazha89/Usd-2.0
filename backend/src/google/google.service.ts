@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,6 +21,8 @@ export class GoogleService {
   private readonly oauthTokenUrl = 'https://oauth2.googleapis.com/token';
   private readonly driveUrl = 'https://www.googleapis.com/drive/v3/files';
   private readonly sheetsUrl = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+  private readonly logger = new Logger(GoogleService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -217,7 +220,7 @@ export class GoogleService {
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) {
-      this.loggerError('Gmail API rejected email (HTTP ' + response.status + ').');
+      this.logger.error('Gmail API rejected email (HTTP ' + response.status + ').');
       if (response.status === 403) {
         throw new UnauthorizedException('Google не разрешил отправку почты. Переподключите Google и подтвердите разрешение отправлять письма.');
       }
@@ -225,10 +228,6 @@ export class GoogleService {
     }
   }
 
-  private loggerError(message: string) {
-    // Never log recipients, message bodies, access tokens, or refresh tokens.
-    console.error('[GoogleService] ' + message);
-  }
 
   async listSpreadsheets() {
     const token = await this.accessToken();
