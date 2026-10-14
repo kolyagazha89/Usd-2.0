@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {FileClock,RefreshCw} from 'lucide-react';
 import {getAudit,listData,type User} from '../api';
 
-export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate,humanizeAuditKey}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;humanizeAuditKey:(v:string)=>string}){
+export export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string}){
  const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const[entity,setEntity]=useState(''),[action,setAction]=useState('');
  const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
@@ -15,7 +15,7 @@ export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,form
    <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
   </div>
   {error&&<ErrorPanel message={error} retry={load}/>}
-  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x}/>)}</div>}
+  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey}/>)}</div>}
   {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
  </PageFrame>
 }
