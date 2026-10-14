@@ -40,6 +40,21 @@ export class StagesController {
   }
 
   @Roles('ADMIN')
+  @Post(':id/results-publication')
+  setResultsPublication(
+    @Param('id') id: string,
+    @Body() body: { published?: boolean; confirmed?: boolean },
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.stagesService.setResultsPublication(
+      id,
+      body.published === true,
+      body.confirmed === true,
+      request,
+    );
+  }
+
+  @Roles('ADMIN')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: UpdateStageDto, @Req() request: AuthenticatedRequest) {
     return this.stagesService.update(id, body, request);
