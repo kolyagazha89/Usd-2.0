@@ -126,7 +126,7 @@ describe('MailService Resend delivery', () => {
       to: ['admin@example.com'],
       subject: 'USD — проверка почтового канала',
     });
-    expect(body.text).toContain('Если вы получили это письмо');
+    expect(body.text).toContain('Ответ почтового провайдера не является подтверждением доставки.');
   });
 
   it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
