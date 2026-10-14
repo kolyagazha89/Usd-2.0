@@ -152,6 +152,12 @@ export class AuthService {
     };
   }
 
+  async getNewsletterConsent(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true } });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return { consent: Boolean(user.newsletterConsentAt && !user.newsletterConsentRevokedAt), version: user.newsletterConsentVersion };
+  }
+
   async updateNewsletterConsent(userId: string, consent: boolean) {
     const now = new Date();
     const updated = await this.prisma.user.update({
