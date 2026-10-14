@@ -1,3 +1,11 @@
+> **Обновление релизного аудита — 2026-10-14 21:23 UTC.**
+>
+> - **Email/legal PR #138:** code head `7a40b72f98fa8a825f69ea307afef81828c226e1`; Backend CI passed (Prisma generation/migrations, build, lint, 196 unit tests, E2E), Frontend CI passed. The current branch includes all four event triggers, consent source/revocation metadata, the shared USD template across system emails, registration/on-site consent controls and unapproved legal drafts.
+> - **Homepage PR #140:** head `3149fe113ca6a96fc56bf681e610e3fa3f38a7de`; frontend + backend CI passed. Results are restricted to the latest past public stage; leaderboard distribution is SPL 3 / BFSPL 2 / BDWSPL 1 and no arbitrary fallback is used when direction metadata is missing.
+> - **Current main:** `dcf880b21173d5fd0f6603d418217809601e219a`. Neither PR is merged; their changes have not been deployed. Railway `usd-api` latest observed deployment remains SUCCESS from `2026-10-14T16:49:53Z`; no deployment was triggered by these feature branches.
+> - **External gates still open:** real email provider acceptance + Inbox/Spam receipt; organizer approval of legal texts and operator details; Cloudflare-native frontend deployment and browser QA for direct routes/responsive layouts; live mobile QR scan and ADMIN/JUDGE permission smoke tests. Do not infer those from CI.
+> - **Safety:** public domain, DNS and production routing were not changed. Do not enable registration until legal approval is complete.
+>
 > **Обновление — 2026-10-14, 17:02 UTC — CI подтверждён на email/legal code head.**
 >
 > - PR #138 code head `2a4a8ea5ac1fee244dbab88d97331e9de3c72c32`: Backend CI passed (Prisma generation/migrations, build, lint, unit tests, E2E); Frontend CI passed (build). После этого в статусе/документации будет только описательное обновление; если код изменится, CI нужно повторить.
