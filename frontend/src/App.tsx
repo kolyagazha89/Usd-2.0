@@ -101,7 +101,7 @@ function App(){
  useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  useEffect(()=>{if(user?.role==='PARTICIPANT'&&path.startsWith('/login?')){const next=new URLSearchParams(path.split('?')[1]??'').get('next');if(next&&next.startsWith('/participant/register')){history.replaceState({},'',next);setPath(next)}}},[user,path]);
  if(booting)return <Splash/>;
- if(path==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
  if(!user){if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT'||loggedInUser.customRoleId){const next=new URLSearchParams(path.split('?')[1]??'').get('next');const requested=path.startsWith('/admin/inspections')?path:(next&&next.startsWith('/admin/inspections')?next:'/admin');go(requested)}else{const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(next&&next.startsWith('/participant/register')?next:'/participant')}}}/>;return <PublicSite path={path} go={go}/>;}
  if(user.role==='PARTICIPANT'&&!user.customRoleId&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
