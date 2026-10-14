@@ -32,7 +32,7 @@ describe('MailService Resend delivery', () => {
       json: async () => ({ id: 'email-accepted-id' }),
     } as Response);
     const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-    const service = new MailService();
+    const service = new MailService({ getStatus: jest.fn().mockResolvedValue({ connected: false }) } as any);
 
     await service.sendVerificationEmail('person@example.com', 'token-123');
 
@@ -64,7 +64,7 @@ describe('MailService Resend delivery', () => {
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASSWORD;
 
-    const service = new MailService();
+    const service = new MailService({ getStatus: jest.fn().mockResolvedValue({ connected: false }) } as any);
 
     await expect(
       service.sendVerificationEmail('person@example.com', 'token-123'),
@@ -78,7 +78,7 @@ describe('MailService Resend delivery', () => {
       ok: false,
       status: 401,
     } as Response);
-    const service = new MailService();
+    const service = new MailService({ getStatus: jest.fn().mockResolvedValue({ connected: false }) } as any);
 
     await expect(
       service.sendVerificationEmail('person@example.com', 'token-123'),
