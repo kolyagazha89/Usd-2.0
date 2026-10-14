@@ -23,6 +23,16 @@ describe('AuthService.resendVerificationEmail', () => {
     service = new AuthService(prisma, {} as any, mail);
   });
 
+  it('fails fast with the same provider error before looking up any email address', async () => {
+    mail.hasConfiguredProvider.mockResolvedValue(false);
+
+    await expect(service.resendVerificationEmail('missing@example.com')).rejects.toThrow(
+      'Почтовый сервис не настроен',
+    );
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mail.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
   it('reserves a 60-second cooldown atomically before sending', async () => {
     const response = await service.resendVerificationEmail(' PERSON@example.com ');
 
