@@ -122,7 +122,14 @@ export class NameNormalizerService {
   normalize(value: string | null | undefined): string {
     if (!value) return '';
 
-    const cleaned = value.trim().replace(/\s+/g, ' ').replace(/ё/gi, 'е');
+    const cleaned = value
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/[，,;；]+/g, ' ')
+      .replace(/[‐‑‒–—]/g, '-')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/ё/gi, 'е');
     if (!cleaned) return '';
 
     return cleaned.split(' ').map((word) => {
