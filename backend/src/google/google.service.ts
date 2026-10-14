@@ -209,7 +209,7 @@ export class GoogleService {
       Buffer.from(html, 'utf8').toString('base64'),
       '--' + boundary + '--',
       '',
-    ].join('\\r\\n');
+    ].join('\r\n');
     const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
       headers: {
