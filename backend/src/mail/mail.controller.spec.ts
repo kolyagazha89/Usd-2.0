@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { ROLES_KEY } from '../auth/roles.decorator';
 import { MailController } from './mail.controller';
