@@ -1,0 +1,2 @@
+Temporary smoke-test marker to trigger pull_request workflows after switching the repository to public.
+This file can be removed after verifying GitHub Actions.
