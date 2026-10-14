@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {RefreshCw} from 'lucide-react';
 import {getDataQuality} from '../api';
 
-function QualityPage({PageFrame,Empty,ErrorPanel,enumLabel}: {PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;enumLabel:(value:any)=>string}){
+function QualityPage({PageFrame,Empty,ErrorPanel,enumLabel,humanize,humanizeAuditKey}: {PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;enumLabel:(value:any)=>string;humanize:(value:string)=>string;humanizeAuditKey:(value:string)=>string}){
  const[data,setData]=useState<any>(null),[error,setError]=useState(''),[showHidden,setShowHidden]=useState(false),[hidden,setHidden]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('usd.quality.hidden')||'[]')}catch{return[];}});
  const load=()=>getDataQuality().then(setData).catch(e=>setError(e instanceof Error?e.message:'Не удалось проверить данные'));
  useEffect(()=>{void load()},[]);
@@ -18,6 +18,4 @@ function QualityPage({PageFrame,Empty,ErrorPanel,enumLabel}: {PageFrame:React.Co
   <div className="panel quality-table-panel">{!visible.length?<Empty text={data?'Активных проблем нет':'Загрузка проверки…'}/>:<div className="smart-table-wrap"><table className="data-table"><thead><tr><th>Уровень</th><th>Что найдено</th><th>Раздел</th><th>Подробности</th><th/></tr></thead><tbody>{visible.map((x:any,i:number)=>{const key=issueKey(x,i);const isHidden=hidden.includes(key);return <tr key={key}><td data-label="Уровень"><span className={'badge '+(x.severity==='ERROR'?'bad':x.severity==='WARNING'?'warn':'')}>{severity(x.severity)}</span></td><td data-label="Что найдено"><strong>{x.message}</strong><small className="table-sub">Правило: {qualityRuleName(x.code)}</small></td><td data-label="Раздел">{entityName(x.entity)}</td><td data-label="Подробности">{x.context?Object.entries(x.context).filter(([k])=>!k.toLowerCase().endsWith('id')&&!k.toLowerCase().endsWith('ids')).map(([k,v])=><span className="quality-detail" key={k}><b>{humanizeAuditKey(k)}</b>: {enumLabel(v as any)}</span>):'—'}</td><td data-label="Действие" className="row-actions">{isHidden?<button className="secondary-button compact" onClick={()=>restore(key)}>Показать</button>:<button className="secondary-button compact" onClick={()=>hide(key)}>Скрыть</button>}</td></tr>})}</tbody></table></div>}</div>
  </PageFrame>
 }
-function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
-
 export default QualityPage;
