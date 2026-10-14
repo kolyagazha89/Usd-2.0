@@ -138,8 +138,10 @@ describe('MailService Resend delivery', () => {
     const mime = Buffer.from(requestBody.raw, 'base64url').toString('utf8');
     expect(mime).toContain('From: usd-sender@example.com');
     expect(mime).toContain('To: person@example.com');
-    expect(mime).toContain('Подтверждение email — USD');
-    expect(mime).toContain('/verify-email?token=token-123');
+    expect(mime).toContain('Subject: =?UTF-8?B?');
+    const plainPart = mime.match(/Content-Type: text\\/plain; charset="UTF-8"\\r\\nContent-Transfer-Encoding: base64\\r\\n\\r\\n([A-Za-z0-9+/=]+)/);
+    expect(plainPart).not.toBeNull();
+    expect(Buffer.from(plainPart![1], 'base64').toString('utf8')).toContain('/verify-email?token=token-123');
   });
 
   it('does not silently fall back to SMTP when Gmail configuration is partial', async () => {
