@@ -56,7 +56,7 @@ describe('AuthService.resendVerificationEmail', () => {
 
     expect(response).toEqual({
       success: true,
-      message: 'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
+      message: 'Если аккаунт существует и требует подтверждения, запрос обработан. Это сообщение не подтверждает доставку письма.',
     });
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
     expect(prisma.emailVerificationToken.deleteMany).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('AuthService.resendVerificationEmail', () => {
   it('returns the same generic response for unknown and already verified accounts', async () => {
     prisma.user.findUnique.mockResolvedValueOnce(null);
     const missing = await service.resendVerificationEmail('missing@example.com');
-    expect(missing.message).toBe('Если аккаунт существует и требует подтверждения, письмо будет отправлено.');
+    expect(missing.message).toBe('Если аккаунт существует и требует подтверждения, запрос обработан. Это сообщение не подтверждает доставку письма.');
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
 
     prisma.user.findUnique.mockResolvedValueOnce({ ...user, emailVerifiedAt: new Date() });
@@ -83,7 +83,7 @@ describe('AuthService.resendVerificationEmail', () => {
 
     expect(response).toEqual({
       success: true,
-      message: 'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
+      message: 'Если аккаунт существует и требует подтверждения, запрос обработан. Это сообщение не подтверждает доставку письма.',
     });
     expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(2);
