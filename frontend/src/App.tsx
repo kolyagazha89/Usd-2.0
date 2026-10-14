@@ -398,7 +398,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components"/>;
-  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo}/>;
+  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
   if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user}/>;
