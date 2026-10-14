@@ -5,6 +5,25 @@ import { MailService } from './mail.service';
 
 type Notice = { eventKey: string; type: string; recipient: string; stageId: string; registrationId?: string; subject: string; heading: string; intro: string; details: string[]; href: string };
 
+function stageTimeZone(city?: string | null): string {
+  const value = String(city ?? '').toLocaleLowerCase('ru');
+  if (/(тюмен|екатеринбург|челябинск|курган|сургут|ханты-мансийск|нижневартовск)/.test(value)) return 'Asia/Yekaterinburg';
+  if (/омск/.test(value)) return 'Asia/Omsk';
+  if (/(новосибир|томск|барнаул|кемеров|красноярск|абакан)/.test(value)) return 'Asia/Novosibirsk';
+  if (/(иркутск|улан-удэ)/.test(value)) return 'Asia/Irkutsk';
+  if (/(владивосток|хабаровск)/.test(value)) return 'Asia/Vladivostok';
+  if (/калининград/.test(value)) return 'Europe/Kaliningrad';
+  return 'Europe/Moscow';
+}
+
+function formatStageDate(stage: { date: Date | string; city?: string | null }): string {
+  return new Date(stage.date).toLocaleString('ru-RU', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: stageTimeZone(stage.city),
+  });
+}
+
 function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -122,7 +141,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         intro: 'Можно подать заявку на участие в этапе ' + stage.name + '.',
         details: [
           'Этап: ' + stage.name + ' · №' + stage.stageNumber,
-          'Дата: ' + new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }),
+          'Дата: ' + formatStageDate(stage),
           'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
         ],
         href: this.frontendUrl + '/stages/' + encodeURIComponent(stage.id),
@@ -151,7 +170,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       intro: 'Заявка успешно сохранена в системе USD. Сохраните это письмо с данными участия.',
       details: [
         'Этап: ' + (stage.name ?? 'Этап USD'),
-        'Дата: ' + (stage.date ? new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }) : 'уточняется'),
+        'Дата: ' + (stage.date ? formatStageDate(stage) : 'уточняется'),
         'Автомобиль: ' + [car.brand, car.model].filter(Boolean).join(' '),
         'Номер участника: ' + (registration.participantNumber ?? 'назначается'),
         'Классы: ' + (classes.join(', ') || 'не указаны'),
@@ -168,7 +187,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const heading = type === 'STAGE_REGISTRATION_OPEN' ? 'Тест: регистрация на этап открыта' : type === 'REGISTRATION_CONFIRMED' ? 'Тест: заявка подтверждена' : type === 'STAGE_REMINDER_3D' ? 'Тест: до этапа осталось 3 дня' : 'Тест: напоминание за 1 день';
     const details = [
       'Этап: ' + title + (stage?.stageNumber ? ' · №' + stage.stageNumber : ''),
-      'Дата: ' + (stage?.date ? new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }) : 'пример даты'),
+      'Дата: ' + (stage?.date ? formatStageDate(stage) : 'пример даты'),
       'Место: ' + [stage?.city, stage?.venue, stage?.address].filter(Boolean).join(', '),
       ...(type === 'REGISTRATION_CONFIRMED' ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
     ];
@@ -211,7 +230,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         intro: 'Можно подать заявку на участие в этапе ' + stage.name + '.',
         details: [
           'Этап: ' + stage.name + ' · №' + stage.stageNumber,
-          'Дата: ' + new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }),
+          'Дата: ' + formatStageDate(stage),
           'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
         ],
         href: this.frontendUrl + '/stages/' + encodeURIComponent(stage.id),
@@ -252,7 +271,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
             intro: 'Проверьте информацию об этапе и подготовьте автомобиль к соревнованию.',
             details: [
               'Этап: ' + stage.name + ' · №' + stage.stageNumber,
-              'Дата: ' + new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }),
+              'Дата: ' + formatStageDate(stage),
               'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
               'Автомобиль: ' + [registration.car?.brand, registration.car?.model].filter(Boolean).join(' '),
               'Классы: ' + (registration.classes ?? []).map((item: any) => item.class?.name).filter(Boolean).join(', '),
