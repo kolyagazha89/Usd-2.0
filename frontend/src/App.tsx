@@ -297,6 +297,6 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
 function EntityForm(props:any){return <EntityFormModule {...props} enumLabel={enumLabel}/>}
 function EntityDetailModal(props:any){return <EntityDetailWorkspace {...props} enumLabel={enumLabel} formatDate={formatDate}/>}
 function clean(v:any){return Object.fromEntries(Object.entries(v).filter(([,x])=>x!==''&&x!==undefined))}
-function ResourcePage(props:any){return <ResourcePageModule {...props} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatCell={formatCell} getPath={getPath}/>}
+function ResourcePage(props:any){return <ResourcePageModule {...props} go={go} routePath={path} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatCell={formatCell} getPath={getPath}/>}
 
 export default App;
