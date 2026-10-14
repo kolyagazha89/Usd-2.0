@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { StagesService } from './stages.service';
@@ -46,9 +46,12 @@ export class StagesController {
     @Body() body: { published?: boolean; confirmed?: boolean },
     @Req() request: AuthenticatedRequest,
   ) {
+    if (typeof body.published !== 'boolean') {
+      throw new BadRequestException('Поле published должно быть true или false');
+    }
     return this.stagesService.setResultsPublication(
       id,
-      body.published === true,
+      body.published,
       body.confirmed === true,
       request,
     );
