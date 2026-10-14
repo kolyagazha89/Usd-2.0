@@ -42,6 +42,28 @@ describe('GoogleService Gmail sending', () => {
     expect(scopes).toContain('https://www.googleapis.com/auth/spreadsheets.readonly');
   });
 
+  it('checks the Gmail send scope before treating Google as a configured provider', async () => {
+    const prisma = { googleConnection: { findUnique: jest.fn() } };
+    const service = new GoogleService(prisma as any);
+    const encryptedRefreshToken = (service as any).encrypt('refresh-token');
+    prisma.googleConnection.findUnique.mockResolvedValue({
+      id: 'default',
+      email: 'sender@example.com',
+      refreshTokenEncrypted: encryptedRefreshToken,
+    });
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: 'access-token',
+        expires_in: 3600,
+        scope: 'openid https://www.googleapis.com/auth/gmail.send',
+      }),
+    } as Response);
+
+    await expect(service.hasMailSendPermission()).resolves.toBe(true);
+  });
+
   it('sends through Gmail HTTPS API using the configured sender account', async () => {
     const prisma = {
       googleConnection: {
