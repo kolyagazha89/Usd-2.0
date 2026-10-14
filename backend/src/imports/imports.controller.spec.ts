@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import { ImportsController } from './imports.controller';
+import { IS_PUBLIC_KEY } from '../auth/public.decorator';
+import { ROLES_KEY } from '../auth/roles.decorator';
 
 describe('ImportsController historical auto-commit guard', () => {
   const originalSecret = process.env.AUTO_HISTORICAL_IMPORT_SECRET;
@@ -20,6 +22,16 @@ describe('ImportsController historical auto-commit guard', () => {
     } else {
       process.env.AUTO_HISTORICAL_IMPORT_SECRET = originalSecret;
     }
+  });
+
+  it('keeps historical auto-commit behind JWT authentication and ADMIN role checks', () => {
+    expect(
+      Reflect.getMetadata(
+        IS_PUBLIC_KEY,
+        ImportsController.prototype.autoCommitHistorical,
+      ),
+    ).not.toBe(true);
+    expect(Reflect.getMetadata(ROLES_KEY, ImportsController)).toEqual(['ADMIN']);
   });
 
   it('fails closed when the server secret and request header are both missing', () => {
