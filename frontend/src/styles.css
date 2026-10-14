@@ -3171,3 +3171,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .registration-cancel-confirm>span{font-size:11px;color:#7d2730;margin-right:auto}
 .registration-cancel-confirm .secondary-button,.registration-cancel-confirm .danger-button{font-size:10px;min-height:34px}
 @media(max-width:640px){.registration-cancel-confirm{align-items:stretch}.registration-cancel-confirm>span{width:100%;margin:0 0 3px}.registration-cancel-confirm .secondary-button,.registration-cancel-confirm .danger-button{flex:1;justify-content:center}}
+
+
+/* Inline confirmation controls keep destructive actions out of native browser dialogs. */
+.inline-confirm{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--border,#dedede);border-radius:10px;background:var(--surface,#fff);font-size:12px;white-space:nowrap}.inline-confirm>span{font-weight:600}.inline-confirm .danger-button{min-height:30px;padding:6px 10px}.inline-confirm .secondary-button{min-height:30px;padding:6px 10px}
