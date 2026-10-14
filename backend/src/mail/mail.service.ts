@@ -41,6 +41,48 @@ export class MailService {
     process.env.FRONTEND_URL ??
     'http://localhost:3000';
 
+  private async sendMessage(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (apiKey) {
+      const from = process.env.RESEND_FROM_EMAIL?.trim();
+      if (!from) {
+        throw new Error('RESEND_FROM_EMAIL must be configured when RESEND_API_KEY is set');
+      }
+
+      // Resend uses HTTPS (port 443), which works on Railway plans that block SMTP.
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to: [message.to],
+          subject: message.subject,
+          text: message.text,
+          html: message.html,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Resend API rejected email (HTTP ${response.status}).`);
+        throw new Error(`Resend API request failed with HTTP ${response.status}`);
+      }
+      return;
+    }
+
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
+      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or complete SMTP settings');
+    }
+
+    await this.transporter.sendMail({
+      from: this.from,
+      ...message,
+    });
+  }
+
   async sendVerificationEmail(
     email: string,
     token: string,
@@ -49,8 +91,7 @@ export class MailService {
       `${this.frontendUrl}/verify-email?token=${encodeURIComponent(token)}`;
 
     try {
-      await this.transporter.sendMail({
-        from: this.from,
+      await this.sendMessage({
         to: email,
         subject: 'Подтверждение email — USD',
         text: [
@@ -112,8 +153,7 @@ export class MailService {
       `${this.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     try {
-      await this.transporter.sendMail({
-        from: this.from,
+      await this.sendMessage({
         to: email,
         subject: 'Восстановление пароля — USD',
         text: [
@@ -170,8 +210,7 @@ export class MailService {
   ): Promise<void> {
     const url = `${this.frontendUrl}/confirm-email-change?token=${encodeURIComponent(token)}`;
     try {
-      await this.transporter.sendMail({
-        from: this.from,
+      await this.sendMessage({
         to: email,
         subject: 'Подтверждение нового email — USD',
         text: ['Здравствуйте!', '', 'Для подтверждения нового email перейдите по ссылке:', url, '', 'Ссылка действует 30 минут.'].join('\\n'),
