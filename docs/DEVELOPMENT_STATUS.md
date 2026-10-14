@@ -1,3 +1,5 @@
+> **CI note — 2026-10-14, 16:18 UTC:** frontend and backend CI passed on commit `f2e03d6b374cc352067aef666c4031ab63a7e92f`. A later backend run on intermediate commit `9825ecf05079835e2eb431dcaf542c54a00d5a12` failed during unit tests with Jest unable to resolve `email-notifications.service` from its test at that snapshot; no test assertions ran for that suite. Current PR head `18555ab2f79324e16aa0beba020c06db6af78a8a` contains the service file and separate reminder-threshold tests; fresh CI for the current head must be observed before treating this block as green.
+>
 > **Обновление — 2026-10-14, ветка `feature/stage-email-triggers-consents` (реализация в работе, CI ещё не проверен).**
 >
 > - Создана задача [#136](https://github.com/kolyagazha89/Usd-2.0/issues/136) для четырёх email-триггеров, согласий и юридических черновиков.
