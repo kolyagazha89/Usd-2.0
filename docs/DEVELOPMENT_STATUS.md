@@ -1,3 +1,25 @@
+## Current status — 2026-10-14
+
+Latest merged main: `732bc18ef88810920b383dc009f05b828c39f797`.
+
+- PR #94 merged: server-enforced custom role permissions and admin role matrix. Permanent ADMIN remains a full-access superuser; JUDGE cannot edit or delete results. Migration `20261013190000_custom_roles` is included in the successful Railway deployment.
+- PR #95 merged: unified admin media library with latest-version listing, previews, safe deletion of referenced assets, audit trail, and regression tests.
+- Email status: Gmail SMTP requests failed with `Connection timeout` in Railway logs. SMTP is not a reliable transport on the current Railway network/plan. The backend now supports Resend over HTTPS and the verification-resend response no longer claims that a message was actually sent.
+- Email delivery is **not yet verified**: Railway currently has no `RESEND_API_KEY` or `RESEND_FROM_EMAIL`. Required owner action: create/verify the sending domain in Resend, then configure those two variables in Railway. Suggested sender after domain verification: `USD <noreply@usd-russia.ru>`. Never store or paste API keys in source control.
+- CI for merged commit `732bc18`: Frontend CI [run 38529896801](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896801) passed; Backend CI [run 38529896819](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896819) passed.
+- Railway deploy `85195de8-eb0e-4b91-a2d8-e1050a871d96` succeeded for `732bc18`; Nest application started and startup logs show no errors.
+- GitHub Actions Frontend Deploy [run 38529896899](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896899) passed its build but skipped the Wrangler publish job because GitHub repository secrets `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID` are absent. Do not claim the frontend was published by that workflow. Cloudflare's native main-branch Worker build and live-route verification for this exact commit still need confirmation.
+- Keep `usd-russia.ru` root DNS/Tilda untouched until the owner explicitly approves the cutover. Do not claim production acceptance from CI alone.
+
+### Remaining release checks
+
+1. Configure and verify Resend sender/API key, send a real test email, and confirm delivery.
+2. Verify the active Cloudflare Worker build and test direct navigation/refresh on `/`, `/stages`, `/results`, `/records`, `/rules`.
+3. Run anonymous privacy checks and real-device mobile QA.
+4. Confirm media-library upload, preview and deletion on the live Worker/API.
+
+---
+
 # USD 2.0 — Development status and source of truth
 
 Last reconciled: 2026-10-13. Read this file and `docs/PHASE_1_STATUS.md` before every work block. Update status only with evidence.
