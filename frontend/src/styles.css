@@ -3186,3 +3186,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .team-inline-edit input{min-width:160px;flex:1}
 .team-inline-edit span{font-size:13px;color:var(--muted,#6b7280)}
 @media(max-width:680px){.team-inline-edit{min-width:0;width:100%}.team-inline-edit input{width:100%;flex-basis:100%}.team-directory-actions{flex-wrap:wrap}}
+
+.inline-confirm-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px}
+.inline-confirm-actions>span{font-size:12px;color:var(--muted,#6b7280)}
+@media(max-width:640px){.inline-confirm-actions{justify-content:flex-start}}
