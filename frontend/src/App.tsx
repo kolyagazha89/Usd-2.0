@@ -25,6 +25,7 @@ import InspectionsPage from './admin/InspectionsPage';
 import ResultsPage from './admin/ResultsPage';
 import AuditPage from './admin/AuditPage';
 import CatalogPage from './admin/CatalogPage';
+import ParticipantsPage from './admin/ParticipantsPage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -379,7 +380,7 @@ function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div class
 function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go}/>;
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/participants'))return <ParticipantsPage go={go}/>;
+  if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin/>;}
   if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} isValidPlate={isValidPlate} clean={clean}/>;
@@ -555,8 +556,6 @@ function ResourcePage({title,subtitle,path,columns,fields,create,update,remove,s
 
  return embedded?content:<PageFrame title={title} subtitle={subtitle} action={<div className="page-actions">{create&&<button className="primary-button compact" onClick={()=>setModal({})}><Plus size={15}/>Добавить</button>}<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button></div>}>{content}</PageFrame>;
 }
-function ParticipantsPage({go}:{go:(p:string)=>void}){return <ResourcePage title="Участники" subtitle="Профили, команды и история выступлений" path="/admin/participants" columns={[{key:'lastName',label:'Фамилия'},{key:'firstName',label:'Имя'},{key:'city',label:'Город'},{key:'team',label:'Команда'},{key:'phone',label:'Телефон'},{key:'isPublic',label:'Публичный'}]} fields={[{name:'lastName',label:'Фамилия',required:true},{name:'firstName',label:'Имя',required:true},{name:'middleName',label:'Отчество'},{name:'city',label:'Город'},{name:'team',label:'Команда',optionsPath:'/participants/teams',optionLabel:(x:any)=>x.name},{name:'phone',label:'Телефон'},{name:'birthDate',label:'Дата рождения',type:'date'},{name:'isPublic',label:'Показывать профиль публично',type:'checkbox'}]} create={v=>apiPost('/participants',v)} update={(id,v)=>apiPatch('/participants/'+id,v)} remove={id=>apiDelete('/participants/'+id)} searchPlaceholder="ФИО, город, команда" showStatusFilter={false} detailLoader={async row=>{const cars=listData(await apiGet<any>('/participants/'+row.id+'/cars'));return {...row,cars}}} detailExtra={(item:any)=><div className="participant-detail-cars"><div className="eyebrow">АВТОМОБИЛИ УЧАСТНИКА</div>{item.cars?.length?<div className="participant-car-list">{item.cars.map((car:any)=><div className="participant-car-item" key={car.id}><div><strong>{displayCarName(car)}</strong><span>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')}</span></div><span className="badge">{car.configurations?.length??0} конф.</span></div>)}</div>:<span className="muted">Автомобилей нет</span>}</div>}/>}
-
 function ConfigurationsPage({carId,go,admin=false}:{carId:string;go:(path:string)=>void;admin?:boolean}){
  const[car,setCar]=useState<any|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const backPath=admin?'/admin/cars':'/participant?tab=cars';
