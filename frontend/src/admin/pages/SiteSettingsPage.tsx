@@ -3,6 +3,7 @@ import {Activity,AlertTriangle,Check,CheckCircle2,ClipboardCheck,FileClock,Flag,
 import {apiGet,getSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,listData} from '../../api';
 import {PageFrame,ErrorPanel,LoadingPage} from '../AdminUI';
 function cacheBrandLogo(url:string){try{localStorage.setItem('usd_brand_logo',url)}catch{}}
+function PanelTitle({title,icon:Icon}:{title:string;icon:any}){return <div className="panel-title"><div><Icon size={17}/><h2>{title}</h2></div></div>}
 
 export default function SiteSettingsPage(){
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
