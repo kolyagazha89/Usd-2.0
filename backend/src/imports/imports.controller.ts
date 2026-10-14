@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { ImportsService } from './imports.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
@@ -13,10 +14,24 @@ export class ImportsController {
   @Public()
   @Post('historical/auto-commit')
   autoCommitHistorical(@Req() req: AuthenticatedRequest) {
-    const secret = req.headers['x-historical-import-secret'];
-    if (secret !== process.env.AUTO_HISTORICAL_IMPORT_SECRET) {
-      throw new Error('Historical import secret is invalid');
+    const suppliedSecret = req.headers['x-historical-import-secret'];
+    const configuredSecret = process.env.AUTO_HISTORICAL_IMPORT_SECRET;
+
+    // A missing environment secret must fail closed. Otherwise two undefined
+    // values would compare equal and expose this write endpoint publicly.
+    if (!configuredSecret || typeof suppliedSecret !== 'string') {
+      throw new ForbiddenException('Historical import secret is invalid');
     }
+
+    const suppliedBytes = Buffer.from(suppliedSecret, 'utf8');
+    const configuredBytes = Buffer.from(configuredSecret, 'utf8');
+    if (
+      suppliedBytes.length !== configuredBytes.length ||
+      !timingSafeEqual(suppliedBytes, configuredBytes)
+    ) {
+      throw new ForbiddenException('Historical import secret is invalid');
+    }
+
     return this.importsService.autoCommitHistoricalImport(req);
   }
 
