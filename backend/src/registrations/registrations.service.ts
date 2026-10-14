@@ -240,7 +240,7 @@ export class RegistrationsService {
       const [legalRow, consentUser] = await Promise.all([
         this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true, contacts: true, footer: true } }),
         this.prisma.user.findUnique({
-          where: { id: request.user.sub ?? request.user.id },
+          where: { id: request.user.sub },
           select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
         }),
       ]);

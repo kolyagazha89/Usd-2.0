@@ -14,6 +14,7 @@ describe('RegistrationsService', () => {
   const participantRequest: any = {
     user: {
       id: 'user-1',
+      sub: 'user-1',
       role: 'PARTICIPANT',
       participantId: 'participant-1',
     },
