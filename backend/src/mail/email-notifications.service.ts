@@ -60,7 +60,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
           data: {
             id: randomUUID(), eventKey: notice.eventKey, type: notice.type,
             recipient: notice.recipient, stageId: notice.stageId,
-            registrationId: notice.registrationId, status: 'SENDING', attempts: 0,
+            registrationId: notice.registrationId, status: 'PENDING', attempts: 0,
           },
         });
       } catch (error) {
@@ -71,19 +71,16 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     if (!log) return;
     if (log.status === 'SENT') return;
     const staleSending = log.status === 'SENDING' && log.updatedAt.getTime() < now.getTime() - 10 * 60 * 1000;
-    if (log.status !== 'SENDING' || log.id && log.attempts > 0 || staleSending) {
-      const claim = await this.prisma.emailNotificationLog.updateMany({
-        where: {
-          id: log.id,
-          status: log.status,
-          updatedAt: staleSending ? { lte: new Date(now.getTime() - 10 * 60 * 1000) } : undefined,
-        },
-        data: { status: 'SENDING', lastError: null },
-      });
-      if (claim.count !== 1) return;
-    } else if (log.status === 'SENDING' && !staleSending) {
-      return;
-    }
+    if (log.status === 'SENDING' && !staleSending) return;
+    const claim = await this.prisma.emailNotificationLog.updateMany({
+      where: {
+        id: log.id,
+        status: log.status,
+        ...(log.status === 'SENDING' ? { updatedAt: { lte: new Date(now.getTime() - 10 * 60 * 1000) } } : {}),
+      },
+      data: { status: 'SENDING', lastError: null },
+    });
+    if (claim.count !== 1) return;
     const rendered = this.render(notice);
     try {
       await this.mail.sendNotificationEmail({ to: notice.recipient, subject: notice.subject, ...rendered });
