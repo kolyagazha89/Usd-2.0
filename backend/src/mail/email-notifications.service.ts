@@ -88,7 +88,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       }
     }
     if (!log) return;
-    if (log.status === 'SENT') return;
+    if (log.status === 'PROVIDER_ACCEPTED' || log.status === 'DELIVERED') return;
     if (log.status === 'FAILED' && (log.attempts >= 5 || log.updatedAt.getTime() > now.getTime() - 15 * 60 * 1000)) return;
     const staleSending = log.status === 'SENDING' && log.updatedAt.getTime() < now.getTime() - 10 * 60 * 1000;
     if (log.status === 'SENDING' && !staleSending) return;
@@ -106,7 +106,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       await this.mail.sendNotificationEmail({ to: notice.recipient, subject: notice.subject, ...rendered });
       await this.prisma.emailNotificationLog.update({
         where: { id: log.id },
-        data: { status: 'SENT', providerAcceptedAt: new Date(), attempts: { increment: 1 }, lastError: null },
+        data: { status: 'PROVIDER_ACCEPTED', providerAcceptedAt: new Date(), attempts: { increment: 1 }, lastError: null },
       });
     } catch (error) {
       const errorName = error instanceof Error ? error.name : 'UnknownError';

@@ -66,14 +66,14 @@ describe('EmailNotificationsService', () => {
     expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
   });
 
-  it('does not resend an event already marked SENT', async () => {
+  it('does not resend an event already accepted by the provider', async () => {
     prisma.stage.findFirst.mockResolvedValue({
       id: 'stage-1', status: 'PUBLISHED', registrationOpen: true, isDeleted: false,
       name: 'Этап 1', stageNumber: 1, date: new Date('2026-11-10T10:00:00Z'),
       updatedAt: new Date('2026-10-14T10:00:00Z'),
     });
     prisma.user.findMany.mockResolvedValue([{ id: 'user-1', email: 'opted-in@example.com' }]);
-    prisma.emailNotificationLog.findUnique.mockResolvedValue({ id: 'log-sent', status: 'SENT', attempts: 1, updatedAt: new Date() });
+    prisma.emailNotificationLog.findUnique.mockResolvedValue({ id: 'log-sent', status: 'PROVIDER_ACCEPTED', attempts: 1, updatedAt: new Date() });
 
     await service.registrationOpened('stage-1');
 
