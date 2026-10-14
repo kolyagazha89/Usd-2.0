@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -215,6 +216,9 @@ export class AuthService {
     email: string,
   ) {
     const normalizedEmail = email.trim().toLowerCase();
+    if (!(await this.mailService.hasConfiguredProvider())) {
+      throw new ServiceUnavailableException('Почтовый сервис не настроен. Подключите HTTPS-провайдера или разрешённый способ отправки.');
+    }
     const genericResponse = {
       success: true,
       message: 'Запрос принят. Этот ответ не подтверждает доставку письма. Если письмо не придёт, проверьте папку «Спам» и попробуйте позже.',
@@ -1193,6 +1197,9 @@ export class AuthService {
     if (existing) {
       throw new ConflictException('Этот email уже используется');
     }
+    if (!(await this.mailService.hasConfiguredProvider())) {
+      throw new ServiceUnavailableException('Почтовый сервис не настроен. Подключите HTTPS-провайдера или разрешённый способ отправки.');
+    }
 
     await this.prisma.emailChangeToken.deleteMany({ where: { userId } });
     const rawToken = this.generateToken();
@@ -1241,6 +1248,9 @@ export class AuthService {
   ) {
     const normalizedEmail =
       email.trim().toLowerCase();
+    if (!(await this.mailService.hasConfiguredProvider())) {
+      throw new ServiceUnavailableException('Почтовый сервис не настроен. Подключите HTTPS-провайдера или разрешённый способ отправки.');
+    }
 
     const user =
       await this.prisma.user.findUnique({
