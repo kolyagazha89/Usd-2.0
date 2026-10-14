@@ -90,6 +90,7 @@ export class AuthController {
       body.email,
       body.password,
       body.privacyConsent,
+      body.termsAccepted,
       body.newsletterOptIn === true,
     );
   }
