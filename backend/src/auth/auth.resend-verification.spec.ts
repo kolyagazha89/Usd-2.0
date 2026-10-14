@@ -19,7 +19,7 @@ describe('AuthService.resendVerificationEmail', () => {
         create: jest.fn().mockResolvedValue({ id: 'token-1' }),
       },
     };
-    mail = { sendVerificationEmail: jest.fn().mockResolvedValue(undefined) };
+    mail = { hasConfiguredProvider: jest.fn().mockResolvedValue(true), sendVerificationEmail: jest.fn().mockResolvedValue(undefined) };
     service = new AuthService(prisma, {} as any, mail);
   });
 
