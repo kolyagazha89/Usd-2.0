@@ -101,7 +101,7 @@ function App(){
  useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  useEffect(()=>{if(user?.role==='PARTICIPANT'&&path.startsWith('/login?')){const next=new URLSearchParams(path.split('?')[1]??'').get('next');if(next&&next.startsWith('/participant/register')){history.replaceState({},'',next);setPath(next)}}},[user,path]);
  if(booting)return <Splash/>;
- if(path==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
  if(!user){if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT'||loggedInUser.customRoleId){const next=new URLSearchParams(path.split('?')[1]??'').get('next');const requested=path.startsWith('/admin/inspections')?path:(next&&next.startsWith('/admin/inspections')?next:'/admin');go(requested)}else{const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(next&&next.startsWith('/participant/register')?next:'/participant')}}}/>;return <PublicSite path={path} go={go}/>;}
  if(user.role==='PARTICIPANT'&&!user.customRoleId&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
  // Public routes must remain public even when an ADMIN or JUDGE session is active.
@@ -117,8 +117,39 @@ function Splash(){const[logo,setLogo]=useState('');useEffect(()=>{let active=tru
 }
 function EmailVerificationPage({onGoLogin}:{onGoLogin:()=>void}){
  const[status,setStatus]=useState<'loading'|'success'|'error'>('loading'),[message,setMessage]=useState('Подтверждаем email…');
- useEffect(()=>{let active=true;const token=new URLSearchParams(location.search).get('token');if(!token){setStatus('error');setMessage('В ссылке отсутствует токен подтверждения. Откройте ссылку из письма полностью.');return}apiPost<any>('/auth/verify-email',{token}).then(r=>{if(active){setStatus('success');setMessage(r?.message||'Email подтверждён. Теперь можно войти в USD.')}}).catch(e=>{if(active){setStatus('error');setMessage(e instanceof Error?e.message:'Не удалось подтвердить email. Запросите новое письмо или попробуйте ещё раз.')}});return()=>{active=false}},[]);
- return <div className="login-page"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><div className="brand-mark">USD</div></div><div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div><h1>{status==='loading'?'Проверяем ссылку':status==='success'?'Email подтверждён':'Не удалось подтвердить'}</h1><p className="muted">{message}</p>{status==='loading'&&<div className="participant-loading"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}{status!=='loading'&&<button className="primary-button" onClick={onGoLogin}>{status==='success'?'Перейти ко входу':'Вернуться ко входу'}<ChevronRight size={18}/></button>}</div></div>;
+ useEffect(()=>{
+  let active=true;
+  const params=new URLSearchParams(location.search);
+  const linkStatus=params.get('status');
+  const token=params.get('token');
+  if(linkStatus==='success'){
+   setStatus('success');
+   setMessage('Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.');
+   return()=>{active=false};
+  }
+  if(linkStatus==='expired'){
+   setStatus('error');
+   setMessage('Срок действия ссылки истёк. Вернитесь ко входу и запросите новое письмо подтверждения.');
+   return()=>{active=false};
+  }
+  if(linkStatus==='error'){
+   setStatus('error');
+   setMessage('Ссылка недействительна или подтверждение не удалось выполнить. Запросите новое письмо и попробуйте ещё раз.');
+   return()=>{active=false};
+  }
+  if(!token){
+   setStatus('error');
+   setMessage('В ссылке отсутствует токен подтверждения. Запросите новое письмо и откройте ссылку из него.');
+   return()=>{active=false};
+  }
+  apiPost<any>('/auth/verify-email',{token}).then(r=>{
+   if(active){setStatus('success');setMessage(r?.message||'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.')}
+  }).catch(e=>{
+   if(active){setStatus('error');setMessage(e instanceof Error?e.message:'Не удалось подтвердить почту. Запросите новое письмо или попробуйте ещё раз.')}
+  });
+  return()=>{active=false};
+ },[]);
+ return <div className="login-page"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><div className="brand-mark">USD</div></div><div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div><h1>{status==='loading'?'Проверяем ссылку':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1><p className="muted">{message}</p>{status==='loading'&&<div className="participant-loading"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}{status!=='loading'&&<button className="primary-button" onClick={onGoLogin}>{status==='success'?'Войти':'Вернуться ко входу'}<ChevronRight size={18}/></button>}</div></div>;
 }
 function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
  const [stages,setStages]=useState<any[]>([]),[records,setRecords]=useState<any[]>([]),[results,setResults]=useState<any[]>([]),[latestResults,setLatestResults]=useState<any[]>([]),[liveResultsRows,setLiveResultsRows]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[settings,setSettings]=useState<any>({}),[loading,setLoading]=useState(true),[resultsLoading,setResultsLoading]=useState(false),[error,setError]=useState(''),[selectedStageId,setSelectedStageId]=useState(()=>{try{return new URLSearchParams(location.search).get('stageId')??''}catch{return ''}}),[autoDiscoverResults,setAutoDiscoverResults]=useState(()=>{try{return !new URLSearchParams(location.search).get('stageId')}catch{return true}}),[stageDetailResults,setStageDetailResults]=useState<any[]>([]),[stageDetailLoading,setStageDetailLoading]=useState(false),[stageDetailData,setStageDetailData]=useState<any>(null);const [publicLogoUrl,setPublicLogoUrl]=useState(''),[logoOverride,setLogoOverride]=useState(''),[logoFailed,setLogoFailed]=useState(false),[failedLogoUrls,setFailedLogoUrls]=useState<string[]>([]);
