@@ -70,6 +70,10 @@ export class MailService {
         this.logger.error(`Resend API rejected email (HTTP ${response.status}).`);
         throw new Error(`Resend API request failed with HTTP ${response.status}`);
       }
+
+      const providerResult = await response.json().catch(() => null) as { id?: unknown } | null;
+      const providerId = typeof providerResult?.id === 'string' ? providerResult.id : 'unknown';
+      this.logger.log(`Resend accepted email (id=${providerId}); inbox delivery is not confirmed by API acceptance.`);
       return;
     }
 
@@ -77,10 +81,19 @@ export class MailService {
       throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or complete SMTP settings');
     }
 
-    await this.transporter.sendMail({
+    const result = await this.transporter.sendMail({
       from: this.from,
       ...message,
     });
+
+    const acceptedCount = Array.isArray(result.accepted) ? result.accepted.length : 0;
+    const rejectedCount = Array.isArray(result.rejected) ? result.rejected.length : 0;
+    const messageId = typeof result.messageId === 'string' ? result.messageId : 'unknown';
+    if (acceptedCount === 0) {
+      this.logger.error(`SMTP did not accept message (messageId=${messageId}, rejected=${rejectedCount}).`);
+      throw new Error('SMTP server did not accept the recipient');
+    }
+    this.logger.log(`SMTP accepted email (messageId=${messageId}, accepted=${acceptedCount}, rejected=${rejectedCount}); inbox delivery is not confirmed by SMTP acceptance.`);
   }
 
   async sendVerificationEmail(
