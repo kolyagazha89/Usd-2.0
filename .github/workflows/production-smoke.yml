@@ -74,11 +74,11 @@ jobs:
             walk(value, label);
           };
 
-          const health = await request('/prisma/health');
-          if (!health.response.ok || health.data?.success !== true || health.data?.database !== 'connected') {
-            throw new Error('Health/database check failed: HTTP ' + health.response.status + ' ' + health.text);
+          const settingsHealth = await request('/site-settings/public');
+          if (!settingsHealth.response.ok || !settingsHealth.data?.settings) {
+            throw new Error('Public settings/database check failed: HTTP ' + settingsHealth.response.status + ' ' + settingsHealth.text);
           }
-          console.log('Health and database connectivity OK.');
+          console.log('Public settings endpoint and database query OK.');
 
           const stagesResponse = await request('/stages/public');
           if (!stagesResponse.response.ok) throw new Error('Public stages failed: HTTP ' + stagesResponse.response.status);
