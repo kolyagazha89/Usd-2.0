@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,7 +25,7 @@ export class RegistrationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailNotifications: EmailNotificationsService,
+    @Optional() private readonly emailNotifications?: EmailNotificationsService,
   ) {}
 
   private readonly registrationInclude = {
@@ -725,7 +726,7 @@ export class RegistrationsService {
         });
       },
     );
-    void this.emailNotifications.registrationConfirmed(registration).catch((error) => {
+    void this.emailNotifications?.registrationConfirmed(registration).catch((error) => {
       this.logger.error('Registration confirmation email could not be prepared: ' + (error instanceof Error ? error.name : 'UnknownError'));
     });
     return registration;
