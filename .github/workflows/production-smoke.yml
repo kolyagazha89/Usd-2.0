@@ -74,7 +74,7 @@ jobs:
             walk(value, label);
           };
 
-          const health = await request('/health');
+          const health = await request('/prisma/health');
           if (!health.response.ok || health.data?.success !== true || health.data?.database !== 'connected') {
             throw new Error('Health/database check failed: HTTP ' + health.response.status + ' ' + health.text);
           }
