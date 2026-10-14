@@ -5,7 +5,9 @@ ALTER TABLE "User"
   ADD COLUMN "termsVersion" TEXT,
   ADD COLUMN "newsletterConsentAt" TIMESTAMPTZ(3),
   ADD COLUMN "newsletterConsentVersion" TEXT,
-  ADD COLUMN "newsletterConsentRevokedAt" TIMESTAMPTZ(3);
+  ADD COLUMN "newsletterConsentRevokedAt" TIMESTAMPTZ(3),
+  ADD COLUMN "newsletterConsentSource" TEXT,
+  ADD COLUMN "newsletterConsentRevokedSource" TEXT;
 
 ALTER TABLE "Registration"
   ADD COLUMN "rulesAcceptedAt" TIMESTAMPTZ(3),

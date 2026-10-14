@@ -50,6 +50,7 @@ describe('AuthService explicit consents', () => {
     const data = prisma.user.create.mock.calls[0][0].data;
     expect(data.newsletterConsentAt).toBeInstanceOf(Date);
     expect(data.newsletterConsentVersion).toBe('newsletter-v1');
+    expect(data.newsletterConsentSource).toBe('signup-form');
   });
 
   it('blocks account creation until the organizer has approved current legal documents', async () => {
@@ -70,6 +71,24 @@ describe('AuthService explicit consents', () => {
     }));
   });
 
+  it('stores the source of newsletter opt-in and revocation', async () => {
+    await service.register('driver@example.com', 'strong-password-123', true, true, true);
+    const data = prisma.user.create.mock.calls[0][0].data;
+    expect(data.newsletterConsentSource).toBe('signup-form');
+
+    prisma.user.update.mockResolvedValue({
+      newsletterConsentAt: new Date('2026-10-01T00:00:00Z'),
+      newsletterConsentVersion: 'newsletter-v1',
+      newsletterConsentRevokedAt: new Date('2026-10-14T00:00:00Z'),
+      newsletterConsentSource: 'signup-form',
+      newsletterConsentRevokedSource: 'account-settings',
+    });
+    await service.updateNewsletterConsent('user-1', false);
+    expect(prisma.user.update).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ newsletterConsentRevokedSource: 'account-settings' }),
+    }));
+  });
+
   it('audits newsletter revocation and excludes the user from the active audience', async () => {
     prisma.user.update.mockResolvedValue({
       newsletterConsentAt: new Date('2026-10-01T00:00:00Z'),
@@ -79,7 +98,7 @@ describe('AuthService explicit consents', () => {
     const result = await service.updateNewsletterConsent('user-1', false);
     expect(result).toMatchObject({ success: true, consent: false });
     expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { newsletterConsentRevokedAt: expect.any(Date) },
+      data: expect.objectContaining({ newsletterConsentRevokedAt: expect.any(Date), newsletterConsentRevokedSource: 'account-settings' }),
     }));
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: 'NEWSLETTER_CONSENT_REVOKED' }),

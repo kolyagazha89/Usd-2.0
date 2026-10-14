@@ -199,7 +199,7 @@ export class AuthService {
         privacyConsentVersion: 'privacy-v' + legalVersion,
         termsAcceptedAt: new Date(),
         termsVersion: 'terms-v' + legalVersion,
-        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1' } : {}),
+        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1', newsletterConsentSource: 'signup-form' } : {}),
       },
     });
 
@@ -230,9 +230,9 @@ export class AuthService {
   }
 
   async getNewsletterConsent(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true } });
     if (!user) throw new NotFoundException('Пользователь не найден');
-    return { consent: Boolean(user.newsletterConsentAt && !user.newsletterConsentRevokedAt), version: user.newsletterConsentVersion };
+    return { consent: Boolean(user.newsletterConsentAt && !user.newsletterConsentRevokedAt), version: user.newsletterConsentVersion, consentAt: user.newsletterConsentAt, revokedAt: user.newsletterConsentRevokedAt, source: user.newsletterConsentSource, revokedSource: user.newsletterConsentRevokedSource };
   }
 
   async updateNewsletterConsent(userId: string, consent: boolean) {
@@ -240,9 +240,9 @@ export class AuthService {
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: consent
-        ? { newsletterConsentAt: now, newsletterConsentVersion: 'newsletter-v1', newsletterConsentRevokedAt: null }
-        : { newsletterConsentRevokedAt: now },
-      select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true },
+        ? { newsletterConsentAt: now, newsletterConsentVersion: 'newsletter-v1', newsletterConsentRevokedAt: null, newsletterConsentSource: 'account-settings', newsletterConsentRevokedSource: null }
+        : { newsletterConsentRevokedAt: now, newsletterConsentRevokedSource: 'account-settings' },
+      select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true },
     });
     await this.prisma.auditLog.create({
       data: { userId, action: consent ? 'NEWSLETTER_CONSENT_GRANTED' : 'NEWSLETTER_CONSENT_REVOKED', entity: 'User', entityId: userId, metadata: { version: 'newsletter-v1', source: 'account-settings' } },

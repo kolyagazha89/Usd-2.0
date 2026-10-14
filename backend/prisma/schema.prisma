@@ -39,6 +39,8 @@ model User {
   newsletterConsentAt      DateTime?                @db.Timestamptz(3)
   newsletterConsentVersion String?
   newsletterConsentRevokedAt DateTime?              @db.Timestamptz(3)
+  newsletterConsentSource String?
+  newsletterConsentRevokedSource String?
   customRoleId             String?
   customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
