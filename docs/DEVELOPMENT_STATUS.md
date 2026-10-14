@@ -1,3 +1,11 @@
+> **Обновление — 2026-10-14, 17:02 UTC — CI подтверждён на email/legal code head.**
+>
+> - PR #138 code head `2a4a8ea5ac1fee244dbab88d97331e9de3c72c32`: Backend CI passed (Prisma generation/migrations, build, lint, unit tests, E2E); Frontend CI passed (build). После этого в статусе/документации будет только описательное обновление; если код изменится, CI нужно повторить.
+> - PR #140 homepage latest-results fix `5e4bffc7d032dda94d49f4fa1da11421f2efa9f4`: frontend and backend CI passed.
+> - Main recovery commit `dcf880b21173d5fd0f6603d418217809601e219a` restores the known-good source tree from `1b83edaae686aaa3aa2ceeca24a790514d4fc69a`; backend CI passed migrations/build/lint/unit/E2E.
+> - Main restoration is source/CI evidence only. The exact live deployment serving traffic is not independently verified. No domain/DNS/routing changes.
+> - Release blockers remain: organizer approval of the actual legal texts; real-provider test mail plus Inbox/Spam receipt; browser QA for profile, public pages, stages, QR inspections, roles and car/configuration routes. Keep #49 and #52 open until those gates pass.
+>
 > **Обновление — 2026-10-14, 16:45 UTC — юридические согласия и email-триггеры расширены.**
 >
 > - Серверная регистрация аккаунта теперь проверяет, что организатор утвердил юридические документы, и записывает фактическую версию согласия; интерфейсная блокировка не является единственным уровнем защиты.
