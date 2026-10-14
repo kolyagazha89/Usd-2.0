@@ -57,6 +57,28 @@ describe('MailService Resend delivery', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
+  it('uses the connected Gmail API over HTTPS when Resend is not configured', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM_EMAIL;
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+    const google = {
+      getStatus: jest.fn().mockResolvedValue({ connected: true, email: 'sender@example.com' }),
+      sendEmail: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new MailService(google as any);
+
+    await service.sendVerificationEmail('person@example.com', 'token-123');
+
+    expect(google.sendEmail).toHaveBeenCalledWith(
+      'person@example.com',
+      'Подтверждение email — USD',
+      expect.stringContaining('/verify-email?token=token-123'),
+      expect.stringContaining('Подтвердить email'),
+    );
+  });
+
   it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_FROM_EMAIL;
