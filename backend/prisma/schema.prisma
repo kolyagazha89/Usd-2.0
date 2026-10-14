@@ -34,6 +34,8 @@ model User {
   emailVerifiedAt          DateTime?                @db.Timestamptz(3)
   privacyConsentAt         DateTime?                @db.Timestamptz(3)
   privacyConsentVersion    String?
+  termsAcceptedAt          DateTime?                @db.Timestamptz(3)
+  termsVersion             String?
   newsletterConsentAt      DateTime?                @db.Timestamptz(3)
   newsletterConsentVersion String?
   newsletterConsentRevokedAt DateTime?              @db.Timestamptz(3)
