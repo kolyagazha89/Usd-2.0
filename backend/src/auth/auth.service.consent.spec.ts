@@ -52,6 +52,24 @@ describe('AuthService explicit consents', () => {
     expect(data.newsletterConsentVersion).toBe('newsletter-v1');
   });
 
+  it('blocks account creation until the organizer has approved current legal documents', async () => {
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: false }, contacts: {}, footer: {} });
+    await expect(service.register('driver@example.com', 'strong-password-123', true, true, false))
+      .rejects.toThrow('Регистрация временно недоступна: организатор USD ещё не утвердил юридические документы');
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the approved legal version and audits renewed consent', async () => {
+    const result = await service.updateLegalConsent('user-1', true, true);
+    expect(result).toMatchObject({ success: true, legalReady: true, version: '1', privacyAccepted: true, termsAccepted: true });
+    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ privacyConsentVersion: 'privacy-v1', termsVersion: 'terms-v1' }),
+    }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'LEGAL_CONSENT_UPDATED' }),
+    }));
+  });
+
   it('audits newsletter revocation and excludes the user from the active audience', async () => {
     prisma.user.update.mockResolvedValue({
       newsletterConsentAt: new Date('2026-10-01T00:00:00Z'),
