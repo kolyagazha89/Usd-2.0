@@ -79,6 +79,7 @@ describe('ResultsService', () => {
       id: 'stage-1',
       status: 'PUBLISHED',
       isDeleted: false,
+      resultsPublishedAt: new Date('2026-01-01T00:00:00Z'),
     });
     prisma.result.findMany.mockResolvedValue([
       {
