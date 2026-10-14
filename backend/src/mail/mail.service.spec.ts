@@ -65,6 +65,7 @@ describe('MailService Resend delivery', () => {
     delete process.env.SMTP_PASSWORD;
     const google = {
       getStatus: jest.fn().mockResolvedValue({ connected: true, email: 'sender@example.com' }),
+      hasMailSendPermission: jest.fn().mockResolvedValue(true),
       sendEmail: jest.fn().mockResolvedValue(undefined),
     };
     const service = new MailService(google as any);
