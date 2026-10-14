@@ -1,0 +1,61 @@
+import {useEffect,useMemo,useState} from 'react';
+import {Check,CheckCircle2,LockKeyhole,Loader2,Plus,Pencil,RefreshCw,Search,ShieldAlert,Trash2,X} from 'lucide-react';
+import {apiDelete,apiGet,apiPatch,apiPost,listData} from '../api';
+
+const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
+ {key:'stages',label:'Этапы',description:'Сезоны, этапы и параметры регистрации'},
+ {key:'registrations',label:'Регистрации',description:'Заявки, номера участников и оформление на месте'},
+ {key:'inspections',label:'Инспекции',description:'Чек-листы, статусы допуска и аудит'},
+ {key:'results',label:'Результаты',description:'Ввод и публикация соревновательных результатов'},
+ {key:'records',label:'Рекорды',description:'Текущие рекорды и история'},
+ {key:'participants',label:'Участники',description:'Профили и публичность участников'},
+ {key:'teams',label:'Команды',description:'Справочник команд'},
+ {key:'cars',label:'Автомобили',description:'Автомобили и конфигурации'},
+ {key:'seasons',label:'Сезоны',description:'Сезоны чемпионата'},
+ {key:'classes',label:'Классы',description:'Направления и классы'},
+ {key:'disqualifications',label:'Дисквалификации',description:'Назначение и снятие дисквалификаций'},
+ {key:'imports',label:'Импорт и качество данных',description:'Импорт, проверка и исправление данных'},
+ {key:'historicalResults',label:'Исторические результаты',description:'Архив и исторические выступления'},
+ {key:'statistics',label:'Статистика и панель',description:'Сводки, метрики и аналитика'},
+ {key:'siteSettings',label:'Настройки и контент сайта',description:'Новости, партнёры, медиа, регламент и настройки'},
+ {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
+ {key:'integrations',label:'Интеграции',description:'Google и внешние подключения'},
+ {key:'assistant',label:'Ассистент USD',description:'Запросы и действия ассистента'},
+];
+const ROLE_ACTIONS:Array<{key:string;label:string}>=[{key:'view',label:'Просмотр'},{key:'create',label:'Создание'},{key:'update',label:'Изменение'},{key:'delete',label:'Удаление'}];
+function RolesPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame: React.ComponentType<any>; ErrorPanel: React.ComponentType<any>; LoadingPage: React.ComponentType<any>; Empty: React.ComponentType<any>}){
+ const [roles,setRoles]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[editing,setEditing]=useState<any|null>(null),[roleSearch,setRoleSearch]=useState(''),[moduleSearch,setModuleSearch]=useState('');
+ const blank=()=>({key:'',name:'',description:'',permissions:{} as Record<string,string[]>});
+ const load=async()=>{setLoading(true);setError('');try{setRoles(listData<any>(await apiGet('/auth/admin/roles')))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить роли')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[]);
+ const startNew=()=>{setEditing(blank());setModuleSearch('');setNotice('');setError('')};
+ const toggle=(module:string,action:string,checked:boolean)=>setEditing((current:any)=>{const permissions={...(current?.permissions??{})};const next=new Set<string>(permissions[module]??[]);if(checked)next.add(action);else next.delete(action);if(next.size)permissions[module]=[...next];else delete permissions[module];return {...current,permissions}});
+ const toggleModule=(module:string,checked:boolean)=>setEditing((current:any)=>{const permissions={...(current?.permissions??{})};if(checked)permissions[module]=ROLE_ACTIONS.map(action=>action.key);else delete permissions[module];return {...current,permissions}});
+ const setAllPermissions=(checked:boolean)=>setEditing((current:any)=>{if(!current)return current;const permissions:Record<string,string[]>={};if(checked)ROLE_MODULES.forEach(module=>{permissions[module.key]=ROLE_ACTIONS.map(action=>action.key)});return {...current,permissions}});
+ const save=async()=>{if(!editing)return;setSaving(true);setError('');setNotice('');try{if(editing.id)await apiPatch('/auth/admin/roles/'+encodeURIComponent(editing.id),{name:editing.name,description:editing.description||null,permissions:editing.permissions});else await apiPost('/auth/admin/roles',{key:editing.key,name:editing.name,description:editing.description||null,permissions:editing.permissions});setEditing(null);setNotice('Роль сохранена. Права проверяются сервером для каждого запроса.');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить роль')}finally{setSaving(false)}};
+ const remove=async(role:any)=>{if(role._count?.users){setError('Нельзя удалить роль, пока она назначена пользователям. Сначала снимите назначения.');return}if(!window.confirm('Удалить роль «'+role.name+'»?'))return;setError('');try{await apiDelete('/auth/admin/roles/'+encodeURIComponent(role.id));if(editing?.id===role.id)setEditing(null);setNotice('Роль удалена');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось удалить роль')}};
+ const filteredRoles=useMemo(()=>roles.filter(role=>[role.name,role.key,role.description].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(roleSearch.trim().toLocaleLowerCase('ru'))),[roles,roleSearch]);
+ const filteredRoleModules=useMemo(()=>ROLE_MODULES.filter(module=>[module.label,module.description,module.key].join(' ').toLocaleLowerCase('ru').includes(moduleSearch.trim().toLocaleLowerCase('ru'))),[moduleSearch]);
+ const permissionCount=editing?ROLE_MODULES.reduce((sum,module)=>sum+(editing.permissions?.[module.key]??[]).length,0):0;
+ const fullPermissionCount=ROLE_MODULES.length*ROLE_ACTIONS.length;
+ return <PageFrame title="Роли и права" subtitle="Конструктор доступа по модулям. ADMIN всегда сохраняет полный доступ; ограничения судьи на изменение результатов действуют независимо от матрицы." action={<button className="primary-button compact" onClick={startNew}><Plus size={15}/>Создать роль</button>}>
+  {error&&<ErrorPanel message={error} retry={load}/>} {notice&&<div className="notice"><CheckCircle2 size={16}/><span>{notice}</span></div>}
+  <div className="roles-workspace"><section className="roles-list panel"><div className="roles-list-head"><div><span className="eyebrow">УПРАВЛЕНИЕ ДОСТУПОМ</span><h2>Пользовательские роли</h2><p className="role-panel-caption">Выберите роль, чтобы настроить её права.</p></div><span className="row-count">{roles.length}</span></div>
+   <label className="role-search"><Search size={16}/><input aria-label="Поиск ролей" value={roleSearch} onChange={e=>setRoleSearch(e.target.value)} placeholder="Найти роль по названию или ключу"/></label>
+   {loading?<LoadingPage small/>:filteredRoles.length?filteredRoles.map(role=>{const count=ROLE_MODULES.reduce((sum,module)=>sum+(role.permissions?.[module.key]??[]).length,0);return <article className={'role-summary '+(editing?.id===role.id?'active':'')} key={role.id}><div className="role-summary-main"><div className="role-summary-icon"><LockKeyhole size={17}/></div><div><strong>{role.name}</strong><small>{role.key} · {role._count?.users??0} пользователей</small><p>{role.description||'Без описания'}</p><div className="role-summary-metrics"><span>{count} разрешений</span><span>{ROLE_MODULES.filter(module=>(role.permissions?.[module.key]??[]).length>0).length} модулей</span></div></div></div><div className="role-summary-actions"><button className="secondary-button compact" onClick={()=>{setEditing({...role,permissions:role.permissions??{}});setModuleSearch('');setError('');setNotice('')}}><Pencil size={14}/>Настроить</button><button className="icon-button" aria-label={'Удалить роль '+role.name} title={role.isSystem?'Системную роль нельзя удалить':role._count?.users?'Сначала снимите назначения':'Удалить роль'} disabled={!!role.isSystem||!!role._count?.users} onClick={()=>void remove(role)}><Trash2 size={15}/></button></div></article>}):<Empty text={roleSearch?'По этому запросу роли не найдены':'Пользовательских ролей пока нет'}/>}
+   <div className="role-list-footer"><span><ShieldAlert size={14}/>Права проверяются на сервере</span><button className="text-button" onClick={()=>void load()}><RefreshCw size={13}/>Обновить список</button></div>
+  </section>
+  <section className="roles-editor panel"><div className="roles-editor-head"><div><span className="eyebrow">{editing?.id?'НАСТРОЙКА РОЛИ':'КОНСТРУКТОР РОЛЕЙ'}</span><h2>{editing?.id?editing.name||'Настроить роль':editing?'Создать роль':'Редактор разрешений'}</h2><p>{editing?'Выдайте доступ только к нужным модулям и действиям.':'Выберите существующую роль или создайте новую, чтобы открыть матрицу разрешений.'}</p></div>{editing&&<span className="role-permission-counter"><strong>{permissionCount}</strong><small>из {fullPermissionCount} прав</small></span>}</div>
+   {!editing?<div className="role-editor-empty"><div className="role-empty-icon"><LockKeyhole size={25}/></div><strong>Редактор готов к работе</strong><span>Выберите роль в списке слева или нажмите «Создать роль». Все изменения сохраняются только после подтверждения.</span><button className="primary-button compact" onClick={startNew}><Plus size={15}/>Создать роль</button></div>:<>
+    <div className="role-basic-fields"><label>Название роли<input value={editing.name} onChange={e=>setEditing((x:any)=>({...x,name:e.target.value}))} maxLength={100} required placeholder="Например, Старший судья"/></label>{!editing.id&&<label>Системный ключ<input value={editing.key} onChange={e=>setEditing((x:any)=>({...x,key:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'')}))} maxLength={50} required placeholder="senior-judge"/><small>Латиница, цифры и дефис. После создания ключ изменить нельзя.</small></label>}<label>Описание<textarea value={editing.description??''} onChange={e=>setEditing((x:any)=>({...x,description:e.target.value}))} rows={2} maxLength={500} placeholder="Кому предназначена роль и какие задачи выполняет"/></label></div>
+    <div className="permission-toolbar"><label className="role-search module-search"><Search size={16}/><input aria-label="Поиск модулей" value={moduleSearch} onChange={e=>setModuleSearch(e.target.value)} placeholder="Найти модуль или описание"/></label><div className="permission-bulk-actions"><button type="button" className="secondary-button compact" onClick={()=>setAllPermissions(true)}><Check size={14}/>Выдать все</button><button type="button" className="secondary-button compact" onClick={()=>setAllPermissions(false)}><X size={14}/>Снять все</button></div></div>
+    <div className="permission-matrix-head"><div><strong>Матрица разрешений</strong><span>Выдано {permissionCount} из {fullPermissionCount} разрешений</span></div><span>Неотмеченное действие запрещено</span></div>
+    <div className="permission-matrix">{filteredRoleModules.map(module=>{const selected=editing.permissions?.[module.key]??[];const allSelected=ROLE_ACTIONS.every(action=>selected.includes(action.key));return <article className={'permission-module '+(selected.length?'has-permissions':'')} key={module.key}><div className="permission-module-copy"><div><strong>{module.label}</strong><span className="permission-module-count">{selected.length}/{ROLE_ACTIONS.length}</span></div><small>{module.description}</small><button type="button" className="module-toggle" onClick={()=>toggleModule(module.key,!allSelected)}>{allSelected?'Снять права модуля':'Выдать все права модуля'}</button></div><div className="permission-actions">{ROLE_ACTIONS.map(action=>{const checked=selected.includes(action.key);return <label className={checked?'checked':''} key={action.key}><input type="checkbox" checked={checked} onChange={e=>toggle(module.key,action.key,e.target.checked)}/><span>{action.label}</span></label>})}</div></article>})}{!filteredRoleModules.length&&<Empty text="Модули не найдены"/>}</div>
+    <div className="role-editor-actions"><button className="secondary-button" onClick={()=>{setEditing(null);setModuleSearch('')}} disabled={saving}>Отмена</button><button className="primary-button" disabled={saving||!editing.name?.trim()||(!editing.id&&!editing.key?.trim())} onClick={()=>void save()}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить роль'}</button></div>
+   </>}
+  </section></div>
+ </PageFrame>
+}
+
+
+export default RolesPage;
