@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -100,9 +100,9 @@ export class MediaService {
     return url.toString();
   }
 
-  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     if (targetType === MediaTargetType.SITE_ASSET) {
-      if (role !== 'ADMIN') throw new ForbiddenException('Только администратор может управлять файлами сайта');
+      if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на управление файлами сайта');
       return;
     }
     if (role === 'ADMIN') return;
@@ -115,9 +115,9 @@ export class MediaService {
     if (!car) throw new ForbiddenException('Нет доступа к автомобилю');
   }
 
-  async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string) {
+  async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string, canManageSiteAssets = false) {
     if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
     const token = crypto.randomBytes(32).toString('hex');
     const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
     const key = `usd/${prefix}/${targetId}/${crypto.randomUUID()}`;
@@ -198,7 +198,7 @@ export class MediaService {
     return { body, contentType: upload.contentType };
   }
 
-  async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string) {
+  async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     await this.ensureTargetAccess(userId, role, targetType, targetId);
 
     const upload = await this.prisma.mediaUpload.findFirst({
@@ -280,6 +280,123 @@ export class MediaService {
     }
   }
 
+  private async getReferencedSiteAssetIds(): Promise<Set<string>> {
+    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' } });
+    const referenced = new Set<string>();
+    const scan = (value: unknown, key = '') => {
+      if (typeof value === 'string') {
+        if (key === 'targetId' && value.trim()) referenced.add(value.trim());
+        const marker = '/media/public-file/SITE_ASSET/';
+        const index = value.indexOf(marker);
+        if (index >= 0) {
+          const raw = value.slice(index + marker.length).split(/[?#/]/, 1)[0];
+          if (raw) {
+            try { referenced.add(decodeURIComponent(raw)); } catch { referenced.add(raw); }
+          }
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) scan(item);
+        return;
+      }
+      if (value && typeof value === 'object') {
+        for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) scan(childValue, childKey);
+      }
+    };
+    scan(settings);
+    return referenced;
+  }
+
+  async listMediaLibrary(role: string, canManageSiteAssets = false) {
+    if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на просмотр медиатеки');
+    const uploads = await this.prisma.mediaUpload.findMany({
+      where: { completedAt: { not: null } },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true, targetType: true, targetId: true, contentType: true, completedAt: true, createdAt: true, objectKey: true },
+    });
+    const seen = new Set<string>();
+    const latest = uploads.filter((upload) => {
+      const key = upload.targetType + ':' + upload.targetId;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const referenced = await this.getReferencedSiteAssetIds();
+    const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
+    return {
+      success: true,
+      items: latest.map((upload) => ({
+        id: upload.id,
+        targetType: upload.targetType,
+        targetId: upload.targetId,
+        contentType: upload.contentType,
+        completedAt: upload.completedAt,
+        createdAt: upload.createdAt,
+        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
+        isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
+          ? referenced.has(upload.targetId)
+          : true,
+        canDelete: upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId),
+      })),
+    };
+  }
+
+  async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на удаление медиа');
+    if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
+    const normalizedTargetId = targetId.trim();
+    if (!normalizedTargetId || normalizedTargetId.length > 200) throw new BadRequestException('Некорректный идентификатор медиа');
+    const uploads = await this.prisma.mediaUpload.findMany({
+      where: { targetType, targetId: normalizedTargetId, completedAt: { not: null } },
+      orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, objectKey: true, contentType: true },
+    });
+    if (!uploads.length) throw new NotFoundException('Медиафайл не найден');
+
+    if (targetType === MediaTargetType.SITE_ASSET) {
+      const referenced = await this.getReferencedSiteAssetIds();
+      if (referenced.has(normalizedTargetId)) {
+        throw new ConflictException('Файл используется на сайте. Сначала замените его или уберите ссылку в соответствующем разделе.');
+      }
+    }
+
+    // Remove database references first. If object-store cleanup later fails,
+    // the asset is already detached from the public site/profile and can be retried safely.
+    await this.prisma.$transaction(async (tx) => {
+      if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+        await tx.participant.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
+      } else if (targetType === MediaTargetType.CAR_PHOTO) {
+        await tx.car.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
+      }
+      await tx.mediaUpload.deleteMany({ where: { targetType, targetId: normalizedTargetId, completedAt: { not: null } } });
+    });
+
+    let storageCleanupPending = false;
+    for (const upload of uploads) {
+      try {
+        const response = await fetch(this.presignedUrl('DELETE', upload.objectKey, null, 60), { method: 'DELETE' });
+        if (!response.ok && response.status !== 404) storageCleanupPending = true;
+      } catch {
+        storageCleanupPending = true;
+      }
+    }
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'MEDIA_ASSET_DELETED',
+          entity: 'MediaUpload',
+          entityId: normalizedTargetId,
+          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending, objectKeys: storageCleanupPending ? uploads.map((upload) => upload.objectKey) : [] },
+        },
+      });
+    } catch {
+      // Media deletion should remain successful if audit storage is temporarily unavailable.
+    }
+    return { success: true, targetType, targetId: normalizedTargetId, deletedVersions: uploads.length, storageCleanupPending };
+  }
+
   async getSiteAssetBuffer(targetId: string) {
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType: MediaTargetType.SITE_ASSET, targetId, contentType: DOCX_TYPE, completedAt: { not: null } },
@@ -294,7 +411,7 @@ export class MediaService {
     return bytes;
   }
 
-  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string) {
+  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string, canManageSiteAssets = false) {
     if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
     }
@@ -304,7 +421,7 @@ export class MediaService {
     if (!upload || (upload.userId !== userId && role !== 'ADMIN') || upload.completedAt || upload.expiresAt < new Date()) {
       throw new BadRequestException('Недействительная загрузка');
     }
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
     if (upload.contentType !== contentType.toLowerCase()) {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
@@ -317,10 +434,10 @@ export class MediaService {
       const detail = (await response.text().catch(() => '')).trim();
       throw new BadRequestException(detail ? 'Хранилище отклонило загрузку: ' + detail.slice(0, 200) : 'Хранилище отклонило загрузку файла');
     }
-    return this.complete(userId, role, uploadToken);
+    return this.complete(userId, role, uploadToken, canManageSiteAssets);
   }
 
-  async complete(userId: string, role: string, uploadToken: string) {
+  async complete(userId: string, role: string, uploadToken: string, canManageSiteAssets = false) {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
