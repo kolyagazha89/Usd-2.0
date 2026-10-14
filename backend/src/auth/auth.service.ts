@@ -217,7 +217,7 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const genericResponse = {
       success: true,
-      message: 'Если аккаунт существует и требует подтверждения, письмо будет отправлено.',
+      message: 'Если аккаунт существует и требует подтверждения, запрос обработан. Это сообщение не подтверждает доставку письма.',
     };
 
     const user = await this.prisma.user.findUnique({
