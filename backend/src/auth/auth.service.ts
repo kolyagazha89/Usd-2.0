@@ -302,9 +302,8 @@ export class AuthService {
 
     const user =
       await this.prisma.user.findUnique({
-        where: {
-          email: normalizedEmail,
-        },
+        where: { email: normalizedEmail },
+        include: { customRole: { select: { id: true, key: true, name: true, permissions: true } } },
       });
 
     if (
@@ -371,6 +370,8 @@ export class AuthService {
           user.emailVerifiedAt,
         participantId:
           user.participantId,
+        customRoleId: user.customRoleId,
+        customRole: user.customRole,
       },
     };
   }
@@ -394,7 +395,7 @@ export class AuthService {
         const session =
           await tx.refreshSession.findUnique({
             where: { tokenHash },
-            include: { user: true },
+            include: { user: { include: { customRole: { select: { id: true, key: true, name: true, permissions: true } } } } },
           });
 
         if (!session) {
@@ -495,6 +496,8 @@ export class AuthService {
         role: result.role,
         emailVerifiedAt: result.emailVerifiedAt,
         participantId: result.participantId,
+        customRoleId: result.customRoleId,
+        customRole: result.customRole,
       },
     };
   }
@@ -699,6 +702,147 @@ export class AuthService {
     };
   }
 
+  private normalizeRolePermissions(input: unknown): Record<string, string[]> {
+    const modules = new Set([
+      'stages', 'seasons', 'registrations', 'inspections', 'results',
+      'records', 'participants', 'teams', 'cars', 'classes', 'imports',
+      'disqualifications', 'configurations', 'media', 'siteSettings',
+      'historicalResults', 'statistics', 'integrations', 'assistant',
+    ]);
+    const actions = new Set(['view', 'create', 'update', 'delete']);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      throw new BadRequestException('Матрица прав должна быть объектом модулей и действий');
+    }
+    const normalized: Record<string, string[]> = {};
+    for (const [module, rawActions] of Object.entries(input as Record<string, unknown>)) {
+      if (!modules.has(module)) throw new BadRequestException(`Неизвестный модуль прав: ${module}`);
+      if (!Array.isArray(rawActions) || rawActions.some((action) => typeof action !== 'string' || !actions.has(action))) {
+        throw new BadRequestException(`Для модуля ${module} разрешены только view/create/update/delete`);
+      }
+      normalized[module] = [...new Set(rawActions as string[])];
+    }
+    return normalized;
+  }
+
+  async adminListRoles() {
+    return this.prisma.role.findMany({
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+      select: {
+        id: true, key: true, name: true, description: true,
+        permissions: true, isSystem: true, createdAt: true, updatedAt: true,
+        _count: { select: { users: true } },
+      },
+    });
+  }
+
+  async adminCreateRole(
+    input: { key: string; name: string; description?: string | null; permissions: unknown },
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    const key = input.key.trim().toLowerCase();
+    const name = input.name.trim();
+    if (!/^[a-z][a-z0-9-]{1,49}$/.test(key)) {
+      throw new BadRequestException('Ключ роли: 2–50 символов, латиница, цифры и дефис; первый символ — буква');
+    }
+    if (!name || name.length > 100) throw new BadRequestException('Название роли обязательно и должно быть не длиннее 100 символов');
+    const permissions = this.normalizeRolePermissions(input.permissions);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const role = await tx.role.create({
+          data: { key, name, description: input.description?.trim() || null, permissions },
+        });
+        await tx.auditLog.create({
+          data: { userId: actorUserId, action: 'ROLE_CREATED', entity: 'Role', entityId: role.id, ipAddress, metadata: { key, name } },
+        });
+        return role;
+      });
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002') {
+        throw new ConflictException('Роль с таким ключом уже существует');
+      }
+      throw error;
+    }
+  }
+
+  async adminUpdateRole(
+    roleId: string,
+    input: { name?: string; description?: string | null; permissions?: unknown },
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    const current = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!current) throw new NotFoundException('Роль не найдена');
+    if (current.isSystem) throw new ConflictException('Системную роль нельзя изменить');
+    const data: { name?: string; description?: string | null; permissions?: Prisma.InputJsonValue } = {};
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (!name || name.length > 100) throw new BadRequestException('Название роли обязательно и должно быть не длиннее 100 символов');
+      data.name = name;
+    }
+    if (input.description !== undefined) data.description = input.description?.trim() || null;
+    if (input.permissions !== undefined) data.permissions = this.normalizeRolePermissions(input.permissions) as Prisma.InputJsonValue;
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.role.update({ where: { id: roleId }, data });
+      await tx.auditLog.create({
+        data: { userId: actorUserId, action: 'ROLE_UPDATED', entity: 'Role', entityId: roleId, ipAddress, metadata: { changedFields: Object.keys(data) } },
+      });
+      return updated;
+    });
+  }
+
+  async adminDeleteRole(roleId: string, actorUserId: string, ipAddress?: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: { _count: { select: { users: true } } },
+    });
+    if (!role) throw new NotFoundException('Роль не найдена');
+    if (role.isSystem) throw new ConflictException('Системную роль нельзя удалить');
+    if (role._count.users > 0) throw new ConflictException('Нельзя удалить роль, назначенную пользователям. Сначала переназначьте пользователей.');
+    await this.prisma.$transaction([
+      this.prisma.role.delete({ where: { id: roleId } }),
+      this.prisma.auditLog.create({
+        data: { userId: actorUserId, action: 'ROLE_DELETED', entity: 'Role', entityId: roleId, ipAddress, metadata: { key: role.key, name: role.name } },
+      }),
+    ]);
+    return { success: true };
+  }
+
+  async adminSetCustomRole(
+    targetUserId: string,
+    customRoleId: string | null,
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, customRoleId: true },
+    });
+    if (!target) throw new NotFoundException('Пользователь не найден');
+    if (customRoleId) {
+      const role = await this.prisma.role.findUnique({ where: { id: customRoleId }, select: { id: true } });
+      if (!role) throw new NotFoundException('Пользовательская роль не найдена');
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: targetUserId }, data: { customRoleId } }),
+      this.prisma.refreshSession.updateMany({
+        where: { userId: targetUserId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'USER_CUSTOM_ROLE_CHANGED',
+          entity: 'User',
+          entityId: targetUserId,
+          ipAddress,
+          metadata: { before: target.customRoleId, after: customRoleId },
+        },
+      }),
+    ]);
+    return this.adminGetUser(targetUserId);
+  }
+
   async adminListUsers(search?: string, role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT') {
     return this.prisma.user.findMany({
       where: {
@@ -716,6 +860,8 @@ export class AuthService {
         isActive: true,
         emailVerifiedAt: true,
         participantId: true,
+        customRoleId: true,
+        customRole: { select: { id: true, key: true, name: true } },
         createdAt: true,
         updatedAt: true,
       },

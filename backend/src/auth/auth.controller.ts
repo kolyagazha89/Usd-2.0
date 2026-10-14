@@ -16,7 +16,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { AdminCreateUserDto, AdminUserActiveDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -308,6 +308,54 @@ export class AuthController {
   ) {
     const actor = (request as Request & { user: { sub: string } }).user.sub;
     return this.authService.adminSetRole(userId, body.role, actor, request.ip);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/users/:userId/custom-role')
+  async adminSetCustomRole(
+    @Req() request: Request,
+    @Param('userId') userId: string,
+    @Body() body: AdminUserCustomRoleDto,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminSetCustomRole(userId, body.customRoleId ?? null, actor, request.ip);
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/roles')
+  async adminListRoles() {
+    return this.authService.adminListRoles();
+  }
+
+  @Roles('ADMIN')
+  @Post('admin/roles')
+  async adminCreateRole(
+    @Req() request: Request,
+    @Body() body: AdminCreateRoleDto,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminCreateRole(body, actor, request.ip);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/roles/:roleId')
+  async adminUpdateRole(
+    @Req() request: Request,
+    @Param('roleId') roleId: string,
+    @Body() body: AdminUpdateRoleDto,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminUpdateRole(roleId, body, actor, request.ip);
+  }
+
+  @Roles('ADMIN')
+  @Delete('admin/roles/:roleId')
+  async adminDeleteRole(
+    @Req() request: Request,
+    @Param('roleId') roleId: string,
+  ) {
+    const actor = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.adminDeleteRole(roleId, actor, request.ip);
   }
 
   @Roles('ADMIN')
