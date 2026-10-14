@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { AuthService } from './auth.service';
 
 describe('AuthService.findHistoricalProfileCandidates', () => {
