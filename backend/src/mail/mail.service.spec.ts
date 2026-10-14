@@ -77,6 +77,31 @@ describe('MailService Resend delivery', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
+  it('returns provider acceptance separately from delivery confirmation for admin test mail', async () => {
+    process.env.RESEND_API_KEY = 'test-api-key';
+    process.env.RESEND_FROM_EMAIL = 'USD <no-reply@example.com>';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'test-email-id' }),
+    } as Response);
+    const service = new MailService();
+
+    const response = await service.sendTestEmail('admin@example.com');
+
+    expect(response).toMatchObject({
+      success: true,
+      providerAccepted: true,
+      deliveryConfirmed: false,
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body).toMatchObject({
+      to: ['admin@example.com'],
+      subject: 'USD — проверка почтового канала',
+    });
+    expect(body.text).toContain('Если вы получили это письмо');
+  });
+
   it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_FROM_EMAIL;
