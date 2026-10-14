@@ -44,6 +44,20 @@ export class MailService {
     process.env.FRONTEND_URL ??
     'http://localhost:3000';
 
+  async hasConfiguredProvider(): Promise<boolean> {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (apiKey) return Boolean(process.env.RESEND_FROM_EMAIL?.trim());
+
+    const googleStatus = await this.googleService.getStatus();
+    if (googleStatus.connected) {
+      const expectedSender = process.env.SMTP_USER?.trim().toLowerCase();
+      return !expectedSender || googleStatus.email?.trim().toLowerCase() === expectedSender;
+    }
+
+    return process.env.SMTP_EGRESS_ALLOWED === 'true'
+      && Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD && this.from);
+  }
+
   private async sendMessage(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (apiKey) {
@@ -92,8 +106,11 @@ export class MailService {
       return;
     }
 
+    if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
+      throw new Error('SMTP is disabled for this deployment. Configure Resend HTTPS or reconnect the matching Google sender account with Gmail send permission.');
+    }
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
-      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or complete SMTP settings');
+      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, connect Google Gmail API, or explicitly enable SMTP on a Railway plan that supports it.');
     }
 
     const result = await this.transporter.sendMail({
