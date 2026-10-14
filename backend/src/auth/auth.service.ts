@@ -395,7 +395,7 @@ export class AuthService {
         const session =
           await tx.refreshSession.findUnique({
             where: { tokenHash },
-            include: { user: { include: { customRole: { select: { id: true, key: true, name: true, permissions: true } } } },
+            include: { user: { include: { customRole: { select: { id: true, key: true, name: true, permissions: true } } } } },
           });
 
         if (!session) {
