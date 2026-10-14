@@ -243,7 +243,7 @@ export class RegistrationsService {
       );
     }
 
-    if (request.user.role === 'PARTICIPANT' || source === 'ON_SITE') {
+    if (source !== 'IMPORT') {
       const legalRow = await this.prisma.siteSettings.findUnique({
         where: { id: 'default' },
         select: { legal: true, contacts: true, footer: true },
@@ -278,7 +278,7 @@ export class RegistrationsService {
         consentCapturedByUserId = request.user.sub;
       } else {
         if (body.rulesAccepted !== true || body.privacyConsent !== true || body.termsAccepted !== true) {
-          throw new BadRequestException('Для регистрации на месте подтвердите согласие участника на обработку данных, пользовательское соглашение и ознакомление с регламентом');
+          throw new BadRequestException('Для регистрации участника подтвердите согласие на обработку данных, пользовательское соглашение и ознакомление с регламентом');
         }
         registrationPrivacyConsentAt = new Date();
         registrationTermsAcceptedAt = new Date();

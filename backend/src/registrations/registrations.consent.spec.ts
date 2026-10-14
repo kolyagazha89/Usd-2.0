@@ -19,11 +19,19 @@ describe('RegistrationsService rules consent', () => {
     prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: null, privacyConsentVersion: null, termsAcceptedAt: null, termsVersion: null });
   });
 
-  it('requires explicit legal and rules attestations for on-site registration', async () => {
+  it('requires explicit legal and rules attestations for judge-created registration', async () => {
     const service = new RegistrationsService(prisma);
     await expect(service.create({ user: { sub: 'judge-1', role: 'JUDGE' } } as any, {
       ...body, source: 'ON_SITE', rulesAccepted: false, privacyConsent: false, termsAccepted: false,
-    })).rejects.toThrow('Для регистрации на месте подтвердите согласие участника');
+    })).rejects.toThrow('Для регистрации участника подтвердите согласие на обработку данных');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('requires legal and rules attestations for judge-created pre-registrations too', async () => {
+    const service = new RegistrationsService(prisma);
+    await expect(service.create({ user: { sub: 'judge-1', role: 'JUDGE' } } as any, {
+      ...body, source: 'PRE_REGISTRATION', rulesAccepted: true, privacyConsent: false, termsAccepted: false,
+    })).rejects.toThrow('Для регистрации участника подтвердите согласие на обработку данных');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
