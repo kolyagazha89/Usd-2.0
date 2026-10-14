@@ -4,6 +4,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { SiteSettingsService } from '../site-settings/site-settings.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
+import { EmailNotificationsService } from '../mail/email-notifications.service';
 
 @Injectable()
 export class StagesService {
@@ -11,6 +12,7 @@ export class StagesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     @Optional() private readonly siteSettings?: SiteSettingsService,
+    @Optional() private readonly emailNotifications?: EmailNotificationsService,
   ) {}
 
   async findAll() {
@@ -293,6 +295,10 @@ export class StagesService {
     }
 
     const updated = await this.prisma.stage.update({ where: { id }, data, include: { season: true } });
+
+    if (!stage.registrationOpen && updated.registrationOpen) {
+      void this.emailNotifications?.registrationOpened(updated.id).catch(() => undefined);
+    }
 
     const changed = Object.keys(data);
     await this.audit.log({
