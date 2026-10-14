@@ -3175,3 +3175,5 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 /* Inline confirmation controls keep destructive actions out of native browser dialogs. */
 .inline-confirm{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--border,#dedede);border-radius:10px;background:var(--surface,#fff);font-size:12px;white-space:nowrap}.inline-confirm>span{font-weight:600}.inline-confirm .danger-button{min-height:30px;padding:6px 10px}.inline-confirm .secondary-button{min-height:30px;padding:6px 10px}
+
+.inline-resource-editor{margin:16px 0;display:grid;gap:14px}.inline-resource-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}.inline-resource-editor .modal-form{max-width:none;width:100%;padding:0;background:transparent;box-shadow:none;border:0}.team-rename-form{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.team-rename-form input{min-width:150px;max-width:220px}
