@@ -32,6 +32,11 @@ model User {
   createdAt                DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt                DateTime                 @updatedAt @db.Timestamptz(3)
   emailVerifiedAt          DateTime?                @db.Timestamptz(3)
+  privacyConsentAt         DateTime?                @db.Timestamptz(3)
+  privacyConsentVersion    String?
+  newsletterConsentAt      DateTime?                @db.Timestamptz(3)
+  newsletterConsentVersion String?
+  newsletterConsentRevokedAt DateTime?              @db.Timestamptz(3)
   customRoleId             String?
   customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
@@ -419,6 +424,8 @@ model Registration {
   configurationSnapshot Json
 
   participantNumber Int
+  rulesAcceptedAt DateTime? @db.Timestamptz(3)
+  rulesVersion String?
 
   source       RegistrationSource
   status       RegistrationStatus @default(ACTIVE)
@@ -850,4 +857,25 @@ model GoogleOAuthState {
 
   @@index([expiresAt])
   @@index([userId])
+}
+
+
+model EmailNotificationLog {
+  id                 String   @id @default(uuid())
+  eventKey           String   @unique
+  type               String
+  recipient          String
+  stageId            String?
+  registrationId     String?
+  status             String   @default("PENDING")
+  providerAcceptedAt DateTime? @db.Timestamptz(3)
+  attempts           Int      @default(0)
+  lastError          String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([type, status])
+  @@index([stageId])
+  @@index([registrationId])
+  @@index([createdAt])
 }
