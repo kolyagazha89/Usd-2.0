@@ -161,6 +161,22 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     });
   }
 
+  async sendTestTrigger(type: 'STAGE_REGISTRATION_OPEN' | 'REGISTRATION_CONFIRMED' | 'STAGE_REMINDER_3D' | 'STAGE_REMINDER_1D', recipient: string, stageId?: string) {
+    const stage = stageId ? await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false }, select: { id: true, name: true, stageNumber: true, date: true, city: true, venue: true, address: true } }) : null;
+    if (stageId && !stage) throw new Error('Этап не найден');
+    const title = stage?.name ?? 'Тестовый этап USD';
+    const heading = type === 'STAGE_REGISTRATION_OPEN' ? 'Тест: регистрация на этап открыта' : type === 'REGISTRATION_CONFIRMED' ? 'Тест: заявка подтверждена' : type === 'STAGE_REMINDER_3D' ? 'Тест: до этапа осталось 3 дня' : 'Тест: напоминание за 1 день';
+    const details = [
+      'Этап: ' + title + (stage?.stageNumber ? ' · №' + stage.stageNumber : ''),
+      'Дата: ' + (stage?.date ? new Date(stage.date).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Moscow' }) : 'пример даты'),
+      'Место: ' + [stage?.city, stage?.venue, stage?.address].filter(Boolean).join(', '),
+      ...(type === 'REGISTRATION_CONFIRMED' ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
+    ];
+    const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — USD', heading, intro: 'Это тестовый шаблон из настроек почты USD. Письмо не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' });
+    await this.mail.sendNotificationEmail({ to: recipient, subject: heading + ' — USD', ...message });
+    return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
+  }
+
   async processReminders() {
     if (this.running) return;
     this.running = true;
