@@ -168,8 +168,8 @@ function selectHomepageResults(rows:any[]){
  const isSpl=(r:any)=>!isBfspl(r)&&!isBdwspl(r)&&(direction(r).includes('SPL')||classCode(r).includes('SPL'));
  const best=(predicate:(r:any)=>boolean,count:number)=>rows.filter(predicate).sort((a:any,b:any)=>score(b)-score(a)).slice(0,count);
  const selected=[...best(isSpl,3),...best(isBfspl,2),...best(isBdwspl,1)];
- // Older/imported result payloads may not expose direction metadata. Keep a useful fallback rather than hiding all results.
- return selected.length?selected:rows.slice().sort((a:any,b:any)=>score(b)-score(a)).slice(0,6);
+ // Never show an arbitrary mix of results when direction metadata is missing: the homepage contract is SPL/BFSPL/BDWSPL, not a generic leaderboard.
+ return selected;
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
