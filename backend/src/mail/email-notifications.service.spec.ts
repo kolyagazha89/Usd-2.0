@@ -104,7 +104,7 @@ describe('EmailNotificationsService', () => {
     expect(message.html).not.toContain('<li style="margin:0 0 8px"><script>');
   });
 
-  it('records provider failures without claiming delivery and allows a later retry', async () => {
+  it('records provider failures without claiming delivery', async () => {
     prisma.stage.findFirst.mockResolvedValue({
       id: 'stage-1', status: 'PUBLISHED', registrationOpen: true, isDeleted: false,
       name: 'Этап 1', stageNumber: 1, date: new Date('2026-11-10T10:00:00Z'),
