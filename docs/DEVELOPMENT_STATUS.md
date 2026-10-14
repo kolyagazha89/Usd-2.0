@@ -1,20 +1,18 @@
 ## Current status — 2026-10-14
 
-Latest merged main: `732bc18ef88810920b383dc009f05b828c39f797`.
+Latest merged main: `75651fb366cd6dd5f21cdd3934c138fdca41ba45`.
 
-- PR #94 merged: server-enforced custom role permissions and admin role matrix. Permanent ADMIN remains a full-access superuser; JUDGE cannot edit or delete results. Migration `20261013190000_custom_roles` is included in the successful Railway deployment.
-- PR #95 merged: unified admin media library with latest-version listing, previews, safe deletion of referenced assets, audit trail, and regression tests.
-- Email status: Gmail SMTP requests failed with `Connection timeout` in Railway logs. SMTP is not a reliable transport on the current Railway network/plan. The backend now supports Resend over HTTPS and the verification-resend response no longer claims that a message was actually sent.
-- Email delivery is **not yet verified**: Railway currently has no `RESEND_API_KEY` or `RESEND_FROM_EMAIL`. Required owner action: create/verify the sending domain in Resend, then configure those two variables in Railway. Suggested sender after domain verification: `USD <noreply@usd-russia.ru>`. Never store or paste API keys in source control.
-- CI for merged commit `732bc18`: Frontend CI [run 38529896801](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896801) passed; Backend CI [run 38529896819](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896819) passed.
-- Railway deploy `85195de8-eb0e-4b91-a2d8-e1050a871d96` succeeded for `732bc18`; Nest application started and startup logs show no errors.
-- GitHub Actions Frontend Deploy [run 38529896899](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38529896899) passed its build but skipped the Wrangler publish job because GitHub repository secrets `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID` are absent. Do not claim the frontend was published by that workflow. Cloudflare's native main-branch Worker build and live-route verification for this exact commit still need confirmation.
-- Keep `usd-russia.ru` root DNS/Tilda untouched until the owner explicitly approves the cutover. Do not claim production acceptance from CI alone.
+- PR #96 merged as `1070fd12fde9532202fcecb250baf600c8702d70`: the verification-resend response explicitly says it does not confirm delivery, while keeping the same public response for unknown, verified, rate-limited and pending accounts.
+- Production logs identified the mail failure: Gmail SMTP attempted an IPv6 connection to port 465 and returned `ENETUNREACH`. The running code prefers IPv4 DNS results and bounds SMTP connection timeouts.
+- Backend CI passed on current main [run 38530529024](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38530529024). Railway deployment `9e5a90d1-6acf-4284-af90-36471a262323` succeeded for `75651fb`; Nest started successfully. Cloudflare native Worker Build for the same main commit passed.
+- Email delivery is **not yet verified and remains blocked on provider setup**. The current Railway environment has no `RESEND_API_KEY` or `RESEND_FROM_EMAIL`; SMTP has already failed on the current Railway network. The backend supports Resend over HTTPS. Owner action: create/verify the sending domain in Resend, then set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Railway. Suggested sender after domain verification: `USD <noreply@usd-russia.ru>`. Do not paste API keys into chat or commit them to Git.
+- GitHub Actions' separate Wrangler publish job skipped because `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID` are absent. Cloudflare's native main-branch Worker Build succeeded; direct route/refresh and anonymous privacy checks still need owner-side browser verification.
+- No root-domain/DNS/Tilda changes were made. Keep `usd-russia.ru` root DNS untouched until the owner explicitly approves the cutover.
 
 ### Remaining release checks
 
-1. Configure and verify Resend sender/API key, send a real test email, and confirm delivery.
-2. Verify the active Cloudflare Worker build and test direct navigation/refresh on `/`, `/stages`, `/results`, `/records`, `/rules`.
+1. Configure Resend and verify an actual email arrives in the inbox.
+2. Verify direct navigation/refresh on `/`, `/stages`, `/results`, `/records`, `/rules`.
 3. Run anonymous privacy checks and real-device mobile QA.
 4. Confirm media-library upload, preview and deletion on the live Worker/API.
 
