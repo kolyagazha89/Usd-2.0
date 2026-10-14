@@ -65,6 +65,12 @@ export class StagesService {
     if (published && !['PUBLISHED', 'COMPLETED'].includes(stage.status)) {
       throw new BadRequestException('Сначала опубликуйте сам этап');
     }
+    if (published) {
+      const resultCount = await this.prisma.result.count({ where: { registration: { stageId: id } } });
+      if (resultCount < 1) {
+        throw new BadRequestException('Нельзя опубликовать результаты: сначала внесите хотя бы один результат');
+      }
+    }
 
     const updated = await this.prisma.stage.update({
       where: { id },
