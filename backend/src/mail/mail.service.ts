@@ -41,6 +41,14 @@ export class MailService {
     process.env.FRONTEND_URL ??
     'http://localhost:3000';
 
+  async hasConfiguredProvider(): Promise<boolean> {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (apiKey) return Boolean(process.env.RESEND_FROM_EMAIL?.trim());
+
+    return process.env.SMTP_EGRESS_ALLOWED === 'true'
+      && Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD && this.from);
+  }
+
   private async sendMessage(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (apiKey) {
@@ -70,17 +78,37 @@ export class MailService {
         this.logger.error(`Resend API rejected email (HTTP ${response.status}).`);
         throw new Error(`Resend API request failed with HTTP ${response.status}`);
       }
+
+      let providerResult: { id?: unknown } | null = null;
+      try {
+        providerResult = await response.json() as { id?: unknown };
+      } catch {
+        // A successful HTTP response without a JSON body still means the provider accepted the request.
+      }
+      const providerId = typeof providerResult?.id === 'string' ? providerResult.id : 'unknown';
+      this.logger.log(`Resend accepted email (id=${providerId}); inbox delivery is not confirmed by API acceptance.`);
       return;
     }
 
+    if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
+      throw new Error('SMTP is disabled for this deployment. Configure RESEND_API_KEY and RESEND_FROM_EMAIL, or explicitly enable SMTP on a Railway plan that supports it.');
+    }
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
-      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or complete SMTP settings');
+      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, or explicitly enable SMTP on a Railway plan that supports it.');
     }
 
-    await this.transporter.sendMail({
+    const result = await this.transporter.sendMail({
       from: this.from,
       ...message,
     });
+    const acceptedCount = Array.isArray(result.accepted) ? result.accepted.length : 0;
+    const rejectedCount = Array.isArray(result.rejected) ? result.rejected.length : 0;
+    const messageId = typeof result.messageId === 'string' ? result.messageId : 'unknown';
+    if (acceptedCount === 0) {
+      this.logger.error(`SMTP did not accept message (messageId=${messageId}, rejected=${rejectedCount}).`);
+      throw new Error('SMTP server did not accept the recipient');
+    }
+    this.logger.log(`SMTP accepted email (messageId=${messageId}, accepted=${acceptedCount}, rejected=${rejectedCount}); inbox delivery is not confirmed by SMTP acceptance.`);
   }
 
   async sendVerificationEmail(
@@ -138,7 +166,7 @@ export class MailService {
       });
     } catch (error) {
       // Log SMTP diagnostics without logging tokens, email body, or credentials.
-      this.logger.error(`Verification email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.',
       );
@@ -199,7 +227,7 @@ export class MailService {
         `,
       });
     } catch (error) {
-      this.logger.error(`Password-reset email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.',
       );
