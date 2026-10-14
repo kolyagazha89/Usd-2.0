@@ -77,6 +77,31 @@ describe('MailService Resend delivery', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
+  it('uses the branded USD template for verification, password reset and email change messages', async () => {
+    process.env.RESEND_API_KEY = 'test-api-key';
+    process.env.RESEND_FROM_EMAIL = 'USD <no-reply@example.com>';
+    process.env.FRONTEND_URL = 'https://app.example.com';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ id: 'branded-email-id' }),
+    } as Response);
+    const service = new MailService();
+
+    await service.sendVerificationEmail('person@example.com', 'verify-token');
+    await service.sendPasswordResetEmail('person@example.com', 'reset-token');
+    await service.sendEmailChangeEmail('person@example.com', 'change-token');
+
+    const bodies = fetchMock.mock.calls.map(call => JSON.parse(String(call[1]?.body)));
+    expect(bodies).toHaveLength(3);
+    for (const body of bodies) {
+      expect(body.html).toContain('ULTIMATE SOUND DESTRUCTION');
+      expect(body.html).toContain('#ed2638');
+      expect(body.html).toContain('border-bottom:4px solid #ed2638');
+      expect(body.text).toContain('USD · ULTIMATE SOUND DESTRUCTION');
+    }
+    expect(bodies[2].text).toContain('https://app.example.com/confirm-email-change?token=change-token');
+    expect(bodies[2].text).not.toContain('\\n');
+  });
+
   it('returns provider acceptance separately from delivery confirmation for admin test mail', async () => {
     process.env.RESEND_API_KEY = 'test-api-key';
     process.env.RESEND_FROM_EMAIL = 'USD <no-reply@example.com>';
