@@ -24,7 +24,7 @@ function resultSheetRows(values:any){
     return currentClass?{...row,'Класс':currentClass}:row;
   }).filter((row:any)=>String(row['Номер']??row['Номер участника']??'').trim()!=='');
 }
-function ImportPage({PageFrame,PanelTitle,Empty,Modal,enumLabel}: {PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;Empty:React.ComponentType<any>;Modal:React.ComponentType<any>;enumLabel:(value:any)=>string}){
+function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(value:any)=>string}){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
  const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);const[uploadedFile,setUploadedFile]=useState<File|null>(null);const[sourcePostUrl,setSourcePostUrl]=useState('');
  const[historicalRegistrationSpreadsheetId,setHistoricalRegistrationSpreadsheetId]=useState(''),[historicalResultsSpreadsheetId,setHistoricalResultsSpreadsheetId]=useState('');
@@ -225,7 +225,8 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  const currentClassId=parsed.classId??autoClass??'';
  const classCandidates=classes.filter(c=>!normalized.class?.className||String(c.name).trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()||String(c.code??'').trim().toLowerCase()===String(normalized.class?.className).trim().toLowerCase()).slice(0,12);
 
- return <Modal title={`Исправление строки №\${row.rowNumber}`} onClose={onClose}>
+ return <section className="panel resource-editor-page import-resolution-page">
+  <div className="resource-editor-heading"><div><span className="eyebrow">ИМПОРТ · РУЧНОЕ СОПОСТАВЛЕНИЕ</span><h2>Исправление строки №{row.rowNumber}</h2><p>Проверьте участника, регистрацию, автомобиль, класс и результат. Решение не будет сохранено, пока вы его не подтвердите.</p></div><button className="secondary-button" type="button" onClick={onClose}><ChevronLeft size={16}/>Назад к импорту</button></div>
   <div className="import-resolution">
    <div className="notice"><AlertTriangle size={16}/><span>Теперь не нужно писать JSON вручную. Нажимай действия ниже — система сама собирает корректное решение.</span></div>
    {localError&&<div className="form-error"><AlertTriangle size={16}/>{localError}</div>}
@@ -287,7 +288,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
    <details className="resolution-json-preview"><summary>Показать сформированное решение</summary><pre className="json-view">{JSON.stringify(parsed,null,2)}</pre></details>
    <div className="resolution-footer"><button className="secondary-button" onClick={onClose}>Отмена</button><button className="primary-button" disabled={loading||loadingOptions} onClick={()=>void onSave()}>{loading?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить решение</>}</button></div>
   </div>
- </Modal>
+ </section>
 }
 
 export default ImportPage;
