@@ -97,7 +97,7 @@ export class AuthController {
     @Query('token') token: string,
     @Res() response: Response,
   ) {
-    const frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\\/+$/, '');
+    const frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
 
     try {
       await this.authService.verifyEmail(token);
