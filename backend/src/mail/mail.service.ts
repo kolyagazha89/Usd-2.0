@@ -198,9 +198,10 @@ export class MailService {
           </div>
         `,
       });
-    } catch {
+    } catch (error) {
+      this.logger.error(`Password-reset email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException(
-        'Не удалось отправить письмо восстановления',
+        'Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.',
       );
     }
   }
@@ -216,8 +217,9 @@ export class MailService {
         text: ['Здравствуйте!', '', 'Для подтверждения нового email перейдите по ссылке:', url, '', 'Ссылка действует 30 минут.'].join('\\n'),
         html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111"><h2>USD — подтверждение нового email</h2><p>Для подтверждения нового email нажмите кнопку ниже.</p><p><a href="${url}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px">Подтвердить email</a></p><p style="font-size:13px;color:#666">Ссылка действует 30 минут.</p></div>`,
       });
-    } catch {
-      throw new InternalServerErrorException('Не удалось отправить письмо для изменения email');
+    } catch (error) {
+      this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      throw new InternalServerErrorException('Не удалось отправить письмо для изменения email. Проверьте настройки почтового сервиса.');
     }
   }
 
