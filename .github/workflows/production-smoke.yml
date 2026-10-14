@@ -1,0 +1,114 @@
+name: Production API Smoke
+
+on:
+  workflow_run:
+    workflows: ["Backend CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify deployed public API
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait until the publication endpoint is deployed
+        env:
+          API_BASE: https://usd-api-production.up.railway.app
+        run: |
+          set -euo pipefail
+          expected_status=""
+          for attempt in $(seq 1 60); do
+            status=$(curl --silent --show-error --output /tmp/publication-route.json --write-out '%{http_code}' \
+              --request POST "$API_BASE/stages/00000000-0000-0000-0000-000000000000/results-publication" \
+              --header 'Content-Type: application/json' \
+              --data '{"published":true,"confirmed":true}' || true)
+            if [ "$status" = "401" ] || [ "$status" = "403" ]; then
+              expected_status="$status"
+              echo "Publication route is live and protected (HTTP $status)."
+              break
+            fi
+            echo "Waiting for backend deploy (attempt $attempt/60; HTTP ${status:-no response})."
+            sleep 10
+          done
+          if [ -z "$expected_status" ]; then
+            echo "The protected publication route did not become available."
+            cat /tmp/publication-route.json || true
+            exit 1
+          fi
+
+      - name: Check health, public stages, results privacy, and records
+        env:
+          API_BASE: https://usd-api-production.up.railway.app
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.API_BASE;
+          const request = async (path) => {
+            const response = await fetch(base + path, { headers: { accept: 'application/json' } });
+            const text = await response.text();
+            let data = null;
+            try { data = text ? JSON.parse(text) : null; } catch {}
+            return { response, data, text };
+          };
+          const unwrap = (value) => {
+            if (Array.isArray(value)) return value;
+            for (const key of ['data', 'items', 'stages', 'results', 'records']) {
+              if (Array.isArray(value?.[key])) return value[key];
+            }
+            return [];
+          };
+          const assertNoPrivateKeys = (value, label) => {
+            const forbidden = new Set(['email', 'phone', 'registrationNumber', 'passwordHash', 'tokenHash']);
+            const walk = (item, path) => {
+              if (!item || typeof item !== 'object') return;
+              for (const [key, child] of Object.entries(item)) {
+                if (forbidden.has(key)) throw new Error(label + ' exposed private key: ' + path + '.' + key);
+                walk(child, path + '.' + key);
+              }
+            };
+            walk(value, label);
+          };
+
+          const health = await request('/health');
+          if (!health.response.ok || health.data?.success !== true || health.data?.database !== 'connected') {
+            throw new Error('Health/database check failed: HTTP ' + health.response.status + ' ' + health.text);
+          }
+          console.log('Health and database connectivity OK.');
+
+          const stagesResponse = await request('/stages/public');
+          if (!stagesResponse.response.ok) throw new Error('Public stages failed: HTTP ' + stagesResponse.response.status);
+          const stages = unwrap(stagesResponse.data).filter(stage =>
+            !stage.isDeleted && ['PUBLISHED', 'COMPLETED'].includes(stage.status)
+          );
+          assertNoPrivateKeys(stagesResponse.data, 'public stages');
+          console.log('Public stages OK (' + stages.length + ').');
+
+          const recordsResponse = await request('/records/current');
+          if (!recordsResponse.response.ok) throw new Error('Current records failed: HTTP ' + recordsResponse.response.status);
+          assertNoPrivateKeys(recordsResponse.data, 'public records');
+          console.log('Public current records OK (' + unwrap(recordsResponse.data).length + ').');
+
+          let publishedChecked = 0;
+          let unpublishedChecked = 0;
+          for (const stage of stages) {
+            const resultResponse = await request('/results/stage/' + encodeURIComponent(stage.id));
+            if (stage.resultsPublishedAt) {
+              if (!resultResponse.response.ok) {
+                throw new Error('Published stage results unavailable for ' + stage.id + ': HTTP ' + resultResponse.response.status);
+              }
+              assertNoPrivateKeys(resultResponse.data, 'public results for stage ' + stage.id);
+              publishedChecked++;
+            } else {
+              if (resultResponse.response.status !== 404) {
+                throw new Error('Unpublished results should be hidden for stage ' + stage.id + ', got HTTP ' + resultResponse.response.status);
+              }
+              unpublishedChecked++;
+            }
+          }
+          console.log('Result publication checks OK; published stages=' + publishedChecked + ', unpublished stages=' + unpublishedChecked + '.');
+          NODE
