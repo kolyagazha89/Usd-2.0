@@ -202,6 +202,10 @@ export class MailService {
     this.logger.log(`SMTP accepted email (messageId=${messageId}, accepted=${acceptedCount}, rejected=${rejectedCount}); inbox delivery is not confirmed by SMTP acceptance.`);
   }
 
+  async sendNotificationEmail(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
+    await this.sendMessage(message);
+  }
+
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
     const sentAt = new Date().toISOString();
     try {
