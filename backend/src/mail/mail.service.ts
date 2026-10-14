@@ -6,6 +6,7 @@ import {
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
+import { GoogleService } from '../google/google.service';
 
 // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -13,6 +14,8 @@ setDefaultResultOrder('ipv4first');
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+
+  constructor(private readonly googleService: GoogleService) {}
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -79,6 +82,13 @@ export class MailService {
       }
       const providerId = typeof providerResult?.id === 'string' ? providerResult.id : 'unknown';
       this.logger.log(`Resend accepted email (id=${providerId}); inbox delivery is not confirmed by API acceptance.`);
+      return;
+    }
+
+    const googleStatus = await this.googleService.getStatus();
+    if (googleStatus.connected) {
+      await this.googleService.sendEmail(message.to, message.subject, message.text, message.html);
+      this.logger.log('Google Gmail API accepted email; inbox delivery is not confirmed by API acceptance.');
       return;
     }
 
@@ -156,7 +166,7 @@ export class MailService {
       });
     } catch (error) {
       // Log SMTP diagnostics without logging tokens, email body, or credentials.
-      this.logger.error(`Verification email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check Resend, Google Gmail API authorization, or SMTP settings.`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.',
       );
@@ -217,7 +227,7 @@ export class MailService {
         `,
       });
     } catch (error) {
-      this.logger.error(`Password-reset email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.',
       );
