@@ -8,6 +8,7 @@ import RolesPage from './admin/RolesPage';
 import HistoricalPage from './admin/HistoricalPage';
 import ImportPage from './admin/ImportPage';
 import CarsPage from './admin/CarsPage';
+import DisqualificationsPage from './admin/DisqualificationsPage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
@@ -373,7 +374,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/registrations'))return <RegistrationsPage/>;
   if(path.startsWith('/admin/inspections'))return <InspectionsPage key={path} user={user} go={go}/>;
   if(path.startsWith('/admin/results'))return <ResultsPage user={user}/>;
-  if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage/>;
+  if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} displayPersonName={displayPersonName} roleName={roleName} enumLabel={enumLabel} Modal={Modal}/>;
   if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/import'))return <ImportPage PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/records'))return <RecordsPage user={user}/>;
@@ -789,31 +790,6 @@ function ResultModal({value,registrations,saving,error,onClose,onSubmit}:{value:
   </form>
  </Modal>
 }
-function DisqualificationsPage(){
- const[data,setData]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[stages,setStages]=useState<any[]>([]),[seasons,setSeasons]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState(false),[modalError,setModalError]=useState(''),[status,setStatus]=useState<'ACTIVE'|'REVOKED'|'ALL'>('ACTIVE');
- const load=async()=>{setLoading(true);setError('');try{const q=status==='ALL'?'':'?status='+status;const [d,p,st,se]=await Promise.all([apiGet<any>('/disqualifications'+q),apiGet<any>('/participants'),apiGet<any>('/stages'),apiGet<any>('/seasons')]);setData(listData(d));setParticipants(listData(p));setStages(listData(st));setSeasons(listData(se))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки дисквалификаций')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[status]);
- const create=async(v:any)=>{setSaving(true);setModalError('');try{await apiPost('/disqualifications',{participantId:v.participantId,scope:v.scope,stageId:v.scope==='STAGE'?v.stageId:undefined,seasonId:v.scope==='SEASON'?v.seasonId:undefined,reason:v.reason});setModal(false);await load()}catch(e){setModalError(e instanceof Error?e.message:'Не удалось выдать дисквалификацию')}finally{setSaving(false)}};
- const revoke=async(d:any)=>{const reason=window.prompt('Причина отзыва дисквалификации:');if(!reason?.trim())return;setSaving(true);try{await apiPatch('/disqualifications/'+d.id+'/revoke',{revokeReason:reason.trim()});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось отозвать дисквалификацию')}finally{setSaving(false)}};
- return <PageFrame title="Дисквалификации" subtitle="Реальное управление запретами: выдача, просмотр и отзыв с обязательной причиной." action={<div className="page-actions"><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button><button className="primary-button compact" onClick={()=>setModal(true)}><Plus size={15}/>Выдать дисквалификацию</button></div>}>
-  <div className="toolbar"><select className="filter-select" value={status} onChange={e=>setStatus(e.target.value as any)}><option value="ACTIVE">Действующие</option><option value="REVOKED">Отозванные</option><option value="ALL">Все</option></select><span className="row-count">{data.length} записей</span></div>
-  {error&&<ErrorPanel message={error} retry={load}/>}
-  <div className="panel table-wrap disqualification-table-wrap">{loading?<LoadingPage small/>:data.length?<table className="data-table disqualification-table"><thead><tr><th>Участник</th><th>Область</th><th>Этап / сезон</th><th>Статус</th><th>Причина</th><th>Кем выдана</th><th>Действия</th></tr></thead><tbody>{data.map(d=><tr key={d.id}><td data-label="Участник"><strong>{displayPersonName([d.participant?.lastName,d.participant?.firstName,d.participant?.middleName].filter(Boolean).join(' '))||'—'}</strong>{d.participant?.team&&<small className="table-sub">{d.participant.team}</small>}</td><td data-label="Область"><span className="badge">{d.scope==='STAGE'?'Этап':d.scope==='SEASON'?'Сезон':'Весь формат'}</span></td><td data-label="Этап / сезон">{d.scope==='STAGE'?<><strong>№{d.stage?.stageNumber??'—'} · {d.stage?.name??'Этап'}</strong>{d.stage?.city&&<small className="table-sub">{d.stage.city}</small>}</>:d.scope==='SEASON'?<><strong>{d.season?.name??'Сезон'}</strong>{d.season?.year&&<small className="table-sub">{d.season.year}</small>}</>:<strong>Весь формат</strong>}</td><td data-label="Статус"><span className={'badge '+(d.status==='ACTIVE'?'bad':'good')}>{d.status==='ACTIVE'?'Действует':'Отозвана'}</span></td><td data-label="Причина" className="disqualification-reason" title={d.reason}>{d.reason||'—'}</td><td data-label="Кем выдана">{d.issuedByUser?.name||'—'}{d.issuedByUser?.role&&<small className="table-sub">{roleName[d.issuedByUser.role as Role]??enumLabel(d.issuedByUser.role)}</small>}</td><td data-label="Действия" className="row-actions">{d.status==='ACTIVE'&&<button className="danger-button compact" disabled={saving} onClick={()=>void revoke(d)}><X size={14}/>Отозвать</button>}{d.status==='REVOKED'&&<span className="muted">Отозвана</span>}</td></tr>)}</tbody></table>:<Empty text="Дисквалификаций по выбранному фильтру нет"/>}</div>
-  {modal&&<DisqualificationModal participants={participants} stages={stages} seasons={seasons} saving={saving} error={modalError} onClose={()=>{setModal(false);setModalError('')}} onSubmit={create}/>} 
- </PageFrame>
-}
-function DisqualificationModal({participants,stages,seasons,saving,error,onClose,onSubmit}:{participants:any[];stages:any[];seasons:any[];saving:boolean;error?:string;onClose:()=>void;onSubmit:(v:any)=>Promise<void>}){
- const[v,setV]=useState<any>({scope:'STAGE',participantId:'',stageId:'',seasonId:'',reason:''});
- return <Modal title="Новая дисквалификация" onClose={onClose}>{error&&<div className="form-error modal-form-error"><AlertTriangle size={16}/><span>{error}</span></div>}<form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
-  <label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')}{p.team?' · '+p.team:''}</option>)}</select></label>
-  <label>Область<select value={v.scope} onChange={e=>setV({...v,scope:e.target.value,stageId:'',seasonId:''})}><option value="STAGE">Этап</option><option value="SEASON">Сезон</option><option value="FORMAT">Весь формат</option></select></label>
-  {v.scope==='STAGE'&&<label>Этап<select value={v.stageId} onChange={e=>setV({...v,stageId:e.target.value})} required><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>№{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>}
-  {v.scope==='SEASON'&&<label>Сезон<select value={v.seasonId} onChange={e=>setV({...v,seasonId:e.target.value})} required><option value="">Выберите сезон</option>{seasons.map(s=><option key={s.id} value={s.id}>{s.year} · {s.name}</option>)}</select></label>}
-  <label>Причина<textarea rows={4} value={v.reason} onChange={e=>setV({...v,reason:e.target.value})} placeholder="Укажите причину дисквалификации" required/></label>
-  <button className="primary-button" disabled={saving}>{saving?'Сохраняем…':'Выдать дисквалификацию'}</button>
- </form></Modal>
-}
-
 function OperationalPage({title,subtitle,icon:Icon,endpoint}:{title:string;subtitle:string;icon:any;endpoint:string}){const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');const load=()=>{setLoading(true);return apiGet<any>(endpoint).then(r=>setData(listData(r))).catch(e=>setError(e instanceof Error?e.message:'Для списка требуется выбранный этап')).finally(()=>setLoading(false))};useEffect(()=>{void load()},[endpoint]);return <PageFrame title={title} subtitle={subtitle} action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>{error&&<div className="notice"><Icon size={18}/><span>{error}</span></div>}<div className="panel table-wrap">{loading?<LoadingPage small/>:<DataTable rows={data} columns={autoColumns(data)}/>}</div></PageFrame>}
 
 function RecordsPage({user}:{user:User}){
