@@ -36,7 +36,7 @@ function RecordsPage({user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailMo
     <label><span className="field-label">Комментарий к корректировке</span><textarea rows={3} value={editNotes} onChange={e=>setEditNotes(e.target.value)} placeholder="Например: рекорд подтверждён на финале, первое место в классе 1×2"/></label>
     {editError&&<div className="form-error"><AlertTriangle size={16}/>{editError}</div>}
     <div className="resolution-footer"><button type="button" className="secondary-button" onClick={()=>setEditRecord(null)} disabled={saving}>Отмена</button><button className="primary-button" disabled={saving||editLoading||!selectedResultId}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить рекорд</>}</button></div>
-   </form></section> : detail ? <EntityDetailModal title="Рекорд" item={detail} columns={[{key:'class.name',label:'Класс'},{key:'class.direction.name',label:'Направление'},{key:'result.registration.participant.lastName',label:'Фамилия'},{key:'result.registration.participant.firstName',label:'Имя'},{key:'result.registration.car.brand',label:'Марка'},{key:'result.registration.car.model',label:'Модель'},{key:'value',label:'Результат'},{key:'unit',label:'Единица'},{key:'stage.name',label:'Этап'},{key:'achievedAt',label:'Дата'}]} onClose={()=>setDetail(null)} extra={user.role==='ADMIN'?<button className="secondary-button" onClick={()=>{setDetail(null);void beginEdit(detail)}}><Pencil size={15}/>Изменить официальный результат</button>:undefined}/> : <>
+   </form></section> : detail ? <EntityDetailModal inline title="Рекорд" item={detail} columns={[{key:'class.name',label:'Класс'},{key:'class.direction.name',label:'Направление'},{key:'result.registration.participant.lastName',label:'Фамилия'},{key:'result.registration.participant.firstName',label:'Имя'},{key:'result.registration.car.brand',label:'Марка'},{key:'result.registration.car.model',label:'Модель'},{key:'value',label:'Результат'},{key:'unit',label:'Единица'},{key:'stage.name',label:'Этап'},{key:'achievedAt',label:'Дата'}]} onClose={()=>setDetail(null)} extra={user.role==='ADMIN'?<button className="secondary-button" onClick={()=>{setDetail(null);void beginEdit(detail)}}><Pencil size={15}/>Изменить официальный результат</button>:undefined}/> : <>
   {error&&<ErrorPanel message={error} retry={load}/>}
   <div className="panel table-wrap">
    {loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th>{user.role==='ADMIN'&&<th>Действие</th>}</tr></thead><tbody>
@@ -54,5 +54,6 @@ function RecordsPage({user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailMo
   </div>
   </>}
  </PageFrame>
+}
 
 export default RecordsPage;
