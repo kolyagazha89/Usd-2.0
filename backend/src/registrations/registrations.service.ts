@@ -3,11 +3,13 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { EmailNotificationsService } from '../mail/email-notifications.service';
 
 type RegistrationSource =
   | 'PRE_REGISTRATION'
@@ -18,8 +20,11 @@ type RegistrationStatus = 'ACTIVE' | 'CANCELLED';
 
 @Injectable()
 export class RegistrationsService {
+  private readonly logger = new Logger(RegistrationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
+    private readonly emailNotifications: EmailNotificationsService,
   ) {}
 
   private readonly registrationInclude = {
@@ -199,6 +204,7 @@ export class RegistrationsService {
       classIds: string[];
       configurationVersionId: string;
       source?: RegistrationSource;
+      rulesAccepted?: boolean;
     },
   ) {
     const {
@@ -212,6 +218,10 @@ export class RegistrationsService {
       request.user.role === 'PARTICIPANT'
         ? request.user.participantId
         : body.participantId;
+
+    if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
+      throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
+    }
 
     if (!participantId) {
       throw new BadRequestException(
@@ -309,7 +319,7 @@ export class RegistrationsService {
       );
     }
 
-    return this.prisma.$transaction(
+    const registration = await this.prisma.$transaction(
       async (tx) => {
         // Блокируем выдачу номеров для конкретного этапа.
         //
@@ -334,6 +344,10 @@ export class RegistrationsService {
           throw new NotFoundException(
             'Этап не найден или удалён',
           );
+        }
+
+        if (request.user.role === 'PARTICIPANT' && !stage.rulesSnapshot) {
+          throw new BadRequestException('Для регистрации организатор должен опубликовать действующий регламент этапа');
         }
 
         if (stage.status !== 'PUBLISHED') {
@@ -664,6 +678,10 @@ export class RegistrationsService {
               generators: configurationVersion.generators,
             },
             participantNumber,
+            ...(body.rulesAccepted === true ? {
+              rulesAcceptedAt: new Date(),
+              rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
+            } : {}),
             source,
             status: 'ACTIVE',
           },
@@ -707,6 +725,10 @@ export class RegistrationsService {
         });
       },
     );
+    void this.emailNotifications.registrationConfirmed(registration).catch((error) => {
+      this.logger.error('Registration confirmation email could not be prepared: ' + (error instanceof Error ? error.name : 'UnknownError'));
+    });
+    return registration;
   }
   // ==========================================
   // ОТМЕНА
