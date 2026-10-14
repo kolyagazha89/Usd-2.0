@@ -3,35 +3,12 @@ import * as XLSX from 'xlsx';
 import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { QRCodeSVG } from 'qrcode.react';
 import PublicRulesPage from './PublicRulesPage';
-import RulesAdminPage from './RulesAdminPage';
-import RolesPage from './admin/RolesPage';
-import HistoricalPage from './admin/HistoricalPage';
-import ImportPage from './admin/ImportPage';
-import CarsPage from './admin/CarsPage';
-import DisqualificationsPage from './admin/DisqualificationsPage';
-import RecordsPage from './admin/RecordsPage';
-import UsersPage from './admin/UsersPage';
-import StatisticsPage from './admin/StatisticsPage';
-import QualityPage from './admin/QualityPage';
-import TeamsPage from './admin/TeamsPage';
-import PartnersPage from './admin/PartnersPage';
-import NewsPage from './admin/NewsPage';
-import MediaLibraryPage from './admin/MediaLibraryPage';
-import SiteSettingsPage from './admin/SiteSettingsPage';
-import AssistantPage from './admin/AssistantPage';
-import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './admin/CompetitionPages';
-import RegistrationsPage from './admin/RegistrationsPage';
-import InspectionsPage from './admin/InspectionsPage';
-import ResultsPage from './admin/ResultsPage';
-import AuditPage from './admin/AuditPage';
-import CatalogPage from './admin/CatalogPage';
-import ParticipantsPage from './admin/ParticipantsPage';
 import ConfigurationsPage from './admin/ConfigurationsPage';
 import ResourcePageModule from './admin/ResourcePage';
-import DashboardPage from './admin/DashboardPage';
 import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} from './admin/FormComponents';
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
 import AdminShell from './admin/AdminShell';
+import AdminRoutes from './admin/AdminRoutes';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -316,42 +293,7 @@ function ParticipantCarPage({carId,go}:{carId:string;go:(path:string)=>void}){
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
 
-function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){
-  if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
-  if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage} displayCarName={displayCarName}/>;
-  if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin LoadingPage={LoadingPage} displayCarName={displayCarName}/>;}
-  if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} isValidPlate={isValidPlate} clean={clean}/>;
-  if(path.startsWith('/admin/seasons'))return <SeasonsPage ResourcePage={ResourcePage}/>;
-  if(path.startsWith('/admin/stages/'))return <StageDetailPage stageId={path.split('/')[3]} go={go} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} PublicResultCards={PublicResultCards}/>;
-  if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user} ResourcePage={ResourcePage} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} PageFrame={PageFrame} ErrorPanel={ErrorPanel} enumLabel={enumLabel} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/classes'))return <ClassesPage PageFrame={PageFrame} ResourcePage={ResourcePage}/>;
-  if(path.startsWith('/admin/registrations'))return <RegistrationsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate} enumLabel={enumLabel}/>;
-  if(path.startsWith('/admin/inspections'))return <InspectionsPage key={path} user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>;
-  if(path.startsWith('/admin/results'))return <ResultsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} displayCarName={displayCarName} displayPersonName={displayPersonName}/>;
-  if(path.startsWith('/admin/disqualifications'))return <DisqualificationsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} displayPersonName={displayPersonName} roleName={roleName} enumLabel={enumLabel}/>;
-  if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/import'))return <ImportPage PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
-  if(path.startsWith('/admin/records'))return <RecordsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/statistics'))return <StatisticsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
-  if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/audit'))return <AuditPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} roleName={roleName}/>;
-  if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel} humanize={humanize} humanizeAuditKey={humanizeAuditKey}/>;
-  if(path.startsWith('/admin/partners'))return <PartnersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/components'))return <CatalogPage mode="components" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
-  if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
-  if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
-  return <Coming title="Страница не найдена" icon={Info} user={user}/>;
- }
-
-function Coming({title,icon:Icon,user}:{title:string;icon:any;user:User}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
-
-
+function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){return <AdminRoutes path={path} go={go} user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} ResourcePage={ResourcePage} EntityDetailModal={EntityDetailModal} EntityForm={EntityForm} SearchableSelect={SearchableSelect} enumLabel={enumLabel} formatDate={formatDate} displayCarName={displayCarName} displayPersonName={displayPersonName} roleName={roleName} humanize={humanize} humanizeAuditKey={humanizeAuditKey} clean={clean} isValidPlate={isValidPlate} PublicResultCards={PublicResultCards} cacheBrandLogo={cacheBrandLogo}/>}
 function DataTable({rows,columns,onEdit,onDelete,extraAction,onRowClick}:{rows:any[];columns:{key:string;label:string}[];onEdit?:(row:any)=>void;onDelete?:(id:string)=>void;extraAction?:(row:any)=>React.ReactNode;onRowClick?:(row:any)=>void}){const[detail,setDetail]=useState<any|null>(null);if(!rows.length)return <Empty text="Записей пока нет"/>;if(detail)return <EntityDetailModal inline title="Запись" item={detail} columns={columns} onClose={()=>setDetail(null)} onOpen={onRowClick?()=>{setDetail(null);onRowClick(detail)}:undefined}/>;return <div className="smart-table-wrap"><table className="data-table"><thead><tr>{columns.map(c=><th key={c.key}>{c.label}</th>)}{(onEdit||onDelete||extraAction)&&<th className="actions-head">Действия</th>}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id??i} onClick={()=>setDetail(r)} className="clickable-row">{columns.map(c=><td key={c.key} data-label={c.label}>{formatCell(getPath(r,c.key),c.key)}</td>)}{(onEdit||onDelete||extraAction)&&<td className="row-actions" data-label="Действия" onClick={e=>e.stopPropagation()}>{extraAction?.(r)}{onEdit&&<button className="icon-button" onClick={()=>onEdit(r)} title="Изменить" aria-label="Изменить"><Pencil size={15}/></button>}{onDelete&&r.id&&<button className="icon-button danger" onClick={()=>void onDelete(r.id)} title="Удалить" aria-label="Удалить"><Trash2 size={15}/></button>}</td>}</tr>)}</tbody></table></div>}
 function EntityForm(props:any){return <EntityFormModule {...props} enumLabel={enumLabel}/>}
 function EntityDetailModal(props:any){return <EntityDetailWorkspace {...props} enumLabel={enumLabel} formatDate={formatDate}/>}
