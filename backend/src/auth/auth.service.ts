@@ -519,7 +519,26 @@ export class AuthService {
       throw new BadRequestException('ФИО обязательно');
     }
 
+    // Search by any part of the name, not only an exact full-name match.
+    // Requiring every token to match one of the name fields supports both
+    // "Иван" and multi-part queries such as "Иванов Иван", in any order.
+    const searchTokens = normalizedInput.split(' ').filter(Boolean);
     const participants = await this.prisma.participant.findMany({
+      where: {
+        user: { is: null },
+        AND: searchTokens.map((token) => ({
+          OR: [
+            { lastName: { contains: token, mode: 'insensitive' as const } },
+            { firstName: { contains: token, mode: 'insensitive' as const } },
+            { middleName: { contains: token, mode: 'insensitive' as const } },
+          ],
+        })),
+      },
+      orderBy: [
+        { lastName: 'asc' },
+        { firstName: 'asc' },
+        { middleName: 'asc' },
+      ],
       select: {
         id: true,
         lastName: true,
@@ -541,21 +560,10 @@ export class AuthService {
         },
         _count: { select: { registrations: true } },
       },
-      take: 5000,
+      take: 100,
     });
 
-    const candidates = participants.filter((participant) => {
-      if (participant.user) return false;
-      const candidate = this.normalizeProfileName(
-        [participant.lastName, participant.firstName, participant.middleName]
-          .filter(Boolean)
-          .join(' '),
-      );
-      const candidateWithoutMiddle = this.normalizeProfileName(
-        [participant.lastName, participant.firstName].join(' '),
-      );
-      return candidate === normalizedInput || candidateWithoutMiddle === normalizedInput;
-    });
+    const candidates = participants;
 
     /*
      * Исторический профиль нельзя привязать только по ФИО.
