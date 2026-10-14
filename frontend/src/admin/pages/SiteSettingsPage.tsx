@@ -1,7 +1,8 @@
 import {useEffect,useState} from 'react';
-import {CheckCircle2,Info,Loader2,RefreshCw,Upload,Image as ImageIcon} from 'lucide-react';
+import {Activity,AlertTriangle,Check,CheckCircle2,ClipboardCheck,FileClock,Flag,Info,LayoutDashboard,Loader2,RefreshCw,Search,Settings2,Trophy,Users} from 'lucide-react';
 import {apiGet,getSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,listData} from '../../api';
-import {PageFrame,ErrorPanel,LoadingPage,Empty} from '../AdminUI';
+import {PageFrame,ErrorPanel,LoadingPage} from '../AdminUI';
+function cacheBrandLogo(url:string){try{localStorage.setItem('usd_brand_logo',url)}catch{}}
 
 export default function SiteSettingsPage(){
  const[settings,setSettings]=useState<any|null>(null),[tab,setTab]=useState('branding'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[uploading,setUploading]=useState<string|null>(null),[error,setError]=useState(''),[saved,setSaved]=useState(false),[preview,setPreview]=useState<Record<string,string>>({}),[stages,setStages]=useState<any[]>([]);
