@@ -202,6 +202,10 @@ export class StagesService {
       metadata: { seasonId: season.id, stageNumber: stage.stageNumber, status: stage.status },
     });
 
+    if (stage.registrationOpen && !existing?.registrationOpen) {
+      void this.emailNotifications?.registrationOpened(stage.id).catch(() => undefined);
+    }
+
     return stage;
   }
 
