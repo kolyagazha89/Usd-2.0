@@ -284,7 +284,7 @@ export class AuthService {
             action: 'EMAIL_VERIFICATION_RESEND_FAILED',
             entity: 'User',
             entityId: user.id,
-            metadata: { failureCode: 'SMTP_SEND_FAILED' },
+            metadata: { failureCode: 'EMAIL_PROVIDER_SEND_FAILED' },
           },
         });
       } catch {
