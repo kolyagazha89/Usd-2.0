@@ -69,6 +69,17 @@ describe('StagesService rules snapshots', () => {
     service = new StagesService(prisma, audit, siteSettings);
   });
 
+  it('requires confirmation and audits results publication', async () => {
+    const stage = { id: 'stage-1', status: 'PUBLISHED', resultsPublishedAt: null };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data }));
+    await expect(service.setResultsPublication('stage-1', true, false, request)).rejects.toThrow('Подтвердите изменение публикации результатов');
+    expect(prisma.stage.update).not.toHaveBeenCalled();
+    await service.setResultsPublication('stage-1', true, true, request);
+    expect(prisma.stage.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'stage-1' }, data: expect.objectContaining({ resultsPublishedAt: expect.any(Date) }) }));
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAGE_RESULTS_PUBLISHED', entityId: 'stage-1' }));
+  });
+
   it('captures published rules when a stage is created as published', async () => {
     const season = { id: 'season-1', year: 2026, status: 'ACTIVE' };
     const snapshot = { revisionId: 'rules-v1', fileName: 'rules.docx', blocks: [{ type: 'paragraph', text: 'Rule v1' }] };
