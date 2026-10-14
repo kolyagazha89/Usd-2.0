@@ -42,6 +42,8 @@ describe('RegistrationsService', () => {
             registrationStartsAt: null,
             registrationEndsAt: null,
             seasonId: 'season-1',
+            rulesSnapshot: { revisionId: 'rules-v1' },
+            updatedAt: new Date('2026-10-01T00:00:00Z'),
           })
           .mockResolvedValueOnce({
             id: 'stage-1',
@@ -119,6 +121,7 @@ describe('RegistrationsService', () => {
     carId: 'car-1',
     classIds: ['class-1'],
     configurationVersionId: 'configuration-version-1',
+    rulesAccepted: true,
   };
 
   it('requires an explicit configuration version', async () => {
