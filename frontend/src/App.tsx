@@ -107,6 +107,7 @@ const BRAND_LOGO_CACHE='usd_brand_logo';
 function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}catch{return''}}
 function cacheBrandLogo(url:string){try{localStorage.setItem(BRAND_LOGO_CACHE,url)}catch{}}
 function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;const img=new Image();img.decoding='async';img.onload=()=>onReady(url);img.onerror=()=>{};img.src=url}
+function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
 function App(){
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname+location.search),[mobileOpen,setMobileOpen]=useState(false);
  useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
@@ -392,7 +393,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
-  if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel}/>;
+  if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel} humanize={humanize} humanizeAuditKey={humanizeAuditKey}/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
