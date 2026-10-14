@@ -3181,3 +3181,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .resource-editor-heading .secondary-button{flex-shrink:0}
 .resource-editor-page .modal-form{max-width:920px;margin:0 auto}
 @media(max-width:640px){.resource-editor-page{padding:16px}.resource-editor-heading{flex-direction:column}.resource-editor-heading .secondary-button{width:100%;justify-content:center}.resource-editor-page .modal-form{padding:0}}
+
+.team-inline-edit{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:min(100%,420px)}
+.team-inline-edit input{min-width:160px;flex:1}
+.team-inline-edit span{font-size:13px;color:var(--muted,#6b7280)}
+@media(max-width:680px){.team-inline-edit{min-width:0;width:100%}.team-inline-edit input{width:100%;flex-basis:100%}.team-directory-actions{flex-wrap:wrap}}
