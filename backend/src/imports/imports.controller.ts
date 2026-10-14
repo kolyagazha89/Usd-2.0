@@ -2,7 +2,6 @@ import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, R
 import { timingSafeEqual } from 'crypto';
 import { ImportsService } from './imports.service';
 import { Roles } from '../auth/roles.decorator';
-import { Public } from '../auth/public.decorator';
 import { PreviewImportDto, ResolveImportRowDto } from './dto/import.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
@@ -11,7 +10,6 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
-  @Public()
   @Post('historical/auto-commit')
   autoCommitHistorical(@Req() req: AuthenticatedRequest) {
     const suppliedSecret = req.headers['x-historical-import-secret'];
