@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Menu,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
+import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
 import {getPublicSiteAsset,type User} from '../api';
 
 const nav=[
@@ -104,6 +104,5 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
   </div>
  </div>;
 }
-type Field={name:string;label:string;type?:string;required?:boolean;options?:string[];optionsPath?:string;optionLabel?:(item:any)=>string;placeholder?:string;help?:string};
 
 export default AdminShell;
