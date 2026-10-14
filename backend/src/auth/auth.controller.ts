@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
   Param,
   Patch,
   Post,
@@ -103,9 +104,7 @@ export class AuthController {
       await this.authService.verifyEmail(token);
       return response.redirect(302, `${frontendUrl}/verify-email?status=success`);
     } catch (error) {
-      const payload = error instanceof Error && 'getResponse' in error && typeof (error as { getResponse?: unknown }).getResponse === 'function'
-        ? (error as Error & { getResponse: () => unknown }).getResponse()
-        : null;
+      const payload = error instanceof HttpException ? error.getResponse() : null;
       const detail = typeof payload === 'string'
         ? payload
         : payload && typeof payload === 'object' && 'message' in payload
