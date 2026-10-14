@@ -56,7 +56,7 @@ describe('AuthService.resendVerificationEmail', () => {
 
     expect(response).toEqual({
       success: true,
-      message: 'Запрос обработан. Если письмо не придёт в течение нескольких минут, проверьте папку «Спам» или попробуйте позже.',
+      message: 'Запрос принят. Этот ответ не подтверждает доставку письма. Если письмо не придёт, проверьте папку «Спам» и попробуйте позже.',
     });
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
     expect(prisma.emailVerificationToken.deleteMany).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('AuthService.resendVerificationEmail', () => {
   it('returns the same generic response for unknown and already verified accounts', async () => {
     prisma.user.findUnique.mockResolvedValueOnce(null);
     const missing = await service.resendVerificationEmail('missing@example.com');
-    expect(missing.message).toBe('Запрос обработан. Если письмо не придёт в течение нескольких минут, проверьте папку «Спам» или попробуйте позже.');
+    expect(missing.message).toBe('Запрос принят. Этот ответ не подтверждает доставку письма. Если письмо не придёт, проверьте папку «Спам» и попробуйте позже.');
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
 
     prisma.user.findUnique.mockResolvedValueOnce({ ...user, emailVerifiedAt: new Date() });
@@ -83,7 +83,7 @@ describe('AuthService.resendVerificationEmail', () => {
 
     expect(response).toEqual({
       success: true,
-      message: 'Запрос обработан. Если письмо не придёт в течение нескольких минут, проверьте папку «Спам» или попробуйте позже.',
+      message: 'Запрос принят. Этот ответ не подтверждает доставку письма. Если письмо не придёт, проверьте папку «Спам» и попробуйте позже.',
     });
     expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(2);
