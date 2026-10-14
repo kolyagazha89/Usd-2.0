@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,CalendarDays,CarFront,Check,CheckCircle2,ChevronRight,ClipboardCheck,FileInput,Flag,History,Loader2,Plus,RefreshCw,ShieldAlert,Trophy,UserRound,Users} from 'lucide-react';
+import {AlertTriangle,CalendarDays,CarFront,Check,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,FileInput,Flag,History,Loader2,Plus,RefreshCw,ShieldAlert,Trophy,UserRound,Users} from 'lucide-react';
 import {apiGet,apiPost,apiPut,getDashboard,getStageStatistics,listData,type Dashboard} from '../api';
 
 export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingPage,formatDate,enumLabel,displayCarName}:{go:(p:string)=>void;PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;Empty:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;formatDate:(v:string)=>string;enumLabel:(v:any)=>string;displayCarName:(car:any,fallback?:string)=>string}){
@@ -8,7 +8,7 @@ export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingP
  useEffect(()=>{void load()},[]);
  if(error)return <ErrorPanel message={error} retry={load}/>;
  if(!data)return <LoadingPage/>;
- if(quick)return <PageFrame title="Быстрое создание" subtitle="Создайте запись без всплывающего окна и продолжите работу в соответствующем разделе." action={<button className="secondary-button compact" onClick={()=>setQuick(null)}><ChevronLeft size={15}/>Назад к панели</button>}><QuickCreatePage kind={quick} onClose={()=>setQuick(null)} onSaved={async()=>{setQuick(null);await load()}}/></PageFrame>;
+ if(quick)return <PageFrame title="Быстрое создание" subtitle="Создайте запись без всплывающего окна и продолжите работу в соответствующем разделе." action={<button className="secondary-button compact" onClick={()=>setQuick(null)}><ChevronLeft size={15}/>Назад к панели</button>}><QuickCreatePage kind={quick} onClose={()=>setQuick(null)} onSaved={async()=>{setQuick(null);await load()}} LoadingPage={LoadingPage}/></PageFrame>;
  const stage=data.currentStage,regs=data.activeRegistrationStats,a=data.attention,ov=data.overview;
  return <PageFrame title="Панель управления" subtitle="Операционный центр USD" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
   <section className="dashboard-kpis">
@@ -67,7 +67,7 @@ export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingP
  </PageFrame>
 }
 
-function QuickCreatePage({kind,onClose,onSaved}:{kind:'STAGE'|'PARTICIPANT'|'CAR';onClose:()=>void;onSaved:()=>Promise<void>}){
+function QuickCreatePage({kind,onClose,onSaved,LoadingPage}:{kind:'STAGE'|'PARTICIPANT'|'CAR';onClose:()=>void;onSaved:()=>Promise<void>;LoadingPage:React.ComponentType<any>}){
  const [v,setV]=useState<any>({status:'DRAFT',registrationOpen:false,isPublic:true}),[options,setOptions]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
  const isStage=kind==='STAGE',isParticipant=kind==='PARTICIPANT';
  useEffect(()=>{let cancelled=false;(async()=>{try{if(isStage){setOptions(listData(await apiGet<any>('/seasons')))}else if(!isParticipant){setOptions(listData(await apiGet<any>('/admin/participants')))}}catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Не удалось загрузить данные')}finally{if(!cancelled)setLoading(false)}})();return()=>{cancelled=true}},[kind]);
