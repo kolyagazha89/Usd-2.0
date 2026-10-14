@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { MediaService } from './media.service';
 import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { PrepareUploadDto, CompleteUploadDto } from './dto/prepare-upload.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -18,6 +19,7 @@ export class MediaController {
       body.targetType,
       body.targetId,
       body.contentType,
+      Boolean(request.user.customRoleId),
     );
   }
 
@@ -32,6 +34,7 @@ export class MediaController {
       request.user.role,
       targetType,
       targetId,
+      Boolean(request.user.customRoleId),
     );
   }
 
@@ -58,6 +61,22 @@ export class MediaController {
     response.send(media.body);
   }
 
+  @Roles('ADMIN')
+  @Get('library')
+  listMediaLibrary(@Req() request: AuthenticatedRequest) {
+    return this.mediaService.listMediaLibrary(request.user.role, Boolean(request.user.customRoleId));
+  }
+
+  @Roles('ADMIN')
+  @Delete('library/:targetType/:targetId')
+  deleteMediaAsset(
+    @Req() request: AuthenticatedRequest,
+    @Param('targetType') targetType: MediaTargetType,
+    @Param('targetId') targetId: string,
+  ) {
+    return this.mediaService.deleteMediaAsset(request.user.sub, request.user.role, targetType, targetId, Boolean(request.user.customRoleId));
+  }
+
   @Put('upload')
   uploadThroughApi(
     @Req() request: AuthenticatedRequest,
@@ -71,11 +90,12 @@ export class MediaController {
       uploadToken,
       body,
       contentType,
+      Boolean(request.user.customRoleId),
     );
   }
 
   @Post('complete')
   complete(@Req() request: AuthenticatedRequest, @Body() body: CompleteUploadDto) {
-    return this.mediaService.complete(request.user.sub, request.user.role, body.uploadToken);
+    return this.mediaService.complete(request.user.sub, request.user.role, body.uploadToken, Boolean(request.user.customRoleId));
   }
 }
