@@ -95,6 +95,12 @@ export class AuthController {
     );
   }
 
+  @Get('newsletter-consent')
+  async getNewsletterConsent(@Req() request: Request) {
+    const userId = (request as Request & { user: { sub: string } }).user.sub;
+    return this.authService.getNewsletterConsent(userId);
+  }
+
   @Patch('newsletter-consent')
   async updateNewsletterConsent(@Req() request: Request, @Body() body: NewsletterConsentDto) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
