@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
-import {getPublicSiteAsset,type User} from '../api';
+import {getPublicSiteAsset,type Role,type User} from '../api';
 
 const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
@@ -69,7 +69,7 @@ function navPermissionModule(path:string):string {
  return '';
 }
 
-export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<string,string>;cacheBrandLogo:(url:string)=>void}){
+export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<Role,string>;cacheBrandLogo:(url:string)=>void}){
  const routePath=path.split('?')[0];
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
