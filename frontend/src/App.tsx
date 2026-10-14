@@ -484,7 +484,7 @@ function CarForm({value,participants,countries,saving,error,onClose,onSubmit,asP
  <label>Цвет<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!v.isPublic} onChange={e=>setV({...v,isPublic:e.target.checked})}/>Показывать автомобиль публично</label>
  <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить автомобиль'}</button>
  </form>;
- return asPage?<>{{(error||validationError)&&<div className="form-error modal-form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}}{form}</>:<Modal title={value.id?'Редактировать автомобиль':'Новый автомобиль'} onClose={onClose}>{{(error||validationError)&&<div className="form-error modal-form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}}{form}</Modal>
+ return asPage?<> {(error||validationError)&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}{form}</>:<Modal title={value.id?'Редактировать автомобиль':'Новый автомобиль'} onClose={onClose}>{(error||validationError)&&<div className="form-error modal-form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}{form}</Modal>
 }
 
 
