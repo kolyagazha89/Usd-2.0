@@ -3,7 +3,7 @@ import {FileClock,RefreshCw} from 'lucide-react';
 import {getAudit,listData,type Role} from '../api';
 import {humanize} from './AdminPrimitives';
 
-export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate,roleName}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;roleName:Record<string,string>}){
+export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate,roleName}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;roleName:Record<Role,string>}){
  const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const[entity,setEntity]=useState(''),[action,setAction]=useState('');
  const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
