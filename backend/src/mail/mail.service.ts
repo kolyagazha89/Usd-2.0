@@ -6,6 +6,7 @@ import {
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
+import { randomBytes } from 'node:crypto';
 
 // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -73,7 +74,7 @@ export class MailService {
       throw new Error('Gmail OAuth token response did not include an access token');
     }
 
-    const boundary = 'usd-' + Buffer.from(crypto.randomUUID()).toString('hex');
+    const boundary = 'usd-' + randomBytes(16).toString('hex');
     const encodedSubject = '=?UTF-8?B?' + Buffer.from(message.subject, 'utf8').toString('base64') + '?=';
     const mime = [
       'From: ' + sender,
