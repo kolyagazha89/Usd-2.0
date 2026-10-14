@@ -43,13 +43,13 @@ export class MailService {
     'http://localhost:3000';
 
   private async sendViaGmailApi(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
-    const clientId = process.env.GMAIL_CLIENT_ID?.trim();
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
+    const clientId = (process.env.GMAIL_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID)?.trim();
+    const clientSecret = (process.env.GMAIL_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET)?.trim();
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
     const sender = process.env.GMAIL_SENDER_EMAIL?.trim();
 
     if (!clientId || !clientSecret || !refreshToken || !sender) {
-      throw new Error('Gmail API configuration is incomplete: set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL');
+      throw new Error('Gmail API configuration is incomplete: set GMAIL_CLIENT_ID (or GOOGLE_CLIENT_ID), GMAIL_CLIENT_SECRET (or GOOGLE_CLIENT_SECRET), GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL');
     }
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -155,13 +155,14 @@ export class MailService {
     }
 
     const gmailConfigured = Boolean(
-      process.env.GMAIL_CLIENT_ID?.trim()
-      && process.env.GMAIL_CLIENT_SECRET?.trim()
+      (process.env.GMAIL_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID)?.trim()
+      && (process.env.GMAIL_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET)?.trim()
       && process.env.GMAIL_REFRESH_TOKEN?.trim()
       && process.env.GMAIL_SENDER_EMAIL?.trim(),
     );
     const gmailPartiallyConfigured = Boolean(
       process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET
+      || process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_SECRET
       || process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL,
     );
     if (gmailConfigured || gmailPartiallyConfigured) {
