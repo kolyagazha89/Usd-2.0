@@ -151,6 +151,15 @@ export class MailService {
         this.logger.error(`Resend API rejected email (HTTP ${response.status}).`);
         throw new Error(`Resend API request failed with HTTP ${response.status}`);
       }
+
+      let providerResult: { id?: unknown } | null = null;
+      try {
+        providerResult = await response.json() as { id?: unknown };
+      } catch {
+        // A successful HTTP response without JSON still means the provider accepted the request.
+      }
+      const providerId = typeof providerResult?.id === 'string' ? providerResult.id : 'unknown';
+      this.logger.log(`Resend accepted email (id=${providerId}); inbox delivery is not confirmed by API acceptance.`);
       return;
     }
 
@@ -170,14 +179,27 @@ export class MailService {
       return;
     }
 
+    // Railway deployments may block SMTP egress. HTTPS providers (Resend/Gmail API)
+    // are preferred; SMTP is an explicit opt-in only for a plan/network that supports it.
+    if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
+      throw new Error('SMTP is disabled for this deployment. Configure RESEND_API_KEY/RESEND_FROM_EMAIL or all Gmail API OAuth settings; enable SMTP only on a plan that supports it.');
+    }
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
-      throw new Error('No email provider configured: set RESEND_API_KEY and RESEND_FROM_EMAIL, all four GMAIL_* variables, or complete SMTP settings');
+      throw new Error('SMTP is enabled but not fully configured: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.');
     }
 
-    await this.transporter.sendMail({
+    const result = await this.transporter.sendMail({
       from: this.from,
       ...message,
     });
+    const acceptedCount = Array.isArray(result.accepted) ? result.accepted.length : 0;
+    const rejectedCount = Array.isArray(result.rejected) ? result.rejected.length : 0;
+    const messageId = typeof result.messageId === 'string' ? result.messageId : 'unknown';
+    if (acceptedCount === 0) {
+      this.logger.error(`SMTP did not accept message (messageId=${messageId}, rejected=${rejectedCount}).`);
+      throw new Error('SMTP server did not accept the recipient');
+    }
+    this.logger.log(`SMTP accepted email (messageId=${messageId}, accepted=${acceptedCount}, rejected=${rejectedCount}); inbox delivery is not confirmed by SMTP acceptance.`);
   }
 
   async sendVerificationEmail(
@@ -235,8 +257,8 @@ export class MailService {
         `,
       });
     } catch (error) {
-      // Log SMTP diagnostics without logging tokens, email body, or credentials.
-      this.logger.error(`Verification email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.`);
+      // Log provider diagnostics without logging tokens, email body, recipients, or credentials.
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown SMTP error'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.',
       );
@@ -297,7 +319,7 @@ export class MailService {
         `,
       });
     } catch (error) {
-      this.logger.error(`Password-reset email delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException(
         'Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.',
       );

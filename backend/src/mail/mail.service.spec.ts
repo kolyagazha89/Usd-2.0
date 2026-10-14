@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorException, Logger } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 describe('MailService Resend delivery', () => {
@@ -8,6 +8,10 @@ describe('MailService Resend delivery', () => {
   const originalSmtpHost = process.env.SMTP_HOST;
   const originalSmtpUser = process.env.SMTP_USER;
   const originalSmtpPassword = process.env.SMTP_PASSWORD;
+  const originalSmtpFrom = process.env.SMTP_FROM;
+  const originalSmtpPort = process.env.SMTP_PORT;
+  const originalSmtpSecure = process.env.SMTP_SECURE;
+  const originalSmtpEgressAllowed = process.env.SMTP_EGRESS_ALLOWED;
   const originalGmailClientId = process.env.GMAIL_CLIENT_ID;
   const originalGmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
   const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -22,6 +26,10 @@ describe('MailService Resend delivery', () => {
       SMTP_HOST: originalSmtpHost,
       SMTP_USER: originalSmtpUser,
       SMTP_PASSWORD: originalSmtpPassword,
+      SMTP_FROM: originalSmtpFrom,
+      SMTP_PORT: originalSmtpPort,
+      SMTP_SECURE: originalSmtpSecure,
+      SMTP_EGRESS_ALLOWED: originalSmtpEgressAllowed,
       GMAIL_CLIENT_ID: originalGmailClientId,
       GMAIL_CLIENT_SECRET: originalGmailClientSecret,
       GOOGLE_CLIENT_ID: originalGoogleClientId,
@@ -41,7 +49,9 @@ describe('MailService Resend delivery', () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
+      json: async () => ({ id: 'email-accepted-id' }),
     } as Response);
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     const service = new MailService();
 
     await service.sendVerificationEmail('person@example.com', 'token-123');
@@ -63,6 +73,8 @@ describe('MailService Resend delivery', () => {
       subject: 'Подтверждение email — USD',
     });
     expect(body.text).toContain('/verify-email?token=token-123');
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Resend accepted email (id=email-accepted-id)'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
   it('fails clearly instead of pretending an email was sent when no provider is configured', async () => {
@@ -91,6 +103,57 @@ describe('MailService Resend delivery', () => {
     await expect(
       service.sendVerificationEmail('person@example.com', 'token-123'),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
+  });
+
+  it('does not attempt SMTP unless explicitly enabled', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM_EMAIL;
+    delete process.env.GMAIL_CLIENT_ID;
+    delete process.env.GMAIL_CLIENT_SECRET;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GMAIL_REFRESH_TOKEN;
+    delete process.env.GMAIL_SENDER_EMAIL;
+    process.env.SMTP_HOST = 'smtp.example.com';
+    process.env.SMTP_USER = 'sender@example.com';
+    process.env.SMTP_PASSWORD = 'test-password';
+    process.env.SMTP_FROM = 'USD <sender@example.com>';
+    delete process.env.SMTP_EGRESS_ALLOWED;
+
+    const service = new MailService();
+    const sendMailSpy = jest.spyOn((service as any).transporter, 'sendMail');
+
+    await expect(
+      service.sendVerificationEmail('person@example.com', 'token-123'),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
+    expect(sendMailSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses SMTP only with explicit opt-in and logs provider acceptance without claiming delivery', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM_EMAIL;
+    delete process.env.GMAIL_CLIENT_ID;
+    delete process.env.GMAIL_CLIENT_SECRET;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GMAIL_REFRESH_TOKEN;
+    delete process.env.GMAIL_SENDER_EMAIL;
+    process.env.SMTP_HOST = 'smtp.example.com';
+    process.env.SMTP_USER = 'sender@example.com';
+    process.env.SMTP_PASSWORD = 'test-password';
+    process.env.SMTP_FROM = 'USD <sender@example.com>';
+    process.env.SMTP_EGRESS_ALLOWED = 'true';
+
+    const service = new MailService();
+    const sendMailSpy = jest.spyOn((service as any).transporter, 'sendMail')
+      .mockResolvedValue({ accepted: ['person@example.com'], rejected: [], messageId: 'smtp-message-123' } as any);
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+
+    await service.sendVerificationEmail('person@example.com', 'token-123');
+
+    expect(sendMailSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('SMTP accepted email (messageId=smtp-message-123'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
   });
 
   it('sends verification mail through Gmail API HTTPS when all OAuth settings are configured', async () => {
