@@ -1,8 +1,9 @@
 import {useEffect,useState} from 'react';
 import {FileClock,RefreshCw} from 'lucide-react';
-import {getAudit,listData,type User} from '../api';
+import {getAudit,listData,type Role} from '../api';
+import {humanize} from './AdminPrimitives';
 
-export export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string}){
+export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate,roleName}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;roleName:Record<string,string>}){
  const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const[entity,setEntity]=useState(''),[action,setAction]=useState('');
  const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
@@ -15,11 +16,11 @@ export export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLab
    <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
   </div>
   {error&&<ErrorPanel message={error} retry={load}/>}
-  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey}/>)}</div>}
+  {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey} roleName={roleName}/>)}</div>}
   {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
  </PageFrame>
 }
-function AuditEntryCard({item,enumLabel,formatDate,humanizeAuditKey}:{item:any;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;humanizeAuditKey:(v:string)=>string}){
+function AuditEntryCard({item,enumLabel,formatDate,humanizeAuditKey,roleName}:{item:any;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;humanizeAuditKey:(v:string)=>string;roleName:Record<string,string>}){
  const meta=item.metadata&&typeof item.metadata==='object'?item.metadata:{};
  const actor=item.user?.name||item.user?.email||'Система';
  const details=Object.entries(meta).filter(([k,v])=>v!==null&&v!==undefined&&k!=='password'&&!/id$/i.test(k)&&!/Ids$/i.test(k)).slice(0,8);
@@ -28,7 +29,7 @@ function AuditEntryCard({item,enumLabel,formatDate,humanizeAuditKey}:{item:any;e
   <div className="audit-entry-main">
    <div className="audit-entry-head"><strong>{auditActionName(item.action)}</strong><time>{new Date(item.createdAt).toLocaleString('ru-RU')}</time></div>
    <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{roleName[item.user?.role as Role]??'Система'}</span><span>·</span><span>{auditEntityName(item.entity)}</span></div>
-   {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v)}</strong></div>)}</div>}
+   {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v,enumLabel)}</strong></div>)}</div>}
    {item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
   </div>
  </article>
@@ -43,6 +44,6 @@ function auditActionName(x:string){const m:Record<string,string>={
  SITE_SETTINGS_UPDATED:'Настройки сайта изменены',USER_CREATED:'Пользователь создан',USER_UPDATED:'Пользователь изменён'
  };if(m[x])return m[x];const words:Record<string,string>={CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',CREATED:'Создано',UPDATED:'Изменено',DELETED:'Удалено',VERIFIED:'Подтверждено',CORRECTED:'Исправлено',REVOKED:'Отозвано',COMMITTED:'Зафиксировано',RESOLVED:'Исправлено',USED:'Использован',EXECUTED:'Выполнено',SUBMITTED:'Отправлено',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',HISTORICAL:'Исторический',RESULT:'результат',INSPECTION:'инспекция',DISQUALIFICATION:'дисквалификация',REGISTRATION:'регистрация',IMPORT:'импорт',USER:'пользователь',CAR:'автомобиль',PARTICIPANT:'участник',STAGE:'этап',SEASON:'сезон',CLASS:'класс',ASSISTANT:'ассистент',FUNCTION:'функция',CHAT:'чат',SITE:'сайт',SETTINGS:'настройки',PREVIEW:'предпросмотр',ROW:'строка',DATA:'данные',QUALITY:'качество'};return x.split('_').map(w=>words[w]??w.toLowerCase()).join(' ')}
 function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск',entity:'Раздел',before:'До изменения',after:'После изменения',sections:'Изменённые разделы',model:'Модель ассистента'};return m[x]??humanize(x)}
-function formatAuditValue(v:any){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='string')return enumLabel(v);if(typeof v==='object')return JSON.stringify(v);return String(v)}
+function formatAuditValue(v:any,enumLabel:(v:any)=>string){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='string')return enumLabel(v);if(typeof v==='object')return JSON.stringify(v);return String(v)}
 
 export default AuditPage;
