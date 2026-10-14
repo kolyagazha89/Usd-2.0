@@ -62,12 +62,46 @@ describe('StagesService rules snapshots', () => {
   };
   const audit: any = { log: jest.fn() };
   const siteSettings: any = { getPublishedRulesSnapshot: jest.fn() };
+  const emailNotifications: any = { registrationOpened: jest.fn().mockResolvedValue(undefined) };
   const request: any = { user: { sub: 'admin-1', role: 'ADMIN' }, ip: '127.0.0.1' };
   let service: StagesService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new StagesService(prisma, audit, siteSettings);
+    service = new StagesService(prisma, audit, siteSettings, emailNotifications);
+  });
+
+  it('triggers stage-opening notifications only on a closed-to-open transition', async () => {
+    const stage = {
+      id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED',
+      rulesSnapshot: { revisionId: 'rules-v1' }, registrationOpen: false,
+      registrationStartsAt: null, registrationEndsAt: null, stageNumber: 1,
+      updatedAt: new Date('2026-10-14T10:00:00Z'),
+    };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.season.findUnique.mockResolvedValue({ id: 'season-1', status: 'ACTIVE' });
+    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() });
+
+    await service.update('stage-1', { registrationOpen: true } as any, request);
+
+    expect(emailNotifications.registrationOpened).toHaveBeenCalledTimes(1);
+    expect(emailNotifications.registrationOpened).toHaveBeenCalledWith('stage-1');
+  });
+
+  it('does not resend stage-opening notifications when an already-open stage is edited', async () => {
+    const stage = {
+      id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED',
+      rulesSnapshot: { revisionId: 'rules-v1' }, registrationOpen: true,
+      registrationStartsAt: null, registrationEndsAt: null, stageNumber: 1,
+      name: 'Old name',
+    };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.season.findUnique.mockResolvedValue({ id: 'season-1', status: 'ACTIVE' });
+    prisma.stage.update.mockImplementation(async ({ data }: any) => ({ ...stage, ...data, updatedAt: new Date() });
+
+    await service.update('stage-1', { name: 'New name' } as any, request);
+
+    expect(emailNotifications.registrationOpened).not.toHaveBeenCalled();
   });
 
   it('requires confirmation and audits results publication', async () => {
