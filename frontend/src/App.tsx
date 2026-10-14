@@ -11,6 +11,7 @@ import RolesPage from './admin/pages/RolesPage';
 import AuditPage from './admin/pages/AuditPage';
 import QualityPage from './admin/pages/QualityPage';
 import StatisticsPage from './admin/pages/StatisticsPage';
+import PartnersPage from './admin/pages/PartnersPage';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
@@ -317,7 +318,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user}/>;
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
   if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
-  if(path.startsWith('/admin/partners'))return <PartnersPage/>;
+  if(path.startsWith('/admin/partners'))return <PartnersPage go={go} path={path}/>;
   if(path.startsWith('/admin/news'))return <NewsPage/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components"/>;
@@ -1110,32 +1111,6 @@ function UsersPage(){
 }
 
 function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
-
-function PartnersPage(){
- const[partners,setPartners]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[modalError,setModalError]=useState('');
- const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setPartners(Array.isArray(r?.settings?.partners)?r.settings.partners:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[]);
- const save=async(v:any)=>{setSaving(true);setModalError('');try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];let item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),name:String(v.name??'').trim(),description:String(v.description??'').trim(),tier:v.tier||'REGULAR',website:String(v.website??'').trim(),isActive:v.isActive!==false,sortOrder:Number(v.sortOrder??0),photoUrl:modal?.photoUrl??null};if(v.file instanceof File){const uploaded=await uploadSiteAsset('partner-'+item.id,v.file);item.photoUrl=uploaded.publicPath}const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];await updateSiteSettings({...r.settings,partners:next});setModal(null);await load()}catch(e){setModalError(e instanceof Error?e.message:'Не удалось сохранить партнёра')}finally{setSaving(false)}};
- const remove=async(id:string)=>{if(!confirm('Скрыть партнёра?'))return;try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];await updateSiteSettings({...r.settings,partners:current.map((x:any)=>x.id===id?{...x,isActive:false}:x)});await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить статус')}};
- const tierName=(x:string)=>x==='GENERAL'?'Генеральный':x==='PREMIUM'?'Премиальный':'Обычный';
- return <PageFrame title="Партнёры" subtitle="Партнёры USD и размещение на публичном сайте" action={<button className="primary-button compact" onClick={()=>setModal({tier:'REGULAR',isActive:true,sortOrder:0})}><Plus size={15}/>Добавить партнёра</button>}>
-  {error&&<ErrorPanel message={error} retry={load}/>}
-  <div className="panel table-wrap">{loading?<LoadingPage small/>:partners.length?<table className="data-table"><thead><tr><th>Партнёр</th><th>Уровень</th><th>Описание</th><th>Сайт</th><th>Статус</th><th/></tr></thead><tbody>{partners.map((p:any)=><tr key={p.id}><td data-label="Партнёр"><strong>{p.name}</strong></td><td data-label="Уровень"><span className="badge">{tierName(p.tier)}</span></td><td data-label="Описание">{p.description||'—'}</td><td data-label="Сайт">{p.website||'—'}</td><td data-label="Статус"><span className={'badge '+(p.isActive?'good':'')}>{p.isActive?'Активен':'Скрыт'}</span></td><td data-label="Действия" className="row-actions"><button className="icon-button" onClick={()=>setModal(p)} title="Изменить">✎</button>{p.isActive&&<button className="secondary-button compact" onClick={()=>void remove(p.id)}>Скрыть</button>}</td></tr>)}</tbody></table>:<Empty text="Партнёров пока нет"/>}</div>
-  {modal&&<Modal title={modal.id?'Редактирование партнёра':'Новый партнёр'} onClose={()=>{setModal(null);setModalError('')}}>{modalError&&<div className="form-error modal-form-error"><AlertTriangle size={16}/><span>{modalError}</span></div>}<PartnerForm value={modal} saving={saving} onSubmit={save}/></Modal>}
- </PageFrame>
-}
-function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:(v:any)=>Promise<void>}){
- const[v,setV]=useState<any>({...value});
- return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
-  <div className="form-grid-2"><label>Название<input value={v.name??''} onChange={e=>setV({...v,name:e.target.value})} required/></label><label>Уровень<select value={v.tier??'REGULAR'} onChange={e=>setV({...v,tier:e.target.value})}><option value="GENERAL">Генеральный</option><option value="PREMIUM">Премиальный</option><option value="REGULAR">Обычный</option></select></label></div>
-  <label>Описание<textarea value={v.description??''} onChange={e=>setV({...v,description:e.target.value})}/></label>
-  <label>Сайт<input value={v.website??''} onChange={e=>setV({...v,website:e.target.value})} placeholder="https://"/></label>
-  <div className="form-grid-2"><label>Порядок<input type="number" value={v.sortOrder??0} onChange={e=>setV({...v,sortOrder:Number(e.target.value)})}/></label><label className="checkbox-row"><input type="checkbox" checked={v.isActive!==false} onChange={e=>setV({...v,isActive:e.target.checked})}/>Показывать публично</label></div>
-  <label>Фото / логотип<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setV({...v,file:e.target.files?.[0]??null})}/></label>
-  {v.photoUrl&&<img className="partner-photo-preview" src={v.photoUrl} alt=""/>}
-  <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
- </form>
-}
 
 function NewsPage(){
  const[settings,setSettings]=useState<any|null>(null),[items,setItems]=useState<any[]>([]),[editing,setEditing]=useState<any|null>(null),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
