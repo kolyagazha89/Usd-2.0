@@ -92,7 +92,6 @@ export class MailService {
 
     try {
       await this.sendMessage({
-        from: this.from,
         to: email,
         subject: 'Подтверждение email — USD',
         text: [
@@ -155,7 +154,6 @@ export class MailService {
 
     try {
       await this.sendMessage({
-        from: this.from,
         to: email,
         subject: 'Восстановление пароля — USD',
         text: [
@@ -213,7 +211,6 @@ export class MailService {
     const url = `${this.frontendUrl}/confirm-email-change?token=${encodeURIComponent(token)}`;
     try {
       await this.sendMessage({
-        from: this.from,
         to: email,
         subject: 'Подтверждение нового email — USD',
         text: ['Здравствуйте!', '', 'Для подтверждения нового email перейдите по ссылке:', url, '', 'Ссылка действует 30 минут.'].join('\\n'),
