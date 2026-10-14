@@ -728,7 +728,7 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
  const statusFiltered=rows.filter(r=>filter==='ALL'?true:filter==='PASSED'?r.inspection?.status==='PASSED':r.inspection?.status==='FAILED');
  const filtered=statusFiltered.filter(r=>{const q=search.trim().toLowerCase();if(!q)return true;return [r.participantNumber,r.participant?.lastName,r.participant?.firstName,r.participant?.middleName,r.participant?.team,r.car?.brand,r.car?.model,r.car?.registrationNumber,r.classes?.map((x:any)=>x.class?.name).join(' ')].filter(Boolean).join(' ').toLowerCase().includes(q)});
  const passAll=async()=>{if(!pending)return;setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/pass-pending',{});setConfirmPassAll(false);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};const failAll=async()=>{if(!pending||!failAllReason.trim()){setError('Укажите причину для массового отказа');return}setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/fail-pending',{notes:failAllReason.trim()});setConfirmFailAll(false);setFailAllReason('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};
- return <>
+ return registerOpen ? <InspectionRegistrationModal stageId={stageId} onClose={()=>setRegisterOpen(false)} onSaved={async()=>{setRegisterOpen(false);await load()}}/> : <>
   <div className="inspection-summary">
    <button className="inspection-stat"><strong>{rows.length}</strong><span>зарегистрировано</span></button>
    <button className="inspection-stat good" onClick={()=>setFilter('PASSED')}><strong>{passed}</strong><span>прошли</span></button>
@@ -749,7 +749,6 @@ function EntryInspection({stageId,user,readOnly}:{stageId:string;user:User;readO
   <div className="panel table-wrap">
    {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} user={user} onSaved={load} readOnly={readOnly} autoOpen={r.id===initialRegistrationId}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
   </div>
-  {registerOpen&&<InspectionRegistrationModal stageId={stageId} onClose={()=>setRegisterOpen(false)} onSaved={async()=>{setRegisterOpen(false);await load()}}/>}
  </>;
 }
 
@@ -768,7 +767,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved}:{stageId:string;o
  const classGroups=Object.values(stageClasses.filter((x:any)=>x.isActive!==false).reduce((acc:Record<string,{name:string;items:any[]}>,item:any)=>{const name=item.class?.direction?.name||'Без направления';if(!acc[name])acc[name]={name,items:[]};acc[name].items.push(item);return acc},{}));
  const toggleClass=(id:string)=>setClassIds(xs=>xs.includes(id)?xs.filter(x=>x!==id):[...xs,id]);
  const submit=async()=>{if(!participantId||!carId||!configurationVersionId||!classIds.length){setError('Выберите участника, автомобиль, конфигурацию и хотя бы один класс');return}setSaving(true);setError('');try{await apiPost('/registrations',{stageId,participantId,carId,configurationVersionId,classIds,source:'ON_SITE'});await onSaved()}catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать участника')}finally{setSaving(false)}};
- return <Modal title="Регистрация участника на этап" onClose={onClose}>
+ return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ВЪЕЗДНАЯ ИНСПЕКЦИЯ · РЕГИСТРАЦИЯ</span><h2>Регистрация участника на этап</h2><p>Выберите существующего участника, автомобиль, конфигурацию и классы. Эта форма заменяет быстрый модальный сценарий.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div>
   {error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}
   {loading?<LoadingPage small/>:<div className="form modal-form">
    <label>Участник<SearchableSelect value={participantId} options={participants.map(p=>({id:p.id,label:[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')+(p.team?' · '+p.team:'')}))} onChange={v=>{setParticipantId(v);setClassIds([])}} required/></label>
@@ -777,7 +776,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved}:{stageId:string;o
    <div className="config-section"><div className="config-section-head"><div className="config-section-title"><div><strong>Классы этапа</strong><small>Один класс в каждом направлении; в BassRace можно выбрать несколько</small></div></div></div><div className="stage-class-modal-list">{classGroups.map((group:any)=><section key={group.name} className="registration-admin-class-group"><strong>{group.name}</strong>{group.items.map((x:any)=>{const id=x.classId??x.class?.id;const checked=classIds.includes(id);const directionId=x.class?.direction?.id??x.class?.directionId??x.directionId;const disabled=!checked&&!isBassRace(x)&&selectedDirections.has(directionId);return <label key={id} className="checkbox-row"><input type="checkbox" checked={checked} disabled={disabled} onChange={()=>toggleClass(id)}/><span><b>{x.class?.name||x.name}</b><small>{enumLabel(x.class?.unit||x.unit||'DB')}</small></span></label>})}</section>)}</div></div>
    <button type="button" className="primary-button save-button" disabled={saving||loading} onClick={()=>void submit()}>{saving?<><Loader2 className="spin" size={16}/>Регистрируем…</>:<><Check size={16}/>Зарегистрировать</>}</button>
   </div>}
- </Modal>
+ </section>
 }
 
 function ResultsPage({user}:{user:User}){return <PageFrame title="Результаты" subtitle="Официальные результаты. Судья вносит, администратор может корректировать."><StagePicker>{stageId=><ResultsStage stageId={stageId} user={user}/>}</StagePicker></PageFrame>}
