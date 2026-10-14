@@ -38,7 +38,7 @@ describe('EmailNotificationsService reminder timing', () => {
     }));
     const message = mail.sendNotificationEmail.mock.calls[0][0];
     expect(message.text).toContain('Дата:');
-    expect(message.text).not.toContain('17:00');
+    expect(message.text).not.toMatch(/\\b\\d{1,2}:\\d{2}\\b/);
   });
 
   it('uses the one-day trigger when the stage is 23 hours away', async () => {
