@@ -20,6 +20,7 @@ describe('AuthService.requestPasswordReset email delivery feedback', () => {
       },
     };
     const mail = {
+      hasConfiguredProvider: jest.fn().mockResolvedValue(true),
       sendPasswordResetEmail: jest.fn().mockRejectedValue(new Error('SMTP unavailable')),
     };
     const service = new AuthService(prisma as any, {} as any, mail as any);
@@ -39,7 +40,7 @@ describe('AuthService.requestPasswordReset email delivery feedback', () => {
         create: jest.fn(),
       },
     };
-    const mail = { sendPasswordResetEmail: jest.fn() };
+    const mail = { hasConfiguredProvider: jest.fn().mockResolvedValue(true), sendPasswordResetEmail: jest.fn() };
     const service = new AuthService(prisma as any, {} as any, mail as any);
 
     await expect(service.requestPasswordReset('missing@example.com')).resolves.toEqual({
