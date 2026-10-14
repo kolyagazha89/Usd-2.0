@@ -12,6 +12,7 @@ import DisqualificationsPage from './admin/DisqualificationsPage';
 import RecordsPage from './admin/RecordsPage';
 import UsersPage from './admin/UsersPage';
 import StatisticsPage from './admin/StatisticsPage';
+import QualityPage from './admin/QualityPage';
 import './catalog.css';
 import { isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {createPortal} from 'react-dom';
@@ -385,7 +386,7 @@ function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User})
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user}/>;
   if(path.startsWith('/admin/audit'))return <AuditPage/>;
-  if(path.startsWith('/admin/data-quality'))return <QualityPage/>;
+  if(path.startsWith('/admin/data-quality'))return <QualityPage PageFrame={PageFrame} Empty={Empty} ErrorPanel={ErrorPanel} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/partners'))return <PartnersPage/>;
   if(path.startsWith('/admin/news'))return <NewsPage/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration"/>;
@@ -837,24 +838,6 @@ function auditActionName(x:string){const m:Record<string,string>={
  };if(m[x])return m[x];const words:Record<string,string>={CREATE:'Создание',UPDATE:'Изменение',DELETE:'Удаление',LOGIN:'Вход',LOGOUT:'Выход',CREATED:'Создано',UPDATED:'Изменено',DELETED:'Удалено',VERIFIED:'Подтверждено',CORRECTED:'Исправлено',REVOKED:'Отозвано',COMMITTED:'Зафиксировано',RESOLVED:'Исправлено',USED:'Использован',EXECUTED:'Выполнено',SUBMITTED:'Отправлено',APPROVED:'Подтверждено',REJECTED:'Отклонено',APPLIED:'Применено',HISTORICAL:'Исторический',RESULT:'результат',INSPECTION:'инспекция',DISQUALIFICATION:'дисквалификация',REGISTRATION:'регистрация',IMPORT:'импорт',USER:'пользователь',CAR:'автомобиль',PARTICIPANT:'участник',STAGE:'этап',SEASON:'сезон',CLASS:'класс',ASSISTANT:'ассистент',FUNCTION:'функция',CHAT:'чат',SITE:'сайт',SETTINGS:'настройки',PREVIEW:'предпросмотр',ROW:'строка',DATA:'данные',QUALITY:'качество'};return x.split('_').map(w=>words[w]??w.toLowerCase()).join(' ')}
 function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск',entity:'Раздел',before:'До изменения',after:'После изменения',sections:'Изменённые разделы',model:'Модель ассистента'};return m[x]??humanize(x)}
 function formatAuditValue(v:any){if(typeof v==='boolean')return v?'Да':'Нет';if(typeof v==='string')return enumLabel(v);if(typeof v==='object')return JSON.stringify(v);return String(v)}
-function QualityPage(){
- const[data,setData]=useState<any>(null),[error,setError]=useState(''),[showHidden,setShowHidden]=useState(false),[hidden,setHidden]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('usd.quality.hidden')||'[]')}catch{return[];}});
- const load=()=>getDataQuality().then(setData).catch(e=>setError(e instanceof Error?e.message:'Не удалось проверить данные'));
- useEffect(()=>{void load()},[]);
- const issues=data?.issues??[], issueKey=(x:any,i:number)=>[x.code,x.entity,x.entityId,x.message,i].filter(Boolean).join('|');
- const hide=(key:string)=>{const next=[...new Set([...hidden,key])];setHidden(next);localStorage.setItem('usd.quality.hidden',JSON.stringify(next))};
- const restore=(key:string)=>{const next=hidden.filter(x=>x!==key);setHidden(next);localStorage.setItem('usd.quality.hidden',JSON.stringify(next))};
- const visible=issues.filter((x:any,i:number)=>showHidden||!hidden.includes(issueKey(x,i)));
- const entityName=(x:string)=>({Registration:'Регистрация',Inspection:'Инспекция',Result:'Результат',Record:'Рекорд',Car:'Автомобиль',ImportJob:'Импорт'} as Record<string,string>)[x]??humanize(x);
- const severity=(x:string)=>x==='ERROR'?'Ошибка':x==='WARNING'?'Предупреждение':'Информация';
- const qualityRuleName=(x:string)=>({REGISTRATION_WITHOUT_INSPECTION:'Активная регистрация без инспекции',REGISTRATION_WITHOUT_CLASSES:'Активная регистрация без класса',FAILED_INSPECTION_WITH_RESULT:'Результат при непройденной инспекции',RESULT_FOR_CANCELLED_REGISTRATION:'Результат отменённой регистрации',RESULT_FOR_FAILED_INSPECTION:'Результат при непройденной инспекции',HISTORICAL_RESULT_PENDING:'Исторический результат ожидает подтверждения',RESULT_UNIT_MISMATCH:'Несовпадение единиц результата и класса',ORPHAN_RECORD:'Рекорд без результата',RECORD_UNIT_MISMATCH:'Несовпадение единиц рекорда и класса',CAR_WITHOUT_CONFIGURATION:'Автомобиль без конфигурации',IMPORT_WITH_UNRESOLVED_WARNINGS:'Импорт с нерешёнными предупреждениями'} as Record<string,string>)[x]??humanize(x);
- return <PageFrame title="Контроль данных" subtitle="Проверка целостности: найденные проблемы можно скрывать без удаления из базы." action={<div className="settings-save-actions"><button className="secondary-button compact" onClick={()=>setShowHidden(v=>!v)}>{showHidden?'Скрыть отмеченные':'Показать скрытые'}</button><button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Проверить снова</button></div>}>
-  {error&&<ErrorPanel message={error} retry={load}/>}<div className="quality-summary">{data&&<><div className="stat-card"><span>Всего проблем</span><strong>{issues.length}</strong></div><div className="stat-card danger-card"><span>Ошибки</span><strong>{issues.filter((x:any)=>x.severity==='ERROR').length}</strong></div><div className="stat-card"><span>Предупреждения</span><strong>{issues.filter((x:any)=>x.severity==='WARNING').length}</strong></div><div className="stat-card"><span>Показано</span><strong>{visible.length}</strong></div></>}</div>
-  <div className="panel quality-table-panel">{!visible.length?<Empty text={data?'Активных проблем нет':'Загрузка проверки…'}/>:<div className="smart-table-wrap"><table className="data-table"><thead><tr><th>Уровень</th><th>Что найдено</th><th>Раздел</th><th>Подробности</th><th/></tr></thead><tbody>{visible.map((x:any,i:number)=>{const key=issueKey(x,i);const isHidden=hidden.includes(key);return <tr key={key}><td data-label="Уровень"><span className={'badge '+(x.severity==='ERROR'?'bad':x.severity==='WARNING'?'warn':'')}>{severity(x.severity)}</span></td><td data-label="Что найдено"><strong>{x.message}</strong><small className="table-sub">Правило: {qualityRuleName(x.code)}</small></td><td data-label="Раздел">{entityName(x.entity)}</td><td data-label="Подробности">{x.context?Object.entries(x.context).filter(([k])=>!k.toLowerCase().endsWith('id')&&!k.toLowerCase().endsWith('ids')).map(([k,v])=><span className="quality-detail" key={k}><b>{humanizeAuditKey(k)}</b>: {enumLabel(v as any)}</span>):'—'}</td><td data-label="Действие" className="row-actions">{isHidden?<button className="secondary-button compact" onClick={()=>restore(key)}>Показать</button>:<button className="secondary-button compact" onClick={()=>hide(key)}>Скрыть</button>}</td></tr>})}</tbody></table></div>}</div>
- </PageFrame>
-}
-function ResourcePlaceholder({title,icon:Icon}:{title:string;icon:any}){return <Coming title={title} icon={Icon} user={{role:'ADMIN'} as User}/>}
-
 function PartnersPage(){
  const[partners,setPartners]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[modalError,setModalError]=useState('');
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setPartners(Array.isArray(r?.settings?.partners)?r.settings.partners:[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}finally{setLoading(false)}};
