@@ -3,7 +3,7 @@ import type {Role,User} from '../api';
 import RolesPage from './RolesPage';
 import HistoricalPage from './HistoricalPage';
 import ImportPage from './ImportPage';
-import CarsPage from './CarsPage';
+import CarsPage, {CarEditorPage} from './CarsPage';
 import DisqualificationsPage from './DisqualificationsPage';
 import RecordsPage from './RecordsPage';
 import UsersPage from './UsersPage';
@@ -31,8 +31,9 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage ResourcePage={ResourcePage} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
+  if(path.startsWith('/admin/cars/new')||path.startsWith('/admin/cars/edit')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <CarEditorPage user={user} carId={carId} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} isValidPlate={isValidPlate} clean={clean}/>;}
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin LoadingPage={LoadingPage} displayCarName={displayCarName}/>;}
-  if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} isValidPlate={isValidPlate} clean={clean}/>;
+  if(path.startsWith('/admin/cars'))return <CarsPage user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/seasons'))return <SeasonsPage ResourcePage={ResourcePage}/>;
   if(path.startsWith('/admin/stages/'))return <StageDetailPage stageId={path.split('/')[3]} go={go} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} PublicResultCards={PublicResultCards}/>;
   if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user} ResourcePage={ResourcePage} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} PageFrame={PageFrame} ErrorPanel={ErrorPanel} enumLabel={enumLabel} formatDate={formatDate}/>;
