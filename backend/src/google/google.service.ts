@@ -70,6 +70,35 @@ export class GoogleService {
     };
   }
 
+  async hasMailSendPermission(): Promise<boolean> {
+    const connection = await this.prisma.googleConnection.findUnique({ where: { id: 'default' } });
+    if (!connection) return false;
+
+    try {
+      const { clientId, clientSecret } = this.config();
+      const refreshToken = this.decrypt(connection.refreshTokenEncrypted);
+      const response = await fetch(this.oauthTokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) return false;
+      const token = await response.json() as GoogleTokenResponse;
+      return Boolean(
+        token.access_token
+        && token.scope?.split(' ').includes('https://www.googleapis.com/auth/gmail.send'),
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async createAuthorizationUrl(userId: string) {
     const { clientId, redirectUri } = this.config();
     const rawState = randomBytes(32).toString('hex');
