@@ -4,14 +4,14 @@ import { AuthController } from './auth.controller';
 
 describe('AuthController email verification link', () => {
   const originalFrontendUrl = process.env.FRONTEND_URL;
-  let authService: { verifyEmail: ReturnType<typeof jest.fn> };
+  let authService: { verifyEmail: jest.Mock<(token: string) => Promise<unknown>> };
   let controller: AuthController;
-  let response: { redirect: ReturnType<typeof jest.fn> };
+  let response: { redirect: jest.Mock<(status: number, url: string) => unknown> };
 
   beforeEach(() => {
     process.env.FRONTEND_URL = 'https://usd-russia.ru/';
-    authService = { verifyEmail: jest.fn() };
-    response = { redirect: jest.fn() };
+    authService = { verifyEmail: jest.fn<(token: string) => Promise<unknown>>() };
+    response = { redirect: jest.fn<(status: number, url: string) => unknown>() };
     controller = new AuthController(authService as never);
   });
 
