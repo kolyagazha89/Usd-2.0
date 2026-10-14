@@ -1285,15 +1285,20 @@ export class AuthService {
       },
     });
 
-    await this.mailService.sendPasswordResetEmail(
-      user.email,
-      rawToken,
-    );
+    try {
+      await this.mailService.sendPasswordResetEmail(
+        user.email,
+        rawToken,
+      );
+    } catch {
+      // Keep the response identical for known and unknown accounts.
+      // MailService logs provider failures without exposing them to the caller.
+    }
 
     return {
       success: true,
       message:
-        'Если аккаунт существует, запрос на восстановление обработан. Это сообщение не подтверждает доставку письма; проверьте папку «Спам».',
+        'Если аккаунт существует, запрос на восстановление обработан. Этот ответ не подтверждает доставку письма; проверьте папку «Спам» и попробуйте позже.',
     };
   }
 
