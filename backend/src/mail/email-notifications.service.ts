@@ -113,7 +113,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     });
     for (const user of recipients) {
       const notice: Notice = {
-        eventKey: 'stage-registration-open:' + stage.id + ':' + user.id,
+        eventKey: 'stage-registration-open:' + stage.id + ':' + stage.updatedAt.toISOString() + ':' + user.id,
         type: 'STAGE_REGISTRATION_OPEN',
         recipient: user.email,
         stageId: stage.id,
