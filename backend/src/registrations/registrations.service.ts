@@ -220,6 +220,22 @@ export class RegistrationsService {
         ? request.user.participantId
         : body.participantId;
 
+    if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
+      throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
+    }
+
+    if (!participantId) {
+      throw new BadRequestException(
+        'Для операции требуется профиль участника',
+      );
+    }
+
+    if (!configurationVersionId) {
+      throw new BadRequestException(
+        'Для регистрации необходимо выбрать версию конфигурации автомобиля',
+      );
+    }
+
     if (request.user.role === 'PARTICIPANT') {
       const [legalRow, consentUser] = await Promise.all([
         this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true, contacts: true, footer: true } }),
@@ -246,21 +262,6 @@ export class RegistrationsService {
       }
     }
 
-    if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
-      throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
-    }
-
-    if (!participantId) {
-      throw new BadRequestException(
-        'Для операции требуется профиль участника',
-      );
-    }
-
-    if (!configurationVersionId) {
-      throw new BadRequestException(
-        'Для регистрации необходимо выбрать версию конфигурации автомобиля',
-      );
-    }
 
     if (
       request.user.role === 'PARTICIPANT' &&
