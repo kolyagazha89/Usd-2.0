@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
@@ -59,7 +59,7 @@ export class SiteSettingsService{
     };
   }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
-  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners.filter((partner:any)=>partner.isActive!==false),news:s.news.filter((item:any)=>item.isPublished!==false),legal:{legalApproved:s.legal.legalApproved===true,legalVersion:s.legal.legalApproved===true?(s.legal.legalVersion??null):null,legalApprovedAt:s.legal.legalApproved===true?(s.legal.legalApprovedAt??null):null,ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??'',privacyText:s.legal.legalApproved===true?(s.legal.privacyText??''):'',consentText:s.legal.legalApproved===true?(s.legal.consentText??''):'',termsText:s.legal.legalApproved===true?(s.legal.termsText??''):''}}};}
+  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners.filter((partner:any)=>partner.isActive!==false),news:s.news.filter((item:any)=>item.isPublished!==false),legal:{ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??'',privacyText:s.legal.privacyText??'',consentText:s.legal.consentText??'',termsText:s.legal.termsText??''}}};}
   private mergeRegistration(currentValue: unknown, incomingValue: unknown): Record<string, any> {
     const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
       ? currentValue as Record<string, any> : DEFAULTS.registration;
@@ -99,53 +99,12 @@ export class SiteSettingsService{
   }
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
-    const currentLegal = current.legal as Record<string, any>;
-    const incomingLegal = input.legal && typeof input.legal === 'object'
-      ? input.legal as Record<string, any>
-      : null;
-    let legal: Record<string, any> = currentLegal;
-    if (incomingLegal) {
-      const legalContentKeys = ['ipName', 'inn', 'ogrnip', 'copyrightHolder', 'privacyUrl', 'consentUrl', 'termsUrl', 'rulesUrl', 'privacyText', 'consentText', 'termsText'];
-      const contentChanged = legalContentKeys.some((key) =>
-        Object.prototype.hasOwnProperty.call(incomingLegal, key) && incomingLegal[key] !== currentLegal[key],
-      );
-      legal = { ...currentLegal, ...incomingLegal };
-      if (contentChanged) {
-        // Any edit invalidates the previous approval. The organizer must save
-        // the final text first and explicitly approve it in a separate save.
-        legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
-      } else if (incomingLegal.legalApproved === true && currentLegal.legalApproved !== true) {
-        const contactEmail = (input.contacts as Record<string, any> | undefined)?.email
-          ?? (current.contacts as Record<string, any>).email
-          ?? (input.footer as Record<string, any> | undefined)?.email
-          ?? (current.footer as Record<string, any>).email;
-        const missing = [
-          !String(legal.ipName ?? '').trim() && 'наименование/ФИО оператора',
-          !String(legal.privacyText ?? '').trim() && 'политика обработки данных',
-          !String(legal.consentText ?? '').trim() && 'согласие на обработку данных',
-          !String(legal.termsText ?? '').trim() && 'пользовательское соглашение',
-          !String(contactEmail ?? '').trim() && 'контактный email оператора',
-        ].filter(Boolean);
-        if (missing.length) {
-          throw new BadRequestException('Нельзя утвердить юридические документы: заполните ' + missing.join(', ') + '.');
-        }
-        legal = {
-          ...legal,
-          legalApproved: true,
-          legalApprovedAt: new Date().toISOString(),
-          legalApprovedBy: userId,
-          legalVersion: String(Number(currentLegal.legalVersion ?? 0) + 1),
-        };
-      } else if (incomingLegal.legalApproved === false) {
-        legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
-      }
-    }
     const next={
       branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
       stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
       navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
       social:input.social??current.social,seo:input.seo??current.seo,legal:input.legal??current.legal,
-      footer:input.footer??current.footer,legal,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
+      footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
       catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
     };
     const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
