@@ -10,6 +10,8 @@ describe('MailService Resend delivery', () => {
   const originalSmtpPassword = process.env.SMTP_PASSWORD;
   const originalGmailClientId = process.env.GMAIL_CLIENT_ID;
   const originalGmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
+  const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const originalGmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
   const originalGmailSenderEmail = process.env.GMAIL_SENDER_EMAIL;
 
@@ -22,6 +24,8 @@ describe('MailService Resend delivery', () => {
       SMTP_PASSWORD: originalSmtpPassword,
       GMAIL_CLIENT_ID: originalGmailClientId,
       GMAIL_CLIENT_SECRET: originalGmailClientSecret,
+      GOOGLE_CLIENT_ID: originalGoogleClientId,
+      GOOGLE_CLIENT_SECRET: originalGoogleClientSecret,
       GMAIL_REFRESH_TOKEN: originalGmailRefreshToken,
       GMAIL_SENDER_EMAIL: originalGmailSenderEmail,
     })) {
@@ -95,8 +99,10 @@ describe('MailService Resend delivery', () => {
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASSWORD;
-    process.env.GMAIL_CLIENT_ID = 'test-client-id';
-    process.env.GMAIL_CLIENT_SECRET = 'test-client-secret';
+    delete process.env.GMAIL_CLIENT_ID;
+    delete process.env.GMAIL_CLIENT_SECRET;
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
     process.env.GMAIL_REFRESH_TOKEN = 'test-refresh-token';
     process.env.GMAIL_SENDER_EMAIL = 'usd-sender@example.com';
 
@@ -147,8 +153,10 @@ describe('MailService Resend delivery', () => {
   it('does not silently fall back to SMTP when Gmail configuration is partial', async () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_FROM_EMAIL;
-    process.env.GMAIL_CLIENT_ID = 'test-client-id';
+    delete process.env.GMAIL_CLIENT_ID;
     delete process.env.GMAIL_CLIENT_SECRET;
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    delete process.env.GOOGLE_CLIENT_SECRET;
     delete process.env.GMAIL_REFRESH_TOKEN;
     delete process.env.GMAIL_SENDER_EMAIL;
     delete process.env.SMTP_HOST;
