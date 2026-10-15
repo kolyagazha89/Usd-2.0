@@ -98,7 +98,7 @@ export class NormalizationDryRunService {
         .filter(group => group.variants.length > 1);
     };
 
-    const invalidEmails = users.filter(u => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(clean(u.email)))
+    const invalidEmails = users.filter(u => !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean(u.email)))
       .map(u => ({ userId: u.id, email: u.email, role: u.role, reason: 'Invalid email format' }));
     const emailVariants = groupBy(users.filter(u => clean(u.email)), u => key(u.email))
       .map(group => ({ normalizedEmail: key(group[0].email), accounts: group.map(u => ({ id: u.id, email: u.email, role: u.role })) }))
