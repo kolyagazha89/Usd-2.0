@@ -68,6 +68,7 @@ describe('StagesService rules snapshots', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    siteSettings.getPublishedRulesSnapshot.mockResolvedValue({ revisionId: 'rules-v1', blocks: [{ type: 'paragraph', text: 'Rule v1' }] });
     service = new StagesService(prisma, audit, siteSettings, emailNotifications);
   });
 
