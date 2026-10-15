@@ -186,7 +186,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       return;
     }
     const classItems = registration.classes ?? [];
-    const classes = classItems.map((item: any) => String(item.class?.name ?? '')).filter(Boolean);\n    const bassRaceClasses = classes.filter((name: string) => /^BassRace\\b/i.test(name));\n    const regularClasses = classes.filter((name: string) => !/^BassRace\\b/i.test(name));
+    const classes = classItems.map((item: any) => String(item.class?.name ?? '')).filter(Boolean);
+    const bassRaceClasses = classes.filter((name: string) => /^BassRace\b/i.test(name));
+    const regularClasses = classes.filter((name: string) => !/^BassRace\b/i.test(name));
     const stage = registration.stage ?? {};
     const car = registration.car ?? {};
     const settingsRow = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
@@ -212,7 +214,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         'Автомобиль: ' + ([car.brand, car.model].filter(Boolean).join(' ') || 'не указан'),
         ...(car.registrationNumber ? ['Государственный номер автомобиля: ' + car.registrationNumber] : []),
         'Ваш номер участника на этапе: ' + (registration.participantNumber ?? 'назначается'),
-        'Основные классы (' + regularClasses.length + '): ' + (regularClasses.join(', ') || 'не указаны'),\n        ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\\s*/i, '')).join(', ')] : []),
+        'Основные классы (' + regularClasses.length + '): ' + (regularClasses.join(', ') || 'не указаны'),
+        ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\s*/i, '')).join(', ')] : []),
         ...(classCount > 0 ? ['Оплата участия: ' + amountDue.toLocaleString('ru-RU') + ' ₽ на месте (' + mainClassPrice.toLocaleString('ru-RU') + ' ₽ за основной класс' + (classCount > 1 ? ' + ' + (classCount - 1) + ' доп. × ' + additionalClassPrice.toLocaleString('ru-RU') + ' ₽' : '') + '). Онлайн-регистрация бесплатна.'] : ['Оплата участия: уточняется организатором.']),
         'Управление заявкой: откройте личный кабинет участника на сайте ЮСД.',
       ],
