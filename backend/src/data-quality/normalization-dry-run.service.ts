@@ -80,7 +80,7 @@ export class NormalizationDryRunService {
     const plateGroups = groupBy(cars.filter(c => !/^(автомобиль не указан|не указан|unknown|n\/a|-)$/i.test(clean(c.registrationNumber))),
       c => plateKey(c.registrationCountry, c.registrationNumber))
       .map(group => ({ key: plateKey(group[0].registrationCountry, group[0].registrationNumber), cars: group.map(c => ({ id: c.id, participantId: c.participantId, participant: [c.participant?.lastName, c.participant?.firstName].filter(Boolean).join(' '), brand: c.brand, model: c.model, country: c.registrationCountry, plate: c.registrationNumber })) }));
-    const invalidPlates = cars.filter(c => !isValidRegistrationPlate(String(c.registrationCountry), String(c.registrationNumber)))
+    const invalidPlates = cars.filter(c => !/^(автомобиль не указан|не указан|unknown|n\/a|-)$/i.test(clean(c.registrationNumber)) && !isValidRegistrationPlate(String(c.registrationCountry), String(c.registrationNumber)))
       .map(c => ({ carId: c.id, participantId: c.participantId, participant: [c.participant?.lastName, c.participant?.firstName].filter(Boolean).join(' '), country: c.registrationCountry, plate: c.registrationNumber }));
 
     const variants = (field: 'team' | 'city') => {
@@ -104,7 +104,7 @@ export class NormalizationDryRunService {
 
     const unresolvedImports = importRows.filter(row => row.status !== 'COMMITTED' && row.status !== 'RESOLVED')
       .map(row => ({ id: row.id, importJobId: row.importJobId, type: row.type, rowNumber: row.rowNumber, status: row.status, warnings: row.warnings }));
-    const importNameVariants = new Map<string, { raw: string; rows: Array<{ id: string; importJobId: string; rowNumber: number; status: string }> }>();
+    const importNameVariants = new Map<string, { variants: Set<string>; rows: Array<{ id: string; importJobId: string; rowNumber: number; status: string }> }>();
     for (const row of importRows) {
       const raw = row.rawData && typeof row.rawData === 'object' ? row.rawData as Row : {};
       const normalized = row.normalizedData && typeof row.normalizedData === 'object' ? row.normalizedData as Row : {};
@@ -113,7 +113,9 @@ export class NormalizationDryRunService {
       const display = rawName || normalizedName;
       const k = key(normalizedName || rawName);
       if (!k || !display) continue;
-      const group = importNameVariants.get(k) ?? { raw: normalizedName || rawName, rows: [] };
+      const group = importNameVariants.get(k) ?? { variants: new Set<string>(), rows: [] };
+      group.variants.add(rawName || normalizedName);
+      if (normalizedName) group.variants.add(normalizedName);
       group.rows.push({ id: row.id, importJobId: row.importJobId, rowNumber: row.rowNumber, status: row.status });
       importNameVariants.set(k, group);
     }
@@ -150,7 +152,7 @@ export class NormalizationDryRunService {
         duplicateDirections: directionDuplicates.slice(0, 200),
         duplicateClasses: classDuplicates.slice(0, 200),
         unresolvedImports: unresolvedImports.slice(0, 200),
-        importNameVariantGroups: [...importNameVariants.entries()].filter(([, group]) => group.rows.length > 1).slice(0, 200).map(([normalized, group]) => ({ normalized, rows: group.rows })),
+        repeatedImportedNameGroups: [...importNameVariants.entries()].filter(([, group]) => group.rows.length > 1).slice(0, 200).map(([normalized, group]) => ({ normalized, variants: [...group.variants], rows: group.rows })),
       },
     };
   }
