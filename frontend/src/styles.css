@@ -3205,13 +3205,17 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .qr-scanner-page .qr-scanner-modal{max-width:760px;margin:0 auto}
 
 
-/* Explicit consent controls — never prechecked, readable on desktop and mobile. */
-.consent-stack{display:grid;gap:12px;margin:16px 0;padding:14px;border:1px solid #dedee2;border-radius:10px;background:#fafafa}
-.consent-option{display:flex!important;align-items:flex-start;gap:10px;font-size:13px!important;line-height:1.55;color:#34343a;font-weight:450!important}
-.consent-option input[type="checkbox"]{appearance:auto!important;display:block!important;flex:0 0 17px;width:17px!important;height:17px!important;margin:2px 0 0;accent-color:#ed2638;cursor:pointer}
+/* Explicit consent controls — dark graphite surfaces across login and participant profile. */
+.consent-stack{display:grid;gap:12px;margin:16px 0;padding:14px;border:1px solid #39393f;border-radius:12px;background:linear-gradient(145deg,#19191d,#111114);color:#e2e2e8}
+.consent-stack>strong{color:#fff;font-size:13px}
+.consent-stack>small{color:#9696a1;line-height:1.5}
+.consent-option{display:flex!important;align-items:flex-start;gap:10px;font-size:13px!important;line-height:1.55;color:#dedee5!important;font-weight:450!important}
+.consent-option input[type="checkbox"]{appearance:none!important;-webkit-appearance:none!important;position:relative;display:block!important;flex:0 0 17px;width:17px!important;height:17px!important;min-width:17px!important;min-height:17px!important;margin:2px 0 0!important;padding:0!important;border:1px solid #62626b!important;border-radius:4px!important;background:#242429!important;accent-color:#ed2638;cursor:pointer}
+.consent-option input[type="checkbox"]:checked{background:#e21d2f!important;border-color:#e21d2f!important}
+.consent-option input[type="checkbox"]:checked::before{content:"";position:absolute;left:4px;top:3px;width:7px;height:4px;border:solid #fff;border-width:0 0 2px 2px;transform:rotate(-45deg)}
 .consent-option span{min-width:0}
-.consent-option a{color:#bd1728;text-decoration:underline;text-underline-offset:2px;font-weight:650}
-.registration-rules-consent{margin:14px 0;padding:12px;border:1px solid #dedee2;border-radius:9px;background:#fafafa}
+.consent-option a{color:#ff6572;text-decoration:underline;text-underline-offset:2px;font-weight:650}
+.registration-rules-consent{margin:14px 0;padding:12px;border:1px solid #39393f;border-radius:10px;background:#19191d;color:#dedee5}
 @media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}
 
 /* USD visual system: consistent dark controls across public pages, admin forms, participant portal and login. */
@@ -3654,4 +3658,97 @@ body:has(.modal-backdrop){overflow:hidden!important}
   color: #c7c7cf !important;
   background: #141416 !important;
   border: 1px solid #303036 !important;
+}
+
+/* Public-site regression guard: keep result cards premium and never let shared form styles flatten them. */
+.public-site .public-result-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px !important;
+}
+.public-site .public-result-grid-latest { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.public-site .public-result-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding: 21px 22px 19px !important;
+  border: 1px solid #34353c !important;
+  border-radius: 16px !important;
+  background: radial-gradient(ellipse at 100% 0%, rgba(227,27,45,.10), transparent 45%), linear-gradient(145deg,#1a1b20 0%,#111215 68%,#1b0d10 100%) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2) !important;
+  color: #f4f4f6 !important;
+}
+.public-site .public-result-card::before {
+  display: block !important;
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  width: 3px !important;
+  background: #e31b2d !important;
+  pointer-events: none !important;
+}
+.public-site .public-result-card-top,
+.public-site .public-result-card-bottom { position: relative; z-index: 1; }
+.public-site .public-result-place,
+.public-site .public-result-person strong,
+.public-site .public-result-measure strong { color: #fff !important; }
+.public-site .public-result-class { color: #ff6978 !important; background: #201519 !important; border-color: #593039 !important; }
+.public-site .public-result-measure { margin: 22px 0 17px !important; }
+.public-site .public-result-measure span { color: #ff6572 !important; }
+.public-site .public-result-card-bottom { margin-top: auto; border-top: 1px solid #303137 !important; }
+.public-site .public-result-person span,
+.public-site .public-result-context { color: #a2a3ad !important; }
+.public-site .public-result-arrow { color: #ff6572 !important; border-color: #393a42 !important; background: #19191d !important; }
+.public-site .public-record-card {
+  border: 1px solid #34353c !important;
+  border-radius: 16px !important;
+  background: radial-gradient(ellipse at 100% 0%, rgba(227,27,45,.09), transparent 45%), linear-gradient(145deg,#191a1e,#101114 70%,#1b0d10) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.18) !important;
+}
+.public-site .consent-stack,
+.login-page .consent-stack,
+.participant-portal .consent-stack,
+.public-site .registration-rules-consent,
+.login-page .registration-rules-consent,
+.participant-portal .registration-rules-consent {
+  background: linear-gradient(145deg,#19191d,#111114) !important;
+  color: #dedee5 !important;
+  border-color: #39393f !important;
+}
+.public-site .consent-option,
+.login-page .consent-option,
+.participant-portal .consent-option { color: #dedee5 !important; }
+.public-site .consent-stack>strong,
+.login-page .consent-stack>strong,
+.participant-portal .consent-stack>strong { color: #fff !important; }
+.public-site input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.public-site select,
+.public-site textarea,
+.login-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.login-page select,
+.login-page textarea,
+.participant-portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal select,
+.participant-portal textarea {
+  color: #f4f4f6 !important;
+  background-color: #19191d !important;
+  border-color: #3a3a42 !important;
+  color-scheme: dark !important;
+}
+.public-site input::placeholder,
+.public-site textarea::placeholder,
+.login-page input::placeholder,
+.login-page textarea::placeholder,
+.participant-portal input::placeholder,
+.participant-portal textarea::placeholder { color: #898994 !important; opacity: 1 !important; }
+@media(max-width:760px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: minmax(0,1fr) !important; gap: 10px !important; }
+  .public-site .public-result-card { padding: 18px 18px 16px !important; border-radius: 14px !important; }
+}
+@media(min-width:761px) and (max-width:1050px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
 }
