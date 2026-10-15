@@ -238,7 +238,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
     const registrationSettings = (settings?.registration ?? {}) as Record<string, any>;
     const templates = Array.isArray(registrationSettings.emailTemplates) ? registrationSettings.emailTemplates : [];
-    const template = templates.find((item: any) => item?.trigger === type && item?.enabled !== false);
+    const template = templates.find((item: any) => item?.trigger === type);
     const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — ЮСД', heading, intro: 'Это тестовый экземпляр письма. Он не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' }, logoUrl, template);
     await this.mail.sendNotificationEmail({ to: recipient, subject: message.subject || heading + ' — ЮСД', text: message.text, html: message.html });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
