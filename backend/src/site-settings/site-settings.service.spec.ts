@@ -176,4 +176,43 @@ describe('SiteSettingsService published regulation history', () => {
     expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
   });
 
+  it('normalizes partial registration and full news settings to JSON before Prisma persistence', async () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue({
+          registration: { enabled: true, rulesDocument: { published: null, publishedVersions: [], drafts: [] } },
+          news: [],
+        }),
+        upsert: jest.fn().mockImplementation(async (args: any) => ({ id: 'default', ...args.create })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    const service = new SiteSettingsService(prisma);
+
+    await service.update({
+      registration: { rulesDocument: { published: null, publishedVersions: [], drafts: [{ id: 'draft-1', blocks: [{ type: 'paragraph', text: 'Rules', optional: undefined }] }] } } as any,
+    }, 'admin-1');
+    const registrationData = (prisma as any).siteSettings.upsert.mock.calls[0][0].create.registration;
+    expect(registrationData.rulesDocument.drafts[0].blocks[0]).not.toHaveProperty('optional');
+
+    await service.update({
+      branding: { siteName: 'USD' },
+      homepage: {},
+      stream: {},
+      liveResults: {},
+      navigation: {},
+      contacts: {},
+      social: {},
+      seo: {},
+      legal: {},
+      footer: {},
+      registration: { enabled: true },
+      catalogs: {},
+      partners: [],
+      news: [{ id: 'news-1', title: 'News', body: 'Text', file: undefined }],
+    } as any, 'admin-1');
+    const newsData = (prisma as any).siteSettings.upsert.mock.calls[1][0].create.news;
+    expect(newsData).toEqual([{ id: 'news-1', title: 'News', body: 'Text' }]);
+  });
+
 });

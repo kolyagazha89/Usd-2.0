@@ -3213,3 +3213,66 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .consent-option a{color:#bd1728;text-decoration:underline;text-underline-offset:2px;font-weight:650}
 .registration-rules-consent{margin:14px 0;padding:12px;border:1px solid #dedee2;border-radius:9px;background:#fafafa}
 @media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}
+
+/* USD visual system: consistent dark controls across public pages, admin forms, participant portal and login. */
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
+  color: #f4f4f6;
+  background-color: #151518;
+  border-color: #39393f;
+  color-scheme: dark;
+}
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
+
+/* USD stage summary: replace legacy white KPI tiles and white quick links with the graphite/red visual system. */
+.dashboard-feature { background: #151518 !important; color: #f4f4f6 !important; border: 1px solid #303036 !important; }
+.dashboard-feature:hover { background: #1c1c20 !important; }
+.dashboard-feature .stage-main strong, .dashboard-feature .stage-main span { color: #f4f4f6; }
+.working-stage-summary { border-color: #303036 !important; color: #f4f4f6; }
+.working-summary-kpis > div { background: linear-gradient(145deg,#19191d,#111113) !important; border-color: #34343a !important; color: #f4f4f6 !important; }
+.working-summary-kpis span, .working-summary-block-title, .working-summary-title { color: #a9a9b2 !important; }
+.working-summary-kpis strong { color: #fff !important; }
+.working-summary-kpis small { color: #9b9ba4 !important; }
+.dashboard-stage-card .working-summary-links .working-summary-link { background: #17171a !important; color: #f4f4f6 !important; border-color: #37373e !important; }
+.dashboard-stage-card .working-summary-links .working-summary-link:hover { background: #242428 !important; border-color: #ed2638 !important; color: #fff !important; }
+.dashboard-stage-card .working-summary-links .working-summary-link span { color: #f4f4f6 !important; }
+.dashboard-stage-card .working-summary-links .working-summary-link strong,
+.dashboard-stage-card .working-summary-links .working-summary-link svg { color: #ff6572 !important; }
+.qr-camera-viewport { position: relative; width: 100%; overflow: hidden; border-radius: 14px; background: #050506; border: 1px solid #34343a; aspect-ratio: 4 / 3; display: grid; place-items: center; }
+.qr-camera-viewport video { display: block; width: 100%; height: 100%; max-height: min(62vh,620px); object-fit: cover; }
+.qr-camera-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; pointer-events: none; background: linear-gradient(90deg,#05050630,transparent 22%,transparent 78%,#05050630); }
+.qr-camera-target { position: relative; width: min(62%,280px); aspect-ratio: 1; border: 1px solid #ffffff80; border-radius: 18px; box-shadow: 0 0 0 999px #05050635, 0 0 26px #ed263855; }
+.qr-camera-target span { position: absolute; width: 30px; height: 30px; border-color: #ed2638; border-style: solid; }
+.qr-camera-target span:nth-child(1) { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 10px; }
+.qr-camera-target span:nth-child(2) { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 10px; }
+.qr-camera-target span:nth-child(3) { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 10px; }
+.qr-camera-target span:nth-child(4) { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 10px; }
+.qr-camera-overlay small { background: #09090bd9; color: #f4f4f6; border: 1px solid #ffffff25; border-radius: 999px; padding: 7px 12px; font-size: 12px; }
+@media(max-width:560px){.qr-camera-viewport{aspect-ratio:3/4}.qr-camera-target{width:min(68%,260px)}}
+
+.record-visibility-panel { margin-bottom: 16px; padding: 18px; background: linear-gradient(145deg,#151518,#101012) !important; border: 1px solid #34343a !important; color: #f4f4f6; }
+.record-visibility-panel h2 { margin: 7px 0; color: #fff; }
+.record-visibility-panel p { color: #a9a9b2; margin: 6px 0 0; }
+.record-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; margin-top: 16px; }
+.record-visibility-option { display: flex; align-items: center; gap: 10px; padding: 11px 12px; min-width: 0; border: 1px solid #37373e; border-radius: 10px; background: #19191d; cursor: pointer; }
+.record-visibility-option input { flex: 0 0 auto; accent-color: #ed2638; }
+.record-visibility-option span { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.record-visibility-option strong { color: #f4f4f6; font-size: 13px; }
+.record-visibility-option small { color: #9b9ba4; font-size: 11px; }
+.record-visibility-option.is-disabled { opacity: .6; cursor: not-allowed; }
+.record-visibility-saving { color: #ff6572; font-size: 10px; }
+
+/* Keep helper surfaces and searchable dropdowns on-brand as well, not just native inputs. */
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
