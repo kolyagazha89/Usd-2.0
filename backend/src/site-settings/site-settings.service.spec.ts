@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { jest } from '@jest/globals';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -99,5 +100,30 @@ describe('SiteSettingsService published regulation history', () => {
     const saved = (prisma as any).siteSettings.upsert.mock.calls[0][0].create.registration.rulesDocument;
     expect(saved.published.id).toBe('rules-v2');
     expect(saved.publishedVersions).toContainEqual(oldRevision);
+  });
+
+  it('rejects reusing an archived revision ID to publish altered content', async () => {
+    const archivedRevision = { id: 'rules-v1', fileName: 'old.docx', blocks: [{ type: 'paragraph', text: 'Original rule' }] };
+    const currentRevision = { id: 'rules-v2', fileName: 'current.docx', blocks: [{ type: 'paragraph', text: 'Current rule' }] };
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue({
+          registration: { rulesDocument: { published: currentRevision, publishedVersions: [archivedRevision], drafts: [] } },
+        }),
+        upsert: jest.fn().mockImplementation(async (args: any) => ({ id: 'default', ...args.create })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    const service = new SiteSettingsService(prisma);
+
+    await expect(service.update({
+      registration: {
+        rulesDocument: {
+          published: { ...archivedRevision, blocks: [{ type: 'paragraph', text: 'Tampered archived rule' }] },
+          publishedVersions: [archivedRevision],
+          drafts: [],
+        },
+      } as any,
+    }, 'admin-1')).rejects.toThrow(BadRequestException);
   });
 });
