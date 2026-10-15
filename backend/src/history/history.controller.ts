@@ -10,7 +10,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('history')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
