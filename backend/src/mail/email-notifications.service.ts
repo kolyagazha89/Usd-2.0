@@ -276,7 +276,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         const daysUntil = Math.round((stageDayUtc.getTime() - todayUtc.getTime()) / dayMs);
         if (daysUntil !== 3 && daysUntil !== 1) continue;
         const reminderType = daysUntil === 3 ? 'STAGE_REMINDER_3D' : 'STAGE_REMINDER_1D';
-        const eventKey = reminderType + ':' + stage.id;
+        const eventKey = reminderType + ':' + stage.id + ':' + stageDayUtc.toISOString().slice(0, 10);
         const registrations = await this.prisma.registration.findMany({
           where: { stageId: stage.id, status: 'ACTIVE' },
           include: { participant: { include: { user: true } }, car: true, classes: { include: { class: true } } },
