@@ -3331,3 +3331,44 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .inspection-detail-classes>strong>span { font-weight: 500; }
 .inspection-detail-classes b { color: #a7a7b1; }
 @media(max-width:560px){.participant-registration-full-details dl { grid-template-columns: 1fr; }.participant-registration-full-details .full-details-classes { grid-column: auto; }}
+
+/* Public-facing components use the black/red/white USD palette consistently. */
+.public-site .panel,
+.public-site .card,
+.public-site article,
+.public-site [class*="-card"],
+.public-site [class*="-panel"],
+.participant-portal .panel,
+.participant-portal article,
+.participant-portal [class*="-card"],
+.participant-portal [class*="-panel"],
+.login-page .panel {
+  color: #f4f4f6;
+  background-color: #141416;
+  border-color: #303036;
+}
+.public-site button:not(.primary-button):not(.danger-button):not(.text-button),
+.participant-portal button:not(.primary-button):not(.danger-button):not(.text-button),
+.login-page button:not(.primary-button):not(.danger-button):not(.text-button) {
+  color: #f4f4f6;
+  background-color: #19191d;
+  border-color: #39393f;
+}
+.public-site button:not(.primary-button):not(.danger-button):not(.text-button):hover,
+.participant-portal button:not(.primary-button):not(.danger-button):not(.text-button):hover,
+.login-page button:not(.primary-button):not(.danger-button):not(.text-button):hover {
+  color: #fff;
+  background-color: #26262b;
+  border-color: #ed2638;
+}
+.public-site .primary-button,
+.participant-portal .primary-button,
+.login-page .primary-button { color: #fff; background: #c91f32; border-color: #e52b40; }
+.public-site .primary-button:hover,
+.participant-portal .primary-button:hover,
+.login-page .primary-button:hover { background: #e3263c; border-color: #ff4b5d; }
+.public-site a:not(.primary-button):not(.secondary-button),
+.participant-portal a:not(.primary-button):not(.secondary-button) { color: #ff6572; }
+.public-site input[type="checkbox"],
+.participant-portal input[type="checkbox"],
+.login-page input[type="checkbox"] { accent-color: #ed2638; }
