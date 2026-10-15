@@ -3510,42 +3510,26 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-/* Final admin palette normalization: all ordinary data cards stay in the light workspace. */
-.app-shell .panel,
-.app-shell .card,
-.app-shell article[class*="-card"],
-.app-shell section[class*="-panel"],
-.app-shell [class*="data-card"],
-.app-shell [class*="list-card"],
-.app-shell [class*="table-card"],
-.app-shell [class*="detail-card"] {
-  color: #20242a;
-  background-color: #fff;
-  border-color: #d9dcdf;
+/* Admin is a white workspace throughout, including feature-specific cards introduced by modules. */
+.app-shell [class*="-card"],
+.app-shell [class*="-panel"],
+.app-shell [class*="-tile"] {
+  color: #20242a !important;
+  background-color: #fff !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 2px 8px rgba(9, 10, 11, .025);
 }
-.app-shell .panel p,
-.app-shell .panel label,
-.app-shell .panel dt,
-.app-shell .panel .muted,
-.app-shell article[class*="-card"] p,
-.app-shell article[class*="-card"] label {
+.app-shell [class*="-card"] h1,
+.app-shell [class*="-card"] h2,
+.app-shell [class*="-card"] h3,
+.app-shell [class*="-panel"] h1,
+.app-shell [class*="-panel"] h2,
+.app-shell [class*="-panel"] h3 {
+  color: #17191c !important;
+}
+.app-shell [class*="-card"] p,
+.app-shell [class*="-card"] small,
+.app-shell [class*="-panel"] p,
+.app-shell [class*="-panel"] small {
   color: #555c64;
-}
-.app-shell .panel h1,
-.app-shell .panel h2,
-.app-shell .panel h3,
-.app-shell article[class*="-card"] h1,
-.app-shell article[class*="-card"] h2,
-.app-shell article[class*="-card"] h3 {
-  color: #17191c;
-}
-.app-shell .panel input:not([type="checkbox"]):not([type="radio"]),
-.app-shell .panel select,
-.app-shell .panel textarea,
-.app-shell article[class*="-card"] input:not([type="checkbox"]):not([type="radio"]),
-.app-shell article[class*="-card"] select,
-.app-shell article[class*="-card"] textarea {
-  color: #20242a;
-  background-color: #fff;
-  border-color: #cfd3d7;
 }
