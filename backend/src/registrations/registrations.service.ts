@@ -225,11 +225,11 @@ export class RegistrationsService {
     let consentCapturedByUserId: string | null = null;
 
     const participantId =
-      request.user.role === 'PARTICIPANT'
+      (request.user.role === 'PARTICIPANT' && !request.user.customRoleId)
         ? request.user.participantId
         : body.participantId;
 
-    if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
+    if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && body.rulesAccepted !== true) {
       throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
     }
 
@@ -264,7 +264,7 @@ export class RegistrationsService {
         throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
       }
       consentLegalVersion = version;
-      if (request.user.role === 'PARTICIPANT') {
+      if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId)) {
         const consentUser = await this.prisma.user.findUnique({
           where: { id: request.user.sub },
           select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
@@ -289,7 +289,7 @@ export class RegistrationsService {
     }
 
     if (
-      request.user.role === 'PARTICIPANT' &&
+      (request.user.role === 'PARTICIPANT' && !request.user.customRoleId) &&
       request.user.participantId !== participantId
     ) {
       throw new ConflictException(
@@ -298,7 +298,7 @@ export class RegistrationsService {
     }
 
     if (
-      request.user.role === 'PARTICIPANT' &&
+      (request.user.role === 'PARTICIPANT' && !request.user.customRoleId) &&
       body.source &&
       body.source !== 'PRE_REGISTRATION'
     ) {
@@ -389,7 +389,7 @@ export class RegistrationsService {
           );
         }
 
-        if (request.user.role === 'PARTICIPANT' && !stage.rulesSnapshot) {
+        if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && !stage.rulesSnapshot) {
           throw new BadRequestException('Для регистрации организатор должен опубликовать действующий регламент этапа');
         }
 
