@@ -279,6 +279,28 @@ describe('ResultsService', () => {
     );
   });
 
+  it('rejects a result when the shared participant-stage inspection is FAILED even if a legacy registration inspection passed', async () => {
+    setupCreateTx({
+      registration: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'registration-1',
+          participantId: 'participant-1',
+          stageId: 'stage-1',
+          status: 'ACTIVE',
+          inspection: { status: 'PASSED' },
+          stageInspection: { status: 'FAILED' },
+          stage: { id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED', isDeleted: false },
+        }),
+      },
+    });
+    await expect(service.create({
+      registrationId: 'registration-1',
+      registrationClassId: 'registration-class-1',
+      value: 150,
+      confirmed: true,
+    }, judgeRequest)).rejects.toThrow('Участник не допущен после инспекции: результат недоступен');
+  });
+
   it('allows exactly one result for a registration class', async () => {
     const tx = setupCreateTx({
       result: {
