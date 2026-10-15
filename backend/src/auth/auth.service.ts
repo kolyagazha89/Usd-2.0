@@ -234,9 +234,16 @@ export class AuthService {
   }
 
   async getNewsletterConsent(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true } });
+    const [user, settings] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true } }),
+      this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } }),
+    ]);
     if (!user) throw new NotFoundException('Пользователь не найден');
-    return { consent: Boolean(user.newsletterConsentAt && !user.newsletterConsentRevokedAt), version: user.newsletterConsentVersion, consentAt: user.newsletterConsentAt, revokedAt: user.newsletterConsentRevokedAt, source: user.newsletterConsentSource, revokedSource: user.newsletterConsentRevokedSource };
+    const legal = (settings?.legal ?? {}) as Record<string, any>;
+    const currentVersion = legal.legalApproved === true && String(legal.legalVersion ?? '').trim()
+      ? 'newsletter-v' + String(legal.legalVersion) : null;
+    const consent = Boolean(currentVersion && user.newsletterConsentAt && !user.newsletterConsentRevokedAt && user.newsletterConsentVersion === currentVersion);
+    return { consent, version: user.newsletterConsentVersion, currentVersion, consentAt: user.newsletterConsentAt, revokedAt: user.newsletterConsentRevokedAt, source: user.newsletterConsentSource, revokedSource: user.newsletterConsentRevokedSource };
   }
 
   async updateNewsletterConsent(userId: string, consent: boolean) {
