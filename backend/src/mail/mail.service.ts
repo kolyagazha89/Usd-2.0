@@ -29,9 +29,12 @@ function renderBrandedEmail(input: {
   subject?: string;
   template?: Record<string, any>;
 }): { html: string; text: string; subject: string } {
-  const headingValue = input.heading;
-  const introValue = input.intro;
-  const detailsValue = input.note;
+  const variableTexts = (input.template?.variableTexts && typeof input.template.variableTexts === 'object' ? input.template.variableTexts : {}) as Record<string, unknown>;
+  const headingValue = String(variableTexts.heading ?? '').trim() || input.heading;
+  const introValue = String(variableTexts.intro ?? '').trim() || input.intro;
+  const detailsBefore = String(variableTexts.detailsBefore ?? '').trim();
+  const detailsAfter = String(variableTexts.detailsAfter ?? '').trim();
+  const detailsValue = [detailsBefore, input.note, detailsAfter].filter(Boolean).join('\n');
   const buttonValue = String(input.template?.buttonLabel || input.actionLabel);
   const bodyTemplate = String(input.template?.body || '{{intro}}\n\n{{details}}');
   const footerValue = String(input.template?.footer || 'ЮСД · Звук. Мощность. Характер.');
