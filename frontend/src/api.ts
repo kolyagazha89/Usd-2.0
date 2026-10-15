@@ -165,3 +165,10 @@ export async function uploadRulesDocx(targetId:string,file:File){
   // /media/upload already completes the upload; calling /media/complete again invalidates the consumed token.
   return {url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(targetId)}`,targetId};
 }
+
+export async function createComponentCatalogRequest(body:{category:string;brand:string;model:string;details?:string}){return apiPost<any>('/component-catalog-requests',body);}
+export async function getComponentCatalogRequests(){return apiGet<any>('/component-catalog-requests');}
+export async function approveComponentCatalogRequest(id:string,adminNote?:string){return apiPatch<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/approve',{adminNote});}
+export async function rejectComponentCatalogRequest(id:string,adminNote?:string){return apiPatch<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/reject',{adminNote});}
+
+export async function retryComponentCatalogRequestEmail(id:string){return apiPost<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/retry-email',{});}

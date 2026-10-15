@@ -34,6 +34,7 @@ const CONTROLLER_MODULES: Record<string, string> = {
   GoogleController: 'integrations',
   AssistantController: 'assistant',
   AuthController: 'users',
+  ComponentCatalogRequestsController: 'componentCatalogRequests',
 };
 
 function actionFor(request: Request): PermissionAction {

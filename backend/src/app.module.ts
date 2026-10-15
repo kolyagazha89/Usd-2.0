@@ -28,6 +28,7 @@ import { GoogleModule } from './google/google.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { NormalizationDryRunModule } from './data-quality/normalization-dry-run.module';
+import { ComponentCatalogRequestsModule } from './component-catalog-requests/component-catalog-requests.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { NormalizationDryRunModule } from './data-quality/normalization-dry-run.
     SiteSettingsModule,
     AssistantModule,
     NormalizationDryRunModule,
+    ComponentCatalogRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -31,7 +31,7 @@ const nav=[
  {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
  {section:'Справочники',label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
- {section:'Справочники',label:'Комплектующие',path:'/admin/components',icon:Package,roles:['ADMIN']},
+ {section:'Справочники',label:'Комплектующие и запросы',path:'/admin/components',icon:Package,roles:['ADMIN']},
 
  // Импорт, история и качество данных
  {section:'Импорт и данные',label:'Импорт',path:'/admin/import',icon:FileInput,roles:['ADMIN']},
