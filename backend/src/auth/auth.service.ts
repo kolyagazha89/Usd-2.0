@@ -106,6 +106,8 @@ export class AuthService {
     const legalReady = legal.legalApproved === true
       && Boolean(String(legal.legalVersion ?? '').trim())
       && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.operatorAddress ?? '').trim())
+      && Boolean(String(legal.personalDataEmail ?? '').trim())
       && Boolean(String(legal.privacyText ?? '').trim())
       && Boolean(String(legal.consentText ?? '').trim())
       && Boolean(String(legal.termsText ?? '').trim())
