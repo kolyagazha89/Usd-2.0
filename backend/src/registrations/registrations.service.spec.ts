@@ -22,7 +22,7 @@ describe('RegistrationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {} });
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {}, registration: { rulesDocument: { published: { id: 'rules-v1', blocks: [{ type: 'paragraph', text: 'Общий регламент USD' }] } } } });
     prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: new Date(), privacyConsentVersion: 'privacy-v1', termsAcceptedAt: new Date(), termsVersion: 'terms-v1' });
     service = new RegistrationsService(prisma);
   });
@@ -160,6 +160,13 @@ describe('RegistrationsService', () => {
     ).rejects.toThrow(
       'Выбранная версия конфигурации не принадлежит этому автомобилю',
     );
+  });
+
+  it('rejects participant registration when no general regulation is currently published', async () => {
+    prisma.siteSettings.findUnique.mockResolvedValueOnce({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {}, registration: { rulesDocument: { published: null } } });
+
+    await expect(service.create(participantRequest, requestBody)).rejects.toThrow('действующий общий регламент соревнований');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('creates a registration with an immutable configuration snapshot', async () => {
