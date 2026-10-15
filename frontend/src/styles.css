@@ -3790,3 +3790,223 @@ body:has(.modal-backdrop){overflow:hidden!important}
   border-radius: 0 !important;
   padding: 0 !important;
 }
+
+/* Admin light-surface normalization: keep the sidebar and records workspace unchanged. */
+
+/* Admin light-surface normalization: keep the sidebar and records workspace unchanged. */
+.app-shell:not(:has(.admin-records-page)) .main .stage-number:not(.large),
+.app-shell:not(:has(.admin-records-page)) .main .segmented button.selected,
+.app-shell:not(:has(.admin-records-page)) .main .import-step.active,
+.app-shell:not(:has(.admin-records-page)) .main .settings-tabs button.selected,
+.app-shell:not(:has(.admin-records-page)) .main .asset-preview,
+.app-shell:not(:has(.admin-records-page)) .main .admin-help-icon,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-tabs button.active,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-hero-icon,
+.app-shell:not(:has(.admin-records-page)) .main .placeholder-icon,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-function-result pre,
+.app-shell:not(:has(.admin-records-page)) .main .admin-flow span:first-child,
+.app-shell:not(:has(.admin-records-page)) .main .stage-result-place,
+.app-shell:not(:has(.admin-records-page)) .main .config-car-icon,
+.app-shell:not(:has(.admin-records-page)) .main .config-editor-icon,
+.app-shell:not(:has(.admin-records-page)) .main .config-empty-icon,
+.app-shell:not(:has(.admin-records-page)) .main .config-version,
+.app-shell:not(:has(.admin-records-page)) .main .config-create-button>span,
+.app-shell:not(:has(.admin-records-page)) .main .config-details-hero,
+.app-shell:not(:has(.admin-records-page)) .main .quick-create-head>span,
+.app-shell:not(:has(.admin-records-page)) .main .json-view {
+  background:#f1f3f5 !important;
+  color:#25292d !important;
+  border-color:#d9dcdf !important;
+  box-shadow:none;
+}
+.app-shell:not(:has(.admin-records-page)) .main .stage-number.large {
+  background:#e21d2f !important;
+  color:#fff !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .race-command.primary {
+  background:#e21d2f !important;
+  color:#fff !important;
+  border-color:#e21d2f !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .race-command.primary:hover {
+  background:#b91425 !important;
+  color:#fff !important;
+  border-color:#b91425 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .race-command.primary .race-command-icon {
+  background:#fff !important;
+  color:#e21d2f !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .race-command.primary small {
+  color:#fff !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .race-command.primary span {
+  color:#fff !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .modal-form .save-button {
+  background:#e21d2f !important;
+  color:#fff !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .asset-preview img {
+  background:#f1f3f5 !important;
+}
+
+
+/* Audit pass 2: remove legacy graphite styling still leaking into admin modules. */
+.app-shell:not(:has(.admin-records-page)) .main .data-table th {
+  background:#f1f3f5 !important;
+  color:#4f555c !important;
+  border-bottom:1px solid #d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .global-search-head {
+  background:#f1f3f5 !important;
+  color:#25292d !important;
+  border-bottom-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .global-search-head input {
+  background:transparent !important;
+  color:#25292d !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .global-search-head input::placeholder {
+  color:#777c82 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .row-actions .icon-button:hover {
+  background:#f1f3f5 !important;
+  color:#25292d !important;
+  border-color:#cfd3d7 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature {
+  background:#fff !important;
+  color:#25292d !important;
+  border:1px solid #d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature:hover {
+  background:#f7f8f9 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature .stage-main strong {
+  color:#111214 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature .stage-main span {
+  color:#555b62 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .working-stage-summary {
+  background:#fff !important;
+  color:#25292d !important;
+  border-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis > div {
+  background:#f7f8f9 !important;
+  color:#25292d !important;
+  border-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis span,
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-block-title,
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-title,
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis small {
+  color:#62676e !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis strong {
+  color:#111214 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link {
+  background:#fff !important;
+  color:#34383d !important;
+  border-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link:hover {
+  background:#fff5f6 !important;
+  border-color:#e21d2f !important;
+  color:#25292d !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link span {
+  color:#555b62 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .form-intro,
+.app-shell:not(:has(.admin-records-page)) .main .registration-rules-consent {
+  background:#f7f8f9 !important;
+  border-color:#d9dcdf !important;
+  color:#4f555c !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .form-intro b {
+  color:#25292d !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu {
+  background:#fff !important;
+  border-color:#d9dcdf !important;
+  color:#25292d !important;
+  box-shadow:0 14px 40px rgba(9,10,11,.12) !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu button {
+  color:#25292d !important;
+  background:#fff !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu button:hover {
+  background:#f7f8f9 !important;
+  color:#111214 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu .muted,
+.app-shell:not(:has(.admin-records-page)) .main .field-help {
+  color:#62676e !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-empty,
+.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-note {
+  background:#f7f8f9 !important;
+  border-color:#d9dcdf !important;
+  color:#4f555c !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-note {
+  background:#fff8e8 !important;
+  border-color:#ead59b !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-finding {
+  background:#fff !important;
+  border-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-finding summary {
+  color:#25292d !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-finding summary span {
+  background:#f1f3f5 !important;
+  color:#b91425 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .normalization-finding-list pre,
+.app-shell:not(:has(.admin-records-page)) .main .debug-panel pre,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-data pre {
+  background:#f7f8f9 !important;
+  color:#25292d !important;
+  border-color:#d9dcdf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .assistant-message.user .message-bubble {
+  background:#fff0f2 !important;
+  color:#25292d !important;
+  border-color:#efb8bf !important;
+  box-shadow:none !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .assistant-message.user .message-avatar,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-message.assistant .message-avatar,
+.app-shell:not(:has(.admin-records-page)) .main .assistant-chat-head .assistant-avatar {
+  background:#f1f3f5 !important;
+  color:#34383d !important;
+  box-shadow:none !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .assistant-chat-suggestions button:hover {
+  background:#fff0f2 !important;
+  color:#25292d !important;
+  border-color:#efb8bf !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .audit-entry-icon {
+  background:#f1f3f5 !important;
+  color:#34383d !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .config-details-hero p {
+  color:#62676e !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main .config-version span {
+  opacity:1 !important;
+}
+.app-shell:not(:has(.admin-records-page)) .main input,
+.app-shell:not(:has(.admin-records-page)) .main select,
+.app-shell:not(:has(.admin-records-page)) .main textarea,
+.app-shell:not(:has(.admin-records-page)) .main option {
+  color-scheme:light;
+}
