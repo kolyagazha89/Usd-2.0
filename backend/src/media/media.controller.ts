@@ -54,7 +54,14 @@ export class MediaController {
     const media = await this.mediaService.getPublicMediaFile(targetType, targetId);
     response.setHeader('Content-Type', media.contentType);
     if (media.contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      response.setHeader('Content-Disposition', 'attachment; filename="reglament-usd.docx"');
+      const safeName = targetId.startsWith('legal-document-privacyPolicy-') ? 'usd-privacy-policy.docx'
+        : targetId.startsWith('legal-document-personalDataConsent-') ? 'usd-personal-data-consent.docx'
+        : targetId.startsWith('legal-document-termsOfUse-') ? 'usd-terms-of-use.docx'
+        : targetId.startsWith('legal-document-cookiePolicy-') ? 'usd-cookie-policy.docx'
+        : targetId.startsWith('legal-document-newsletterConsent-') ? 'usd-newsletter-consent.docx'
+        : targetId.startsWith('legal-document-photoProfileConsent-') ? 'usd-photo-profile-consent.docx'
+        : 'reglament-usd.docx';
+      response.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '"');
     }
     response.setHeader('Content-Length', String(media.body.length));
     response.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');

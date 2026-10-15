@@ -144,6 +144,14 @@ export class MediaService {
   }
 
   private async isPublishedRulesDocument(targetId: string) {
+    if (targetId.startsWith('legal-document-')) {
+      const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } });
+      const legal = row?.legal as Record<string, any> | null;
+      const attached = legal?.documents && typeof legal.documents === 'object'
+        ? Object.values(legal.documents).some((document: any) => document?.targetId === targetId)
+        : false;
+      return legal?.legalApproved === true && attached;
+    }
     if (!targetId.startsWith('rules-draft-')) return true;
     const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } });
     const registration = row?.registration as Record<string, any> | null;

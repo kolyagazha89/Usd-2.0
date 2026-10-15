@@ -12,6 +12,7 @@ describe('MediaService media library', () => {
     prisma = {
       mediaUpload: {
         findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       siteSettings: { findUnique: jest.fn().mockResolvedValue({}) },
@@ -28,6 +29,28 @@ describe('MediaService media library', () => {
   afterEach(() => {
     global.fetch = originalFetch;
     jest.restoreAllMocks();
+  });
+
+  it('blocks direct access to a legal DOCX until it is attached and approved', async () => {
+    const targetId = 'legal-document-privacyPolicy-random-id';
+    prisma.siteSettings.findUnique.mockResolvedValue({
+      legal: { legalApproved: false, documents: { privacyPolicy: { targetId } } },
+    });
+
+    await expect(service.getPublicMediaFile(MediaTargetType.SITE_ASSET, targetId))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('blocks legal DOCX that is not attached to the approved version', async () => {
+    const targetId = 'legal-document-privacyPolicy-random-id';
+    prisma.siteSettings.findUnique.mockResolvedValue({
+      legal: { legalApproved: true, documents: {} },
+    });
+
+    await expect(service.getPublicMediaFile(MediaTargetType.SITE_ASSET, targetId))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
   });
 
   it('requires ADMIN to list the unified media library', async () => {

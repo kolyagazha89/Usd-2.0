@@ -11,6 +11,8 @@ describe('SiteSettingsService legal approval gate', () => {
     ipName: 'Организатор USD',
     inn: '0000000000',
     ogrnip: '000000000000000',
+    operatorAddress: 'г. Тюмень, тестовый адрес',
+    personalDataEmail: 'legal@example.com',
     copyrightHolder: 'USD',
     privacyUrl: '/privacy',
     consentUrl: '/consent',

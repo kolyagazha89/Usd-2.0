@@ -69,7 +69,56 @@ export class SiteSettingsService{
     };
   }
   async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
-  async getPublic(){const s=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));return {success:true,settings:{branding:s.branding,homepage:s.homepage,stream:s.stream,liveResults:s.liveResults,navigation:s.navigation,contacts:s.contacts,social:s.social,seo:s.seo,footer:s.footer,registration:{...s.registration,...(s.registration.rulesDocument?{rulesDocument:{published:(s.registration.rulesDocument as any).published??null}}:{})},partners:s.partners.filter((partner:any)=>partner.isActive!==false),news:s.news.filter((item:any)=>item.isPublished!==false),legal:{legalApproved:s.legal.legalApproved===true,legalVersion:s.legal.legalApproved===true?(s.legal.legalVersion??null):null,legalApprovedAt:s.legal.legalApproved===true?(s.legal.legalApprovedAt??null):null,ipName:s.legal.ipName??'',inn:s.legal.inn??'',ogrnip:s.legal.ogrnip??'',copyrightHolder:s.legal.copyrightHolder??'',privacyUrl:s.legal.privacyUrl??'',consentUrl:s.legal.consentUrl??'',termsUrl:s.legal.termsUrl??'',rulesUrl:s.legal.rulesUrl??'',privacyText:s.legal.legalApproved===true?(s.legal.privacyText??''):'',consentText:s.legal.legalApproved===true?(s.legal.consentText??''):'',termsText:s.legal.legalApproved===true?(s.legal.termsText??''):''}}};}
+  async getPublic() {
+    const s = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
+    const legal = s.legal as Record<string, any>;
+    const publicLegalApproved = legal.legalApproved === true
+      && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.operatorAddress ?? '').trim())
+      && Boolean(String(legal.personalDataEmail ?? '').trim())
+      && Boolean(String(legal.privacyText ?? '').trim())
+      && Boolean(String(legal.consentText ?? '').trim())
+      && Boolean(String(legal.termsText ?? '').trim());
+    return {
+      success: true,
+      settings: {
+        branding: s.branding,
+        homepage: s.homepage,
+        stream: s.stream,
+        liveResults: s.liveResults,
+        navigation: s.navigation,
+        contacts: s.contacts,
+        social: s.social,
+        seo: s.seo,
+        footer: s.footer,
+        registration: {
+          ...s.registration,
+          ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
+        },
+        partners: s.partners.filter((partner: any) => partner.isActive !== false),
+        news: s.news.filter((item: any) => item.isPublished !== false),
+        legal: {
+          legalApproved: publicLegalApproved,
+          legalVersion: publicLegalApproved ? (legal.legalVersion ?? null) : null,
+          legalApprovedAt: publicLegalApproved ? (legal.legalApprovedAt ?? null) : null,
+          ipName: legal.ipName ?? '',
+          inn: legal.inn ?? '',
+          ogrnip: legal.ogrnip ?? '',
+          operatorAddress: legal.operatorAddress ?? '',
+          personalDataEmail: legal.personalDataEmail ?? '',
+          copyrightHolder: legal.copyrightHolder ?? '',
+          privacyUrl: legal.privacyUrl ?? '',
+          consentUrl: legal.consentUrl ?? '',
+          termsUrl: legal.termsUrl ?? '',
+          rulesUrl: legal.rulesUrl ?? '',
+          privacyText: publicLegalApproved ? (legal.privacyText ?? '') : '',
+          consentText: publicLegalApproved ? (legal.consentText ?? '') : '',
+          termsText: publicLegalApproved ? (legal.termsText ?? '') : '',
+          documents: publicLegalApproved && legal.documents && typeof legal.documents === 'object' ? legal.documents : {},
+        },
+      },
+    };
+  }
   private mergeRegistration(currentValue: unknown, incomingValue: unknown): Record<string, any> {
     const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
       ? currentValue as Record<string, any> : DEFAULTS.registration;
@@ -128,10 +177,13 @@ export class SiteSettingsService{
       const contactChanged = Boolean(incomingContacts && Object.prototype.hasOwnProperty.call(incomingContacts, 'email') && incomingContacts.email !== current.contacts.email);
       let legal: Record<string, any> = currentLegal;
       if (incomingLegal) {
-        const contentKeys = ['ipName', 'inn', 'ogrnip', 'copyrightHolder', 'privacyUrl', 'consentUrl', 'termsUrl', 'rulesUrl', 'privacyText', 'consentText', 'termsText'];
-        const contentChanged = contactChanged || contentKeys.some((key) =>
-          Object.prototype.hasOwnProperty.call(incomingLegal, key) && incomingLegal[key] !== currentLegal[key],
-        );
+        const contentKeys = ['ipName', 'inn', 'ogrnip', 'operatorAddress', 'personalDataEmail', 'copyrightHolder', 'privacyUrl', 'consentUrl', 'termsUrl', 'rulesUrl', 'privacyText', 'consentText', 'termsText', 'documents'];
+        const contentChanged = contactChanged || contentKeys.some((key) => {
+          if (!Object.prototype.hasOwnProperty.call(incomingLegal, key)) return false;
+          const before = currentLegal[key];
+          const after = incomingLegal[key];
+          return key === 'documents' ? JSON.stringify(before ?? {}) !== JSON.stringify(after ?? {}) : before !== after;
+        });
         legal = { ...currentLegal, ...incomingLegal };
         if (contentChanged) {
           legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
@@ -139,6 +191,8 @@ export class SiteSettingsService{
           const contactEmail = incomingContacts?.email ?? current.contacts.email ?? (input.footer as Record<string, any> | undefined)?.email ?? (current.footer as Record<string, any>).email;
           const missing = [
             !String(legal.ipName ?? '').trim() && 'наименование/ФИО оператора',
+            !String(legal.operatorAddress ?? '').trim() && 'адрес оператора',
+            !String(legal.personalDataEmail ?? '').trim() && 'контакт для обращений по персональным данным',
             !String(legal.privacyText ?? '').trim() && 'политика обработки данных',
             !String(legal.consentText ?? '').trim() && 'согласие на обработку данных',
             !String(legal.termsText ?? '').trim() && 'пользовательское соглашение',
