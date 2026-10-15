@@ -32,3 +32,28 @@ ALTER TABLE "RegistrationClassInspection"
 ADD CONSTRAINT "RegistrationClassInspection_registrationClassId_fkey"
 FOREIGN KEY ("registrationClassId") REFERENCES "RegistrationClass"("id")
 ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Preserve the existing registration-level decision when migrating old BassRace registrations.
+-- New BassRace entries are inspected independently per class/participant number.
+INSERT INTO "RegistrationClassInspection" (
+    "id", "registrationClassId", "status", "checkedByUserId", "createdByUserId",
+    "checkedByName", "checkedAt", "notes", "createdAt", "updatedAt", "legacyId"
+)
+SELECT
+    'legacy-bassrace-' || rc."id",
+    rc."id",
+    i."status",
+    i."checkedByUserId",
+    i."createdByUserId",
+    i."checkedByName",
+    i."checkedAt",
+    i."notes",
+    i."createdAt",
+    i."updatedAt",
+    'legacy-inspection-' || i."id" || '-' || rc."id"
+FROM "RegistrationClass" rc
+JOIN "Inspection" i ON i."registrationId" = rc."registrationId"
+JOIN "Class" c ON c."id" = rc."classId"
+JOIN "Direction" d ON d."id" = c."directionId"
+WHERE regexp_replace(lower(concat_ws(' ', d."name", c."name", c."code")), '[[:space:]_-]', '', 'g') LIKE '%bassrace%'
+ON CONFLICT ("registrationClassId") DO NOTHING;
