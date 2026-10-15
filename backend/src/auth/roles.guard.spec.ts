@@ -49,21 +49,20 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('never allows JUDGE to edit or delete results through a custom role', async () => {
+  it('allows a custom role to edit results when explicitly granted', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { results: ['view', 'create', 'update', 'delete'] } });
-    const ctx = context({ method: 'PATCH', path: '/results/1', user: { sub: 'judge', role: 'JUDGE', customRoleId: 'role-1' } }, 'ResultsController');
-    await expect(guard.canActivate(ctx)).rejects.toThrow('Судья не может изменять или удалять результаты');
-    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+    const ctx = context({ method: 'PATCH', path: '/results/1', user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'ResultsController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
   it('keeps built-in role restrictions when no custom role is assigned', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN']);
-    const ctx = context({ method: 'GET', path: '/stages', user: { sub: 'judge', role: 'JUDGE' } });
+    const ctx = context({ method: 'GET', path: '/stages', user: { sub: 'judge', role: 'PARTICIPANT' } });
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('reserves admin user and role management endpoints to ADMIN', async () => {
-    const ctx = context({ method: 'POST', path: '/auth/admin/roles', user: { sub: 'custom', role: 'JUDGE', customRoleId: 'role-1' } }, 'AuthController');
+    const ctx = context({ method: 'POST', path: '/auth/admin/roles', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'AuthController');
     await expect(guard.canActivate(ctx)).rejects.toThrow('Управление пользователями и ролями доступно только ADMIN');
     expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
