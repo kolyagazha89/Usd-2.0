@@ -28,7 +28,8 @@ describe('ResultsService', () => {
   const judgeRequest: any = {
     user: {
       sub: 'judge-1',
-      role: 'JUDGE',
+      role: 'PARTICIPANT',
+      customRoleId: 'judge-role',
     },
     ip: '127.0.0.1',
   };
