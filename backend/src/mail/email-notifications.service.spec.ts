@@ -100,7 +100,7 @@ describe('EmailNotificationsService', () => {
     expect(mail.sendNotificationEmail).toHaveBeenCalledTimes(1);
     const message = mail.sendNotificationEmail.mock.calls[0][0];
     expect(message.to).toBe('driver@example.com');
-    expect(message.text).toContain('Номер участника: 17');
+    expect(message.text).toContain('Ваш номер участника на этапе: 17');
     expect(message.text).toContain('Limited 2.0');
     expect(message.text).toContain('Оплата участия: 2 000 ₽ на месте');
     expect(message.text).toContain('Государственный номер автомобиля: А123АА72');
