@@ -89,6 +89,20 @@ describe('StagesService rules snapshots', () => {
     expect(emailNotifications.registrationOpened).toHaveBeenCalledWith('stage-1');
   });
 
+  it('refuses to open registration when no general regulation is published', async () => {
+    const stage = {
+      id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED',
+      rulesSnapshot: null, registrationOpen: false,
+      registrationStartsAt: null, registrationEndsAt: null, stageNumber: 1,
+    };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.season.findUnique.mockResolvedValue({ id: 'season-1', status: 'ACTIVE' });
+    siteSettings.getPublishedRulesSnapshot.mockResolvedValueOnce(null);
+
+    await expect(service.update('stage-1', { registrationOpen: true } as any, request)).rejects.toThrow('сначала опубликуйте действующий общий регламент соревнований');
+    expect(prisma.stage.update).not.toHaveBeenCalled();
+  });
+
   it('does not resend stage-opening notifications when an already-open stage is edited', async () => {
     const stage = {
       id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED',
