@@ -38,7 +38,12 @@ function App(){
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
  useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
- useEffect(()=>{if(user?.customRoleId&&path.split('?')[0]==='/admin'){history.replaceState({},'','/admin/stages');setPath('/admin/stages')}},[user,path]);
+ useEffect(()=>{if(user?.customRoleId&&path.split('?')[0]==='/admin'){
+   const permissions=user.customRole?.permissions??{};
+   const destinations:Array<[string,string]>=[['stages','/admin/stages'],['registrations','/admin/registrations'],['inspections','/admin/inspections'],['results','/admin/results'],['participants','/admin/participants'],['cars','/admin/cars'],['configurations','/admin/cars'],['statistics','/admin/statistics'],['records','/admin/records'],['disqualifications','/admin/disqualifications'],['imports','/admin/import'],['historicalResults','/admin/historical-results'],['siteSettings','/admin/site-settings'],['classes','/admin/classes'],['seasons','/admin/seasons'],['media','/admin/media'],['assistant','/admin/assistant']];
+   const destination=destinations.find(([module])=>permissions[module]?.includes('view'))?.[1]??'/admin/stages';
+   history.replaceState({},'',destination);setPath(destination);
+ }},[user,path]);
  useEffect(()=>{if(user?.role==='PARTICIPANT'&&path.startsWith('/login?')){const next=new URLSearchParams(path.split('?')[1]??'').get('next');if(next&&next.startsWith('/participant/register')){history.replaceState({},'',next);setPath(next)}}},[user,path]);
  if(booting)return <Splash/>;
  if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
