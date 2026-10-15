@@ -197,24 +197,19 @@ function selectHomepageResults(rows:any[]){
  const classItem=(row:any)=>row.registrationClass?.class??row.class??row.result?.registrationClass?.class??{};
  const direction=(row:any)=>String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  const classKey=(row:any)=>String(classItem(row)?.id??classItem(row)?.code??classItem(row)?.name??row.className??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
- const winnersByClass=new Map<string,any>();
+ const winnersByStageAndClass=new Map<string,any>();
  for(const row of rows){
   const place=row.place??row.position??row.rank;
   if(place==null||Number(place)!==1)continue;
-  const key=direction(row)+'::'+classKey(row);
-  if(!classKey(row))continue;
-  const previous=winnersByClass.get(key);
-  if(!previous||stageDate(row)>stageDate(previous))winnersByClass.set(key,row);
+  const cls=classKey(row);
+  if(!cls)continue;
+  const stageKey=String(row.registration?.stage?.id??row.stage?.id??row.stageId??row.registration?.stageId??row.registration?.stage?.name??row.stage?.name??stageDate(row));
+  const key=stageKey+'::'+direction(row)+'::'+cls;
+  const previous=winnersByStageAndClass.get(key);
+  if(!previous||stageDate(row)>stageDate(previous))winnersByStageAndClass.set(key,row);
  }
- const winners=[...winnersByClass.values()].sort((a:any,b:any)=>stageDate(b)-stageDate(a));
- const kind=(row:any)=>{
-  const value=direction(row);
-  if(value.includes('BFSPL'))return 'BFSPL';
-  if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
-  if(value.includes('SPL'))return 'SPL';
-  return '';
- };
- return winners.filter((row:any)=>Boolean(kind(row)));
+ // Первые места по каждому классу на каждом этапе; все направления включены.
+ return [...winnersByStageAndClass.values()].sort((a:any,b:any)=>stageDate(b)-stageDate(a));
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
