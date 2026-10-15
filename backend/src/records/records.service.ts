@@ -44,7 +44,7 @@ export class RecordsService {
   }
 
   private isRecordClassExcluded(classItem: any): boolean {
-    const normalize = (value: unknown) => String(value ?? '').trim().toLocaleUpperCase('ru-RU').replace(/[\\s_-]/g, '');
+    const normalize = (value: unknown) => String(value ?? '').trim().toLocaleUpperCase('ru-RU').replace(/[\s_-]/g, '');
     const direction = normalize(classItem?.direction?.name);
     const code = normalize(classItem?.code);
     const name = normalize(classItem?.name);
