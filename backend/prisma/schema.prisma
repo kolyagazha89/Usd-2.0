@@ -459,7 +459,7 @@ model Registration {
   results    Result[]
 
   @@unique([stageId, participantNumber])
-  @@index([stageId, carId])
+  @@unique([stageId, carId])
   @@index([configurationVersionId])
   @@index([participantStageInspectionId])
   @@index([stageId])
