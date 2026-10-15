@@ -3760,3 +3760,33 @@ body:has(.modal-backdrop){overflow:hidden!important}
   color: #f4f4f6 !important;
   border: 1px solid #34343c !important;
 }
+
+
+/* Public results: the card owns the surface; labels and text remain unboxed. */
+.public-site .public-result-card-top,
+.public-site .public-result-card-top > *,
+.public-site .public-result-card-top > *::before,
+.public-site .public-result-card-top > *::after {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.public-site .public-result-card-top .public-result-class {
+  color: #ff6978 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.public-site .public-footer-links,
+.public-site .public-footer-links a,
+.public-site .public-footer-links button,
+.public-site .public-footer-links a:hover,
+.public-site .public-footer-links button:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.public-site .public-footer-links a,
+.public-site .public-footer-links button {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
