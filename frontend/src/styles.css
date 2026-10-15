@@ -3267,3 +3267,12 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .record-visibility-option small { color: #9b9ba4; font-size: 11px; }
 .record-visibility-option.is-disabled { opacity: .6; cursor: not-allowed; }
 .record-visibility-saving { color: #ff6572; font-size: 10px; }
+
+/* Keep helper surfaces and searchable dropdowns on-brand as well, not just native inputs. */
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
