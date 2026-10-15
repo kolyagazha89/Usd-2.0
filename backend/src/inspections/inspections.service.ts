@@ -359,7 +359,14 @@ export class InspectionsService {
     // Backward compatibility for historical participant-stage inspection IDs.
     const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
+      include: {
+        registrations: {
+          select: {
+            results: { select: { id: true } },
+            classes: { select: { results: { select: { id: true } } } },
+          },
+        },
+      },
     });
     if (!current) throw new NotFoundException('Инспекция не найдена');
     this.assertCanEdit(current.createdByUserId ?? current.checkedByUserId, actor);
@@ -386,7 +393,14 @@ export class InspectionsService {
     if (actor.role !== 'ADMIN') throw new ForbiddenException('Удалять проверки может только ADMIN');
     const vehicleInspection = await this.prisma.inspection.findUnique({
       where: { id },
-      include: { registration: { include: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
+      include: {
+        registration: {
+          include: {
+            results: { select: { id: true } },
+            classes: { select: { results: { select: { id: true } } } },
+          },
+        },
+      },
     });
     if (vehicleInspection) {
       if (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length)) {
@@ -403,7 +417,14 @@ export class InspectionsService {
 
     const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
+      include: {
+        registrations: {
+          select: {
+            results: { select: { id: true } },
+            classes: { select: { results: { select: { id: true } } } },
+          },
+        },
+      },
     });
     if (!current) throw new NotFoundException('Инспекция не найдена');
     if (current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
