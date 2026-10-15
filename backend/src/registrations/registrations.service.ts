@@ -255,7 +255,6 @@ export class RegistrationsService {
       const publishedRulesReady = Boolean(publishedRules && Array.isArray(publishedRules.blocks) && publishedRules.blocks.length > 0 && String(publishedRules.id ?? '').trim());
       const publishedRulesVersion = String(publishedRules?.id ?? '');
       const legal = (legalRow?.legal ?? {}) as Record<string, any>;
-      });
       const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
         ?? (legalRow?.footer as Record<string, any> | null)?.email;
       const version = String(legal.legalVersion ?? '');
