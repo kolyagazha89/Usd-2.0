@@ -3580,3 +3580,15 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .participant-portal .participant-stage-stat-card .participant-stage-results>div strong small {
   color: #a7a7b1 !important;
 }
+
+
+/* Public result cards are content blocks, not boxed tiles. */
+.public-site .public-result-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.public-site .public-result-card:before {
+  display: none !important;
+}
