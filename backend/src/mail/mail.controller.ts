@@ -12,7 +12,7 @@ export class MailController {
   async sendTestTrigger(@Body() body: { email?: string; type?: string; stageId?: string }) {
     const email = typeof body?.email === 'string' ? body.email.trim() : '';
     const allowed = ['STAGE_REGISTRATION_OPEN', 'REGISTRATION_CONFIRMED', 'STAGE_REMINDER_3D', 'STAGE_REMINDER_1D'];
-    if (email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new BadRequestException('Укажите корректный email для тестового письма');
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('Укажите корректный email для тестового письма');
     if (!allowed.includes(String(body?.type))) throw new BadRequestException('Укажите один из четырёх поддерживаемых типов триггера');
     const stageId = typeof body?.stageId === 'string' ? body.stageId.trim() : undefined;
     if (stageId && stageId.length > 100) throw new BadRequestException('Некорректный идентификатор этапа');
