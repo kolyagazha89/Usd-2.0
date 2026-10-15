@@ -286,11 +286,190 @@
   color: #a7a7b1 !important;
 }
 
-/* Public result cards are content blocks, not boxed tiles. */
-.public-site .public-result-card {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+/* Do not override public result-card geometry here.
+   The canonical card design lives in styles.css after the public design tokens. */
+
+
+/* FINAL VISUAL CONTRACT — participant configuration workspace and public result cards.
+   This file loads after styles.css, so component-level regressions are fixed here deliberately. */
+.configurations-page-shell,
+.configurations-page-shell .participant-portal-main,
+.configurations-page {
+  color: #f4f4f6 !important;
+  background: #0b0b0d !important;
 }
-.public-site .public-result-card:before { display: none !important; }
+.configurations-page-top,
+.configuration-subpage-header {
+  color: #f4f4f6 !important;
+  border-color: #323237 !important;
+  background: radial-gradient(ellipse at 92% 0%, rgba(227,27,45,.12), transparent 42%), linear-gradient(135deg,#191a1e,#101114 72%) !important;
+}
+.configuration-subpage-header h1,
+.configurations-page-top h1 { color: #fff !important; }
+.configuration-subpage-header p,
+.configurations-page-top p { color: #b6b6bf !important; }
+.configurations-page .config-modal-hero,
+.configurations-page .config-card,
+.configurations-page .config-create-button,
+.configuration-editor-page .config-editor-intro,
+.configuration-editor-page .config-section,
+.configuration-details-page .config-details-hero,
+.configuration-details-page .config-stat-grid > div,
+.configuration-details-page .config-detail-grid .detail-block,
+.configurations-page .config-empty,
+.configuration-editor-page .config-empty {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border-color: #34353c !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configurations-page .config-modal-hero h2,
+.configurations-page .config-card h3,
+.configurations-page .config-card-main h3,
+.configurations-page .config-create-button strong,
+.configuration-editor-page .config-editor-intro strong,
+.configuration-editor-page .config-section-title strong,
+.configuration-details-page .config-details-hero h2,
+.configuration-details-page .config-detail-grid .detail-block strong,
+.configurations-page .config-empty strong,
+.configuration-editor-page .config-empty strong { color: #f7f7f9 !important; }
+.configurations-page .config-modal-hero p,
+.configurations-page .config-card p,
+.configurations-page .config-card-main p,
+.configurations-page .config-count span,
+.configuration-editor-page .config-editor-intro small,
+.configuration-editor-page .config-section-title small,
+.configuration-editor-page .field-help,
+.configuration-editor-page .config-section-empty,
+.configuration-details-page .config-details-hero p,
+.configuration-details-page .config-detail-grid .detail-block span,
+.configurations-page .config-empty span,
+.configuration-editor-page .config-empty span { color: #a5a5af !important; }
+.configurations-page .config-count {
+  color: #fff !important;
+  background: #202026 !important;
+  border-color: #3a3a42 !important;
+}
+.configurations-page .config-count strong { color: #fff !important; }
+.configurations-page .config-version span {
+  color: #ff7882 !important;
+  background: #29161a !important;
+  border: 1px solid #5a3037 !important;
+}
+.configurations-page .config-version b {
+  color: #f4f4f6 !important;
+  background: #242429 !important;
+  border-color: #3a3a42 !important;
+}
+.configuration-editor-page .config-section-icon,
+.configuration-editor-page .config-editor-icon,
+.configuration-details-page .config-editor-icon,
+.configurations-page .config-empty-icon {
+  color: #ff6978 !important;
+  background: #27171b !important;
+  border: 1px solid #513039 !important;
+}
+.configuration-editor-page .config-row { border-color: #303137 !important; }
+.configuration-editor-page .config-row-number { color: #777782 !important; }
+.configuration-editor-page .config-section-empty {
+  color: #a5a5af !important;
+  background: #141417 !important;
+  border: 1px dashed #393940 !important;
+}
+.configuration-editor-page .config-editor-actions {
+  background: rgba(18,18,20,.96) !important;
+  border-color: #34343b !important;
+}
+.configurations-page .config-create-button:hover,
+.configurations-page .config-card:hover {
+  border-color: #5a343b !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.24) !important;
+}
+.configurations-page .config-create-button > span {
+  color: #ff6978 !important;
+  background: #27171b !important;
+  border-color: #513039 !important;
+}
+.configuration-editor-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configuration-editor-page select,
+.configuration-editor-page textarea,
+.configuration-details-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configuration-details-page select,
+.configuration-details-page textarea,
+.configurations-page-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configurations-page-shell select,
+.configurations-page-shell textarea {
+  color: #f4f4f6 !important;
+  background: #19191d !important;
+  border-color: #3a3a42 !important;
+  color-scheme: dark !important;
+}
+.configuration-editor-page input::placeholder,
+.configuration-editor-page textarea::placeholder,
+.configurations-page-shell input::placeholder,
+.configurations-page-shell textarea::placeholder {
+  color: #898994 !important;
+  opacity: 1 !important;
+}
+.configuration-editor-page option,
+.configurations-page-shell option {
+  color: #f4f4f6 !important;
+  background: #151518 !important;
+}
+.configuration-editor-page label,
+.configuration-editor-page .config-section-title,
+.configuration-editor-page .config-row-content,
+.configuration-details-page label { color: #dedee5 !important; }
+.configuration-editor-page .muted,
+.configuration-details-page .muted { color: #a5a5af !important; }
+.configuration-editor-page .config-row .icon-button,
+.configuration-editor-page .config-row .secondary-button,
+.configuration-editor-page .link-editor {
+  color: #dedee5 !important;
+  background-color: #19191d !important;
+  border-color: #36363e !important;
+}
+.configuration-editor-page .link-editor { padding: 10px; border-radius: 10px; }
+.configuration-editor-page .form-error,
+.configurations-page-shell .notice { color: #ff9aa3 !important; }
+.configuration-editor-page .config-editor-actions .primary-button { box-shadow: 0 8px 22px rgba(227,27,45,.16); }
+
+/* Public result card is an interactive component, not a flat row. Keep its entire hierarchy legible. */
+.public-site .public-result-grid { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px !important; }
+.public-site .public-result-grid-latest { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.public-site .public-result-card {
+  display: flex !important; flex-direction: column !important; gap: 0 !important;
+  min-width: 0 !important; position: relative !important; overflow: hidden !important;
+  padding: 21px 22px 19px !important; border: 1px solid #34353c !important; border-radius: 16px !important;
+  background: radial-gradient(ellipse at 100% 0%,rgba(227,27,45,.10),transparent 45%),linear-gradient(145deg,#1a1b20 0%,#111215 68%,#1b0d10 100%) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2) !important; color: #f4f4f6 !important;
+  text-align: left !important; text-decoration: none !important; cursor: pointer;
+}
+.public-site .public-result-card::before {
+  display: block !important; content: "" !important; position: absolute !important;
+  inset: 0 auto 0 0 !important; width: 3px !important; background: #e31b2d !important; pointer-events: none !important;
+}
+.public-site .public-result-card-top,
+.public-site .public-result-card-bottom { position: relative !important; z-index: 1 !important; min-width: 0; }
+.public-site .public-result-place { display: inline-flex; align-items: center; gap: 7px; color: #fff !important; }
+.public-site .public-result-place small { color: #9c9ca7 !important; font-size: 9px; letter-spacing: .13em; }
+.public-site .public-result-class { color: #ff6978 !important; background: #201519 !important; border: 1px solid #593039 !important; border-radius: 999px; }
+.public-site .public-result-measure { margin: 22px 0 17px !important; }
+.public-site .public-result-measure span { color: #ff6572 !important; }
+.public-site .public-result-measure strong,
+.public-site .public-result-person strong { color: #fff !important; }
+.public-site .public-result-person span,
+.public-site .public-result-context { color: #a2a3ad !important; }
+.public-site .public-result-card-bottom { margin-top: auto !important; padding-top: 14px; border-top: 1px solid #303137 !important; }
+.public-site .public-result-arrow { color: #ff6572 !important; border: 1px solid #393a42 !important; background: #19191d !important; }
+.public-site .public-result-card:hover { border-color: #654048 !important; transform: translateY(-2px); box-shadow: 0 16px 36px rgba(0,0,0,.28) !important; }
+.public-site .public-result-card:focus-visible { outline: 2px solid #ed5361 !important; outline-offset: 3px; }
+@media(max-width:760px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: minmax(0,1fr) !important; gap: 10px !important; }
+  .public-site .public-result-card { padding: 18px 18px 16px !important; border-radius: 14px !important; }
+}
+@media(min-width:761px) and (max-width:1050px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+}
