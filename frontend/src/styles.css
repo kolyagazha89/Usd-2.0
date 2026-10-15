@@ -3752,3 +3752,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
   .public-site .public-result-grid,
   .public-site .public-result-grid-latest { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
 }
+
+
+/* Brand marks use a graphite frame too; reserve white only for machine-readable QR contrast. */
+.public-site .public-partner-logo {
+  background: #202026 !important;
+  color: #f4f4f6 !important;
+  border: 1px solid #34343c !important;
+}
