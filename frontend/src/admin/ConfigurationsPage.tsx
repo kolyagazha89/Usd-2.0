@@ -70,7 +70,15 @@ function ConfigListEditor({title,icon:Icon,items,onAdd,onRemove,children}:{title
 }
 
 function cleanConfig(v:any){
- const strip=(x:any):any=>{if(Array.isArray(x))return x.map(strip);if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).filter(([k,val])=>!['id','versionId','configurationId','amplifierId','componentId','version'].includes(k)&&val!==undefined&&val!==null).map(([k,val])=>[k,k==='componentLinks'&&Array.isArray(val)?(val as any[]).filter((link:any)=>String(link.componentId).trim()!=='').map(strip):strip(val)]));return x};
+ // componentLinks.componentId is a zero-based index into audioComponents, not a database ID.
+ // Keep it in the request so the API can remap links to the freshly created component rows.
+ const strip=(x:any,parentKey=''):any=>{
+  if(Array.isArray(x))return x.map(item=>strip(item,parentKey));
+  if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x)
+   .filter(([k,val])=>!['id','versionId','configurationId','amplifierId','version'].includes(k)&&!(k==='componentId'&&parentKey!=='componentLinks')&&val!==undefined&&val!==null)
+   .map(([k,val])=>[k,k==='componentLinks'&&Array.isArray(val)?(val as any[]).filter((link:any)=>String(link.componentId).trim()!=='').map((link:any)=>strip(link,'componentLinks')):strip(val,k)]));
+  return x;
+ };
  return strip(v);
 }
 
