@@ -632,7 +632,7 @@ export class AuthService {
   async findHistoricalProfileCandidates(userId: string, fullName: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, participantId: true, role: true },
+      select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
     });
     if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
       throw new UnauthorizedException('Недействительная учётная запись');
@@ -730,7 +730,7 @@ export class AuthService {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, participantId: true, role: true },
+        select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
       });
       if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
         throw new UnauthorizedException('Недействительная учётная запись');
