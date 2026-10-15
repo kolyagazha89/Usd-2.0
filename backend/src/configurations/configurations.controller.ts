@@ -26,7 +26,7 @@ export class ConfigurationsController {
   // CAR CONFIGURATIONS
   // =========================================================
 
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Get('cars/:carId/configurations')
   findByCar(
     @Req() request: any,
@@ -56,7 +56,7 @@ export class ConfigurationsController {
   // SINGLE CONFIGURATION
   // =========================================================
 
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Get('configurations/:configurationId')
   findOne(
     @Req() request: any,
@@ -98,7 +98,7 @@ export class ConfigurationsController {
   // VERSIONS
   // =========================================================
 
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Get(
     'configurations/:configurationId/versions',
   )
@@ -112,7 +112,7 @@ export class ConfigurationsController {
     );
   }
 
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Get(
     'configurations/:configurationId/versions/:version',
   )
