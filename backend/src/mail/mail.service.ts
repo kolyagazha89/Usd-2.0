@@ -273,6 +273,28 @@ export class MailService {
     await this.sendMessage(message);
   }
 
+  async sendTestAuthTemplate(email: string, type: 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE'): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; type: string; message: string }> {
+    const configs = {
+      AUTH_EMAIL_VERIFICATION: { subject: 'Подтверждение email — ЮСД', heading: 'Подтверждение email', actionLabel: 'Подтвердить email' },
+      AUTH_PASSWORD_RESET: { subject: 'Восстановление пароля — ЮСД', heading: 'Восстановление пароля', actionLabel: 'Восстановить пароль' },
+      AUTH_EMAIL_CHANGE: { subject: 'Подтверждение нового email — ЮСД', heading: 'Подтверждение нового email', actionLabel: 'Подтвердить новый email' },
+    };
+    const config = configs[type];
+    const template = await this.getEmailTemplate(type);
+    const message = renderBrandedEmail({
+      subject: config.subject,
+      template,
+      heading: config.heading,
+      intro: 'Это тестовый экземпляр шаблона из административной панели ЮСД. Он не подтверждает email и не изменяет пароль.',
+      actionLabel: config.actionLabel,
+      actionUrl: this.frontendUrl,
+      note: 'Тестовая ссылка ведёт только на сайт. Настоящий токен аккаунта не создавался.',
+      frontendUrl: this.frontendUrl,
+    });
+    await this.sendMessage({ to: email, ...message });
+    return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
+  }
+
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
     const sentAt = new Date().toISOString();
     const message = renderBrandedEmail({
