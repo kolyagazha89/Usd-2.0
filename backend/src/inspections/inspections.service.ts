@@ -11,7 +11,8 @@ import { PrismaService } from '../prisma/prisma.service';
 type InspectionStatus = 'PASSED' | 'FAILED';
 type Actor = {
   userId: string;
-  role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+  role: 'ADMIN' | 'PARTICIPANT';
+  customRoleId?: string;
   ipAddress?: string;
 };
 
@@ -244,7 +245,7 @@ export class InspectionsService {
   }
 
   async removeClassInspection(id: string, actor: Actor) {
-    if (actor.role !== 'ADMIN') throw new ForbiddenException('Удалять проверки может только ADMIN');
+    
     const current = await this.prisma.registrationClassInspection.findUnique({
       where: { id },
       include: { registrationClass: { include: { results: { select: { id: true } } } } },
@@ -390,7 +391,7 @@ export class InspectionsService {
   }
 
   async remove(id: string, actor: Actor) {
-    if (actor.role !== 'ADMIN') throw new ForbiddenException('Удалять проверки может только ADMIN');
+    
     const vehicleInspection = await this.prisma.inspection.findUnique({
       where: { id },
       include: {
@@ -441,8 +442,8 @@ export class InspectionsService {
 
   private assertCanEdit(ownerId: string | null, actor: Actor) {
     if (actor.role === 'ADMIN') return;
-    if (actor.role !== 'JUDGE' || ownerId !== actor.userId) {
-      throw new ForbiddenException('Судья может изменять только собственные проверки');
+    if (!actor.customRoleId || ownerId !== actor.userId) {
+      throw new ForbiddenException('Пользователь может изменять только собственные проверки');
     }
   }
 
