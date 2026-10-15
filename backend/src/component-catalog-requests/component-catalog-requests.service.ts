@@ -26,7 +26,7 @@ function escapeHtml(value: unknown): string {
 
 @Injectable()
 export class ComponentCatalogRequestsService {
-  private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\\/+$/, '');
+  private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
 
   constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
 
