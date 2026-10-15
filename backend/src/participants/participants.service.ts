@@ -153,7 +153,7 @@ export class ParticipantsService {
   }
 
   async findAllForOperations(request: AuthenticatedRequest) {
-    await this.requireAdminOrJudge(request);
+    await this.requireAdminOrCustomRole(request);
     return this.prisma.participant.findMany({
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: {
@@ -1037,7 +1037,7 @@ export class ParticipantsService {
     participantId: string,
   ) {
     const user =
-      await this.requireAdminOrJudge(request);
+      await this.requireAdminOrCustomRole(request);
 
     return this.findCarsInternal(
       participantId,
@@ -1053,7 +1053,7 @@ export class ParticipantsService {
     request: AuthenticatedRequest,
   ) {
     const user =
-      await this.requireAdminOrJudge(request);
+      await this.requireAdminOrCustomRole(request);
 
     return this.prisma.car.findMany({
       where:
@@ -1823,7 +1823,7 @@ export class ParticipantsService {
     return user;
   }
 
-  private async requireAdminOrJudge(
+  private async requireAdminOrCustomRole(
     request: AuthenticatedRequest,
   ) {
     const user =
@@ -1834,7 +1834,7 @@ export class ParticipantsService {
       !user.customRoleId
     ) {
       throw new ForbiddenException(
-        'Требуются права администратора или судьи',
+        'Требуются права администратора или назначенная операционная роль',
       );
     }
 
