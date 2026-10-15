@@ -883,3 +883,13 @@
   background: rgba(255,255,255,.035) !important;
   border-color: rgba(255,255,255,.085) !important;
 }
+
+
+/* Homepage result class labels should read as plain text, not highlighted chips. */
+.public-site .public-result-class {
+  background: transparent !important;
+  border-color: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-shadow: none !important;
+}
