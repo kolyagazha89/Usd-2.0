@@ -1,3 +1,24 @@
+# Release status update — 2026-10-15
+
+## Recently merged
+
+- **PR #140 / commit `8df7591e47909ebb75005e408fb89e877a435a50`** — homepage latest results are limited to the latest past public stage with published results; no fallback to older stages. CI passed.
+- **PR #138 / commit `6a93d1a8377b9fc99b9a110214400bc640b40ace`** — four stage email triggers (registration opens only to active newsletter opt-ins, successful registration confirmation, 3-day reminder, 1-day reminder), responsive HTML + plain-text templates, idempotency/logging/retry, explicit consent capture, separate newsletter opt-in/revocation, draft legal documents, legal approval gate, registration consent snapshots and published rules revision protection. Backend build/lint/unit/E2E and frontend CI passed. Production API smoke passed on the merge commit; that smoke checks public API/privacy, not email delivery.
+- **PR #141 / commit `a1b89d91421eb1727e659d08257d4764aff921c2`** — enabled homepage News and Partners blocks now render even when there are no published items, with clear empty states. Backend and frontend CI passed.
+
+## Release gates still open
+
+- **Email delivery (#49):** trigger code and CI are complete, but each mail type still needs a real provider send and Inbox/Spam confirmation. Provider acceptance must not be reported as delivery.
+- **Legal approval (#52):** `docs/legal/DRAFTS.md` contains unapproved drafts. The organizer must approve real operator details and texts before these documents are treated as final.
+- **Browser QA:** direct routes/refresh, responsive layout, consent checkboxes/links, profile/car/stage flows, QR camera on HTTPS, role access and admin CRUD still require hands-on browser/device acceptance.
+- **Frontend deploy:** the GitHub workflow's Cloudflare publish step is skipped while `CF_API_TOKEN` / `CF_ACCOUNT_ID` are absent. Do not infer that a successful frontend build means Cloudflare is published.
+- **Production verification:** API smoke passed on the merge commit; independently confirm the exact live backend deployment/migration state and verify frontend serving revision before declaring production rollout complete.
+- **No domain/DNS/routing changes** were intentionally made.
+
+This status is evidence-led: code merged, CI, smoke checks, live deployment, and owner/browser acceptance are distinct states.
+
+---
+
 > **Обновление релизного аудита — 2026-10-14 21:23 UTC.**
 >
 > - **Email/legal PR #138:** code head `7a40b72f98fa8a825f69ea307afef81828c226e1`; Backend CI passed (Prisma generation/migrations, build, lint, 196 unit tests, E2E), Frontend CI passed. The current branch includes all four event triggers, consent source/revocation metadata, the shared USD template across system emails, registration/on-site consent controls and unapproved legal drafts.
