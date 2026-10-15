@@ -76,7 +76,7 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
         <p className="public-stage-rules-notice">Это редакция регламента, сохранённая для этапа «{stageName}». Последующие изменения общего регламента не меняют этот текст.</p>
         <div className="public-rules-rich-document">
           {blocks.map((block, index) => {
-            const text = String(block.text ?? '');
+            const text = 'text' in block ? String(block.text ?? '') : '';
             if (block.type === 'heading') {
               counters.length = 0;
               const level = Math.min(4, Math.max(2, Number(block.level) || 2));
