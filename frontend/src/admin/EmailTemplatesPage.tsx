@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {CheckCircle2,CopyPlus,Mail,Save,Send,Trash2} from 'lucide-react';
 import {apiGet,apiPost,updateSiteSettings} from '../api';
 
@@ -26,6 +26,7 @@ function normalizeTemplate(t:any,i:number):EmailTemplate{return{id:String(t?.id|
 function isActiveDuplicate(list:EmailTemplate[],current:EmailTemplate){return current.enabled&&list.some(t=>t.id!==current.id&&t.enabled&&t.trigger===current.trigger)}
 export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>}){
  const[templates,setTemplates]=useState<EmailTemplate[]>(starterTemplates),[selectedId,setSelectedId]=useState('registration-confirmed'),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[testing,setTesting]=useState(false),[email,setEmail]=useState('kolyagazha89@gmail.com'),[message,setMessage]=useState(''),[error,setError]=useState('');
+ const bodyRef=useRef<HTMLTextAreaElement|null>(null);
  useEffect(()=>{let alive=true;apiGet<any>('/site-settings').then(r=>{if(!alive)return;const raw=r?.settings?.registration?.emailTemplates;if(Array.isArray(raw)&&raw.length){setTemplates(raw.map(normalizeTemplate));if(!raw.some((t:any)=>t.id==='registration-confirmed'))setSelectedId(String(raw[0]?.id||''));}}).catch(e=>{if(alive)setError(e instanceof Error?e.message:'Не удалось загрузить шаблоны')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[]);
  const selected=templates.find(t=>t.id===selectedId)??templates[0];
  const updateSelected=(patch:Partial<EmailTemplate>)=>{if(!selected)return;setTemplates(prev=>prev.map(t=>t.id===selected.id?{...t,...patch}:t));setMessage('');setError('')};
@@ -34,6 +35,17 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
  const save=async()=>{if(!selected)return;setError('');setMessage('');if(!selected.name.trim()||!selected.subject.trim()||!selected.body.trim()){setError('Заполните название, тему и основное тело письма.');return;}if(isActiveDuplicate(templates,selected)){setError('Для этого триггера уже включён другой шаблон. Отключите его перед включением текущего.');return;}setSaving(true);try{await updateSiteSettings({registration:{emailTemplates:templates}});setMessage('Шаблоны сохранены. Новые настройки будут применяться к следующим уведомлениям.');}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить шаблоны')}finally{setSaving(false)}};
  const test=async()=>{if(!selected||!email.trim()){setError('Укажите email для теста.');return;}setError('');setMessage('');setTesting(true);try{const r=await apiPost<any>('/mail/test-trigger',{email:email.trim(),type:selected.trigger});setMessage(r?.message||'Тестовый запрос передан почтовому провайдеру. Проверьте входящие и папку «Спам».')}catch(e){setError(e instanceof Error?e.message:'Не удалось отправить тест')}finally{setTesting(false)}};
  const preview=useMemo(()=>selected?selected.body.replace(/\{\{heading\}\}/g,'Пример уведомления ЮСД').replace(/\{\{intro\}\}/g,'Текст вступления из события.').replace(/\{\{stageName\}\}/g,'USD Winter Cup Краснодар').replace(/\{\{details\}\}/g,'Данные этапа и участия будут подставлены автоматически.'):'',[selected]);
+ const availableVariables=selected?.trigger.startsWith('AUTH_')?[
+  {token:'{{heading}}',label:'Заголовок',description:'Заголовок системного письма.'},
+  {token:'{{intro}}',label:'Вступление',description:'Основной текст события.'},
+  {token:'{{details}}',label:'Дополнительный текст',description:'Пояснение или безопасные детали письма.'},
+ ]:[
+  {token:'{{heading}}',label:'Заголовок',description:'Заголовок уведомления.'},
+  {token:'{{intro}}',label:'Вступление',description:'Текст перед подробностями.'},
+  {token:'{{stageName}}',label:'Название этапа',description:'Название этапа без номера.'},
+  {token:'{{details}}',label:'Подробности',description:'Данные события: этап, автомобиль, номер участника и классы.'},
+ ];
+ const insertVariable=(token:string)=>{const field=bodyRef.current;if(!field||!selected)return;const start=field.selectionStart??selected.body.length;const end=field.selectionEnd??start;const next=selected.body.slice(0,start)+token+selected.body.slice(end);updateSelected({body:next});requestAnimationFrame(()=>{field.focus();const pos=start+token.length;field.setSelectionRange(pos,pos);});};
  if(loading)return <PageFrame title="Шаблоны писем" subtitle="Загрузка шаблонов…"><div className="settings-section">Загружаем настройки писем…</div></PageFrame>;
  return <PageFrame title="Шаблоны писем" subtitle="Полная редакция тем, основного тела и подвалов системных email-уведомлений ЮСД">
   <div className="settings-section">
@@ -48,7 +60,14 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
       <label><span className="field-label">Триггер</span><select value={selected.trigger} onChange={e=>updateSelected({trigger:e.target.value})}>{triggers.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
       <label className="email-template-enabled"><input type="checkbox" checked={selected.enabled} disabled={selected.trigger.startsWith('AUTH_')} onChange={e=>updateSelected({enabled:e.target.checked})}/><span><strong>{selected.trigger.startsWith('AUTH_')?'Обязательное системное письмо':'Шаблон включён'}</strong><small className="field-help">{selected.trigger.startsWith('AUTH_')?'Письма подтверждения и восстановления нельзя отключить, чтобы участники не потеряли доступ к аккаунту.':'Для триггера должен быть включён только один шаблон.'}</small></span></label>
       <label className="email-template-wide"><span className="field-label">Тема письма</span><input value={selected.subject} maxLength={240} onChange={e=>updateSelected({subject:e.target.value})}/></label>
-      <label className="email-template-wide"><span className="field-label">Основное тело письма</span><textarea rows={8} value={selected.body} onChange={e=>updateSelected({body:e.target.value})}/><small className="field-help">Доступные переменные: <code>{'{{heading}}'}</code>, <code>{'{{intro}}'}</code>, <code>{'{{stageName}}'}</code>, <code>{'{{details}}'}</code>. Для писем аккаунта details — пояснение о безопасности ссылки. Строки сохраняются; детали этапа подставляются из события.</small></label>
+      <div className="email-template-wide">
+       <label><span className="field-label">Основное тело письма</span><textarea ref={bodyRef} rows={8} value={selected.body} onChange={e=>updateSelected({body:e.target.value})}/></label>
+       <div className="email-variable-tools">
+        <span className="field-label">Вставить переменную в место курсора</span>
+        <div className="email-variable-chips">{availableVariables.map(v=><button key={v.token} type="button" className="secondary-button email-variable-chip" title={v.description} onClick={()=>insertVariable(v.token)}><span>{v.label}</span><code>{v.token}</code></button>)}</div>
+        <small className="field-help">Нажмите на переменную — она вставится в место курсора. Можно переставлять переменные и обычный текст как угодно. Используйте только кнопки из этого списка: неизвестные имена система не подставит. HTML и скрипты не исполняются.</small>
+       </div>
+      </div>
       <label><span className="field-label">Текст кнопки</span><input value={selected.buttonLabel} maxLength={80} onChange={e=>updateSelected({buttonLabel:e.target.value})}/></label>
       <label className="email-template-wide"><span className="field-label">Подвал письма</span><textarea rows={4} value={selected.footer} onChange={e=>updateSelected({footer:e.target.value})}/><small className="field-help">Системная ссылка управления рассылкой остаётся отдельной в нижней полосе письма.</small></label>
      </div>
@@ -58,6 +77,6 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
    </div>
    {error&&<div className="notice" role="alert">{error}</div>}{message&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{message}</span></div>}
   </div>
-  <div className="settings-section"><PanelTitle title="Как работают переменные" icon={Mail}/><ul className="mail-test-steps"><li><strong>{'{{intro}}'}</strong> — вступительный текст конкретного уведомления.</li><li><strong>{'{{stageName}}'}</strong> — название этапа. </li><li><strong>{'{{details}}'}</strong> — данные этапа, автомобиля, номера участника и классов; в HTML-письме отображаются аккуратным списком.</li><li><strong>{'{{heading}}'}</strong> — заголовок события. HTML и скрипты не исполняются: содержимое безопасно экранируется перед отправкой.</li></ul></div>
+  <div className="settings-section"><PanelTitle title="Как работают переменные" icon={Mail}/><p className="settings-help">Переменные — это метки, которые система заменяет реальными данными в момент отправки. Их не нужно редактировать вручную: вставляйте кнопками над полем письма.</p><ul className="mail-test-steps"><li><strong>{'{{heading}}'}</strong> — заголовок текущего уведомления.</li><li><strong>{'{{intro}}'}</strong> — вступительный текст конкретного уведомления.</li><li><strong>{'{{stageName}}'}</strong> — название этапа без номера; доступно для писем о соревнованиях.</li><li><strong>{'{{details}}'}</strong> — подробности события. В подтверждении регистрации сюда попадают данные участия и классы, включая BassRace.</li></ul><p className="settings-help">Безопасность: текстовые значения экранируются, HTML и скрипты не исполняются. Системные ссылки и кнопка действия управляются отдельно и не теряются при редактировании тела письма.</p></div>
  </PageFrame>;
 }
