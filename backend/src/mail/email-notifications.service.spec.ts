@@ -4,6 +4,7 @@ import { EmailNotificationsService } from './email-notifications.service';
 describe('EmailNotificationsService', () => {
   const prisma: any = {
     stage: { findFirst: jest.fn(), findMany: jest.fn() },
+    siteSettings: { findUnique: jest.fn() },
     user: { findMany: jest.fn(), findFirst: jest.fn() },
     registration: { findMany: jest.fn() },
     emailNotificationLog: {
@@ -18,6 +19,7 @@ describe('EmailNotificationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.siteSettings.findUnique.mockResolvedValue({ branding: { logoUrl: '/media/public-file/SITE_ASSET/branding-logoUrl' }, registration: { price: 2000, additionalClassPrice: 2000 } });
     service = new EmailNotificationsService(prisma, mail);
     prisma.emailNotificationLog.findUnique.mockResolvedValue(null);
     prisma.emailNotificationLog.create.mockResolvedValue({
@@ -85,8 +87,8 @@ describe('EmailNotificationsService', () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'user-1', email: 'driver@example.com' });
     const registration = {
       id: 'reg-1', participantId: 'participant-1', participantNumber: 17,
-      stageId: 'stage-1', stage: { id: 'stage-1', name: 'Этап 1', date: new Date('2026-11-10T10:00:00Z'), city: 'Тюмень' },
-      car: { brand: 'Lada', model: '<script>' },
+      stageId: 'stage-1', stage: { id: 'stage-1', name: 'Этап 1', stageNumber: 4, date: new Date('2026-11-10T10:00:00Z'), city: 'Тюмень', venue: 'Площадка', address: 'ул. Примерная, 1' },
+      car: { brand: 'Lada', model: '<script>', registrationNumber: 'А123АА72' },
       classes: [{ class: { name: 'Limited 2.0' } }],
     };
 
@@ -100,6 +102,9 @@ describe('EmailNotificationsService', () => {
     expect(message.to).toBe('driver@example.com');
     expect(message.text).toContain('Номер участника: 17');
     expect(message.text).toContain('Limited 2.0');
+    expect(message.text).toContain('Оплата участия: 2 000 ₽ на месте');
+    expect(message.text).toContain('Государственный номер автомобиля: А123АА72');
+    expect(message.html).toContain('branding-logoUrl');
     expect(message.html).toContain('&lt;script&gt;');
     expect(message.html).not.toContain('<li style="margin:0 0 8px"><script>');
   });
