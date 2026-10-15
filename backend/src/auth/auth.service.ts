@@ -978,7 +978,7 @@ export class AuthService {
     return this.adminGetUser(targetUserId);
   }
 
-  async adminListUsers(search?: string, role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT') {
+  async adminListUsers(search?: string, role?: 'ADMIN' | 'PARTICIPANT') {
     return this.prisma.user.findMany({
       where: {
         ...(role ? { role } : {}),
@@ -1026,7 +1026,7 @@ export class AuthService {
   async adminCreateUser(
     email: string,
     password: string,
-    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    role: 'ADMIN' | 'PARTICIPANT',
     actorUserId: string,
     ipAddress?: string,
   ) {
@@ -1137,7 +1137,7 @@ export class AuthService {
 
   async adminSetRole(
     targetUserId: string,
-    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    role: 'ADMIN' | 'PARTICIPANT',
     actorUserId: string,
     ipAddress?: string,
   ) {
