@@ -116,9 +116,13 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     });
     if (claim.count !== 1) return;
     const logoUrl = await this.getLogoUrl().catch(() => null);
-    const rendered = this.render(notice, logoUrl);
+    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
+    const registrationSettings = (settings?.registration ?? {}) as Record<string, any>;
+    const templates = Array.isArray(registrationSettings.emailTemplates) ? registrationSettings.emailTemplates : [];
+    const template = templates.find((item: any) => item?.trigger === notice.type && item?.enabled !== false);
+    const rendered = this.render(notice, logoUrl, template);
     try {
-      await this.mail.sendNotificationEmail({ to: notice.recipient, subject: notice.subject, ...rendered });
+      await this.mail.sendNotificationEmail({ to: notice.recipient, subject: rendered.subject || notice.subject, text: rendered.text, html: rendered.html });
       await this.prisma.emailNotificationLog.update({
         where: { id: log.id },
         data: { status: 'PROVIDER_ACCEPTED', providerAcceptedAt: new Date(), attempts: { increment: 1 }, lastError: null },
