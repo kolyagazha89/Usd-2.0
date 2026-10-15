@@ -84,6 +84,8 @@ export class SiteSettingsService{
       && Boolean(String(legal.privacyText ?? '').trim())
       && Boolean(String(legal.consentText ?? '').trim())
       && Boolean(String(legal.termsText ?? '').trim());
+    const publicRegistration = { ...s.registration } as Record<string, any>;
+    delete publicRegistration.emailTemplates;
     return {
       success: true,
       settings: {
@@ -98,7 +100,7 @@ export class SiteSettingsService{
         footer: s.footer,
         catalogs: s.catalogs,
         registration: {
-          ...s.registration,
+          ...publicRegistration,
           ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
         },
         partners: s.partners.filter((partner: any) => partner.isActive !== false),
