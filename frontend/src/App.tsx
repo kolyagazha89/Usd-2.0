@@ -216,9 +216,9 @@ function selectHomepageResults(rows:any[]){
  }
  const winners=[...grouped.values()].map((items:any[])=>{
   const firstPlaces=items.filter((row:any)=>placeOf(row)===1);
-  return (firstPlaces.length?firstPlaces:items).slice().sort(byMeasurement)[0];
- });
- // Show one winner per class, ordered by the size of the winning measurement.
+  return firstPlaces.slice().sort(byMeasurement)[0]??null;
+ }).filter(Boolean);
+ // Only first-place results qualify; show one winner per class, sorted by measurement.
  return winners.sort(byMeasurement).slice(0,6);
 }
 function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'|'stage';go?:(path:string)=>void}){
