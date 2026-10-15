@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {AlertTriangle,Check,ChevronLeft,ChevronRight,Info,Loader2,Pencil,Trash2} from 'lucide-react';
-import {isValidInternationalPhone,isValidPlate} from '../profile-validation';
+import {formatPlateInput,formatRussianPhoneInput,isValidInternationalPhone,isValidPlate} from '../profile-validation';
 
 type Field={name:string;label:string;type?:string;required?:boolean;options?:string[];optionsPath?:string;optionLabel?:(item:any)=>string;placeholder?:string;help?:string};
 
