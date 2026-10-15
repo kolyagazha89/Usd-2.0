@@ -41,6 +41,8 @@ describe('SiteSettingsService.getPublic', () => {
       ipName: 'USD Russia',
       inn: '1234567890',
       ogrnip: '',
+      operatorAddress: '',
+      personalDataEmail: '',
       copyrightHolder: '',
       privacyUrl: '',
       consentUrl: '',
