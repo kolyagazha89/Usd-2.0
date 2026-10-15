@@ -9,9 +9,13 @@ describe('InspectionsService', () => {
     id: 'registration-1',
     participantId: 'participant-1',
     stageId: 'stage-1',
+    carId: 'car-1',
     status: 'ACTIVE',
     stage: { isDeleted: false, status: 'PUBLISHED' },
     inspection: null,
+    stageInspection: null,
+    results: [],
+    classes: [],
   };
   const existing = {
     id: 'inspection-1',
@@ -24,6 +28,7 @@ describe('InspectionsService', () => {
     checkedByUserId: 'judge-1',
     registration: {
       results: [],
+      classes: [],
     },
   };
   let prisma: any;
@@ -68,7 +73,7 @@ describe('InspectionsService', () => {
       actor,
     );
     expect(result.status).toBe('FAILED');
-    expect(tx.participantStageInspection.create).toHaveBeenCalledWith(expect.objectContaining({
+    expect(tx.inspection.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         status: 'FAILED',
         createdByUserId: actor.userId,
@@ -76,24 +81,21 @@ describe('InspectionsService', () => {
       }),
     }));
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ action: 'PARTICIPANT_STAGE_INSPECTION_CREATED', entityId: 'inspection-new' }),
+      data: expect.objectContaining({ action: 'VEHICLE_INSPECTION_CREATED', entityId: 'inspection-new' }),
     }));
   });
 
-  it('blocks a failed shared inspection when any registration or class already has a result', async () => {
-    tx.registration.findMany.mockResolvedValue([
-      { results: [{ id: 'result-1' }], classes: [{ results: [] }] },
-      { results: [], classes: [{ results: [{ id: 'result-2' }] }] },
-    ]);
+  it('blocks a failed vehicle inspection when this registration or one of its classes already has a result', async () => {
+    tx.registration.findUnique.mockResolvedValue({ ...registration, results: [{ id: 'result-1' }], classes: [] });
     await expect(service.create(
       { registrationId: 'registration-1', status: 'FAILED', notes: 'Проблема с электрикой' },
       actor,
     )).rejects.toBeInstanceOf(ConflictException);
-    expect(tx.participantStageInspection.create).not.toHaveBeenCalled();
+    expect(tx.inspection.create).not.toHaveBeenCalled();
   });
 
   it('rejects a second inspection for the same registration', async () => {
-    tx.participantStageInspection.findUnique.mockResolvedValue(existing);
+    tx.registration.findUnique.mockResolvedValue({ ...registration, inspection: existing });
     await expect(service.create(
       { registrationId: 'registration-1', status: 'PASSED' },
       actor,
@@ -102,10 +104,10 @@ describe('InspectionsService', () => {
 
   it('allows a judge to edit their own inspection and records before/after state', async () => {
     await service.update('inspection-1', { status: 'FAILED', notes: 'Проверить электропроводку' }, actor);
-    expect(tx.participantStageInspection.update).toHaveBeenCalled();
+    expect(tx.inspection.update).toHaveBeenCalled();
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        action: 'PARTICIPANT_STAGE_INSPECTION_UPDATED',
+        action: 'VEHICLE_INSPECTION_UPDATED',
         metadata: expect.objectContaining({
           before: expect.objectContaining({ status: 'PASSED' }),
           after: expect.objectContaining({ status: 'FAILED' }),
@@ -115,27 +117,28 @@ describe('InspectionsService', () => {
   });
 
   it('does not allow a judge to edit another judge’s inspection', async () => {
-    prisma.participantStageInspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2', registrations: [] });
+    prisma.inspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2' });
     await expect(service.update('inspection-1', { status: 'PASSED' }, actor))
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('allows an admin to edit another judge’s inspection', async () => {
-    prisma.participantStageInspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2', registrations: [] });
+    prisma.inspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2' });
     await service.update('inspection-1', { status: 'PASSED' }, { ...actor, userId: 'admin-1', role: 'ADMIN' });
-    expect(tx.participantStageInspection.update).toHaveBeenCalled();
+    expect(tx.inspection.update).toHaveBeenCalled();
   });
 
   it('allows deletion only for ADMIN', async () => {
     await expect(service.remove('inspection-1', actor)).rejects.toBeInstanceOf(ForbiddenException);
     await service.remove('inspection-1', { ...actor, userId: 'admin-1', role: 'ADMIN' });
-    expect(tx.participantStageInspection.delete).toHaveBeenCalledWith({ where: { id: 'inspection-1' } });
+    expect(tx.inspection.delete).toHaveBeenCalledWith({ where: { id: 'inspection-1' } });
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ action: 'PARTICIPANT_STAGE_INSPECTION_DELETED' }),
+      data: expect.objectContaining({ action: 'VEHICLE_INSPECTION_DELETED' }),
     }));
   });
 
   it('returns not found for a missing inspection', async () => {
+    prisma.inspection.findUnique.mockResolvedValue(null);
     prisma.participantStageInspection.findUnique.mockResolvedValue(null);
     await expect(service.update('missing', { status: 'PASSED' }, actor))
       .rejects.toBeInstanceOf(NotFoundException);

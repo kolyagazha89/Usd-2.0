@@ -5,18 +5,46 @@ import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 
 function isPastStageCalendar(s:any){if(!s)return false;if(s.status==='COMPLETED'||s.status==='CANCELLED')return true;if(!s.date)return false;const d=new Date(s.date),today=new Date();d.setHours(0,0,0,0);today.setHours(0,0,0,0);return d.getTime()<today.getTime()}
 
+function inspectionClassGroups(registration:any){
+ const groups=new Map<number,Map<string,any[]>>();
+ const entries=(registration?.classes??[]).slice().sort((a:any,b:any)=>{
+  const na=Number(a.number?.number??registration.participantNumber??0),nb=Number(b.number?.number??registration.participantNumber??0);
+  if(na!==nb)return na-nb;
+  const da=a.class?.direction??{},db=b.class?.direction??{};
+  const directionOrder=Number(da.sortOrder??0)-Number(db.sortOrder??0);
+  if(directionOrder)return directionOrder;
+  const nameA=String(a.class?.name??a.name??''),nameB=String(b.class?.name??b.name??'');
+  const bass=/bass\s*[-_]?\s*race/i.test(String(da.name??'')+' '+nameA)&&/bass\s*[-_]?\s*race/i.test(String(db.name??'')+' '+nameB);
+  if(bass){const n=(v:string)=>Number(v.match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',','.'))||Number.MAX_SAFE_INTEGER;return n(nameA)-n(nameB)||nameA.localeCompare(nameB,'ru',{numeric:true});}
+  return Number(a.class?.sortOrder??0)-Number(b.class?.sortOrder??0)||nameA.localeCompare(nameB,'ru',{numeric:true});
+ });
+ for(const item of entries){
+  const number=Number(item.number?.number??registration.participantNumber??0);
+  const direction=String(item.class?.direction?.name??'Без направления');
+  if(!groups.has(number))groups.set(number,new Map());
+  const directions=groups.get(number)!;
+  if(!directions.has(direction))directions.set(direction,[]);
+  directions.get(direction)!.push(item);
+ }
+ return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([number,directions])=>({number,directions:[...directions.entries()].map(([name,items])=>({name,items}))}));
+}
+function InspectionClassGroups({groups,compact=false}:{groups:any[];compact?:boolean}){
+ if(!groups.length)return <span>—</span>;
+ return <div className={'inspection-number-class-groups'+(compact?' is-compact':'')}>{groups.map(group=><section className="inspection-number-class-group" key={group.number}><strong className="inspection-number-title">№ {String(group.number||0).padStart(3,'0')}</strong>{group.directions.map((direction:any)=><div className="inspection-class-direction" key={direction.name}><span>{direction.name}</span><b>{direction.items.map((item:any)=>item.class?.name||item.name).join(', ')}</b></div>)}</section>)}</div>;
+}
 function InspectionRow({registration:r,onOpen,readOnly,displayCarName}:{registration:any;onOpen:()=>void;readOnly:boolean;displayCarName:(car:any,fallback?:string)=>string}){
- const classGroups=Object.entries((r.classes??[]).reduce((acc:any,x:any)=>{const direction=x.class?.direction?.name||'Без направления';const name=x.class?.name||x.name;if(name)(acc[direction]??=[]).push(name);return acc},{} as Record<string,string[]>));
- const inspection=r.inspection,status=inspection?.status;
+ const classGroups=inspectionClassGroups(r);
+ const inspection=r.inspection??r.stageInspection,status=inspection?.status;
  const numbers=(r.numbers??[]).map((x:any)=>x.number).filter((x:any)=>x!==null&&x!==undefined).join(', ');
- return <tr className="clickable-row" onClick={onOpen}><td data-label="№"><strong>{numbers||r.participantNumber||'—'}</strong></td><td data-label="Участник"><strong>{[r.participant?.lastName,r.participant?.firstName].filter(Boolean).join(' ')}</strong>{r.participant?.team&&<small className="table-sub">{r.participant.team}</small>}</td><td data-label="Автомобиль"><strong>{displayCarName(r.car)}</strong>{r.car?.registrationNumber&&<small className="table-sub">{r.car.registrationNumber}</small>}{r.cars?.length>1&&<small className="table-sub">+ ещё {r.cars.length-1} авто</small>}</td><td data-label="Классы"><div className="inspection-class-groups">{classGroups.length?classGroups.map(([direction,names])=><div key={direction}><strong>{direction}</strong><span>{(names as string[]).join(', ')}</span></div>):'—'}</div></td><td data-label="Инспекция">{status==='PASSED'?<span className="badge good"><Check size={11}/>Прошёл</span>:status==='FAILED'?<span className="badge bad"><X size={11}/>Не прошёл</span>:<span className="badge">Ожидает</span>}</td><td data-label="Действие" className="row-actions" onClick={e=>e.stopPropagation()}><button className="secondary-button compact" onClick={onOpen}>{readOnly?'Подробнее':'Открыть'}<ChevronRight size={14}/></button></td></tr>;
+ return <tr className="clickable-row" onClick={onOpen}><td data-label="№"><strong>{numbers||r.participantNumber||'—'}</strong></td><td data-label="Участник"><strong>{[r.participant?.lastName,r.participant?.firstName].filter(Boolean).join(' ')}</strong>{r.participant?.team&&<small className="table-sub">{r.participant.team}</small>}</td><td data-label="Автомобиль"><strong>{displayCarName(r.car)}</strong>{r.car?.registrationNumber&&<small className="table-sub">{r.car.registrationNumber}</small>}{r.cars?.length>1&&<small className="table-sub">+ ещё {r.cars.length-1} авто</small>}</td><td data-label="Классы"><InspectionClassGroups groups={classGroups} compact/></td><td data-label="Инспекция">{status==='PASSED'?<span className="badge good"><Check size={11}/>Прошёл</span>:status==='FAILED'?<span className="badge bad"><X size={11}/>Не прошёл</span>:<span className="badge">Ожидает</span>}</td><td data-label="Действие" className="row-actions" onClick={e=>e.stopPropagation()}><button className="secondary-button compact" onClick={onOpen}>{readOnly?'Подробнее':'Открыть'}<ChevronRight size={14}/></button></td></tr>;
 }
 function InspectionDetailPage({registration:r,user,readOnly,onBack,onSaved,displayCarName}:{registration:any;user:User;readOnly:boolean;onBack:()=>void;onSaved:()=>Promise<void>;displayCarName:(car:any,fallback?:string)=>string}){
  const[busy,setBusy]=useState(false),[error,setError]=useState(''),[noteOpen,setNoteOpen]=useState(false),[notes,setNotes]=useState(r.inspection?.notes??'');
- const inspection=r.inspection,status=inspection?.status,canEdit=!readOnly&&(!inspection||(user.role==='ADMIN'||inspection.checkedByUserId===user.id||inspection.createdByUserId===user.id));
- const classes=Object.entries((r.classes??[]).reduce((acc:any,x:any)=>{const direction=x.class?.direction?.name||'Без направления';const name=x.class?.name||x.name;if(name)(acc[direction]??=[]).push(name);return acc},{} as Record<string,string[]>));
+ const inspection=r.inspection??r.stageInspection,status=inspection?.status,canEdit=!readOnly&&(!inspection||(user.role==='ADMIN'||inspection.checkedByUserId===user.id||inspection.createdByUserId===user.id));
+ const classes=inspectionClassGroups(r);
+ const assignedNumbers=(r.numbers??[]).map((item:any)=>item.number).filter((value:any)=>value!==null&&value!==undefined).sort((a:number,b:number)=>a-b);
  const save=async(nextStatus:'PASSED'|'FAILED')=>{if(nextStatus==='FAILED'&&!notes.trim()){setNoteOpen(true);setError('Для статуса «Не прошёл» укажите причину');return}setBusy(true);setError('');try{if(r.isClassInspection){if(inspection){await apiPatch('/inspections/class/'+inspection.id,{status:nextStatus,notes:notes.trim()||null})}else{await apiPost('/inspections/class',{registrationClassId:r.registrationClassId,status:nextStatus,notes:notes.trim()||undefined})}}else if(inspection){await apiPatch('/inspections/'+inspection.id,{status:nextStatus,notes:notes.trim()||null})}else{await apiPost('/inspections',{registrationId:r.registrationId??r.id,status:nextStatus,notes:notes.trim()||undefined})}await onSaved()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить инспекцию')}finally{setBusy(false)}};
- return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ · УЧАСТНИК №{r.participantNumber??'—'}</span><h2>{[r.participant?.lastName,r.participant?.firstName,r.participant?.middleName].filter(Boolean).join(' ')||'Участник не указан'}</h2><p>{(r.cars?.length?r.cars:[r.car].filter(Boolean)).map((car:any)=>displayCarName(car,'Не указано')+(car.registrationNumber?' · '+car.registrationNumber:'')).join('; ')}</p></div><button type="button" className="secondary-button" onClick={onBack}><ChevronLeft size={16}/>Назад к списку</button></div><div className="detail-hero"><div><span className="eyebrow">РЕЗУЛЬТАТ ПРОВЕРКИ</span><h2>{status==='PASSED'?'Автомобиль допущен':status==='FAILED'?'Допуск не пройден':'Инспекция ожидает проверки'}</h2></div><span className={'badge '+(status==='PASSED'?'good':status==='FAILED'?'bad':'')}>{status==='PASSED'?'Прошёл':status==='FAILED'?'Не прошёл':'Ожидает'}</span></div><div className="detail-grid"><div><span>Номер участника</span><strong>{r.participantNumber??'—'}</strong></div><div><span>Команда</span><strong>{r.participant?.team||'—'}</strong></div><div><span>Автомобиль</span><strong>{displayCarName(r.car)||'—'}</strong></div><div><span>Госномер</span><strong>{[r.car?.registrationCountry,r.car?.registrationNumber].filter(Boolean).join(' · ')||'—'}</strong></div><div className="inspection-detail-classes"><span>Классы по направлениям</span><strong>{classes.map(([direction,names])=><span key={direction}><b>{direction}:</b> {(names as string[]).join(', ')}</span>)||'—'}</strong></div><div><span>Причина / комментарий</span><strong>{inspection?.notes||'—'}</strong></div></div>{error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}{canEdit&&<div className="detail-actions"><button className="primary-button" disabled={busy} onClick={()=>void save('PASSED')}><Check size={16}/>{busy?'Сохраняем…':'Подтвердить: прошёл'}</button><button className="danger-button" disabled={busy} onClick={()=>setNoteOpen(true)}><X size={16}/>Не прошёл</button></div>}{noteOpen&&canEdit&&<div className="inspection-confirm-box"><label>Причина непрохождения<textarea rows={4} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Укажите, что именно не соответствует требованиям" autoFocus/></label><div className="detail-actions"><button className="secondary-button" disabled={busy} onClick={()=>setNoteOpen(false)}>Отмена</button><button className="danger-button" disabled={busy||!notes.trim()} onClick={()=>void save('FAILED')}>{busy?'Сохраняем…':'Подтвердить: не прошёл'}</button></div></div>}{readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Изменение инспекции отключено.</span></div>}</section>;
+ return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ АВТОМОБИЛЯ · №{assignedNumbers.length?assignedNumbers.map((number:number)=>String(number).padStart(3,'0')).join(' / '):String(r.participantNumber??'—')}</span><h2>{[r.participant?.lastName,r.participant?.firstName,r.participant?.middleName].filter(Boolean).join(' ')||'Участник не указан'}</h2><p>{(r.cars?.length?r.cars:[r.car].filter(Boolean)).map((car:any)=>displayCarName(car,'Не указано')+(car.registrationNumber?' · '+car.registrationNumber:'')).join('; ')}</p></div><button type="button" className="secondary-button" onClick={onBack}><ChevronLeft size={16}/>Назад к списку</button></div><div className="detail-hero"><div><span className="eyebrow">РЕЗУЛЬТАТ ПРОВЕРКИ</span><h2>{status==='PASSED'?'Автомобиль допущен':status==='FAILED'?'Допуск не пройден':'Инспекция ожидает проверки'}</h2></div><span className={'badge '+(status==='PASSED'?'good':status==='FAILED'?'bad':'')}>{status==='PASSED'?'Прошёл':status==='FAILED'?'Не прошёл':'Ожидает'}</span></div><div className="detail-grid"><div><span>Номер участника</span><strong>{r.participantNumber??'—'}</strong></div><div><span>Команда</span><strong>{r.participant?.team||'—'}</strong></div><div><span>Автомобиль</span><strong>{displayCarName(r.car)||'—'}</strong></div><div><span>Госномер</span><strong>{[r.car?.registrationCountry,r.car?.registrationNumber].filter(Boolean).join(' · ')||'—'}</strong></div><div><span>Номера на этом автомобиле</span><strong>{assignedNumbers.length?assignedNumbers.map((number:number)=>String(number).padStart(3,'0')).join(', '):r.participantNumber??'—'}</strong></div><div className="inspection-detail-classes"><span>Классы и закреплённые номера</span><InspectionClassGroups groups={classes}/></div><div><span>Причина / комментарий</span><strong>{inspection?.notes||'—'}</strong></div></div>{error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}{canEdit&&<div className="detail-actions"><button className="primary-button" disabled={busy} onClick={()=>void save('PASSED')}><Check size={16}/>{busy?'Сохраняем…':'Подтвердить: прошёл'}</button><button className="danger-button" disabled={busy} onClick={()=>setNoteOpen(true)}><X size={16}/>Не прошёл</button></div>}{noteOpen&&canEdit&&<div className="inspection-confirm-box"><label>Причина непрохождения<textarea rows={4} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Укажите, что именно не соответствует требованиям" autoFocus/></label><div className="detail-actions"><button className="secondary-button" disabled={busy} onClick={()=>setNoteOpen(false)}>Отмена</button><button className="danger-button" disabled={busy||!notes.trim()} onClick={()=>void save('FAILED')}>{busy?'Сохраняем…':'Подтвердить: не прошёл'}</button></div></div>}{readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Изменение инспекции отключено.</span></div>}</section>;
 }
 export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{user:User;go:(path:string)=>void;PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
  const[scanOpen,setScanOpen]=useState(false);
@@ -66,24 +94,17 @@ function InspectionQrScanner({onClose,onScan}:{onClose:()=>void;onScan:(stageId:
 function EntryInspection({stageId,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageId:string;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
  const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false),[selectedRegistrationId,setSelectedRegistrationId]=useState(initialRegistrationId),[initialSelectionHandled,setInitialSelectionHandled]=useState(false),[confirmPassAll,setConfirmPassAll]=useState(false),[confirmFailAll,setConfirmFailAll]=useState(false),[failAllReason,setFailAllReason]=useState('');
-  const expandInspectionRows=(items:any[])=>{
-    const grouped=new Map<string,any>();
-    for(const registration of items){
-      const key=String(registration.participantId??registration.participant?.id??registration.id);
-      const inspection=registration.stageInspection??registration.inspection??null;
-      const current=grouped.get(key);
-      if(!current){
-        grouped.set(key,{...registration,id:'participant:'+key,registrationId:registration.id,registrations:[registration],classes:[...(registration.classes??[])],numbers:[...(registration.numbers??[])],cars:registration.car?[registration.car]:[],inspection,isClassInspection:false});
-        continue;
-      }
-      current.registrations.push(registration);
-      current.classes.push(...(registration.classes??[]));
-      current.numbers.push(...(registration.numbers??[]));
-      if(registration.car&&!current.cars.some((car:any)=>car.id===registration.car.id))current.cars.push(registration.car);
-      current.inspection=inspection??current.inspection;
-    }
-    return [...grouped.values()].map((row:any)=>({...row,classes:[...new Map(row.classes.map((item:any)=>[item.id,item])).values()],numbers:[...new Map(row.numbers.map((item:any)=>[item.id,item])).values()]}));
-  };
+  const expandInspectionRows=(items:any[])=>items.map((registration:any)=>({
+    ...registration,
+    id:registration.id,
+    registrationId:registration.id,
+    registrations:[registration],
+    classes:[...(registration.classes??[])],
+    numbers:[...(registration.numbers??[])].sort((a:any,b:any)=>Number(a.number)-Number(b.number)),
+    cars:registration.car?[registration.car]:[],
+    inspection:registration.inspection??registration.stageInspection??null,
+    isClassInspection:false,
+  }));
   const load=()=>{setLoading(true);setError('');return apiGet('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE').then(r=>{const items=listData(r);const expanded=expandInspectionRows(items);setRows(expanded);if(initialRegistrationId&&!initialSelectionHandled){const match=expanded.find((x:any)=>x.id===initialRegistrationId||x.registrationId===initialRegistrationId||x.registrations?.some((reg:any)=>reg.id===initialRegistrationId));if(match){setSelectedRegistrationId(match.id);setInitialSelectionHandled(true)}}}).catch(e=>setError(e instanceof Error?e.message:'Ошибка загрузки регистраций')).finally(()=>setLoading(false))};
  useEffect(()=>{void load()},[stageId]);
  const passed=rows.filter(r=>r.inspection?.status==='PASSED').length,failed=rows.filter(r=>r.inspection?.status==='FAILED').length,pending=rows.filter(r=>!r.inspection).length;

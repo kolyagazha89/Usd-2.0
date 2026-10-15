@@ -39,6 +39,16 @@ function safeDocumentUrl(value: unknown): string {
   return '';
 }
 
+function isStructuredHeading(block: any): boolean {
+  if (block?.type === 'heading') return true;
+  if (block?.type !== 'paragraph') return false;
+  const text = String(block.text ?? '').trim();
+  if (!text || text.length > 140) return false;
+  return /^(?:раздел|глава|приложение|часть)\s+[\wА-ЯЁа-яёIVX.-]+/i.test(text)
+    || /^\d+(?:\.\d+)*[.)]?\s+\S/.test(text)
+    || /^[А-ЯЁ\s—–-]{9,}:?$/.test(text);
+}
+
 export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
   const published = settings?.registration?.rulesDocument?.published ?? null;
@@ -76,7 +86,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const needle = query.trim().toLocaleLowerCase('ru');
   const documentHeadings: { id: string; title: string; index: number }[] = documentBlocks
     .map((block: any, index: number) => ({ block, index }))
-    .filter(({ block }: { block: any }) => block.type === 'heading')
+    .filter(({ block }: { block: any }) => isStructuredHeading(block))
     .map(({ block, index }: { block: any; index: number }): { id: string; title: string; index: number } => ({ id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }))
     .filter((heading: { title: string }) => !needle || heading.title.toLocaleLowerCase('ru').includes(needle));
   const visibleDocumentBlocks = documentBlocks
@@ -132,7 +142,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
             <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{(documentBlocks.length ? documentHeadings.length : sections.length)} {(documentBlocks.length ? documentHeadings.length : sections.length) === 1 ? 'РАЗДЕЛ' : (documentBlocks.length ? documentHeadings.length : sections.length) < 5 ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ'}</span></div>
             {documentBlocks.length ? (visibleDocumentBlocks.length ? <div className="public-rules-rich-document">
               {visibleDocumentBlocks.map((block: any, index: number) => {
-                if (block.type === 'heading') {
+                if (isStructuredHeading(block)) {
                   const level = Math.min(4, Math.max(2, Number(block.level) || 2));
                   const originalIndex = documentBlocks.indexOf(block); const headingId = 'rules-doc-heading-' + originalIndex; return level === 2 ? <h3 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h3> : level === 3 ? <h4 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h4> : <h5 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h5>;
                 }
