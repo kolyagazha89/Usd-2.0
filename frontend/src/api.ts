@@ -170,3 +170,5 @@ export async function createComponentCatalogRequest(body:{category:string;brand:
 export async function getComponentCatalogRequests(){return apiGet<any>('/component-catalog-requests');}
 export async function approveComponentCatalogRequest(id:string,adminNote?:string){return apiPatch<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/approve',{adminNote});}
 export async function rejectComponentCatalogRequest(id:string,adminNote?:string){return apiPatch<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/reject',{adminNote});}
+
+export async function retryComponentCatalogRequestEmail(id:string){return apiPost<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/retry-email',{});}
