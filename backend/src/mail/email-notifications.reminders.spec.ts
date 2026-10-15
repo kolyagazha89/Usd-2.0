@@ -42,7 +42,7 @@ describe('EmailNotificationsService reminder timing', () => {
     }]);
     await service.processReminders();
     expect(prisma.emailNotificationLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ type: 'STAGE_REMINDER_3D' }),
+      data: expect.objectContaining({ type: 'STAGE_REMINDER_3D', eventKey: 'STAGE_REMINDER_3D:stage-1:2026-10-18:reg-1' }),
     }));
     const message = mail.sendNotificationEmail.mock.calls[0][0];
     expect(message.text).toContain('Дата:');
