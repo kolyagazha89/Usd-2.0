@@ -174,20 +174,22 @@ function sortRecordRows(rows:any[]){
  ];
 }
 function selectHomepageResults(rows:any[]){
-  const score=(r:any)=>{const raw=r.value??r.score??r.result?.value;const n=Number(raw);return Number.isFinite(n)?n:Number.NEGATIVE_INFINITY};
+  const recency=(row:any)=>{
+    const value=row.createdAt??row.updatedAt??row.recordedAt??row.result?.createdAt??row.result?.updatedAt;
+    const timestamp=value?Date.parse(String(value)):0;
+    return Number.isFinite(timestamp)?timestamp:0;
+  };
   const classItem=(r:any)=>r.registrationClass?.class??r.class??r.result?.registrationClass?.class??{};
   const direction=(r:any)=>String(classItem(r)?.direction?.name??r.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
   const classKey=(r:any)=>String(classItem(r)?.id??classItem(r)?.code??classItem(r)?.name??r.className??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
-  const winners=new Map<string,any>();
+  const latestByClass=new Map<string,any>();
   for(const row of rows){
     const key=direction(row)+'::'+classKey(row);
     if(!classKey(row))continue;
-    const place=row.place??row.position??row.rank;
-    if(place!=null&&Number(place)!==1)continue;
-    const previous=winners.get(key);
-    if(!previous||score(row)>score(previous))winners.set(key,row);
+    const previous=latestByClass.get(key);
+    if(!previous||recency(row)>recency(previous))latestByClass.set(key,row);
   }
-  const selected=[...winners.values()];
+  const selected=[...latestByClass.values()];
   const kind=(row:any)=>{
     const value=direction(row);
     if(value.includes('BFSPL'))return 'BFSPL';
@@ -195,10 +197,10 @@ function selectHomepageResults(rows:any[]){
     if(value.includes('SPL'))return 'SPL';
     return '';
   };
-  const byScore=(a:any,b:any)=>score(b)-score(a);
-  const spl=selected.filter((row:any)=>kind(row)==='SPL').sort(byScore).slice(0,3);
-  const bfspl=selected.filter((row:any)=>kind(row)==='BFSPL').sort(byScore).slice(0,2);
-  const bdwspl=selected.filter((row:any)=>kind(row)==='BDWSPL').sort(byScore).slice(0,1);
+  const byRecency=(a:any,b:any)=>recency(b)-recency(a);
+  const spl=selected.filter((row:any)=>kind(row)==='SPL').sort(byRecency).slice(0,3);
+  const bfspl=selected.filter((row:any)=>kind(row)==='BFSPL').sort(byRecency).slice(0,2);
+  const bdwspl=selected.filter((row:any)=>kind(row)==='BDWSPL').sort(byRecency).slice(0,1);
   return [...spl,...bfspl,...bdwspl];
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
