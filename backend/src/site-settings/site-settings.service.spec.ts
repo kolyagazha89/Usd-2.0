@@ -59,6 +59,15 @@ describe('SiteSettingsService.getPublic', () => {
       price: 2000,
     });
   });
+  it('exposes attached legal DOCX files only after organizer approval', async () => {
+    const document = { targetId: 'legal-document-privacyPolicy-test', fileName: 'privacy.docx', url: 'https://api.example.test/media/public-file/SITE_ASSET/legal-document-privacyPolicy-test' };
+    const prisma = {
+      siteSettings: { findUnique: jest.fn().mockResolvedValue({ legal: { legalApproved: true, legalVersion: '2', documents: { privacyPolicy: document } } }) },
+    } as unknown as PrismaService;
+    const response = await new SiteSettingsService(prisma).getPublic();
+    expect(response.settings.legal.documents).toEqual({ privacyPolicy: document });
+  });
+
 });
 
 
