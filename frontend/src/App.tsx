@@ -164,7 +164,7 @@ function publicResultValue(value:any){
 }
 function sortRecordRows(rows:any[]){
  const score=(row:any)=>{const value=Number(row.value??row.result?.value??0);return Number.isFinite(value)?value:Number.NEGATIVE_INFINITY};
- const direction=(row:any)=>String(row.class?.direction?.name??row.result?.registrationClass?.class?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\\s/g,'').replace(/[_-]/g,'');
+ const direction=(row:any)=>String(row.class?.direction?.name??row.result?.registrationClass?.class?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  const kind=(row:any)=>{const value=direction(row);if(value.includes('BFSPL'))return 'BFSPL';if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';if(value.includes('SPL'))return 'SPL';return ''};
  const sorted=rows.slice().sort((a:any,b:any)=>score(b)-score(a));
  return [
