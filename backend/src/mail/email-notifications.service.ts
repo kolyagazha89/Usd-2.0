@@ -34,6 +34,13 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
 
+  private async getEmailTemplates(): Promise<any[]> {
+    if (typeof this.prisma.siteSettings?.findUnique !== 'function') return [];
+    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
+    const registration = (settings?.registration ?? {}) as Record<string, any>;
+    return Array.isArray(registration.emailTemplates) ? registration.emailTemplates : [];
+  }
+
   onModuleInit() {
     // Run after boot and every 15 minutes. The database unique eventKey makes
     // multiple replicas safe; provider acceptance is never described as delivery.
@@ -121,9 +128,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     });
     if (claim.count !== 1) return;
     const logoUrl = await this.getLogoUrl().catch(() => null);
-    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
-    const registrationSettings = (settings?.registration ?? {}) as Record<string, any>;
-    const templates = Array.isArray(registrationSettings.emailTemplates) ? registrationSettings.emailTemplates : [];
+    const templates = await this.getEmailTemplates();
     const triggerHasTemplate = templates.some((item: any) => item?.trigger === notice.type);
     const template = templates.find((item: any) => item?.trigger === notice.type && item?.enabled !== false);
     if (triggerHasTemplate && !template) {
@@ -240,9 +245,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       ...(type === 'REGISTRATION_CONFIRMED' ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
     ];
     const logoUrl = await this.getLogoUrl().catch(() => null);
-    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
-    const registrationSettings = (settings?.registration ?? {}) as Record<string, any>;
-    const templates = Array.isArray(registrationSettings.emailTemplates) ? registrationSettings.emailTemplates : [];
+    const templates = await this.getEmailTemplates();
     const template = templates.find((item: any) => item?.trigger === type);
     const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — ЮСД', heading, intro: 'Это тестовый экземпляр письма. Он не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' }, logoUrl, template);
     await this.mail.sendNotificationEmail({ to: recipient, subject: message.subject || heading + ' — ЮСД', text: message.text, html: message.html });
