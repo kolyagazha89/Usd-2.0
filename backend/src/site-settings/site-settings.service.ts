@@ -24,7 +24,7 @@ const DEFAULTS:SiteSettingsShape={
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
   registration:{enabled:true,price:2000,additionalClassPrice:2000,emailTemplates:[
     {id:'stage-registration-open',name:'Открытие регистрации',trigger:'STAGE_REGISTRATION_OPEN',enabled:true,subject:'Открыта регистрация: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это информационное сообщение ЮСД о соревнованиях. Вы получили его в связи с настройками уведомлений.',buttonLabel:'Открыть ЮСД'},
-    {id:'registration-confirmed',name:'Подтверждение регистрации',trigger:'REGISTRATION_CONFIRMED',enabled:true,subject:'Заявка подтверждена: {{heading}}',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.',buttonLabel:'Открыть ЮСД'},
+    {id:'registration-confirmed',name:'Подтверждение регистрации',trigger:'REGISTRATION_CONFIRMED',enabled:true,subject:'Заявка подтверждена: {{stageName}}',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.',buttonLabel:'Открыть ЮСД'},
     {id:'stage-reminder-3d',name:'Напоминание за 3 дня',trigger:'STAGE_REMINDER_3D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'},
     {id:'stage-reminder-1d',name:'Напоминание за 1 день',trigger:'STAGE_REMINDER_1D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'}
   ]},
