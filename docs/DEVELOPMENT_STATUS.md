@@ -1,3 +1,38 @@
+# Follow-up release delta — 2026-10-15 11:05 UTC
+
+This is the latest evidence snapshot. CI/deployment checks are not a substitute for browser acceptance or the owner's verification of authenticated save flows.
+
+## Latest merged code
+
+- **Main commit:** `cb058cfee75e50919b7c7e049d3f28d1c1e65d92` (PR #167; PR #166 is included in its ancestry).
+- **PR #166 — release QA fixes:** merged. Backend CI and frontend build passed. Includes strict live input masks, dark form/dropdown/help surfaces, one homepage winner per class, next-stage registration CTA, partner links in footer, forgot-password UI, QR aiming frame, record class visibility controls, and normalization of settings JSON before Prisma persistence. Settings-save behavior must still be verified with an authenticated admin save/read-back.
+- **PR #167 — BassRace class inspections:** merged. Backend migration/build/lint/unit/E2E and frontend build passed. Adds independent inspection state per BassRace registration class/participant number, backfills existing registration-level inspection status to each existing BassRace class, and extends bulk pass/fail. Railway deployment is being verified after the merge; do not claim the new API/schema is live until the deployment succeeds.
+- **Railway:** latest deployment `72960e45-2c4a-4493-8c44-43e619dec38c` was BUILDING at this snapshot.
+- **Production API smoke after PR #166:** passed; public settings/stages/current records and published/unpublished result visibility were checked. It did not test an authenticated PATCH of site settings.
+- **Cloudflare Workers:** the connected `Workers Builds: usd-2-0` check is failing on the latest main build despite GitHub's React build succeeding. GitHub Actions Wrangler publish remains skipped because Cloudflare account/token secrets are not configured in GitHub. Do not claim the frontend updates are live until the Cloudflare-native production Worker build succeeds and the active Worker is checked.
+- **Email:** owner confirmed emails arrive; issue #49 is closed. Reset-password UI is in PR #166; verify its end-to-end link separately during browser acceptance.
+- **Settings 500:** PR #166 now JSON-normalizes merged settings before Prisma persistence and adds tests for partial rules and full news payloads. This is a candidate fix, not production acceptance. Keep #156 open until an authenticated admin can save rules, create a news item, reload both and confirm no 500.
+- **BassRace inspection:** individual class/number inspections are implemented and merged, but require a real stage with a participant in three BassRace classes to verify three separate rows, independent status/notes, and bulk actions after Railway migration deployment.
+- **Records:** admin controls choose which eligible classes publish public records. BassRace and Storm Wall are always excluded from public record output and record accrual; this rule is enforced server-side.
+- **Legal package:** owner rejected the current drafts as insufficiently detailed. Rebuild the previously requested 11-document package; use known operator facts only and do not invent the operator address or MKТУ. Organizer approval is required before public publication or enabling registration.
+- **Domain/DNS:** untouched. The custom-domain cutover remains the final, separately approved step.
+
+## Remaining acceptance gates
+
+1. Confirm Railway deployment for main `cb058cfee75e50919b7c7e049d3f28d1c1e65d92` succeeds with the new migration applied.
+2. Resolve the failing Cloudflare-native Worker build and verify the exact active Worker URL, direct-route refresh, and deployed frontend commit.
+3. Authenticated admin: upload/preview/publish DOCX rules; create/edit/publish news; reload settings and confirm read-back. Keep #156 open until successful.
+4. BassRace: create one participant registration with three BassRace classes; verify three distinct inspection rows/numbers, independent PASSED/FAILED status, required failure comment, results conflict guard, audit trail and bulk actions.
+5. Input masks: RU phone and registration plate in participant, admin quick-create and generic CRUD; try invalid/incomplete input and verify save is rejected. Confirm all dropdowns, helper surfaces, statistics cards and modal forms use USD dark/red styling on desktop/mobile.
+6. Public homepage: one winner per class; registration CTA visible when next-stage registration is open; active partner HTTPS links in footer; verify the actual Worker build is live.
+7. QR camera: acceptance on real HTTPS iOS Safari and Android Chrome, plus ADMIN/JUDGE roles.
+8. Prepare and obtain organizer approval for the full 11-document legal package before enabling registration.
+9. Keep domain/DNS cutover as the final separately approved operation.
+
+Master tracker: #114. Detailed owner findings: #165.
+
+---
+
 # Follow-up release delta — 2026-10-15 09:07 UTC
 
 This follow-up supersedes the earlier 08:55 snapshot below where later commits changed the evidence. The frontend and backend are separate deployable artifacts; their verified source commits differ because the latest backend-only change did not require rebuilding the frontend.
