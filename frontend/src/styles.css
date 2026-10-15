@@ -3276,3 +3276,99 @@ body:has(.modal-backdrop){overflow:hidden!important}
 :where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
 :where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
 :where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
+
+
+/* 2026-10-15 owner design split: admin form controls are soft white; public/participant surfaces stay graphite-red. */
+.admin-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .role-basic-fields input,
+.admin-shell .role-basic-fields textarea {
+  color: #24242a !important;
+  background-color: #f7f7f9 !important;
+  border-color: #d4d4da !important;
+  color-scheme: light;
+}
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder { color: #777780 !important; }
+.admin-shell option { color: #24242a; background: #f7f7f9; }
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus { outline-color: #ed2638; border-color: #ed2638; }
+.admin-shell .roles-list,
+.admin-shell .roles-editor,
+.admin-shell .role-basic-fields input,
+.admin-shell .role-basic-fields textarea { background-color: #f7f7f9; }
+.public-site .primary-button,
+.public-site .secondary-button,
+.public-site .text-button,
+.participant-portal .primary-button,
+.participant-portal .secondary-button,
+.login-page .primary-button,
+.login-page .secondary-button { box-shadow: none; }
+.public-site .secondary-button,
+.participant-portal .secondary-button,
+.login-page .secondary-button { color: #f4f4f6; background: #17171b; border-color: #38383f; }
+.public-site .secondary-button:hover,
+.participant-portal .secondary-button:hover,
+.login-page .secondary-button:hover { color: #fff; background: #25252b; border-color: #ed2638; }
+.participant-registration-classes,.participant-registration-full-details dl,.inspection-class-groups { display: grid; gap: 8px; }
+.participant-registration-classes>div,.participant-registration-full-details dl>div,.inspection-class-groups>div { display: grid; gap: 3px; min-width: 0; }
+.participant-registration-classes>div { padding: 8px 10px; border-left: 2px solid #ed2638; background: #18181c; border-radius: 0 8px 8px 0; }
+.participant-registration-classes span,.participant-registration-full-details dt,.inspection-class-groups strong { color: #a7a7b1; font-size: 11px; font-weight: 700; }
+.participant-registration-classes strong,.participant-registration-full-details dd,.inspection-class-groups span { color: #f4f4f6; font-size: 13px; line-height: 1.45; margin: 0; }
+.participant-registration-details-toggle { align-self: flex-start; margin: 8px 0; }
+.participant-registration-full-details { margin-top: 12px; padding: 16px; border: 1px solid #37373e; border-radius: 12px; background: #111114; }
+.participant-registration-full-details h3 { margin: 0 0 12px; font-size: 14px; color: #fff; }
+.participant-registration-full-details dl { margin: 0; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.participant-registration-full-details dt { color: #a7a7b1; }
+.participant-registration-full-details dd { overflow-wrap: anywhere; }
+.participant-registration-full-details .full-details-classes { grid-column: 1/-1; }
+.participant-registration-full-details .full-details-classes dd { display: grid; gap: 8px; }
+.participant-registration-full-details .full-details-classes dd div { display: grid; gap: 3px; padding: 9px; background: #1a1a1f; border-radius: 8px; }
+.inspection-class-groups>div { gap: 4px; padding: 4px 0; }
+.inspection-detail-classes>strong { display: grid; gap: 7px; }
+.inspection-detail-classes>strong>span { font-weight: 500; }
+.inspection-detail-classes b { color: #a7a7b1; }
+@media(max-width:560px){.participant-registration-full-details dl { grid-template-columns: 1fr; }.participant-registration-full-details .full-details-classes { grid-column: auto; }}
+
+/* Public-facing components use the black/red/white USD palette consistently. */
+.public-site .panel,
+.public-site .card,
+.public-site article,
+.public-site [class*="-card"],
+.public-site [class*="-panel"],
+.participant-portal .panel,
+.participant-portal article,
+.participant-portal [class*="-card"],
+.participant-portal [class*="-panel"],
+.login-page .panel {
+  color: #f4f4f6;
+  background-color: #141416;
+  border-color: #303036;
+}
+.public-site button:not(.primary-button):not(.danger-button):not(.text-button),
+.participant-portal button:not(.primary-button):not(.danger-button):not(.text-button),
+.login-page button:not(.primary-button):not(.danger-button):not(.text-button) {
+  color: #f4f4f6;
+  background-color: #19191d;
+  border-color: #39393f;
+}
+.public-site button:not(.primary-button):not(.danger-button):not(.text-button):hover,
+.participant-portal button:not(.primary-button):not(.danger-button):not(.text-button):hover,
+.login-page button:not(.primary-button):not(.danger-button):not(.text-button):hover {
+  color: #fff;
+  background-color: #26262b;
+  border-color: #ed2638;
+}
+.public-site .primary-button,
+.participant-portal .primary-button,
+.login-page .primary-button { color: #fff; background: #c91f32; border-color: #e52b40; }
+.public-site .primary-button:hover,
+.participant-portal .primary-button:hover,
+.login-page .primary-button:hover { background: #e3263c; border-color: #ff4b5d; }
+.public-site a:not(.primary-button):not(.secondary-button),
+.participant-portal a:not(.primary-button):not(.secondary-button) { color: #ff6572; }
+.public-site input[type="checkbox"],
+.participant-portal input[type="checkbox"],
+.login-page input[type="checkbox"] { accent-color: #ed2638; }

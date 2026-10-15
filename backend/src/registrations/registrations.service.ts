@@ -78,6 +78,7 @@ export class RegistrationsService {
       orderBy: { number: 'asc' as const },
     },
     inspection: true,
+    stageInspection: true,
     results: true,
   };
 
@@ -707,12 +708,21 @@ export class RegistrationsService {
           isPrimary: index === 0,
         }));
 
+        // A participant has one shared inspection per stage. New registrations inherit it.
+        const sharedInspection = await tx.participantStageInspection.findUnique({
+          where: { participantId_stageId: { participantId, stageId } },
+          select: { id: true, status: true },
+        });
+        if (sharedInspection?.status === 'FAILED') {
+          throw new ConflictException('Участник не допущен к этапу по результатам общей инспекции');
+        }
         // 10. Создаём новую регистрацию. Номера связываются
         // с регистрацией после её создания.
         const registration = await tx.registration.create({
           data: {
             stageId,
             participantId,
+            participantStageInspectionId: sharedInspection?.id ?? null,
             carId,
             configurationVersionId: configurationVersion.id,
             configurationSnapshot: {

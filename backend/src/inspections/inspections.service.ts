@@ -31,6 +31,14 @@ const classInspectionInclude = {
   },
 } satisfies Prisma.RegistrationClassInspectionInclude;
 
+const participantStageInspectionInclude = {
+  participant: { select: { id: true, firstName: true, lastName: true, middleName: true, team: true, city: true, photoUrl: true } },
+  stage: { include: { season: true } },
+  registrations: { include: { car: { select: { id: true, brand: true, model: true, registrationNumber: true, registrationCountry: true } }, classes: { include: { class: { include: { direction: true } }, number: true, results: { select: { id: true } } } }, results: { select: { id: true } } } },
+  checkedByUser: { select: { id: true, name: true, role: true } },
+  createdByUser: { select: { id: true, name: true, role: true } },
+} satisfies Prisma.ParticipantStageInspectionInclude;
+
 const inspectionInclude = {
   registration: {
     include: {
@@ -76,22 +84,21 @@ export class InspectionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findOne(id: string) {
-    const inspection = await this.prisma.inspection.findUnique({
-      where: { id },
-      include: inspectionInclude,
-    });
-    if (!inspection) throw new NotFoundException('Проверка не найдена');
-    return inspection;
+    const shared = await this.prisma.participantStageInspection.findUnique({ where: { id }, include: participantStageInspectionInclude });
+    if (shared) return shared;
+    const legacy = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
+    if (!legacy) throw new NotFoundException('Проверка не найдена');
+    return legacy;
   }
 
   async findByRegistration(registrationId: string) {
-    const inspection = await this.prisma.inspection.findUnique({
-      where: { registrationId },
-      include: inspectionInclude,
+    const registration = await this.prisma.registration.findUnique({ where: { id: registrationId }, select: { participantId: true, stageId: true } });
+    if (!registration) throw new NotFoundException('Регистрация не найдена');
+    const inspection = await this.prisma.participantStageInspection.findUnique({
+      where: { participantId_stageId: { participantId: registration.participantId, stageId: registration.stageId } },
+      include: participantStageInspectionInclude,
     });
-    if (!inspection) {
-      throw new NotFoundException('Проверка для этой регистрации не найдена');
-    }
+    if (!inspection) throw new NotFoundException('Общая инспекция участника на этом этапе не найдена');
     return inspection;
   }
 
@@ -103,30 +110,21 @@ export class InspectionsService {
   private async pendingRegistrationRows(stageId: string) {
     return this.prisma.registration.findMany({
       where: { stageId, status: 'ACTIVE' },
-      include: {
-        inspection: true,
-        classes: { include: { class: { include: { direction: true } }, inspection: true, results: { select: { id: true } } } },
-      },
+      include: { stageInspection: true, inspection: true, classes: { include: { class: { include: { direction: true } }, inspection: true, results: { select: { id: true } } } } },
       orderBy: { participantNumber: 'asc' },
     });
   }
 
   private async processPending(stageId: string, status: InspectionStatus, actor: Actor, notes?: string) {
     const registrations = await this.pendingRegistrationRows(stageId);
+    const seen = new Set<string>();
     let processed = 0;
     for (const registration of registrations as any[]) {
-      const bassRaceClasses = (registration.classes ?? []).filter((item: any) => this.isBassRaceClass(item.class?.name ?? '', item.class?.direction?.name ?? ''));
-      const otherClasses = (registration.classes ?? []).filter((item: any) => !this.isBassRaceClass(item.class?.name ?? '', item.class?.direction?.name ?? ''));
-      for (const item of bassRaceClasses) {
-        if (item.inspection) continue;
-        await this.createClassInspection({ registrationClassId: item.id, status, notes }, actor);
-        processed += 1;
-      }
-      const needsRegistrationInspection = !registration.inspection && (otherClasses.length > 0 || bassRaceClasses.length === 0);
-      if (needsRegistrationInspection) {
-        await this.create({ registrationId: registration.id, status, notes }, actor);
-        processed += 1;
-      }
+      const key = String(registration.participantId);
+      if (seen.has(key) || registration.stageInspection) continue;
+      seen.add(key);
+      await this.create({ registrationId: registration.id, status, notes }, actor);
+      processed += 1;
     }
     return processed;
   }
@@ -273,51 +271,33 @@ export class InspectionsService {
     actor: Actor,
   ) {
     this.validateNotes(data.status, data.notes);
-
     return this.prisma.$transaction(async (tx) => {
-      const registration = await tx.registration.findUnique({
-        where: { id: data.registrationId },
-        include: { inspection: true, stage: true },
-      });
-
+      const registration = await tx.registration.findUnique({ where: { id: data.registrationId }, include: { stage: true, participant: true } });
       if (!registration) throw new NotFoundException('Регистрация не найдена');
-      if (registration.status !== 'ACTIVE') {
-        throw new ConflictException('Нельзя проверить неактивную регистрацию');
-      }
-      if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') {
-        throw new ConflictException('Нельзя проверить регистрацию отменённого этапа');
-      }
-      if (registration.inspection) {
-        throw new ConflictException('Для этой регистрации проверка уже существует');
-      }
-
-      const created = await tx.inspection.create({
-        data: {
-          registrationId: data.registrationId,
-          status: data.status,
-          notes: this.normalizeNotes(data.notes),
-          checkedByUserId: actor.userId,
-          createdByUserId: actor.userId,
-        },
-        include: inspectionInclude,
+      if (registration.status !== 'ACTIVE') throw new ConflictException('Нельзя проверить неактивную регистрацию');
+      if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') throw new ConflictException('Нельзя проверить регистрацию отменённого этапа');
+      const existing = await tx.participantStageInspection.findUnique({ where: { participantId_stageId: { participantId: registration.participantId, stageId: registration.stageId } } });
+      if (existing) throw new ConflictException('Для участника на этом этапе общая инспекция уже существует');
+      const related = await tx.registration.findMany({
+        where: { participantId: registration.participantId, stageId: registration.stageId, status: 'ACTIVE' },
+        select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } },
       });
-
+      if (data.status === 'FAILED' && related.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
+        throw new ConflictException('Нельзя отказать в допуске: у участника уже есть результат на этом этапе');
+      }
+      const created = await tx.participantStageInspection.create({
+        data: { participantId: registration.participantId, stageId: registration.stageId, status: data.status, notes: this.normalizeNotes(data.notes), checkedByUserId: actor.userId, createdByUserId: actor.userId },
+        include: participantStageInspectionInclude,
+      });
+      await tx.registration.updateMany({
+        where: { participantId: registration.participantId, stageId: registration.stageId },
+        data: { participantStageInspectionId: created.id },
+      });
       await tx.auditLog.create({
-        data: {
-          userId: actor.userId,
-          action: 'INSPECTION_CREATED',
-          entity: 'Inspection',
-          entityId: created.id,
-          ipAddress: actor.ipAddress ?? null,
-          metadata: {
-            registrationId: created.registrationId,
-            status: created.status,
-            notes: created.notes,
-          },
-        },
+        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_CREATED', entity: 'ParticipantStageInspection', entityId: created.id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: created.participantId, stageId: created.stageId, status: created.status, notes: created.notes } },
       });
       return created;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async update(
@@ -325,103 +305,45 @@ export class InspectionsService {
     data: { status?: InspectionStatus; notes?: string | null },
     actor: Actor,
   ) {
-    const current = await this.prisma.inspection.findUnique({
+    const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: {
-        registration: {
-          select: {
-            results: { select: { id: true } },
-          },
-        },
-      },
+      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
     });
-    if (!current) throw new NotFoundException('Проверка не найдена');
+    if (!current) throw new NotFoundException('Общая инспекция участника не найдена');
     this.assertCanEdit(current.createdByUserId ?? current.checkedByUserId, actor);
-
     const nextStatus = data.status ?? current.status;
     const nextNotes = data.notes === undefined ? current.notes : data.notes;
     this.validateNotes(nextStatus, nextNotes);
-
-    if (nextStatus === 'FAILED' && current.registration.results.length > 0) {
-      throw new ConflictException(
-        'Нельзя перевести инспекцию в FAILED: по регистрации уже есть результат',
-      );
+    if (nextStatus === 'FAILED' && current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
+      throw new ConflictException('Нельзя отказать в допуске: у участника уже есть результат на этом этапе');
     }
-
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.inspection.update({
+      const updated = await tx.participantStageInspection.update({
         where: { id },
-        data: {
-          ...(data.status !== undefined ? { status: data.status } : {}),
-          ...(data.notes !== undefined ? { notes: this.normalizeNotes(data.notes ?? undefined) } : {}),
-          checkedByUserId: actor.userId,
-        },
-        include: inspectionInclude,
+        data: { ...(data.status !== undefined ? { status: data.status } : {}), ...(data.notes !== undefined ? { notes: this.normalizeNotes(data.notes ?? undefined) } : {}), checkedByUserId: actor.userId },
+        include: participantStageInspectionInclude,
       });
       await tx.auditLog.create({
-        data: {
-          userId: actor.userId,
-          action: 'INSPECTION_UPDATED',
-          entity: 'Inspection',
-          entityId: id,
-          ipAddress: actor.ipAddress ?? null,
-          metadata: {
-            before: {
-              status: current.status,
-              notes: current.notes,
-              checkedByUserId: current.checkedByUserId,
-            },
-            after: {
-              status: updated.status,
-              notes: updated.notes,
-              checkedByUserId: updated.checkedByUserId,
-            },
-          },
-        },
+        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_UPDATED', entity: 'ParticipantStageInspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { before: { status: current.status, notes: current.notes }, after: { status: updated.status, notes: updated.notes } } },
       });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async remove(id: string, actor: Actor) {
-    if (actor.role !== 'ADMIN') {
-      throw new ForbiddenException('Удалять проверки может только ADMIN');
-    }
-    const current = await this.prisma.inspection.findUnique({
+    if (actor.role !== 'ADMIN') throw new ForbiddenException('Удалять проверки может только ADMIN');
+    const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: {
-        registration: {
-          select: {
-            results: { select: { id: true } },
-          },
-        },
-      },
+      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
     });
-    if (!current) throw new NotFoundException('Проверка не найдена');
-
-    if (current.registration.results.length > 0) {
-      throw new ConflictException(
-        'Нельзя удалить инспекцию: по регистрации уже есть результат',
-      );
+    if (!current) throw new NotFoundException('Общая инспекция участника не найдена');
+    if (current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
+      throw new ConflictException('Нельзя удалить инспекцию: у участника уже есть результат на этом этапе');
     }
-
     return this.prisma.$transaction(async (tx) => {
-      await tx.inspection.delete({ where: { id } });
+      await tx.participantStageInspection.delete({ where: { id } });
       await tx.auditLog.create({
-        data: {
-          userId: actor.userId,
-          action: 'INSPECTION_DELETED',
-          entity: 'Inspection',
-          entityId: id,
-          ipAddress: actor.ipAddress ?? null,
-          metadata: {
-            registrationId: current.registrationId,
-            status: current.status,
-            notes: current.notes,
-            createdByUserId: current.createdByUserId,
-            checkedByUserId: current.checkedByUserId,
-          },
-        },
+        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_DELETED', entity: 'ParticipantStageInspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: current.participantId, stageId: current.stageId, status: current.status, notes: current.notes } },
       });
       return { success: true, id };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

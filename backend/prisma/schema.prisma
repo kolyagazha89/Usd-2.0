@@ -53,6 +53,8 @@ model User {
   mediaUploads              MediaUpload[]
   inspections              Inspection[]             @relation("InspectionCheckedBy")
   inspectionsCreated       Inspection[]             @relation("InspectionCreatedBy")
+  stageInspectionsChecked  ParticipantStageInspection[] @relation("ParticipantStageInspectionCheckedBy")
+  stageInspectionsCreated  ParticipantStageInspection[] @relation("ParticipantStageInspectionCreatedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
   googleOAuthStates        GoogleOAuthState[]
@@ -85,6 +87,7 @@ model Participant {
   cars              Car[]
   disqualifications Disqualification[]
   registrations     Registration[]
+  stageInspections  ParticipantStageInspection[]
   user              User?
 
   @@index([lastName])
@@ -360,6 +363,7 @@ model Stage {
   season               Season             @relation(fields: [seasonId], references: [id])
   stageClasses         StageClass[]
   registrationNumbers   RegistrationNumber[]
+  participantInspections ParticipantStageInspection[]
 
   @@unique([seasonId, stageNumber])
   @@index([seasonId])
@@ -450,11 +454,14 @@ model Registration {
   numbers    RegistrationNumber[]
   classes    RegistrationClass[]
   inspection Inspection?
+  participantStageInspectionId String?
+  stageInspection ParticipantStageInspection? @relation(fields: [participantStageInspectionId], references: [id], onDelete: SetNull)
   results    Result[]
 
   @@unique([stageId, participantNumber])
   @@unique([stageId, carId])
   @@index([configurationVersionId])
+  @@index([participantStageInspectionId])
   @@index([stageId])
   @@index([participantId])
   @@index([carId])
@@ -512,6 +519,31 @@ model Inspection {
   createdByUser   User?            @relation("InspectionCreatedBy", fields: [createdByUserId], references: [id])
   registration    Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
+  @@index([status])
+  @@index([checkedByUserId])
+  @@index([createdByUserId])
+}
+
+model ParticipantStageInspection {
+  id              String    @id @default(uuid())
+  participantId   String
+  stageId         String
+  status          InspectionStatus
+  checkedByUserId String?
+  createdByUserId String?
+  checkedByName   String?
+  checkedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  notes           String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage           Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  checkedByUser   User?       @relation("ParticipantStageInspectionCheckedBy", fields: [checkedByUserId], references: [id])
+  createdByUser   User?       @relation("ParticipantStageInspectionCreatedBy", fields: [createdByUserId], references: [id])
+  registrations   Registration[]
+
+  @@unique([participantId, stageId])
+  @@index([stageId])
   @@index([status])
   @@index([checkedByUserId])
   @@index([createdByUserId])
@@ -644,6 +676,7 @@ model SiteSettings {
   registration Json
   catalogs     Json     @default("{}")
   partners     Json     @default("[]")
+  news         Json     @default("[]")
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 }
