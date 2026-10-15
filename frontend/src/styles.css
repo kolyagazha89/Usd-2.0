@@ -3510,22 +3510,42 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-/* Profile newsletter consent: keep the unchecked control white for clear visibility. */
-.participant-portal .newsletter-settings .consent-option input[type="checkbox"] {
-  background: #fff !important;
-  border-color: #b9bec5 !important;
+/* Final admin palette normalization: all ordinary data cards stay in the light workspace. */
+.app-shell .panel,
+.app-shell .card,
+.app-shell article[class*="-card"],
+.app-shell section[class*="-panel"],
+.app-shell [class*="data-card"],
+.app-shell [class*="list-card"],
+.app-shell [class*="table-card"],
+.app-shell [class*="detail-card"] {
+  color: #20242a;
+  background-color: #fff;
+  border-color: #d9dcdf;
 }
-.participant-portal .newsletter-settings .consent-option input[type="checkbox"]:checked {
-  background: #e21d2f !important;
-  border-color: #e21d2f !important;
+.app-shell .panel p,
+.app-shell .panel label,
+.app-shell .panel dt,
+.app-shell .panel .muted,
+.app-shell article[class*="-card"] p,
+.app-shell article[class*="-card"] label {
+  color: #555c64;
 }
-
-/* Public account header identity is text-only; remove inherited button tiles and shadows. */
-.participant-portal .participant-portal-header .public-brand,
-.participant-portal .participant-portal-header .public-brand:focus,
-.participant-portal .participant-portal-header .public-brand:active {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  outline-offset: 4px;
+.app-shell .panel h1,
+.app-shell .panel h2,
+.app-shell .panel h3,
+.app-shell article[class*="-card"] h1,
+.app-shell article[class*="-card"] h2,
+.app-shell article[class*="-card"] h3 {
+  color: #17191c;
+}
+.app-shell .panel input:not([type="checkbox"]):not([type="radio"]),
+.app-shell .panel select,
+.app-shell .panel textarea,
+.app-shell article[class*="-card"] input:not([type="checkbox"]):not([type="radio"]),
+.app-shell article[class*="-card"] select,
+.app-shell article[class*="-card"] textarea {
+  color: #20242a;
+  background-color: #fff;
+  border-color: #cfd3d7;
 }
