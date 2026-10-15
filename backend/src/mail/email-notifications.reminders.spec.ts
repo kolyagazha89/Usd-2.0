@@ -26,10 +26,18 @@ describe('EmailNotificationsService reminder timing', () => {
     mail.sendNotificationEmail.mockResolvedValue(undefined);
   });
 
-  it('uses the three-day trigger when the stage is 71 hours away', async () => {
-    const now = Date.now();
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-15T09:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('uses the three-day trigger on the third calendar day before the stage', async () => {
     prisma.stage.findMany.mockResolvedValue([{
-      id: 'stage-1', name: 'Этап 1', stageNumber: 1, date: new Date(now + 71 * 3600000),
+      id: 'stage-1', name: 'Этап 1', stageNumber: 1, date: new Date('2026-10-18T12:00:00.000Z'),
       city: 'Тюмень', venue: 'Площадка', address: null,
     }]);
     await service.processReminders();
@@ -38,13 +46,22 @@ describe('EmailNotificationsService reminder timing', () => {
     }));
     const message = mail.sendNotificationEmail.mock.calls[0][0];
     expect(message.text).toContain('Дата:');
-    expect(message.text).not.toMatch(/\b\d{1,2}:\d{2}\b/);
+    expect(message.text).not.toMatch(/\\b\\d{1,2}:\\d{2}\\b/);
   });
 
-  it('uses the one-day trigger when the stage is 23 hours away', async () => {
-    const now = Date.now();
+  it('does not label a stage two calendar days away as a three-day reminder', async () => {
     prisma.stage.findMany.mockResolvedValue([{
-      id: 'stage-1', name: 'Этап 1', stageNumber: 1, date: new Date(now + 23 * 3600000),
+      id: 'stage-2', name: 'Этап 2', stageNumber: 2, date: new Date('2026-10-17T12:00:00.000Z'),
+      city: 'Тюмень', venue: 'Площадка', address: null,
+    }]);
+    await service.processReminders();
+    expect(prisma.emailNotificationLog.create).not.toHaveBeenCalled();
+    expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('uses the one-day trigger on the day before the stage', async () => {
+    prisma.stage.findMany.mockResolvedValue([{
+      id: 'stage-3', name: 'Этап 3', stageNumber: 3, date: new Date('2026-10-16T12:00:00.000Z'),
       city: 'Тюмень', venue: 'Площадка', address: null,
     }]);
     await service.processReminders();

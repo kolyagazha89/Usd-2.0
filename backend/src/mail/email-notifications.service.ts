@@ -261,14 +261,21 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       await this.retryFailedOpeningNotifications();
       await this.retryFailedRegistrationConfirmations();
       const now = new Date();
-      const inThreeDays = new Date(now.getTime() + 72 * 60 * 60 * 1000);
+      const dayMs = 24 * 60 * 60 * 1000;
+      // Stage dates are calendar dates normalized to UTC noon, not event start times.
+      // Compare UTC calendar days so a stage two days away is never mislabeled as a three-day reminder.
+      const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const endOfThirdDay = new Date(todayUtc.getTime() + 4 * dayMs);
       const stages = await this.prisma.stage.findMany({
-        where: { status: 'PUBLISHED', isDeleted: false, date: { gt: now, lte: inThreeDays } },
+        where: { status: 'PUBLISHED', isDeleted: false, date: { gt: now, lt: endOfThirdDay } },
         select: { id: true, name: true, stageNumber: true, date: true, city: true, venue: true, address: true },
       });
       for (const stage of stages) {
-        const hours = (new Date(stage.date).getTime() - now.getTime()) / 3600000;
-        const reminderType = hours > 24 ? 'STAGE_REMINDER_3D' : 'STAGE_REMINDER_1D';
+        const stageDayUtc = new Date(stage.date);
+        stageDayUtc.setUTCHours(0, 0, 0, 0);
+        const daysUntil = Math.round((stageDayUtc.getTime() - todayUtc.getTime()) / dayMs);
+        if (daysUntil !== 3 && daysUntil !== 1) continue;
+        const reminderType = daysUntil === 3 ? 'STAGE_REMINDER_3D' : 'STAGE_REMINDER_1D';
         const eventKey = reminderType + ':' + stage.id;
         const registrations = await this.prisma.registration.findMany({
           where: { stageId: stage.id, status: 'ACTIVE' },
