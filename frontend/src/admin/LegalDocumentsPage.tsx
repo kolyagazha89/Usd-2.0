@@ -9,6 +9,7 @@ const documents=[
  {key:'termsOfUse',title:'Пользовательское соглашение',description:'Правила использования сайта, учётной записи и сервисов USD.',filename:'usd-terms-of-use.docx'},
  {key:'cookiePolicy',title:'Политика cookie и технических данных',description:'Объясняет необходимые cookie и необязательную аналитику; включайте аналитику только после соответствующей настройки согласия.',filename:'usd-cookie-policy.docx'},
  {key:'newsletterConsent',title:'Согласие на информационные и рекламные рассылки',description:'Добровольное согласие отдельно от регистрации; должно быть возможно отозвать.',filename:'usd-newsletter-consent.docx'},
+ {key:'photoProfileConsent',title:'Согласие на публикацию фото и профиля',description:'Отдельное согласие для публикации изображений и профиля; проверьте возраст и объём разрешения.',filename:'usd-photo-profile-consent.docx'},
 ] as const;
 type DocKey=typeof documents[number]['key'];
 type StoredDoc={targetId:string;fileName:string;url:string;uploadedAt:string};
