@@ -168,7 +168,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const classCount = classItems.length;
     const amountDue = classCount > 0 ? mainClassPrice + Math.max(0, classCount - 1) * additionalClassPrice : 0;
     await this.dispatch({
-      eventKey: 'registration-confirmed:' + registration.id,
+      eventKey: 'registration-confirmed:' + registration.id + ':' + new Date(registration.registeredAt ?? Date.now()).toISOString(),
       type: 'REGISTRATION_CONFIRMED',
       recipient: user.email,
       stageId: stage.id ?? registration.stageId,
