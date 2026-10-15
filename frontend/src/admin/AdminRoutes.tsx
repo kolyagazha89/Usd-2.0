@@ -14,6 +14,7 @@ import PartnersPage from './PartnersPage';
 import NewsPage from './NewsPage';
 import MediaLibraryPage from './MediaLibraryPage';
 import SiteSettingsPage from './SiteSettingsPage';
+import EmailTestingPage from './EmailTestingPage';
 import AssistantPage from './AssistantPage';
 import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './CompetitionPages';
 import RegistrationsPage from './RegistrationsPage';
@@ -56,6 +57,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
+  if(path.startsWith('/admin/email-testing'))return <EmailTestingPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
   if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
