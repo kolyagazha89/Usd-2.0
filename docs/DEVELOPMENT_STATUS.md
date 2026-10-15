@@ -1,3 +1,31 @@
+# Follow-up release delta — 2026-10-15 09:07 UTC
+
+This follow-up supersedes the earlier 08:55 snapshot below where later commits changed the evidence. The frontend and backend are separate deployable artifacts; their verified source commits differ because the latest backend-only change did not require rebuilding the frontend.
+
+## Verified deployed code
+
+- **Backend source:** `3b0cb254b87f2a98e3605022fe7fb42c19ffd24e`. Railway deployment `76fbd742-8663-43b3-8ca2-52f67202ee7f` reached SUCCESS; Nest started; no pending Prisma migrations. Backend CI #820 passed and Production API Smoke #33 passed: https://github.com/kolyagazha89/Usd-2.0/actions/runs/38710433716.
+- **Frontend source:** `40432518c1dd5395c70587643c44a968a5196c07`. Frontend CI #637, Frontend Deploy #89 and Cloudflare-native production Worker build all passed. The GitHub Actions Wrangler publish step is skipped because Cloudflare token/account secrets are not configured in GitHub; the connected Cloudflare-native production build did pass.
+- **Cross-browser QR scanning:** PR #159 merged as `4826459daf25c74f20186199dd8767d369c2d3cb`; Frontend CI #635 passed, and the resulting Worker production build passed. Scanner uses native BarcodeDetector where available and jsQR fallback otherwise, with same-origin/exact-route checks. Physical HTTPS camera acceptance on real mobile devices remains open under #50.
+- **Legal footer links:** PR #160 merged as `40432518c1dd5395c70587643c44a968a5196c07`; Frontend CI #637 passed and Cloudflare production build passed. Footer links to `/privacy`, `/consent`, and `/terms` remain visible when texts are unapproved; those pages still show a pending-approval state and registration remains blocked.
+- **Site-settings diagnostics:** PR #157 and follow-up PR #161 are merged. Current backend logs unexpected update failures by phase (`read`, `merge`, `upsert`, `audit`), error class and Prisma code without payload values. This is diagnostic coverage, not a root-cause fix.
+- **Site-settings 500s:** eight production `PATCH /site-settings` HTTP 500s were observed between 07:57 and 08:41 UTC before the diagnostics were deployed. No later PATCH attempt has reproduced the issue yet. Keep [#156](https://github.com/kolyagazha89/Usd-2.0/issues/156) open until a real save reproduces and is fixed.
+- **Email:** four production `POST /mail/test-trigger` calls returned HTTP 201, which is evidence the configured provider accepted the sends. Actual Inbox/Spam placement and verification-link operation are not confirmed; keep [#49](https://github.com/kolyagazha89/Usd-2.0/issues/49) open.
+- **Media:** two earlier transient 500s affected public poster/logo delivery; later requests returned 304. Keep cold-load asset QA under [#11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
+- **Legal approval:** footer discovery is fixed, but the organizer still must approve actual legal text/operator details before registration can be enabled. Do not approve on their behalf.
+- **Public domain:** no root domain, DNS, nameserver, Tilda or production routing changes have been made. The custom-domain cutover remains a separate step requiring explicit approval.
+
+## Remaining release gates (do not mark release-ready until resolved)
+
+1. Reproduce and fix #156 settings-save 500s using the new phase diagnostics.
+2. Confirm test-email receipt and a working verification link; verify remaining date-based triggers without touching a live event.
+3. Browser-check the exact active Worker URL, direct route refresh, anonymous privacy, desktop/mobile layouts and cold-load logo/poster delivery.
+4. Test QR camera scanning on HTTPS in iOS Safari and Android Chrome; verify ADMIN/JUDGE permissions with real sessions.
+5. Obtain organizer approval for the actual privacy policy, consent, terms and operator details.
+6. Keep public domain/DNS cutover as a separately approved final operation.
+
+---
+
 # Current release delta — 2026-10-15 08:55 UTC
 
 This entry supersedes older status statements below where they conflict with the evidence recorded here. It records code/deployment checks, not owner/browser acceptance.
