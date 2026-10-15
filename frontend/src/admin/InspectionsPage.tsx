@@ -66,7 +66,6 @@ function InspectionQrScanner({onClose,onScan}:{onClose:()=>void;onScan:(stageId:
 function EntryInspection({stageId,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageId:string;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
  const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false),[selectedRegistrationId,setSelectedRegistrationId]=useState(initialRegistrationId),[initialSelectionHandled,setInitialSelectionHandled]=useState(false),[confirmPassAll,setConfirmPassAll]=useState(false),[confirmFailAll,setConfirmFailAll]=useState(false),[failAllReason,setFailAllReason]=useState('');
- const isBassRaceClass=(item:any)=>{const normalize=(value:any)=>String(value??'').trim().toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');return normalize(item?.class?.name??item?.name).includes('BASSRACE')||normalize(item?.class?.direction?.name??item?.direction?.name).includes('BASSRACE')};
   const expandInspectionRows=(items:any[])=>{
     const grouped=new Map<string,any>();
     for(const registration of items){
