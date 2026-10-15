@@ -3213,3 +3213,19 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .consent-option a{color:#bd1728;text-decoration:underline;text-underline-offset:2px;font-weight:650}
 .registration-rules-consent{margin:14px 0;padding:12px;border:1px solid #dedee2;border-radius:9px;background:#fafafa}
 @media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}
+
+/* USD visual system: consistent dark controls across public pages, admin forms, participant portal and login. */
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
+  color: #f4f4f6;
+  background-color: #151518;
+  border-color: #39393f;
+  color-scheme: dark;
+}
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
+:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
