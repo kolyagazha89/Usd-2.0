@@ -76,6 +76,8 @@ export class AuthService {
     const complete = legal.legalApproved === true
       && Boolean(String(legal.legalVersion ?? '').trim())
       && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.operatorAddress ?? '').trim())
+      && Boolean(String(legal.personalDataEmail ?? '').trim())
       && Boolean(String(legal.privacyText ?? '').trim())
       && Boolean(String(legal.consentText ?? '').trim())
       && Boolean(String(legal.termsText ?? '').trim())
@@ -199,7 +201,7 @@ export class AuthService {
         privacyConsentVersion: 'privacy-v' + legalVersion,
         termsAcceptedAt: new Date(),
         termsVersion: 'terms-v' + legalVersion,
-        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1', newsletterConsentSource: 'signup-form' } : {}),
+        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v' + legalVersion, newsletterConsentSource: 'signup-form' } : {}),
       },
     });
 
@@ -237,15 +239,17 @@ export class AuthService {
 
   async updateNewsletterConsent(userId: string, consent: boolean) {
     const now = new Date();
+    const legalVersion = consent ? await this.getApprovedLegalVersion() : null;
+    const version = legalVersion ? 'newsletter-v' + legalVersion : null;
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: consent
-        ? { newsletterConsentAt: now, newsletterConsentVersion: 'newsletter-v1', newsletterConsentRevokedAt: null, newsletterConsentSource: 'account-settings', newsletterConsentRevokedSource: null }
+        ? { newsletterConsentAt: now, newsletterConsentVersion: version, newsletterConsentRevokedAt: null, newsletterConsentSource: 'account-settings', newsletterConsentRevokedSource: null }
         : { newsletterConsentRevokedAt: now, newsletterConsentRevokedSource: 'account-settings' },
       select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true },
     });
     await this.prisma.auditLog.create({
-      data: { userId, action: consent ? 'NEWSLETTER_CONSENT_GRANTED' : 'NEWSLETTER_CONSENT_REVOKED', entity: 'User', entityId: userId, metadata: { version: 'newsletter-v1', source: 'account-settings' } },
+      data: { userId, action: consent ? 'NEWSLETTER_CONSENT_GRANTED' : 'NEWSLETTER_CONSENT_REVOKED', entity: 'User', entityId: userId, metadata: { version: version ?? updated.newsletterConsentVersion, source: 'account-settings' } },
     });
     return { success: true, consent: Boolean(updated.newsletterConsentAt && !updated.newsletterConsentRevokedAt), message: consent ? 'Согласие на новости сохранено' : 'Рассылка новостей отключена' };
   }
