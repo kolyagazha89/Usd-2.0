@@ -3203,3 +3203,13 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .stage-registration-action{display:grid;gap:4px;justify-items:start;min-width:160px}
 .stage-registration-action .form-error{display:block;max-width:260px;white-space:normal;font-size:12px}
 .qr-scanner-page .qr-scanner-modal{max-width:760px;margin:0 auto}
+
+
+/* Explicit consent controls — never prechecked, readable on desktop and mobile. */
+.consent-stack{display:grid;gap:12px;margin:16px 0;padding:14px;border:1px solid #dedee2;border-radius:10px;background:#fafafa}
+.consent-option{display:flex!important;align-items:flex-start;gap:10px;font-size:13px!important;line-height:1.55;color:#34343a;font-weight:450!important}
+.consent-option input[type="checkbox"]{appearance:auto!important;display:block!important;flex:0 0 17px;width:17px!important;height:17px!important;margin:2px 0 0;accent-color:#ed2638;cursor:pointer}
+.consent-option span{min-width:0}
+.consent-option a{color:#bd1728;text-decoration:underline;text-underline-offset:2px;font-weight:650}
+.registration-rules-consent{margin:14px 0;padding:12px;border:1px solid #dedee2;border-radius:9px;background:#fafafa}
+@media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}

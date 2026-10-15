@@ -1,3 +1,41 @@
+> **Обновление релизного аудита — 2026-10-14 21:23 UTC.**
+>
+> - **Email/legal PR #138:** code head `7a40b72f98fa8a825f69ea307afef81828c226e1`; Backend CI passed (Prisma generation/migrations, build, lint, 196 unit tests, E2E), Frontend CI passed. The current branch includes all four event triggers, consent source/revocation metadata, the shared USD template across system emails, registration/on-site consent controls and unapproved legal drafts.
+> - **Homepage PR #140:** head `3149fe113ca6a96fc56bf681e610e3fa3f38a7de`; frontend + backend CI passed. Results are restricted to the latest past public stage; leaderboard distribution is SPL 3 / BFSPL 2 / BDWSPL 1 and no arbitrary fallback is used when direction metadata is missing.
+> - **Current main:** `dcf880b21173d5fd0f6603d418217809601e219a`. Neither PR is merged; their changes have not been deployed. Railway `usd-api` latest observed deployment remains SUCCESS from `2026-10-14T16:49:53Z`; no deployment was triggered by these feature branches.
+> - **External gates still open:** real email provider acceptance + Inbox/Spam receipt; organizer approval of legal texts and operator details; Cloudflare-native frontend deployment and browser QA for direct routes/responsive layouts; live mobile QR scan and ADMIN/JUDGE permission smoke tests. Do not infer those from CI.
+> - **Safety:** public domain, DNS and production routing were not changed. Do not enable registration until legal approval is complete.
+>
+> **Обновление — 2026-10-14, 17:02 UTC — CI подтверждён на email/legal code head.**
+>
+> - PR #138 code head `2a4a8ea5ac1fee244dbab88d97331e9de3c72c32`: Backend CI passed (Prisma generation/migrations, build, lint, unit tests, E2E); Frontend CI passed (build). После этого в статусе/документации будет только описательное обновление; если код изменится, CI нужно повторить.
+> - PR #140 homepage latest-results fix `5e4bffc7d032dda94d49f4fa1da11421f2efa9f4`: frontend and backend CI passed.
+> - Main recovery commit `dcf880b21173d5fd0f6603d418217809601e219a` restores the known-good source tree from `1b83edaae686aaa3aa2ceeca24a790514d4fc69a`; backend CI passed migrations/build/lint/unit/E2E.
+> - Main restoration is source/CI evidence only. The exact live deployment serving traffic is not independently verified. No domain/DNS/routing changes.
+> - Release blockers remain: organizer approval of the actual legal texts; real-provider test mail plus Inbox/Spam receipt; browser QA for profile, public pages, stages, QR inspections, roles and car/configuration routes. Keep #49 and #52 open until those gates pass.
+>
+> **Обновление — 2026-10-14, 16:45 UTC — юридические согласия и email-триггеры расширены.**
+>
+> - Серверная регистрация аккаунта теперь проверяет, что организатор утвердил юридические документы, и записывает фактическую версию согласия; интерфейсная блокировка не является единственным уровнем защиты.
+> - Для существующих аккаунтов добавлены `GET/PATCH /auth/legal-consent`; регистрация участника на этап отклоняется, если версия обязательных согласий устарела или отсутствует. Форма этапа предлагает незаполненные обязательные согласия только если их нет, без предустановленных галочек.
+> - Публичная выдача юридических текстов скрывает черновики до утверждения; в админке добавлен явный процесс утверждения. Изменение текста сбрасывает утверждение; требуется сначала сохранить документ, затем отдельно утвердить его.
+> - Добавлены тесты версии юридических документов, неизменяемости опубликованного регламента и серверной проверки согласий; команда `npm run test:consents` объединяет соответствующие тестовые suites.
+> - Почтовый worker использует отдельные события, идемпотентный журнал, HTML/text шаблоны, тестовые триггеры ADMIN, проверку согласия перед повторной отправкой и ограниченные повторы для ошибок провайдера. Напоминания запускаются в 72-часовом и 24-часовом окнах с периодической проверкой.
+> - **Проверка:** актуальный head PR #138 ещё не имеет подтверждённого CI run. Последние подтверждённые зелёные backend/frontend runs были на более раннем commit `f2e03d6b374cc352067aef666c4031ab63a7e92f`; успешность текущего кода не заявляется. Реальную доставку, browser QA и утверждение документов нужно закрыть отдельно.
+>
+> **CI note — 2026-10-14, 16:18 UTC:** frontend and backend CI passed on commit `f2e03d6b374cc352067aef666c4031ab63a7e92f`. A later backend run on intermediate commit `9825ecf05079835e2eb431dcaf542c54a00d5a12` failed during unit tests with Jest unable to resolve `email-notifications.service` from its test at that snapshot; no test assertions ran for that suite. Current PR head `18555ab2f79324e16aa0beba020c06db6af78a8a` contains the service file and separate reminder-threshold tests; fresh CI for the current head must be observed before treating this block as green.
+>
+> **Обновление — 2026-10-14, ветка `feature/stage-email-triggers-consents` (реализация в работе, CI ещё не проверен).**
+>
+> - Создана задача [#136](https://github.com/kolyagazha89/Usd-2.0/issues/136) для четырёх email-триггеров, согласий и юридических черновиков.
+> - В схему добавлены версии/временные отметки согласия на обработку данных и пользовательское соглашение, отдельный opt-in на новости, отзыв согласия, фиксация версии регламента при регистрации и уникальный журнал уведомлений. Добавлена миграция `20261014190000_stage_email_notifications`.
+> - Добавлены серверные триггеры: открытие регистрации (только подтверждённым активным пользователям с действующим opt-in), подтверждение успешной регистрации, плановые напоминания за 3 и 1 день. Журнал использует уникальный ключ события для защиты от дублей; ошибки провайдера записываются как FAILED, а API-acceptance не считается доставкой.
+> - Добавлены адаптивные HTML + text/plain шаблоны в стиле USD и ADMIN endpoint `POST /mail/test-trigger`; в настройках сайта появилась форма для тестирования каждого шаблона на собственный email.
+> - В форме создания аккаунта добавлены две обязательные выключенные по умолчанию галочки (обработка данных и пользовательское соглашение) и отдельная необязательная галочка новостей. В профиле участника добавлена возможность включить/отозвать новостную рассылку. На регистрации этапа требуется отдельное подтверждение регламента.
+> - Добавлены unit-тесты для выбора аудитории, отказа от рассылки, дедупликации, шаблонов, логирования ошибок и обязательных согласий. Результаты CI ещё не получены; код нужно считать непроверенным до успешного backend/frontend CI.
+> - Добавлен `docs/legal/DRAFTS.md`; тексты явно помечены как черновики и требуют утверждения организатором. До утверждения юридические документы остаются release blocker.
+> - Не менялись production, DNS, публичный домен или routing. #49 остаётся открытым до фактической проверки входящих/спама; #52 остаётся открытым до утверждения документов и проверки ссылок в браузере.
+>
 > **Текущий статус — 2026-10-14, 15:32 UTC. Эта запись имеет приоритет над всеми более старыми статусами ниже.**
 >
 > - **Main:** `010d04bc6c56216f451fd17fa141b4f148ebcd45`. Backend CI прошёл: [run 38589768819](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38589768819). Production API Smoke прошёл: [run 38589836515](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38589836515).

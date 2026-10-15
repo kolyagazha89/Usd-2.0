@@ -3,11 +3,14 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { EmailNotificationsService } from '../mail/email-notifications.service';
 
 type RegistrationSource =
   | 'PRE_REGISTRATION'
@@ -18,8 +21,11 @@ type RegistrationStatus = 'ACTIVE' | 'CANCELLED';
 
 @Injectable()
 export class RegistrationsService {
+  private readonly logger = new Logger(RegistrationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
+    @Optional() private readonly emailNotifications?: EmailNotificationsService,
   ) {}
 
   private readonly registrationInclude = {
@@ -199,6 +205,9 @@ export class RegistrationsService {
       classIds: string[];
       configurationVersionId: string;
       source?: RegistrationSource;
+      rulesAccepted?: boolean;
+      privacyConsent?: boolean;
+      termsAccepted?: boolean;
     },
   ) {
     const {
@@ -207,11 +216,20 @@ export class RegistrationsService {
       classIds,
       configurationVersionId,
     } = body;
+    const source = body.source ?? 'PRE_REGISTRATION';
+    let consentLegalVersion: string | null = null;
+    let registrationPrivacyConsentAt: Date | null = null;
+    let registrationTermsAcceptedAt: Date | null = null;
+    let consentCapturedByUserId: string | null = null;
 
     const participantId =
       request.user.role === 'PARTICIPANT'
         ? request.user.participantId
         : body.participantId;
+
+    if (request.user.role === 'PARTICIPANT' && body.rulesAccepted !== true) {
+      throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
+    }
 
     if (!participantId) {
       throw new BadRequestException(
@@ -223,6 +241,49 @@ export class RegistrationsService {
       throw new BadRequestException(
         'Для регистрации необходимо выбрать версию конфигурации автомобиля',
       );
+    }
+
+    if (source !== 'IMPORT') {
+      const legalRow = await this.prisma.siteSettings.findUnique({
+        where: { id: 'default' },
+        select: { legal: true, contacts: true, footer: true },
+      });
+      const legal = (legalRow?.legal ?? {}) as Record<string, any>;
+      const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
+        ?? (legalRow?.footer as Record<string, any> | null)?.email;
+      const version = String(legal.legalVersion ?? '');
+      const legalReady = legal.legalApproved === true && Boolean(version)
+        && Boolean(String(legal.ipName ?? '').trim())
+        && Boolean(String(legal.privacyText ?? '').trim())
+        && Boolean(String(legal.consentText ?? '').trim())
+        && Boolean(String(legal.termsText ?? '').trim())
+        && Boolean(String(contactEmail ?? '').trim());
+      if (!legalReady) {
+        throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
+      }
+      consentLegalVersion = version;
+      if (request.user.role === 'PARTICIPANT') {
+        const consentUser = await this.prisma.user.findUnique({
+          where: { id: request.user.sub },
+          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+        });
+        const currentConsents = consentUser
+          && consentUser.privacyConsentAt && consentUser.privacyConsentVersion === 'privacy-v' + version
+          && consentUser.termsAcceptedAt && consentUser.termsVersion === 'terms-v' + version;
+        if (!currentConsents) {
+          throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
+        }
+        registrationPrivacyConsentAt = consentUser.privacyConsentAt;
+        registrationTermsAcceptedAt = consentUser.termsAcceptedAt;
+        consentCapturedByUserId = request.user.sub;
+      } else {
+        if (body.rulesAccepted !== true || body.privacyConsent !== true || body.termsAccepted !== true) {
+          throw new BadRequestException('Для регистрации участника подтвердите согласие на обработку данных, пользовательское соглашение и ознакомление с регламентом');
+        }
+        registrationPrivacyConsentAt = new Date();
+        registrationTermsAcceptedAt = new Date();
+        consentCapturedByUserId = request.user.sub;
+      }
     }
 
     if (
@@ -294,8 +355,6 @@ export class RegistrationsService {
       );
     }
 
-    const source =
-      body.source ?? 'PRE_REGISTRATION';
 
     if (
       ![
@@ -309,7 +368,7 @@ export class RegistrationsService {
       );
     }
 
-    return this.prisma.$transaction(
+    const registration = await this.prisma.$transaction(
       async (tx) => {
         // Блокируем выдачу номеров для конкретного этапа.
         //
@@ -334,6 +393,10 @@ export class RegistrationsService {
           throw new NotFoundException(
             'Этап не найден или удалён',
           );
+        }
+
+        if (request.user.role === 'PARTICIPANT' && !stage.rulesSnapshot) {
+          throw new BadRequestException('Для регистрации организатор должен опубликовать действующий регламент этапа');
         }
 
         if (stage.status !== 'PUBLISHED') {
@@ -664,6 +727,17 @@ export class RegistrationsService {
               generators: configurationVersion.generators,
             },
             participantNumber,
+            ...(consentLegalVersion ? {
+              privacyConsentAt: registrationPrivacyConsentAt,
+              privacyConsentVersion: 'privacy-v' + consentLegalVersion,
+              termsAcceptedAt: registrationTermsAcceptedAt,
+              termsVersion: 'terms-v' + consentLegalVersion,
+              consentCapturedByUserId,
+            } : {}),
+            ...(body.rulesAccepted === true ? {
+              rulesAcceptedAt: new Date(),
+              rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
+            } : {}),
             source,
             status: 'ACTIVE',
           },
@@ -707,6 +781,10 @@ export class RegistrationsService {
         });
       },
     );
+    void this.emailNotifications?.registrationConfirmed(registration).catch((error) => {
+      this.logger.error('Registration confirmation email could not be prepared: ' + (error instanceof Error ? error.name : 'UnknownError'));
+    });
+    return registration;
   }
   // ==========================================
   // ОТМЕНА

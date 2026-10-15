@@ -65,9 +65,87 @@ export class AuthService {
     );
   }
 
+  private async getApprovedLegalVersion(): Promise<string> {
+    const row = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { legal: true, contacts: true, footer: true },
+    });
+    const legal = (row?.legal ?? {}) as Record<string, any>;
+    const contactEmail = (row?.contacts as Record<string, any> | null)?.email
+      ?? (row?.footer as Record<string, any> | null)?.email;
+    const complete = legal.legalApproved === true
+      && Boolean(String(legal.legalVersion ?? '').trim())
+      && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.privacyText ?? '').trim())
+      && Boolean(String(legal.consentText ?? '').trim())
+      && Boolean(String(legal.termsText ?? '').trim())
+      && Boolean(String(contactEmail ?? '').trim());
+    if (!complete) {
+      throw new BadRequestException('Регистрация временно недоступна: организатор USD ещё не утвердил юридические документы');
+    }
+    return String(legal.legalVersion);
+  }
+
+  async getLegalConsent(userId: string) {
+    const [user, row] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+      }),
+      this.prisma.siteSettings.findUnique({
+        where: { id: 'default' },
+        select: { legal: true, contacts: true, footer: true },
+      }),
+    ]);
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    const legal = (row?.legal ?? {}) as Record<string, any>;
+    const contactEmail = (row?.contacts as Record<string, any> | null)?.email
+      ?? (row?.footer as Record<string, any> | null)?.email;
+    const legalReady = legal.legalApproved === true
+      && Boolean(String(legal.legalVersion ?? '').trim())
+      && Boolean(String(legal.ipName ?? '').trim())
+      && Boolean(String(legal.privacyText ?? '').trim())
+      && Boolean(String(legal.consentText ?? '').trim())
+      && Boolean(String(legal.termsText ?? '').trim())
+      && Boolean(String(contactEmail ?? '').trim());
+    const version = legalReady ? String(legal.legalVersion) : null;
+    return {
+      legalReady,
+      version,
+      privacyAccepted: Boolean(version && user.privacyConsentAt && user.privacyConsentVersion === 'privacy-v' + version),
+      termsAccepted: Boolean(version && user.termsAcceptedAt && user.termsVersion === 'terms-v' + version),
+    };
+  }
+
+  async updateLegalConsent(userId: string, privacyConsent: boolean, termsAccepted: boolean) {
+    if (privacyConsent !== true || termsAccepted !== true) {
+      throw new BadRequestException('Необходимо подтвердить согласие на обработку данных и принять пользовательское соглашение');
+    }
+    const version = await this.getApprovedLegalVersion();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        privacyConsentAt: new Date(),
+        privacyConsentVersion: 'privacy-v' + version,
+        termsAcceptedAt: new Date(),
+        termsVersion: 'terms-v' + version,
+      },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        userId, action: 'LEGAL_CONSENT_UPDATED', entity: 'User', entityId: userId,
+        metadata: { privacyVersion: 'privacy-v' + version, termsVersion: 'terms-v' + version, source: 'account-or-registration' },
+      },
+    });
+    return { success: true, legalReady: true, version, privacyAccepted: true, termsAccepted: true };
+  }
+
   async register(
     email: string,
     password: string,
+    privacyConsent: boolean,
+    termsAccepted: boolean,
+    newsletterOptIn = false,
   ) {
     const normalizedEmail =
       email.trim().toLowerCase();
@@ -77,6 +155,16 @@ export class AuthService {
         'Email обязателен',
       );
     }
+
+    if (termsAccepted !== true) {
+      throw new BadRequestException('Необходимо принять пользовательское соглашение');
+    }
+
+    if (privacyConsent !== true) {
+      throw new BadRequestException('Необходимо подтвердить согласие на обработку персональных данных');
+    }
+
+    const legalVersion = await this.getApprovedLegalVersion();
 
     if (normalizedPasswordInvalid(password)) {
       throw new BadRequestException(
@@ -107,6 +195,11 @@ export class AuthService {
         name: null,
         role: 'PARTICIPANT',
         isActive: true,
+        privacyConsentAt: new Date(),
+        privacyConsentVersion: 'privacy-v' + legalVersion,
+        termsAcceptedAt: new Date(),
+        termsVersion: 'terms-v' + legalVersion,
+        ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v1', newsletterConsentSource: 'signup-form' } : {}),
       },
     });
 
@@ -134,6 +227,27 @@ export class AuthService {
         ? 'Аккаунт создан. Почтовый провайдер принял запрос, но фактическая доставка письма не подтверждена. Проверьте папку «Спам». Если письма нет, настройку почты нужно проверить.'
         : 'Аккаунт создан, но письмо не отправилось. Проверьте адрес и запросите письмо повторно.',
     };
+  }
+
+  async getNewsletterConsent(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true } });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return { consent: Boolean(user.newsletterConsentAt && !user.newsletterConsentRevokedAt), version: user.newsletterConsentVersion, consentAt: user.newsletterConsentAt, revokedAt: user.newsletterConsentRevokedAt, source: user.newsletterConsentSource, revokedSource: user.newsletterConsentRevokedSource };
+  }
+
+  async updateNewsletterConsent(userId: string, consent: boolean) {
+    const now = new Date();
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: consent
+        ? { newsletterConsentAt: now, newsletterConsentVersion: 'newsletter-v1', newsletterConsentRevokedAt: null, newsletterConsentSource: 'account-settings', newsletterConsentRevokedSource: null }
+        : { newsletterConsentRevokedAt: now, newsletterConsentRevokedSource: 'account-settings' },
+      select: { newsletterConsentAt: true, newsletterConsentVersion: true, newsletterConsentRevokedAt: true, newsletterConsentSource: true, newsletterConsentRevokedSource: true },
+    });
+    await this.prisma.auditLog.create({
+      data: { userId, action: consent ? 'NEWSLETTER_CONSENT_GRANTED' : 'NEWSLETTER_CONSENT_REVOKED', entity: 'User', entityId: userId, metadata: { version: 'newsletter-v1', source: 'account-settings' } },
+    });
+    return { success: true, consent: Boolean(updated.newsletterConsentAt && !updated.newsletterConsentRevokedAt), message: consent ? 'Согласие на новости сохранено' : 'Рассылка новостей отключена' };
   }
 
   async verifyEmail(

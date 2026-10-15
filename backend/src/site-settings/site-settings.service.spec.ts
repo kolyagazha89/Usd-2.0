@@ -34,6 +34,9 @@ describe('SiteSettingsService.getPublic', () => {
     const response = await service.getPublic();
 
     expect(response.settings.legal).toEqual({
+      legalApproved: false,
+      legalVersion: null,
+      legalApprovedAt: null,
       ipName: 'USD Russia',
       inn: '1234567890',
       ogrnip: '',

@@ -5,6 +5,8 @@ import { RegistrationsService } from './registrations.service';
 describe('RegistrationsService', () => {
   const prisma: any = {
     $transaction: jest.fn(),
+    siteSettings: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
   };
 
   let service: RegistrationsService;
@@ -12,6 +14,7 @@ describe('RegistrationsService', () => {
   const participantRequest: any = {
     user: {
       id: 'user-1',
+      sub: 'user-1',
       role: 'PARTICIPANT',
       participantId: 'participant-1',
     },
@@ -19,6 +22,8 @@ describe('RegistrationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {} });
+    prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: new Date(), privacyConsentVersion: 'privacy-v1', termsAcceptedAt: new Date(), termsVersion: 'terms-v1' });
     service = new RegistrationsService(prisma);
   });
 
@@ -42,6 +47,8 @@ describe('RegistrationsService', () => {
             registrationStartsAt: null,
             registrationEndsAt: null,
             seasonId: 'season-1',
+            rulesSnapshot: { revisionId: 'rules-v1' },
+            updatedAt: new Date('2026-10-01T00:00:00Z'),
           })
           .mockResolvedValueOnce({
             id: 'stage-1',
@@ -119,6 +126,7 @@ describe('RegistrationsService', () => {
     carId: 'car-1',
     classIds: ['class-1'],
     configurationVersionId: 'configuration-version-1',
+    rulesAccepted: true,
   };
 
   it('requires an explicit configuration version', async () => {

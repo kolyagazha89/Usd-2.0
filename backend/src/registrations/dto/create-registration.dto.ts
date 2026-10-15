@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsUUID } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateRegistrationDto {
   @IsUUID()
@@ -19,6 +19,18 @@ export class CreateRegistrationDto {
 
   @IsUUID()
   configurationVersionId!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rulesAccepted?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  privacyConsent?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  termsAccepted?: boolean;
 
   @IsOptional()
   @IsIn(['PRE_REGISTRATION', 'ON_SITE', 'IMPORT'])
