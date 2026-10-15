@@ -634,7 +634,7 @@ export class AuthService {
       where: { id: userId },
       select: { id: true, email: true, participantId: true, role: true },
     });
-    if (!user || user.role !== 'PARTICIPANT') {
+    if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
       throw new UnauthorizedException('Недействительная учётная запись');
     }
     if (user.participantId) {
@@ -732,7 +732,7 @@ export class AuthService {
         where: { id: userId },
         select: { id: true, email: true, participantId: true, role: true },
       });
-      if (!user || user.role !== 'PARTICIPANT') {
+      if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
         throw new UnauthorizedException('Недействительная учётная запись');
       }
       if (user.participantId && user.participantId !== participantId) {
