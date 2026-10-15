@@ -9,7 +9,7 @@ type ApiError = Error & { status?: number; debug?: string; responseBody?: unknow
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
 
-export type Role = 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+export type Role = 'ADMIN' | 'PARTICIPANT';
 export type CustomRoleInfo = { id:string; key:string; name:string; permissions:Record<string,string[]> };
 export type User = { id:string; email:string; name?:string|null; role:Role; emailVerifiedAt?:string|null; participantId?:string|null; customRoleId?:string|null; customRole?:CustomRoleInfo|null };
 export type AuthResponse = { success?:boolean; accessToken:string; refreshToken?:string; user:User };
