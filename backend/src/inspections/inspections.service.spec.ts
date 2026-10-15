@@ -109,9 +109,9 @@ describe('InspectionsService', () => {
   });
 
   it('allows an admin to edit another judge’s inspection', async () => {
-    prisma.inspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2' });
+    prisma.participantStageInspection.findUnique.mockResolvedValue({ ...existing, createdByUserId: 'judge-2', registrations: [] });
     await service.update('inspection-1', { status: 'PASSED' }, { ...actor, userId: 'admin-1', role: 'ADMIN' });
-    expect(tx.inspection.update).toHaveBeenCalled();
+    expect(tx.participantStageInspection.update).toHaveBeenCalled();
   });
 
   it('allows deletion only for ADMIN', async () => {
