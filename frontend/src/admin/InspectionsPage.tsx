@@ -49,8 +49,9 @@ function InspectionQrScanner({onClose,onScan}:{onClose:()=>void;onScan:(stageId:
    setScannerMode(detector?'Встроенное распознавание QR':'Совместимое распознавание QR для этого браузера');
    const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});
    if(!context){setError('Не удалось подготовить распознавание QR. Вставьте ссылку из QR-кода ниже.');return}
+   let scan:()=>Promise<void>=async()=>{};
    const schedule=()=>{if(!active)return;if(detector)frame=requestAnimationFrame(()=>void scan());else timeout=window.setTimeout(()=>void scan(),180)};
-   const scan=async()=>{if(!active)return;if(video.readyState>=2){
+   scan=async()=>{if(!active)return;if(video.readyState>=2){
     let raw='';
     if(detector){try{const found=await detector.detect(video);raw=found?.[0]?.rawValue||''}catch{detector=null;setScannerMode('Совместимое распознавание QR для этого браузера')}}
     if(!detector&&!raw){const width=Math.min(video.videoWidth||0,1280),height=width&&video.videoWidth?Math.max(1,Math.round(width*video.videoHeight/video.videoWidth)):0;if(width&&height){canvas.width=width;canvas.height=height;context.drawImage(video,0,0,width,height);try{raw=jsQR(context.getImageData(0,0,width,height).data,width,height,{inversionAttempts:'attemptBoth'})?.data||''}catch{raw=''}}}
