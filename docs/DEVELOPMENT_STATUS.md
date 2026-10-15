@@ -1,3 +1,24 @@
+# Current release delta — 2026-10-15 02:01 UTC
+
+## Additional merged fixes after the previous status note
+
+- **PR #143 / commit `357f63a189ea16b1e9e848eef4874582e862c199`** — reminder triggers now compare UTC calendar days because stage dates are date-only values stored at UTC noon. A stage two calendar days away is not mislabeled as a three-day reminder. Reminder idempotency keys include the scheduled date so a rescheduled stage can receive a new reminder. Backend build/lint/unit/E2E and production API smoke passed.
+- **PR #144 / commit `0711ed91561ff9ef62b625835b4bb448046ff8fc`** — homepage latest-stage selection compares against the start of the current UTC calendar day, not the current timestamp, so today's stage is not prematurely treated as past. Frontend and backend CI passed.
+- **PR #142 / commit `b51c077d09b85ba5ca26dbb66c90d1d7323a71df`** — this release-status update was merged into the development-status document.
+
+## Current external release blockers
+
+- **Mail:** #49 remains open until the configured provider accepts a real test and the recipient confirms Inbox/Spam. CI/API smoke are not delivery evidence.
+- **Legal:** legal drafts remain unapproved; organizer must approve the real operator details and legal text before production registration is considered ready.
+- **Browser/device QA:** public direct routes and refresh, responsive layouts, consent links, profile/car/stage registration, QR camera on HTTPS, ADMIN/JUDGE authorization and CRUD flows still need hands-on acceptance.
+- **Cloudflare frontend:** GitHub's publish step is skipped due missing `CF_API_TOKEN` / `CF_ACCOUNT_ID`; Cloudflare-native `Workers Builds: usd-2-0` is failing on main and PR branches. The actual frontend serving revision is not verified. Investigate the Cloudflare build logs/dashboard before calling frontend rollout complete.
+- **API:** production API smoke passed on main commit `357f63a` (protected publication endpoint, public settings/stages/records, published/unpublished results and private-field checks). Re-check after subsequent backend deploys.
+- No public domain, DNS, nameservers or production routing were intentionally changed.
+
+This is an incremental release-status note; older dated entries below are historical and may describe earlier commit states.
+
+---
+
 # Release status update — 2026-10-15
 
 ## Recently merged
