@@ -166,8 +166,8 @@ function sortRecordRows(rows:any[]){return rows.slice().sort((a:any,b:any)=>Numb
 function selectHomepageResults(rows:any[]){
   const score=(r:any)=>{const raw=r.value??r.score??r.result?.value;const n=Number(raw);return Number.isFinite(n)?n:Number.NEGATIVE_INFINITY};
   const classItem=(r:any)=>r.registrationClass?.class??r.class??r.result?.registrationClass?.class??{};
-  const direction=(r:any)=>String(classItem(r)?.direction?.name??r.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/[\\s_-]/g,'');
-  const classKey=(r:any)=>String(classItem(r)?.id??classItem(r)?.code??classItem(r)?.name??r.className??'').toLocaleUpperCase('ru-RU').replace(/[\\s_-]/g,'');
+  const direction=(r:any)=>String(classItem(r)?.direction?.name??r.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/[\s_-]/g,'');
+  const classKey=(r:any)=>String(classItem(r)?.id??classItem(r)?.code??classItem(r)?.name??r.className??'').toLocaleUpperCase('ru-RU').replace(/[\s_-]/g,'');
   const winners=new Map<string,any>();
   for(const row of rows){
     const key=direction(row)+'::'+classKey(row);
