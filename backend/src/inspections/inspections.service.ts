@@ -67,8 +67,11 @@ const inspectionInclude = {
       classes: {
         include: {
           class: { include: { direction: true } },
+          number: true,
+          inspection: true,
         },
       },
+      numbers: { orderBy: { number: 'asc' } },
     },
   },
   checkedByUser: {
