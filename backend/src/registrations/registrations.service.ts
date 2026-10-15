@@ -230,7 +230,7 @@ export class RegistrationsService {
         : body.participantId;
 
     if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && body.rulesAccepted !== true) {
-      throw new BadRequestException('Подтвердите ознакомление с регламентом выбранного этапа');
+      throw new BadRequestException('Подтвердите ознакомление с общим регламентом соревнований');
     }
 
     if (!participantId) {
@@ -248,9 +248,14 @@ export class RegistrationsService {
     if (source !== 'IMPORT') {
       const legalRow = await this.prisma.siteSettings.findUnique({
         where: { id: 'default' },
-        select: { legal: true, contacts: true, footer: true },
+        select: { legal: true, contacts: true, footer: true, registration: true },
       });
+      const registrationSettings = (legalRow?.registration ?? {}) as Record<string, any>;
+      const publishedRules = registrationSettings.rulesDocument?.published;
+      const publishedRulesReady = Boolean(publishedRules && Array.isArray(publishedRules.blocks) && publishedRules.blocks.length > 0 && String(publishedRules.id ?? '').trim());
+      const publishedRulesVersion = String(publishedRules?.id ?? '');
       const legal = (legalRow?.legal ?? {}) as Record<string, any>;
+      });
       const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
         ?? (legalRow?.footer as Record<string, any> | null)?.email;
       const version = String(legal.legalVersion ?? '');
@@ -389,8 +394,8 @@ export class RegistrationsService {
           );
         }
 
-        if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && !stage.rulesSnapshot) {
-          throw new BadRequestException('Для регистрации организатор должен опубликовать действующий регламент этапа');
+        if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && !publishedRulesReady) {
+          throw new BadRequestException('Регистрация недоступна: организатор должен опубликовать действующий общий регламент соревнований в разделе «Документы»');
         }
 
         if (stage.status !== 'PUBLISHED') {
@@ -757,7 +762,7 @@ export class RegistrationsService {
           } : {}),
           ...(body.rulesAccepted === true ? {
             rulesAcceptedAt: new Date(),
-            rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
+            rulesVersion: publishedRulesVersion || String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
           } : {}),
           source,
           status: 'ACTIVE' as const,
