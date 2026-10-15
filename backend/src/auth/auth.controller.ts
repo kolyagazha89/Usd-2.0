@@ -292,7 +292,7 @@ export class AuthController {
   @Get('admin/users')
   async adminListUsers(
     @Query('search') search?: string,
-    @Query('role') role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    @Query('role') role?: 'ADMIN' | 'PARTICIPANT',
   ) {
     return this.authService.adminListUsers(search, role);
   }
