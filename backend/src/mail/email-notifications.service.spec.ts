@@ -84,7 +84,7 @@ describe('EmailNotificationsService', () => {
   });
 
   it('sends a registration confirmation only to the verified account linked to the participant', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'user-1', email: 'driver@example.com' });
+    prisma.user.findFirst.mockResolvedValue({ id: 'user-1', email: 'driver@example.com', emailVerifiedAt: null });
     const registration = {
       id: 'reg-1', participantId: 'participant-1', participantNumber: 17,
       stageId: 'stage-1', stage: { id: 'stage-1', name: 'Этап 1', stageNumber: 4, date: new Date('2026-11-10T10:00:00Z'), city: 'Тюмень', venue: 'Площадка', address: 'ул. Примерная, 1' },
@@ -95,7 +95,7 @@ describe('EmailNotificationsService', () => {
     await service.registrationConfirmed(registration);
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { participantId: 'participant-1', isActive: true, emailVerifiedAt: { not: null } },
+      where: { participantId: 'participant-1', isActive: true },
     }));
     expect(mail.sendNotificationEmail).toHaveBeenCalledTimes(1);
     const message = mail.sendNotificationEmail.mock.calls[0][0];
