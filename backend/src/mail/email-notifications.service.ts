@@ -23,6 +23,14 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
   private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
+  private readonly apiUrl = (process.env.PUBLIC_API_URL ?? process.env.API_BASE_URL ?? process.env.BACKEND_URL ?? 'https://usd-api-production.up.railway.app').replace(/\/+$/, '');
+
+  private async getLogoUrl(): Promise<string | null> {
+    const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { branding: true } });
+    const branding = row?.branding as Record<string, any> | null;
+    if (!String(branding?.logoUrl ?? '').trim()) return null;
+    return this.apiUrl + '/media/public-file/SITE_ASSET/branding-logoUrl';
+  }
 
   constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
 
@@ -38,7 +46,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     if (this.timer) clearInterval(this.timer);
   }
 
-  private render(notice: Notice) {
+  private render(notice: Notice, logoUrl: string | null = null) {
     const details = notice.details.filter(Boolean);
     const text = [
       'USD · ULTIMATE SOUND DESTRUCTION',
@@ -53,7 +61,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       'Это сервисное сообщение системы USD.',
     ].join('\n');
     const detailHtml = details.map((line) => '<li style="margin:0 0 8px">' + escapeHtml(line) + '</li>').join('');
-    const html = '<!doctype html><html lang="ru"><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:26px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(notice.heading) + '</h1><p style="font-size:15px;line-height:1.65;margin:0 0 18px">' + escapeHtml(notice.intro) + '</p>' + (detailHtml ? '<ul style="padding-left:20px;line-height:1.5;font-size:14px">' + detailHtml + '</ul>' : '') + '<p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">Открыть USD</a></p><p style="font-size:12px;line-height:1.6;color:#73737a">Это сервисное сообщение USD. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">USD · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></body></html>';
+    const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип ЮСД" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div>';
+    const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff">' + logoHtml + '<div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(notice.heading) + '</h1><p style="font-size:15px;line-height:1.65;margin:0 0 18px">' + escapeHtml(notice.intro) + '</p>' + (detailHtml ? '<ul style="padding-left:20px;line-height:1.5;font-size:14px">' + detailHtml + '</ul>' : '') + '<p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">Открыть USD</a></p><p style="font-size:12px;line-height:1.6;color:#73737a">Это сервисное сообщение USD. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">USD · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></body></html>';
     return { text, html };
   }
 
@@ -88,7 +97,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       data: { status: 'SENDING', lastError: null },
     });
     if (claim.count !== 1) return;
-    const rendered = this.render(notice);
+    const logoUrl = await this.getLogoUrl().catch(() => null);
+    const rendered = this.render(notice, logoUrl);
     try {
       await this.mail.sendNotificationEmail({ to: notice.recipient, subject: notice.subject, ...rendered });
       await this.prisma.emailNotificationLog.update({
@@ -179,7 +189,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       'Место: ' + [stage?.city, stage?.venue, stage?.address].filter(Boolean).join(', '),
       ...(type === 'REGISTRATION_CONFIRMED' ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
     ];
-    const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — USD', heading, intro: 'Это тестовый шаблон из настроек почты USD. Письмо не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' });
+    const logoUrl = await this.getLogoUrl().catch(() => null);
+    const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — USD', heading, intro: 'Это тестовый шаблон из настроек почты ЮСД. Письмо не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' }, logoUrl);
     await this.mail.sendNotificationEmail({ to: recipient, subject: heading + ' — USD', ...message });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
   }
