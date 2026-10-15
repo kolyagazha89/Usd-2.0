@@ -162,7 +162,17 @@ function publicResultValue(value:any){
  const numeric=Number(value);
  return Number.isFinite(numeric)?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:3}).format(numeric):String(value);
 }
-function sortRecordRows(rows:any[]){return rows.slice().sort((a:any,b:any)=>Number(b.value??b.result?.value??0)-Number(a.value??a.result?.value??0));}
+function sortRecordRows(rows:any[]){
+ const score=(row:any)=>{const value=Number(row.value??row.result?.value??0);return Number.isFinite(value)?value:Number.NEGATIVE_INFINITY};
+ const direction=(row:any)=>String(row.class?.direction?.name??row.result?.registrationClass?.class?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\\s/g,'').replace(/[_-]/g,'');
+ const kind=(row:any)=>{const value=direction(row);if(value.includes('BFSPL'))return 'BFSPL';if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';if(value.includes('SPL'))return 'SPL';return ''};
+ const sorted=rows.slice().sort((a:any,b:any)=>score(b)-score(a));
+ return [
+  ...sorted.filter((row:any)=>kind(row)==='SPL').slice(0,3),
+  ...sorted.filter((row:any)=>kind(row)==='BFSPL').slice(0,2),
+  ...sorted.filter((row:any)=>kind(row)==='BDWSPL').slice(0,1),
+ ];
+}
 function selectHomepageResults(rows:any[]){
   const score=(r:any)=>{const raw=r.value??r.score??r.result?.value;const n=Number(raw);return Number.isFinite(n)?n:Number.NEGATIVE_INFINITY};
   const classItem=(r:any)=>r.registrationClass?.class??r.class??r.result?.registrationClass?.class??{};
@@ -178,11 +188,18 @@ function selectHomepageResults(rows:any[]){
     if(!previous||score(row)>score(previous))winners.set(key,row);
   }
   const selected=[...winners.values()];
-  return selected.sort((a:any,b:any)=>{
-    const da=direction(a),db=direction(b);
-    const order=(v:string)=>v.includes('BFSPL')?1:v.includes('BDWSPL')?2:0;
-    return order(da)-order(db)||score(b)-score(a);
-  });
+  const kind=(row:any)=>{
+    const value=direction(row);
+    if(value.includes('BFSPL'))return 'BFSPL';
+    if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
+    if(value.includes('SPL'))return 'SPL';
+    return '';
+  };
+  const byScore=(a:any,b:any)=>score(b)-score(a);
+  const spl=selected.filter((row:any)=>kind(row)==='SPL').sort(byScore).slice(0,3);
+  const bfspl=selected.filter((row:any)=>kind(row)==='BFSPL').sort(byScore).slice(0,2);
+  const bdwspl=selected.filter((row:any)=>kind(row)==='BDWSPL').sort(byScore).slice(0,1);
+  return [...spl,...bfspl,...bdwspl];
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
