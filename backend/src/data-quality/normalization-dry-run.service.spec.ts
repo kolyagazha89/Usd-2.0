@@ -12,6 +12,7 @@ describe('NormalizationDryRunService', () => {
       car: { findMany: jest.fn().mockResolvedValue([
         { id: 'c1', participantId: 'p1', brand: 'Lada', model: 'Vesta', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
         { id: 'c2', participantId: 'p2', brand: 'LADA', model: 'Vesta', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
+        { id: 'c3', participantId: 'p3', brand: '—', model: '—', registrationNumber: 'автомобиль не указан', registrationCountry: 'RU', participant: { firstName: 'Пётр', lastName: 'Петров' } },
       ]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 'u1', email: 'Test@example.com', role: 'ADMIN' }, { id: 'u2', email: 'test@EXAMPLE.com', role: 'PARTICIPANT' }]) },
       direction: { findMany: jest.fn().mockResolvedValue([{ id: 'd1', name: 'SPL', classes: [{ id: 'cl1', code: 'SPL1', name: 'Limited 2.0' }] }, { id: 'd2', name: 'spl', classes: [{ id: 'cl2', code: 'SPL2', name: 'Limited 2.0' }] }]) },
@@ -25,6 +26,7 @@ describe('NormalizationDryRunService', () => {
     expect(report.mode).toBe('DRY_RUN');
     expect(report.summary.duplicatePeopleGroups).toBe(1);
     expect(report.summary.duplicatePlateGroups).toBe(1);
+    expect(report.summary.invalidPlates).toBe(0);
     expect(report.summary.invalidPhones).toBe(1);
     expect(report.summary.normalizedEmailCollisionGroups).toBe(1);
     expect(report.summary.classDuplicateGroups).toBe(1);
