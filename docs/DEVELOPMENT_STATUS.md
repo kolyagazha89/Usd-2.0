@@ -1,3 +1,24 @@
+# Current release delta — 2026-10-15 12:30 UTC
+
+## Merged regulation fixes
+
+- **PR #148** — archived regulation revision IDs cannot be reused to publish altered content. Backend CI passed (Prisma generation/migrations, dependency audit, build, lint, unit and E2E tests).
+- **PR #149** — public stage detail pages render the immutable regulation snapshot stored for that stage. Frontend and backend CI passed.
+- **PR #150** — legacy stage pages disclose when no historical rules snapshot exists. Frontend CI #626 and Backend CI #798 passed; merged as `2476802ebf61629cbd2efbbc3be919c87cf5c0bf`.
+- **Railway API:** live deployment for the current main merge commit `2476802ebf61629cbd2efbbc3be919c87cf5c0bf` is `SUCCESS`, service is Online with one running replica and no reported Railway service alerts. This verifies backend deployment state, not every API route or business flow. HTTP metrics showed 6 5xx responses in the last two hours; detailed logs could not be read with the current viewer permission, so the cause remains unconfirmed.
+
+## Remaining production release gates
+
+- **Cloudflare Worker build:** Cloudflare bot reports failed preview builds, including PR #150. The dashboard log URL is not accessible from the current connected session; the root cause remains unknown. Do not claim the frontend is deployed.
+- **GitHub deployment workflow:** Wrangler publish is skipped when `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` is missing. A successful bundle build alone does not publish the Worker.
+- **Live site:** latest available web inspection of `usd-russia.ru/records` and `/rules` still shows the Tilda site. The root page timed out; `/stages` and `/results` could not be independently fetched. No DNS, root domain, or production routing changes were made.
+- **Email:** user confirmed test emails now work. This confirms the tested flow only; other event triggers and registration confirmation delivery are not all independently verified.
+- **Legal:** organizer approval of actual operator details and legal texts is still required before production registration is considered ready.
+- **Browser/device QA:** direct route refresh, responsive layout, participant profile/car/registration flows, mobile QR camera, and ADMIN/JUDGE permission boundaries still need live browser/device acceptance.
+- **Final gate:** run API smoke against the current live deployment; read Cloudflare build logs, fix the actual build failure, and verify the active Worker revision; then complete direct-route/mobile and role/QR end-to-end checks. Only change public domain/DNS after explicit owner approval.
+
+---
+
 # Current release delta — 2026-10-15 02:01 UTC
 
 ## Additional merged fixes after the previous status note
