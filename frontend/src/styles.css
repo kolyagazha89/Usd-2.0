@@ -3215,20 +3215,20 @@ body:has(.modal-backdrop){overflow:hidden!important}
 @media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}
 
 /* USD visual system: consistent dark controls across public pages, admin forms, participant portal and login. */
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
   color: #f4f4f6;
   background-color: #151518;
   border-color: #39393f;
   color-scheme: dark;
 }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
 
 /* USD stage summary: replace legacy white KPI tiles and white quick links with the graphite/red visual system. */
 .dashboard-feature { background: #151518 !important; color: #f4f4f6 !important; border: 1px solid #303036 !important; }
@@ -3269,36 +3269,36 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .record-visibility-saving { color: #ff6572; font-size: 10px; }
 
 /* Keep helper surfaces and searchable dropdowns on-brand as well, not just native inputs. */
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
-:where(.admin-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
+:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
 
 
 /* 2026-10-15 owner design split: admin form controls are soft white; public/participant surfaces stay graphite-red. */
-.admin-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-.admin-shell select,
-.admin-shell textarea,
-.admin-shell .role-basic-fields input,
-.admin-shell .role-basic-fields textarea {
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.app-shell select,
+.app-shell textarea,
+.app-shell .role-basic-fields input,
+.app-shell .role-basic-fields textarea {
   color: #24242a !important;
   background-color: #f7f7f9 !important;
   border-color: #d4d4da !important;
   color-scheme: light;
 }
-.admin-shell input::placeholder,
-.admin-shell textarea::placeholder { color: #777780 !important; }
-.admin-shell option { color: #24242a; background: #f7f7f9; }
-.admin-shell input:focus,
-.admin-shell select:focus,
-.admin-shell textarea:focus { outline-color: #ed2638; border-color: #ed2638; }
-.admin-shell .roles-list,
-.admin-shell .roles-editor,
-.admin-shell .role-basic-fields input,
-.admin-shell .role-basic-fields textarea { background-color: #f7f7f9; }
+.app-shell input::placeholder,
+.app-shell textarea::placeholder { color: #777780 !important; }
+.app-shell option { color: #24242a; background: #f7f7f9; }
+.app-shell input:focus,
+.app-shell select:focus,
+.app-shell textarea:focus { outline-color: #ed2638; border-color: #ed2638; }
+.app-shell .roles-list,
+.app-shell .roles-editor,
+.app-shell .role-basic-fields input,
+.app-shell .role-basic-fields textarea { background-color: #f7f7f9; }
 .public-site .primary-button,
 .public-site .secondary-button,
 .public-site .text-button,
