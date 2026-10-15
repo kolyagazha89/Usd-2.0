@@ -117,4 +117,42 @@ describe('InspectionsService', () => {
     await expect(service.update('missing', { status: 'PASSED' }, actor))
       .rejects.toBeInstanceOf(NotFoundException);
   });
+  it('requires a comment for a failed BassRace class inspection', async () => {
+    await expect(service.createClassInspection(
+      { registrationClassId: 'registration-class-1', status: 'FAILED' },
+      actor,
+    )).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('creates and audits an independent inspection for a BassRace class and participant number', async () => {
+    const registrationClass = {
+      id: 'registration-class-1',
+      inspection: null,
+      class: { id: 'class-bass', name: '159.9', direction: { name: 'BassRace' } },
+      results: [],
+      registration: { id: 'registration-1', status: 'ACTIVE', stage: { isDeleted: false, status: 'PUBLISHED' } },
+    };
+    const classInspection = { id: 'class-inspection-new', registrationClassId: 'registration-class-1', status: 'PASSED', notes: null, createdByUserId: actor.userId, checkedByUserId: actor.userId, registrationClass };
+    tx.registrationClass = { findUnique: jest.fn().mockResolvedValue(registrationClass) };
+    tx.registrationClassInspection = {
+      create: jest.fn().mockImplementation(async ({ data }) => ({ ...classInspection, ...data })),
+      update: jest.fn().mockImplementation(async ({ data }) => ({ ...classInspection, ...data })),
+      delete: jest.fn().mockResolvedValue(classInspection),
+    };
+    prisma.registrationClassInspection = { findUnique: jest.fn().mockResolvedValue(classInspection) };
+
+    const result = await service.createClassInspection(
+      { registrationClassId: 'registration-class-1', status: 'PASSED' },
+      actor,
+    );
+    expect(result.registrationClassId).toBe('registration-class-1');
+    expect(tx.registrationClassInspection.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ registrationClassId: 'registration-class-1', status: 'PASSED', checkedByUserId: actor.userId }),
+    }));
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'BASSRACE_CLASS_INSPECTION_CREATED', entityId: 'class-inspection-new' }),
+    }));
+  });
+
 });
