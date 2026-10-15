@@ -154,9 +154,16 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       select: { id: true, email: true },
     });
     if (!user) return;
-    const classes = (registration.classes ?? []).map((item: any) => item.class?.name).filter(Boolean);
+    const classItems = registration.classes ?? [];
+    const classes = classItems.map((item: any) => item.class?.name).filter(Boolean);
     const stage = registration.stage ?? {};
     const car = registration.car ?? {};
+    const settingsRow = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
+    const registrationSettings = (settingsRow?.registration ?? {}) as Record<string, any>;
+    const mainClassPrice = Math.max(0, Number(registrationSettings.price ?? 2000) || 0);
+    const additionalClassPrice = Math.max(0, Number(registrationSettings.additionalClassPrice ?? 2000) || 0);
+    const classCount = classItems.length;
+    const amountDue = classCount > 0 ? mainClassPrice + Math.max(0, classCount - 1) * additionalClassPrice : 0;
     await this.dispatch({
       eventKey: 'registration-confirmed:' + registration.id,
       type: 'REGISTRATION_CONFIRMED',
@@ -167,12 +174,16 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       heading: 'Вы зарегистрированы на этап',
       intro: 'Заявка успешно сохранена в системе USD. Сохраните это письмо с данными участия.',
       details: [
-        'Этап: ' + (stage.name ?? 'Этап USD'),
-        'Дата: ' + (stage.date ? formatStageDate(stage) : 'уточняется'),
-        'Автомобиль: ' + [car.brand, car.model].filter(Boolean).join(' '),
-        'Номер участника: ' + (registration.participantNumber ?? 'назначается'),
-        'Классы: ' + (classes.join(', ') || 'не указаны'),
-        'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
+        'Этап: ' + (stage.name ?? 'Этап USD') + (stage.stageNumber ? ' · №' + stage.stageNumber : ''),
+        'Дата проведения: ' + (stage.date ? formatStageDate(stage) : 'уточняется'),
+        'Город: ' + (stage.city || 'уточняется'),
+        'Площадка и адрес: ' + [stage.venue, stage.address].filter(Boolean).join(', '),
+        'Автомобиль: ' + ([car.brand, car.model].filter(Boolean).join(' ') || 'не указан'),
+        ...(car.registrationNumber ? ['Государственный номер автомобиля: ' + car.registrationNumber] : []),
+        'Ваш номер участника на этапе: ' + (registration.participantNumber ?? 'назначается'),
+        'Заявленные классы (' + classCount + '): ' + (classes.join(', ') || 'не указаны'),
+        ...(classCount > 0 ? ['Оплата участия: ' + amountDue.toLocaleString('ru-RU') + ' ₽ на месте (' + mainClassPrice.toLocaleString('ru-RU') + ' ₽ за основной класс' + (classCount > 1 ? ' + ' + (classCount - 1) + ' доп. × ' + additionalClassPrice.toLocaleString('ru-RU') + ' ₽' : '') + '). Онлайн-регистрация бесплатна.'] : ['Оплата участия: уточняется организатором.']),
+        'Управление заявкой: откройте личный кабинет участника на сайте ЮСД.',
       ],
       href: this.frontendUrl + '/participant',
     });
