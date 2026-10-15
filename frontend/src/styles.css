@@ -3508,3 +3508,24 @@ body:has(.modal-backdrop){overflow:hidden!important}
   background: transparent !important;
   box-shadow: none !important;
 }
+
+
+/* Profile newsletter consent: keep the unchecked control white for clear visibility. */
+.participant-portal .newsletter-settings .consent-option input[type="checkbox"] {
+  background: #fff !important;
+  border-color: #b9bec5 !important;
+}
+.participant-portal .newsletter-settings .consent-option input[type="checkbox"]:checked {
+  background: #e21d2f !important;
+  border-color: #e21d2f !important;
+}
+
+/* Public account header identity is text-only; remove inherited button tiles and shadows. */
+.participant-portal .participant-portal-header .public-brand,
+.participant-portal .participant-portal-header .public-brand:focus,
+.participant-portal .participant-portal-header .public-brand:active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline-offset: 4px;
+}
