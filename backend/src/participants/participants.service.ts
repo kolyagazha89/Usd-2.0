@@ -815,12 +815,6 @@ export class ParticipantsService {
     );
   }
 
-  // JUDGE не может редактировать участников.
-  if (user.role === 'JUDGE') {
-    throw new ForbiddenException(
-      'Судья может только просматривать участников',
-    );
-  }
 
   // PARTICIPANT может редактировать только собственный профиль.
   if (
@@ -1035,7 +1029,7 @@ export class ParticipantsService {
   }
 
   // =========================================================
-  // ADMIN / JUDGE CARS OF PARTICIPANT
+  // ADMIN / CUSTOM ROLE CARS OF PARTICIPANT
   // =========================================================
 
   async findCars(
@@ -1047,12 +1041,12 @@ export class ParticipantsService {
 
     return this.findCarsInternal(
       participantId,
-      user.role === 'JUDGE',
+      Boolean(user.customRoleId),
     );
   }
 
   // =========================================================
-  // ALL CARS FOR ADMIN / JUDGE
+  // ALL CARS FOR ADMIN / CUSTOM ROLE
   // =========================================================
 
   async findAllCars(
@@ -1063,7 +1057,7 @@ export class ParticipantsService {
 
     return this.prisma.car.findMany({
       where:
-        user.role === 'JUDGE'
+        Boolean(user.customRoleId)
           ? {
               isActive: true,
             }
@@ -1480,7 +1474,7 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role === 'JUDGE') {
+    if (Boolean(user.customRoleId)) {
       throw new ForbiddenException(
         'Судья может только просматривать автомобили',
       );
@@ -1663,7 +1657,7 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role === 'JUDGE') {
+    if (Boolean(user.customRoleId)) {
       throw new ForbiddenException(
         'Судья может только просматривать автомобили',
       );
@@ -1837,7 +1831,7 @@ export class ParticipantsService {
 
     if (
       user.role !== 'ADMIN' &&
-      user.role !== 'JUDGE'
+      !user.customRoleId
     ) {
       throw new ForbiddenException(
         'Требуются права администратора или судьи',
