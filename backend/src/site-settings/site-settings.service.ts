@@ -215,7 +215,16 @@ export class SiteSettingsService{
         catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
       };
       phase = 'upsert';
-      const row = await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
+      // Site settings are persisted as JSON columns. Normalize the merged settings
+      // to plain JSON before passing them to Prisma: UI forms can round-trip
+      // optional/undefined properties and browser objects that Prisma's JSON
+      // input validator rejects even though the settings themselves are valid.
+      const persisted = JSON.parse(JSON.stringify(next)) as typeof next;
+      const row = await this.prisma.siteSettings.upsert({
+        where: { id: 'default' },
+        create: { id: 'default', ...persisted } as any,
+        update: { ...persisted } as any,
+      });
       phase = 'audit';
       await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
       return {success:true,settings:this.shape(row)};
