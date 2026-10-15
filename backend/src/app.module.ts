@@ -27,6 +27,7 @@ import { StatisticsModule } from './statistics/statistics.module';
 import { GoogleModule } from './google/google.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { NormalizationDryRunModule } from './data-quality/normalization-dry-run.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AssistantModule } from './assistant/assistant.module';
     GoogleModule,
     SiteSettingsModule,
     AssistantModule,
+    NormalizationDryRunModule,
   ],
   controllers: [AppController],
   providers: [AppService],
