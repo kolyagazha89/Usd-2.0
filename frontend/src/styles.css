@@ -3598,6 +3598,16 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
+/* Catch inline light surfaces on content wrappers without recoloring buttons or images. */
+.public-site div[style*="background"],
+.public-site section[style*="background"],
+.public-site article[style*="background"],
+.public-site main[style*="background"],
+.public-site footer[style*="background"],
+.public-site aside[style*="background"] {
+  background-color: #141416 !important;
+}
+
 /* Final public-site theme contract: every public route uses the same black/graphite/red system. */
 .public-site {
   color: #f4f4f6 !important;
