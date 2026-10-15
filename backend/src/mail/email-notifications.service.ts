@@ -48,7 +48,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   private render(notice: Notice, logoUrl: string | null = null, template?: Record<string, any>) {
     const details = notice.details.filter(Boolean);
-    const detailsText = details.join('\n');\n    const stageLine = details.find((line) => line.startsWith('Этап:')) ?? '';\n    const stageName = stageLine.replace(/^Этап:\\s*/, '').split(' · №')[0] || 'этап ЮСД';
+    const detailsText = details.join('\n');
+    const stageLine = details.find((line) => line.startsWith('Этап:')) ?? '';
+    const stageName = stageLine.replace(/^Этап:\s*/, '').split(' · №')[0] || 'этап ЮСД';
     const buttonLabel = String(template?.buttonLabel || 'Открыть ЮСД');
     const bodyTemplate = String(template?.body || '{{intro}}\n\n{{details}}');
     const footerText = String(template?.footer || 'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.');
