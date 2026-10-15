@@ -9,6 +9,7 @@ describe('NormalizationDryRunService', () => {
         { id: 'p1', firstName: 'Иван', lastName: 'Иванов', middleName: null, team: 'Team A', city: 'Тюмень', phone: '+7 (999) 123-45-67' },
         { id: 'p2', firstName: 'Иван', lastName: ' Иванов ', middleName: null, team: ' team  a ', city: 'ТЮМЕНЬ', phone: '+7 (999) 123-45-67' },
         { id: 'p3', firstName: 'Пётр', lastName: 'Петров', middleName: null, team: null, city: null, phone: 'bad-phone' },
+        { id: 'p4', firstName: 'Ivan', lastName: 'Ivanov', middleName: null, team: null, city: null, phone: null },
       ]) },
       car: { findMany: jest.fn().mockResolvedValue([
         { id: 'c1', participantId: 'p1', brand: 'Lada', model: 'Vesta', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
