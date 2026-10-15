@@ -1,3 +1,5 @@
+import { AsYouType } from 'libphonenumber-js';
+
 /**
  * Validation shared by participant portal forms.
  * Phone numbers are accepted only when libphonenumber-js recognizes a valid
@@ -81,4 +83,24 @@ export function formatRussianPhoneInput(value: string): string {
   if (!digits) return '';
   const a = digits.slice(0, 3), b = digits.slice(3, 6), c = digits.slice(6, 8), d = digits.slice(8, 10);
   return '+7' + (a ? ' (' + a + (a.length === 3 ? ')' : '') : '') + (b ? ' ' + b : '') + (c ? '-' + c : '') + (d ? '-' + d : '');
+}
+
+/**
+ * Live international phone mask for generic admin forms.
+ * Keep the exact RU mask users approved; for other countries use libphonenumber's
+ * international formatter. Non-RU input must include + (the server requires it).
+ */
+export function formatPhoneInput(value: string): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  const isRussian = raw.startsWith('+7')
+    || ((!raw.startsWith('+') || raw.startsWith('+7')) && (digits.startsWith('7') || digits.startsWith('8')) && digits.length <= 11);
+  if (isRussian) return formatRussianPhoneInput(raw);
+
+  // Keep only a single leading plus and digits; discard pasted names/punctuation.
+  let international = raw.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+  if (international.startsWith('00')) international = '+' + international.slice(2);
+  if (!international.startsWith('+')) return formatRussianPhoneInput(raw);
+  return new AsYouType().input(international).slice(0, 25);
 }
