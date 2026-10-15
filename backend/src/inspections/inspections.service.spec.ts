@@ -4,7 +4,7 @@ import { InspectionsService } from './inspections.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('InspectionsService', () => {
-  const actor = { userId: 'judge-1', role: 'JUDGE' as const, ipAddress: '127.0.0.1' };
+  const actor = { userId: 'judge-1', role: 'PARTICIPANT' as const, customRoleId: 'judge-role', ipAddress: '127.0.0.1' };
   const registration = {
     id: 'registration-1',
     participantId: 'participant-1',
