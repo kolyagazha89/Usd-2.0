@@ -453,12 +453,14 @@ model Registration {
   numbers    RegistrationNumber[]
   classes    RegistrationClass[]
   inspection Inspection?
-  stageInspection ParticipantStageInspection? @relation(fields: [participantId, stageId], references: [participantId, stageId])
+  participantStageInspectionId String?
+  stageInspection ParticipantStageInspection? @relation(fields: [participantStageInspectionId], references: [id], onDelete: SetNull)
   results    Result[]
 
   @@unique([stageId, participantNumber])
   @@unique([stageId, carId])
   @@index([configurationVersionId])
+  @@index([participantStageInspectionId])
   @@index([stageId])
   @@index([participantId])
   @@index([carId])
