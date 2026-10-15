@@ -3,7 +3,7 @@ import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,Clip
 import {getPublicSiteAsset,type Role,type User} from '../api';
 
 const nav=[
- {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN','JUDGE']},
+ {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN']},
 
  // Оперативная работа на этапах
  {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
@@ -17,7 +17,7 @@ const nav=[
  {section:'Участники и автопарк',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
 
  // Итоги, рекорды и спортивный контроль
- {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
  {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
 
@@ -87,9 +87,9 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
  return <div className="app-shell">
   <aside className={`sidebar ${mobileOpen?'open':''}`}>
    <div className="sidebar-top">
-    <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD 2.0">
+    <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD">
      <span className="brand-mark small">{logo?<img className="brand-logo-shell" src={logo} alt="USD"/>:<span>USD</span>}</span>
-     <span className="brand-title">USD <b>2.0</b></span>
+     <span className="brand-title">USD</span>
     </button>
     <button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"><X size={18}/></button>
    </div>
@@ -103,7 +103,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
   <div className="main">
    <header className="topbar">
     <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
-    <div className="breadcrumb"><strong>USD 2.0</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
+    <div className="breadcrumb"><strong>USD</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
     <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
    <main className="content"><PageContent path={path} go={go} user={user}/></main>
