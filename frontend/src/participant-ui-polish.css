@@ -511,3 +511,165 @@
   .configuration-details-page .config-detail-grid { grid-template-columns: minmax(0,1fr); }
   .configuration-details-page .config-details-hero { align-items: flex-start; }
 }
+
+
+/* PARTICIPANT ACCOUNT SURFACE AUDIT — unify remaining dashboard, garage and registration-history panels.
+   Keep this scoped to participant-facing views; administrative pages retain their own theme. */
+.participant-portal:not(.configurations-page-shell) {
+  min-height: 100vh;
+  color: #f4f4f6;
+  background: #0b0b0d;
+}
+.participant-portal:not(.configurations-page-shell) .participant-portal-main {
+  color: #f4f4f6;
+  background: transparent;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section,
+.participant-portal:not(.configurations-page-shell) .participant-stats > button,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-card,
+.participant-portal:not(.configurations-page-shell) .participant-car-card,
+.participant-portal:not(.configurations-page-shell) .participant-registration-list > article,
+.participant-portal:not(.configurations-page-shell) .participant-empty,
+.participant-portal:not(.configurations-page-shell) .participant-loading,
+.participant-portal:not(.configurations-page-shell) .profile-match-results,
+.participant-portal:not(.configurations-page-shell) .profile-match-empty,
+.participant-portal:not(.configurations-page-shell) .historical-match-card {
+  color: #f4f4f6;
+  background: linear-gradient(145deg,#191a1e,#111215 72%);
+  border: 1px solid #34353c;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16);
+}
+.participant-portal:not(.configurations-page-shell) .participant-section {
+  border-radius: 16px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section h1,
+.participant-portal:not(.configurations-page-shell) .participant-section h2,
+.participant-portal:not(.configurations-page-shell) .participant-section h3,
+.participant-portal:not(.configurations-page-shell) .participant-welcome h1,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-head strong,
+.participant-portal:not(.configurations-page-shell) .participant-car-details h3,
+.participant-portal:not(.configurations-page-shell) .participant-registration-main strong,
+.participant-portal:not(.configurations-page-shell) .participant-stats strong {
+  color: #f7f7f9;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section p,
+.participant-portal:not(.configurations-page-shell) .participant-welcome p,
+.participant-portal:not(.configurations-page-shell) .participant-car-details p,
+.participant-portal:not(.configurations-page-shell) .participant-registration-main > span,
+.participant-portal:not(.configurations-page-shell) .participant-stats span,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-meta,
+.participant-portal:not(.configurations-page-shell) .participant-empty p {
+  color: #a5a5af;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs {
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button {
+  color: #b7b7c0;
+  background: transparent;
+  border-color: transparent;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button:hover {
+  color: #fff;
+  background: #19191d;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button.active {
+  color: #fff;
+  background: #32171d;
+  border-color: #74313b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-stage-list > article,
+.participant-portal:not(.configurations-page-shell) .participant-stage-results > div,
+.participant-portal:not(.configurations-page-shell) .participant-registration-detail-grid > div {
+  color: #f4f4f6;
+  background: #19191d;
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-status {
+  color: #ff7c86;
+}
+.participant-portal:not(.configurations-page-shell) .participant-profile-photo-preview,
+.participant-portal:not(.configurations-page-shell) .participant-car-icon {
+  color: #ff6978;
+  background: #27171b;
+  border-color: #513039;
+}
+.participant-portal:not(.configurations-page-shell) .participant-form-grid input:not([type="checkbox"]):not([type="radio"]),
+.participant-portal:not(.configurations-page-shell) .participant-form-grid select,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field input,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field select {
+  color: #f5f5f7 !important;
+  background: #202024 !important;
+  border: 1px solid #414148 !important;
+  color-scheme: dark;
+}
+.participant-portal:not(.configurations-page-shell) .participant-form-grid input::placeholder,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field input::placeholder {
+  color: #8f8f98 !important;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section-head {
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section-head .muted,
+.participant-portal:not(.configurations-page-shell) .participant-form-grid small,
+.participant-portal:not(.configurations-page-shell) .participant-profile-photo-row p {
+  color: #9e9ea8 !important;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-qr {
+  color: #f4f4f6;
+  background: #17171b;
+  border: 1px solid #34343b;
+  border-radius: 12px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-qr small {
+  color: #a5a5af;
+}
+.participant-portal:not(.configurations-page-shell) .registration-cancel-confirm {
+  color: #f4f4f6;
+  background: #20171a;
+  border: 1px solid #563039;
+  border-radius: 10px;
+  padding: 10px;
+}
+.participant-portal:not(.configurations-page-shell) .secondary-button {
+  color: #e7e7eb;
+  background: #222227;
+  border-color: #414149;
+}
+.participant-portal:not(.configurations-page-shell) .secondary-button:hover {
+  color: #fff;
+  background: #2c2c33;
+  border-color: #6a4148;
+}
+.participant-portal:not(.configurations-page-shell) .text-button {
+  color: #ff7882;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section .consent-stack {
+  color: #e4e4e9;
+  background: #151518;
+  border: 1px solid #34343b;
+  border-radius: 12px;
+  padding: 14px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section .consent-stack small {
+  color: #9e9ea8;
+}
+@media (max-width: 700px) {
+  .participant-portal:not(.configurations-page-shell) .participant-portal-main {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-section {
+    padding: 16px;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-stats {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-car-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-car-actions button {
+    flex: 1 1 145px;
+  }
+}
