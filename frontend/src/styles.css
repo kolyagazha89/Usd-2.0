@@ -3372,3 +3372,22 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-site input[type="checkbox"],
 .participant-portal input[type="checkbox"],
 .login-page input[type="checkbox"] { accent-color: #ed2638; }
+
+/* Keep admin statistics surfaces on the dark USD dashboard palette; only form fields are soft-white. */
+.app-shell .stat-card,
+.app-shell .metric-card {
+  color: #f4f4f6 !important;
+  background: #17171b !important;
+  border-color: #35353c !important;
+}
+.app-shell .stat-card span,
+.app-shell .metric-card span { color: #a7a7b1 !important; }
+.app-shell .stat-card strong,
+.app-shell .metric-card strong { color: #fff !important; }
+.app-shell .stat-card.danger-card,
+.app-shell .danger-card {
+  background: #281519 !important;
+  border-color: #75414a !important;
+}
+.app-shell .quality-ring { color: #f4f4f6; }
+.app-shell .quality-ring:not(.healthy) { border-color: #39393f; }
