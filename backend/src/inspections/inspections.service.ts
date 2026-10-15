@@ -289,6 +289,10 @@ export class InspectionsService {
         data: { participantId: registration.participantId, stageId: registration.stageId, status: data.status, notes: this.normalizeNotes(data.notes), checkedByUserId: actor.userId, createdByUserId: actor.userId },
         include: participantStageInspectionInclude,
       });
+      await tx.registration.updateMany({
+        where: { participantId: registration.participantId, stageId: registration.stageId },
+        data: { participantStageInspectionId: created.id },
+      });
       await tx.auditLog.create({
         data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_CREATED', entity: 'ParticipantStageInspection', entityId: created.id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: created.participantId, stageId: created.stageId, status: created.status, notes: created.notes } },
       });
