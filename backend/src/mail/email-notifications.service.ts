@@ -119,7 +119,13 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
     const registrationSettings = (settings?.registration ?? {}) as Record<string, any>;
     const templates = Array.isArray(registrationSettings.emailTemplates) ? registrationSettings.emailTemplates : [];
+    const triggerHasTemplate = templates.some((item: any) => item?.trigger === notice.type);
     const template = templates.find((item: any) => item?.trigger === notice.type && item?.enabled !== false);
+    if (triggerHasTemplate && !template) {
+      await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
+      this.logger.log('Email notification skipped because its template is disabled: type=' + notice.type);
+      return;
+    }
     const rendered = this.render(notice, logoUrl, template);
     try {
       await this.mail.sendNotificationEmail({ to: notice.recipient, subject: rendered.subject || notice.subject, text: rendered.text, html: rendered.html });
