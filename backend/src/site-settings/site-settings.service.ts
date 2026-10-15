@@ -85,6 +85,15 @@ export class SiteSettingsService{
       if (String(version?.id ?? '') !== currentPublishedId) addVersion(version);
     }
     const incomingPublished = incomingDocument.published ?? currentPublished;
+    const archivedRevisionId = String(incomingPublished?.id ?? '');
+    const archivedRevision = Array.isArray(currentDocument.publishedVersions)
+      ? currentDocument.publishedVersions.find((version: any) => String(version?.id ?? '') === archivedRevisionId)
+      : undefined;
+    if (archivedRevision && archivedRevisionId !== currentPublishedId) {
+      throw new BadRequestException(
+        'Нельзя повторно использовать ID опубликованной редакции регламента. Для восстановления создайте новую редакцию.',
+      );
+    }
     let published = incomingPublished;
     if (currentPublished && incomingPublished?.id === currentPublished.id) published = currentPublished;
     else if (currentPublished) addVersion(currentPublished);
