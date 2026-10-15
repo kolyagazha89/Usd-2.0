@@ -275,9 +275,8 @@ export class StatisticsService {
       stageId: string;
       carId: string;
       registeredAt: Date;
-      inspection: {
-        status: string;
-      } | null;
+      inspection: { status: string } | null;
+      stageInspection: { status: string } | null;
     }>,
     results: ResultRow[],
     disqualificationKeys: Set<string>,
@@ -292,7 +291,7 @@ export class StatisticsService {
         .filter(
           (registration) =>
             registration.status === 'ACTIVE' &&
-            registration.inspection?.status === 'PASSED',
+            (registration.stageInspection ?? registration.inspection)?.status === 'PASSED',
         )
         .map((registration) => registration.stageId),
     );
@@ -455,11 +454,8 @@ export class StatisticsService {
             stageId: true,
             carId: true,
             registeredAt: true,
-            inspection: {
-              select: {
-                status: true,
-              },
-            },
+            inspection: { select: { status: true } },
+            stageInspection: { select: { status: true } },
           },
         }),
         this.loadResults({
@@ -580,11 +576,8 @@ export class StatisticsService {
             stageId: true,
             carId: true,
             registeredAt: true,
-            inspection: {
-              select: {
-                status: true,
-              },
-            },
+            inspection: { select: { status: true } },
+            stageInspection: { select: { status: true } },
           },
         }),
         this.loadResults({
@@ -1408,13 +1401,11 @@ export class StatisticsService {
         },
         select: { participantId: true, carId: true },
       }),
-      this.prisma.registration.count({
-        where: {
-          status: 'ACTIVE',
-          inspection: null,
-        },
+      this.prisma.registration.findMany({
+        where: { status: 'ACTIVE', participantStageInspectionId: null },
+        select: { participantId: true, stageId: true },
       }),
-      this.prisma.inspection.count({
+      this.prisma.participantStageInspection.count({
         where: { status: 'FAILED' },
       }),
       this.prisma.result.count({
@@ -1446,7 +1437,7 @@ export class StatisticsService {
       currentStage: nextStage,
       attention: {
         openStages,
-        pendingInspections,
+        pendingInspections: new Set(pendingInspections.map((item: any) => item.participantId + ':' + item.stageId)).size,
         failedInspections,
         resultsToday,
         activeDisqualifications,
