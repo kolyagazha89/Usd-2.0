@@ -90,6 +90,8 @@ export class NormalizationDryRunService {
         .filter(group => group.variants.length > 1);
     };
 
+    const invalidEmails = users.filter(u => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(clean(u.email)))
+      .map(u => ({ userId: u.id, email: u.email, role: u.role, reason: 'Invalid email format' }));
     const emailVariants = groupBy(users.filter(u => clean(u.email)), u => key(u.email))
       .map(group => ({ normalizedEmail: key(group[0].email), accounts: group.map(u => ({ id: u.id, email: u.email, role: u.role })) }))
       .filter(group => new Set(group.accounts.map(a => a.email)).size > 1);
@@ -136,6 +138,7 @@ export class NormalizationDryRunService {
         teamVariantGroups: variants('team').length,
         cityVariantGroups: variants('city').length,
         normalizedEmailCollisionGroups: emailVariants.length,
+        invalidEmails: invalidEmails.length,
         directionDuplicateGroups: directionDuplicates.length,
         classDuplicateGroups: classDuplicates.length,
         unresolvedImportRows: unresolvedImports.length,
@@ -149,6 +152,7 @@ export class NormalizationDryRunService {
         teamVariants: variants('team').slice(0, 200),
         cityVariants: variants('city').slice(0, 200),
         normalizedEmailCollisions: emailVariants.slice(0, 200),
+        invalidEmails: invalidEmails.slice(0, 200),
         duplicateDirections: directionDuplicates.slice(0, 200),
         duplicateClasses: classDuplicates.slice(0, 200),
         unresolvedImports: unresolvedImports.slice(0, 200),
