@@ -6,10 +6,10 @@ const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN']},
 
  // Оперативная работа на этапах
- {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN']},
+ {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN']},
+ {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN']},
+ {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN']},
 
  // Люди, команды и автомобили
  {section:'Участники и автопарк',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
@@ -18,7 +18,7 @@ const nav=[
 
  // Итоги, рекорды и спортивный контроль
  {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN']},
- {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
+ {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
 
  // Публичные материалы сайта
