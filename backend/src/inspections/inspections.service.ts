@@ -96,7 +96,7 @@ export class InspectionsService {
   }
 
   private isBassRaceClass(className: string, directionName = ''): boolean {
-    const normalize = (value: string) => value.trim().toLocaleUpperCase('ru-RU').replace(/\\s/g, '').replace(/[_-]/g, '');
+    const normalize = (value: string) => value.trim().toLocaleUpperCase('ru-RU').replace(/\s/g, '').replace(/[_-]/g, '');
     return normalize(className).includes('BASSRACE') || normalize(directionName).includes('BASSRACE');
   }
 
