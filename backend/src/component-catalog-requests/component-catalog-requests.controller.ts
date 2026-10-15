@@ -34,6 +34,12 @@ export class ComponentCatalogRequestsController {
   }
 
   @Roles('ADMIN')
+  @Post(':id/retry-email')
+  retryEmail(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.service.retryEmail(id, request.user.sub);
+  }
+
+  @Roles('ADMIN')
   @Patch(':id/reject')
   reject(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() body: { adminNote?: string }) {
     return this.service.reject(id, request.user.sub, body?.adminNote);
