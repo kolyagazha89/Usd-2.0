@@ -46,7 +46,8 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
   {token:'{{stageName}}',label:'Название этапа',description:'Название этапа без номера.'},
   {token:'{{details}}',label:'Подробности',description:'Данные события: этап, автомобиль, номер участника и классы.'},
  ];
- const updateVariableText=(key:keyof EmailVariableTexts,value:string)=>updateSelected({variableTexts:{heading:'',intro:'',detailsBefore:'',detailsAfter:'',...(selected?.variableTexts??{}),[key]:value}});\n const insertVariable=(token:string)=>{const field=bodyRef.current;if(!field||!selected)return;const start=field.selectionStart??selected.body.length;const end=field.selectionEnd??start;const next=selected.body.slice(0,start)+token+selected.body.slice(end);updateSelected({body:next});requestAnimationFrame(()=>{field.focus();const pos=start+token.length;field.setSelectionRange(pos,pos);});};
+ const updateVariableText=(key:keyof EmailVariableTexts,value:string)=>updateSelected({variableTexts:{heading:'',intro:'',detailsBefore:'',detailsAfter:'',...(selected?.variableTexts??{}),[key]:value}});
+ const insertVariable=(token:string)=>{const field=bodyRef.current;if(!field||!selected)return;const start=field.selectionStart??selected.body.length;const end=field.selectionEnd??start;const next=selected.body.slice(0,start)+token+selected.body.slice(end);updateSelected({body:next});requestAnimationFrame(()=>{field.focus();const pos=start+token.length;field.setSelectionRange(pos,pos);});};
  if(loading)return <PageFrame title="Шаблоны писем" subtitle="Загрузка шаблонов…"><div className="settings-section">Загружаем настройки писем…</div></PageFrame>;
  return <PageFrame title="Шаблоны писем" subtitle="Полная редакция тем, основного тела и подвалов системных email-уведомлений ЮСД">
   <div className="settings-section">
