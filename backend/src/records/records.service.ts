@@ -43,6 +43,31 @@ export class RecordsService {
     } as T;
   }
 
+  private isRecordClassExcluded(classItem: any): boolean {
+    const normalize = (value: unknown) => String(value ?? '').trim().toLocaleUpperCase('ru-RU').replace(/[\\s_-]/g, '');
+    const direction = normalize(classItem?.direction?.name);
+    const code = normalize(classItem?.code);
+    const name = normalize(classItem?.name);
+    return direction.includes('BASSRACE') || code.includes('BASSRACE') || name.includes('BASSRACE')
+      || direction.includes('STORMWALL') || code.includes('STORMWALL') || name.includes('STORMWALL');
+  }
+
+  private async filterPublicRecordVisibility<T extends { class?: any; result?: any }>(records: T[]): Promise<T[]> {
+    const row = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { catalogs: true },
+    });
+    const catalogs = row?.catalogs && typeof row.catalogs === 'object' ? row.catalogs as Record<string, any> : {};
+    const visibility = catalogs.recordVisibility && typeof catalogs.recordVisibility === 'object'
+      ? catalogs.recordVisibility as Record<string, boolean> : {};
+    return records.filter((record) => {
+      const classItem = record.class ?? record.result?.registrationClass?.class;
+      if (!classItem?.id) return false;
+      const visible = visibility[classItem.id];
+      return typeof visible === 'boolean' ? visible : !this.isRecordClassExcluded(classItem);
+    });
+  }
+
   private readonly publicInclude = {
     class: {
       include: {
@@ -224,11 +249,7 @@ export class RecordsService {
       include: { direction: true },
     });
 
-    if (
-      classWithDirection?.direction?.name?.trim().toLowerCase() === 'bassrace'
-      || classWithDirection?.code?.trim().toLowerCase().startsWith('bassrace')
-      || classWithDirection?.name?.trim().toLowerCase().startsWith('bassrace')
-    ) {
+    if (this.isRecordClassExcluded(classWithDirection)) {
       await tx.record.updateMany({
         where: { classId, isCurrent: true },
         data: { isCurrent: false },
@@ -443,12 +464,8 @@ export class RecordsService {
       include: { direction: true },
     });
     if (!classItem) throw new NotFoundException('Класс не найден');
-    if (
-      classItem.direction?.name?.trim().toLowerCase() === 'bassrace' ||
-      classItem.code?.trim().toLowerCase().startsWith('bassrace') ||
-      classItem.name?.trim().toLowerCase().startsWith('bassrace')
-    ) {
-      throw new ConflictException('Для Bass Race исторические рекорды не ведутся');
+    if (this.isRecordClassExcluded(classItem)) {
+      throw new ConflictException('Для Bass Race и Storm Wall официальные рекорды не ведутся');
     }
 
     const results = await this.prisma.result.findMany({
@@ -634,7 +651,7 @@ export class RecordsService {
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
       ],
-    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
+    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findCurrent() {
@@ -652,7 +669,7 @@ export class RecordsService {
         { class: { direction: { sortOrder: 'asc' } } },
         { class: { sortOrder: 'asc' } },
       ],
-    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
+    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findByClass(classId: string) {
@@ -680,7 +697,7 @@ export class RecordsService {
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
       ],
-    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
+    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findBySeason(seasonId: string) {
@@ -700,7 +717,7 @@ export class RecordsService {
         { achievedAt: 'desc' },
         { createdAt: 'desc' },
       ],
-    }).then((records) => records.map((record) => this.sanitizePublicRecord(record)));
+    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)));
   }
 
   async findOne(id: string) {
@@ -720,7 +737,9 @@ export class RecordsService {
       throw new NotFoundException('Рекорд не найден');
     }
 
-    return this.sanitizePublicRecord(record);
+    const [visible] = await this.filterPublicRecordVisibility([record]);
+    if (!visible) throw new NotFoundException('Рекорд не найден');
+    return this.sanitizePublicRecord(visible);
   }
 
   async findCurrentAdmin() {
