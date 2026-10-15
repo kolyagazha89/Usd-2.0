@@ -286,11 +286,575 @@
   color: #a7a7b1 !important;
 }
 
-/* Public result cards are content blocks, not boxed tiles. */
-.public-site .public-result-card {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+/* Do not override public result-card geometry here.
+   The canonical card design lives in styles.css after the public design tokens. */
+
+
+/* FINAL VISUAL CONTRACT — participant configuration workspace and public result cards.
+   This file loads after styles.css, so component-level regressions are fixed here deliberately. */
+.configurations-page-shell,
+.configurations-page-shell .participant-portal-main,
+.configurations-page {
+  color: #f4f4f6 !important;
+  background: #0b0b0d !important;
 }
-.public-site .public-result-card:before { display: none !important; }
+.configurations-page-top,
+.configuration-subpage-header {
+  color: #f4f4f6 !important;
+  border-color: #323237 !important;
+  background: radial-gradient(ellipse at 92% 0%, rgba(227,27,45,.12), transparent 42%), linear-gradient(135deg,#191a1e,#101114 72%) !important;
+}
+.configuration-subpage-header h1,
+.configurations-page-top h1 { color: #fff !important; }
+.configuration-subpage-header p,
+.configurations-page-top p { color: #b6b6bf !important; }
+.configurations-page .config-modal-hero,
+.configurations-page .config-card,
+.configurations-page .config-create-button,
+.configuration-editor-page .config-editor-intro,
+.configuration-editor-page .config-section,
+.configuration-details-page .config-details-hero,
+.configuration-details-page .config-stat-grid > div,
+.configuration-details-page .config-detail-grid .detail-block,
+.configurations-page .config-empty,
+.configuration-editor-page .config-empty {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border-color: #34353c !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configurations-page .config-modal-hero h2,
+.configurations-page .config-card h3,
+.configurations-page .config-card-main h3,
+.configurations-page .config-create-button strong,
+.configuration-editor-page .config-editor-intro strong,
+.configuration-editor-page .config-section-title strong,
+.configuration-details-page .config-details-hero h2,
+.configuration-details-page .config-detail-grid .detail-block strong,
+.configurations-page .config-empty strong,
+.configuration-editor-page .config-empty strong { color: #f7f7f9 !important; }
+.configurations-page .config-modal-hero p,
+.configurations-page .config-card p,
+.configurations-page .config-card-main p,
+.configurations-page .config-count span,
+.configuration-editor-page .config-editor-intro small,
+.configuration-editor-page .config-section-title small,
+.configuration-editor-page .field-help,
+.configuration-editor-page .config-section-empty,
+.configuration-details-page .config-details-hero p,
+.configuration-details-page .config-detail-grid .detail-block span,
+.configurations-page .config-empty span,
+.configuration-editor-page .config-empty span { color: #a5a5af !important; }
+.configurations-page .config-count {
+  color: #fff !important;
+  background: #202026 !important;
+  border-color: #3a3a42 !important;
+}
+.configurations-page .config-count strong { color: #fff !important; }
+.configurations-page .config-version span {
+  color: #ff7882 !important;
+  background: #29161a !important;
+  border: 1px solid #5a3037 !important;
+}
+.configurations-page .config-version b {
+  color: #f4f4f6 !important;
+  background: #242429 !important;
+  border-color: #3a3a42 !important;
+}
+.configuration-editor-page .config-section-icon,
+.configuration-editor-page .config-editor-icon,
+.configuration-details-page .config-editor-icon,
+.configurations-page .config-empty-icon {
+  color: #ff6978 !important;
+  background: #27171b !important;
+  border: 1px solid #513039 !important;
+}
+.configuration-editor-page .config-row { border-color: #303137 !important; }
+.configuration-editor-page .config-row-number { color: #777782 !important; }
+.configuration-editor-page .config-section-empty {
+  color: #a5a5af !important;
+  background: #141417 !important;
+  border: 1px dashed #393940 !important;
+}
+.configuration-editor-page .config-editor-actions {
+  background: rgba(18,18,20,.96) !important;
+  border-color: #34343b !important;
+}
+.configurations-page .config-create-button:hover,
+.configurations-page .config-card:hover {
+  border-color: #5a343b !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.24) !important;
+}
+.configurations-page .config-create-button > span {
+  color: #ff6978 !important;
+  background: #27171b !important;
+  border-color: #513039 !important;
+}
+.configuration-editor-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configuration-editor-page select,
+.configuration-editor-page textarea,
+.configuration-details-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configuration-details-page select,
+.configuration-details-page textarea,
+.configurations-page-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.configurations-page-shell select,
+.configurations-page-shell textarea {
+  color: #f4f4f6 !important;
+  background: #19191d !important;
+  border-color: #3a3a42 !important;
+  color-scheme: dark !important;
+}
+.configuration-editor-page input::placeholder,
+.configuration-editor-page textarea::placeholder,
+.configurations-page-shell input::placeholder,
+.configurations-page-shell textarea::placeholder {
+  color: #898994 !important;
+  opacity: 1 !important;
+}
+.configuration-editor-page option,
+.configurations-page-shell option {
+  color: #f4f4f6 !important;
+  background: #151518 !important;
+}
+.configuration-editor-page label,
+.configuration-editor-page .config-section-title,
+.configuration-editor-page .config-row-content,
+.configuration-details-page label { color: #dedee5 !important; }
+.configuration-editor-page .muted,
+.configuration-details-page .muted { color: #a5a5af !important; }
+.configuration-editor-page .config-row .icon-button,
+.configuration-editor-page .config-row .secondary-button,
+.configuration-editor-page .link-editor {
+  color: #dedee5 !important;
+  background-color: #19191d !important;
+  border-color: #36363e !important;
+}
+.configuration-editor-page .link-editor { padding: 10px; border-radius: 10px; }
+.configuration-editor-page .form-error,
+.configurations-page-shell .notice { color: #ff9aa3 !important; }
+.configuration-editor-page .config-editor-actions .primary-button { box-shadow: 0 8px 22px rgba(227,27,45,.16); }
+
+/* Public result card is an interactive component, not a flat row. Keep its entire hierarchy legible. */
+.public-site .public-result-grid { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px !important; }
+.public-site .public-result-grid-latest { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.public-site .public-result-card {
+  display: flex !important; flex-direction: column !important; gap: 0 !important;
+  min-width: 0 !important; position: relative !important; overflow: hidden !important;
+  padding: 21px 22px 19px !important; border: 1px solid #34353c !important; border-radius: 16px !important;
+  background: radial-gradient(ellipse at 100% 0%,rgba(227,27,45,.10),transparent 45%),linear-gradient(145deg,#1a1b20 0%,#111215 68%,#1b0d10 100%) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2) !important; color: #f4f4f6 !important;
+  text-align: left !important; text-decoration: none !important; cursor: pointer;
+}
+.public-site .public-result-card::before {
+  display: block !important; content: "" !important; position: absolute !important;
+  inset: 0 auto 0 0 !important; width: 3px !important; background: #e31b2d !important; pointer-events: none !important;
+}
+.public-site .public-result-card-top,
+.public-site .public-result-card-bottom { position: relative !important; z-index: 1 !important; min-width: 0; }
+.public-site .public-result-place { display: inline-flex; align-items: center; gap: 7px; color: #fff !important; }
+.public-site .public-result-place small { color: #9c9ca7 !important; font-size: 9px; letter-spacing: .13em; }
+.public-site .public-result-class { color: #ff6978 !important; background: #201519 !important; border: 1px solid #593039 !important; border-radius: 999px; }
+.public-site .public-result-measure { margin: 22px 0 17px !important; }
+.public-site .public-result-measure span { color: #ff6572 !important; }
+.public-site .public-result-measure strong,
+.public-site .public-result-person strong { color: #fff !important; }
+.public-site .public-result-person span,
+.public-site .public-result-context { color: #a2a3ad !important; }
+.public-site .public-result-card-bottom { margin-top: auto !important; padding-top: 14px; border-top: 1px solid #303137 !important; }
+.public-site .public-result-arrow { color: #ff6572 !important; border: 1px solid #393a42 !important; background: #19191d !important; }
+.public-site .public-result-card:hover { border-color: #654048 !important; transform: translateY(-2px); box-shadow: 0 16px 36px rgba(0,0,0,.28) !important; }
+.public-site .public-result-card:focus-visible { outline: 2px solid #ed5361 !important; outline-offset: 3px; }
+@media(max-width:760px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: minmax(0,1fr) !important; gap: 10px !important; }
+  .public-site .public-result-card { padding: 18px 18px 16px !important; border-radius: 14px !important; }
+}
+@media(min-width:761px) and (max-width:1050px) {
+  .public-site .public-result-grid,
+  .public-site .public-result-grid-latest { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+}
+
+
+/* Complete configuration details/history surfaces; no legacy white sub-panels. */
+.configuration-details-page .config-details { display: grid; gap: 16px; color: #f4f4f6 !important; }
+.configuration-details-page .config-details-hero,
+.configuration-details-page .config-version-history,
+.configuration-details-page .config-stat-grid > div,
+.configuration-details-page .config-detail-grid .detail-block {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border: 1px solid #34353c !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configuration-details-page .config-details-hero { display: flex; align-items: center; gap: 15px; padding: 20px; }
+.configuration-details-page .config-details-badge {
+  display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px;
+  color: #ff6978 !important; background: #27171b !important; border: 1px solid #513039 !important;
+  border-radius: 13px !important; font-weight: 900;
+}
+.configuration-details-page .config-version-history { padding: 16px; }
+.configuration-details-page .config-stat-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.configuration-details-page .config-stat-grid > div { display: grid; gap: 6px; padding: 15px; }
+.configuration-details-page .config-stat-grid > div span { color: #a5a5af !important; font-size: 11px; }
+.configuration-details-page .config-stat-grid > div strong { color: #fff !important; font-size: 25px; }
+.configuration-details-page .config-detail-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.configuration-details-page .config-detail-grid .detail-block { min-width: 0; min-height: 74px; padding: 14px; }
+.configuration-details-page .config-detail-grid .detail-block span { color: #a5a5af !important; }
+.configuration-details-page .config-detail-grid .detail-block strong { color: #f4f4f6 !important; overflow-wrap: anywhere; }
+.configuration-details-page .config-version-history .secondary-button.active {
+  color: #fff !important; background: #351a20 !important; border-color: #8a343f !important;
+}
+.configuration-details-page .config-version-history .page-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+@media(max-width:700px) {
+  .configuration-details-page .config-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .configuration-details-page .config-detail-grid { grid-template-columns: minmax(0,1fr); }
+  .configuration-details-page .config-details-hero { align-items: flex-start; }
+}
+
+
+/* PARTICIPANT ACCOUNT SURFACE AUDIT — unify remaining dashboard, garage and registration-history panels.
+   Keep this scoped to participant-facing views; administrative pages retain their own theme. */
+.participant-portal:not(.configurations-page-shell) {
+  min-height: 100vh;
+  color: #f4f4f6;
+  background: #0b0b0d;
+}
+.participant-portal:not(.configurations-page-shell) .participant-portal-main {
+  color: #f4f4f6;
+  background: transparent;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section,
+.participant-portal:not(.configurations-page-shell) .participant-stats > button,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-card,
+.participant-portal:not(.configurations-page-shell) .participant-car-card,
+.participant-portal:not(.configurations-page-shell) .participant-registration-list > article,
+.participant-portal:not(.configurations-page-shell) .participant-empty,
+.participant-portal:not(.configurations-page-shell) .participant-loading,
+.participant-portal:not(.configurations-page-shell) .profile-match-results,
+.participant-portal:not(.configurations-page-shell) .profile-match-empty,
+.participant-portal:not(.configurations-page-shell) .historical-match-card {
+  color: #f4f4f6;
+  background: linear-gradient(145deg,#191a1e,#111215 72%);
+  border: 1px solid #34353c;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16);
+}
+.participant-portal:not(.configurations-page-shell) .participant-section {
+  border-radius: 16px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section h1,
+.participant-portal:not(.configurations-page-shell) .participant-section h2,
+.participant-portal:not(.configurations-page-shell) .participant-section h3,
+.participant-portal:not(.configurations-page-shell) .participant-welcome h1,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-head strong,
+.participant-portal:not(.configurations-page-shell) .participant-car-details h3,
+.participant-portal:not(.configurations-page-shell) .participant-registration-main strong,
+.participant-portal:not(.configurations-page-shell) .participant-stats strong {
+  color: #f7f7f9;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section p,
+.participant-portal:not(.configurations-page-shell) .participant-welcome p,
+.participant-portal:not(.configurations-page-shell) .participant-car-details p,
+.participant-portal:not(.configurations-page-shell) .participant-registration-main > span,
+.participant-portal:not(.configurations-page-shell) .participant-stats span,
+.participant-portal:not(.configurations-page-shell) .participant-stage-stat-meta,
+.participant-portal:not(.configurations-page-shell) .participant-empty p {
+  color: #a5a5af;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs {
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button {
+  color: #b7b7c0;
+  background: transparent;
+  border-color: transparent;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button:hover {
+  color: #fff;
+  background: #19191d;
+}
+.participant-portal:not(.configurations-page-shell) .participant-tabs button.active {
+  color: #fff;
+  background: #32171d;
+  border-color: #74313b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-stage-list > article,
+.participant-portal:not(.configurations-page-shell) .participant-stage-results > div,
+.participant-portal:not(.configurations-page-shell) .participant-registration-detail-grid > div {
+  color: #f4f4f6;
+  background: #19191d;
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-status {
+  color: #ff7c86;
+}
+.participant-portal:not(.configurations-page-shell) .participant-profile-photo-preview,
+.participant-portal:not(.configurations-page-shell) .participant-car-icon {
+  color: #ff6978;
+  background: #27171b;
+  border-color: #513039;
+}
+.participant-portal:not(.configurations-page-shell) .participant-form-grid input:not([type="checkbox"]):not([type="radio"]),
+.participant-portal:not(.configurations-page-shell) .participant-form-grid select,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field input,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field select {
+  color: #f5f5f7 !important;
+  background: #202024 !important;
+  border: 1px solid #414148 !important;
+  color-scheme: dark;
+}
+.participant-portal:not(.configurations-page-shell) .participant-form-grid input::placeholder,
+.participant-portal:not(.configurations-page-shell) .participant-phone-field input::placeholder {
+  color: #8f8f98 !important;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section-head {
+  border-color: #34343b;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section-head .muted,
+.participant-portal:not(.configurations-page-shell) .participant-form-grid small,
+.participant-portal:not(.configurations-page-shell) .participant-profile-photo-row p {
+  color: #9e9ea8 !important;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-qr {
+  color: #f4f4f6;
+  background: #17171b;
+  border: 1px solid #34343b;
+  border-radius: 12px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-registration-qr small {
+  color: #a5a5af;
+}
+.participant-portal:not(.configurations-page-shell) .registration-cancel-confirm {
+  color: #f4f4f6;
+  background: #20171a;
+  border: 1px solid #563039;
+  border-radius: 10px;
+  padding: 10px;
+}
+.participant-portal:not(.configurations-page-shell) .secondary-button {
+  color: #e7e7eb;
+  background: #222227;
+  border-color: #414149;
+}
+.participant-portal:not(.configurations-page-shell) .secondary-button:hover {
+  color: #fff;
+  background: #2c2c33;
+  border-color: #6a4148;
+}
+.participant-portal:not(.configurations-page-shell) .text-button {
+  color: #ff7882;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section .consent-stack {
+  color: #e4e4e9;
+  background: #151518;
+  border: 1px solid #34343b;
+  border-radius: 12px;
+  padding: 14px;
+}
+.participant-portal:not(.configurations-page-shell) .participant-section .consent-stack small {
+  color: #9e9ea8;
+}
+@media (max-width: 700px) {
+  .participant-portal:not(.configurations-page-shell) .participant-portal-main {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-section {
+    padding: 16px;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-stats {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-car-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .participant-portal:not(.configurations-page-shell) .participant-car-actions button {
+    flex: 1 1 145px;
+  }
+}
+
+
+/* Cursor and hover states must reflect actual card navigation. */
+.public-site .public-result-card { cursor: default !important; }
+.public-site .public-result-card.is-interactive { cursor: pointer !important; }
+.public-site .public-result-card:not(.is-interactive):hover {
+  transform: none !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2) !important;
+  border-color: #34353c !important;
+}
+
+
+/* Admin configuration workspace is deliberately light, unlike the participant garage. */
+.admin-configurations-shell,
+.admin-configurations-shell .participant-portal-main,
+.admin-configurations-shell .configurations-page {
+  color: #17191c !important;
+  background: #f2f3f4 !important;
+}
+.admin-configurations-shell .participant-portal-header {
+  color: #17191c !important;
+  background: rgba(255,255,255,.96) !important;
+  border-bottom: 1px solid #d9dcdf !important;
+  backdrop-filter: blur(18px);
+}
+.admin-configurations-shell .participant-portal-brand,
+.admin-configurations-shell .participant-portal-brand strong,
+.admin-configurations-shell .participant-portal-brand small {
+  color: #17191c !important;
+}
+.admin-configurations-shell .participant-portal-brand .brand-mark { color: #111214 !important; }
+.admin-configurations-shell .configurations-page-top,
+.admin-configurations-shell .configuration-subpage-header {
+  color: #17191c !important;
+  background: linear-gradient(135deg,#fff,#f4f5f6) !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 8px 24px rgba(9,10,11,.04) !important;
+}
+.admin-configurations-shell .configurations-page-top h1,
+.admin-configurations-shell .configuration-subpage-header h1 { color: #17191c !important; }
+.admin-configurations-shell .configurations-page-top p,
+.admin-configurations-shell .configuration-subpage-header p { color: #62676e !important; }
+.admin-configurations-shell .config-modal-hero,
+.admin-configurations-shell .config-card,
+.admin-configurations-shell .config-create-button,
+.admin-configurations-shell .config-editor-intro,
+.admin-configurations-shell .config-section,
+.admin-configurations-shell .config-details-hero,
+.admin-configurations-shell .config-version-history,
+.admin-configurations-shell .config-stat-grid > div,
+.admin-configurations-shell .config-detail-grid .detail-block,
+.admin-configurations-shell .config-empty {
+  color: #17191c !important;
+  background: #fff !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 2px 10px rgba(9,10,11,.035) !important;
+}
+.admin-configurations-shell .config-modal-hero h2,
+.admin-configurations-shell .config-card h3,
+.admin-configurations-shell .config-card-main h3,
+.admin-configurations-shell .config-create-button strong,
+.admin-configurations-shell .config-editor-intro strong,
+.admin-configurations-shell .config-section-title strong,
+.admin-configurations-shell .config-details-hero h2,
+.admin-configurations-shell .config-detail-grid .detail-block strong,
+.admin-configurations-shell .config-stat-grid > div strong,
+.admin-configurations-shell .config-empty strong { color: #17191c !important; }
+.admin-configurations-shell .config-modal-hero p,
+.admin-configurations-shell .config-card p,
+.admin-configurations-shell .config-card-main p,
+.admin-configurations-shell .config-count span,
+.admin-configurations-shell .config-editor-intro small,
+.admin-configurations-shell .config-section-title small,
+.admin-configurations-shell .field-help,
+.admin-configurations-shell .config-section-empty,
+.admin-configurations-shell .config-details-hero p,
+.admin-configurations-shell .config-detail-grid .detail-block span,
+.admin-configurations-shell .config-stat-grid > div span,
+.admin-configurations-shell .config-empty span { color: #62676e !important; }
+.admin-configurations-shell .config-count,
+.admin-configurations-shell .config-version b {
+  color: #17191c !important;
+  background: #f4f5f6 !important;
+  border-color: #d9dcdf !important;
+}
+.admin-configurations-shell .config-version span {
+  color: #b91425 !important;
+  background: #fff0f2 !important;
+  border-color: #efb8bf !important;
+}
+.admin-configurations-shell .config-section-icon,
+.admin-configurations-shell .config-editor-icon,
+.admin-configurations-shell .config-details-badge,
+.admin-configurations-shell .config-empty-icon,
+.admin-configurations-shell .config-create-button > span {
+  color: #b91425 !important;
+  background: #fff0f2 !important;
+  border-color: #efb8bf !important;
+}
+.admin-configurations-shell .config-row,
+.admin-configurations-shell .config-editor-actions { border-color: #d9dcdf !important; }
+.admin-configurations-shell .config-row-number { color: #858a90 !important; }
+.admin-configurations-shell .config-section-empty {
+  color: #62676e !important;
+  background: #f7f8f9 !important;
+  border-color: #d9dcdf !important;
+}
+.admin-configurations-shell .config-editor-actions {
+  background: rgba(255,255,255,.96) !important;
+}
+.admin-configurations-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.admin-configurations-shell select,
+.admin-configurations-shell textarea {
+  color: #17191c !important;
+  background: #fff !important;
+  border-color: #c9cdd1 !important;
+  color-scheme: light !important;
+}
+.admin-configurations-shell input::placeholder,
+.admin-configurations-shell textarea::placeholder { color: #858a90 !important; }
+.admin-configurations-shell option { color: #17191c !important; background: #fff !important; }
+.admin-configurations-shell label,
+.admin-configurations-shell .config-section-title,
+.admin-configurations-shell .config-row-content,
+.admin-configurations-shell .muted { color: #34383d !important; }
+.admin-configurations-shell .secondary-button,
+.admin-configurations-shell .icon-button,
+.admin-configurations-shell .link-editor {
+  color: #34383d !important;
+  background: #fff !important;
+  border-color: #c9cdd1 !important;
+}
+.admin-configurations-shell .config-version-history .secondary-button.active {
+  color: #fff !important;
+  background: #111214 !important;
+  border-color: #111214 !important;
+}
+.admin-configurations-shell .notice { color: #775000 !important; }
+
+
+/* Dark participant subpages that share the configuration shell: car details and registration details. */
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-card,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid > div,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-group {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border-color: #34353c !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h1,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h2,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h3,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading h2,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-classes h3 {
+  color: #f7f7f9 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section p,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section small,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading p,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid dt {
+  color: #a5a5af !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-car-detail-photo {
+  color: #ff6978 !important;
+  background: #17171b !important;
+  border-color: #34343b !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-badges span {
+  color: #f7f7f9 !important;
+  background: #242429 !important;
+  border-color: #414149 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-title,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid dd,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group > strong {
+  color: #f4f4f6 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading {
+  border-color: #34343b !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group > span {
+  color: #a5a5af !important;
+}
