@@ -1,3 +1,32 @@
+# Current release delta — 2026-10-15 12:00 UTC
+
+## Merged since the previous update
+
+- **PR #148** — archived regulation revision IDs cannot be reused to publish altered content. Backend CI passed (Prisma generation/migrations, dependency audit, build, lint, unit and E2E tests).
+- **PR #149** — public stage detail pages render the immutable regulation snapshot stored for that stage. Frontend and backend CI passed.
+- **PR #150** — legacy stage pages explicitly disclose when no historical rules snapshot exists. Frontend CI #626 and Backend CI #798 passed; PR merged as `2476802ebf61629cbd2efbbc3be919c87cf5c0bf`.
+
+## Release status — code completion is not production acceptance
+
+- **Cloudflare Worker build is blocked:** the Cloudflare bot reported a failed preview build for PR #150 and prior PRs. The Cloudflare dashboard log URL is not accessible through the current connected session, so the root cause is unknown. Do not guess at the cause or claim that the latest frontend is deployed.
+- **GitHub deployment workflow:** the repository workflow skips the Wrangler publish job when `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` is missing. A successful bundle build alone does not publish the Worker.
+- **Live site:** public `usd-russia.ru/records` and `/rules` still serve the Tilda site in the latest available web inspection. The root page timed out and `/stages` / `/results` could not be independently fetched. No DNS, root domain, or production routing changes were made.
+- **Email:** the user confirmed the test emails now work. That confirms the tested flow only; it does not independently prove all event-trigger types or registration confirmation delivery.
+- **Legal:** the organizer must approve actual operator details and legal texts before the registration flow can be considered production-ready.
+- **Browser/device QA:** direct route refresh, responsive layout, profile/car/registration flows, mobile QR camera, and ADMIN/JUDGE authorization still require live browser/device acceptance.
+- **Backend:** prior production API smoke passed on an earlier main commit; re-run against the current live deployment before final release sign-off.
+
+## Remaining release gates
+
+1. Obtain/read Cloudflare Worker build logs, fix the actual build error, and verify the exact deployed Worker revision.
+2. Confirm GitHub Cloudflare secrets are configured if GitHub Actions is the intended deploy path, or document the active Cloudflare-native deploy path.
+3. Test direct navigation and refresh on `/`, `/stages`, `/results`, `/records`, and `/rules`; test responsive layouts and anonymous API privacy.
+4. Perform live smoke tests for registration, participant profile/car editing, QR inspection, and ADMIN/JUDGE permission boundaries.
+5. Confirm required legal texts and operator details with the organizer.
+6. Only after explicit owner approval, schedule the public-domain/DNS cutover; keep current routing unchanged until then.
+
+---
+
 # Release status update — 2026-10-15
 
 ## Recently merged
