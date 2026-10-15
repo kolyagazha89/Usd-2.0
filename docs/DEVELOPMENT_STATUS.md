@@ -5,7 +5,7 @@ This entry supersedes older status statements below where they conflict with the
 ## Current main and deployment evidence
 
 - **Main commit:** `335e0509a827b6839dbe16a02ae99dda43bc3e9f`.
-- **Backend CI:** passed on the current commit — [run #808](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38708740106).
+- **Backend CI:** passed on the current commit — [run #809](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38708740106).
 - **Railway API:** deployment `3f204b7e-7aae-4415-8731-a93799cc30e1` reached `SUCCESS`; Nest reports “Application successfully started”; no pending Prisma migrations.
 - **Production API Smoke:** passed on the current commit — [run #29](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38708924341), checking health, public stages, results privacy and records.
 - **Frontend CI / bundle:** passed on parent commit `8b783c6b7b040b96b7c31d051c85c18b39c7ebc3`. The only code change from that parent to current main is backend-only save-failure diagnostics.
