@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { NormalizationDryRunService } from './normalization-dry-run.service';
+import { NameNormalizerService } from '../common/names/name-normalizer.service';
 
 describe('NormalizationDryRunService', () => {
   it('reports possible duplicates and invalid data without mutating records', async () => {
@@ -11,7 +12,7 @@ describe('NormalizationDryRunService', () => {
       ]) },
       car: { findMany: jest.fn().mockResolvedValue([
         { id: 'c1', participantId: 'p1', brand: 'Lada', model: 'Vesta', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
-        { id: 'c2', participantId: 'p2', brand: 'LADA', model: 'Vesta', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
+        { id: 'c2', participantId: 'p2', brand: 'Лада', model: 'Веста', registrationNumber: 'А123ВС72', registrationCountry: 'RU', participant: { firstName: 'Иван', lastName: 'Иванов' } },
         { id: 'c3', participantId: 'p3', brand: '—', model: '—', registrationNumber: 'автомобиль не указан', registrationCountry: 'RU', participant: { firstName: 'Пётр', lastName: 'Петров' } },
       ]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 'u1', email: 'Test@example.com', role: 'ADMIN' }, { id: 'u2', email: 'test@EXAMPLE.com', role: 'PARTICIPANT' }, { id: 'u3', email: 'invalid-email', role: 'PARTICIPANT' }]) },
@@ -21,11 +22,13 @@ describe('NormalizationDryRunService', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     };
-    const report = await new NormalizationDryRunService(prisma).run();
+    const report = await new NormalizationDryRunService(prisma, new NameNormalizerService()).run();
     expect(report.readOnly).toBe(true);
     expect(report.mode).toBe('DRY_RUN');
     expect(report.summary.duplicatePeopleGroups).toBe(1);
     expect(report.summary.duplicatePlateGroups).toBe(1);
+    expect(report.summary.brandVariantGroups).toBe(1);
+    expect(report.summary.modelVariantGroups).toBe(1);
     expect(report.summary.invalidPlates).toBe(0);
     expect(report.summary.invalidPhones).toBe(1);
     expect(report.summary.normalizedEmailCollisionGroups).toBe(1);
