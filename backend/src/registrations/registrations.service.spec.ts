@@ -92,6 +92,7 @@ describe('RegistrationsService', () => {
           { id: 'number-1', number: 1, isPrimary: true },
         ]),
       },
+      participantStageInspection: { findUnique: jest.fn().mockResolvedValue(null) },
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
