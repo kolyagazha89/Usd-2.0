@@ -226,18 +226,18 @@ describe('RecordsService', () => {
     expect(tx.record.create).not.toHaveBeenCalled();
   });
 
-  it('excludes Storm Wall from official record recalculation', async () => {
+  it('allows record recalculation for Storm Wall classes', async () => {
     const tx = setupRecalc([result('storm', 18.4, '2026-05-01T10:00:00.000Z')]);
     tx.class.findUnique.mockResolvedValue({
       id: 'class-1', code: 'STORM_WALL', name: 'Storm Wall', unit: 'MPS',
       direction: { name: 'Storm Wall' },
     });
-    await expect(service.recalculateCurrentRecord('class-1')).resolves.toEqual([]);
-    expect(tx.record.create).not.toHaveBeenCalled();
-    expect(tx.result.findMany).not.toHaveBeenCalled();
+    await service.recalculateCurrentRecord('class-1');
+    expect(tx.result.findMany).toHaveBeenCalled();
+    expect(tx.record.create).toHaveBeenCalled();
   });
 
-  it('respects per-class public record visibility and always hides BassRace/Storm Wall', async () => {
+  it('respects per-class public record visibility and always hides BassRace', async () => {
     prisma.siteSettings.findUnique.mockResolvedValue({ catalogs: { recordVisibility: { hidden: false, enabled: true, bass: true } } });
     const records = [
       { class: { id: 'hidden', name: 'Limited 2.0', direction: { name: 'SPL' } } },
@@ -245,7 +245,7 @@ describe('RecordsService', () => {
       { class: { id: 'bass', name: '159.9', direction: { name: 'BassRace' } } },
       { class: { id: 'storm', name: 'Storm Wall', direction: { name: 'Storm Wall' } } },
     ];
-    await expect((service as any).filterPublicRecordVisibility(records)).resolves.toEqual([records[1]]);
+    await expect((service as any).filterPublicRecordVisibility(records)).resolves.toEqual([records[1], records[3]]);
   });
 
   it('limits public current records to published or completed, non-deleted stages', async () => {

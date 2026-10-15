@@ -48,8 +48,9 @@ export class RecordsService {
     const direction = normalize(classItem?.direction?.name);
     const code = normalize(classItem?.code);
     const name = normalize(classItem?.name);
-    return direction.includes('BASSRACE') || code.includes('BASSRACE') || name.includes('BASSRACE')
-      || direction.includes('STORMWALL') || code.includes('STORMWALL') || name.includes('STORMWALL');
+    // BassRace does not maintain all-time records. Storm Wall is not
+    // hard-coded out: if results exist, it may have records like other classes.
+    return direction.includes('BASSRACE') || code.includes('BASSRACE') || name.includes('BASSRACE');
   }
 
   private async filterPublicRecordVisibility<T extends { class?: any; result?: any }>(records: T[]): Promise<T[]> {
@@ -466,7 +467,7 @@ export class RecordsService {
     });
     if (!classItem) throw new NotFoundException('Класс не найден');
     if (this.isRecordClassExcluded(classItem)) {
-      throw new ConflictException('Для Bass Race и Storm Wall официальные рекорды не ведутся');
+      throw new ConflictException('Для BassRace официальные рекорды не ведутся');
     }
 
     const results = await this.prisma.result.findMany({
