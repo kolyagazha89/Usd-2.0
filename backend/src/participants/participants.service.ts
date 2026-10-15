@@ -1814,9 +1814,9 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'ADMIN' && !user.customRoleId) {
       throw new ForbiddenException(
-        'Требуются права администратора',
+        'Недостаточно прав для выполнения операции',
       );
     }
 
