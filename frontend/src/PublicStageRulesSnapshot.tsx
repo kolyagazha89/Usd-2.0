@@ -56,9 +56,10 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
   const blocks = Array.isArray(snapshot?.blocks) ? snapshot.blocks : [];
   if (!snapshot || !blocks.length) {
     return (
-      <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Исторический регламент">
-        <strong>Архивная редакция регламента не сохранена</strong>
-        <p>Для этапа «{stageName}» в системе нет копии регламента на момент публикации. Текущий регламент может отличаться от правил, действовавших на этом этапе.</p>
+      <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Общий регламент соревнований">
+        <strong>Общий регламент соревнований</strong>
+        <p>Для всех этапов действует единый регламент ЮСД. Отдельный регламент для этапа «{stageName}» не требуется. Особенности конкретного этапа указаны в его описании.</p>
+        <p><a href="/rules">Открыть общий регламент ↗</a></p>
       </aside>
     );
   }
@@ -74,13 +75,13 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
     <details className="public-stage-rules">
       <summary>
         <span>
-          <strong>Регламент этого этапа</strong>
-          <small>{dateLabel ? 'Зафиксированная редакция от ' + dateLabel : 'Редакция, сохранённая при публикации этапа'}</small>
+          <strong>Общий регламент соревнований</strong>
+          <small>{dateLabel ? 'Редакция общего регламента от ' + dateLabel : 'Редакция, сохранённая при публикации этапа'}</small>
         </span>
         <span className="public-stage-rules-toggle" aria-hidden="true">+</span>
       </summary>
       <div className="public-stage-rules-body">
-        <p className="public-stage-rules-notice">Это редакция регламента, сохранённая для этапа «{stageName}». Последующие изменения общего регламента не меняют этот текст.</p>
+        <p className="public-stage-rules-notice">Это редакция общего регламента, зафиксированная при публикации этапа «{stageName}». Последующие изменения общего регламента не меняют сохранённую историческую редакцию.</p>
         <div className="public-rules-rich-document">
           {blocks.map((block, index) => {
             const text = 'text' in block ? String(block.text ?? '') : '';
