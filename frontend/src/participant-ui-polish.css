@@ -811,3 +811,50 @@
   border-color: #111214 !important;
 }
 .admin-configurations-shell .notice { color: #775000 !important; }
+
+
+/* Dark participant subpages that share the configuration shell: car details and registration details. */
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-card,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid > div,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-group {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border-color: #34353c !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h1,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h2,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section h3,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading h2,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-classes h3 {
+  color: #f7f7f9 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section p,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-section small,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading p,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid dt {
+  color: #a5a5af !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-car-detail-photo {
+  color: #ff6978 !important;
+  background: #17171b !important;
+  border-color: #34343b !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-badges span {
+  color: #f7f7f9 !important;
+  background: #242429 !important;
+  border-color: #414149 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-number-title,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-grid dd,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group > strong {
+  color: #f4f4f6 !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group,
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-detail-heading {
+  border-color: #34343b !important;
+}
+.configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group > span {
+  color: #a5a5af !important;
+}
