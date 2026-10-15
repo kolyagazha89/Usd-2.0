@@ -1,63 +1,34 @@
-# Follow-up release delta — 2026-10-15 11:05 UTC
+# Follow-up release delta — 2026-10-15 11:10 UTC
 
-This is the latest evidence snapshot. CI/deployment checks are not a substitute for browser acceptance or the owner's verification of authenticated save flows.
+This is the latest code/deployment evidence snapshot. A successful build does not replace owner/browser acceptance of the live UI.
 
-## Latest merged code
+## Latest merged code and deployment evidence
 
-- **Main commit:** `cb058cfee75e50919b7c7e049d3f28d1c1e65d92` (PR #167; PR #166 is included in its ancestry).
-- **PR #166 — release QA fixes:** merged. Backend CI and frontend build passed. Includes strict live input masks, dark form/dropdown/help surfaces, one homepage winner per class, next-stage registration CTA, partner links in footer, forgot-password UI, QR aiming frame, record class visibility controls, and normalization of settings JSON before Prisma persistence. Settings-save behavior must still be verified with an authenticated admin save/read-back.
-- **PR #167 — BassRace class inspections:** merged. Backend migration/build/lint/unit/E2E and frontend build passed. Adds independent inspection state per BassRace registration class/participant number, backfills existing registration-level inspection status to each existing BassRace class, and extends bulk pass/fail. Railway deployment is being verified after the merge; do not claim the new API/schema is live until the deployment succeeds.
-- **Railway:** deployment `72960e45-2c4a-4493-8c44-43e619dec38c` reached SUCCESS; logs confirm migration `20261015120000_registration_class_inspections` was applied and all migrations completed successfully.
-- **Production API smoke after PR #166 and #167:** run #38724045714 passed against main `cb058cfee75e50919b7c7e049d3f28d1c1e65d92`; public settings/stages/current records and published/unpublished result visibility were checked. It did not test an authenticated PATCH of site settings.
-- **Cloudflare Workers:** the connected `Workers Builds: usd-2-0` check is failing on the latest main build despite GitHub's React build succeeding. GitHub Actions Wrangler publish remains skipped because Cloudflare account/token secrets are not configured in GitHub. Do not claim the frontend updates are live until the Cloudflare-native production Worker build succeeds and the active Worker is checked.
-- **Email:** owner confirmed emails arrive; issue #49 is closed. Reset-password UI is in PR #166; verify its end-to-end link separately during browser acceptance.
-- **Settings 500:** PR #166 now JSON-normalizes merged settings before Prisma persistence and adds tests for partial rules and full news payloads. This is a candidate fix, not production acceptance. Keep #156 open until an authenticated admin can save rules, create a news item, reload both and confirm no 500.
-- **BassRace inspection:** individual class/number inspections are implemented and merged, but require a real stage with a participant in three BassRace classes to verify three separate rows, independent status/notes, and bulk actions after Railway migration deployment.
-- **Records:** admin controls choose which eligible classes publish public records. BassRace and Storm Wall are always excluded from public record output and record accrual; this rule is enforced server-side.
-- **Legal package:** owner rejected the current drafts as insufficiently detailed. Rebuild the previously requested 11-document package; use known operator facts only and do not invent the operator address or MKТУ. Organizer approval is required before public publication or enabling registration.
-- **Domain/DNS:** untouched. The custom-domain cutover remains the final, separately approved step.
+- **Main commit:** `a01ba422276d139eee25ffa52b91f9881b1f941c`.
+- **PR #166 — release QA fixes:** merged. Backend CI, frontend build and production API smoke passed. Includes strict live phone/plate masks, USD dark controls/help/dropdowns/statistics cards, one homepage winner per class, registration CTA when the upcoming stage is open, active partner HTTPS links in the footer, forgot-password flow, QR aiming frame, class-level record visibility controls and JSON normalization before Prisma persistence.
+- **PR #167 — BassRace class inspections:** merged. Backend migration/build/lint/unit/E2E and frontend build passed. Adds separate inspection state per BassRace class/participant number and backfills existing registration-level inspection decisions to the matching BassRace class entries.
+- **PR #170 — Cloudflare build:** merged. Wrangler config now runs the frontend build before asset upload and frontend CI validates `npx wrangler deploy --dry-run`.
+- **Cloudflare Worker:** connected Cloudflare-native `Workers Builds: usd-2-0` passed on current main. Build ID `c834c73d-ccd8-4457-8cce-fafd300fcaa7`; Version ID `25f15925-a2a1-459c-9290-0edd7731092b`. GitHub Actions Wrangler publish remains skipped because Cloudflare secrets are not configured in GitHub; Cloudflare-native deployment is the working path. The build blocker #169 is closed.
+- **Railway API:** deployment `9dd7c9ca-bf04-4bcc-9349-4a9343b9ebff` reached SUCCESS. Migration `20261015120000_registration_class_inspections` was applied; subsequent deployment reported no pending migrations and Nest started successfully.
+- **Production API Smoke:** run #38724045714 passed after PR #167, checking public settings/stages/current records and published/unpublished result visibility.
+- **Email:** owner confirmed emails arrive; #49 is closed. Reset-password UI is in PR #166; its end-to-end link still needs browser acceptance.
+- **Settings 500:** PR #166 normalizes merged settings JSON before Prisma and adds tests for partial rules and full news payloads. No new `PATCH /site-settings` HTTP 500s are visible after deployment, but no authenticated save attempt is recorded after deployment. Keep #156 open until the owner saves rules and a news item, reloads them and confirms read-back.
+- **Records:** admin can choose eligible classes for public record display. BassRace and Storm Wall are always excluded from public record output and record accrual.
+- **Legal package:** owner rejected current drafts as insufficiently detailed. Rebuild the requested 11-document package and get organizer approval; do not invent missing operator address or MKТУ details.
+- **Domain/DNS:** untouched. Custom-domain cutover remains the final separately approved operation.
 
 ## Remaining acceptance gates
 
-1. Confirm Railway deployment for main `cb058cfee75e50919b7c7e049d3f28d1c1e65d92` succeeds with the new migration applied.
-2. Resolve the failing Cloudflare-native Worker build and verify the exact active Worker URL, direct-route refresh, and deployed frontend commit.
-3. Authenticated admin: upload/preview/publish DOCX rules; create/edit/publish news; reload settings and confirm read-back. Keep #156 open until successful.
-4. BassRace: create one participant registration with three BassRace classes; verify three distinct inspection rows/numbers, independent PASSED/FAILED status, required failure comment, results conflict guard, audit trail and bulk actions.
-5. Input masks: RU phone and registration plate in participant, admin quick-create and generic CRUD; try invalid/incomplete input and verify save is rejected. Confirm all dropdowns, helper surfaces, statistics cards and modal forms use USD dark/red styling on desktop/mobile.
-6. Public homepage: one winner per class; registration CTA visible when next-stage registration is open; active partner HTTPS links in footer; verify the actual Worker build is live.
-7. QR camera: acceptance on real HTTPS iOS Safari and Android Chrome, plus ADMIN/JUDGE roles.
-8. Prepare and obtain organizer approval for the full 11-document legal package before enabling registration.
-9. Keep domain/DNS cutover as the final separately approved operation.
+1. In the authenticated admin UI, upload/preview/publish DOCX rules, create/edit a news item, reload settings and verify persistence without Internal server error.
+2. Open the active Worker `https://usd-2-0.ultimatesounddestruction.workers.dev/`; verify direct refresh on `/admin`, `/records`, `/stages`, `/privacy`, `/terms`, `/consent`; check logo/poster cold-load, responsive desktop/mobile layout and all new UI changes. The native Worker build passed; direct browser acceptance is still separate.
+3. Register one participant/car in three BassRace classes and verify three distinct inspection rows/numbers, independent status/notes, failure-comment requirement, result conflict guard, audit trail and bulk pass/fail.
+4. Try incomplete/invalid phone and plate values in participant, admin quick-create and generic CRUD; confirm the masks and save-time rejection. Review all remaining forms for normalization consistency.
+5. Run a non-destructive normalization dry-run for duplicate/conflicting people, teams, cities, cars, email/phone/plate and imported names. Do not merge records without ADMIN review and audit.
+6. Test QR camera on HTTPS iOS Safari and Android Chrome; verify ADMIN/JUDGE permissions and invalid/stale QR behavior.
+7. Prepare and obtain organizer approval for the detailed 11-document legal package before enabling registration.
+8. Keep custom domain/DNS cutover as the final separately approved operation.
 
-Master tracker: #114. Detailed owner findings: #165.
-
----
-
-# Follow-up release delta — 2026-10-15 09:07 UTC
-
-This follow-up supersedes the earlier 08:55 snapshot below where later commits changed the evidence. The frontend and backend are separate deployable artifacts; their verified source commits differ because the latest backend-only change did not require rebuilding the frontend.
-
-## Verified deployed code
-
-- **Backend source:** `3b0cb254b87f2a98e3605022fe7fb42c19ffd24e`. Railway deployment `76fbd742-8663-43b3-8ca2-52f67202ee7f` reached SUCCESS; Nest started; no pending Prisma migrations. Backend CI #820 passed and Production API Smoke #33 passed: https://github.com/kolyagazha89/Usd-2.0/actions/runs/38710433716.
-- **Frontend source:** `40432518c1dd5395c70587643c44a968a5196c07`. Frontend CI #637, Frontend Deploy #89 and Cloudflare-native production Worker build all passed. The GitHub Actions Wrangler publish step is skipped because Cloudflare token/account secrets are not configured in GitHub; the connected Cloudflare-native production build did pass.
-- **Cross-browser QR scanning:** PR #159 merged as `4826459daf25c74f20186199dd8767d369c2d3cb`; Frontend CI #635 passed, and the resulting Worker production build passed. Scanner uses native BarcodeDetector where available and jsQR fallback otherwise, with same-origin/exact-route checks. Physical HTTPS camera acceptance on real mobile devices remains open under #50.
-- **Legal footer links:** PR #160 merged as `40432518c1dd5395c70587643c44a968a5196c07`; Frontend CI #637 passed and Cloudflare production build passed. Footer links to `/privacy`, `/consent`, and `/terms` remain visible when texts are unapproved; those pages still show a pending-approval state and registration remains blocked.
-- **Site-settings diagnostics:** PR #157 and follow-up PR #161 are merged. Current backend logs unexpected update failures by phase (`read`, `merge`, `upsert`, `audit`), error class and Prisma code without payload values. This is diagnostic coverage, not a root-cause fix.
-- **Site-settings 500s:** eight production `PATCH /site-settings` HTTP 500s were observed between 07:57 and 08:41 UTC before the diagnostics were deployed. No later PATCH attempt has reproduced the issue yet. Keep [#156](https://github.com/kolyagazha89/Usd-2.0/issues/156) open until a real save reproduces and is fixed.
-- **Email:** four production `POST /mail/test-trigger` calls returned HTTP 201, which is evidence the configured provider accepted the sends. Actual Inbox/Spam placement and verification-link operation are not confirmed; keep [#49](https://github.com/kolyagazha89/Usd-2.0/issues/49) open.
-- **Media:** two earlier transient 500s affected public poster/logo delivery; later requests returned 304. Keep cold-load asset QA under [#11](https://github.com/kolyagazha89/Usd-2.0/issues/11).
-- **Legal approval:** footer discovery is fixed, but the organizer still must approve actual legal text/operator details before registration can be enabled. Do not approve on their behalf.
-- **Public domain:** no root domain, DNS, nameserver, Tilda or production routing changes have been made. The custom-domain cutover remains a separate step requiring explicit approval.
-
-## Remaining release gates (do not mark release-ready until resolved)
-
-1. Reproduce and fix #156 settings-save 500s using the new phase diagnostics.
-2. Confirm test-email receipt and a working verification link; verify remaining date-based triggers without touching a live event.
-3. Browser-check the exact active Worker URL, direct route refresh, anonymous privacy, desktop/mobile layouts and cold-load logo/poster delivery.
-4. Test QR camera scanning on HTTPS in iOS Safari and Android Chrome; verify ADMIN/JUDGE permissions with real sessions.
-5. Obtain organizer approval for the actual privacy policy, consent, terms and operator details.
-6. Keep public domain/DNS cutover as a separately approved final operation.
+Master tracker: #114. Owner findings and normalization backlog: #165. Settings-save acceptance: #156. Public browser QA: #11. QR camera acceptance: #50.
 
 ---
 
