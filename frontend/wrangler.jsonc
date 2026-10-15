@@ -2,6 +2,10 @@
   "name": "usd-2-0",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Workers Builds can invoke only `wrangler deploy`; build the SPA first so ./dist exists.
+  "build": {
+    "command": "if [ -f package.json ] && grep -q usd-admin package.json; then npm run build; else cd frontend && npm run build; fi"
+  },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"

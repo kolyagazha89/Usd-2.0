@@ -37,3 +37,7 @@ jobs:
         run: npm install
       - name: Build frontend
         run: npm run build
+      - name: Validate Wrangler Worker assets without publishing
+        run: npx --yes wrangler deploy --dry-run
+        env:
+          VITE_API_URL: https://usd-api-production.up.railway.app
