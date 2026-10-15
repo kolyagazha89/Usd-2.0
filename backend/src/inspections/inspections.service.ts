@@ -84,22 +84,22 @@ export class InspectionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findOne(id: string) {
+    const vehicleInspection = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
+    if (vehicleInspection) return vehicleInspection;
     const shared = await this.prisma.participantStageInspection.findUnique({ where: { id }, include: participantStageInspectionInclude });
-    if (shared) return shared;
-    const legacy = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
-    if (!legacy) throw new NotFoundException('Проверка не найдена');
-    return legacy;
+    if (!shared) throw new NotFoundException('Проверка не найдена');
+    return shared;
   }
 
   async findByRegistration(registrationId: string) {
-    const registration = await this.prisma.registration.findUnique({ where: { id: registrationId }, select: { participantId: true, stageId: true } });
-    if (!registration) throw new NotFoundException('Регистрация не найдена');
-    const inspection = await this.prisma.participantStageInspection.findUnique({
-      where: { participantId_stageId: { participantId: registration.participantId, stageId: registration.stageId } },
-      include: participantStageInspectionInclude,
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+      include: { inspection: { include: inspectionInclude }, stageInspection: { include: participantStageInspectionInclude } },
     });
-    if (!inspection) throw new NotFoundException('Общая инспекция участника на этом этапе не найдена');
-    return inspection;
+    if (!registration) throw new NotFoundException('Регистрация не найдена');
+    if (registration.inspection) return registration.inspection;
+    if (registration.stageInspection) return registration.stageInspection;
+    throw new NotFoundException('Инспекция автомобиля на этом этапе не найдена');
   }
 
   private isBassRaceClass(className: string, directionName = ''): boolean {
@@ -117,12 +117,10 @@ export class InspectionsService {
 
   private async processPending(stageId: string, status: InspectionStatus, actor: Actor, notes?: string) {
     const registrations = await this.pendingRegistrationRows(stageId);
-    const seen = new Set<string>();
     let processed = 0;
     for (const registration of registrations as any[]) {
-      const key = String(registration.participantId);
-      if (seen.has(key) || registration.stageInspection) continue;
-      seen.add(key);
+      // Registration is unique per car and stage: inspect each vehicle independently.
+      if (registration.inspection || registration.stageInspection) continue;
       await this.create({ registrationId: registration.id, status, notes }, actor);
       processed += 1;
     }
@@ -272,29 +270,43 @@ export class InspectionsService {
   ) {
     this.validateNotes(data.status, data.notes);
     return this.prisma.$transaction(async (tx) => {
-      const registration = await tx.registration.findUnique({ where: { id: data.registrationId }, include: { stage: true, participant: true } });
+      const registration = await tx.registration.findUnique({
+        where: { id: data.registrationId },
+        include: {
+          stage: true,
+          inspection: true,
+          stageInspection: true,
+          results: { select: { id: true } },
+          classes: { select: { results: { select: { id: true } } } },
+        },
+      });
       if (!registration) throw new NotFoundException('Регистрация не найдена');
       if (registration.status !== 'ACTIVE') throw new ConflictException('Нельзя проверить неактивную регистрацию');
       if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') throw new ConflictException('Нельзя проверить регистрацию отменённого этапа');
-      const existing = await tx.participantStageInspection.findUnique({ where: { participantId_stageId: { participantId: registration.participantId, stageId: registration.stageId } } });
-      if (existing) throw new ConflictException('Для участника на этом этапе общая инспекция уже существует');
-      const related = await tx.registration.findMany({
-        where: { participantId: registration.participantId, stageId: registration.stageId, status: 'ACTIVE' },
-        select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } },
-      });
-      if (data.status === 'FAILED' && related.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
-        throw new ConflictException('Нельзя отказать в допуске: у участника уже есть результат на этом этапе');
+      if (registration.inspection) throw new ConflictException('Для этого автомобиля на этапе инспекция уже существует');
+      if (registration.stageInspection) throw new ConflictException('Старая общая инспекция ещё не перенесена на автомобиль. Обновите миграции и повторите попытку.');
+      if (data.status === 'FAILED' && (registration.results.length || registration.classes.some((item: any) => item.results.length))) {
+        throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
       }
-      const created = await tx.participantStageInspection.create({
-        data: { participantId: registration.participantId, stageId: registration.stageId, status: data.status, notes: this.normalizeNotes(data.notes), checkedByUserId: actor.userId, createdByUserId: actor.userId },
-        include: participantStageInspectionInclude,
-      });
-      await tx.registration.updateMany({
-        where: { participantId: registration.participantId, stageId: registration.stageId },
-        data: { participantStageInspectionId: created.id },
+      const created = await tx.inspection.create({
+        data: {
+          registrationId: registration.id,
+          status: data.status,
+          notes: this.normalizeNotes(data.notes),
+          checkedByUserId: actor.userId,
+          createdByUserId: actor.userId,
+        },
+        include: inspectionInclude,
       });
       await tx.auditLog.create({
-        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_CREATED', entity: 'ParticipantStageInspection', entityId: created.id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: created.participantId, stageId: created.stageId, status: created.status, notes: created.notes } },
+        data: {
+          userId: actor.userId,
+          action: 'VEHICLE_INSPECTION_CREATED',
+          entity: 'Inspection',
+          entityId: created.id,
+          ipAddress: actor.ipAddress ?? null,
+          metadata: { registrationId: registration.id, carId: registration.carId, stageId: registration.stageId, status: created.status, notes: created.notes },
+        },
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -305,11 +317,48 @@ export class InspectionsService {
     data: { status?: InspectionStatus; notes?: string | null },
     actor: Actor,
   ) {
+    const vehicleInspection = await this.prisma.inspection.findUnique({
+      where: { id },
+      include: { registration: { include: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+    });
+    if (vehicleInspection) {
+      this.assertCanEdit(vehicleInspection.createdByUserId ?? vehicleInspection.checkedByUserId, actor);
+      const nextStatus = data.status ?? vehicleInspection.status;
+      const nextNotes = data.notes === undefined ? vehicleInspection.notes : data.notes;
+      this.validateNotes(nextStatus, nextNotes);
+      if (nextStatus === 'FAILED' && (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length))) {
+        throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
+      }
+      return this.prisma.$transaction(async (tx) => {
+        const updated = await tx.inspection.update({
+          where: { id },
+          data: {
+            ...(data.status !== undefined ? { status: data.status } : {}),
+            ...(data.notes !== undefined ? { notes: this.normalizeNotes(data.notes ?? undefined) } : {}),
+            checkedByUserId: actor.userId,
+          },
+          include: inspectionInclude,
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: actor.userId,
+            action: 'VEHICLE_INSPECTION_UPDATED',
+            entity: 'Inspection',
+            entityId: id,
+            ipAddress: actor.ipAddress ?? null,
+            metadata: { before: { status: vehicleInspection.status, notes: vehicleInspection.notes }, after: { status: updated.status, notes: updated.notes } },
+          },
+        });
+        return updated;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    // Backward compatibility for historical participant-stage inspection IDs.
     const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
     });
-    if (!current) throw new NotFoundException('Общая инспекция участника не найдена');
+    if (!current) throw new NotFoundException('Инспекция не найдена');
     this.assertCanEdit(current.createdByUserId ?? current.checkedByUserId, actor);
     const nextStatus = data.status ?? current.status;
     const nextNotes = data.notes === undefined ? current.notes : data.notes;
@@ -332,11 +381,28 @@ export class InspectionsService {
 
   async remove(id: string, actor: Actor) {
     if (actor.role !== 'ADMIN') throw new ForbiddenException('Удалять проверки может только ADMIN');
+    const vehicleInspection = await this.prisma.inspection.findUnique({
+      where: { id },
+      include: { registration: { include: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
+    });
+    if (vehicleInspection) {
+      if (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length)) {
+        throw new ConflictException('Нельзя удалить инспекцию: по этому автомобилю уже есть результат');
+      }
+      await this.prisma.$transaction(async (tx) => {
+        await tx.inspection.delete({ where: { id } });
+        await tx.auditLog.create({
+          data: { userId: actor.userId, action: 'VEHICLE_INSPECTION_DELETED', entity: 'Inspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { registrationId: vehicleInspection.registrationId, status: vehicleInspection.status, notes: vehicleInspection.notes } },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      return { success: true, id };
+    }
+
     const current = await this.prisma.participantStageInspection.findUnique({
       where: { id },
-      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+      include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } },
     });
-    if (!current) throw new NotFoundException('Общая инспекция участника не найдена');
+    if (!current) throw new NotFoundException('Инспекция не найдена');
     if (current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
       throw new ConflictException('Нельзя удалить инспекцию: у участника уже есть результат на этом этапе');
     }
