@@ -21,4 +21,18 @@ describe('MailController', () => {
     await expect(controller.sendTestEmail({ email: 'admin@example.com' })).resolves.toEqual(response);
     expect(mailService.sendTestEmail).toHaveBeenCalledWith('admin@example.com');
   });
+  it('accepts a normal email for the dedicated test-trigger endpoint', async () => {
+    const mailService = { sendTestEmail: jest.fn() };
+    const emailNotifications = { sendTestTrigger: jest.fn().mockResolvedValue({ success: true, providerAccepted: true, deliveryConfirmed: false }) };
+    const controller = new MailController(mailService as any, emailNotifications as any);
+
+    await expect(controller.sendTestTrigger({ email: 'admin@example.com', type: 'STAGE_REGISTRATION_OPEN' })).resolves.toMatchObject({ success: true });
+    expect(emailNotifications.sendTestTrigger).toHaveBeenCalledWith('STAGE_REGISTRATION_OPEN', 'admin@example.com', undefined);
+  });
+
+  it('rejects malformed email for the dedicated test-trigger endpoint', async () => {
+    const controller = new MailController({} as any, { sendTestTrigger: jest.fn() } as any);
+    await expect(controller.sendTestTrigger({ email: 'not-an-email', type: 'STAGE_REGISTRATION_OPEN' })).rejects.toThrow(BadRequestException);
+  });
+
 });
