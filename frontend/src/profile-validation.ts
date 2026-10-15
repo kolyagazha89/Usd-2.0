@@ -53,3 +53,32 @@ export function isValidPlate(country: string, value: string): boolean {
   }
   return true;
 }
+
+/** Live input mask. Russian plates follow A000AA00 (optional third region digit); invalid characters are discarded by position. */
+export function formatPlateInput(country: string, value: string): string {
+  let raw = String(value ?? '').toUpperCase().replace(/\s+/g, '');
+  if (country !== 'RU') return raw.replace(/[^A-Z0-9-]/g, '').slice(0, 10);
+  const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+  raw = [...raw].map(ch => lookalikes[ch] ?? ch).join('');
+  const letters = new Set('АВЕКМНОРСТУХ');
+  let out = '';
+  for (const ch of raw) {
+    const pos = out.length;
+    if (pos === 0) { if (letters.has(ch)) out += ch; }
+    else if (pos >= 1 && pos <= 3) { if (/\d/.test(ch)) out += ch; }
+    else if (pos === 4 || pos === 5) { if (letters.has(ch)) out += ch; }
+    else if (pos >= 6 && pos <= 8) { if (/\d/.test(ch)) out += ch; }
+    if (out.length >= 9) break;
+  }
+  return out;
+}
+
+/** RU phone mask applied while typing, including incomplete values. */
+export function formatRussianPhoneInput(value: string): string {
+  let digits = String(value ?? '').replace(/\D/g, '');
+  if (digits.startsWith('8') || digits.startsWith('7')) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  if (!digits) return '';
+  const a = digits.slice(0, 3), b = digits.slice(3, 6), c = digits.slice(6, 8), d = digits.slice(8, 10);
+  return '+7' + (a ? ' (' + a + (a.length === 3 ? ')' : '') : '') + (b ? ' ' + b : '') + (c ? '-' + c : '') + (d ? '-' + d : '');
+}
