@@ -43,6 +43,7 @@ model User {
   newsletterConsentRevokedSource String?
   customRoleId             String?
   customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  componentCatalogRequests ComponentCatalogRequest[]
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
   auditLogs                AuditLog[]
@@ -800,6 +801,37 @@ enum StageStatus {
   PUBLISHED
   COMPLETED
   CANCELLED
+}
+
+
+model ComponentCatalogRequest {
+  id                    String   @id @default(uuid())
+  userId                String
+  userEmail             String
+  category              String
+  brand                 String
+  model                 String
+  details               String?
+  status                ComponentCatalogRequestStatus @default(PENDING)
+  adminNote             String?
+  catalogEntryId        String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+  resolvedAt            DateTime? @db.Timestamptz(3)
+  resolvedByUserId      String?
+  adminEmailStatus      String @default("PENDING")
+  participantEmailStatus String @default("PENDING")
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([category, brand, model])
+}
+
+enum ComponentCatalogRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum UserRole {
