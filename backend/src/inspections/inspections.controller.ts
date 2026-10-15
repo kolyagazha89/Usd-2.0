@@ -14,7 +14,7 @@ import { InspectionsService } from './inspections.service';
 import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 
 @Controller('inspections')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
