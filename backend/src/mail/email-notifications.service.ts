@@ -57,6 +57,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const textBody = bodyTemplate
       .replace(/\{\{heading\}\}/g, notice.heading)
       .replace(/\{\{intro\}\}/g, notice.intro)
+      .replace(/\{\{stageName\}\}/g, stageName)
       .replace(/\{\{details\}\}/g, detailsText);
     const subject = String(template?.subject || notice.subject)
       .replace(/\{\{heading\}\}/g, notice.heading)
@@ -75,9 +76,10 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     ].join('\n');
     const detailHtml = details.map((line) => '<li style="margin:0 0 8px">' + escapeHtml(line) + '</li>').join('');
     const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип ЮСД" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div>';
-    const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|details)\}\})/g).map((part) => {
+    const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|stageName|details)\}\})/g).map((part) => {
       if (part === '{{heading}}') return escapeHtml(notice.heading);
       if (part === '{{intro}}') return escapeHtml(notice.intro);
+      if (part === '{{stageName}}') return escapeHtml(stageName);
       if (part === '{{details}}') return detailHtml ? '<ul style="padding-left:20px;line-height:1.5;font-size:14px;margin:12px 0">' + detailHtml + '</ul>' : '';
       return escapeHtml(part).replace(/\n/g, '<br>');
     }).join('');
