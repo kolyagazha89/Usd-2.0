@@ -3533,3 +3533,62 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .app-shell [class*="-panel"] small {
   color: #555c64;
 }
+
+
+/* Participant portal: vehicle forms and stage-stat status chips stay graphite/red. */
+.participant-portal .participant-car-detail-layout.is-new-car .form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal .participant-car-detail-layout.is-new-car .form select,
+.participant-portal .participant-car-detail-layout.is-new-car .form textarea,
+.participant-portal .participant-car-detail-layout:not(.is-new-car) .participant-section input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal .participant-car-detail-layout:not(.is-new-car) .participant-section select,
+.participant-portal .participant-car-detail-layout:not(.is-new-car) .participant-section textarea {
+  color: #f4f4f6 !important;
+  background: #17171b !important;
+  border-color: #39393f !important;
+}
+.participant-portal .participant-car-detail-layout.is-new-car .form input::placeholder,
+.participant-portal .participant-car-detail-layout.is-new-car .form textarea::placeholder {
+  color: #85858f !important;
+}
+.participant-portal .participant-stage-stat-meta span {
+  color: #d5d5dc !important;
+  background: #25252b !important;
+  border: 1px solid #3b3b43;
+}
+.participant-portal .participant-stage-stat-meta span.good {
+  color: #78e0ae !important;
+  background: #14271f !important;
+  border-color: #285c43 !important;
+}
+.participant-portal .participant-stage-stat-meta span.bad {
+  color: #ff929b !important;
+  background: #30171b !important;
+  border-color: #75414a !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results>div {
+  padding: 9px 10px;
+  border: 1px solid #303036;
+  border-radius: 8px;
+  background: #19191d;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results>div span {
+  color: #c0c0c9 !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results>div strong {
+  color: #fff !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results>div strong small {
+  color: #a7a7b1 !important;
+}
+
+
+/* Public result cards are content blocks, not boxed tiles. */
+.public-site .public-result-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.public-site .public-result-card:before {
+  display: none !important;
+}

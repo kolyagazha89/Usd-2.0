@@ -241,3 +241,56 @@
 .participant-registration-detail-classes h3 { margin: 0; color: #fff; }
 .participant-registration-detail-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 600px) { .participant-registration-detail-grid { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* Last-loaded participant theme overrides: keep vehicle forms graphite, not browser-white. */
+.participant-portal .participant-car-detail-layout input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal .participant-car-detail-layout select,
+.participant-portal .participant-car-detail-layout textarea {
+  color: #f5f5f5 !important;
+  background: #202024 !important;
+  border-color: #414148 !important;
+}
+.participant-portal .participant-car-detail-layout input::placeholder,
+.participant-portal .participant-car-detail-layout textarea::placeholder {
+  color: #8f8f98 !important;
+}
+.participant-portal .participant-stage-stat-meta span {
+  color: #d5d5dc !important;
+  background: #25252b !important;
+  border: 1px solid #3b3b43 !important;
+}
+.participant-portal .participant-stage-stat-meta span.good {
+  color: #78e0ae !important;
+  background: #14271f !important;
+  border-color: #285c43 !important;
+}
+.participant-portal .participant-stage-stat-meta span.bad {
+  color: #ff929b !important;
+  background: #30171b !important;
+  border-color: #75414a !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results > div {
+  padding: 9px 10px;
+  border: 1px solid #303036;
+  border-radius: 8px;
+  background: #19191d;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results > div span {
+  color: #c0c0c9 !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results > div strong {
+  color: #fff !important;
+}
+.participant-portal .participant-stage-stat-card .participant-stage-results > div strong small {
+  color: #a7a7b1 !important;
+}
+
+/* Public result cards are content blocks, not boxed tiles. */
+.public-site .public-result-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.public-site .public-result-card:before { display: none !important; }
