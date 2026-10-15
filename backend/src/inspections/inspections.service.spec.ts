@@ -80,6 +80,18 @@ describe('InspectionsService', () => {
     }));
   });
 
+  it('blocks a failed shared inspection when any registration or class already has a result', async () => {
+    tx.registration.findMany.mockResolvedValue([
+      { results: [{ id: 'result-1' }], classes: [{ results: [] }] },
+      { results: [], classes: [{ results: [{ id: 'result-2' }] }] },
+    ]);
+    await expect(service.create(
+      { registrationId: 'registration-1', status: 'FAILED', notes: 'Проблема с электрикой' },
+      actor,
+    )).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.participantStageInspection.create).not.toHaveBeenCalled();
+  });
+
   it('rejects a second inspection for the same registration', async () => {
     tx.participantStageInspection.findUnique.mockResolvedValue(existing);
     await expect(service.create(
