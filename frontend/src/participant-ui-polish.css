@@ -1,0 +1,155 @@
+/* USD participant portal: unified graphite controls. Scoped to participant-facing pages. */
+.participant-portal,
+.participant-portal .participant-section,
+.participant-portal .participant-car-detail-layout,
+.participant-portal .participant-car-detail-layout > section {
+  color: #f4f4f5;
+}
+.participant-portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal select,
+.participant-portal textarea,
+.participant-portal .form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.participant-portal .form select,
+.participant-portal .form textarea,
+.participant-portal .participant-form-grid input,
+.participant-portal .participant-form-grid select {
+  color: #f5f5f5;
+  background: #202024;
+  border: 1px solid #414148;
+  border-radius: 10px;
+  box-shadow: none;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+.participant-portal input::placeholder,
+.participant-portal textarea::placeholder { color: #8f8f98; }
+.participant-portal input:focus-visible,
+.participant-portal select:focus-visible,
+.participant-portal textarea:focus-visible,
+.participant-portal button:focus-visible,
+.participant-portal label.file-picker:focus-within {
+  outline: 2px solid #e23b42;
+  outline-offset: 2px;
+}
+.participant-portal input[type="checkbox"],
+.participant-portal input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  min-height: 17px;
+  padding: 0;
+  margin: 0 9px 0 0;
+  border: 1px solid #65656e;
+  border-radius: 4px;
+  background: #242429;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  flex: 0 0 17px;
+  cursor: pointer;
+}
+.participant-portal input[type="radio"] { border-radius: 50%; }
+.participant-portal input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border: solid #fff;
+  border-width: 0 0 2px 2px;
+  transform: rotate(-45deg) scale(0);
+  transition: transform 100ms ease-in-out;
+}
+.participant-portal input[type="checkbox"]:checked { background: #d92f38; border-color: #d92f38; }
+.participant-portal input[type="checkbox"]:checked::before { transform: rotate(-45deg) scale(1); }
+.participant-portal input[type="radio"]:checked { border: 5px solid #d92f38; background: #fff; }
+.participant-portal input[type="checkbox"]:disabled,
+.participant-portal input[type="radio"]:disabled { opacity: .45; cursor: not-allowed; }
+.participant-portal .participant-public-toggle,
+.participant-portal .consent-option,
+.participant-portal .participant-public-toggle label {
+  color: #e7e7eb;
+}
+.participant-portal .participant-public-toggle,
+.participant-portal .consent-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+.participant-portal .participant-public-toggle input[type="checkbox"],
+.participant-portal .consent-option input[type="checkbox"] { margin-top: 2px; }
+.participant-portal input[type="file"] {
+  max-width: 100%;
+  color: #c8c8ce;
+  background: transparent;
+  border: 1px dashed #494950;
+  border-radius: 10px;
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.participant-portal input[type="file"]::file-selector-button {
+  margin: 0 10px 0 0;
+  padding: 9px 13px;
+  color: #fff;
+  background: #303036;
+  border: 1px solid #51515a;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.participant-portal input[type="file"]::file-selector-button:hover {
+  background: #3c3c44;
+  border-color: #d92f38;
+}
+.participant-portal .file-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  background: #303036;
+  border: 1px solid #51515a;
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.participant-portal .file-picker input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.participant-portal .file-picker:hover { background: #3c3c44; border-color: #d92f38; }
+.participant-portal .participant-car-detail-layout .participant-section > label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  color: #e7e7eb;
+}
+.participant-portal .participant-car-detail-layout .participant-section > label input[type="file"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+.participant-portal .participant-car-detail-layout .participant-section > small,
+.participant-portal .participant-profile-photo-row p { color: #a4a4ad; }
+.participant-portal .participant-car-detail-layout .form > label,
+.participant-portal .participant-form-grid > label {
+  color: #e8e8ed;
+}
+.participant-portal .participant-car-detail-layout .form,
+.participant-portal .participant-car-detail-layout .form label {
+  min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .participant-portal input[type="checkbox"]::before,
+  .participant-portal input[type="file"]::file-selector-button { transition: none; }
+}
