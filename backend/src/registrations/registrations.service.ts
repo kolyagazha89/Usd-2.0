@@ -71,6 +71,7 @@ export class RegistrationsService {
           },
         },
         number: true,
+        inspection: true,
       },
     },
     numbers: {
