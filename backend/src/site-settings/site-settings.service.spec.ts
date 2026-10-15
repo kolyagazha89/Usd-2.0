@@ -49,6 +49,7 @@ describe('SiteSettingsService.getPublic', () => {
       privacyText: '',
       consentText: '',
       termsText: '',
+      documents: {},
     });
     expect(response.settings.legal).not.toHaveProperty('internalNote');
     expect(response.settings.news).toEqual([{ id: 'public', title: 'Опубликовано', isPublished: true }]);
