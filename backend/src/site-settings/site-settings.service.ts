@@ -91,6 +91,7 @@ export class SiteSettingsService{
         social: s.social,
         seo: s.seo,
         footer: s.footer,
+        catalogs: s.catalogs,
         registration: {
           ...s.registration,
           ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
