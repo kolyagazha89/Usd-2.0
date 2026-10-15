@@ -152,6 +152,9 @@ export class StagesService {
     if (dto.registrationOpen && (dto.status ?? 'DRAFT') !== 'PUBLISHED') {
       throw new BadRequestException('Открытая регистрация допустима только для опубликованного этапа');
     }
+    if (dto.registrationOpen && !(await this.getPublishedRulesSnapshot())) {
+      throw new BadRequestException('Нельзя открыть регистрацию: сначала опубликуйте действующий общий регламент соревнований в разделе «Документы»');
+    }
     if ((dto.status ?? 'DRAFT') === 'PUBLISHED' && season.status !== 'ACTIVE') {
       throw new BadRequestException('Нельзя опубликовать этап, пока сезон не активен');
     }
@@ -250,6 +253,9 @@ export class StagesService {
     }
     if (dto.registrationOpen === true && (dto.status ?? stage.status) !== 'PUBLISHED') {
       throw new BadRequestException('Открытая регистрация допустима только для опубликованного этапа');
+    }
+    if (dto.registrationOpen === true && !(await this.getPublishedRulesSnapshot())) {
+      throw new BadRequestException('Нельзя открыть регистрацию: сначала опубликуйте действующий общий регламент соревнований в разделе «Документы»');
     }
     if (dto.status === 'CANCELLED' || dto.status === 'COMPLETED' || dto.status === 'DRAFT') {
       if (dto.registrationOpen === true) throw new BadRequestException('Для этого статуса регистрация должна быть закрыта');
