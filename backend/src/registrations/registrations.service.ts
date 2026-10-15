@@ -632,22 +632,13 @@ export class RegistrationsService {
         //
         // Один участник может иметь несколько машин
         // на одном этапе.
-        const existing =
-          await tx.registration.findUnique({
-            where: {
-              stageId_carId: {
-                stageId,
-                carId,
-              },
-            },
-          });
+        const existing = await tx.registration.findFirst({
+          where: { stageId, carId, status: 'ACTIVE' },
+          select: { id: true, status: true },
+        });
 
         if (existing) {
-          throw new ConflictException(
-            existing.status === 'CANCELLED'
-              ? 'Этот автомобиль уже регистрировался на этапе и был отменён. Для новой регистрации создаётся новая запись и новый номер только после снятия старой регистрации с этого автомобиля.'
-              : 'Этот автомобиль уже зарегистрирован на этапе',
-          );
+          throw new ConflictException('Этот автомобиль уже зарегистрирован на этапе');
         }
 
         // 8. Выбираем только явно указанную версию конфигурации.
