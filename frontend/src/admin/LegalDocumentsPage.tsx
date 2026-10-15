@@ -47,6 +47,8 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
     ['ipName','Оператор: полное ФИО или наименование','text'],
     ['inn','ИНН оператора','text'],
     ['ogrnip','ОГРНИП (если применимо)','text'],
+    ['operatorAddress','Адрес оператора','text'],
+    ['personalDataEmail','Email для обращений по персональным данным','text'],
     ['privacyText','Политика обработки персональных данных','textarea'],
     ['consentText','Согласие на обработку персональных данных','textarea'],
     ['termsText','Пользовательское соглашение','textarea'],
