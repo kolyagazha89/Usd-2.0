@@ -858,3 +858,28 @@
 .configurations-page-shell:not(.admin-configurations-shell) .participant-registration-direction-group > span {
   color: #a5a5af !important;
 }
+
+
+/* Keep result-card children quiet: the parent card is the visual surface, not every nested element. */
+.public-site .public-result-card .public-result-class {
+  color: #ff7b87 !important;
+  background: rgba(255,255,255,.035) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+.public-site .public-result-card .public-result-arrow {
+  background: transparent !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+.public-site .public-result-card .public-result-card-bottom {
+  background: transparent !important;
+}
+
+/* Participant account: soften nested result tiles and metadata pills without changing the graphite page theme. */
+.participant-portal .participant-stage-stat-card .participant-stage-results > div {
+  background: rgba(255,255,255,.025) !important;
+  border-color: rgba(255,255,255,.085) !important;
+}
+.participant-portal .participant-stage-stat-meta span {
+  background: rgba(255,255,255,.035) !important;
+  border-color: rgba(255,255,255,.085) !important;
+}
