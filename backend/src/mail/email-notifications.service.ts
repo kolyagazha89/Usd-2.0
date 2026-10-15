@@ -150,10 +150,13 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   async registrationConfirmed(registration: any) {
     const user = await this.prisma.user.findFirst({
-      where: { participantId: registration.participantId, isActive: true, emailVerifiedAt: { not: null } },
-      select: { id: true, email: true },
+      where: { participantId: registration.participantId, isActive: true },
+      select: { id: true, email: true, emailVerifiedAt: true },
     });
-    if (!user) return;
+    if (!user?.email) {
+      this.logger.warn('Registration confirmation skipped: no active account with an email is linked to participant ' + String(registration.participantId ?? 'unknown'));
+      return;
+    }
     const classItems = registration.classes ?? [];
     const classes = classItems.map((item: any) => item.class?.name).filter(Boolean);
     const stage = registration.stage ?? {};
