@@ -184,14 +184,14 @@ describe('RegistrationsService', () => {
     );
   });
 
-  it('rejects a second registration of the same car on the stage', async () => {
+  it('rejects a second active registration of the same car on the stage', async () => {
     const tx = baseTx({
       registration: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
           id: 'existing',
           status: 'ACTIVE',
         }),
-        findFirst: jest.fn(),
         create: jest.fn(),
       },
     });
@@ -231,8 +231,32 @@ describe('RegistrationsService', () => {
       }),
     ).resolves.toEqual({ id: 'registration-car-2' });
 
-    expect(tx.registration.findUnique).toHaveBeenCalledWith({
-      where: { stageId_carId: { stageId: 'stage-1', carId: 'car-2' } },
+    expect(tx.registration.findFirst).toHaveBeenCalledWith({
+      where: { stageId: 'stage-1', carId: 'car-2', status: 'ACTIVE' },
+      select: { id: true, status: true },
+    });
+    expect(tx.registration.create).toHaveBeenCalled();
+  });
+
+  it('allows the same car to register again after the previous registration was cancelled', async () => {
+    const tx = baseTx({
+      registration: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'registration-after-cancel' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-after-cancel' }),
+      },
+      registrationNumber: {
+        findFirst: jest.fn().mockResolvedValue({ number: 7 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'number-8', number: 8, isPrimary: true }]),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-after-cancel' });
+    expect(tx.registration.findFirst).toHaveBeenCalledWith({
+      where: { stageId: 'stage-1', carId: 'car-1', status: 'ACTIVE' },
+      select: { id: true, status: true },
     });
     expect(tx.registration.create).toHaveBeenCalled();
   });
