@@ -337,10 +337,12 @@ async function main() {
     });
   }
 
+  const judgeRole = await prisma.role.findUnique({ where: { key: 'judge' }, select: { id: true } });
+  if (!judgeRole) throw new Error('Custom role «Судья» is missing. Run Prisma migrations first.');
   const judge = await prisma.user.upsert({
     where: { email: TEST_JUDGE_EMAIL },
-    update: { name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
-    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
+    update: { name: 'Судья Тестовый', role: 'PARTICIPANT', customRoleId: judgeRole.id, isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
+    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'PARTICIPANT', customRoleId: judgeRole.id, isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
   });
 
   // 5. Cars and complete configuration trees.
