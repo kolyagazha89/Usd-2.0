@@ -44,9 +44,9 @@ function isStructuredHeading(block: any): boolean {
   if (block?.type !== 'paragraph') return false;
   const text = String(block.text ?? '').trim();
   if (!text || text.length > 140) return false;
-  return /^(?:раздел|глава|приложение|часть)\\s+[\\wА-ЯЁа-яёIVX.-]+/i.test(text)
-    || /^\\d+(?:\\.\\d+)*[.)]?\\s+\\S/.test(text)
-    || /^[А-ЯЁ\\s—–-]{9,}:?$/.test(text);
+  return /^(?:раздел|глава|приложение|часть)\s+[\wА-ЯЁа-яёIVX.-]+/i.test(text)
+    || /^\d+(?:\.\d+)*[.)]?\s+\S/.test(text)
+    || /^[А-ЯЁ\s—–-]{9,}:?$/.test(text);
 }
 
 export default function PublicRulesPage({ settings, go, rulesText }: Props) {
