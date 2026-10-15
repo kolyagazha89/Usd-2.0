@@ -200,19 +200,26 @@ function selectHomepageRecords(rows:any[]){
 }
 function selectHomepageResults(rows:any[]){
  const classItem=(row:any)=>row.registrationClass?.class??row.class??row.result?.registrationClass?.class??{};
- const directionKind=(row:any)=>{
-  const value=String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
-  if(value.includes('BFSPL'))return 'BFSPL';
-  if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
-  if(value.includes('SPL'))return 'SPL';
-  return 'OTHER';
+ const classKey=(row:any)=>{
+  const cls=classItem(row);
+  return String(row.registrationClass?.classId??row.classId??cls.id??cls.name??'').trim().toLocaleLowerCase('ru-RU');
  };
+ const placeOf=(row:any)=>Number(row.place??row.position??row.result?.place??row.result?.position);
  const byMeasurement=(a:any,b:any)=>resultNumericValue(b)-resultNumericValue(a);
- const spl=rows.filter((row:any)=>directionKind(row)==='SPL').sort(byMeasurement);
- const bfspl=rows.filter((row:any)=>directionKind(row)==='BFSPL').sort(byMeasurement);
- const bdw=rows.filter((row:any)=>directionKind(row)==='BDWSPL').sort(byMeasurement);
- // The homepage showcases the strongest measured results in each direction, not arbitrary API order or only place=1 rows.
- return [...spl.slice(0,3),...bfspl.slice(0,2),...bdw.slice(0,1)];
+ const grouped=new Map<string,any[]>();
+ for(const row of rows){
+  const key=classKey(row);
+  if(!key)continue;
+  const bucket=grouped.get(key)??[];
+  bucket.push(row);
+  grouped.set(key,bucket);
+ }
+ const winners=[...grouped.values()].map((items:any[])=>{
+  const firstPlaces=items.filter((row:any)=>placeOf(row)===1);
+  return (firstPlaces.length?firstPlaces:items).slice().sort(byMeasurement)[0];
+ });
+ // Show one winner per class, ordered by the size of the winning measurement.
+ return winners.sort(byMeasurement).slice(0,6);
 }
 function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'|'stage';go?:(path:string)=>void}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
