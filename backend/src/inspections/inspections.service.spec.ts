@@ -128,9 +128,8 @@ describe('InspectionsService', () => {
     expect(tx.inspection.update).toHaveBeenCalled();
   });
 
-  it('allows deletion only for ADMIN', async () => {
-    await expect(service.remove('inspection-1', actor)).rejects.toBeInstanceOf(ForbiddenException);
-    await service.remove('inspection-1', { ...actor, userId: 'admin-1', role: 'ADMIN' });
+  it('performs deletion after the route permission guard authorizes it', async () => {
+    await service.remove('inspection-1', actor);
     expect(tx.inspection.delete).toHaveBeenCalledWith({ where: { id: 'inspection-1' } });
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: 'VEHICLE_INSPECTION_DELETED' }),
