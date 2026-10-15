@@ -119,7 +119,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
       <section className="public-rules-hero">
         <div className="public-rules-kicker"><span />ОФИЦИАЛЬНЫЕ ДОКУМЕНТЫ USD</div>
         <h2>Регламент <span>USD</span></h2>
-        <p>Правила соревнований, требования к классам и документы для участников. Перед выступлением ознакомьтесь с действующей редакцией и условиями выбранного этапа.</p>
+        <p>Единый регламент соревнований и требования к классам для всех этапов ЮСД. Особенности конкретного соревнования указываются в описании этапа.</p>
         <div className="public-rules-actions">
           <button onClick={() => go('/stages')}>Выбрать этап <span aria-hidden="true">↗</span></button>
           {links.some(([key]) => key === 'rulesUrl') && <a href={links.find(([key]) => key === 'rulesUrl')?.[2]} target="_blank" rel="noopener noreferrer">Открыть полный документ ↗</a>}
