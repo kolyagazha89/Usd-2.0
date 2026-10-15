@@ -4,8 +4,7 @@
   "workers_dev": true,
   // Workers Builds can invoke only `wrangler deploy`; build the SPA first so ./dist exists.
   "build": {
-    "command": "npm run build",
-    "cwd": "."
+    "command": "if [ -f package.json ] && grep -q '\\"name\\": \\"usd-admin\\"' package.json; then npm run build; else cd frontend && npm run build; fi"
   },
   "assets": {
     "directory": "./dist",
