@@ -63,8 +63,9 @@ export class RecordsService {
     return records.filter((record) => {
       const classItem = record.class ?? record.result?.registrationClass?.class;
       if (!classItem?.id) return false;
+      if (this.isRecordClassExcluded(classItem)) return false;
       const visible = visibility[classItem.id];
-      return typeof visible === 'boolean' ? visible : !this.isRecordClassExcluded(classItem);
+      return typeof visible === 'boolean' ? visible : true;
     });
   }
 
