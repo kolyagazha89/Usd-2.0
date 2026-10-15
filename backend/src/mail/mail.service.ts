@@ -2,11 +2,13 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
 import { randomBytes } from 'node:crypto';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -24,33 +26,61 @@ function renderBrandedEmail(input: {
   actionUrl: string;
   note: string;
   frontendUrl: string;
-}): { html: string; text: string } {
-  const heading = escapeHtml(input.heading);
-  const intro = escapeHtml(input.intro);
-  const actionLabel = escapeHtml(input.actionLabel);
+  subject?: string;
+  template?: Record<string, any>;
+}): { html: string; text: string; subject: string } {
+  const headingValue = input.heading;
+  const introValue = input.intro;
+  const detailsValue = input.note;
+  const buttonValue = String(input.template?.buttonLabel || input.actionLabel);
+  const bodyTemplate = String(input.template?.body || '{{intro}}\n\n{{details}}');
+  const footerValue = String(input.template?.footer || 'ЮСД · Звук. Мощность. Характер.');
+  const subjectValue = String(input.template?.subject || input.subject || 'Уведомление ЮСД')
+    .replace(/\{\{heading\}\}/g, headingValue)
+    .replace(/\{\{intro\}\}/g, introValue)
+    .replace(/\{\{details\}\}/g, detailsValue)
+    .replace(/\s+/g, ' ').trim();
+  const textBody = bodyTemplate
+    .replace(/\{\{heading\}\}/g, headingValue)
+    .replace(/\{\{intro\}\}/g, introValue)
+    .replace(/\{\{details\}\}/g, detailsValue);
   const actionUrl = escapeHtml(input.actionUrl);
-  const note = escapeHtml(input.note);
   const frontendUrl = escapeHtml(input.frontendUrl);
+  const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|details)\}\})/g).map((part) => {
+    if (part === '{{heading}}') return escapeHtml(headingValue);
+    if (part === '{{intro}}') return escapeHtml(introValue);
+    if (part === '{{details}}') return '<div style="border-left:3px solid #ed2638;padding:10px 14px;background:#f8f8f9;color:#626269;font-size:12px;line-height:1.6">' + escapeHtml(detailsValue).replace(/\n/g, '<br>') + '</div>';
+    return escapeHtml(part).replace(/\n/g, '<br>');
+  }).join('');
   const text = [
-    'USD · ULTIMATE SOUND DESTRUCTION',
-    input.heading,
+    'ЮСД · ULTIMATE SOUND DESTRUCTION',
+    headingValue,
     '',
-    input.intro,
+    textBody,
     '',
-    input.actionLabel + ': ' + input.actionUrl,
+    buttonValue + ': ' + input.actionUrl,
     '',
-    input.note,
+    footerValue,
     '',
-    'Если вы не запрашивали это действие, проигнорируйте письмо.',
+    'Открыть сайт: ' + input.frontendUrl,
   ].join('\n');
-  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + heading + '</h1><p style="font-size:15px;line-height:1.7;margin:0 0 24px">' + intro + '</p><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + actionLabel + '</a></p><div style="border-left:3px solid #ed2638;padding:10px 14px;background:#f8f8f9;color:#626269;font-size:12px;line-height:1.6">' + note + '</div><p style="font-size:12px;line-height:1.6;color:#777;margin:22px 0 0">Если вы не запрашивали это действие, проигнорируйте письмо.</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">USD · Звук. Мощность. Характер. · <a href="' + frontendUrl + '" style="color:#777">Открыть сайт</a></footer></div></div></body></html>';
-  return { html, text };
+  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingValue) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 24px">' + bodyHtml + '</div><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + escapeHtml(buttonValue) + '</a></p><p style="font-size:12px;line-height:1.6;color:#777;margin:0">' + escapeHtml(footerValue).replace(/\n/g, '<br>') + '</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777"><a href="' + frontendUrl + '" style="color:#777">Открыть сайт ЮСД</a></footer></div></div></body></html>';
+  return { html, text, subject: subjectValue };
 }
-
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
+
+  private async getEmailTemplate(trigger: string): Promise<Record<string, any> | undefined> {
+    if (!this.prisma || typeof this.prisma.siteSettings?.findUnique !== 'function') return undefined;
+    const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
+    const registration = (row?.registration ?? {}) as Record<string, any>;
+    const templates = Array.isArray(registration.emailTemplates) ? registration.emailTemplates : [];
+    return templates.find((item: any) => item?.trigger === trigger && item?.enabled !== false);
+  }
   private readonly transporter =
     nodemailer.createTransport({
       host: process.env.SMTP_HOST,
