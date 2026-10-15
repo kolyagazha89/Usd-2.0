@@ -153,3 +153,47 @@
   .participant-portal input[type="checkbox"]::before,
   .participant-portal input[type="file"]::file-selector-button { transition: none; }
 }
+
+/* Regulations actions use a centered modal, not a detached banner. */
+.rules-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 7, 10, .76);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+.rules-confirm-modal {
+  width: min(100%, 500px);
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: 24px;
+  color: #f5f5f7;
+  background: #202024;
+  border: 1px solid #45454d;
+  border-radius: 18px;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, .55);
+}
+.rules-confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: #ffb5ba;
+  background: rgba(217, 47, 56, .16);
+  border: 1px solid rgba(217, 47, 56, .38);
+  border-radius: 12px;
+}
+.rules-confirm-modal h2 { margin: 1px 0 8px; color: #fff; font-size: 19px; line-height: 1.3; }
+.rules-confirm-modal p { margin: 0; color: #c1c1c9; line-height: 1.55; }
+.rules-confirm-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+@media (max-width: 520px) {
+  .rules-confirm-modal { padding: 18px; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+  .rules-confirm-icon { width: 36px; height: 36px; }
+  .rules-confirm-actions > button { flex: 1 1 130px; }
+}
