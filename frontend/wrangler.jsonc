@@ -2,6 +2,11 @@
   "name": "usd-2-0",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Workers Builds can invoke only `wrangler deploy`; build the SPA first so ./dist exists.
+  "build": {
+    "command": "npm run build",
+    "cwd": "."
+  },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
