@@ -632,12 +632,11 @@ export class RegistrationsService {
         //
         // Один участник может иметь несколько машин
         // на одном этапе.
-        const existing = await tx.registration.findFirst({
-          where: { stageId, carId, status: 'ACTIVE' },
-          select: { id: true, status: true },
+        const existing = await tx.registration.findUnique({
+          where: { stageId_carId: { stageId, carId } },
         });
 
-        if (existing) {
+        if (existing?.status === 'ACTIVE') {
           throw new ConflictException('Этот автомобиль уже зарегистрирован на этапе');
         }
 
@@ -709,41 +708,52 @@ export class RegistrationsService {
         }
         // 10. Создаём новую регистрацию. Номера связываются
         // с регистрацией после её создания.
-        const registration = await tx.registration.create({
-          data: {
-            stageId,
-            participantId,
-            participantStageInspectionId: sharedInspection?.id ?? null,
-            carId,
-            configurationVersionId: configurationVersion.id,
-            configurationSnapshot: {
-              configurationId: configurationVersion.configurationId,
-              configurationName: configurationVersion.configuration.name,
-              version: configurationVersion.version,
-              vibrationIsolation: configurationVersion.vibrationIsolation,
-              additionalDescription: configurationVersion.additionalDescription,
-              headUnits: configurationVersion.headUnits,
-              audioComponents: configurationVersion.audioComponents,
-              amplifiers: configurationVersion.amplifiers,
-              batteries: configurationVersion.batteries,
-              generators: configurationVersion.generators,
-            },
-            participantNumber,
-            ...(consentLegalVersion ? {
-              privacyConsentAt: registrationPrivacyConsentAt,
-              privacyConsentVersion: 'privacy-v' + consentLegalVersion,
-              termsAcceptedAt: registrationTermsAcceptedAt,
-              termsVersion: 'terms-v' + consentLegalVersion,
-              consentCapturedByUserId,
-            } : {}),
-            ...(body.rulesAccepted === true ? {
-              rulesAcceptedAt: new Date(),
-              rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
-            } : {}),
-            source,
-            status: 'ACTIVE',
+        if (existing?.status === 'CANCELLED') {
+          // Reuse the cancelled row to preserve the stage/car uniqueness constraint
+          // and audit history, but reset its current vehicle/class assignments.
+          await tx.registrationClass.deleteMany({ where: { registrationId: existing.id } });
+          await tx.registrationNumber.deleteMany({ where: { registrationId: existing.id } });
+          await tx.inspection.deleteMany({ where: { registrationId: existing.id } });
+        }
+
+        const registrationData = {
+          stageId,
+          participantId,
+          participantStageInspectionId: sharedInspection?.id ?? null,
+          carId,
+          configurationVersionId: configurationVersion.id,
+          configurationSnapshot: {
+            configurationId: configurationVersion.configurationId,
+            configurationName: configurationVersion.configuration.name,
+            version: configurationVersion.version,
+            vibrationIsolation: configurationVersion.vibrationIsolation,
+            additionalDescription: configurationVersion.additionalDescription,
+            headUnits: configurationVersion.headUnits,
+            audioComponents: configurationVersion.audioComponents,
+            amplifiers: configurationVersion.amplifiers,
+            batteries: configurationVersion.batteries,
+            generators: configurationVersion.generators,
           },
-        });
+          participantNumber,
+          registeredAt: new Date(),
+          ...(consentLegalVersion ? {
+            privacyConsentAt: registrationPrivacyConsentAt,
+            privacyConsentVersion: 'privacy-v' + consentLegalVersion,
+            termsAcceptedAt: registrationTermsAcceptedAt,
+            termsVersion: 'terms-v' + consentLegalVersion,
+            consentCapturedByUserId,
+          } : {}),
+          ...(body.rulesAccepted === true ? {
+            rulesAcceptedAt: new Date(),
+            rulesVersion: String((stage.rulesSnapshot as any)?.revisionId ?? stage.updatedAt.toISOString()),
+          } : {}),
+          source,
+          status: 'ACTIVE' as const,
+        };
+
+        const registration = existing?.status === 'CANCELLED'
+          ? await tx.registration.update({ where: { id: existing.id }, data: registrationData })
+          : await tx.registration.create({ data: registrationData });
 
         await tx.registrationNumber.createMany({
           data: numberRows.map((row) => ({
