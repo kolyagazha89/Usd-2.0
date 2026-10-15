@@ -4010,3 +4010,13 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .app-shell:not(:has(.admin-records-page)) .main option {
   color-scheme:light;
 }
+
+
+/* Admin record management is part of the light admin workspace. Public /records remains independently dark. */
+.app-shell .record-visibility-panel { background:#fff !important; border:1px solid #d9dcdf !important; color:#111214 !important; }
+.app-shell .record-visibility-panel h2 { color:#111214 !important; }
+.app-shell .record-visibility-panel p { color:#5d6269 !important; }
+.app-shell .record-visibility-option { background:#f8f9fa !important; border-color:#d9dcdf !important; }
+.app-shell .record-visibility-option strong { color:#111214 !important; }
+.app-shell .record-visibility-option small { color:#5d6269 !important; }
+.app-shell .record-visibility-option.is-disabled { opacity:.6; }
