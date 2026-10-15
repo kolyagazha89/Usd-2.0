@@ -54,7 +54,14 @@ function safeDocumentUrl(value: unknown): string {
 
 export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snapshot?: Snapshot | null; stageName: string }) {
   const blocks = Array.isArray(snapshot?.blocks) ? snapshot.blocks : [];
-  if (!snapshot || !blocks.length) return null;
+  if (!snapshot || !blocks.length) {
+    return (
+      <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Исторический регламент">
+        <strong>Архивная редакция регламента не сохранена</strong>
+        <p>Для этапа «{stageName}» в системе нет копии регламента на момент публикации. Текущий регламент может отличаться от правил, действовавших на этом этапе.</p>
+      </aside>
+    );
+  }
   const dateValue = snapshot.publishedAt || snapshot.capturedAt;
   const parsedDate = dateValue ? new Date(dateValue) : null;
   const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
