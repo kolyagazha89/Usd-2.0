@@ -249,10 +249,10 @@ function registrationClassViewGroups(registration:any){
   const directionOrder=Number(directionA.sortOrder??0)-Number(directionB.sortOrder??0);
   if(directionOrder)return directionOrder;
   const nameA=String(a.class?.name??a.name??''),nameB=String(b.class?.name??b.name??'');
-  const bassA=/bass\\s*[-_]?\\s*race/i.test(String(directionA.name??'')+' '+nameA);
-  const bassB=/bass\\s*[-_]?\\s*race/i.test(String(directionB.name??'')+' '+nameB);
+  const bassA=/bass\s*[-_]?\s*race/i.test(String(directionA.name??'')+' '+nameA);
+  const bassB=/bass\s*[-_]?\s*race/i.test(String(directionB.name??'')+' '+nameB);
   if(bassA&&bassB){
-   const num=(value:string)=>Number(value.match(/\\d+(?:[.,]\\d+)?/)?.[0]?.replace(',','.'))||Number.MAX_SAFE_INTEGER;
+   const num=(value:string)=>Number(value.match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',','.'))||Number.MAX_SAFE_INTEGER;
    return num(nameA)-num(nameB)||nameA.localeCompare(nameB,'ru',{numeric:true});
   }
   const classOrder=Number(a.class?.sortOrder??0)-Number(b.class?.sortOrder??0);
