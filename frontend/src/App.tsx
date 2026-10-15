@@ -196,6 +196,13 @@ function selectHomepageResults(rows:any[]){
  };
  const classItem=(row:any)=>row.registrationClass?.class??row.class??row.result?.registrationClass?.class??{};
  const direction=(row:any)=>String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
+ const directionKind=(row:any)=>{
+  const value=direction(row);
+  if(value.includes('BFSPL'))return 'BFSPL';
+  if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
+  if(value.includes('SPL'))return 'SPL';
+  return 'OTHER';
+ };
  const classKey=(row:any)=>String(classItem(row)?.id??classItem(row)?.code??classItem(row)?.name??row.className??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  const winnersByStageAndClass=new Map<string,any>();
  for(const row of rows){
@@ -208,8 +215,19 @@ function selectHomepageResults(rows:any[]){
   const previous=winnersByStageAndClass.get(key);
   if(!previous||stageDate(row)>stageDate(previous))winnersByStageAndClass.set(key,row);
  }
- // Первые места по каждому классу на каждом этапе; все направления включены.
- return [...winnersByStageAndClass.values()].sort((a:any,b:any)=>stageDate(b)-stageDate(a));
+ const winners=[...winnersByStageAndClass.values()];
+ const byClassOrder=(a:any,b:any)=>{
+  const classA=Number(classItem(a)?.sortOrder??0),classB=Number(classItem(b)?.sortOrder??0);
+  if(classA!==classB)return classA-classB;
+  return String(classItem(a)?.name??'').localeCompare(String(classItem(b)?.name??''),'ru',{numeric:true});
+ };
+ // Homepage contract: six curated first-place cards from the newest published stage:
+ // 3 SPL, 2 BFSPL and 1 BDW SPL. Never fill gaps with random places or older stages.
+ return [
+  ...winners.filter((row:any)=>directionKind(row)==='SPL').sort(byClassOrder).slice(0,3),
+  ...winners.filter((row:any)=>directionKind(row)==='BFSPL').sort(byClassOrder).slice(0,2),
+  ...winners.filter((row:any)=>directionKind(row)==='BDWSPL').sort(byClassOrder).slice(0,1),
+ ].slice(0,6);
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
