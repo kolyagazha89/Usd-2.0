@@ -99,7 +99,7 @@ function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
  const route=path.split('?')[0],stageDetailMatch=route.match(/^\/stages\/([^/]+)$/),stageDetailId=stageDetailMatch?decodeURIComponent(stageDetailMatch[1]):'',page=stageDetailId?'stage-detail':route==='/stages'?'stages':route==='/results'?'results':route==='/records'?'records':route==='/rules'?'rules':route==='/privacy'?'privacy':route==='/terms'?'terms':route==='/consent'?'consent':'home';
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(active)setPublicLogoUrl(r.url)}).catch(()=>{});return()=>{active=false}},[]);
  useEffect(()=>{if(publicLogoUrl){setLogoFailed(false);setLogoOverride('');setFailedLogoUrls([])}},[publicLogoUrl]);
- useEffect(()=>{let alive=true;setLoading(true);setError('');Promise.allSettled([apiGet<any>('/stages/public'),apiGet<any>(page==='records'?'/records':'/records/current'),apiGet<any>('/site-settings/public')]).then(([stageResult,recordResult,settingsResult])=>{if(!alive)return;const failures:string[]=[];const available=stageResult.status==='fulfilled'?listData<any>(stageResult.value):[];if(stageResult.status==='fulfilled')setStages(available);else failures.push('этапы');if(recordResult.status==='fulfilled')setRecords(listData<any>(recordResult.value));else failures.push('рекорды');if(settingsResult.status==='fulfilled')setSettings(settingsResult.value?.settings??settingsResult.value??{});else failures.push('настройки сайта');setSelectedStageId(current=>available.some((x:any)=>x.id===current)?current:'');if(failures.length)setError('Не удалось загрузить: '+failures.join(', ')+'. Проверьте соединение и обновите страницу.')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[page]);
+ useEffect(()=>{let alive=true;setLoading(true);setError('');Promise.allSettled([apiGet<any>('/stages/public'),apiGet<any>('/records/current'),apiGet<any>('/site-settings/public')]).then(([stageResult,recordResult,settingsResult])=>{if(!alive)return;const failures:string[]=[];const available=stageResult.status==='fulfilled'?listData<any>(stageResult.value):[];if(stageResult.status==='fulfilled')setStages(available);else failures.push('этапы');if(recordResult.status==='fulfilled')setRecords(listData<any>(recordResult.value));else failures.push('рекорды');if(settingsResult.status==='fulfilled')setSettings(settingsResult.value?.settings??settingsResult.value??{});else failures.push('настройки сайта');setSelectedStageId(current=>available.some((x:any)=>x.id===current)?current:'');if(failures.length)setError('Не удалось загрузить: '+failures.join(', ')+'. Проверьте соединение и обновите страницу.')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[page]);
  useEffect(()=>{if(page!=='stage-detail'||!stageDetailId){setStageDetailResults([]);setStageDetailLoading(false);return}let alive=true;setStageDetailResults([]);setStageDetailLoading(true);apiGet<any>('/results/stage/'+encodeURIComponent(stageDetailId)).then(r=>{if(alive)setStageDetailResults(listData<any>(r))}).catch(()=>{if(alive)setStageDetailResults([])}).finally(()=>{if(alive)setStageDetailLoading(false)});return()=>{alive=false}},[page,stageDetailId]); useEffect(()=>{if(page!=='stage-detail'||!stageDetailId){setStageDetailData(null);return}let alive=true;setStageDetailData(null);apiGet<any>('/stages/public/'+encodeURIComponent(stageDetailId)).then(r=>{if(alive)setStageDetailData(r?.data??r?.stage??r)}).catch(()=>{if(alive)setStageDetailData(null)});return()=>{alive=false}},[page,stageDetailId]);
  useEffect(()=>{if(page!=='home')return;const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='latest-results');if(block?.enabled===false){setLatestResults([]);return}const latestStage=stages.filter((s:any)=>(s.status==='PUBLISHED'||s.status==='COMPLETED')&&s.resultsPublishedAt&&!s.isDeleted).sort((a:any,b:any)=>new Date(b.date).getTime()-new Date(a.date).getTime())[0];let alive=true;setLatestResults([]);if(!latestStage){return()=>{alive=false}}const loadWinners=async()=>{try{const response=await apiGet<any>('/results/stage/'+encodeURIComponent(latestStage.id));if(alive)setLatestResults(selectHomepageResults(listData<any>(response)).slice(0,6))}catch{if(alive)setLatestResults([])}};void loadWinners();return()=>{alive=false}},[page,stages,settings.homepage?.blocks]);
  useEffect(()=>{if(page!=='home'||settings.liveResults?.enabled===false){setLiveResultsRows([]);return}const block=(settings.homepage?.blocks??[]).find((b:any)=>b.id==='live-results');if(block?.enabled===false||settings.homepage?.showLiveResults===false){setLiveResultsRows([]);return}const targetId=settings.liveResults?.stageId||stages.find((s:any)=>s.status==='PUBLISHED'&&s.resultsPublishedAt)?.id;if(!targetId||!stages.some((s:any)=>s.id===targetId&&s.resultsPublishedAt&&(s.status==='PUBLISHED'||s.status==='COMPLETED'))){setLiveResultsRows([]);return}let alive=true;const load=()=>apiGet<any>('/results/stage/'+encodeURIComponent(targetId)).then(r=>{if(alive)setLiveResultsRows(listData<any>(r).slice(0,8))}).catch(()=>{if(alive)setLiveResultsRows([])});void load();const interval=Math.min(60,Math.max(5,Number(settings.liveResults?.refreshSeconds)||5))*1000;const timer=window.setInterval(()=>void load(),interval);return()=>{alive=false;window.clearInterval(timer)}},[page,stages,settings.liveResults?.enabled,settings.liveResults?.stageId,settings.liveResults?.refreshSeconds,settings.homepage?.blocks,settings.homepage?.showLiveResults]);
@@ -196,6 +196,13 @@ function selectHomepageResults(rows:any[]){
  };
  const classItem=(row:any)=>row.registrationClass?.class??row.class??row.result?.registrationClass?.class??{};
  const direction=(row:any)=>String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
+ const directionKind=(row:any)=>{
+  const value=direction(row);
+  if(value.includes('BFSPL'))return 'BFSPL';
+  if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
+  if(value.includes('SPL'))return 'SPL';
+  return 'OTHER';
+ };
  const classKey=(row:any)=>String(classItem(row)?.id??classItem(row)?.code??classItem(row)?.name??row.className??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  const winnersByStageAndClass=new Map<string,any>();
  for(const row of rows){
@@ -208,8 +215,19 @@ function selectHomepageResults(rows:any[]){
   const previous=winnersByStageAndClass.get(key);
   if(!previous||stageDate(row)>stageDate(previous))winnersByStageAndClass.set(key,row);
  }
- // Первые места по каждому классу на каждом этапе; все направления включены.
- return [...winnersByStageAndClass.values()].sort((a:any,b:any)=>stageDate(b)-stageDate(a));
+ const winners=[...winnersByStageAndClass.values()];
+ const byClassOrder=(a:any,b:any)=>{
+  const classA=Number(classItem(a)?.sortOrder??0),classB=Number(classItem(b)?.sortOrder??0);
+  if(classA!==classB)return classA-classB;
+  return String(classItem(a)?.name??'').localeCompare(String(classItem(b)?.name??''),'ru',{numeric:true});
+ };
+ // Homepage contract: six curated first-place cards from the newest published stage:
+ // 3 SPL, 2 BFSPL and 1 BDW SPL. Never fill gaps with random places or older stages.
+ return [
+  ...winners.filter((row:any)=>directionKind(row)==='SPL').sort(byClassOrder).slice(0,3),
+  ...winners.filter((row:any)=>directionKind(row)==='BFSPL').sort(byClassOrder).slice(0,2),
+  ...winners.filter((row:any)=>directionKind(row)==='BDWSPL').sort(byClassOrder).slice(0,1),
+ ].slice(0,6);
 }
 function PublicResultCards({rows,variant}:{rows:any[];variant:'live'|'latest'|'stage'}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
