@@ -153,7 +153,7 @@ export class ParticipantsService {
   }
 
   async findAllForOperations(request: AuthenticatedRequest) {
-    await this.requireAdminOrJudge(request);
+    await this.requireAdminOrCustomRole(request);
     return this.prisma.participant.findMany({
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: {
@@ -815,12 +815,6 @@ export class ParticipantsService {
     );
   }
 
-  // JUDGE не может редактировать участников.
-  if (user.role === 'JUDGE') {
-    throw new ForbiddenException(
-      'Судья может только просматривать участников',
-    );
-  }
 
   // PARTICIPANT может редактировать только собственный профиль.
   if (
@@ -1035,7 +1029,7 @@ export class ParticipantsService {
   }
 
   // =========================================================
-  // ADMIN / JUDGE CARS OF PARTICIPANT
+  // ADMIN / CUSTOM ROLE CARS OF PARTICIPANT
   // =========================================================
 
   async findCars(
@@ -1043,27 +1037,27 @@ export class ParticipantsService {
     participantId: string,
   ) {
     const user =
-      await this.requireAdminOrJudge(request);
+      await this.requireAdminOrCustomRole(request);
 
     return this.findCarsInternal(
       participantId,
-      user.role === 'JUDGE',
+      Boolean(user.customRoleId),
     );
   }
 
   // =========================================================
-  // ALL CARS FOR ADMIN / JUDGE
+  // ALL CARS FOR ADMIN / CUSTOM ROLE
   // =========================================================
 
   async findAllCars(
     request: AuthenticatedRequest,
   ) {
     const user =
-      await this.requireAdminOrJudge(request);
+      await this.requireAdminOrCustomRole(request);
 
     return this.prisma.car.findMany({
       where:
-        user.role === 'JUDGE'
+        Boolean(user.customRoleId)
           ? {
               isActive: true,
             }
@@ -1480,7 +1474,7 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role === 'JUDGE') {
+    if (Boolean(user.customRoleId)) {
       throw new ForbiddenException(
         'Судья может только просматривать автомобили',
       );
@@ -1663,7 +1657,7 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role === 'JUDGE') {
+    if (Boolean(user.customRoleId)) {
       throw new ForbiddenException(
         'Судья может только просматривать автомобили',
       );
@@ -1796,6 +1790,7 @@ export class ParticipantsService {
           role: true,
           isActive: true,
           participantId: true,
+          customRoleId: true,
         },
       });
 
@@ -1820,16 +1815,16 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'ADMIN' && !user.customRoleId) {
       throw new ForbiddenException(
-        'Требуются права администратора',
+        'Недостаточно прав для выполнения операции',
       );
     }
 
     return user;
   }
 
-  private async requireAdminOrJudge(
+  private async requireAdminOrCustomRole(
     request: AuthenticatedRequest,
   ) {
     const user =
@@ -1837,10 +1832,10 @@ export class ParticipantsService {
 
     if (
       user.role !== 'ADMIN' &&
-      user.role !== 'JUDGE'
+      !user.customRoleId
     ) {
       throw new ForbiddenException(
-        'Требуются права администратора или судьи',
+        'Требуются права администратора или назначенная операционная роль',
       );
     }
 

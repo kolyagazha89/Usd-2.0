@@ -632,9 +632,9 @@ export class AuthService {
   async findHistoricalProfileCandidates(userId: string, fullName: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, participantId: true, role: true },
+      select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
     });
-    if (!user || user.role !== 'PARTICIPANT') {
+    if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
       throw new UnauthorizedException('Недействительная учётная запись');
     }
     if (user.participantId) {
@@ -730,9 +730,9 @@ export class AuthService {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, participantId: true, role: true },
+        select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
       });
-      if (!user || user.role !== 'PARTICIPANT') {
+      if (!user || (user.role !== 'PARTICIPANT' || Boolean(user.customRoleId))) {
         throw new UnauthorizedException('Недействительная учётная запись');
       }
       if (user.participantId && user.participantId !== participantId) {
@@ -978,7 +978,7 @@ export class AuthService {
     return this.adminGetUser(targetUserId);
   }
 
-  async adminListUsers(search?: string, role?: 'ADMIN' | 'JUDGE' | 'PARTICIPANT') {
+  async adminListUsers(search?: string, role?: 'ADMIN' | 'PARTICIPANT') {
     return this.prisma.user.findMany({
       where: {
         ...(role ? { role } : {}),
@@ -1026,7 +1026,7 @@ export class AuthService {
   async adminCreateUser(
     email: string,
     password: string,
-    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    role: 'ADMIN' | 'PARTICIPANT',
     actorUserId: string,
     ipAddress?: string,
   ) {
@@ -1137,7 +1137,7 @@ export class AuthService {
 
   async adminSetRole(
     targetUserId: string,
-    role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT',
+    role: 'ADMIN' | 'PARTICIPANT',
     actorUserId: string,
     ipAddress?: string,
   ) {

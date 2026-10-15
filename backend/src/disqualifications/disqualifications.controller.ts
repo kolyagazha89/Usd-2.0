@@ -15,7 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateDisqualificationDto, RevokeDisqualificationDto } from './dto/disqualification.dto';
 
 @Controller('disqualifications')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class DisqualificationsController {
   constructor(
     private readonly disqualificationsService: DisqualificationsService,

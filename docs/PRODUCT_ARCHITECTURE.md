@@ -10,7 +10,7 @@ The current small team must be able to work without organizational bureaucracy. 
 
 1. One account per person; permissions follow the account, not separate logins for separate jobs.
 2. ADMIN is a system-level full-access role: every module, every record, every supported action, including modules added in the future. New modules must not require manual permission grants to ADMIN.
-3. JUDGE can work across stages and enter inspection/results data according to existing USD rules. Result editing/deletion remains ADMIN-only.
+3. Only ADMIN and PARTICIPANT are system roles. Operational roles such as «Судья» are editable custom roles, and every module/action grant is enforced server-side. ADMIN remains the immutable full-access superuser.
 4. Custom roles and permissions are managed by ADMIN and enforced server-side. Hiding a button is not authorization.
 5. Keep existing business data and working modules. Extend incrementally; do not rewrite the application without evidence it is necessary.
 6. Public content is stored and managed in the admin CMS. Routine copy, media, navigation, legal pages, SEO, and homepage layout changes must not require a deploy.

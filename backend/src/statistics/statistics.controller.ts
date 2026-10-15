@@ -13,7 +13,7 @@ import { DataQualityService } from '../data-quality/data-quality.service';
 import { AuditService } from '../common/audit/audit.service';
 
 @Controller('statistics')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class StatisticsController {
   constructor(
     private readonly statisticsService: StatisticsService,

@@ -804,7 +804,6 @@ enum StageStatus {
 
 enum UserRole {
   ADMIN
-  JUDGE
   PARTICIPANT
 }
 

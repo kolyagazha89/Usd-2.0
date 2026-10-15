@@ -113,8 +113,8 @@ export class AdminCreateUserDto {
   @MaxLength(128)
   password!: string;
 
-  @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
-  role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+  @IsIn(['ADMIN', 'PARTICIPANT'])
+  role!: 'ADMIN' | 'PARTICIPANT';
 }
 
 export class AdminUserActiveDto {
@@ -123,8 +123,8 @@ export class AdminUserActiveDto {
 }
 
 export class AdminUserRoleDto {
-  @IsIn(['ADMIN', 'JUDGE', 'PARTICIPANT'])
-  role!: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+  @IsIn(['ADMIN', 'PARTICIPANT'])
+  role!: 'ADMIN' | 'PARTICIPANT';
 }
 
 

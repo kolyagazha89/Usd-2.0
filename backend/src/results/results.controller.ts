@@ -26,7 +26,7 @@ export class ResultsController {
     return this.resultsService.findByStage(stageId);
   }
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get('admin/stage/:stageId')
   findByStageAdmin(@Param('stageId') stageId: string) {
     return this.resultsService.findByStageAdmin(stageId);
@@ -50,7 +50,7 @@ export class ResultsController {
     );
   }
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get('admin/:id')
   findOneAdmin(@Param('id') id: string) {
     return this.resultsService.findOneAdmin(id);
@@ -62,7 +62,7 @@ export class ResultsController {
     return this.resultsService.findOne(id);
   }
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Post()
   create(
     @Body() body: CreateResultDto,

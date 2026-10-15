@@ -21,7 +21,7 @@ export class RegistrationsController {
     private readonly registrationsService: RegistrationsService,
   ) {}
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get()
   findAll(
     @Query('stageId') stageId?: string,
@@ -66,7 +66,7 @@ export class RegistrationsController {
     return registration;
   }
 
-  @Roles('ADMIN', 'JUDGE', 'PARTICIPANT')
+  @Roles('ADMIN', 'PARTICIPANT')
   @Post()
   create(
     @Req() request: AuthenticatedRequest,

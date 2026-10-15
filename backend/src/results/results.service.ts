@@ -518,7 +518,7 @@ export class ResultsService {
     data: CreateResultDto,
     request: AuthenticatedRequest,
   ) {
-    if (!['ADMIN', 'JUDGE'].includes(request.user.role)) {
+    if (request.user.role !== 'ADMIN' && !request.user.customRoleId) {
       throw new ForbiddenException('Недостаточно прав для внесения результата');
     }
 
@@ -613,10 +613,6 @@ export class ResultsService {
     data: UpdateResultDto,
     request: AuthenticatedRequest,
   ) {
-    if (request.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Исправлять результаты может только администратор');
-    }
-
     this.validateValue(data.value ?? 0);
     this.validatePlace(data.place);
 

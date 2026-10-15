@@ -10,7 +10,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('history')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
@@ -36,6 +36,6 @@ export class HistoryController {
     @Param('participantId') participantId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.historyService.getParticipantHistory(participantId, request.user.role === 'ADMIN' ? 'ADMIN' : 'JUDGE');
+    return this.historyService.getParticipantHistory(participantId, request.user.role === 'ADMIN' ? 'ADMIN' : 'PARTICIPANT');
   }
 }

@@ -6,10 +6,10 @@ const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN']},
 
  // Оперативная работа на этапах
- {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN','JUDGE']},
- {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN','JUDGE']},
+ {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN']},
+ {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN']},
+ {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN']},
+ {section:'Соревнования',label:'Результаты',path:'/admin/results',icon:Trophy,roles:['ADMIN']},
 
  // Люди, команды и автомобили
  {section:'Участники и автопарк',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
@@ -18,7 +18,7 @@ const nav=[
 
  // Итоги, рекорды и спортивный контроль
  {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN']},
- {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN','JUDGE']},
+ {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
 
  // Публичные материалы сайта
@@ -95,7 +95,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
    </div>
    <nav>{sections.map(section=>{const isOpen=openSections[section]??true;return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=routePath===item.path||(item.path!=='/admin'&&routePath.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
    <div className="sidebar-bottom">
-    <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{roleName[user.role]}</strong><small>{user.email}</small></div></div>
+    <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{user.customRole?.name??roleName[user.role]}</strong><small>{user.email}</small></div></div>
     <button className="logout-button" onClick={()=>void onLogout()}><LogOut size={15}/>Выйти</button>
    </div>
   </aside>
@@ -104,7 +104,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
    <header className="topbar">
     <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
     <div className="breadcrumb"><strong>USD</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
-    <div className="topbar-actions"><span className="role-pill">{roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
+    <div className="topbar-actions"><span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
    <main className="content"><PageContent path={path} go={go} user={user}/></main>
   </div>

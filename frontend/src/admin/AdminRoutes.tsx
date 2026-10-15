@@ -66,6 +66,6 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   return <Coming title="Страница не найдена" icon={Info} user={user} PageFrame={PageFrame}/>;
  }
 
-function Coming({title,icon:Icon,user,PageFrame}:{title:string;icon:any;user:User;PageFrame:React.ComponentType<any>}){return <PageFrame title={title} subtitle={user.role==='JUDGE'?'Раздел доступен в режиме судьи':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
+function Coming({title,icon:Icon,user,PageFrame}:{title:string;icon:any;user:User;PageFrame:React.ComponentType<any>}){return <PageFrame title={title} subtitle={user.customRoleId?'Раздел доступен в соответствии с назначенными правами':'Управление разделом USD'}><div className="panel feature-placeholder"><div className="placeholder-icon"><Icon size={28}/></div><h2>Раздел готовится</h2><p>Каркас подключён. Интерфейс будет расширяться поверх реального API без изменения серверных прав.</p></div></PageFrame>}
 
 export default AdminRoutes;

@@ -44,6 +44,9 @@ async function bootstrap() {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
+    const judgeRole = await prisma.role.findUnique({ where: { key: 'judge' }, select: { id: true } });
+    if (!judgeRole) throw new Error('Custom role «Судья» is missing. Run Prisma migrations first.');
+
     const user =
       await prisma.user.upsert({
         where: {
@@ -52,7 +55,8 @@ async function bootstrap() {
         update: {
           passwordHash,
           name,
-          role: 'JUDGE',
+          role: 'PARTICIPANT',
+          customRoleId: judgeRole.id,
           isActive: true,
           emailVerifiedAt:
             new Date(),
@@ -61,7 +65,8 @@ async function bootstrap() {
           email,
           passwordHash,
           name,
-          role: 'JUDGE',
+          role: 'PARTICIPANT',
+          customRoleId: judgeRole.id,
           isActive: true,
           emailVerifiedAt:
             new Date(),

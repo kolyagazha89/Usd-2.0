@@ -14,7 +14,7 @@ import { InspectionsService } from './inspections.service';
 import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 
 @Controller('inspections')
-@Roles('ADMIN', 'JUDGE')
+@Roles('ADMIN')
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
@@ -36,6 +36,7 @@ export class InspectionsController {
     return this.inspectionsService.createClassInspection(body, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -49,6 +50,7 @@ export class InspectionsController {
     return this.inspectionsService.updateClassInspection(id, body, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -59,6 +61,7 @@ export class InspectionsController {
     return this.inspectionsService.removeClassInspection(id, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -76,6 +79,7 @@ export class InspectionsController {
     return this.inspectionsService.passPending(stageId, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -89,6 +93,7 @@ export class InspectionsController {
     return this.inspectionsService.failPending(stageId, body.notes, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -101,6 +106,7 @@ export class InspectionsController {
     return this.inspectionsService.create(body, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -114,6 +120,7 @@ export class InspectionsController {
     return this.inspectionsService.update(id, body, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }
@@ -124,6 +131,7 @@ export class InspectionsController {
     return this.inspectionsService.remove(id, {
       userId: request.user.sub,
       role: request.user.role,
+      customRoleId: request.user.customRoleId,
       ipAddress: request.ip,
     });
   }

@@ -72,7 +72,7 @@ export class RolesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const roles = this.reflector.getAllAndOverride<
-      Array<'ADMIN' | 'JUDGE' | 'PARTICIPANT'>
+      Array<'ADMIN' | 'PARTICIPANT'>
     >(ROLES_KEY, [context.getHandler(), context.getClass()]);
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
@@ -94,11 +94,6 @@ export class RolesGuard implements CanActivate {
       }
       const module = controllerModule(context);
       const action = actionFor(request);
-      // A judge may enter results, but cannot edit or delete them, even if a
-      // custom permission matrix accidentally grants those actions.
-      if (request.user.role === 'JUDGE' && module === 'results' && (action === 'update' || action === 'delete')) {
-        throw new ForbiddenException('Судья не может изменять или удалять результаты');
-      }
       const role = await this.prisma.role.findUnique({
         where: { id: request.user.customRoleId },
         select: { permissions: true },

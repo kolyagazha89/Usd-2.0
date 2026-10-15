@@ -54,7 +54,7 @@ describe('MediaService media library', () => {
   });
 
   it('requires ADMIN to list the unified media library', async () => {
-    await expect(service.listMediaLibrary('JUDGE')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.listMediaLibrary('PARTICIPANT')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('lists only the latest version per target and marks referenced site assets', async () => {

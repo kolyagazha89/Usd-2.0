@@ -337,10 +337,12 @@ async function main() {
     });
   }
 
+  const judgeRole = await prisma.role.findUnique({ where: { key: 'judge' }, select: { id: true } });
+  if (!judgeRole) throw new Error('Custom role «Судья» is missing. Run Prisma migrations first.');
   const judge = await prisma.user.upsert({
     where: { email: TEST_JUDGE_EMAIL },
-    update: { name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
-    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'JUDGE', isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
+    update: { name: 'Судья Тестовый', role: 'PARTICIPANT', customRoleId: judgeRole.id, isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
+    create: { email: TEST_JUDGE_EMAIL, name: 'Судья Тестовый', role: 'PARTICIPANT', customRoleId: judgeRole.id, isActive: true, emailVerifiedAt: new Date(), passwordHash: judgePasswordHash },
   });
 
   // 5. Cars and complete configuration trees.
@@ -775,7 +777,7 @@ async function main() {
   console.log('');
   console.log('Готово. Тестовые данные созданы/обновлены.');
   console.log('ADMIN: существующий production/dev admin без изменений');
-  console.log('JUDGE: TEST_JUDGE_EMAIL / TEST_JUDGE_PASSWORD (defaults are the documented USD test credentials).');
+  console.log('Custom role «Судья»: TEST_JUDGE_EMAIL / TEST_JUDGE_PASSWORD (defaults are the documented USD test credentials).');
   console.log('PARTICIPANT: ivan.petrov.test@example.com / TestPassword123!');
   console.log('Этап 1: 12.09.2026 — завершён');
   console.log('Этап 2: 18.10.2026 — ближайший, регистрация открыта');

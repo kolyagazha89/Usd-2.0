@@ -44,7 +44,7 @@ export class ParticipantsController {
     return this.participantsService.findTeams(request);
   }
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get('participants/lookup')
   findAllForOperations(
     @Req() request: AuthenticatedRequest,
@@ -102,7 +102,7 @@ export class ParticipantsController {
   // ALL CARS — ADMIN / JUDGE
   // =========================================================
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get('cars')
   findAllCars(
     @Req() request: AuthenticatedRequest,
@@ -192,7 +192,7 @@ export class ParticipantsController {
   // PARTICIPANT CARS — ADMIN / JUDGE
   // =========================================================
 
-  @Roles('ADMIN', 'JUDGE')
+  @Roles('ADMIN')
   @Get('participants/:participantId/cars')
   findCars(
     @Req() request: AuthenticatedRequest,

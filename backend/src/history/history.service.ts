@@ -37,7 +37,7 @@ export class HistoryService {
     });
   }
 
-  async getParticipantHistory(participantId: string, role: 'ADMIN' | 'JUDGE') {
+  async getParticipantHistory(participantId: string, role: 'ADMIN' | 'PARTICIPANT') {
     const participant = await this.prisma.participant.findUnique({
       where: { id: participantId },
       select: {
