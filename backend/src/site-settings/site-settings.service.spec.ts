@@ -126,4 +126,23 @@ describe('SiteSettingsService published regulation history', () => {
       } as any,
     }, 'admin-1')).rejects.toThrow(BadRequestException);
   });
+  it('logs the failed persistence phase without logging settings values', async () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockRejectedValue(Object.assign(new Error('sensitive payload should not be logged'), { code: 'P2002' })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    const service = new SiteSettingsService(prisma);
+    const logSpy = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+
+    await expect(service.update({ branding: { siteName: 'private test value' } } as any, 'admin-1')).rejects.toThrow();
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('phase=upsert, error=Error, code=P2002'));
+    expect(logSpy.mock.calls[0][0]).not.toContain('private test value');
+    expect(logSpy.mock.calls[0][0]).not.toContain('sensitive payload');
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
 });
