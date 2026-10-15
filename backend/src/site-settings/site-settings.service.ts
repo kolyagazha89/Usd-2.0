@@ -22,7 +22,15 @@ const DEFAULTS:SiteSettingsShape={
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
-  registration:{enabled:true,price:2000,additionalClassPrice:2000},
+  registration:{enabled:true,price:2000,additionalClassPrice:2000,emailTemplates:[
+    {id:'stage-registration-open',name:'Открытие регистрации',trigger:'STAGE_REGISTRATION_OPEN',enabled:true,subject:'Открыта регистрация: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это информационное сообщение ЮСД о соревнованиях. Вы получили его в связи с настройками уведомлений.',buttonLabel:'Открыть ЮСД'},
+    {id:'registration-confirmed',name:'Подтверждение регистрации',trigger:'REGISTRATION_CONFIRMED',enabled:true,subject:'Заявка подтверждена: {{stageName}}',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.',buttonLabel:'Открыть ЮСД'},
+    {id:'stage-reminder-3d',name:'Напоминание за 3 дня',trigger:'STAGE_REMINDER_3D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'},
+    {id:'stage-reminder-1d',name:'Напоминание за 1 день',trigger:'STAGE_REMINDER_1D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'},
+    {id:'auth-email-verification',name:'Подтверждение email аккаунта',trigger:'AUTH_EMAIL_VERIFICATION',enabled:true,subject:'Подтверждение email — ЮСД',body:'{{intro}}',footer:'Если вы не регистрировались в ЮСД, не переходите по ссылке. Она содержит персональный токен и не должна передаваться другим людям.',buttonLabel:'Подтвердить email'},
+    {id:'auth-password-reset',name:'Восстановление пароля',trigger:'AUTH_PASSWORD_RESET',enabled:true,subject:'Восстановление пароля — ЮСД',body:'{{intro}}',footer:'Если вы не запрашивали восстановление пароля, проигнорируйте письмо. Никому не сообщайте ссылку и токен.',buttonLabel:'Восстановить пароль'},
+    {id:'auth-email-change',name:'Подтверждение нового email',trigger:'AUTH_EMAIL_CHANGE',enabled:true,subject:'Подтверждение нового email — ЮСД',body:'{{intro}}',footer:'Ссылка действует 30 минут. Если вы не меняли email, не переходите по ссылке и обратитесь к администратору аккаунта.',buttonLabel:'Подтвердить новый email'}
+  ]},
   catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],news:[],
 };
 
@@ -49,7 +57,7 @@ export class SiteSettingsService{
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
-      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,
+      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:this.merge(DEFAULTS.registration,row?.registration),
       catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),partners:Array.isArray(row?.partners)?row.partners:DEFAULTS.partners,news:Array.isArray(row?.news)?row.news:DEFAULTS.news,
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
@@ -79,6 +87,8 @@ export class SiteSettingsService{
       && Boolean(String(legal.privacyText ?? '').trim())
       && Boolean(String(legal.consentText ?? '').trim())
       && Boolean(String(legal.termsText ?? '').trim());
+    const publicRegistration = { ...s.registration } as Record<string, any>;
+    delete publicRegistration.emailTemplates;
     return {
       success: true,
       settings: {
@@ -93,7 +103,7 @@ export class SiteSettingsService{
         footer: s.footer,
         catalogs: s.catalogs,
         registration: {
-          ...s.registration,
+          ...publicRegistration,
           ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
         },
         partners: s.partners.filter((partner: any) => partner.isActive !== false),

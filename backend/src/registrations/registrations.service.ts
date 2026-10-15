@@ -294,6 +294,13 @@ export class RegistrationsService {
       }
     }
 
+    // A participant must be blocked before opening a transaction if the shared
+    // organizer regulation is not published. This applies to the single general
+    // regulation for the competition, not a separate document per stage.
+    if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && source !== 'IMPORT' && !publishedRulesReady) {
+      throw new BadRequestException('Регистрация недоступна: организатор должен опубликовать действующий общий регламент соревнований в разделе «Документы»');
+    }
+
     if (
       (request.user.role === 'PARTICIPANT' && !request.user.customRoleId) &&
       request.user.participantId !== participantId
@@ -393,10 +400,6 @@ export class RegistrationsService {
           throw new NotFoundException(
             'Этап не найден или удалён',
           );
-        }
-
-        if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId) && !publishedRulesReady) {
-          throw new BadRequestException('Регистрация недоступна: организатор должен опубликовать действующий общий регламент соревнований в разделе «Документы»');
         }
 
         if (stage.status !== 'PUBLISHED') {

@@ -22,12 +22,16 @@ export class MailController {
   @Post('test-trigger')
   async sendTestTrigger(@Body() body: { email?: string; type?: string; stageId?: string }) {
     const email = this.normalizeEmail(body?.email);
-    const allowed = ['STAGE_REGISTRATION_OPEN', 'REGISTRATION_CONFIRMED', 'STAGE_REMINDER_3D', 'STAGE_REMINDER_1D'];
+    const allowed = ['STAGE_REGISTRATION_OPEN', 'REGISTRATION_CONFIRMED', 'STAGE_REMINDER_3D', 'STAGE_REMINDER_1D', 'AUTH_EMAIL_VERIFICATION', 'AUTH_PASSWORD_RESET', 'AUTH_EMAIL_CHANGE'];
     this.validateEmail(email);
-    if (!allowed.includes(String(body?.type))) throw new BadRequestException('Укажите один из четырёх поддерживаемых типов триггера');
+    if (!allowed.includes(String(body?.type))) throw new BadRequestException('Выберите поддерживаемый триггер письма');
+    const type = String(body.type);
+    if (type.startsWith('AUTH_')) {
+      return this.mailService.sendTestAuthTemplate(email, type as 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE');
+    }
     const stageId = typeof body?.stageId === 'string' ? body.stageId.trim() : undefined;
     if (stageId && stageId.length > 100) throw new BadRequestException('Некорректный идентификатор этапа');
-    return this.emailNotifications.sendTestTrigger(body.type as 'STAGE_REGISTRATION_OPEN' | 'REGISTRATION_CONFIRMED' | 'STAGE_REMINDER_3D' | 'STAGE_REMINDER_1D', email, stageId || undefined);
+    return this.emailNotifications.sendTestTrigger(type as 'STAGE_REGISTRATION_OPEN' | 'REGISTRATION_CONFIRMED' | 'STAGE_REMINDER_3D' | 'STAGE_REMINDER_1D', email, stageId || undefined);
   }
 
   @Roles('ADMIN')
