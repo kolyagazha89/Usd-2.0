@@ -683,3 +683,131 @@
   box-shadow: 0 12px 30px rgba(0,0,0,.2) !important;
   border-color: #34353c !important;
 }
+
+
+/* Admin configuration workspace is deliberately light, unlike the participant garage. */
+.admin-configurations-shell,
+.admin-configurations-shell .participant-portal-main,
+.admin-configurations-shell .configurations-page {
+  color: #17191c !important;
+  background: #f2f3f4 !important;
+}
+.admin-configurations-shell .participant-portal-header {
+  color: #17191c !important;
+  background: rgba(255,255,255,.96) !important;
+  border-bottom: 1px solid #d9dcdf !important;
+  backdrop-filter: blur(18px);
+}
+.admin-configurations-shell .participant-portal-brand,
+.admin-configurations-shell .participant-portal-brand strong,
+.admin-configurations-shell .participant-portal-brand small {
+  color: #17191c !important;
+}
+.admin-configurations-shell .participant-portal-brand .brand-mark { color: #111214 !important; }
+.admin-configurations-shell .configurations-page-top,
+.admin-configurations-shell .configuration-subpage-header {
+  color: #17191c !important;
+  background: linear-gradient(135deg,#fff,#f4f5f6) !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 8px 24px rgba(9,10,11,.04) !important;
+}
+.admin-configurations-shell .configurations-page-top h1,
+.admin-configurations-shell .configuration-subpage-header h1 { color: #17191c !important; }
+.admin-configurations-shell .configurations-page-top p,
+.admin-configurations-shell .configuration-subpage-header p { color: #62676e !important; }
+.admin-configurations-shell .config-modal-hero,
+.admin-configurations-shell .config-card,
+.admin-configurations-shell .config-create-button,
+.admin-configurations-shell .config-editor-intro,
+.admin-configurations-shell .config-section,
+.admin-configurations-shell .config-details-hero,
+.admin-configurations-shell .config-version-history,
+.admin-configurations-shell .config-stat-grid > div,
+.admin-configurations-shell .config-detail-grid .detail-block,
+.admin-configurations-shell .config-empty {
+  color: #17191c !important;
+  background: #fff !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 2px 10px rgba(9,10,11,.035) !important;
+}
+.admin-configurations-shell .config-modal-hero h2,
+.admin-configurations-shell .config-card h3,
+.admin-configurations-shell .config-card-main h3,
+.admin-configurations-shell .config-create-button strong,
+.admin-configurations-shell .config-editor-intro strong,
+.admin-configurations-shell .config-section-title strong,
+.admin-configurations-shell .config-details-hero h2,
+.admin-configurations-shell .config-detail-grid .detail-block strong,
+.admin-configurations-shell .config-stat-grid > div strong,
+.admin-configurations-shell .config-empty strong { color: #17191c !important; }
+.admin-configurations-shell .config-modal-hero p,
+.admin-configurations-shell .config-card p,
+.admin-configurations-shell .config-card-main p,
+.admin-configurations-shell .config-count span,
+.admin-configurations-shell .config-editor-intro small,
+.admin-configurations-shell .config-section-title small,
+.admin-configurations-shell .field-help,
+.admin-configurations-shell .config-section-empty,
+.admin-configurations-shell .config-details-hero p,
+.admin-configurations-shell .config-detail-grid .detail-block span,
+.admin-configurations-shell .config-stat-grid > div span,
+.admin-configurations-shell .config-empty span { color: #62676e !important; }
+.admin-configurations-shell .config-count,
+.admin-configurations-shell .config-version b {
+  color: #17191c !important;
+  background: #f4f5f6 !important;
+  border-color: #d9dcdf !important;
+}
+.admin-configurations-shell .config-version span {
+  color: #b91425 !important;
+  background: #fff0f2 !important;
+  border-color: #efb8bf !important;
+}
+.admin-configurations-shell .config-section-icon,
+.admin-configurations-shell .config-editor-icon,
+.admin-configurations-shell .config-details-badge,
+.admin-configurations-shell .config-empty-icon,
+.admin-configurations-shell .config-create-button > span {
+  color: #b91425 !important;
+  background: #fff0f2 !important;
+  border-color: #efb8bf !important;
+}
+.admin-configurations-shell .config-row,
+.admin-configurations-shell .config-editor-actions { border-color: #d9dcdf !important; }
+.admin-configurations-shell .config-row-number { color: #858a90 !important; }
+.admin-configurations-shell .config-section-empty {
+  color: #62676e !important;
+  background: #f7f8f9 !important;
+  border-color: #d9dcdf !important;
+}
+.admin-configurations-shell .config-editor-actions {
+  background: rgba(255,255,255,.96) !important;
+}
+.admin-configurations-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.admin-configurations-shell select,
+.admin-configurations-shell textarea {
+  color: #17191c !important;
+  background: #fff !important;
+  border-color: #c9cdd1 !important;
+  color-scheme: light !important;
+}
+.admin-configurations-shell input::placeholder,
+.admin-configurations-shell textarea::placeholder { color: #858a90 !important; }
+.admin-configurations-shell option { color: #17191c !important; background: #fff !important; }
+.admin-configurations-shell label,
+.admin-configurations-shell .config-section-title,
+.admin-configurations-shell .config-row-content,
+.admin-configurations-shell .muted { color: #34383d !important; }
+.admin-configurations-shell .secondary-button,
+.admin-configurations-shell .icon-button,
+.admin-configurations-shell .link-editor {
+  color: #34383d !important;
+  background: #fff !important;
+  border-color: #c9cdd1 !important;
+}
+.admin-configurations-shell .config-version-history .secondary-button.active {
+  color: #fff !important;
+  background: #111214 !important;
+  border-color: #111214 !important;
+}
+.admin-configurations-shell .notice { color: #775000 !important; }
