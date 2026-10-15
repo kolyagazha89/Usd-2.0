@@ -3392,3 +3392,22 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .normalization-finding-list { display:grid; gap:8px; padding:0 10px 10px; max-height:480px; overflow:auto; }
 .normalization-finding-list pre { margin:0; padding:10px; border:1px solid #303036; border-radius:8px; background:#0d0d0f; color:#d9d9e0; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:640px){.normalization-audit-heading{display:block}.normalization-audit-heading>small{display:block;margin-top:8px;white-space:normal}.normalization-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Keep admin statistics surfaces on the dark USD dashboard palette; only form fields are soft-white. */
+.app-shell .stat-card,
+.app-shell .metric-card {
+  color: #f4f4f6 !important;
+  background: #17171b !important;
+  border-color: #35353c !important;
+}
+.app-shell .stat-card span,
+.app-shell .metric-card span { color: #a7a7b1 !important; }
+.app-shell .stat-card strong,
+.app-shell .metric-card strong { color: #fff !important; }
+.app-shell .stat-card.danger-card,
+.app-shell .danger-card {
+  background: #281519 !important;
+  border-color: #75414a !important;
+}
+.app-shell .quality-ring { color: #f4f4f6; }
+.app-shell .quality-ring:not(.healthy) { border-color: #39393f; }
