@@ -3413,25 +3413,29 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .app-shell .quality-ring:not(.healthy) { border-color: #39393f; }
 
 
-/* USD admin is a consistent light workspace; dark styling belongs to the public site only. */
+/* USD admin workspace stays light, but the Race Control sidebar remains black/red. */
 .app-shell .sidebar {
-  background: #fff !important;
-  color: #17191c !important;
-  border-right: 1px solid #e3e5e8;
-  box-shadow: 6px 0 24px rgba(20, 24, 30, .035) !important;
+  background: #0b0b0d !important;
+  color: #f4f4f6 !important;
+  border-right: 1px solid #29292f !important;
+  box-shadow: 6px 0 24px rgba(0, 0, 0, .24) !important;
 }
-.app-shell .brand-button { color: #17191c !important; }
-.app-shell .brand-title b { color: #e21d2f !important; }
-.app-shell .sidebar-label { color: #858b92 !important; }
-.app-shell .nav-item { color: #555c64 !important; }
-.app-shell .nav-item:hover { background: #f4f5f6 !important; color: #17191c !important; }
-.app-shell .nav-item.active { background: #fff0f2 !important; color: #b91425 !important; border-left-color: #e21d2f !important; box-shadow: none !important; }
-.app-shell .sidebar-bottom { border-top-color: #e5e7eb !important; }
-.app-shell .avatar { background: #f0f2f4 !important; color: #292d32 !important; }
-.app-shell .user-mini strong { color: #24282d !important; }
-.app-shell .user-mini small { color: #777e86 !important; }
-.app-shell .logout-button { color: #656c74 !important; }
-.app-shell .logout-button:hover { color: #b91425 !important; background: #fff0f2 !important; }
+.app-shell .sidebar-top,
+.app-shell .sidebar nav,
+.app-shell .sidebar-section,
+.app-shell .sidebar-bottom { background: #0b0b0d !important; }
+.app-shell .brand-button { color: #f4f4f6 !important; }
+.app-shell .brand-title b { color: #ed2638 !important; }
+.app-shell .sidebar-label { color: #8d8d98 !important; }
+.app-shell .nav-item { color: #c3c3cc !important; background: transparent !important; }
+.app-shell .nav-item:hover { background: #1d1d22 !important; color: #fff !important; }
+.app-shell .nav-item.active { background: #301217 !important; color: #ff6876 !important; border-left-color: #ed2638 !important; box-shadow: inset 0 0 0 1px rgba(237,38,56,.12) !important; }
+.app-shell .sidebar-bottom { border-top: 1px solid #29292f !important; }
+.app-shell .avatar { background: #25252b !important; color: #f4f4f6 !important; }
+.app-shell .user-mini strong { color: #f4f4f6 !important; }
+.app-shell .user-mini small { color: #92929d !important; }
+.app-shell .logout-button { color: #b6b6c0 !important; background: transparent !important; }
+.app-shell .logout-button:hover { color: #ff6876 !important; background: #241115 !important; }
 .app-shell .stat-card,
 .app-shell .metric-card {
   color: #20242a !important;
@@ -3591,4 +3595,80 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 .public-site .public-result-card:before {
   display: none !important;
+}
+
+
+/* Final public-site theme contract: every public route uses the same black/graphite/red system. */
+.public-site {
+  color: #f4f4f6 !important;
+  background: #0a0a0b !important;
+  color-scheme: dark;
+}
+.public-site main,
+.public-site .public-home-main,
+.public-site .public-page,
+.public-site .public-page-main,
+.public-site .public-content,
+.public-site .public-section,
+.public-site .public-table-wrap {
+  color: #f4f4f6 !important;
+  background-color: #0a0a0b !important;
+}
+.public-site article,
+.public-site .card,
+.public-site .panel,
+.public-site [class*="-card"],
+.public-site [class*="-panel"],
+.public-site [class*="-tile"],
+.public-site [style*="background: white"],
+.public-site [style*="background:white"],
+.public-site [style*="background: #fff"],
+.public-site [style*="background:#fff"],
+.public-site [style*="background-color: white"],
+.public-site [style*="background-color: #fff"] {
+  color: #f4f4f6 !important;
+  background-color: #141416 !important;
+  border-color: #303036 !important;
+}
+.public-site h1,
+.public-site h2,
+.public-site h3,
+.public-site h4,
+.public-site strong,
+.public-site label,
+.public-site th,
+.public-site td { color: #f4f4f6; }
+.public-site p,
+.public-site small,
+.public-site .muted,
+.public-site figcaption { color: #b7b7c0; }
+.public-site input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.public-site select,
+.public-site textarea {
+  color: #f4f4f6 !important;
+  background: #19191d !important;
+  border-color: #3a3a42 !important;
+}
+.public-site input::placeholder,
+.public-site textarea::placeholder { color: #898994 !important; }
+.public-site option { color: #f4f4f6 !important; background: #151518 !important; }
+.public-site table,
+.public-site thead,
+.public-site tbody,
+.public-site tr,
+.public-site td,
+.public-site th { border-color: #303036 !important; }
+.public-site .public-result-card,
+.public-site .public-record-card {
+  color: #f4f4f6 !important;
+  background: #141416 !important;
+  border-color: #303036 !important;
+}
+.public-site .public-result-card:before { display: none !important; }
+.public-site .public-nav button:not(:last-child) { color: #d2d2d8 !important; }
+.public-site .public-empty-state,
+.public-site .public-home-error {
+  color: #c7c7cf !important;
+  background: #141416 !important;
+  border: 1px solid #303036 !important;
 }
