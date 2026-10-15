@@ -84,19 +84,23 @@ describe('RegistrationsService', () => {
       registrationClass: {
         count: jest.fn().mockResolvedValue(0),
         createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       registrationNumber: {
         findFirst: jest.fn().mockResolvedValue(null),
         createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
         findMany: jest.fn().mockResolvedValue([
           { id: 'number-1', number: 1, isPrimary: true },
         ]),
       },
       participantStageInspection: { findUnique: jest.fn().mockResolvedValue(null) },
+      inspection: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'registration-1' }),
+        update: jest.fn().mockResolvedValue({ id: 'registration-1' }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-1' }),
       },
       carConfigurationVersion: {
@@ -184,7 +188,7 @@ describe('RegistrationsService', () => {
     );
   });
 
-  it('rejects a second registration of the same car on the stage', async () => {
+  it('rejects a second active registration of the same car on the stage', async () => {
     const tx = baseTx({
       registration: {
         findUnique: jest.fn().mockResolvedValue({
@@ -235,6 +239,40 @@ describe('RegistrationsService', () => {
       where: { stageId_carId: { stageId: 'stage-1', carId: 'car-2' } },
     });
     expect(tx.registration.create).toHaveBeenCalled();
+  });
+
+  it('reactivates a cancelled registration so the car can register again', async () => {
+    const tx = baseTx({
+      registration: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'registration-old', status: 'CANCELLED' }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ id: 'registration-old' }),
+        create: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-old' }),
+      },
+      registrationNumber: {
+        findFirst: jest.fn().mockResolvedValue({ number: 7 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'number-8', number: 8, isPrimary: true }]),
+      },
+      registrationClass: {
+        count: jest.fn().mockResolvedValue(0),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inspection: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    });
+    setupTransaction(tx);
+
+    await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-old' });
+    expect(tx.registration.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'registration-old' },
+      data: expect.objectContaining({ status: 'ACTIVE', participantNumber: 8 }),
+    }));
+    expect(tx.registration.create).not.toHaveBeenCalled();
+    expect(tx.registrationNumber.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
+    expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
   it('allows more than five selected classes when multiple BassRace classes are included', async () => {

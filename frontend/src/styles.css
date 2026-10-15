@@ -3411,3 +3411,100 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 .app-shell .quality-ring { color: #f4f4f6; }
 .app-shell .quality-ring:not(.healthy) { border-color: #39393f; }
+
+
+/* USD admin is a consistent light workspace; dark styling belongs to the public site only. */
+.app-shell .sidebar {
+  background: #fff !important;
+  color: #17191c !important;
+  border-right: 1px solid #e3e5e8;
+  box-shadow: 6px 0 24px rgba(20, 24, 30, .035) !important;
+}
+.app-shell .brand-button { color: #17191c !important; }
+.app-shell .brand-title b { color: #e21d2f !important; }
+.app-shell .sidebar-label { color: #858b92 !important; }
+.app-shell .nav-item { color: #555c64 !important; }
+.app-shell .nav-item:hover { background: #f4f5f6 !important; color: #17191c !important; }
+.app-shell .nav-item.active { background: #fff0f2 !important; color: #b91425 !important; border-left-color: #e21d2f !important; box-shadow: none !important; }
+.app-shell .sidebar-bottom { border-top-color: #e5e7eb !important; }
+.app-shell .avatar { background: #f0f2f4 !important; color: #292d32 !important; }
+.app-shell .user-mini strong { color: #24282d !important; }
+.app-shell .user-mini small { color: #777e86 !important; }
+.app-shell .logout-button { color: #656c74 !important; }
+.app-shell .logout-button:hover { color: #b91425 !important; background: #fff0f2 !important; }
+.app-shell .stat-card,
+.app-shell .metric-card {
+  color: #20242a !important;
+  background: #fff !important;
+  border-color: #d9dcdf !important;
+}
+.app-shell .stat-card span,
+.app-shell .metric-card span { color: #5e646b !important; }
+.app-shell .stat-card strong,
+.app-shell .metric-card strong { color: #17191c !important; }
+.app-shell .stat-card.danger-card,
+.app-shell .danger-card { color: #8c1b28 !important; background: #fff0f2 !important; border-color: #efb8bf !important; }
+.app-shell .quality-ring { color: #17191c !important; }
+.app-shell .quality-ring:not(.healthy) { border-color: #e6e8ea !important; }
+.app-shell .normalization-audit-empty,
+.app-shell .normalization-audit-note { color: #34383d !important; background: #fff !important; border-color: #d9dcdf !important; }
+.app-shell .normalization-finding { background: #fff !important; border-color: #d9dcdf !important; }
+.app-shell .normalization-finding summary { color: #20242a !important; background: #fff !important; }
+.app-shell .normalization-finding summary span { color: #b91425 !important; background: #fff0f2 !important; }
+.app-shell .normalization-finding-list pre,
+.app-shell .json-view { color: #25292e !important; background: #f5f6f7 !important; border-color: #d9dcdf !important; }
+
+/* Consent checkboxes use the same compact graphite/red control, never the browser's white default tile. */
+.login-page .consent-option input[type="checkbox"],
+.participant-portal .consent-stack .consent-option input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: relative;
+  flex: 0 0 17px;
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  margin: 2px 0 0 !important;
+  padding: 0 !important;
+  border: 1px solid #62626b !important;
+  border-radius: 4px !important;
+  background: #242429 !important;
+  accent-color: #e21d2f;
+  cursor: pointer;
+}
+.login-page .consent-option input[type="checkbox"]:checked,
+.participant-portal .consent-stack .consent-option input[type="checkbox"]:checked {
+  background: #e21d2f !important;
+  border-color: #e21d2f !important;
+}
+.login-page .consent-option input[type="checkbox"]::before,
+.participant-portal .consent-stack .consent-option input[type="checkbox"]::before {
+  content: "" !important;
+  position: absolute;
+  left: 4px;
+  top: 3px;
+  width: 7px;
+  height: 4px;
+  border: solid #fff !important;
+  border-width: 0 0 2px 2px !important;
+  background: transparent !important;
+  transform: rotate(-45deg) scale(0);
+}
+.login-page .consent-option input[type="checkbox"]:checked::before,
+.participant-portal .consent-stack .consent-option input[type="checkbox"]:checked::before {
+  transform: rotate(-45deg) scale(1);
+}
+.participant-portal .participant-portal-header .public-brand {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: inherit !important;
+  padding: 0 !important;
+  outline-offset: 4px;
+}
+.participant-portal .participant-portal-header .public-brand:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
