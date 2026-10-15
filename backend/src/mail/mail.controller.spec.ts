@@ -35,4 +35,16 @@ describe('MailController', () => {
     await expect(controller.sendTestTrigger({ email: 'not-an-email', type: 'STAGE_REGISTRATION_OPEN' })).rejects.toThrow(BadRequestException);
   });
 
+  it('normalizes invisible formatting characters before validating both test endpoints', async () => {
+    const mailService = { sendTestEmail: jest.fn().mockResolvedValue({ success: true }) };
+    const emailNotifications = { sendTestTrigger: jest.fn().mockResolvedValue({ success: true }) };
+    const controller = new MailController(mailService as any, emailNotifications as any);
+    const pastedAddress = '\u200Badmin@example.com\uFEFF ';
+
+    await expect(controller.sendTestEmail({ email: pastedAddress })).resolves.toEqual({ success: true });
+    expect(mailService.sendTestEmail).toHaveBeenCalledWith('admin@example.com');
+    await expect(controller.sendTestTrigger({ email: pastedAddress, type: 'STAGE_REGISTRATION_OPEN' })).resolves.toEqual({ success: true });
+    expect(emailNotifications.sendTestTrigger).toHaveBeenCalledWith('STAGE_REGISTRATION_OPEN', 'admin@example.com', undefined);
+  });
+
 });
