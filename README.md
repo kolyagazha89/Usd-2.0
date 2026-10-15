@@ -6,7 +6,7 @@ USD 2.0 is the official USD championship platform: public website, participant c
 
 - Frontend: React 19, TypeScript and Vite
 - API: NestJS, Prisma and PostgreSQL
-- Roles: ADMIN (full system access), JUDGE (event operations and result entry), PARTICIPANT (self-service cabinet)
+- Roles: ADMIN (permanent full access), PARTICIPANT (self-service cabinet), and editable custom roles (including «Судья»)
 
 ## Development
 
@@ -40,7 +40,7 @@ The planned final hosting target is a Timeweb VPS. Deployment files are being va
 ## Important operating rules
 
 - ADMIN has full access to every module and supported action, including future modules.
-- JUDGE can work across stages and enter results; editing/deleting results remains ADMIN-only.
+- Custom roles receive only the module/action permissions granted by ADMIN; result editing/deletion is controlled by that permission matrix.
 - Historical imports must preserve the source-of-truth Results data and must not create no-show participants.
 - Stage rules should preserve the exact published revision applicable to the stage.
 - A merged commit or green CI is not proof of a live deployment or production acceptance.
