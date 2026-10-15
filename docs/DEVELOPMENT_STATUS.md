@@ -1,3 +1,33 @@
+# Current release delta — 2026-10-15 08:55 UTC
+
+This entry supersedes older status statements below where they conflict with the evidence recorded here. It records code/deployment checks, not owner/browser acceptance.
+
+## Current main and deployment evidence
+
+- **Main commit:** `335e0509a827b6839dbe16a02ae99dda43bc3e9f`.
+- **Backend CI:** passed on the current commit — [run #809](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38708740106).
+- **Railway API:** deployment `3f204b7e-7aae-4415-8731-a93799cc30e1` reached `SUCCESS`; Nest reports “Application successfully started”; no pending Prisma migrations.
+- **Production API Smoke:** passed on the current commit — [run #29](https://github.com/kolyagazha89/Usd-2.0/actions/runs/38708924341), checking health, public stages, results privacy and records.
+- **Frontend CI / bundle:** passed on parent commit `8b783c6b7b040b96b7c31d051c85c18b39c7ebc3`. The only code change from that parent to current main is backend-only save-failure diagnostics.
+- **Cloudflare native Worker:** `Workers Builds: usd-2-0` passed for current main commit `335e0509a827b6839dbe16a02ae99dda43bc3e9f`. The previous main commit `8b783c6...` failed, so the green result is specific to the newer build. The GitHub Actions Wrangler publish job is still skipped because `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` are not configured in GitHub secrets; the Cloudflare-native connected build is separate and passed.
+- **Public route QA:** exact active Worker URL is not available through the current connected tools. Direct-route refresh, anonymous privacy and desktop/mobile behavior have not been independently browser-verified. Do not treat CI/API smoke as a substitute.
+- **Email:** production logs show four `POST /mail/test-trigger` responses with HTTP 201 at 07:50–07:52 UTC. The endpoint returns success only after the configured provider accepts the send, so provider acceptance is evidenced; Inbox/Spam placement and a working verification link are still unconfirmed. Keep [#49](https://github.com/kolyagazha89/Usd-2.0/issues/49) open until receipt is confirmed.
+- **Site settings save:** eight production `PATCH /site-settings` requests returned HTTP 500 between 07:57 and 08:41 UTC. [#156](https://github.com/kolyagazha89/Usd-2.0/issues/156) remains open. [PR #157](https://github.com/kolyagazha89/Usd-2.0/pull/157) merged safe phase/error-code diagnostics and a regression test, but this is not yet a root-cause fix; no production data was changed.
+- **Public media:** two transient HTTP 500 responses were observed for a stage poster and branding logo at 01:40 UTC; later branding/splash asset requests returned 304. Track this under [#11](https://github.com/kolyagazha89/Usd-2.0/issues/11) and re-check current behavior.
+- **Legal:** actual operator details and legal texts still require organizer approval before registration is considered production-ready. Do not approve drafts on the organizer’s behalf.
+- **Domain safety:** no root domain, DNS, nameserver, Tilda or production routing changes were made. Do not change them without explicit owner approval.
+
+## Remaining release gates
+
+1. Reproduce and fix #156 using the new safe logs; confirm valid settings save and read back.
+2. Verify actual email receipt and verification link; test the remaining notification triggers separately.
+3. Verify direct refresh and live behavior for `/`, `/stages`, `/results`, `/records`, and `/rules` on the exact active Worker URL; test narrow mobile layouts and anonymous privacy.
+4. Check poster/logo delivery on a cold load; confirm mobile QR inspection on HTTPS and ADMIN/JUDGE permission boundaries.
+5. Obtain organizer approval for the real legal documents and operator details.
+6. Keep root-domain/DNS cutover as a separate explicitly approved final step.
+
+---
+
 # Current release delta — 2026-10-15 12:30 UTC
 
 ## Merged regulation fixes
