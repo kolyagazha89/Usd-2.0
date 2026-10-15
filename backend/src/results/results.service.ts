@@ -255,6 +255,7 @@ export class ResultsService {
       where: { id: registrationId },
       include: {
         inspection: true,
+        stageInspection: true,
         stage: {
           select: {
             id: true,
@@ -285,13 +286,14 @@ export class ResultsService {
       );
     }
 
-    if (!registration.inspection) {
+    const inspection = registration.stageInspection ?? registration.inspection;
+    if (!inspection) {
       throw new ConflictException(
         'Участник не прошёл инспекцию: результат недоступен',
       );
     }
 
-    if (registration.inspection.status !== 'PASSED') {
+    if (inspection.status !== 'PASSED') {
       throw new ConflictException(
         'Участник не допущен после инспекции: результат недоступен',
       );
