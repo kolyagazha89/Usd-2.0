@@ -1,3 +1,5 @@
+> **Release gate update — 2026-10-15 12:30 UTC.** PRs #148–#150 are merged and their applicable CI passed. The Railway API is deployed from merge commit `2476802ebf61629cbd2efbbc3be919c87cf5c0bf` and reports Online; this is not proof of complete production acceptance. Cloudflare preview builds are still failing and the logs are inaccessible from the current connected session. Public-domain/DNS, legal approval, current-live API smoke, direct-route/mobile browser QA, and role/QR end-to-end checks remain open. See `docs/DEVELOPMENT_STATUS.md`.
+
 > **Обновление релизного аудита — 2026-10-14 21:23 UTC.**
 >
 > - **Email/legal PR #138:** code head `7a40b72f98fa8a825f69ea307afef81828c226e1`; Backend CI passed (Prisma generation/migrations, build, lint, 196 unit tests, E2E), Frontend CI passed. The current branch includes all four event triggers, consent source/revocation metadata, the shared USD template across system emails, registration/on-site consent controls and unapproved legal drafts.
