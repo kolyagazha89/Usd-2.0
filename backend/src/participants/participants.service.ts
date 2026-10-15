@@ -1790,6 +1790,7 @@ export class ParticipantsService {
           role: true,
           isActive: true,
           participantId: true,
+          customRoleId: true,
         },
       });
 
