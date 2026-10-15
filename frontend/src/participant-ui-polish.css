@@ -673,3 +673,13 @@
     flex: 1 1 145px;
   }
 }
+
+
+/* Cursor and hover states must reflect actual card navigation. */
+.public-site .public-result-card { cursor: default !important; }
+.public-site .public-result-card.is-interactive { cursor: pointer !important; }
+.public-site .public-result-card:not(.is-interactive):hover {
+  transform: none !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2) !important;
+  border-color: #34353c !important;
+}
