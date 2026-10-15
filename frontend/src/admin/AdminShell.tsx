@@ -25,6 +25,7 @@ const nav=[
  {section:'Контент сайта',label:'Новости',path:'/admin/news',icon:Bell,roles:['ADMIN']},
  {section:'Контент сайта',label:'Партнёры',path:'/admin/partners',icon:Users,roles:['ADMIN']},
  {section:'Контент сайта',label:'Регламент и правила',path:'/admin/rules',icon:FileClock,roles:['ADMIN']},
+ {section:'Контент сайта',label:'Юридические документы',path:'/admin/legal-documents',icon:FileClock,roles:['ADMIN']},
 
  // Справочники, используемые в регистрации и каталоге
  {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
@@ -67,7 +68,7 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/assistant'))return 'assistant';
  if(path.startsWith('/admin/google'))return 'integrations';
  if(path.startsWith('/admin/email-testing'))return 'siteSettings';
- if(path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
+ if(path.startsWith('/admin/legal-documents')||path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
  return '';
 }
 
