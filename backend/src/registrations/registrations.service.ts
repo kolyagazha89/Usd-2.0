@@ -223,6 +223,8 @@ export class RegistrationsService {
     let registrationPrivacyConsentAt: Date | null = null;
     let registrationTermsAcceptedAt: Date | null = null;
     let consentCapturedByUserId: string | null = null;
+    let publishedRulesReady = false;
+    let publishedRulesVersion = '';
 
     const participantId =
       (request.user.role === 'PARTICIPANT' && !request.user.customRoleId)
@@ -252,8 +254,8 @@ export class RegistrationsService {
       });
       const registrationSettings = (legalRow?.registration ?? {}) as Record<string, any>;
       const publishedRules = registrationSettings.rulesDocument?.published;
-      const publishedRulesReady = Boolean(publishedRules && Array.isArray(publishedRules.blocks) && publishedRules.blocks.length > 0 && String(publishedRules.id ?? '').trim());
-      const publishedRulesVersion = String(publishedRules?.id ?? '');
+      publishedRulesReady = Boolean(publishedRules && Array.isArray(publishedRules.blocks) && publishedRules.blocks.length > 0 && String(publishedRules.id ?? '').trim());
+      publishedRulesVersion = String(publishedRules?.id ?? '');
       const legal = (legalRow?.legal ?? {}) as Record<string, any>;
       const contactEmail = (legalRow?.contacts as Record<string, any> | null)?.email
         ?? (legalRow?.footer as Record<string, any> | null)?.email;
