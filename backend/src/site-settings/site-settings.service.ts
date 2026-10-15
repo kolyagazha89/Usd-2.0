@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
@@ -28,7 +28,17 @@ const DEFAULTS:SiteSettingsShape={
 
 @Injectable()
 export class SiteSettingsService{
+  private readonly logger = new Logger(SiteSettingsService.name);
   constructor(private readonly prisma:PrismaService){}
+
+  private logSaveFailure(phase: 'upsert' | 'audit', error: unknown, sections: string[]) {
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const code = error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: unknown }).code ?? 'unknown')
+      : 'unknown';
+    // Never log settings values, tokens, email addresses, or document contents.
+    this.logger.error('Site settings save failed: phase=' + phase + ', error=' + errorName + ', code=' + code + ', sections=' + sections.join(','));
+  }
   private merge<T extends Record<string,any>>(base:T,value:unknown):T{
     if(!value||typeof value!=='object'||Array.isArray(value)) return base;
     return {...base,...value} as T;
@@ -146,8 +156,20 @@ export class SiteSettingsService{
       footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
       catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
     };
-    const row=await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
-    await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections:Object.keys(input)}}});
+    const sections = Object.keys(input);
+    let row: any;
+    try {
+      row = await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
+    } catch (error) {
+      this.logSaveFailure('upsert', error, sections);
+      throw error;
+    }
+    try {
+      await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
+    } catch (error) {
+      this.logSaveFailure('audit', error, sections);
+      throw error;
+    }
     return {success:true,settings:this.shape(row)};
   }
 }
