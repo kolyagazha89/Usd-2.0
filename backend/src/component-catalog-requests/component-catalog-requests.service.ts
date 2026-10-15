@@ -108,6 +108,31 @@ export class ComponentCatalogRequestsService {
     return { success: true, item: updated, emailQueued: participantEmailStatus === 'PROVIDER_ACCEPTED' };
   }
 
+
+  async retryEmail(id: string, adminId: string) {
+    const request = await this.prisma.componentCatalogRequest.findUnique({ where: { id } });
+    if (!request) throw new NotFoundException('Запрос не найден');
+    let adminEmailStatus = request.adminEmailStatus;
+    let participantEmailStatus = request.participantEmailStatus;
+    const category = categoryLabels[request.category] ?? request.category;
+    const details = ['Категория: ' + category, 'Бренд: ' + request.brand, 'Модель: ' + request.model, 'Email участника: ' + request.userEmail];
+    if (request.status === 'PENDING' && request.adminEmailStatus === 'FAILED') {
+      const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+      const outcomes = await Promise.allSettled(admins.map(admin => this.send(admin.email, 'USD — запрос на добавление комплектующего', 'Новый запрос в каталоге комплектующих', 'Участник просит добавить оборудование в справочник USD.', details, this.frontendUrl + '/admin/components')));
+      adminEmailStatus = outcomes.some(x => x.status === 'fulfilled') ? 'PROVIDER_ACCEPTED' : 'FAILED';
+    }
+    if (request.status === 'APPROVED' && request.participantEmailStatus === 'FAILED') {
+      try {
+        await this.send(request.userEmail, 'USD — комплектующее добавлено в каталог', 'Комплектующее добавлено по вашему запросу', 'Запрошенное оборудование добавлено в каталог USD.', details, this.frontendUrl + '/participant?tab=cars');
+        participantEmailStatus = 'PROVIDER_ACCEPTED';
+      } catch {
+        participantEmailStatus = 'FAILED';
+      }
+    }
+    const item = await this.prisma.componentCatalogRequest.update({ where: { id }, data: { adminEmailStatus, participantEmailStatus } });
+    return { success: true, item, retriedBy: adminId };
+  }
+
   async reject(id: string, adminId: string, adminNote?: string) {
     const request = await this.prisma.componentCatalogRequest.findUnique({ where: { id } });
     if (!request) throw new NotFoundException('Запрос не найден');
