@@ -192,7 +192,7 @@ export class SiteSettingsService{
           const missing = [
             !String(legal.ipName ?? '').trim() && 'наименование/ФИО оператора',
             !String(legal.operatorAddress ?? '').trim() && 'адрес оператора',
-            !String(legal.personalDataEmail ?? contactEmail ?? '').trim() && 'контакт для обращений по персональным данным',
+            !String(legal.personalDataEmail ?? '').trim() && 'контакт для обращений по персональным данным',
             !String(legal.privacyText ?? '').trim() && 'политика обработки данных',
             !String(legal.consentText ?? '').trim() && 'согласие на обработку данных',
             !String(legal.termsText ?? '').trim() && 'пользовательское соглашение',
