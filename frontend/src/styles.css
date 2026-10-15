@@ -3508,3 +3508,28 @@ body:has(.modal-backdrop){overflow:hidden!important}
   background: transparent !important;
   box-shadow: none !important;
 }
+
+
+/* Admin is a white workspace throughout, including feature-specific cards introduced by modules. */
+.app-shell [class*="-card"],
+.app-shell [class*="-panel"],
+.app-shell [class*="-tile"] {
+  color: #20242a !important;
+  background-color: #fff !important;
+  border-color: #d9dcdf !important;
+  box-shadow: 0 2px 8px rgba(9, 10, 11, .025);
+}
+.app-shell [class*="-card"] h1,
+.app-shell [class*="-card"] h2,
+.app-shell [class*="-card"] h3,
+.app-shell [class*="-panel"] h1,
+.app-shell [class*="-panel"] h2,
+.app-shell [class*="-panel"] h3 {
+  color: #17191c !important;
+}
+.app-shell [class*="-card"] p,
+.app-shell [class*="-card"] small,
+.app-shell [class*="-panel"] p,
+.app-shell [class*="-panel"] small {
+  color: #555c64;
+}
