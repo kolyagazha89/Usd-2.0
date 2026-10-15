@@ -225,7 +225,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         ...(car.registrationNumber ? ['Государственный номер автомобиля: ' + car.registrationNumber] : []),
         'Ваш номер участника на этапе: ' + (registration.participantNumber ?? 'назначается'),
         'Основные классы (' + regularClasses.length + '): ' + (regularClasses.join(', ') || 'не указаны'),
-        ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\s*/i, '')).join(', ')] : []),
+        ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\s*/i, '')).sort((a: string, b: string) => Number.parseFloat(a) - Number.parseFloat(b)).join(', ')] : []),
         ...(classCount > 0 ? ['Оплата участия: ' + amountDue.toLocaleString('ru-RU') + ' ₽ на месте (' + mainClassPrice.toLocaleString('ru-RU') + ' ₽ за основной класс' + (classCount > 1 ? ' + ' + (classCount - 1) + ' доп. × ' + additionalClassPrice.toLocaleString('ru-RU') + ' ₽' : '') + '). Онлайн-регистрация бесплатна.'] : ['Оплата участия: уточняется организатором.']),
         'Управление заявкой: откройте личный кабинет участника на сайте ЮСД.',
       ],
