@@ -112,7 +112,7 @@ export class ConfigurationsService {
     const configuration =
       await this.getConfigurationOrThrow(configurationId);
 
-    if (request.user?.role === 'ADMIN' || request.user?.role === 'JUDGE') {
+    if (request.user?.role === 'ADMIN' || Boolean(request.user?.customRoleId)) {
       return configuration;
     }
 
@@ -207,7 +207,7 @@ export class ConfigurationsService {
     request: any,
     carId: string,
   ) {
-    if (request.user?.role !== 'ADMIN' && request.user?.role !== 'JUDGE') {
+    if (request.user?.role !== 'ADMIN' && !request.user?.customRoleId) {
       await this.requireCarAccess(request, carId);
     }
 
