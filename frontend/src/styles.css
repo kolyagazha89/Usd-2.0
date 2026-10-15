@@ -3586,29 +3586,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-/* Public result cards are content blocks, not boxed tiles. */
-.public-site .public-result-card {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-.public-site .public-result-card:before {
-  display: none !important;
-}
-
-
-/* Catch inline light surfaces on content wrappers without recoloring buttons or images. */
-.public-site div[style*="background"],
-.public-site section[style*="background"],
-.public-site article[style*="background"],
-.public-site main[style*="background"],
-.public-site footer[style*="background"],
-.public-site aside[style*="background"] {
-  background-color: #141416 !important;
-}
-
-/* Final public-site theme contract: every public route uses the same black/graphite/red system. */
+/* Public pages share the black/graphite palette without overriding component-specific card designs. */
 .public-site {
   color: #f4f4f6 !important;
   background: #0a0a0b !important;
@@ -3624,27 +3602,10 @@ body:has(.modal-backdrop){overflow:hidden!important}
   color: #f4f4f6 !important;
   background-color: #0a0a0b !important;
 }
-.public-site article,
-.public-site .card,
-.public-site .panel,
-.public-site [class*="-card"],
-.public-site [class*="-panel"],
-.public-site [class*="-tile"],
-.public-site [style*="background: white"],
-.public-site [style*="background:white"],
-.public-site [style*="background: #fff"],
-.public-site [style*="background:#fff"],
-.public-site [style*="background-color: white"],
-.public-site [style*="background-color: #fff"] {
-  color: #f4f4f6 !important;
-  background-color: #141416 !important;
-  border-color: #303036 !important;
-}
 .public-site h1,
 .public-site h2,
 .public-site h3,
 .public-site h4,
-.public-site strong,
 .public-site label,
 .public-site th,
 .public-site td { color: #f4f4f6; }
@@ -3668,13 +3629,25 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-site tr,
 .public-site td,
 .public-site th { border-color: #303036 !important; }
-.public-site .public-result-card,
-.public-site .public-record-card {
-  color: #f4f4f6 !important;
-  background: #141416 !important;
-  border-color: #303036 !important;
+.public-site .public-result-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #303137 !important;
+  border-radius: 15px !important;
+  background: linear-gradient(135deg,#191a1e 0%,#111215 62%,#1a0d10 100%) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.16) !important;
 }
-.public-site .public-result-card:before { display: none !important; }
+.public-site .public-result-card:before {
+  display: block !important;
+  content: "" !important;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #e31b2d !important;
+}
+.public-site .public-record-card {
+  color: #f4f4f6;
+}
 .public-site .public-nav button:not(:last-child) { color: #d2d2d8 !important; }
 .public-site .public-empty-state,
 .public-site .public-home-error {
