@@ -7,6 +7,9 @@ const triggerTypes=[
  {value:'REGISTRATION_CONFIRMED',label:'Подтверждение регистрации',description:'Подтверждение заявки участника на этап.'},
  {value:'STAGE_REMINDER_3D',label:'Напоминание за 3 дня',description:'Автоматическое письмо участникам за три календарных дня до этапа.'},
  {value:'STAGE_REMINDER_1D',label:'Напоминание за 1 день',description:'Автоматическое письмо участникам за один календарный день до этапа.'},
+ {value:'AUTH_EMAIL_VERIFICATION',label:'Подтверждение email аккаунта',description:'Системное письмо для подтверждения адреса при создании аккаунта.'},
+ {value:'AUTH_PASSWORD_RESET',label:'Восстановление пароля',description:'Системное письмо со ссылкой для восстановления доступа к аккаунту.'},
+ {value:'AUTH_EMAIL_CHANGE',label:'Подтверждение нового email',description:'Системное письмо для подтверждения смены адреса электронной почты.'},
 ];
 
 // Remove invisible formatting characters that can be introduced by copying an address.
