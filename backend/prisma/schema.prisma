@@ -87,6 +87,7 @@ model Participant {
   cars              Car[]
   disqualifications Disqualification[]
   registrations     Registration[]
+  stageInspections  ParticipantStageInspection[]
   user              User?
 
   @@index([lastName])
