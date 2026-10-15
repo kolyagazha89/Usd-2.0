@@ -14,8 +14,8 @@ function inspectionClassGroups(registration:any){
   const directionOrder=Number(da.sortOrder??0)-Number(db.sortOrder??0);
   if(directionOrder)return directionOrder;
   const nameA=String(a.class?.name??a.name??''),nameB=String(b.class?.name??b.name??'');
-  const bass=/bass\\s*[-_]?\\s*race/i.test(String(da.name??'')+' '+nameA)&&/bass\\s*[-_]?\\s*race/i.test(String(db.name??'')+' '+nameB);
-  if(bass){const n=(v:string)=>Number(v.match(/\\d+(?:[.,]\\d+)?/)?.[0]?.replace(',','.'))||Number.MAX_SAFE_INTEGER;return n(nameA)-n(nameB)||nameA.localeCompare(nameB,'ru',{numeric:true});}
+  const bass=/bass\s*[-_]?\s*race/i.test(String(da.name??'')+' '+nameA)&&/bass\s*[-_]?\s*race/i.test(String(db.name??'')+' '+nameB);
+  if(bass){const n=(v:string)=>Number(v.match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',','.'))||Number.MAX_SAFE_INTEGER;return n(nameA)-n(nameB)||nameA.localeCompare(nameB,'ru',{numeric:true});}
   return Number(a.class?.sortOrder??0)-Number(b.class?.sortOrder??0)||nameA.localeCompare(nameB,'ru',{numeric:true});
  });
  for(const item of entries){
