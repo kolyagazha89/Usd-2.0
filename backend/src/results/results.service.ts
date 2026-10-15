@@ -518,7 +518,7 @@ export class ResultsService {
     data: CreateResultDto,
     request: AuthenticatedRequest,
   ) {
-    if (!['ADMIN', 'JUDGE'].includes(request.user.role)) {
+    if (request.user.role !== 'ADMIN' && !request.user.customRoleId) {
       throw new ForbiddenException('Недостаточно прав для внесения результата');
     }
 
