@@ -16,6 +16,7 @@ const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
  {key:'disqualifications',label:'Дисквалификации',description:'Назначение и снятие дисквалификаций'},
  {key:'imports',label:'Импорт и качество данных',description:'Импорт, проверка и исправление данных'},
  {key:'historicalResults',label:'Исторические результаты',description:'Архив и исторические выступления'},
+ {key:'history',label:'История участников',description:'История выступлений и профилей участников'},
  {key:'statistics',label:'Статистика и панель',description:'Сводки, метрики и аналитика'},
  {key:'siteSettings',label:'Настройки и контент сайта',description:'Новости, партнёры, медиа, регламент и настройки'},
  {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
@@ -38,7 +39,7 @@ function RolesPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame: React.C
  const filteredRoleModules=useMemo(()=>ROLE_MODULES.filter(module=>[module.label,module.description,module.key].join(' ').toLocaleLowerCase('ru').includes(moduleSearch.trim().toLocaleLowerCase('ru'))),[moduleSearch]);
  const permissionCount=editing?ROLE_MODULES.reduce((sum,module)=>sum+(editing.permissions?.[module.key]??[]).length,0):0;
  const fullPermissionCount=ROLE_MODULES.length*ROLE_ACTIONS.length;
- return <PageFrame title="Роли и права" subtitle="Конструктор доступа по модулям. ADMIN всегда сохраняет полный доступ; ограничения судьи на изменение результатов действуют независимо от матрицы." action={<button className="primary-button compact" onClick={startNew}><Plus size={15}/>Создать роль</button>}>
+ return <PageFrame title="Роли и права" subtitle="Конструктор доступа по модулям и действиям. ADMIN всегда сохраняет полный доступ; все права пользовательских ролей задаются этой матрицей." action={<button className="primary-button compact" onClick={startNew}><Plus size={15}/>Создать роль</button>}>
   {error&&<ErrorPanel message={error} retry={load}/>} {notice&&<div className="notice"><CheckCircle2 size={16}/><span>{notice}</span></div>}
   <div className="roles-workspace"><section className="roles-list panel"><div className="roles-list-head"><div><span className="eyebrow">УПРАВЛЕНИЕ ДОСТУПОМ</span><h2>Пользовательские роли</h2><p className="role-panel-caption">Выберите роль, чтобы настроить её права.</p></div><span className="row-count">{roles.length}</span></div>
    <label className="role-search"><Search size={16}/><input aria-label="Поиск ролей" value={roleSearch} onChange={e=>setRoleSearch(e.target.value)} placeholder="Найти роль по названию или ключу"/></label>
