@@ -12,7 +12,7 @@ const triggerTypes=[
 // Remove invisible formatting characters that can be introduced by copying an address.
 function normalizeEmail(value:string){return value.replace(/[\u200B-\u200D\uFEFF]/g,'').trim();}
 function isPlausibleEmail(value:string){
- if(!value||value.length>254||/[\s<>(),;:"[\]\\]/.test(value))return false;
+ if(!value||value.length>254||/\s/.test(value)||/[<>(),;:"\\]/.test(value)||value.includes('[')||value.includes(']'))return false;
  const parts=value.split('@');
  if(parts.length!==2)return false;
  const [local,domain]=parts;
