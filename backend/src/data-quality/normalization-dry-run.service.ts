@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isValidInternationalPhone, isValidRegistrationPlate } from '../participants/profile-validation';
+import { NameNormalizerService } from '../common/names/name-normalizer.service';
 
 type Row = Record<string, any>;
 
@@ -42,7 +43,7 @@ function maskPhone(value: string): string {
 
 @Injectable()
 export class NormalizationDryRunService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly nameNormalizer: NameNormalizerService) {}
 
   async run() {
     const [participants, cars, users, directions, importRows, importRowCount] = await Promise.all([
@@ -65,7 +66,7 @@ export class NormalizationDryRunService {
       this.prisma.importRow.count(),
     ]) as [Row[], Row[], Row[], Row[], Row[], number];
 
-    const duplicatePeople = groupBy(participants, p => [key(p.lastName), key(p.firstName), key(p.middleName)].join('|'))
+    const duplicatePeople = groupBy(participants, p => [key(this.nameNormalizer.normalize(p.lastName)), key(this.nameNormalizer.normalize(p.firstName)), key(this.nameNormalizer.normalize(p.middleName))].join('|'))
       .filter(group => [group[0].lastName, group[0].firstName].every(Boolean))
       .map(group => ({
         normalizedName: [clean(group[0].lastName), clean(group[0].firstName), clean(group[0].middleName)].filter(Boolean).join(' '),
@@ -80,6 +81,13 @@ export class NormalizationDryRunService {
     const plateGroups = groupBy(cars.filter(c => !/^(автомобиль не указан|не указан|unknown|n\/a|-)$/i.test(clean(c.registrationNumber))),
       c => plateKey(c.registrationCountry, c.registrationNumber))
       .map(group => ({ key: plateKey(group[0].registrationCountry, group[0].registrationNumber), cars: group.map(c => ({ id: c.id, participantId: c.participantId, participant: [c.participant?.lastName, c.participant?.firstName].filter(Boolean).join(' '), brand: c.brand, model: c.model, country: c.registrationCountry, plate: c.registrationNumber })) }));
+    const brandVariants = groupBy(cars.filter(c => clean(c.brand)), c => key(this.nameNormalizer.normalize(c.brand)))
+      .map(group => ({ normalized: key(this.nameNormalizer.normalize(group[0].brand)), variants: distinctValues(group.map(c => c.brand)), cars: group.map(c => ({ id: c.id, participantId: c.participantId, brand: c.brand, model: c.model, country: c.registrationCountry, plate: c.registrationNumber })) }))
+      .filter(group => group.variants.length > 1);
+    const modelVariants = groupBy(cars.filter(c => clean(c.model)), c => key(this.nameNormalizer.normalize(c.model)))
+      .map(group => ({ normalized: key(this.nameNormalizer.normalize(group[0].model)), variants: distinctValues(group.map(c => c.model)), cars: group.map(c => ({ id: c.id, participantId: c.participantId, brand: c.brand, model: c.model, country: c.registrationCountry, plate: c.registrationNumber })) }))
+      .filter(group => group.variants.length > 1);
+
     const invalidPlates = cars.filter(c => !/^(автомобиль не указан|не указан|unknown|n\/a|-)$/i.test(clean(c.registrationNumber)) && !isValidRegistrationPlate(String(c.registrationCountry), String(c.registrationNumber)))
       .map(c => ({ carId: c.id, participantId: c.participantId, participant: [c.participant?.lastName, c.participant?.firstName].filter(Boolean).join(' '), country: c.registrationCountry, plate: c.registrationNumber }));
 
@@ -135,6 +143,8 @@ export class NormalizationDryRunService {
         invalidPhones: invalidPhones.length,
         duplicatePlateGroups: plateGroups.length,
         invalidPlates: invalidPlates.length,
+        brandVariantGroups: brandVariants.length,
+        modelVariantGroups: modelVariants.length,
         teamVariantGroups: variants('team').length,
         cityVariantGroups: variants('city').length,
         normalizedEmailCollisionGroups: emailVariants.length,
@@ -149,6 +159,8 @@ export class NormalizationDryRunService {
         invalidPhones: invalidPhones.slice(0, 200),
         duplicatePlates: plateGroups.slice(0, 200),
         invalidPlates: invalidPlates.slice(0, 200),
+        brandVariants: brandVariants.slice(0, 200),
+        modelVariants: modelVariants.slice(0, 200),
         teamVariants: variants('team').slice(0, 200),
         cityVariants: variants('city').slice(0, 200),
         normalizedEmailCollisions: emailVariants.slice(0, 200),
