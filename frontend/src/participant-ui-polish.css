@@ -473,3 +473,41 @@
   .public-site .public-result-grid,
   .public-site .public-result-grid-latest { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
 }
+
+
+/* Complete configuration details/history surfaces; no legacy white sub-panels. */
+.configuration-details-page .config-details { display: grid; gap: 16px; color: #f4f4f6 !important; }
+.configuration-details-page .config-details-hero,
+.configuration-details-page .config-version-history,
+.configuration-details-page .config-stat-grid > div,
+.configuration-details-page .config-detail-grid .detail-block {
+  color: #f4f4f6 !important;
+  background: linear-gradient(145deg,#191a1e,#111215 72%) !important;
+  border: 1px solid #34353c !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
+}
+.configuration-details-page .config-details-hero { display: flex; align-items: center; gap: 15px; padding: 20px; }
+.configuration-details-page .config-details-badge {
+  display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px;
+  color: #ff6978 !important; background: #27171b !important; border: 1px solid #513039 !important;
+  border-radius: 13px !important; font-weight: 900;
+}
+.configuration-details-page .config-version-history { padding: 16px; }
+.configuration-details-page .config-stat-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.configuration-details-page .config-stat-grid > div { display: grid; gap: 6px; padding: 15px; }
+.configuration-details-page .config-stat-grid > div span { color: #a5a5af !important; font-size: 11px; }
+.configuration-details-page .config-stat-grid > div strong { color: #fff !important; font-size: 25px; }
+.configuration-details-page .config-detail-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.configuration-details-page .config-detail-grid .detail-block { min-width: 0; min-height: 74px; padding: 14px; }
+.configuration-details-page .config-detail-grid .detail-block span { color: #a5a5af !important; }
+.configuration-details-page .config-detail-grid .detail-block strong { color: #f4f4f6 !important; overflow-wrap: anywhere; }
+.configuration-details-page .config-version-history .secondary-button.active {
+  color: #fff !important; background: #351a20 !important; border-color: #8a343f !important;
+}
+.configuration-details-page .config-version-history .page-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+@media(max-width:700px) {
+  .configuration-details-page .config-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .configuration-details-page .config-detail-grid { grid-template-columns: minmax(0,1fr); }
+  .configuration-details-page .config-details-hero { align-items: flex-start; }
+}
