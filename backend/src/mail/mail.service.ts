@@ -53,7 +53,7 @@ function renderBrandedEmail(input: {
     return escapeHtml(part).replace(/\n/g, '<br>');
   }).join('');
   const text = [
-    'ЮСД · ULTIMATE SOUND DESTRUCTION',
+    'USD · ULTIMATE SOUND DESTRUCTION',
     headingValue,
     '',
     textBody,
