@@ -678,7 +678,7 @@ export class RegistrationsService {
           select: { number: true },
         });
 
-        const participantNumber = (lastNumber?.number ?? 0) + 1;
+        const participantNumber = Math.max(lastNumber?.number ?? 0, existing?.participantNumber ?? 0) + 1;
         const bassRaceClassIds = stageClasses
           .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.classId);
