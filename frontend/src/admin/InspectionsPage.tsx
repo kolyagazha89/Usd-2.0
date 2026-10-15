@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import jsQR from 'jsqr';
 import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 
@@ -35,12 +36,31 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
  </PageFrame>
 }
 function InspectionQrScanner({onClose,onScan}:{onClose:()=>void;onScan:(stageId:string,registrationId:string)=>void}){
- const videoRef=useRef<HTMLVideoElement|null>(null),[error,setError]=useState(''),[manual,setManual]=useState('');
- const parse=(raw:string)=>{try{const url=new URL(raw.trim(),window.location.origin);if(url.origin!==window.location.origin)throw new Error('QR-код должен вести на текущий сайт USD');if(!url.pathname.endsWith('/admin/inspections'))throw new Error('Это не QR-код регистрации USD');const stageId=url.searchParams.get('stageId')||'',registrationId=url.searchParams.get('registrationId')||'';if(!stageId||!registrationId)throw new Error('В QR-коде нет этапа или регистрации');onScan(stageId,registrationId)}catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать QR-код')}};
- useEffect(()=>{let active=true,stream:MediaStream|null=null,frame=0;const start=async()=>{const Detector=(window as any).BarcodeDetector;if(!Detector){setError('Автоматическое сканирование недоступно в этом браузере. Вставьте ссылку из QR-кода ниже.');return}if(!navigator.mediaDevices?.getUserMedia){setError('Браузер не разрешил доступ к камере. Вставьте ссылку из QR-кода ниже.');return}try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});if(!active)return;const video=videoRef.current;if(!video)return;video.srcObject=stream;await video.play();const detector=new Detector({formats:['qr_code']});const scan=async()=>{if(!active)return;if(video.readyState>=2){try{const found=await detector.detect(video);const raw=found?.[0]?.rawValue;if(raw){parse(raw);return}}catch{}}frame=requestAnimationFrame(()=>void scan())};void scan()}catch{setError('Не удалось включить камеру. Проверьте разрешение браузера или вставьте ссылку вручную.')}};void start();return()=>{active=false;if(frame)cancelAnimationFrame(frame);stream?.getTracks().forEach(track=>track.stop())}},[]);
- return <section className="panel resource-editor-page qr-scanner-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ · QR</span><h2>Сканирование QR регистрации</h2></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div><div className="qr-scanner-modal">{error&&<div className="notice"><AlertTriangle size={16}/><span>{error}</span></div>}<video ref={videoRef} muted playsInline autoPlay aria-label="Камера для сканирования QR-кода"/><p>Наведите камеру на QR-код участника. После распознавания откроется нужная регистрация в инспекции.</p><form className="form" onSubmit={e=>{e.preventDefault();parse(manual)}}><label>Или вставьте ссылку из QR-кода<input value={manual} onChange={e=>setManual(e.target.value)} placeholder="https://app.usd-russia.ru/admin/inspections?…" /></label><button className="primary-button" disabled={!manual.trim()}>Открыть регистрацию</button></form></div></section>
+ const videoRef=useRef<HTMLVideoElement|null>(null),[error,setError]=useState(''),[manual,setManual]=useState(''),[scannerMode,setScannerMode]=useState('');
+ const parse=(raw:string):boolean=>{setError('');try{const url=new URL(raw.trim(),window.location.origin);if(url.origin!==window.location.origin)throw new Error('QR-код должен вести на текущий сайт USD');if(!url.pathname.endsWith('/admin/inspections'))throw new Error('Это не QR-код регистрации USD');const stageId=url.searchParams.get('stageId')||'',registrationId=url.searchParams.get('registrationId')||'';if(!stageId||!registrationId)throw new Error('В QR-коде нет этапа или регистрации');onScan(stageId,registrationId);return true}catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать QR-код');return false}};
+ useEffect(()=>{let active=true,stream:MediaStream|null=null,frame=0,timeout=0;const start=async()=>{
+  if(!navigator.mediaDevices?.getUserMedia){setError('Камера недоступна в этом контексте. Откройте страницу по HTTPS или вставьте ссылку из QR-кода ниже.');return}
+  try{
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+   if(!active){stream.getTracks().forEach(track=>track.stop());return}
+   const video=videoRef.current;if(!video)return;video.srcObject=stream;await video.play();
+   const Detector=(window as any).BarcodeDetector;let detector:any=null;
+   if(typeof Detector==='function'){try{detector=new Detector({formats:['qr_code']})}catch{detector=null}}
+   setScannerMode(detector?'Встроенное распознавание QR':'Совместимое распознавание QR для этого браузера');
+   const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});
+   if(!context){setError('Не удалось подготовить распознавание QR. Вставьте ссылку из QR-кода ниже.');return}
+   const schedule=()=>{if(!active)return;if(detector)frame=requestAnimationFrame(()=>void scan());else timeout=window.setTimeout(()=>void scan(),180)};
+   const scan=async()=>{if(!active)return;if(video.readyState>=2){
+    let raw='';
+    if(detector){try{const found=await detector.detect(video);raw=found?.[0]?.rawValue||''}catch{detector=null;setScannerMode('Совместимое распознавание QR для этого браузера')}}
+    if(!detector&&!raw){const width=Math.min(video.videoWidth||0,1280),height=width&&video.videoWidth?Math.max(1,Math.round(width*video.videoHeight/video.videoWidth)):0;if(width&&height){canvas.width=width;canvas.height=height;context.drawImage(video,0,0,width,height);try{raw=jsQR(context.getImageData(0,0,width,height).data,width,height,{inversionAttempts:'attemptBoth'})?.data||''}catch{raw=''}}}
+    if(raw&&parse(raw))return;
+   }schedule()};
+   void scan();
+  }catch{setError('Не удалось включить камеру. Проверьте разрешение браузера или вставьте ссылку вручную.')}
+ };void start();return()=>{active=false;if(frame)cancelAnimationFrame(frame);if(timeout)window.clearTimeout(timeout);stream?.getTracks().forEach(track=>track.stop())}},[]);
+ return <section className="panel resource-editor-page qr-scanner-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ · QR</span><h2>Сканирование QR регистрации</h2></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div><div className="qr-scanner-modal">{error&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}<video ref={videoRef} muted playsInline autoPlay aria-label="Камера для сканирования QR-кода"/>{scannerMode&&<small className="field-help">{scannerMode}</small>}<p>Наведите камеру на QR-код участника. После распознавания откроется нужная регистрация в инспекции.</p><form className="form" onSubmit={e=>{e.preventDefault();parse(manual)}}><label>Или вставьте ссылку из QR-кода<input value={manual} onChange={e=>setManual(e.target.value)} placeholder="https://app.usd-russia.ru/admin/inspections?…" /></label><button className="primary-button" disabled={!manual.trim()}>Открыть регистрацию</button></form></div></section>
 }
-
 function EntryInspection({stageId,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageId:string;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
  const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState<'ALL'|'PASSED'|'NOT_PASSED'>('ALL'),[registerOpen,setRegisterOpen]=useState(false),[selectedRegistrationId,setSelectedRegistrationId]=useState(initialRegistrationId),[initialSelectionHandled,setInitialSelectionHandled]=useState(false),[confirmPassAll,setConfirmPassAll]=useState(false),[confirmFailAll,setConfirmFailAll]=useState(false),[failAllReason,setFailAllReason]=useState('');
