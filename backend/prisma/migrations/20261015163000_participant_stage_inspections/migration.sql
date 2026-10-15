@@ -62,4 +62,14 @@ SELECT 'migrated-' || md5("participantId" || ':' || "stageId"),
        "checkedByName", "checkedAt", "notes", "createdAt", "updatedAt"
 FROM ranked WHERE rank = 1;
 
--- Add the composite relation used by each registration to read the shared inspection.
+ALTER TABLE "Registration" ADD COLUMN "participantStageInspectionId" TEXT;
+
+UPDATE "Registration" r
+SET "participantStageInspectionId" = psi."id"
+FROM "ParticipantStageInspection" psi
+WHERE psi."participantId" = r."participantId" AND psi."stageId" = r."stageId";
+
+CREATE INDEX "Registration_participantStageInspectionId_idx" ON "Registration"("participantStageInspectionId");
+ALTER TABLE "Registration"
+ADD CONSTRAINT "Registration_participantStageInspectionId_fkey"
+FOREIGN KEY ("participantStageInspectionId") REFERENCES "ParticipantStageInspection"("id") ON DELETE SET NULL ON UPDATE CASCADE;
