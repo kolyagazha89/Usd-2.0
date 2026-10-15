@@ -241,10 +241,14 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).toHaveBeenCalled();
   });
 
-  it('reactivates a cancelled registration so the car can register again', async () => {
+  it('reactivates a cancelled registration with the same participant and sticker numbers', async () => {
     const tx = baseTx({
       registration: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'registration-old', status: 'CANCELLED' }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'registration-old',
+          status: 'CANCELLED',
+          participantNumber: 7,
+        }),
         findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({ id: 'registration-old' }),
         create: jest.fn(),
@@ -253,8 +257,10 @@ describe('RegistrationsService', () => {
       registrationNumber: {
         findFirst: jest.fn().mockResolvedValue({ number: 7 }),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-        createMany: jest.fn().mockResolvedValue({ count: 1 }),
-        findMany: jest.fn().mockResolvedValue([{ id: 'number-8', number: 8, isPrimary: true }]),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn()
+          .mockResolvedValueOnce([{ id: 'number-7', number: 7, isPrimary: true }])
+          .mockResolvedValueOnce([{ id: 'number-7', number: 7, isPrimary: true }]),
       },
       registrationClass: {
         count: jest.fn().mockResolvedValue(0),
@@ -268,10 +274,11 @@ describe('RegistrationsService', () => {
     await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-old' });
     expect(tx.registration.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'registration-old' },
-      data: expect.objectContaining({ status: 'ACTIVE', participantNumber: 8 }),
+      data: expect.objectContaining({ status: 'ACTIVE', participantNumber: 7 }),
     }));
     expect(tx.registration.create).not.toHaveBeenCalled();
-    expect(tx.registrationNumber.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
+    expect(tx.registrationNumber.deleteMany).not.toHaveBeenCalled();
+    expect(tx.registrationNumber.createMany).not.toHaveBeenCalled();
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
