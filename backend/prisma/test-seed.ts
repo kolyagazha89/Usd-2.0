@@ -777,7 +777,7 @@ async function main() {
   console.log('');
   console.log('Готово. Тестовые данные созданы/обновлены.');
   console.log('ADMIN: существующий production/dev admin без изменений');
-  console.log('JUDGE: TEST_JUDGE_EMAIL / TEST_JUDGE_PASSWORD (defaults are the documented USD test credentials).');
+  console.log('Custom role «Судья»: TEST_JUDGE_EMAIL / TEST_JUDGE_PASSWORD (defaults are the documented USD test credentials).');
   console.log('PARTICIPANT: ivan.petrov.test@example.com / TestPassword123!');
   console.log('Этап 1: 12.09.2026 — завершён');
   console.log('Этап 2: 18.10.2026 — ближайший, регистрация открыта');
