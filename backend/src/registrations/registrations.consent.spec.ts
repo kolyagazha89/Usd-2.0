@@ -44,7 +44,7 @@ describe('RegistrationsService rules consent', () => {
 
   it('rejects participant registration unless the rules checkbox was explicitly accepted', async () => {
     const service = new RegistrationsService(prisma);
-    await expect(service.create(request, body)).rejects.toThrow('Подтвердите ознакомление с регламентом выбранного этапа');
+    await expect(service.create(request, body)).rejects.toThrow('Подтвердите ознакомление с общим регламентом соревнований');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
