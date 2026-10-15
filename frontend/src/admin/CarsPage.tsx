@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,ChevronLeft,Loader2,Plus,RefreshCw,Search} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,listData,type User} from '../api';
+import {formatPlateInput,isValidPlate} from '../profile-validation';
 
 function CarsPage({user,go,PageFrame,Empty,LoadingPage,EntityDetailModal,displayCarName}: {user:User;go:(path:string)=>void;PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string}){
  const canEdit=user.role==='ADMIN';
@@ -38,7 +39,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">АВТОПАРК · КАРТОЧКА АВТОМОБИЛЯ</span><h2>{value.id?'Редактировать автомобиль':'Новый автомобиль'}</h2><p>Изменения сохраняются в карточке автомобиля участника.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>К списку</button></div>{(error||validationError)&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}<form className="form" onSubmit={e=>{e.preventDefault();setValidationError('');if(v.registrationNumber&&!isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber))){setValidationError('Госномер не соответствует формату выбранной страны.');return}void onSubmit(clean(v))}}>
  {!value.id&&<label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
  <div className="form-grid-2"><label>Марка<input value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} required/></label><label>Модель<input value={v.model} onChange={e=>setV({...v,model:e.target.value})} required/></label></div>
- <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:e.target.value.toUpperCase()})} required/></label></div>
+ <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={9} autoCapitalize="characters" required/></label></div>
  <label>Цвет<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!v.isPublic} onChange={e=>setV({...v,isPublic:e.target.checked})}/>Показывать автомобиль публично</label>
  <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить автомобиль'}</button>
  </form></section>
