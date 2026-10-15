@@ -3372,3 +3372,23 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-site input[type="checkbox"],
 .participant-portal input[type="checkbox"],
 .login-page input[type="checkbox"] { accent-color: #ed2638; }
+
+/* Read-only normalization audit report */
+.normalization-audit-panel { margin-top: 18px; }
+.normalization-audit-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.normalization-audit-heading h2 { display:flex; align-items:center; gap:8px; margin:0 0 6px; font-size:18px; }
+.normalization-audit-heading h2 svg { color:#ed2638; }
+.normalization-audit-heading p { margin:0; max-width:780px; color:var(--muted); font-size:13px; line-height:1.5; }
+.normalization-audit-heading>small { color:var(--muted); white-space:nowrap; }
+.normalization-audit-empty,.normalization-audit-note { display:flex; align-items:flex-start; gap:10px; padding:14px; border:1px solid #39393f; border-radius:12px; background:#17171b; color:#c8c8cf; font-size:13px; line-height:1.5; }
+.normalization-audit-empty svg,.normalization-audit-note svg { flex:0 0 auto; color:#ed2638; }
+.normalization-summary { grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); }
+.normalization-audit-note { margin:12px 0; border-color:#75414a; background:#251519; }
+.normalization-findings { display:grid; gap:8px; }
+.normalization-finding { border:1px solid #36363d; border-radius:10px; background:#141416; overflow:hidden; }
+.normalization-finding summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; color:#f4f4f6; font-weight:700; cursor:pointer; }
+.normalization-finding summary span { min-width:28px; padding:2px 8px; border-radius:20px; text-align:center; background:#28282e; color:#ff7580; font-size:12px; }
+.normalization-finding>p { padding:0 14px 12px; }
+.normalization-finding-list { display:grid; gap:8px; padding:0 10px 10px; max-height:480px; overflow:auto; }
+.normalization-finding-list pre { margin:0; padding:10px; border:1px solid #303036; border-radius:8px; background:#0d0d0f; color:#d9d9e0; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:640px){.normalization-audit-heading{display:block}.normalization-audit-heading>small{display:block;margin-top:8px;white-space:normal}.normalization-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
