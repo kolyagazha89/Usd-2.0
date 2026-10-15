@@ -55,20 +55,25 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   private render(notice: Notice, logoUrl: string | null = null, template?: Record<string, any>) {
     const details = notice.details.filter(Boolean);
-    const detailsText = details.join('\n');
     const stageLine = details.find((line) => line.startsWith('Этап:')) ?? '';
     const stageName = stageLine.replace(/^Этап:\s*/, '').split(' · №')[0] || 'этап ЮСД';
+    const variableTexts = (template?.variableTexts && typeof template.variableTexts === 'object' ? template.variableTexts : {}) as Record<string, unknown>;
+    const headingText = String(variableTexts.heading ?? '').trim() || notice.heading;
+    const introText = String(variableTexts.intro ?? '').trim() || notice.intro;
+    const detailsBefore = String(variableTexts.detailsBefore ?? '').trim();
+    const detailsAfter = String(variableTexts.detailsAfter ?? '').trim();
+    const detailsText = [detailsBefore, details.join('\n'), detailsAfter].filter(Boolean).join('\n');
     const buttonLabel = String(template?.buttonLabel || 'Открыть ЮСД');
     const bodyTemplate = String(template?.body || '{{intro}}\n\n{{details}}');
     const footerText = String(template?.footer || 'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.');
     const textBody = bodyTemplate
-      .replace(/\{\{heading\}\}/g, notice.heading)
-      .replace(/\{\{intro\}\}/g, notice.intro)
+      .replace(/\{\{heading\}\}/g, headingText)
+      .replace(/\{\{intro\}\}/g, introText)
       .replace(/\{\{stageName\}\}/g, stageName)
       .replace(/\{\{details\}\}/g, detailsText);
     const subject = String(template?.subject || notice.subject)
-      .replace(/\{\{heading\}\}/g, notice.heading)
-      .replace(/\{\{intro\}\}/g, notice.intro)
+      .replace(/\{\{heading\}\}/g, headingText)
+      .replace(/\{\{intro\}\}/g, introText)
       .replace(/\{\{stageName\}\}/g, stageName)
       .replace(/\{\{details\}\}/g, detailsText)
       .replace(/\s+/g, ' ').trim();
@@ -85,14 +90,14 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const detailHtml = details.map((line) => '<li style="margin:0 0 8px">' + escapeHtml(line) + '</li>').join('');
     const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип ЮСД" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div>';
     const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|stageName|details)\}\})/g).map((part) => {
-      if (part === '{{heading}}') return escapeHtml(notice.heading);
-      if (part === '{{intro}}') return escapeHtml(notice.intro);
+      if (part === '{{heading}}') return escapeHtml(headingText);
+      if (part === '{{intro}}') return escapeHtml(introText);
       if (part === '{{stageName}}') return escapeHtml(stageName);
-      if (part === '{{details}}') return detailHtml ? '<ul style="padding-left:20px;line-height:1.5;font-size:14px;margin:12px 0">' + detailHtml + '</ul>' : '';
+      if (part === '{{details}}') return [detailsBefore ? '<p style="margin:10px 0">' + escapeHtml(detailsBefore).replace(/\n/g, '<br>') + '</p>' : '', detailHtml ? '<ul style="padding-left:20px;line-height:1.5;font-size:14px;margin:12px 0">' + detailHtml + '</ul>' : '', detailsAfter ? '<p style="margin:10px 0">' + escapeHtml(detailsAfter).replace(/\n/g, '<br>') + '</p>' : ''].join('');
       return escapeHtml(part).replace(/\n/g, '<br>');
     }).join('');
     const footerHtml = escapeHtml(footerText).replace(/\n/g, '<br>');
-    const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff">' + logoHtml + '<div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(notice.heading) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 18px">' + bodyHtml + '</div><p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px;font-size:14px">' + escapeHtml(buttonLabel) + '</a></p><p style="font-size:12px;line-height:1.6;color:#73737a;margin:0">' + footerHtml + '</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">ЮСД · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></div></body></html>';
+    const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff">' + logoHtml + '<div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingText) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 18px">' + bodyHtml + '</div><p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px;font-size:14px">' + escapeHtml(buttonLabel) + '</a></p><p style="font-size:12px;line-height:1.6;color:#73737a;margin:0">' + footerHtml + '</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">ЮСД · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></div></body></html>';
     return { subject, text, html };
   }
 
