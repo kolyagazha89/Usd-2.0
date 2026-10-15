@@ -23,6 +23,46 @@ export class InspectionsController {
     return this.inspectionsService.findByRegistration(registrationId);
   }
 
+  @Get('class/:registrationClassId')
+  findByRegistrationClass(@Param('registrationClassId') registrationClassId: string) {
+    return this.inspectionsService.findByRegistrationClass(registrationClassId);
+  }
+
+  @Post('class')
+  createClassInspection(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { registrationClassId: string; status: 'PASSED' | 'FAILED'; notes?: string },
+  ) {
+    return this.inspectionsService.createClassInspection(body, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
+  @Patch('class/:id')
+  updateClassInspection(
+    @Param('id') id: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: UpdateInspectionDto,
+  ) {
+    return this.inspectionsService.updateClassInspection(id, body, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
+  @Roles('ADMIN')
+  @Delete('class/:id')
+  removeClassInspection(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.inspectionsService.removeClassInspection(id, {
+      userId: request.user.sub,
+      role: request.user.role,
+      ipAddress: request.ip,
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.inspectionsService.findOne(id);

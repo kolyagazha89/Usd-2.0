@@ -488,6 +488,7 @@ model RegistrationClass {
   registration   Registration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   number         RegistrationNumber @relation(fields: [numberId], references: [id])
   results        Result[]
+  inspection     RegistrationClassInspection?
 
   @@unique([registrationId, classId])
   @@index([registrationId])
@@ -510,6 +511,25 @@ model Inspection {
   checkedByUser   User?            @relation("InspectionCheckedBy", fields: [checkedByUserId], references: [id])
   createdByUser   User?            @relation("InspectionCreatedBy", fields: [createdByUserId], references: [id])
   registration    Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([checkedByUserId])
+  @@index([createdByUserId])
+}
+
+model RegistrationClassInspection {
+  id                 String             @id @default(uuid())
+  registrationClassId String             @unique
+  status             InspectionStatus
+  checkedByUserId    String?
+  createdByUserId    String?
+  checkedByName      String?
+  checkedAt          DateTime            @default(now()) @db.Timestamptz(3)
+  notes              String?
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+  legacyId           String?             @unique
+  registrationClass  RegistrationClass  @relation(fields: [registrationClassId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([checkedByUserId])
