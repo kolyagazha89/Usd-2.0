@@ -43,6 +43,7 @@ const nav=[
  {section:'Система',label:'Медиатека',path:'/admin/media',icon:Layers,roles:['ADMIN']},
  {section:'Система',label:'Роли и права',path:'/admin/roles',icon:LockKeyhole,roles:['ADMIN']},
  {section:'Система',label:'Аудит действий',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
+ {section:'Система',label:'Шаблоны писем',path:'/admin/email-templates',icon:Mail,roles:['ADMIN']},
  {section:'Система',label:'Тестирование писем',path:'/admin/email-testing',icon:Mail,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
@@ -67,7 +68,7 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/media'))return 'media';
  if(path.startsWith('/admin/assistant'))return 'assistant';
  if(path.startsWith('/admin/google'))return 'integrations';
- if(path.startsWith('/admin/email-testing'))return 'siteSettings';
+ if(path.startsWith('/admin/email-testing')||path.startsWith('/admin/email-templates'))return 'siteSettings';
  if(path.startsWith('/admin/legal-documents')||path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
  return '';
 }
