@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
@@ -31,7 +31,7 @@ export class SiteSettingsService{
   private readonly logger = new Logger(SiteSettingsService.name);
   constructor(private readonly prisma:PrismaService){}
 
-  private logSaveFailure(phase: 'upsert' | 'audit', error: unknown, sections: string[]) {
+  private logSaveFailure(phase: 'read' | 'merge' | 'upsert' | 'audit', error: unknown, sections: string[]) {
     const errorName = error instanceof Error ? error.name : 'UnknownError';
     const code = error && typeof error === 'object' && 'code' in error
       ? String((error as { code?: unknown }).code ?? 'unknown')
@@ -117,59 +117,60 @@ export class SiteSettingsService{
     };
   }
   async update(input:Partial<SiteSettingsShape>,userId:string){
-    const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
-    const currentLegal = current.legal as Record<string, any>;
-    const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
-    const incomingContacts = input.contacts as Record<string, any> | undefined;
-    const contactChanged = Boolean(incomingContacts && Object.prototype.hasOwnProperty.call(incomingContacts, 'email') && incomingContacts.email !== current.contacts.email);
-    let legal: Record<string, any> = currentLegal;
-    if (incomingLegal) {
-      const contentKeys = ['ipName', 'inn', 'ogrnip', 'copyrightHolder', 'privacyUrl', 'consentUrl', 'termsUrl', 'rulesUrl', 'privacyText', 'consentText', 'termsText'];
-      const contentChanged = contactChanged || contentKeys.some((key) =>
-        Object.prototype.hasOwnProperty.call(incomingLegal, key) && incomingLegal[key] !== currentLegal[key],
-      );
-      legal = { ...currentLegal, ...incomingLegal };
-      if (contentChanged) {
-        legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
-      } else if (incomingLegal.legalApproved === true && currentLegal.legalApproved !== true) {
-        const contactEmail = incomingContacts?.email ?? current.contacts.email ?? (input.footer as Record<string, any> | undefined)?.email ?? (current.footer as Record<string, any>).email;
-        const missing = [
-          !String(legal.ipName ?? '').trim() && 'наименование/ФИО оператора',
-          !String(legal.privacyText ?? '').trim() && 'политика обработки данных',
-          !String(legal.consentText ?? '').trim() && 'согласие на обработку данных',
-          !String(legal.termsText ?? '').trim() && 'пользовательское соглашение',
-          !String(contactEmail ?? '').trim() && 'контактный email оператора',
-        ].filter(Boolean);
-        if (missing.length) throw new BadRequestException('Нельзя утвердить юридические документы: заполните ' + missing.join(', ') + '.');
-        legal = { ...legal, legalApproved: true, legalApprovedAt: new Date().toISOString(), legalApprovedBy: userId, legalVersion: String(Number(currentLegal.legalVersion ?? 0) + 1) };
-      } else if (incomingLegal.legalApproved === false) {
-        legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
+    const sections = Object.keys(input ?? {});
+    let phase: 'read' | 'merge' | 'upsert' | 'audit' = 'read';
+    try {
+      const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
+      phase = 'merge';
+      const currentLegal = current.legal as Record<string, any>;
+      const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
+      const incomingContacts = input.contacts as Record<string, any> | undefined;
+      const contactChanged = Boolean(incomingContacts && Object.prototype.hasOwnProperty.call(incomingContacts, 'email') && incomingContacts.email !== current.contacts.email);
+      let legal: Record<string, any> = currentLegal;
+      if (incomingLegal) {
+        const contentKeys = ['ipName', 'inn', 'ogrnip', 'copyrightHolder', 'privacyUrl', 'consentUrl', 'termsUrl', 'rulesUrl', 'privacyText', 'consentText', 'termsText'];
+        const contentChanged = contactChanged || contentKeys.some((key) =>
+          Object.prototype.hasOwnProperty.call(incomingLegal, key) && incomingLegal[key] !== currentLegal[key],
+        );
+        legal = { ...currentLegal, ...incomingLegal };
+        if (contentChanged) {
+          legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
+        } else if (incomingLegal.legalApproved === true && currentLegal.legalApproved !== true) {
+          const contactEmail = incomingContacts?.email ?? current.contacts.email ?? (input.footer as Record<string, any> | undefined)?.email ?? (current.footer as Record<string, any>).email;
+          const missing = [
+            !String(legal.ipName ?? '').trim() && 'наименование/ФИО оператора',
+            !String(legal.privacyText ?? '').trim() && 'политика обработки данных',
+            !String(legal.consentText ?? '').trim() && 'согласие на обработку данных',
+            !String(legal.termsText ?? '').trim() && 'пользовательское соглашение',
+            !String(contactEmail ?? '').trim() && 'контактный email оператора',
+          ].filter(Boolean);
+          if (missing.length) throw new BadRequestException('Нельзя утвердить юридические документы: заполните ' + missing.join(', ') + '.');
+          legal = { ...legal, legalApproved: true, legalApprovedAt: new Date().toISOString(), legalApprovedBy: userId, legalVersion: String(Number(currentLegal.legalVersion ?? 0) + 1) };
+        } else if (incomingLegal.legalApproved === false) {
+          legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
+        }
+      } else if (contactChanged && currentLegal.legalApproved === true) {
+        legal = { ...currentLegal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
       }
-    } else if (contactChanged && currentLegal.legalApproved === true) {
-      legal = { ...currentLegal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
-    }
-    const next={
-      branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
-      stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
-      navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
-      social:input.social??current.social,seo:input.seo??current.seo,legal,
-      footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
-      catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
-    };
-    const sections = Object.keys(input);
-    let row: any;
-    try {
-      row = await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
-    } catch (error) {
-      this.logSaveFailure('upsert', error, sections);
-      throw error;
-    }
-    try {
+      const next={
+        branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
+        stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),
+        navigation:this.merge(current.navigation,input.navigation),contacts:input.contacts??current.contacts,
+        social:input.social??current.social,seo:input.seo??current.seo,legal,
+        footer:input.footer??current.footer,registration:input.registration ? this.mergeRegistration(current.registration,input.registration) : current.registration,
+        catalogs:this.merge(current.catalogs,input.catalogs),partners:input.partners??current.partners,news:input.news??current.news,
+      };
+      phase = 'upsert';
+      const row = await this.prisma.siteSettings.upsert({where:{id:'default'},create:{id:'default',...(next as any)},update:{...(next as any)}});
+      phase = 'audit';
       await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
+      return {success:true,settings:this.shape(row)};
     } catch (error) {
-      this.logSaveFailure('audit', error, sections);
+      // Expected validation errors remain 4xx and are not logged as server failures.
+      if (!(error instanceof HttpException) || error.getStatus() >= 500) {
+        this.logSaveFailure(phase, error, sections);
+      }
       throw error;
     }
-    return {success:true,settings:this.shape(row)};
   }
 }
