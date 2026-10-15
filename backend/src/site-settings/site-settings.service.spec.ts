@@ -145,4 +145,23 @@ describe('SiteSettingsService published regulation history', () => {
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
+  it('logs an unexpected settings read failure without exposing payload values', async () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockRejectedValue(new Error('private read failure')),
+        upsert: jest.fn(),
+      },
+      auditLog: { create: jest.fn() },
+    } as unknown as PrismaService;
+    const service = new SiteSettingsService(prisma);
+    const logSpy = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+
+    await expect(service.update({ branding: { siteName: 'private test value' } } as any, 'admin-1')).rejects.toThrow();
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('phase=read, error=Error'));
+    expect(logSpy.mock.calls[0][0]).not.toContain('private test value');
+    expect(logSpy.mock.calls[0][0]).not.toContain('private read failure');
+    expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
+  });
+
 });
