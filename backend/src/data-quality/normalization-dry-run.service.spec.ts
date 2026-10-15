@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { NormalizationDryRunService } from './normalization-dry-run.service';
 
 describe('NormalizationDryRunService', () => {
