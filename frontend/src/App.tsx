@@ -169,11 +169,21 @@ function recordDirectionKind(row:any){
  if(direction.includes('SPL'))return 'SPL';
  return 'OTHER';
 }
+function resultNumericValue(row:any){
+ const raw=row?.value??row?.result?.value??row?.score??row?.result;
+ if(typeof raw==='number')return Number.isFinite(raw)?raw:Number.NEGATIVE_INFINITY;
+ const parsed=Number(String(raw??'').replace(/,/g,'.').replace(/[^0-9.+-]/g,''));
+ return Number.isFinite(parsed)?parsed:Number.NEGATIVE_INFINITY;
+}
 function sortRecordRows(rows:any[]){
  return rows.slice().sort((a:any,b:any)=>{
   const directionA=Number(a.class?.direction?.sortOrder??a.result?.registrationClass?.class?.direction?.sortOrder??0);
   const directionB=Number(b.class?.direction?.sortOrder??b.result?.registrationClass?.class?.direction?.sortOrder??0);
   if(directionA!==directionB)return directionA-directionB;
+  const kindA=recordDirectionKind(a),kindB=recordDirectionKind(b);
+  if(kindA!==kindB)return kindA.localeCompare(kindB,'ru');
+  const valueDiff=resultNumericValue(b)-resultNumericValue(a);
+  if(Number.isFinite(valueDiff)&&valueDiff!==0)return valueDiff;
   const classA=Number(a.class?.sortOrder??a.result?.registrationClass?.class?.sortOrder??0);
   const classB=Number(b.class?.sortOrder??b.result?.registrationClass?.class?.sortOrder??0);
   if(classA!==classB)return classA-classB;
@@ -189,45 +199,20 @@ function selectHomepageRecords(rows:any[]){
  ];
 }
 function selectHomepageResults(rows:any[]){
- const stageDate=(row:any)=>{
-  const value=row.registration?.stage?.date??row.stage?.date??row.recordedAt??row.createdAt??row.updatedAt;
-  const timestamp=value?Date.parse(String(value)):0;
-  return Number.isFinite(timestamp)?timestamp:0;
- };
  const classItem=(row:any)=>row.registrationClass?.class??row.class??row.result?.registrationClass?.class??{};
- const direction=(row:any)=>String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  const directionKind=(row:any)=>{
-  const value=direction(row);
+  const value=String(classItem(row)?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
   if(value.includes('BFSPL'))return 'BFSPL';
   if(value.includes('BDWSPL')||(value.includes('BDW')&&value.includes('SPL')))return 'BDWSPL';
   if(value.includes('SPL'))return 'SPL';
   return 'OTHER';
  };
- const classKey=(row:any)=>String(classItem(row)?.id??classItem(row)?.code??classItem(row)?.name??row.className??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
- const winnersByStageAndClass=new Map<string,any>();
- for(const row of rows){
-  const place=row.place??row.position??row.rank;
-  if(place==null||Number(place)!==1)continue;
-  const cls=classKey(row);
-  if(!cls)continue;
-  const stageKey=String(row.registration?.stage?.id??row.stage?.id??row.stageId??row.registration?.stageId??row.registration?.stage?.name??row.stage?.name??stageDate(row));
-  const key=stageKey+'::'+direction(row)+'::'+cls;
-  const previous=winnersByStageAndClass.get(key);
-  if(!previous||stageDate(row)>stageDate(previous))winnersByStageAndClass.set(key,row);
- }
- const winners=[...winnersByStageAndClass.values()];
- const byClassOrder=(a:any,b:any)=>{
-  const classA=Number(classItem(a)?.sortOrder??0),classB=Number(classItem(b)?.sortOrder??0);
-  if(classA!==classB)return classA-classB;
-  return String(classItem(a)?.name??'').localeCompare(String(classItem(b)?.name??''),'ru',{numeric:true});
- };
- // Homepage contract: six curated first-place cards from the newest published stage:
- // 3 SPL, 2 BFSPL and 1 BDW SPL. Never fill gaps with random places or older stages.
- return [
-  ...winners.filter((row:any)=>directionKind(row)==='SPL').sort(byClassOrder).slice(0,3),
-  ...winners.filter((row:any)=>directionKind(row)==='BFSPL').sort(byClassOrder).slice(0,2),
-  ...winners.filter((row:any)=>directionKind(row)==='BDWSPL').sort(byClassOrder).slice(0,1),
- ].slice(0,6);
+ const byMeasurement=(a:any,b:any)=>resultNumericValue(b)-resultNumericValue(a);
+ const spl=rows.filter((row:any)=>directionKind(row)==='SPL').sort(byMeasurement);
+ const bfspl=rows.filter((row:any)=>directionKind(row)==='BFSPL').sort(byMeasurement);
+ const bdw=rows.filter((row:any)=>directionKind(row)==='BDWSPL').sort(byMeasurement);
+ // The homepage showcases the strongest measured results in each direction, not arbitrary API order or only place=1 rows.
+ return [...spl.slice(0,3),...bfspl.slice(0,2),...bdw.slice(0,1)];
 }
 function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'|'stage';go?:(path:string)=>void}){
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
@@ -247,7 +232,6 @@ function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'
   const interactive=Boolean(go&&variant!=='stage');
   return <article className={"public-result-card"+(interactive?' is-interactive':'')} key={r.id||i} role={interactive?'link':undefined} tabIndex={interactive?0:undefined} aria-label={interactive?`Результат: ${className}, место ${placeLabel}. Открыть результаты этапа.`:undefined} onClick={interactive?()=>go?.(target):undefined} onKeyDown={interactive?(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go?.(target)}}:undefined}>
    <div className="public-result-card-top"><span className="public-result-place">{placeLabel}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
-   {r.isHistorical&&<div className={r.verificationStatus==='VERIFIED'?'public-result-source':'public-result-source is-pending'}>{r.verificationStatus==='VERIFIED'?'ИСТОРИЧЕСКИЙ РЕЗУЛЬТАТ':'АРХИВ · ОЖИДАЕТ ПРОВЕРКИ'}</div>}
    <div className="public-result-measure"><strong>{value}</strong><span>{publicResultUnit(r.unit||classItem?.unit,classItem)}</span></div>
    <div className="public-result-card-bottom"><div className="public-result-person"><strong>{name}</strong><span>{car}</span>{context&&<span className="public-result-context">{context}</span>}</div><span className="public-result-arrow" aria-hidden>↗</span></div>
   </article>
