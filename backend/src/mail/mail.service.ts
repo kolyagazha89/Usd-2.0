@@ -277,14 +277,15 @@ export class MailService {
     const sentAt = new Date().toISOString();
     const message = renderBrandedEmail({
       heading: 'Проверка почтового канала',
-      intro: 'Это тестовое письмо из административной панели USD.',
+      intro: 'Это тестовое письмо из административной панели ЮСД.',
+      subject: 'USD — проверка почтового канала',
       actionLabel: 'Открыть USD',
       actionUrl: this.frontendUrl,
       note: 'Время запроса: ' + sentAt + '. Ответ почтового провайдера не является подтверждением доставки.',
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, subject: 'USD — проверка почтового канала', ...message });
+      await this.sendMessage({ to: email, ...message });
       return {
         success: true,
         providerAccepted: true,
@@ -300,7 +301,10 @@ export class MailService {
   async sendVerificationEmail(email: string, token: string): Promise<void> {
     const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://usd-api-production.up.railway.app').replace(/\/+$/, '');
     const verificationUrl = `${apiUrl}/auth/verify-email?token=${encodeURIComponent(token)}`;
+    const template = await this.getEmailTemplate('AUTH_EMAIL_VERIFICATION');
     const message = renderBrandedEmail({
+      subject: 'Подтверждение email — USD',
+      template,
       heading: 'Подтверждение email',
       intro: 'Подтвердите адрес электронной почты, чтобы завершить создание аккаунта USD.',
       actionLabel: 'Подтвердить email',
@@ -309,7 +313,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, subject: 'Подтверждение email — USD', ...message });
+      await this.sendMessage({ to: email, ...message });
     } catch (error) {
       this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
@@ -318,7 +322,10 @@ export class MailService {
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
     const resetUrl = `${this.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    const template = await this.getEmailTemplate('AUTH_PASSWORD_RESET');
     const message = renderBrandedEmail({
+      subject: 'Восстановление пароля — USD',
+      template,
       heading: 'Восстановление пароля',
       intro: 'Вы запросили восстановление пароля для аккаунта USD. Перейдите по защищённой ссылке, чтобы задать новый пароль.',
       actionLabel: 'Восстановить пароль',
@@ -327,7 +334,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, subject: 'Восстановление пароля — USD', ...message });
+      await this.sendMessage({ to: email, ...message });
     } catch (error) {
       this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.');
@@ -336,7 +343,10 @@ export class MailService {
 
   async sendEmailChangeEmail(email: string, token: string): Promise<void> {
     const url = `${this.frontendUrl}/confirm-email-change?token=${encodeURIComponent(token)}`;
+    const template = await this.getEmailTemplate('AUTH_EMAIL_CHANGE');
     const message = renderBrandedEmail({
+      subject: 'Подтверждение нового email — USD',
+      template,
       heading: 'Подтверждение нового email',
       intro: 'Подтвердите новый адрес электронной почты, чтобы завершить изменение контактных данных аккаунта USD.',
       actionLabel: 'Подтвердить новый email',
@@ -345,7 +355,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, subject: 'Подтверждение нового email — USD', ...message });
+      await this.sendMessage({ to: email, ...message });
     } catch (error) {
       this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо для изменения email. Проверьте настройки почтового сервиса.');
