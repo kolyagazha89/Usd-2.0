@@ -14,3 +14,8 @@
 .public-stage-rules-body .public-rules-rich-document a,.public-stage-rules-download a{color:#ff7883;text-decoration:underline;text-underline-offset:3px}
 .public-stage-rules-download{margin:18px 0 0;padding-top:14px;border-top:1px solid #34343a;font-size:13px}
 @media(max-width:600px){.public-stage-rules>summary{padding:14px}.public-stage-rules-body{padding:14px}.public-stage-rules-body .public-rules-table-wrap{max-width:100%;overflow-x:auto}.public-stage-rules-body .public-rules-table-wrap table{min-width:420px}}
+
+.public-stage-rules-unavailable{padding:16px 18px;border-color:#6b4d28;background:#191613}
+.public-stage-rules-unavailable strong{display:block;color:#f2c27c;font-size:13px;line-height:1.5}
+.public-stage-rules-unavailable p{margin:7px 0 0;color:#c9c2b7;font-size:12px;line-height:1.65}
+@media(max-width:600px){.public-stage-rules-unavailable{padding:14px}}
