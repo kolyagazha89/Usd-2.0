@@ -26,6 +26,7 @@ import ParticipantsPage from './ParticipantsPage';
 import ConfigurationsPage from './ConfigurationsPage';
 import DashboardPage from './DashboardPage';
 import RulesAdminPage from '../RulesAdminPage';
+import LegalDocumentsPage from './LegalDocumentsPage';
 
 export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,PanelTitle,ResourcePage,EntityDetailModal,EntityForm,SearchableSelect,enumLabel,formatDate,displayCarName,displayPersonName,roleName,humanize,humanizeAuditKey,clean,isValidPlate,PublicResultCards,cacheBrandLogo}:{path:string;go:(p:string)=>void;user:User;PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;ResourcePage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;EntityForm:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;displayCarName:(car:any,fallback?:string)=>string;displayPersonName:(v:any)=>string;roleName:Record<Role,string>;humanize:(v:string)=>string;humanizeAuditKey:(v:string)=>string;clean:(v:any)=>any;isValidPlate:(country:string,value:string)=>boolean;PublicResultCards:React.ComponentType<any>;cacheBrandLogo:(url:string)=>void}){
   const RoutedResourcePage=(props:any)=><ResourcePage {...props} go={go} routePath={path}/>;
@@ -58,6 +59,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/components'))return <CatalogPage mode="components" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/email-testing'))return <EmailTestingPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
+  if(path.startsWith('/admin/legal-documents'))return <LegalDocumentsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
   if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
