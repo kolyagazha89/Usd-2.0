@@ -3255,3 +3255,15 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .qr-camera-target span:nth-child(4) { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 10px; }
 .qr-camera-overlay small { background: #09090bd9; color: #f4f4f6; border: 1px solid #ffffff25; border-radius: 999px; padding: 7px 12px; font-size: 12px; }
 @media(max-width:560px){.qr-camera-viewport{aspect-ratio:3/4}.qr-camera-target{width:min(68%,260px)}}
+
+.record-visibility-panel { margin-bottom: 16px; padding: 18px; background: linear-gradient(145deg,#151518,#101012) !important; border: 1px solid #34343a !important; color: #f4f4f6; }
+.record-visibility-panel h2 { margin: 7px 0; color: #fff; }
+.record-visibility-panel p { color: #a9a9b2; margin: 6px 0 0; }
+.record-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; margin-top: 16px; }
+.record-visibility-option { display: flex; align-items: center; gap: 10px; padding: 11px 12px; min-width: 0; border: 1px solid #37373e; border-radius: 10px; background: #19191d; cursor: pointer; }
+.record-visibility-option input { flex: 0 0 auto; accent-color: #ed2638; }
+.record-visibility-option span { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.record-visibility-option strong { color: #f4f4f6; font-size: 13px; }
+.record-visibility-option small { color: #9b9ba4; font-size: 11px; }
+.record-visibility-option.is-disabled { opacity: .6; cursor: not-allowed; }
+.record-visibility-saving { color: #ff6572; font-size: 10px; }
