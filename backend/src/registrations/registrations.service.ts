@@ -307,14 +307,6 @@ export class RegistrationsService {
       );
     }
 
-    if (
-      request.user.role === 'JUDGE' &&
-      body.source === 'IMPORT'
-    ) {
-      throw new BadRequestException(
-        'JUDGE не может создавать регистрацию с источником IMPORT',
-      );
-    }
 
     if (!stageId || !participantId || !carId) {
       throw new BadRequestException(
