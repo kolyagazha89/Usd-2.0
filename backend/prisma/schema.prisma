@@ -53,6 +53,8 @@ model User {
   mediaUploads              MediaUpload[]
   inspections              Inspection[]             @relation("InspectionCheckedBy")
   inspectionsCreated       Inspection[]             @relation("InspectionCreatedBy")
+  stageInspectionsChecked  ParticipantStageInspection[] @relation("ParticipantStageInspectionCheckedBy")
+  stageInspectionsCreated  ParticipantStageInspection[] @relation("ParticipantStageInspectionCreatedBy")
   passwordResetTokens      PasswordResetToken[]
   refreshSessions          RefreshSession[]
   googleOAuthStates        GoogleOAuthState[]
@@ -360,6 +362,7 @@ model Stage {
   season               Season             @relation(fields: [seasonId], references: [id])
   stageClasses         StageClass[]
   registrationNumbers   RegistrationNumber[]
+  participantInspections ParticipantStageInspection[]
 
   @@unique([seasonId, stageNumber])
   @@index([seasonId])
@@ -450,6 +453,7 @@ model Registration {
   numbers    RegistrationNumber[]
   classes    RegistrationClass[]
   inspection Inspection?
+  stageInspection ParticipantStageInspection? @relation(fields: [participantId, stageId], references: [participantId, stageId])
   results    Result[]
 
   @@unique([stageId, participantNumber])
@@ -512,6 +516,31 @@ model Inspection {
   createdByUser   User?            @relation("InspectionCreatedBy", fields: [createdByUserId], references: [id])
   registration    Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
+  @@index([status])
+  @@index([checkedByUserId])
+  @@index([createdByUserId])
+}
+
+model ParticipantStageInspection {
+  id              String    @id @default(uuid())
+  participantId   String
+  stageId         String
+  status          InspectionStatus
+  checkedByUserId String?
+  createdByUserId String?
+  checkedByName   String?
+  checkedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  notes           String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage           Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  checkedByUser   User?       @relation("ParticipantStageInspectionCheckedBy", fields: [checkedByUserId], references: [id])
+  createdByUser   User?       @relation("ParticipantStageInspectionCreatedBy", fields: [createdByUserId], references: [id])
+  registrations   Registration[]
+
+  @@unique([participantId, stageId])
+  @@index([stageId])
   @@index([status])
   @@index([checkedByUserId])
   @@index([createdByUserId])
