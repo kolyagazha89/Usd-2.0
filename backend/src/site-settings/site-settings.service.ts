@@ -22,7 +22,12 @@ const DEFAULTS:SiteSettingsShape={
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
   navigation:{items:[]},contacts:{},social:{},seo:{},legal:{},footer:{},
-  registration:{enabled:true,price:2000,additionalClassPrice:2000},
+  registration:{enabled:true,price:2000,additionalClassPrice:2000,emailTemplates:[
+    {id:'stage-registration-open',name:'Открытие регистрации',trigger:'STAGE_REGISTRATION_OPEN',enabled:true,subject:'Открыта регистрация: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это информационное сообщение ЮСД о соревнованиях. Вы получили его в связи с настройками уведомлений.',buttonLabel:'Открыть ЮСД'},
+    {id:'registration-confirmed',name:'Подтверждение регистрации',trigger:'REGISTRATION_CONFIRMED',enabled:true,subject:'Заявка подтверждена: {{heading}}',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.',buttonLabel:'Открыть ЮСД'},
+    {id:'stage-reminder-3d',name:'Напоминание за 3 дня',trigger:'STAGE_REMINDER_3D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'},
+    {id:'stage-reminder-1d',name:'Напоминание за 1 день',trigger:'STAGE_REMINDER_1D',enabled:true,subject:'Напоминание: {{heading}} — ЮСД',body:'{{intro}}\n\n{{details}}',footer:'Это сервисное сообщение ЮСД для зарегистрированных участников.',buttonLabel:'Открыть ЮСД'}
+  ]},
   catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],news:[],
 };
 
@@ -49,7 +54,7 @@ export class SiteSettingsService{
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
-      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:row?.registration??DEFAULTS.registration,
+      legal:row?.legal??DEFAULTS.legal,footer:row?.footer??DEFAULTS.footer,registration:this.merge(DEFAULTS.registration,row?.registration),
       catalogs:this.merge(DEFAULTS.catalogs,row?.catalogs),partners:Array.isArray(row?.partners)?row.partners:DEFAULTS.partners,news:Array.isArray(row?.news)?row.news:DEFAULTS.news,
       updatedAt:row?.updatedAt?.toISOString?.(),
     };
