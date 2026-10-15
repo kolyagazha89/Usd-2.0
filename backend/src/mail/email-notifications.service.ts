@@ -62,6 +62,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const subject = String(template?.subject || notice.subject)
       .replace(/\{\{heading\}\}/g, notice.heading)
       .replace(/\{\{intro\}\}/g, notice.intro)
+      .replace(/\{\{stageName\}\}/g, stageName)
       .replace(/\{\{details\}\}/g, detailsText)
       .replace(/\s+/g, ' ').trim();
     const text = [
