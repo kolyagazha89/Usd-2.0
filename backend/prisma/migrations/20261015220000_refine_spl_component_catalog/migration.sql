@@ -46,7 +46,7 @@ updated AS (
                         CASE WHEN item->>'isActive'='true' THEN 0 ELSE 1 END,
                         CASE WHEN item->>'sourceType'='MANUFACTURER_CATALOG' THEN 0 ELSE 1 END
              ) all_models), '[]'::jsonb), true)
- ) catalogs
+ catalogs
  FROM current, seed
 )
 UPDATE "SiteSettings" s SET "catalogs"=updated.catalogs FROM updated WHERE s."id"=updated."id";
