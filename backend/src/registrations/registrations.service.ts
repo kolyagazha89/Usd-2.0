@@ -89,6 +89,40 @@ export class RegistrationsService {
       normalize(directionName).includes('bassrace');
   }
 
+  private getMissingConfigurationRequirement(
+    stageClass: { class: { name: string; code?: string | null; direction?: { name?: string | null } | null } },
+    configurationVersion: { audioComponents: { direction: string; type: string }[] },
+  ): string | null {
+    const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase().replace(/[\s_-]/g, '');
+    const className = normalize(stageClass.class.name);
+    const directionName = normalize(stageClass.class.direction?.name);
+    const code = normalize(stageClass.class.code);
+    const identity = className + ' ' + directionName + ' ' + code;
+
+    if (identity.includes('bassrace') || identity.includes('stormwall')) {
+      const hasSubwoofer = configurationVersion.audioComponents.some(
+        (item) => item.direction === 'SUB' && item.type === 'SUBWOOFER',
+      );
+      return hasSubwoofer ? null : 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему: добавьте сабвуфер в конфигурацию автомобиля.';
+    }
+
+    if (identity.includes('bfspl')) {
+      const hasFront = configurationVersion.audioComponents.some(
+        (item) => item.direction === 'FRONT',
+      );
+      return hasFront ? null : 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
+    }
+
+    if (identity.includes('dbwspl') || directionName === 'dbw') {
+      const hasRear = configurationVersion.audioComponents.some(
+        (item) => item.direction === 'REAR',
+      );
+      return hasRear ? null : 'Для участия в DBW SPL необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+    }
+
+    return null;
+  }
+
   private async getActiveDisqualifications(
     tx: PrismaService | any,
     participantId: string,
@@ -668,6 +702,18 @@ export class RegistrationsService {
           throw new BadRequestException(
             'Выбранная версия конфигурации не принадлежит этому автомобилю',
           );
+        }
+
+        // Configuration completeness is a hard admission rule. Validate on the
+        // server so the checks cannot be bypassed by sending a direct API request.
+        for (const stageClass of stageClasses) {
+          const missingRequirement = this.getMissingConfigurationRequirement(
+            stageClass,
+            configurationVersion,
+          );
+          if (missingRequirement) {
+            throw new BadRequestException(missingRequirement);
+          }
         }
 
         // 8. Выдаём минимальные свободные номера, чтобы отменённые
