@@ -99,11 +99,17 @@ export class RegistrationsService {
     const code = normalize(stageClass.class.code);
     const identity = className + ' ' + directionName + ' ' + code;
 
-    if (identity.includes('bassrace') || identity.includes('stormwall')) {
+    // Сабвуфер обязателен по направлению целиком: SPL, BassRace и Hurrican.
+    // Проверяем название направления отдельно, чтобы BFSPL/DBW SPL не попали под это правило.
+    if (
+      ['spl', 'bassrace', 'hurrican'].includes(directionName) ||
+      identity.includes('bassrace') ||
+      identity.includes('stormwall')
+    ) {
       const hasSubwoofer = configurationVersion.audioComponents.some(
         (item) => item.direction === 'SUB' && item.type === 'SUBWOOFER',
       );
-      return hasSubwoofer ? null : 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему: добавьте сабвуфер в конфигурацию автомобиля.';
+      return hasSubwoofer ? null : 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер в конфигурацию автомобиля.';
     }
 
     if (identity.includes('bfspl')) {
