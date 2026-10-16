@@ -860,12 +860,22 @@ export class RegistrationsService {
       await tx.inspection.deleteMany({ where: { registrationId: id } });
       await tx.registrationNumber.deleteMany({ where: { registrationId: id } });
 
+      // Keep Prisma's stage/participantNumber uniqueness intact by assigning
+      // the cancelled audit row a unique negative archival value. Sticker
+      // allocation only uses positive numbers, so the released number is reusable.
+      const lowestNumber = await tx.registration.aggregate({
+        where: { stageId: registration.stage.id },
+        _min: { participantNumber: true },
+      });
+      const archivalNumber = Math.min(lowestNumber._min.participantNumber ?? 0, 0) - 1;
+
       const changed = await tx.registration.update({
         where: {
           id,
         },
         data: {
           status: 'CANCELLED',
+          participantNumber: archivalNumber,
         },
         include:
           this.registrationInclude,
