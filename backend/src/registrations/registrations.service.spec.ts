@@ -346,6 +346,21 @@ describe('RegistrationsService', () => {
           })),
         ]),
       },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'configuration-version-1',
+          configurationId: 'configuration-1',
+          version: 3,
+          vibrationIsolation: 'STP',
+          additionalDescription: 'Test',
+          configuration: { id: 'configuration-1', name: 'Основная' },
+          headUnits: [],
+          audioComponents: [{ id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 }],
+          amplifiers: [],
+          batteries: [],
+          generators: [],
+        }),
+      },
       registrationNumber: {
         findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
