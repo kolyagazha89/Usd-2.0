@@ -119,11 +119,11 @@ export class RegistrationsService {
       return hasFront ? null : 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
     }
 
-    if (identity.includes('dbwspl') || directionName === 'dbw') {
+    if (identity.includes('bdwspl') || identity.includes('dbwspl') || directionName === 'bdwspl' || directionName === 'dbw') {
       const hasRear = configurationVersion.audioComponents.some(
         (item) => item.direction === 'REAR',
       );
-      return hasRear ? null : 'Для участия в DBW SPL необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+      return hasRear ? null : 'Для участия в BDW SPL необходимо заполнить тыловую акустику в конфигурации автомобиля.';
     }
 
     return null;
