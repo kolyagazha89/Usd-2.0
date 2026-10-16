@@ -899,6 +899,7 @@ export class RegistrationsService {
       return changed;
     });
 
+    void this.emailNotifications?.registrationCancelled(updated.id, updated.updatedAt ?? new Date()).catch(() => undefined);
     return updated;
   }
 
