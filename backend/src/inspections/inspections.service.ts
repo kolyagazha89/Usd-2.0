@@ -188,12 +188,57 @@ export class InspectionsService {
       const added = stageClasses.filter((item: any) => !existingByClassId.has(item.classId));
       if (!registration.numbers.length) throw new ConflictException('У регистрации нет закреплённого номера участника');
 
+      // Serialize number allocation with ordinary registration creation so two
+      // simultaneous class edits cannot reserve the same stage number.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${registration.stageId}))`;
+
+      const numberRows = [...registration.numbers] as any[];
+      const primaryNumber = numberRows.find((number: any) => number.isPrimary) ?? numberRows[0];
+      const isBassRace = (item: any) => this.isBassRaceClass(
+        item.class?.name ?? item.name ?? '',
+        item.class?.direction?.name ?? item.direction?.name ?? '',
+      );
+
+      // Keep numbers already assigned to BassRace classes that remain selected.
+      // Number rows from removed classes stay reserved and are deliberately reused
+      // before allocating fresh numbers.
+      const retainedBassRace = stageClasses.filter((item: any) => isBassRace(item) && existingByClassId.has(item.classId));
+      const usedBassRaceNumberIds = new Set(
+        retainedBassRace.map((item: any) => existingByClassId.get(item.classId)?.numberId).filter(Boolean),
+      );
+      let highestStageNumber: number | null = null;
+      const allocateNewBassRaceNumber = async () => {
+        if (highestStageNumber === null) {
+          const lastNumber = await tx.registrationNumber.findFirst({
+            where: { stageId: registration.stageId },
+            orderBy: { number: 'desc' },
+            select: { number: true },
+          });
+          highestStageNumber = Math.max(Number(lastNumber?.number ?? 0), ...numberRows.map((item: any) => Number(item.number ?? 0)));
+        }
+        const number = ++highestStageNumber;
+        const created = await tx.registrationNumber.create({
+          data: { stageId: registration.stageId, registrationId, number, isPrimary: false },
+        });
+        numberRows.push(created);
+        return created;
+      };
+
       for (const item of added as any[]) {
-        const directionId = item.class.directionId;
-        const sameDirection = existing.find((current: any) => current.class.directionId === directionId);
-        const chosenNumber = sameDirection?.numberId
-          ? registration.numbers.find((number: any) => number.id === sameDirection.numberId)
-          : registration.numbers.find((number: any) => number.isPrimary) ?? registration.numbers[0];
+        let chosenNumber: any;
+        if (isBassRace(item)) {
+          const reusable = numberRows
+            .filter((number: any) => !usedBassRaceNumberIds.has(number.id))
+            .sort((a: any, b: any) => Number(b.isPrimary) - Number(a.isPrimary) || Number(a.number) - Number(b.number))[0];
+          chosenNumber = reusable ?? await allocateNewBassRaceNumber();
+          usedBassRaceNumberIds.add(chosenNumber.id);
+        } else {
+          const directionId = item.class.directionId;
+          const sameDirection = existing.find((current: any) => current.class.directionId === directionId);
+          chosenNumber = (sameDirection?.numberId
+            ? numberRows.find((number: any) => number.id === sameDirection.numberId)
+            : undefined) ?? primaryNumber;
+        }
         if (!chosenNumber) throw new ConflictException('Не удалось определить номер для нового класса «' + item.class.name + '»');
         await tx.registrationClass.create({
           data: { registrationId, classId: item.classId, numberId: chosenNumber.id },

@@ -37,6 +37,8 @@ describe('InspectionsService', () => {
 
   beforeEach(() => {
     tx = {
+      $executeRaw: jest.fn(),
+      registrationNumber: { findFirst: jest.fn().mockResolvedValue({ number: 6 }), create: jest.fn().mockResolvedValue({ id: 'number-new', number: 7, isPrimary: false }) },
       registration: { findUnique: jest.fn().mockResolvedValue(registration), findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({count:1}) },
       participantStageInspection: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -220,6 +222,48 @@ describe('InspectionsService', () => {
     expect(result.success).toBe(true);
     expect(result.added).toEqual(['New class']);
     expect(result.removed).toEqual(['Old class']);
+  });
+
+  it('reuses a previously reserved BassRace number when adding another BassRace class', async () => {
+    const numberRows = [
+      { id: 'number-2', number: 2, isPrimary: true },
+      { id: 'number-3', number: 3, isPrimary: false },
+      { id: 'number-4', number: 4, isPrimary: false },
+      { id: 'number-6', number: 6, isPrimary: false },
+    ];
+    const currentBassRace = {
+      id: 'registration-class-bass-129',
+      registrationId: 'registration-1',
+      classId: 'class-bass-129',
+      numberId: 'number-2',
+      number: numberRows[0],
+      class: { id: 'class-bass-129', name: 'BassRace 129.9', directionId: 'direction-bass', direction: { name: 'BassRace' } },
+      results: [],
+      inspection: null,
+    };
+    const registrationRow: any = {
+      ...registration,
+      stage: { isDeleted: false, status: 'PUBLISHED' },
+      numbers: numberRows,
+      inspection: { status: 'PASSED' },
+      classes: [currentBassRace],
+    };
+    tx.registration = { findUnique: jest.fn().mockResolvedValue(registrationRow) };
+    tx.stageClass = { findMany: jest.fn().mockResolvedValue([
+      { classId: 'class-bass-129', class: currentBassRace.class },
+      { classId: 'class-bass-139', class: { id: 'class-bass-139', name: 'BassRace 139.9', directionId: 'direction-bass', direction: { name: 'BassRace' } } },
+    ]) };
+    tx.registrationClass = {
+      create: jest.fn().mockResolvedValue({ id: 'registration-class-bass-139' }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    };
+
+    await service.updateRegistrationClasses('registration-1', ['class-bass-129', 'class-bass-139'], actor);
+
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({
+      data: { registrationId: 'registration-1', classId: 'class-bass-139', numberId: 'number-3' },
+    });
+    expect(tx.registrationNumber?.create).not.toHaveBeenCalled();
   });
 
   it('blocks removing a class that already has a result', async () => {
