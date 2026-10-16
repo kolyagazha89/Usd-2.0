@@ -1306,3 +1306,44 @@
   .configuration-editor-page .config-row .form-grid-5 { grid-template-columns: minmax(0, 1fr); }
   .configuration-editor-page .config-editor-actions .primary-button { width: 100%; justify-content: center; }
 }
+
+
+/* Configuration editor: clear, independent workspaces for FRONT / SUB / REAR. */
+.configuration-editor-page .config-editor {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.configuration-editor-page .config-editor .config-direction-section {
+  grid-column: span 1 !important;
+  align-self: stretch;
+  border-color: #41424a !important;
+  background: linear-gradient(155deg, #1c1d22 0%, #141519 100%) !important;
+}
+.configuration-editor-page .config-direction-section[data-direction="FRONT"] { border-top: 3px solid #d53a4b !important; }
+.configuration-editor-page .config-direction-section[data-direction="SUB"] { border-top: 3px solid #f07845 !important; }
+.configuration-editor-page .config-direction-section[data-direction="REAR"] { border-top: 3px solid #8c78e8 !important; }
+.configuration-editor-page .config-direction-section .config-section-head { align-items: flex-start; gap: 10px; }
+.configuration-editor-page .config-direction-section .config-section-title { min-width: 0; align-items: flex-start; }
+.configuration-editor-page .config-direction-section .config-section-title > div { min-width: 0; }
+.configuration-editor-page .config-direction-section .config-section-title strong { display: block; line-height: 1.35; }
+.configuration-editor-page .config-direction-section .config-section-title small { display: block; line-height: 1.5; margin-top: 5px; }
+.configuration-editor-page .config-direction-section[data-direction="FRONT"] .config-section-icon { color: #ff6876 !important; }
+.configuration-editor-page .config-direction-section[data-direction="SUB"] .config-section-icon { color: #ff9b69 !important; background: #332016 !important; border-color: #68402b !important; }
+.configuration-editor-page .config-direction-section[data-direction="REAR"] .config-section-icon { color: #b4a7ff !important; background: #211d35 !important; border-color: #40366b !important; }
+.configuration-editor-page .config-direction-section .config-row { align-items: flex-start; }
+.configuration-editor-page .config-direction-section .form-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.configuration-editor-page .config-direction-section .config-row-content { min-width: 0; }
+.configuration-editor-page .config-direction-section .config-row-content input,
+.configuration-editor-page .config-direction-section .config-row-content select { min-width: 0; }
+/* Shared fields/equipment stay in full-width rows; direction cards alone use three columns. */
+.configuration-editor-page .config-editor > :not(.config-direction-section) { grid-column: 1 / -1 !important; }
+.configuration-editor-page .config-editor > .config-section:not(.config-direction-section) { grid-column: 1 / -1 !important; }
+@media (max-width: 1120px) {
+  .configuration-editor-page .config-editor { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .configuration-editor-page .config-editor .config-direction-section { grid-column: span 1 !important; }
+}
+@media (max-width: 850px) {
+  .configuration-editor-page .config-editor { grid-template-columns: minmax(0, 1fr) !important; }
+  .configuration-editor-page .config-editor .config-direction-section,
+  .configuration-editor-page .config-editor > .config-section:not(.config-direction-section) { grid-column: 1 / -1 !important; }
+  .configuration-editor-page .config-direction-section .form-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
