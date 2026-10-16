@@ -82,7 +82,7 @@ export class StagesService {
 
     if (published && !stage.resultsPublishedAt && updated.resultsPublishedAt) {
       if (typeof this.emailNotifications?.resultsPublished === 'function') {
-        void this.emailNotifications.resultsPublished(id, updated.resultsPublishedAt).catch(() => undefined);
+        void Promise.resolve(this.emailNotifications.resultsPublished(id, updated.resultsPublishedAt)).catch(() => undefined);
       }
     }
 
@@ -324,7 +324,7 @@ export class StagesService {
       stage.status !== updated.status
     ) {
       if (typeof this.emailNotifications?.stageChanged === 'function') {
-        void this.emailNotifications.stageChanged(stage, updated).catch(() => undefined);
+        void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
       }
     }
 
