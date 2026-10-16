@@ -459,7 +459,8 @@ model Registration {
   stageInspection ParticipantStageInspection? @relation(fields: [participantStageInspectionId], references: [id], onDelete: SetNull)
   results    Result[]
 
-  @@unique([stageId, participantNumber])
+  // Active registrations must have unique participant numbers. A cancelled
+  // registration keeps its audit row but releases its number for reuse.
   @@unique([stageId, carId])
   @@index([configurationVersionId])
   @@index([participantStageInspectionId])
