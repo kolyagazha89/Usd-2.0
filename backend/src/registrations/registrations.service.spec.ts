@@ -170,8 +170,11 @@ describe('RegistrationsService', () => {
   });
 
   it.each([
-    { className: 'SPL BassRace', directionName: 'SPL', audioComponents: [], message: 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему' },
-    { className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [], message: 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему' },
+    { className: 'Limited 2.0', directionName: 'SPL', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
+    { className: 'BassRace 129.9', directionName: 'BassRace', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
+    { className: 'Storm Wall', directionName: 'Hurrican', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
+    { className: 'SPL BassRace', directionName: 'SPL', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
+    { className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
     { className: 'BFSPL', directionName: 'BFSPL', audioComponents: [], message: 'Для участия в BFSPL необходимо заполнить фронтальную акустику' },
     { className: 'DBW SPL', directionName: 'DBW SPL', audioComponents: [], message: 'Для участия в DBW SPL необходимо заполнить тыловую акустику' },
   ])('rejects $className when the required equipment is missing', async ({ className, directionName, audioComponents, message }) => {
