@@ -313,6 +313,7 @@ describe('RegistrationsService', () => {
       },
       registrationNumber: {
         findFirst: jest.fn(),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
         createMany: jest.fn().mockResolvedValue({ count: 6 }),
         findMany: jest.fn()
           .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 })))
