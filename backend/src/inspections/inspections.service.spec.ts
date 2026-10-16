@@ -38,6 +38,7 @@ describe('InspectionsService', () => {
   beforeEach(() => {
     tx = {
       $executeRaw: jest.fn(),
+      registrationNumber: { findFirst: jest.fn().mockResolvedValue({ number: 6 }), create: jest.fn().mockResolvedValue({ id: 'number-new', number: 7, isPrimary: false }) },
       registration: { findUnique: jest.fn().mockResolvedValue(registration), findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({count:1}) },
       participantStageInspection: {
         findUnique: jest.fn().mockResolvedValue(null),
