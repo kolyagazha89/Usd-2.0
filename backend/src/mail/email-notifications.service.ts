@@ -387,7 +387,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       heading: 'Новый рекорд ЮСД!',
       intro: 'Поздравляем! Ваш результат стал текущим рекордом ЮСД в своём классе.',
       details: [
-        'Класс: ' + record.result.registrationClass.class.name,
+        'Класс: ' + result.registrationClass.class.name,
         'Результат: ' + record.value + ' ' + record.unit,
         'Участник: ' + (participantName || 'участник ЮСД'),
         'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
