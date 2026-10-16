@@ -45,7 +45,16 @@ function ConfigurationEditor({carId,configuration,admin,onClose,onSaved}:{carId:
  const directionName:Record<string,string>={FRONT:'Фронт',REAR:'Тыл',SUB:'Сабвуфер'};
  const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
  const patch=(key:string,i:number,p:any)=>setV((s:any)=>({...s,[key]:s[key].map((x:any,n:number)=>n===i?{...x,...p}:x)}));
- const remove=(key:string,i:number)=>setV((s:any)=>({...s,[key]:s[key].filter((_:any,n:number)=>n!==i)}));
+ const remove=(key:string,i:number)=>setV((s:any)=>{
+  if(key==='audioComponents'){
+   const audioComponents=s.audioComponents.filter((_:any,n:number)=>n!==i);
+   const amplifiers=s.amplifiers.map((amplifier:any)=>({...amplifier,componentLinks:(amplifier.componentLinks??[])
+    .filter((link:any)=>String(link.componentId)!==String(i))
+    .map((link:any)=>({...link,componentId:Number(link.componentId)>i?String(Number(link.componentId)-1):String(link.componentId)}))}));
+   return {...s,audioComponents,amplifiers};
+  }
+  return {...s,[key]:s[key].filter((_:any,n:number)=>n!==i)};
+ });
  const add=(key:string,item:any)=>setV((s:any)=>({...s,[key]:[...s[key],item]}));
  const availableComponents=(amplifierIndex:number,linkIndex:number)=>{
   const amplifier=v.amplifiers[amplifierIndex];
