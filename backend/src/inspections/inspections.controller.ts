@@ -66,6 +66,20 @@ export class InspectionsController {
     });
   }
 
+  @Patch('registration/:registrationId/classes')
+  updateRegistrationClasses(
+    @Param('registrationId') registrationId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { classIds: string[] },
+  ) {
+    return this.inspectionsService.updateRegistrationClasses(registrationId, body.classIds, {
+      userId: request.user.sub,
+      role: request.user.role,
+      customRoleId: request.user.customRoleId,
+      ipAddress: request.ip,
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.inspectionsService.findOne(id);
