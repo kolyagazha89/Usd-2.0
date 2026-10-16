@@ -684,6 +684,12 @@ export class RegistrationsService {
           .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.classId);
         const requiredNumberCount = Math.max(1, bassRaceClassIds.length);
+        // Older class edits could leave non-primary sticker rows without
+        // any class linked to them. Remove those stale reservations before
+        // allocating numbers for a different registration.
+        await tx.registrationNumber.deleteMany({
+          where: { stageId, isPrimary: false, classes: { none: {} } },
+        });
         const occupiedRows = await tx.registrationNumber.findMany({
           where: { stageId },
           select: { number: true },

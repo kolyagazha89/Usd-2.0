@@ -209,12 +209,24 @@ export class InspectionsService {
       let highestStageNumber: number | null = null;
       const allocateNewBassRaceNumber = async () => {
         if (highestStageNumber === null) {
-          const lastNumber = await tx.registrationNumber.findFirst({
+          // Remove stale unlinked numbers from other registrations before looking
+          // for the smallest available sticker number. Keep this registration's
+          // own unlinked rows available for reuse in the loop below.
+          await tx.registrationNumber.deleteMany({
+            where: {
+              stageId: registration.stageId,
+              registrationId: { not: registrationId },
+              isPrimary: false,
+              classes: { none: {} },
+            },
+          });
+          const occupiedRows = await tx.registrationNumber.findMany({
             where: { stageId: registration.stageId },
-            orderBy: { number: 'desc' },
             select: { number: true },
           });
-          highestStageNumber = Math.max(Number(lastNumber?.number ?? 0), ...numberRows.map((item: any) => Number(item.number ?? 0)));
+          const occupied = new Set(occupiedRows.map((item: any) => Number(item.number)));
+          highestStageNumber = 0;
+          while (occupied.has(highestStageNumber + 1)) highestStageNumber += 1;
         }
         const number = ++highestStageNumber;
         const created = await tx.registrationNumber.create({
@@ -248,6 +260,13 @@ export class InspectionsService {
       if (removed.length) {
         await tx.registrationClass.deleteMany({ where: { id: { in: removed.map((item: any) => item.id) } } });
       }
+
+      // Keep only the primary participant number and numbers still attached to
+      // a class. Removed BassRace classes must not leave ghost numbers on the
+      // inspection card or block allocation for another car.
+      await tx.registrationNumber.deleteMany({
+        where: { registrationId, isPrimary: false, classes: { none: {} } },
+      });
 
       await tx.auditLog.create({
         data: {
