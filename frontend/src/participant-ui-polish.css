@@ -893,3 +893,13 @@
   padding-right: 0 !important;
   box-shadow: none !important;
 }
+
+/* Inspection class editor: keep class labels readable in the light admin UI. */
+.inspection-class-editor { display: grid; gap: 10px; margin-top: 10px; }
+.inspection-class-editor-panel { display: grid; gap: 10px; padding: 14px; background: #fff; border: 1px solid #e0e2e7; border-radius: 10px; color: #252832; }
+.inspection-class-editor-panel > p { margin: 0; color: #666b76; font-size: 13px; line-height: 1.5; }
+.inspection-class-option { display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border: 1px solid #e6e8ed; border-radius: 8px; background: #fff; color: #252832; cursor: pointer; }
+.inspection-class-option input { margin-top: 3px; accent-color: #d92e3a; }
+.inspection-class-option span { display: grid; gap: 3px; min-width: 0; }
+.inspection-class-option strong { color: #252832; font-size: 13px; }
+.inspection-class-option small { color: #777c87; font-size: 11px; }
