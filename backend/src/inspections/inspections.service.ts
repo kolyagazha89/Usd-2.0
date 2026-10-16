@@ -368,7 +368,7 @@ export class InspectionsService {
         });
         return updated;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    if (current.status !== saved.status) {
+    if (vehicleInspection.status !== saved.status) {
       await this.emailNotifications?.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt).catch(() => undefined);
     }
     return saved;
