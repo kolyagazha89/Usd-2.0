@@ -90,9 +90,9 @@ describe('RegistrationsService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         createMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'number-1', number: 1, isPrimary: true },
-        ]),
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValue([{ id: 'number-1', number: 1, isPrimary: true }]),
       },
       participantStageInspection: { findUnique: jest.fn().mockResolvedValue(null) },
       inspection: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
