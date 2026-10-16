@@ -176,7 +176,7 @@ describe('RegistrationsService', () => {
     { className: 'SPL BassRace', directionName: 'SPL', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
     { className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
     { className: 'BFSPL', directionName: 'BFSPL', audioComponents: [], message: 'Для участия в BFSPL необходимо заполнить фронтальную акустику' },
-    { className: 'DBW SPL', directionName: 'DBW SPL', audioComponents: [], message: 'Для участия в DBW SPL необходимо заполнить тыловую акустику' },
+    { className: 'BDW SPL', directionName: 'BDWSPL', audioComponents: [], message: 'Для участия в BDW SPL необходимо заполнить тыловую акустику' },
   ])('rejects $className when the required equipment is missing', async ({ className, directionName, audioComponents, message }) => {
     const tx = baseTx({
       stageClass: {
