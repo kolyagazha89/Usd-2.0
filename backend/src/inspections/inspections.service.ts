@@ -166,6 +166,18 @@ export class InspectionsService {
       if (registration.status !== 'ACTIVE') throw new ConflictException('Нельзя менять классы неактивной регистрации');
       if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') throw new ConflictException('Нельзя менять классы на отменённом этапе');
 
+      const existing = registration.classes as any[];
+      const existingByClassId = new Map(existing.map((item) => [item.classId, item]));
+      const requestedSet = new Set(requestedIds);
+      const removed = existing.filter((item) => !requestedSet.has(item.classId));
+
+      // Check result protection before validating the requested stage classes, so
+      // a class with a recorded result always returns the explicit conflict.
+      const resultClass = removed.find((item: any) => item.results?.length);
+      if (resultClass) {
+        throw new ConflictException('Нельзя убрать класс «' + resultClass.class.name + '»: по нему уже записан результат. Сначала исправьте результат.');
+      }
+
       const stageClasses = await tx.stageClass.findMany({
         where: { stageId: registration.stageId, classId: { in: requestedIds }, isActive: true, class: { isActive: true } },
         include: { class: { include: { direction: true } } },
@@ -173,17 +185,7 @@ export class InspectionsService {
       if (stageClasses.length !== requestedIds.length) {
         throw new BadRequestException('Один или несколько выбранных классов недоступны на этом этапе');
       }
-
-      const existing = registration.classes as any[];
-      const existingByClassId = new Map(existing.map((item) => [item.classId, item]));
-      const requestedSet = new Set(requestedIds);
-      const removed = existing.filter((item) => !requestedSet.has(item.classId));
       const added = stageClasses.filter((item: any) => !existingByClassId.has(item.classId));
-
-      const resultClass = removed.find((item: any) => item.results?.length);
-      if (resultClass) {
-        throw new ConflictException('Нельзя убрать класс «' + resultClass.class.name + '»: по нему уже записан результат. Сначала исправьте результат.');
-      }
       if (!registration.numbers.length) throw new ConflictException('У регистрации нет закреплённого номера участника');
 
       for (const item of added as any[]) {
