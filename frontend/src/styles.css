@@ -4116,3 +4116,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .configuration-admission-guide ul{display:grid;gap:6px;margin:0;padding-left:18px;font-size:12px;line-height:1.5}
 .configuration-admission-guide li b{white-space:nowrap}
 .configuration-admission-guide small{font-size:11px;line-height:1.5;color:var(--muted,#666)}
+
+
+.registration-class-option.configuration-required .registration-class-text small{color:#a56a16;font-weight:600}
+.registration-class-option.configuration-required.disabled{opacity:.7}
