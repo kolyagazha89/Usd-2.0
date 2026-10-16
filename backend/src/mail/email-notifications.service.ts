@@ -238,16 +238,189 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     });
   }
 
-  async sendTestTrigger(type: 'STAGE_REGISTRATION_OPEN' | 'REGISTRATION_CONFIRMED' | 'STAGE_REMINDER_3D' | 'STAGE_REMINDER_1D', recipient: string, stageId?: string) {
+  private async notifyStageRegistrants(input: { stage: any; type: string; eventKey: string; heading: string; intro: string; details: string[]; href?: string }) {
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId: input.stage.id, status: 'ACTIVE' },
+      include: { participant: { include: { user: true } }, car: true, classes: { include: { class: true } } },
+    });
+    for (const registration of registrations as any[]) {
+      const user = registration.participant?.user;
+      if (!user?.isActive || !user.email) continue;
+      await this.dispatch({
+        eventKey: input.eventKey + ':' + registration.id + ':' + user.id,
+        type: input.type,
+        recipient: user.email,
+        stageId: input.stage.id,
+        registrationId: registration.id,
+        subject: input.heading + ' — ' + input.stage.name,
+        heading: input.heading,
+        intro: input.intro,
+        details: [
+          ...input.details,
+          'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
+          'Классы: ' + (registration.classes ?? []).map((item: any) => item.class?.name).filter(Boolean).join(', '),
+        ],
+        href: input.href ?? this.frontendUrl + '/stages/' + encodeURIComponent(input.stage.id),
+      });
+    }
+  }
+
+  async stageChanged(previous: any, updated: any) {
+    if (!updated || updated.status === 'DRAFT' || updated.status === 'CANCELLED' && previous.status === 'CANCELLED') return;
+    const relevantFields = ['name', 'date', 'city', 'venue', 'address'];
+    const changed = relevantFields.filter((key) => {
+      const before = previous[key] instanceof Date ? previous[key].toISOString() : String(previous[key] ?? '');
+      const after = updated[key] instanceof Date ? updated[key].toISOString() : String(updated[key] ?? '');
+      return before !== after;
+    });
+    const wasCancelled = previous.status !== 'CANCELLED' && updated.status === 'CANCELLED';
+    if (!wasCancelled && (changed.length === 0 || updated.status !== 'PUBLISHED')) return;
+    const eventType = wasCancelled ? 'STAGE_CANCELLED' : 'STAGE_CHANGED';
+    const details = [
+      'Этап: ' + updated.name + ' · №' + updated.stageNumber,
+      'Дата: ' + formatStageDate(updated),
+      'Место: ' + [updated.city, updated.venue, updated.address].filter(Boolean).join(', '),
+      ...(changed.length ? ['Изменённые сведения: ' + changed.map((key) => ({ name: 'название этапа', date: 'дата проведения', city: 'город', venue: 'площадка', address: 'адрес' } as Record<string, string>)[key]).join(', ')] : []),
+    ];
+    await this.notifyStageRegistrants({
+      stage: updated,
+      type: eventType,
+      eventKey: eventType.toLowerCase() + ':' + updated.id + ':' + updated.updatedAt.toISOString(),
+      heading: wasCancelled ? 'Этап отменён' : 'Изменились сведения об этапе',
+      intro: wasCancelled
+        ? 'Организатор отменил этап. Пожалуйста, ознакомьтесь с информацией и следите за обновлениями на сайте ЮСД.'
+        : 'Организатор обновил сведения об этапе. Проверьте актуальные дату и место проведения.',
+      details,
+    });
+  }
+
+  async inspectionChanged(registrationId: string, inspectionId: string, status: 'PASSED' | 'FAILED', notes?: string | null, className?: string | null, changedAt?: Date) {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+      include: { stage: true, participant: { include: { user: true } }, car: true, classes: { include: { class: true } } },
+    });
+    const user = registration?.participant?.user;
+    if (!registration || registration.status !== 'ACTIVE' || !user?.isActive || !user.email) return;
+    const type = status === 'PASSED' ? 'INSPECTION_PASSED' : 'INSPECTION_FAILED';
+    const heading = status === 'PASSED' ? 'Техническая проверка пройдена' : 'Техническая проверка не пройдена';
+    const details = [
+      'Этап: ' + registration.stage.name + ' · №' + registration.stage.stageNumber,
+      'Дата: ' + formatStageDate(registration.stage),
+      'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
+      ...(className ? ['Проверяемый класс: ' + className] : []),
+      ...(notes ? ['Комментарий судьи: ' + notes] : []),
+      'Классы заявки: ' + (registration.classes ?? []).map((item: any) => item.class?.name).filter(Boolean).join(', '),
+    ];
+    await this.dispatch({
+      eventKey: 'inspection:' + inspectionId + ':' + status + ':' + (changedAt ?? new Date()).toISOString(),
+      type, recipient: user.email, stageId: registration.stageId, registrationId,
+      subject: heading + ' — ' + registration.stage.name, heading,
+      intro: status === 'PASSED'
+        ? 'Ваша техническая проверка отмечена как пройденная.'
+        : 'По результатам проверки допуск не подтверждён. Ознакомьтесь с комментарием и свяжитесь с организатором при необходимости.',
+      details, href: this.frontendUrl + '/participant',
+    });
+  }
+
+  async registrationCancelled(registrationId: string, cancelledAt: Date = new Date()) {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+      include: { stage: true, participant: { include: { user: true } }, car: true, classes: { include: { class: true } } },
+    });
+    const user = registration?.participant?.user;
+    if (!registration || !user?.isActive || !user.email) return;
+    await this.dispatch({
+      eventKey: 'registration-cancelled:' + registration.id + ':' + cancelledAt.toISOString(),
+      type: 'REGISTRATION_CANCELLED', recipient: user.email, stageId: registration.stageId, registrationId,
+      subject: 'Регистрация отменена — ' + registration.stage.name,
+      heading: 'Регистрация отменена',
+      intro: 'Заявка на участие отменена. Если это произошло по ошибке, свяжитесь с организатором ЮСД.',
+      details: [
+        'Этап: ' + registration.stage.name + ' · №' + registration.stage.stageNumber,
+        'Дата: ' + formatStageDate(registration.stage),
+        'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
+        'Классы: ' + (registration.classes ?? []).map((item: any) => item.class?.name).filter(Boolean).join(', '),
+      ],
+      href: this.frontendUrl + '/participant',
+    });
+  }
+
+  async resultsPublished(stageId: string, publishedAt: Date = new Date()) {
+    const stage = await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false } });
+    if (!stage) return;
+    await this.notifyStageRegistrants({
+      stage, type: 'STAGE_RESULTS_PUBLISHED',
+      eventKey: 'stage-results-published:' + stage.id + ':' + publishedAt.toISOString(),
+      heading: 'Результаты этапа опубликованы',
+      intro: 'Опубликованы официальные результаты этапа. Откройте страницу этапа, чтобы посмотреть места и результаты.',
+      details: [
+        'Этап: ' + stage.name + ' · №' + stage.stageNumber,
+        'Дата: ' + formatStageDate(stage),
+        'Город: ' + (stage.city || 'уточняется'),
+      ],
+      href: this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) + '/results',
+    });
+  }
+
+  async recordSet(resultId: string) {
+    const record = await this.prisma.record.findFirst({
+      where: { resultId, isCurrent: true },
+      include: {
+        result: {
+          include: {
+            registration: { include: { stage: true, participant: { include: { user: true } }, car: true } },
+            registrationClass: { include: { class: true } },
+          },
+        },
+      },
+    });
+    const result = record?.result;
+    const registration = result?.registration;
+    const user = registration?.participant?.user;
+    if (!record || !registration || !user?.isActive || !user.email) return;
+    const stage = registration.stage;
+    const participantName = [registration.participant?.firstName, registration.participant?.lastName].filter(Boolean).join(' ');
+    await this.dispatch({
+      eventKey: 'new-record:' + record.id,
+      type: 'NEW_RECORD_SET', recipient: user.email, stageId: registration.stageId, registrationId: registration.id,
+      subject: 'Новый рекорд ЮСД: ' + record.value + ' ' + record.unit,
+      heading: 'Новый рекорд ЮСД!',
+      intro: 'Поздравляем! Ваш результат стал текущим рекордом ЮСД в своём классе.',
+      details: [
+        'Класс: ' + record.result.registrationClass.class.name,
+        'Результат: ' + record.value + ' ' + record.unit,
+        'Участник: ' + (participantName || 'участник ЮСД'),
+        'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
+        'Этап: ' + stage.name + ' · №' + stage.stageNumber,
+        'Дата: ' + formatStageDate(stage),
+      ],
+      href: this.frontendUrl + '/records',
+    });
+  }
+
+  async sendTestTrigger(type: string, recipient: string, stageId?: string) {
     const stage = stageId ? await this.prisma.stage.findFirst({ where: { id: stageId, isDeleted: false }, select: { id: true, name: true, stageNumber: true, date: true, city: true, venue: true, address: true } }) : null;
     if (stageId && !stage) throw new BadRequestException('Этап не найден');
     const title = stage?.name ?? 'Тестовый этап USD';
-    const heading = type === 'STAGE_REGISTRATION_OPEN' ? 'Тест: регистрация на этап открыта' : type === 'REGISTRATION_CONFIRMED' ? 'Тест: заявка подтверждена' : type === 'STAGE_REMINDER_3D' ? 'Тест: до этапа осталось 3 дня' : 'Тест: напоминание за 1 день';
+    const testHeadings: Record<string, string> = {
+      STAGE_REGISTRATION_OPEN: 'Тест: регистрация на этап открыта',
+      REGISTRATION_CONFIRMED: 'Тест: заявка подтверждена',
+      STAGE_REMINDER_3D: 'Тест: до этапа осталось 3 дня',
+      STAGE_REMINDER_1D: 'Тест: напоминание за 1 день',
+      STAGE_CHANGED: 'Тест: сведения об этапе изменились',
+      STAGE_CANCELLED: 'Тест: этап отменён',
+      INSPECTION_PASSED: 'Тест: техосмотр пройден',
+      INSPECTION_FAILED: 'Тест: техосмотр не пройден',
+      REGISTRATION_CANCELLED: 'Тест: регистрация отменена',
+      STAGE_RESULTS_PUBLISHED: 'Тест: результаты опубликованы',
+      NEW_RECORD_SET: 'Тест: новый рекорд ЮСД',
+    };
+    const heading = testHeadings[type] ?? 'Тестовое уведомление ЮСД';
     const details = [
       'Этап: ' + title + (stage?.stageNumber ? ' · №' + stage.stageNumber : ''),
       'Дата: ' + (stage?.date ? formatStageDate(stage) : 'пример даты'),
       'Место: ' + [stage?.city, stage?.venue, stage?.address].filter(Boolean).join(', '),
-      ...(type === 'REGISTRATION_CONFIRMED' ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
+      ...(['REGISTRATION_CONFIRMED', 'INSPECTION_PASSED', 'INSPECTION_FAILED', 'REGISTRATION_CANCELLED', 'NEW_RECORD_SET'].includes(type) ? ['Автомобиль: Lada Vesta (пример)', 'Номер участника: 001 (пример)', 'Классы: Limited 2.0 (пример)'] : []),
     ];
     const logoUrl = await this.getLogoUrl().catch(() => null);
     const templates = await this.getEmailTemplates();
