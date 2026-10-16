@@ -670,55 +670,40 @@ export class RegistrationsService {
           );
         }
 
-        // 8. Выбираем номера. При повторной активации отменённой
-        // регистрации сохраняем исходный номер участника и уже выданные
-        // номера BassRace: наклейки не должны меняться из-за отмены.
-        const lastNumber = await tx.registrationNumber.findFirst({
-          where: { stageId },
-          orderBy: { number: 'desc' },
-          select: { number: true },
-        });
+        // 8. Выдаём минимальные свободные номера, чтобы отменённые
+        // регистрации не оставляли пустые места в нумерации наклеек.
+        // Удаляем старые резервы отменённой регистрации до поиска свободных
+        // номеров: повторная регистрация получает новый номер, если старый уже занят.
+        if (existing?.status === 'CANCELLED') {
+          await tx.registrationClass.deleteMany({ where: { registrationId: existing.id } });
+          await tx.inspection.deleteMany({ where: { registrationId: existing.id } });
+          await tx.registrationNumber.deleteMany({ where: { registrationId: existing.id } });
+        }
+
         const bassRaceClassIds = stageClasses
           .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.classId);
         const requiredNumberCount = Math.max(1, bassRaceClassIds.length);
-        const previousNumbers = existing?.status === 'CANCELLED'
-          ? await tx.registrationNumber.findMany({
-              where: { registrationId: existing.id },
-              orderBy: [{ isPrimary: 'desc' }, { number: 'asc' }],
-            })
-          : [];
-        const previousPrimary = previousNumbers.find((item: { isPrimary: boolean }) => item.isPrimary)
-          ?? previousNumbers[0];
-        const participantNumber = existing?.status === 'CANCELLED'
-          ? existing.participantNumber
-          : (lastNumber?.number ?? 0) + 1;
-
-        // Сохраняем все ранее выданные номера. Если после отмены добавили
-        // больше классов BassRace, новые дополнительные номера выдаются
-        // только сверх уже зарезервированных и никогда не заменяют основной.
-        const reservedNumbers = existing?.status === 'CANCELLED'
-          ? [
-              ...(previousPrimary ? [previousPrimary.number] : [participantNumber]),
-              ...previousNumbers
-                .filter((item: { number: number }) => item.number !== (previousPrimary?.number ?? participantNumber))
-                .map((item: { number: number }) => item.number),
-            ]
-          : [participantNumber];
-        let nextNumber = Math.max(lastNumber?.number ?? 0, ...reservedNumbers);
+        const occupiedRows = await tx.registrationNumber.findMany({
+          where: { stageId },
+          select: { number: true },
+        });
+        const occupiedNumbers = new Set(occupiedRows.map((item: { number: number }) => item.number));
+        const reservedNumbers: number[] = [];
+        let candidateNumber = 1;
         while (reservedNumbers.length < requiredNumberCount) {
-          reservedNumbers.push(++nextNumber);
+          if (!occupiedNumbers.has(candidateNumber)) {
+            reservedNumbers.push(candidateNumber);
+          }
+          candidateNumber += 1;
         }
-
-        const existingNumberValues = new Set(previousNumbers.map((item: { number: number }) => item.number));
-        const numberRows = reservedNumbers
-          .filter((number) => !existingNumberValues.has(number))
-          .map((number) => ({
-            id: randomUUID(),
-            stageId,
-            number,
-            isPrimary: number === participantNumber,
-          }));
+        const participantNumber = reservedNumbers[0];
+        const numberRows = reservedNumbers.map((number) => ({
+          id: randomUUID(),
+          stageId,
+          number,
+          isPrimary: number === participantNumber,
+        }));
 
         // A participant has one shared inspection per stage. New registrations inherit it.
         const sharedInspection = await tx.participantStageInspection.findUnique({
@@ -730,13 +715,6 @@ export class RegistrationsService {
         }
         // 10. Создаём новую регистрацию. Номера связываются
         // с регистрацией после её создания.
-        if (existing?.status === 'CANCELLED') {
-          // Reuse the cancelled row and its number rows: number IDs and printed
-          // sticker numbers remain stable. Reset only current class/inspection data.
-          await tx.registrationClass.deleteMany({ where: { registrationId: existing.id } });
-          await tx.inspection.deleteMany({ where: { registrationId: existing.id } });
-        }
-
         const registrationData = {
           stageId,
           participantId,
@@ -871,6 +849,17 @@ export class RegistrationsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Serialize cancellation with registration creation for this stage.
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${registration.stage.id}))
+      `;
+
+      // Keep the cancelled registration and audit log, but release every
+      // sticker number so another active registration can use it.
+      await tx.registrationClass.deleteMany({ where: { registrationId: id } });
+      await tx.inspection.deleteMany({ where: { registrationId: id } });
+      await tx.registrationNumber.deleteMany({ where: { registrationId: id } });
+
       const changed = await tx.registration.update({
         where: {
           id,
