@@ -607,7 +607,9 @@ export class ResultsService {
       result.stageId,
       result.classId,
     );
-    void this.emailNotifications?.recordSet(result.result.id).catch(() => undefined);
+    if (typeof this.emailNotifications?.recordSet === 'function') {
+      void Promise.resolve(this.emailNotifications.recordSet(result.result.id)).catch(() => undefined);
+    }
 
     return this.findOneAdmin(result.result.id);
   }
@@ -742,7 +744,9 @@ export class ResultsService {
       updated.stageId,
       updated.classId,
     );
-    void this.emailNotifications?.recordSet(updated.result.id).catch(() => undefined);
+    if (typeof this.emailNotifications?.recordSet === 'function') {
+      void Promise.resolve(this.emailNotifications.recordSet(updated.result.id)).catch(() => undefined);
+    }
 
     return this.findOneAdmin(updated.result.id);
   }
