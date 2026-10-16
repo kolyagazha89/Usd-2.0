@@ -180,4 +180,67 @@ describe('InspectionsService', () => {
     }));
   });
 
+
+  it('allows correcting classes after a passed inspection and audits the change', async () => {
+    const registrationRow: any = {
+      ...registration,
+      stage: { isDeleted: false, status: 'PUBLISHED' },
+      numbers: [{ id: 'number-1', number: 1, isPrimary: true }],
+      inspection: { status: 'PASSED' },
+      classes: [{
+        id: 'registration-class-old',
+        registrationId: 'registration-1',
+        classId: 'class-old',
+        numberId: 'number-1',
+        number: { id: 'number-1', number: 1 },
+        class: { id: 'class-old', name: 'Old class', directionId: 'direction-1', direction: { name: 'SPL' } },
+        results: [],
+        inspection: null,
+      }],
+    };
+    tx.registration = { findUnique: jest.fn().mockResolvedValue(registrationRow) };
+    tx.stageClass = { findMany: jest.fn().mockResolvedValue([{
+      classId: 'class-new',
+      class: { id: 'class-new', name: 'New class', directionId: 'direction-1', direction: { name: 'SPL' } },
+    }]) };
+    tx.registrationClass = {
+      create: jest.fn().mockResolvedValue({ id: 'registration-class-new' }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+
+    const result = await service.updateRegistrationClasses('registration-1', ['class-new'], actor);
+
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({
+      data: { registrationId: 'registration-1', classId: 'class-new', numberId: 'number-1' },
+    });
+    expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['registration-class-old'] } } });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'REGISTRATION_CLASSES_CHANGED', entityId: 'registration-1' }),
+    }));
+    expect(result.success).toBe(true);
+    expect(result.added).toEqual(['New class']);
+    expect(result.removed).toEqual(['Old class']);
+  });
+
+  it('blocks removing a class that already has a result', async () => {
+    tx.registration = { findUnique: jest.fn().mockResolvedValue({
+      ...registration,
+      stage: { isDeleted: false, status: 'PUBLISHED' },
+      numbers: [{ id: 'number-1', number: 1, isPrimary: true }],
+      classes: [{
+        id: 'registration-class-old',
+        classId: 'class-old',
+        class: { id: 'class-old', name: 'Old class', directionId: 'direction-1', direction: { name: 'SPL' } },
+        number: { id: 'number-1', number: 1 },
+        results: [{ id: 'result-1' }],
+        inspection: null,
+      }],
+    }) };
+    tx.stageClass = { findMany: jest.fn().mockResolvedValue([]) };
+
+    await expect(service.updateRegistrationClasses('registration-1', ['class-new'], actor))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(tx.registrationClass.deleteMany).not.toHaveBeenCalled();
+  });
+
 });
