@@ -206,7 +206,7 @@ export class InspectionsService {
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    await this.emailNotifications?.inspectionChanged(saved.registrationClass.registration.id, saved.id, saved.status, saved.notes, saved.registrationClass.class.name, saved.updatedAt).catch(() => undefined);
+    if (typeof this.emailNotifications?.inspectionChanged === 'function') await Promise.resolve(this.emailNotifications.inspectionChanged(saved.registrationClass.registration.id, saved.id, saved.status, saved.notes, saved.registrationClass.class.name, saved.updatedAt)).catch(() => undefined);
     return saved;
   }
 
@@ -325,7 +325,7 @@ export class InspectionsService {
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    await this.emailNotifications?.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt).catch(() => undefined);
+    if (typeof this.emailNotifications?.inspectionChanged === 'function') await Promise.resolve(this.emailNotifications.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt)).catch(() => undefined);
     return saved;
   }
 
