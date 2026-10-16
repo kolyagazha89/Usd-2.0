@@ -157,6 +157,7 @@ export class InspectionsService {
         where: { id: registrationId },
         include: {
           stage: true,
+          inspection: { select: { status: true } },
           numbers: { orderBy: [{ isPrimary: 'desc' }, { number: 'asc' }] },
           classes: { include: { class: { include: { direction: true } }, number: true, results: { select: { id: true } }, inspection: true } },
         },
