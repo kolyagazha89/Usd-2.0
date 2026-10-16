@@ -4109,3 +4109,10 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .participant-history-description p{margin:5px 0 0;font-size:12px;white-space:pre-wrap}
 .participant-history-missing{margin-top:10px;padding:11px;border:1px dashed var(--border,#aaa);border-radius:10px;color:var(--muted,#666);font-size:12px;line-height:1.5}
 @media(max-width:560px){.participant-history-event{padding:12px}.participant-history-event-heading{flex-direction:column}.participant-history-event-meta{grid-template-columns:1fr}.participant-history-result-list>div{grid-template-columns:minmax(0,1fr)}.participant-history-result-list strong{text-align:left}.participant-history-equipment-row{align-items:flex-start;flex-direction:column}}
+
+
+.configuration-admission-guide{margin:14px 0;padding:14px 16px;border:1px solid var(--border,#ddd);border-radius:12px;background:var(--surface-muted,rgba(127,127,127,.06));display:grid;gap:8px}
+.configuration-admission-guide>strong{font-size:13px}
+.configuration-admission-guide ul{display:grid;gap:6px;margin:0;padding-left:18px;font-size:12px;line-height:1.5}
+.configuration-admission-guide li b{white-space:nowrap}
+.configuration-admission-guide small{font-size:11px;line-height:1.5;color:var(--muted,#666)}
