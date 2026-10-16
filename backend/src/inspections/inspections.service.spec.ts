@@ -237,6 +237,7 @@ describe('InspectionsService', () => {
       }],
     }) };
     tx.stageClass = { findMany: jest.fn().mockResolvedValue([]) };
+    tx.registrationClass = { deleteMany: jest.fn() };
 
     await expect(service.updateRegistrationClasses('registration-1', ['class-new'], actor))
       .rejects.toBeInstanceOf(ConflictException);
