@@ -312,15 +312,15 @@ describe('RegistrationsService', () => {
         ]),
       },
       registrationNumber: {
-        findFirst: jest.fn().mockResolvedValue({ number: 10 }),
+        findFirst: jest.fn(),
         createMany: jest.fn().mockResolvedValue({ count: 6 }),
-        findMany: jest.fn().mockResolvedValue(
-          bassRaceClasses.map((_, index) => ({
+        findMany: jest.fn()
+          .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 })))
+          .mockResolvedValue(bassRaceClasses.map((_, index) => ({
             id: `number-${11 + index}`,
             number: 11 + index,
             isPrimary: index === 0,
-          })),
-        ),
+          }))),
       },
     });
     setupTransaction(tx);
