@@ -81,7 +81,9 @@ export class StagesService {
     });
 
     if (published && !stage.resultsPublishedAt && updated.resultsPublishedAt) {
-      void this.emailNotifications?.resultsPublished(id, updated.resultsPublishedAt).catch(() => undefined);
+      if (typeof this.emailNotifications?.resultsPublished === 'function') {
+        void this.emailNotifications.resultsPublished(id, updated.resultsPublishedAt).catch(() => undefined);
+      }
     }
 
     await this.audit.log({
@@ -315,13 +317,15 @@ export class StagesService {
     }
     if (
       stage.name !== updated.name ||
-      stage.date.getTime() !== updated.date.getTime() ||
+      String(stage.date ?? '') !== String(updated.date ?? '') ||
       stage.city !== updated.city ||
       stage.venue !== updated.venue ||
       stage.address !== updated.address ||
       stage.status !== updated.status
     ) {
-      void this.emailNotifications?.stageChanged(stage, updated).catch(() => undefined);
+      if (typeof this.emailNotifications?.stageChanged === 'function') {
+        void this.emailNotifications.stageChanged(stage, updated).catch(() => undefined);
+      }
     }
 
     const changed = Object.keys(data);
