@@ -38,7 +38,12 @@ describe('InspectionsService', () => {
   beforeEach(() => {
     tx = {
       $executeRaw: jest.fn(),
-      registrationNumber: { findFirst: jest.fn().mockResolvedValue({ number: 6 }), create: jest.fn().mockResolvedValue({ id: 'number-new', number: 7, isPrimary: false }) },
+      registrationNumber: {
+        findFirst: jest.fn().mockResolvedValue({ number: 6 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({ id: 'number-new', number: 7, isPrimary: false }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       registration: { findUnique: jest.fn().mockResolvedValue(registration), findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({count:1}) },
       participantStageInspection: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -216,6 +221,9 @@ describe('InspectionsService', () => {
       data: { registrationId: 'registration-1', classId: 'class-new', numberId: 'number-1' },
     });
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['registration-class-old'] } } });
+    expect(tx.registrationNumber.deleteMany).toHaveBeenCalledWith({
+      where: { registrationId: 'registration-1', isPrimary: false, classes: { none: {} } },
+    });
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: 'REGISTRATION_CLASSES_CHANGED', entityId: 'registration-1' }),
     }));
