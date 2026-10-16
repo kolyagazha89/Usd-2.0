@@ -148,6 +148,88 @@ export class InspectionsService {
   }
 
 
+  async updateRegistrationClasses(registrationId: string, classIds: string[], actor: Actor) {
+    const requestedIds = [...new Set((classIds ?? []).filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()))];
+    if (!requestedIds.length) throw new BadRequestException('У регистрации должен остаться хотя бы один класс');
+
+    return this.prisma.$transaction(async (tx) => {
+      const registration = await tx.registration.findUnique({
+        where: { id: registrationId },
+        include: {
+          stage: true,
+          numbers: { orderBy: [{ isPrimary: 'desc' }, { number: 'asc' }] },
+          classes: { include: { class: { include: { direction: true } }, number: true, results: { select: { id: true } }, inspection: true } },
+        },
+      });
+      if (!registration) throw new NotFoundException('Регистрация не найдена');
+      if (registration.status !== 'ACTIVE') throw new ConflictException('Нельзя менять классы неактивной регистрации');
+      if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') throw new ConflictException('Нельзя менять классы на отменённом этапе');
+
+      const stageClasses = await tx.stageClass.findMany({
+        where: { stageId: registration.stageId, classId: { in: requestedIds }, isActive: true, class: { isActive: true } },
+        include: { class: { include: { direction: true } } },
+      });
+      if (stageClasses.length !== requestedIds.length) {
+        throw new BadRequestException('Один или несколько выбранных классов недоступны на этом этапе');
+      }
+
+      const existing = registration.classes as any[];
+      const existingByClassId = new Map(existing.map((item) => [item.classId, item]));
+      const requestedSet = new Set(requestedIds);
+      const removed = existing.filter((item) => !requestedSet.has(item.classId));
+      const added = stageClasses.filter((item: any) => !existingByClassId.has(item.classId));
+
+      const resultClass = removed.find((item: any) => item.results?.length);
+      if (resultClass) {
+        throw new ConflictException('Нельзя убрать класс «' + resultClass.class.name + '»: по нему уже записан результат. Сначала исправьте результат.');
+      }
+      if (!registration.numbers.length) throw new ConflictException('У регистрации нет закреплённого номера участника');
+
+      for (const item of added as any[]) {
+        const directionId = item.class.directionId;
+        const sameDirection = existing.find((current: any) => current.class.directionId === directionId);
+        const chosenNumber = sameDirection?.numberId
+          ? registration.numbers.find((number: any) => number.id === sameDirection.numberId)
+          : registration.numbers.find((number: any) => number.isPrimary) ?? registration.numbers[0];
+        if (!chosenNumber) throw new ConflictException('Не удалось определить номер для нового класса «' + item.class.name + '»');
+        await tx.registrationClass.create({
+          data: { registrationId, classId: item.classId, numberId: chosenNumber.id },
+        });
+      }
+
+      if (removed.length) {
+        await tx.registrationClass.deleteMany({ where: { id: { in: removed.map((item: any) => item.id) } } });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: actor.userId,
+          action: 'REGISTRATION_CLASSES_CHANGED',
+          entity: 'Registration',
+          entityId: registrationId,
+          ipAddress: actor.ipAddress ?? null,
+          metadata: {
+            stageId: registration.stageId,
+            participantId: registration.participantId,
+            before: existing.map((item: any) => ({ classId: item.classId, className: item.class.name, number: item.number?.number })),
+            after: stageClasses.map((item: any) => ({ classId: item.classId, className: item.class.name })),
+            added: added.map((item: any) => ({ classId: item.classId, className: item.class.name })),
+            removed: removed.map((item: any) => ({ classId: item.classId, className: item.class.name })),
+            inspectionStatus: registration.inspection?.status ?? null,
+          },
+        },
+      });
+
+      return {
+        success: true,
+        registrationId,
+        added: added.map((item: any) => item.class.name),
+        removed: removed.map((item: any) => item.class.name),
+        classes: stageClasses.map((item: any) => ({ id: item.classId, name: item.class.name, direction: item.class.direction?.name ?? null })),
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
   async findByRegistrationClass(registrationClassId: string) {
     const inspection = await this.prisma.registrationClassInspection.findUnique({
       where: { registrationClassId },
