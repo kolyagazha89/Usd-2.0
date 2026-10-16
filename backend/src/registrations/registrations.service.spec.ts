@@ -90,9 +90,9 @@ describe('RegistrationsService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         createMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'number-1', number: 1, isPrimary: true },
-        ]),
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValue([{ id: 'number-1', number: 1, isPrimary: true }]),
       },
       participantStageInspection: { findUnique: jest.fn().mockResolvedValue(null) },
       inspection: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -248,7 +248,7 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).toHaveBeenCalled();
   });
 
-  it('reactivates a cancelled registration with the same participant and sticker numbers', async () => {
+  it('releases cancelled sticker numbers and assigns the next available number on re-registration', async () => {
     const tx = baseTx({
       registration: {
         findUnique: jest.fn().mockResolvedValue({
@@ -262,12 +262,12 @@ describe('RegistrationsService', () => {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-old' }),
       },
       registrationNumber: {
-        findFirst: jest.fn().mockResolvedValue({ number: 7 }),
+        findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
         findMany: jest.fn()
-          .mockResolvedValueOnce([{ id: 'number-7', number: 7, isPrimary: true }])
-          .mockResolvedValueOnce([{ id: 'number-7', number: 7, isPrimary: true }]),
+          .mockResolvedValueOnce([{ number: 1 }, { number: 2 }])
+          .mockResolvedValueOnce([{ id: 'number-3', number: 3, isPrimary: true }]),
       },
       registrationClass: {
         count: jest.fn().mockResolvedValue(0),
@@ -281,11 +281,13 @@ describe('RegistrationsService', () => {
     await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-old' });
     expect(tx.registration.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'registration-old' },
-      data: expect.objectContaining({ status: 'ACTIVE', participantNumber: 7 }),
+      data: expect.objectContaining({ status: 'ACTIVE', participantNumber: 3 }),
     }));
     expect(tx.registration.create).not.toHaveBeenCalled();
-    expect(tx.registrationNumber.deleteMany).not.toHaveBeenCalled();
-    expect(tx.registrationNumber.createMany).not.toHaveBeenCalled();
+    expect(tx.registrationNumber.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
+    expect(tx.registrationNumber.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ number: 3, isPrimary: true, registrationId: 'registration-old' })],
+    });
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
@@ -310,15 +312,15 @@ describe('RegistrationsService', () => {
         ]),
       },
       registrationNumber: {
-        findFirst: jest.fn().mockResolvedValue({ number: 10 }),
+        findFirst: jest.fn(),
         createMany: jest.fn().mockResolvedValue({ count: 6 }),
-        findMany: jest.fn().mockResolvedValue(
-          bassRaceClasses.map((_, index) => ({
+        findMany: jest.fn()
+          .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 })))
+          .mockResolvedValue(bassRaceClasses.map((_, index) => ({
             id: `number-${11 + index}`,
             number: 11 + index,
             isPrimary: index === 0,
-          })),
-        ),
+          }))),
       },
     });
     setupTransaction(tx);

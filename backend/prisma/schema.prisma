@@ -459,6 +459,8 @@ model Registration {
   stageInspection ParticipantStageInspection? @relation(fields: [participantStageInspectionId], references: [id], onDelete: SetNull)
   results    Result[]
 
+  // Keep the composite unique key required by Prisma's generated client.
+  // Cancelled rows receive a negative archival number so positive sticker numbers can be reused.
   @@unique([stageId, participantNumber])
   @@unique([stageId, carId])
   @@index([configurationVersionId])
