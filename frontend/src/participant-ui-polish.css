@@ -1097,3 +1097,212 @@
 .configuration-editor-page .config-section-title small,
 .configuration-editor-page .config-editor-intro .eyebrow { color: #777d85; }
 .configuration-editor-page .config-row-content .muted { color: #737982; }
+
+
+/* USD configuration editor — full-page graphite workspace, never a light modal. */
+.configuration-editor-page {
+  width: 100%;
+  max-width: 1440px;
+  padding: clamp(14px, 2.4vw, 34px);
+  gap: 22px;
+  color: #f1f2f4;
+}
+.configuration-editor-page .configuration-subpage-header {
+  padding: clamp(22px, 3vw, 36px);
+  border: 1px solid #303137;
+  border-radius: 22px;
+  background: radial-gradient(ellipse at 90% 0%, rgba(222, 35, 53, .16), transparent 40%), linear-gradient(130deg, #191a1f 0%, #111216 72%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .18);
+}
+.configuration-editor-page .configuration-subpage-header h1 { color: #f7f7f8; }
+.configuration-editor-page .configuration-subpage-header p { color: #a7a9b2; }
+.configuration-editor-page .configuration-subpage-header .eyebrow { color: #f06470; }
+.configuration-editor-page .config-editor {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #e7e8eb;
+}
+.configuration-editor-page .config-editor-intro,
+.configuration-editor-page .configuration-admission-guide,
+.configuration-editor-page .catalog-request-inline,
+.configuration-editor-page .config-basic-grid,
+.configuration-editor-page .config-editor > label,
+.configuration-editor-page .config-editor-actions {
+  grid-column: 1 / -1;
+}
+.configuration-editor-page .config-editor-intro {
+  padding: 20px 22px !important;
+  border: 1px solid #34353c !important;
+  border-radius: 17px !important;
+  background: linear-gradient(115deg, #1a1b20, #141519) !important;
+  color: #e8e9ed !important;
+  box-shadow: none !important;
+}
+.configuration-editor-page .config-editor-intro strong { color: #f5f5f7 !important; font-size: 15px !important; line-height: 1.5; }
+.configuration-editor-page .config-editor-intro .eyebrow { color: #f06470 !important; }
+.configuration-editor-page .config-editor-icon,
+.configuration-editor-page .config-section-icon {
+  background: #35171d !important;
+  color: #ff6572 !important;
+  border: 1px solid #59232c;
+}
+.configuration-editor-page .configuration-admission-guide {
+  margin: 0 !important;
+  padding: 18px 21px !important;
+  border: 1px solid #49262c !important;
+  border-radius: 16px !important;
+  background: linear-gradient(120deg, #211518, #171518) !important;
+  color: #c9c9d0 !important;
+}
+.configuration-editor-page .configuration-admission-guide > strong { color: #f4f4f6 !important; }
+.configuration-editor-page .configuration-admission-guide li b { color: #ff6572 !important; }
+.configuration-editor-page .configuration-admission-guide small { color: #a2a3ad !important; }
+.configuration-editor-page .catalog-request-inline {
+  padding: 15px 17px;
+  border: 1px solid #303137;
+  border-radius: 15px;
+  background: #141519;
+  color: #d5d6dc;
+}
+.configuration-editor-page .catalog-request-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid #383940;
+  border-radius: 14px;
+  background: #101115;
+}
+.configuration-editor-page .catalog-request-form > strong { color: #f4f4f6; }
+.configuration-editor-page .catalog-request-form .field-help { color: #a2a4ad !important; }
+.configuration-editor-page .config-basic-grid { gap: 14px; }
+.configuration-editor-page .config-basic-grid > label,
+.configuration-editor-page .config-editor > label {
+  display: grid;
+  gap: 8px;
+  color: #d8d9df !important;
+  font-size: 12px;
+  font-weight: 750;
+}
+.configuration-editor-page .config-section {
+  min-width: 0;
+  padding: 19px !important;
+  border: 1px solid #303137 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(145deg, #17181c, #121316) !important;
+  color: #e7e8ec !important;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, .14) !important;
+}
+.configuration-editor-page .config-section:nth-of-type(2) { grid-column: 1 / -1; }
+.configuration-editor-page .config-section-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #303137;
+  margin-bottom: 5px !important;
+}
+.configuration-editor-page .config-section-title strong { color: #f2f3f5 !important; font-size: 14px; }
+.configuration-editor-page .config-section-title small { color: #92949e !important; font-size: 11px; }
+.configuration-editor-page .config-row { gap: 10px; padding: 14px 0 !important; border-color: #2d2e34 !important; }
+.configuration-editor-page .config-row-number { width: 27px; padding-top: 11px; color: #ff6572 !important; font-size: 11px; }
+.configuration-editor-page .config-row-content { min-width: 0; color: #d8d9df !important; }
+.configuration-editor-page .config-row-content input,
+.configuration-editor-page .config-row-content select,
+.configuration-editor-page .config-basic-grid input,
+.configuration-editor-page .config-basic-grid select,
+.configuration-editor-page .config-editor > label textarea,
+.configuration-editor-page .catalog-request-form input,
+.configuration-editor-page .catalog-request-form select,
+.configuration-editor-page .catalog-request-form textarea {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #393a42 !important;
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+  background: #0e0f12 !important;
+  color: #f0f1f4 !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+.configuration-editor-page .config-row-content input::placeholder,
+.configuration-editor-page .config-basic-grid input::placeholder,
+.configuration-editor-page .configuration-subpage-header input::placeholder { color: #777984 !important; }
+.configuration-editor-page .config-row-content input:focus,
+.configuration-editor-page .config-row-content select:focus,
+.configuration-editor-page .config-basic-grid input:focus,
+.configuration-editor-page .config-basic-grid select:focus,
+.configuration-editor-page .config-editor > label textarea:focus,
+.configuration-editor-page .catalog-request-form input:focus,
+.configuration-editor-page .catalog-request-form select:focus,
+.configuration-editor-page .catalog-request-form textarea:focus {
+  border-color: #df3343 !important;
+  background: #111216 !important;
+  box-shadow: 0 0 0 3px rgba(223, 51, 67, .13) !important;
+  outline: none;
+}
+.configuration-editor-page .config-row-content select option,
+.configuration-editor-page .config-basic-grid select option,
+.configuration-editor-page .catalog-request-form select option { color: #f0f1f4; background: #15161a; }
+.configuration-editor-page .config-row-content .muted,
+.configuration-editor-page .config-editor .muted { color: #9b9da7 !important; }
+.configuration-editor-page .config-section-empty {
+  padding: 18px !important;
+  border: 1px dashed #3a3b43 !important;
+  border-radius: 12px !important;
+  background: #121317 !important;
+  color: #92949e !important;
+}
+.configuration-editor-page .config-section-head .secondary-button {
+  min-height: 38px;
+  border-radius: 10px !important;
+  color: #ff7a85 !important;
+  background: #251519 !important;
+  border: 1px solid #5b2931 !important;
+  font-weight: 750;
+}
+.configuration-editor-page .config-editor-actions {
+  position: static !important;
+  z-index: auto !important;
+  display: flex;
+  justify-content: flex-end;
+  padding: 18px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #303137 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.configuration-editor-page .config-editor-actions .primary-button {
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 12px;
+  background: #d6283b;
+  box-shadow: 0 8px 20px rgba(214, 40, 59, .18);
+}
+.configuration-editor-page .form-error { background: #28171a !important; border-color: #663039 !important; color: #ff9ba4 !important; }
+@media (max-width: 850px) {
+  .configuration-editor-page { padding: 14px; }
+  .configuration-editor-page .config-editor { grid-template-columns: minmax(0, 1fr); }
+  .configuration-editor-page .config-editor > * { grid-column: 1 / -1; }
+  .configuration-editor-page .config-row .form-grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .configuration-editor-page .configuration-subpage-header { padding: 18px; border-radius: 16px; }
+  .configuration-editor-page .config-editor-intro { padding: 16px !important; }
+  .configuration-editor-page .config-section { padding: 13px !important; }
+  .configuration-editor-page .config-row { gap: 7px; }
+  .configuration-editor-page .config-row-number { width: 20px; }
+  .configuration-editor-page .config-row .form-grid-3,
+  .configuration-editor-page .config-row .form-grid-4,
+  .configuration-editor-page .config-row .form-grid-5 { grid-template-columns: minmax(0, 1fr); }
+  .configuration-editor-page .config-editor-actions .primary-button { width: 100%; justify-content: center; }
+}
