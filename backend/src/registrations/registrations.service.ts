@@ -899,7 +899,9 @@ export class RegistrationsService {
       return changed;
     });
 
-    void this.emailNotifications?.registrationCancelled(updated.id, new Date()).catch(() => undefined);
+    if (typeof this.emailNotifications?.registrationCancelled === 'function') {
+      void Promise.resolve(this.emailNotifications.registrationCancelled(updated.id, new Date())).catch(() => undefined);
+    }
     return updated;
   }
 
