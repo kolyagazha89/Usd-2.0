@@ -377,7 +377,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const result = record?.result;
     const registration = result?.registration;
     const user = registration?.participant?.user;
-    if (!record || !registration || !user?.isActive || !user.email) return;
+    if (!record || !result || !registration || !user?.isActive || !user.email) return;
     const stage = registration.stage;
     const participantName = [registration.participant?.firstName, registration.participant?.lastName].filter(Boolean).join(' ');
     await this.dispatch({
