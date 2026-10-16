@@ -5,10 +5,12 @@ import { ResultsService } from './results.service';
 import { ResultsRankingService } from './results-ranking.service';
 
 import { RecordsModule } from '../records/records.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     RecordsModule,
+    MailModule,
   ],
   controllers: [
     ResultsController,

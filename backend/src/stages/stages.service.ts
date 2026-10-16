@@ -80,6 +80,12 @@ export class StagesService {
       select: { id: true, status: true, resultsPublishedAt: true },
     });
 
+    if (published && !stage.resultsPublishedAt && updated.resultsPublishedAt) {
+      if (typeof this.emailNotifications?.resultsPublished === 'function') {
+        void Promise.resolve(this.emailNotifications.resultsPublished(id, updated.resultsPublishedAt)).catch(() => undefined);
+      }
+    }
+
     await this.audit.log({
       userId: request.user.sub,
       action: published ? 'STAGE_RESULTS_PUBLISHED' : 'STAGE_RESULTS_UNPUBLISHED',
@@ -308,6 +314,18 @@ export class StagesService {
 
     if (!stage.registrationOpen && updated.registrationOpen) {
       void this.emailNotifications?.registrationOpened(updated.id).catch(() => undefined);
+    }
+    if (
+      stage.name !== updated.name ||
+      String(stage.date ?? '') !== String(updated.date ?? '') ||
+      stage.city !== updated.city ||
+      stage.venue !== updated.venue ||
+      stage.address !== updated.address ||
+      stage.status !== updated.status
+    ) {
+      if (typeof this.emailNotifications?.stageChanged === 'function') {
+        void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
+      }
     }
 
     const changed = Object.keys(data);

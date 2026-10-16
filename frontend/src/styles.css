@@ -4059,5 +4059,9 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .email-variable-chips{display:flex;flex-wrap:wrap;gap:8px}
 .email-variable-chip{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:34px;padding:7px 10px;text-align:left}
 .email-variable-chip code{font-size:11px;color:var(--muted-color,#77777f)}
+.email-variable-text-editor{display:grid;gap:10px;padding:14px;border:1px solid var(--border-color,#dedee2);border-radius:10px;background:var(--surface-muted,#f8f8f9)}
+.email-variable-text-editor>label{display:grid;gap:6px}
+.email-variable-text-editor .field-help{margin:0}
+
 @media(max-width:850px){.email-template-layout{grid-template-columns:1fr}.email-template-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.email-template-editor{padding:12px}.email-template-editor .settings-form-grid{grid-template-columns:1fr}.email-template-wide{grid-column:auto}.email-template-list{grid-template-columns:1fr}}

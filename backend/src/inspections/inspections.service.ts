@@ -4,9 +4,11 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailNotificationsService } from '../mail/email-notifications.service';
 
 type InspectionStatus = 'PASSED' | 'FAILED';
 type Actor = {
@@ -85,7 +87,10 @@ const inspectionInclude = {
 
 @Injectable()
 export class InspectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly emailNotifications?: EmailNotificationsService,
+  ) {}
 
   async findOne(id: string) {
     const vehicleInspection = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
@@ -157,7 +162,7 @@ export class InspectionsService {
     actor: Actor,
   ) {
     this.validateNotes(data.status, data.notes);
-    return this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
       const registrationClass = await tx.registrationClass.findUnique({
         where: { id: data.registrationClassId },
         include: {
@@ -201,6 +206,8 @@ export class InspectionsService {
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (typeof this.emailNotifications?.inspectionChanged === 'function') await Promise.resolve(this.emailNotifications.inspectionChanged(saved.registrationClass.registration.id, saved.id, saved.status, saved.notes, saved.registrationClass.class.name, saved.updatedAt)).catch(() => undefined);
+    return saved;
   }
 
   async updateClassInspection(
@@ -220,7 +227,7 @@ export class InspectionsService {
     if (nextStatus === 'FAILED' && current.registrationClass.results.length > 0) {
       throw new ConflictException('Нельзя перевести инспекцию в FAILED: по классу уже есть результат');
     }
-    return this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.registrationClassInspection.update({
         where: { id },
         data: {
@@ -242,6 +249,10 @@ export class InspectionsService {
       });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (current.status !== saved.status) {
+      await this.emailNotifications?.inspectionChanged(saved.registrationClass.registration.id, saved.id, saved.status, saved.notes, saved.registrationClass.class.name, saved.updatedAt).catch(() => undefined);
+    }
+    return saved;
   }
 
   async removeClassInspection(id: string, actor: Actor) {
@@ -273,7 +284,7 @@ export class InspectionsService {
     actor: Actor,
   ) {
     this.validateNotes(data.status, data.notes);
-    return this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
       const registration = await tx.registration.findUnique({
         where: { id: data.registrationId },
         include: {
@@ -314,6 +325,8 @@ export class InspectionsService {
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (typeof this.emailNotifications?.inspectionChanged === 'function') await Promise.resolve(this.emailNotifications.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt)).catch(() => undefined);
+    return saved;
   }
 
   async update(
@@ -333,7 +346,7 @@ export class InspectionsService {
       if (nextStatus === 'FAILED' && (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length))) {
         throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
       }
-      return this.prisma.$transaction(async (tx) => {
+      const saved = await this.prisma.$transaction(async (tx) => {
         const updated = await tx.inspection.update({
           where: { id },
           data: {
@@ -355,6 +368,10 @@ export class InspectionsService {
         });
         return updated;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (vehicleInspection.status !== saved.status) {
+      await this.emailNotifications?.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt).catch(() => undefined);
+    }
+    return saved;
     }
 
     // Backward compatibility for historical participant-stage inspection IDs.

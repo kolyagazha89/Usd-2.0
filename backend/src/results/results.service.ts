@@ -3,11 +3,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordsService } from '../records/records.service';
 import { ResultsRankingService } from './results-ranking.service';
+import { EmailNotificationsService } from '../mail/email-notifications.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type { CreateResultDto, UpdateResultDto } from './dto/result.dto';
 
@@ -17,6 +19,7 @@ export class ResultsService {
     private readonly prisma: PrismaService,
     private readonly recordsService: RecordsService,
     private readonly rankingService: ResultsRankingService,
+    @Optional() private readonly emailNotifications?: EmailNotificationsService,
   ) {}
 
   /** Keep confirmed results public while redacting private participant and car details. */
@@ -604,6 +607,9 @@ export class ResultsService {
       result.stageId,
       result.classId,
     );
+    if (typeof this.emailNotifications?.recordSet === 'function') {
+      void Promise.resolve(this.emailNotifications.recordSet(result.result.id)).catch(() => undefined);
+    }
 
     return this.findOneAdmin(result.result.id);
   }
@@ -738,6 +744,9 @@ export class ResultsService {
       updated.stageId,
       updated.classId,
     );
+    if (typeof this.emailNotifications?.recordSet === 'function') {
+      void Promise.resolve(this.emailNotifications.recordSet(updated.result.id)).catch(() => undefined);
+    }
 
     return this.findOneAdmin(updated.result.id);
   }
