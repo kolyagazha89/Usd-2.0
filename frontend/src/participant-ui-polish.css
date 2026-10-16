@@ -1086,3 +1086,14 @@
   .configuration-editor-page .config-row .form-grid-5 { grid-template-columns: minmax(0, 1fr); }
   .configuration-editor-page .config-editor-actions .primary-button { width: 100%; justify-content: center; }
 }
+
+.configuration-editor-page .config-editor-intro,
+.configuration-editor-page .config-section,
+.configuration-editor-page .config-section-title,
+.configuration-editor-page .config-section-title strong,
+.configuration-editor-page .config-row-content,
+.configuration-editor-page .config-basic-grid,
+.configuration-editor-page .config-editor > label { color: #24262b; }
+.configuration-editor-page .config-section-title small,
+.configuration-editor-page .config-editor-intro .eyebrow { color: #777d85; }
+.configuration-editor-page .config-row-content .muted { color: #737982; }
