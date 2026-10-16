@@ -169,6 +169,41 @@ describe('RegistrationsService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { className: 'SPL BassRace', directionName: 'SPL', audioComponents: [], message: 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему' },
+    { className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [], message: 'Для классов SPL BassRace и Storm Wall необходимо заполнить басовую систему' },
+    { className: 'BFSPL', directionName: 'BFSPL', audioComponents: [], message: 'Для участия в BFSPL необходимо заполнить фронтальную акустику' },
+    { className: 'DBW SPL', directionName: 'DBW SPL', audioComponents: [], message: 'Для участия в DBW SPL необходимо заполнить тыловую акустику' },
+  ])('rejects $className when the required equipment is missing', async ({ className, directionName, audioComponents, message }) => {
+    const tx = baseTx({
+      stageClass: {
+        findMany: jest.fn().mockResolvedValue([{
+          classId: 'class-1',
+          class: { directionId: 'direction-1', name: className, code: className, direction: { name: directionName } },
+        }]),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'configuration-version-1',
+          configurationId: 'configuration-1',
+          version: 3,
+          vibrationIsolation: 'STP',
+          additionalDescription: 'Test',
+          configuration: { id: 'configuration-1', name: 'Основная' },
+          headUnits: [],
+          audioComponents,
+          amplifiers: [],
+          batteries: [],
+          generators: [],
+        }),
+      },
+    });
+    setupTransaction(tx);
+
+    await expect(service.create(participantRequest, requestBody)).rejects.toThrow(message);
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
   it('creates a registration with an immutable configuration snapshot', async () => {
     const tx = baseTx();
     setupTransaction(tx);
@@ -310,6 +345,21 @@ describe('RegistrationsService', () => {
             class: { directionId: 'br', name, direction: { name: 'BassRace' } },
           })),
         ]),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'configuration-version-1',
+          configurationId: 'configuration-1',
+          version: 3,
+          vibrationIsolation: 'STP',
+          additionalDescription: 'Test',
+          configuration: { id: 'configuration-1', name: 'Основная' },
+          headUnits: [],
+          audioComponents: [{ id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 }],
+          amplifiers: [],
+          batteries: [],
+          generators: [],
+        }),
       },
       registrationNumber: {
         findFirst: jest.fn(),

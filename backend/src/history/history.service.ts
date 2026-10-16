@@ -78,6 +78,8 @@ export class HistoryService {
         status: true,
         registeredAt: true,
         source: true,
+        configurationVersionId: true,
+        configurationSnapshot: true,
         stage: {
           select: {
             id: true,
