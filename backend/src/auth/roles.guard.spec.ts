@@ -61,10 +61,17 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('allows a custom role to edit results when explicitly granted', async () => {
+  it('allows a custom judge role to enter results when create is granted', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { results: ['view', 'create'] } });
+    const ctx = context({ method: 'POST', path: '/results', user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'ResultsController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('keeps result corrections ADMIN-only even when a custom role is granted update/delete', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { results: ['view', 'create', 'update', 'delete'] } });
     const ctx = context({ method: 'PATCH', path: '/results/1', user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'ResultsController');
-    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Изменение и удаление результатов доступно только ADMIN');
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
 
   it('keeps built-in role restrictions when no custom role is assigned', async () => {
