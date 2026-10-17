@@ -23,6 +23,7 @@ The laptop is only a possible test machine; the agreed plan is to move directly 
 - Working branch: `infra/github-container-auto-update`
 - Draft PR #232: https://github.com/kolyagazha89/Usd-2.0/pull/232
 - **Pre-migration data-quality gate:** review and pass CI for import-normalization PR #233 (https://github.com/kolyagazha89/Usd-2.0/pull/233), then merge it to `main` before building the final deployment image or migrating data. It adds canonical Latin/Cyrillic matching, conservative review of fuzzy name candidates, and duplicate result-row warnings. Do not assume it is merged or CI-passed until verified.
+- **Registration/import numbering gate:** keep numbering rules aligned with the registration flow: new issued numbers begin at `001` (never `000`); missing historical numbers are allocated sequentially while avoiding stage/source collisions; the Results sheet is the source of truth for historical results and printed numbers, while the Registration sheet is auxiliary; conflicts are surfaced instead of silently overwriting; historical BassRace duplicate printed numbers for different participants receive the next number after the stage maximum, while the same number across BassRace and a normal class for the same registration is valid. PR #233 includes tests for fallback historical allocation and BassRace next-number allocation; confirm CI before merge.
 - PR must remain unmerged until reviewed, tested, and explicitly approved by the user.
 - Deployment instructions:
   - `deploy/laptop/README.md`
