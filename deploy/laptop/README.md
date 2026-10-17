@@ -5,7 +5,7 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 ## Architecture
 
 - GHCR images are built only after backend checks and frontend build pass on `main`.
-- PostgreSQL uses a named persistent volume and is not published to the network.
+- PostgreSQL and MinIO use separate named persistent volumes and are not exposed beyond localhost; MinIO is a dedicated local test object store.
 - The API and frontend bind to loopback only for local smoke tests.
 - Cloudflare Tunnel provides outbound connectivity; do not open router ports or expose Docker/5432.
 - The updater polls GitHub's public `main` commit API, pulls immutable `sha-<commit>` images and only then replaces containers. If local smoke checks fail, it attempts to restore the prior image tag.
@@ -21,14 +21,14 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 ## Initial setup (Windows PowerShell)
 
 1. Install/update Docker Desktop and verify `docker run --rm hello-world` works.
-2. In this directory, copy `.env.example` to `.env`. Generate unique passwords/secrets locally. Never paste secrets into GitHub issues, commits, or chat.
-3. Configure a separate S3-compatible test bucket and credentials.
+2. In this directory, copy `.env.example` to `.env`. Generate unique values locally for `POSTGRES_PASSWORD`, `JWT_SECRET`, and `S3_SECRET_ACCESS_KEY`; use a long random hex value for each. Keep `DATABASE_URL`'s password identical to `POSTGRES_PASSWORD`. Never paste secrets into GitHub issues, commits, or chat.
+3. The Compose stack starts a local MinIO server and creates the private `usd-test` bucket with browser CORS for `http://localhost:8080`. `S3_ENDPOINT` is internal (`http://minio:9000`) and `S3_PUBLIC_ENDPOINT` is browser-facing (`http://localhost:9000`). Do not replace these with production storage settings.
 4. Do not create or route a public tunnel during initial local validation. The `cloudflared` service is disabled unless Compose is started with the `public-tunnel` profile. After local acceptance, create a dedicated Cloudflare Tunnel, configure hostnames to target `http://frontend:80` and `http://api:3000` on the Docker network, then enable the profile only after a separately approved cutover. Do not route `app.usd-russia.ru` or `api.usd-russia.ru` yet.
 5. Log into GHCR from PowerShell using a GitHub token with `read:packages` only:
    `$env:GH_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin`
    Keep the token in a local secret manager/environment only; do not put it in `.env`. If the packages are public, this login may not be required.
 6. Wait for the `Docker images (GHCR)` workflow to pass on `main`. Then run `./update.ps1` once from PowerShell to pull a tested commit and start the local stack.
-7. Verify `docker compose --project-directory . --env-file .env -f docker-compose.yml ps`, then review logs with `docker compose --project-directory . --env-file .env -f docker-compose.yml logs --tail=100 api frontend db cloudflared`.
+7. Verify `docker compose --project-directory . --env-file .env -f docker-compose.yml ps`, then review logs with `docker compose --project-directory . --env-file .env -f docker-compose.yml logs --tail=100 api frontend db minio minio-init`. MinIO console is local-only at `http://localhost:9001`; do not expose it publicly.
 8. Only after isolated frontend/API tests, data backup/restore validation, authentication/media tests, and explicit approval should any public hostname be routed to the laptop tunnel.
 
 ## Automatic polling
