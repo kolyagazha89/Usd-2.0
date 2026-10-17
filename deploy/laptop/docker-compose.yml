@@ -25,8 +25,8 @@ services:
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
       AUTH_COOKIE_SECURE: "true"
-      CORS_ORIGINS: https://${APP_DOMAIN}
-      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      CORS_ORIGINS: http://localhost:8080
+      CSRF_TRUSTED_ORIGINS: http://localhost:8080
       TRUST_PROXY_HOPS: 1
     depends_on:
       db:
