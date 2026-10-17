@@ -216,3 +216,23 @@ describe('SiteSettingsService published regulation history', () => {
   });
 
 });
+
+describe('SiteSettingsService default USD branding', () => {
+  it('uses USD consistently in built-in branding and email templates', async () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    } as unknown as PrismaService;
+
+    const response = await new SiteSettingsService(prisma).getAdmin();
+    const settings = response.settings;
+
+    expect(settings.branding.siteName).toBe('USD');
+    expect(settings.homepage.heroTitle).toBe('USD');
+
+    const builtInTemplates = JSON.stringify(settings.registration.emailTemplates);
+    expect(builtInTemplates).not.toContain('ЮСД');
+    expect(builtInTemplates).not.toContain('юсд');
+  });
+});
