@@ -31,6 +31,7 @@ const sourceRegistrationStats = Object.entries(registrations).map(([sheet, rows]
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 try {
   await client.connect();
+  console.log('AUDIT_CONNECTED');
   const identity = await client.query('select current_database() as database, inet_server_addr()::text as server_address, current_user as db_user');
   const tableNames = ['Season','Stage','Participant','Car','CarConfigurationVersion','Registration','RegistrationNumber','RegistrationClass','Class','Result','Record','Inspection','Disqualification','ImportJob','ImportRow'];
   const counts = {};
@@ -42,6 +43,7 @@ try {
       counts[table] = 'QUERY_ERROR:' + String(error.code ?? error.message).slice(0, 80);
     }
   }
+  console.log('AUDIT_TABLE_COUNTS_READY');
   const stages = await client.query(`
     SELECT se.year, s.id, s.name, s.city, s.date::date AS date, s.status, s."isDeleted",
       (SELECT count(*)::int FROM "Registration" r WHERE r."stageId" = s.id) AS registrations,
@@ -54,6 +56,7 @@ try {
     FROM "Stage" s JOIN "Season" se ON se.id = s."seasonId"
     ORDER BY se.year, s.date, s."stageNumber"
   `);
+  console.log('AUDIT_STAGES_QUERY_READY');
   const classCounts = await client.query(`
     SELECT se.year, s.name AS stage, c.name AS class,
       count(x.id)::int AS results,
@@ -69,6 +72,7 @@ try {
     GROUP BY se.year, s.name, c.name
     ORDER BY se.year, s.name, c.name
   `);
+  console.log('AUDIT_CLASS_COUNTS_READY');
   const integrity = await client.query(`
     SELECT
       (SELECT count(*)::int FROM "Result" x JOIN "RegistrationClass" rc ON rc.id = x."registrationClassId" WHERE x."registrationId" <> rc."registrationId") AS result_registration_class_mismatches,
@@ -85,6 +89,7 @@ try {
     if (k === 'nolimit') k = 'nolim';
     return k;
   };
+  console.log('AUDIT_INTEGRITY_QUERY_READY');
   const stageMap = (stage) => {
     const n = norm([stage.name, stage.city, stage.year].join(' '));
     if (stage.year === 2025 && /волгоград|volgograd/.test(n) && /финал|final/.test(n)) return 'final_volgograd2025';
@@ -122,16 +127,7 @@ try {
     WHERE metadata->>'source' = 'HISTORICAL_XLSX'
     GROUP BY status ORDER BY status
   `);
-  const historicalJobsByStage = await client.query(`
-    SELECT se.year, s.name AS stage, j.status, count(*)::int AS jobs,
-      coalesce(sum((SELECT count(*) FROM "ImportRow" ir WHERE ir."importJobId" = j.id)), 0)::int AS rows
-    FROM "ImportJob" j
-    JOIN "Stage" s ON s.id = j."stageId"
-    JOIN "Season" se ON se.id = s."seasonId"
-    WHERE j.metadata->>'source' = 'HISTORICAL_XLSX'
-    GROUP BY se.year, s.name, j.status
-    ORDER BY se.year, s.name, j.status
-  `);
+
   const stageComparison = stages.rows.map(s => {
     const sheet = stageMap(s);
     return { year: s.year, stage: s.name, city: s.city, date: s.date, resultsInDb: s.results, sourceSheet: sheet, expectedResults: sheet ? expectedBySheet[sheet] : null, delta: sheet ? s.results - expectedBySheet[sheet] : null, registrations: s.registrations, registrationClasses: s.registration_classes, registrationNumbers: s.registration_numbers, historicalResults: s.historical_results, invalidRegistrationNumbers: s.invalid_registration_numbers, invalidAssignedNumbers: s.invalid_assigned_numbers, deleted: s.isDeleted };
@@ -148,7 +144,7 @@ try {
       zeroNumberByClass: x.zeroNumberByClass
     }))
   };
-  console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0], historicalImportJobStatuses: importJobStatuses.rows, historicalJobsByStage: historicalJobsByStage.rows }));
+  console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0], historicalImportJobStatuses: importJobStatuses.rows }));
   console.log('AUDIT_SOURCE ' + JSON.stringify(sourceSummary));
   console.log('AUDIT_STAGES ' + JSON.stringify(stageComparison));
   console.log('AUDIT_CLASS_DIFFS ' + JSON.stringify(classDiffs));
