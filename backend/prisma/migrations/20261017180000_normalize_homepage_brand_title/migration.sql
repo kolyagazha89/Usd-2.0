@@ -26,3 +26,80 @@ WHERE "id" = 'default'
     'United Sound Derby',
     'Ultimate Sound Destruction'
   );
+
+-- Normalize only built-in email templates; user-authored templates are left untouched.
+UPDATE "SiteSettings" AS s
+SET "registration" = jsonb_set(
+  s."registration",
+  '{emailTemplates}',
+  (
+    SELECT jsonb_agg(
+      CASE
+        WHEN item->>'id' = ANY (ARRAY[
+          'stage-registration-open',
+          'registration-confirmed',
+          'stage-reminder-3d',
+          'stage-reminder-1d',
+          'stage-changed',
+          'stage-cancelled',
+          'inspection-passed',
+          'inspection-failed',
+          'registration-cancelled',
+          'stage-results-published',
+          'new-record-set',
+          'auth-email-verification',
+          'auth-password-reset',
+          'auth-email-change'
+        ]::text[])
+        THEN jsonb_set(
+          jsonb_set(
+            jsonb_set(
+              item,
+              '{subject}',
+              to_jsonb(replace(COALESCE(item->>'subject', ''), 'ЮСД', 'USD')),
+              true
+            ),
+            '{footer}',
+            to_jsonb(replace(COALESCE(item->>'footer', ''), 'ЮСД', 'USD')),
+            true
+          ),
+          '{buttonLabel}',
+          to_jsonb(replace(COALESCE(item->>'buttonLabel', ''), 'ЮСД', 'USD')),
+          true
+        )
+        ELSE item
+      END
+      ORDER BY ordinal
+    )
+    FROM jsonb_array_elements(s."registration"->'emailTemplates')
+      WITH ORDINALITY AS templates(item, ordinal)
+  ),
+  true
+)
+WHERE s."id" = 'default'
+  AND jsonb_typeof(s."registration"->'emailTemplates') = 'array'
+  AND EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(s."registration"->'emailTemplates') AS templates(item)
+    WHERE item->>'id' = ANY (ARRAY[
+      'stage-registration-open',
+      'registration-confirmed',
+      'stage-reminder-3d',
+      'stage-reminder-1d',
+      'stage-changed',
+      'stage-cancelled',
+      'inspection-passed',
+      'inspection-failed',
+      'registration-cancelled',
+      'stage-results-published',
+      'new-record-set',
+      'auth-email-verification',
+      'auth-password-reset',
+      'auth-email-change'
+    ]::text[])
+      AND (
+        COALESCE(item->>'subject', '') LIKE '%ЮСД%'
+        OR COALESCE(item->>'footer', '') LIKE '%ЮСД%'
+        OR COALESCE(item->>'buttonLabel', '') LIKE '%ЮСД%'
+      )
+  );
