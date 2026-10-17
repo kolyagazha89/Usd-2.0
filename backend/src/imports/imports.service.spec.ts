@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { jest } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { Prisma } from '../generated/prisma/client';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
@@ -224,6 +226,62 @@ describe('ImportsService historical participant-number rules', () => {
     await expect(
       service.allocateNextHistoricalBassRaceNumber(tx, 'stage-1'),
     ).resolves.toBe(16);
+  });
+});
+
+describe('ImportsService actual historical XLSX snapshot', () => {
+  it('parses both source workbooks using the real mapped stage sheets without dropping result rows or zero numbers', () => {
+    const service = createService() as any;
+    const source = JSON.parse(
+      readFileSync(join(process.cwd(), 'data', 'historical-xlsx.json'), 'utf8'),
+    );
+    const registrationsWorkbook = source['USD _ Регистрация.xlsx'];
+    const resultsWorkbook = source['USD _ Результаты.xlsx'];
+
+    const mappings = [
+      { registrationSheet: 'Открытие Волгоград', resultsSheet: 'open_volgograd2026', registrations: 114, results: 127 },
+      { registrationSheet: 'Астрахань', resultsSheet: 'astraxan', registrations: 41, results: 53 },
+      { registrationSheet: 'Ижевск', resultsSheet: 'ijevsk', registrations: 44, results: 84 },
+      { registrationSheet: 'Липецк', resultsSheet: 'lipetsk', registrations: 36, results: 67 },
+      { registrationSheet: 'Орел', resultsSheet: 'orel', registrations: 42, results: 98 },
+      { registrationSheet: 'Смоленск', resultsSheet: 'smolensk', registrations: 37, results: 63 },
+      { registrationSheet: 'Ростов', resultsSheet: 'rostov-on-don', registrations: 53, results: 98 },
+      { registrationSheet: 'Самара', resultsSheet: 'samara', registrations: 78, results: 110 },
+      { registrationSheet: 'Ростов 05.09', resultsSheet: null, registrations: 52, results: 0 },
+      { registrationSheet: 'финал Волгоград', resultsSheet: 'final_volg2026', registrations: 169, results: 198 },
+      { registrationSheet: null, resultsSheet: 'final_volgograd2025', registrations: 0, results: 182 },
+    ];
+
+    let totalRegistrations = 0;
+    let totalResults = 0;
+    let zeroNumberResults = 0;
+
+    for (const mapping of mappings) {
+      const registrationRows = mapping.registrationSheet
+        ? service.rowsFromSheet(registrationsWorkbook[mapping.registrationSheet])
+        : [];
+      const resultRows = mapping.resultsSheet
+        ? service.resultRowsFromSheet(resultsWorkbook[mapping.resultsSheet])
+        : [];
+
+      expect(registrationRows).toHaveLength(mapping.registrations);
+      expect(resultRows).toHaveLength(mapping.results);
+
+      for (const row of resultRows) {
+        expect(String(row['Класс'] ?? '').trim()).not.toBe('');
+        expect(String(row['ФИО'] ?? '').trim()).not.toBe('');
+        expect(row['Результат']).not.toBeNull();
+        expect(String(row['Результат'] ?? '').trim()).not.toBe('');
+        if (String(row['Номер'] ?? '').trim() === '0') zeroNumberResults++;
+      }
+
+      totalRegistrations += registrationRows.length;
+      totalResults += resultRows.length;
+    }
+
+    expect(totalRegistrations).toBe(686);
+    expect(totalResults).toBe(1080);
+    expect(zeroNumberResults).toBe(334);
   });
 });
 
