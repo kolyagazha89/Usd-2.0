@@ -24,6 +24,13 @@ describe('NameNormalizerService', () => {
     );
   });
 
+  it('normalizes common English spelling variants without changing distinct names', () => {
+    expect(service.normalize('Sergei Meshcheryakov')).toBe('Сергей Мещеряков');
+    expect(service.normalize('Andrei Ivanov')).toBe('Андрей Иванов');
+    expect(service.normalize('Arman')).toBe('Арман');
+    expect(service.normalize('Armen')).toBe('Армен');
+  });
+
   it('normalizes ё consistently for matching', () => {
     expect(service.normalize('Пётр Королёв')).toBe('Петр Королев');
     expect(service.normalizeForMatching('Пётр Королёв')).toBe(
