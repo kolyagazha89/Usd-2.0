@@ -76,7 +76,7 @@ try {
   console.log('AUDIT_CLASS_COUNTS_READY');
   const resultRows = await client.query(`
     SELECT se.year, s.name AS stage, s.city, s.date, c.name AS class,
-      p."fullName" AS participant, r."participantNumber" AS participant_number,
+      concat_ws(' ', p."lastName", p."firstName", p."middleName") AS participant, r."participantNumber" AS participant_number,
       rn.number AS assigned_number, x.place, x.value::text AS value, x."isHistorical" AS historical
     FROM "Result" x
     JOIN "Registration" r ON r.id = x."registrationId"
