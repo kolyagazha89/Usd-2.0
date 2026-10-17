@@ -6319,12 +6319,15 @@ export class ImportsService {
             primaryNumber = historicalOrResolvedNumber;
           }
 
-          let classNumber =
-            isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
-              ? historicalOrResolvedNumber
-              : primaryNumber;
+          let classNumber = this.resolveHistoricalClassNumber({
+            rawData: row.rawData as ImportRow,
+            isBassRace,
+            historicalResults,
+            historicalOrResolvedNumber,
+            primaryNumber,
+          });
 
-          if (historicalResults && isBassRace && classNumber > 0) {
+          if (historicalResults && isBassRace && classNumber >= 0) {
             const occupiedBassRaceNumber = await tx.registrationNumber.findUnique({
               where: {
                 stageId_number: {
@@ -6834,6 +6837,37 @@ export class ImportsService {
       results,
 
       records,    };
+  }
+
+  private resolveHistoricalClassNumber(args: {
+    rawData: ImportRow;
+    isBassRace: boolean;
+    historicalResults: boolean;
+    historicalOrResolvedNumber: number | null;
+    primaryNumber: number;
+  }): number {
+    const rawHistoricalBassRaceNumber =
+      args.historicalResults && args.isBassRace
+        ? this.numberValue(
+            this.getImportFieldValue(args.rawData, [
+              'Номер',
+              'Номер участника',
+              'participantNumber',
+            ]),
+          )
+        : null;
+
+    // A printed Bass Race 0 is valid historical class-number data. Keep it
+    // separate from the positive primary registration number.
+    if (rawHistoricalBassRaceNumber !== null) {
+      return rawHistoricalBassRaceNumber;
+    }
+
+    return args.isBassRace &&
+      args.historicalOrResolvedNumber !== null &&
+      args.historicalOrResolvedNumber > 0
+      ? args.historicalOrResolvedNumber
+      : args.primaryNumber;
   }
 
   private parseParticipantNumber(
