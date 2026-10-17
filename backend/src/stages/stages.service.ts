@@ -353,6 +353,12 @@ export class StagesService {
       include: { season: true },
     });
 
+    // The dedicated remove/cancel action must trigger the same participant notice
+    // as a status change from the stage editor. Delivery is idempotent per event.
+    if (typeof this.emailNotifications?.stageChanged === 'function') {
+      void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
+    }
+
     await this.audit.log({
       userId: request.user.sub,
       action: 'STAGE_CANCELLED',
