@@ -1290,20 +1290,13 @@ export class StatisticsService {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-    // "Рабочий этап" means an event scheduled for the current calendar day.
-    // Future stages must stay in "Ближайшие этапы" and must never leak into
-    // the working-stage or recent-stage blocks.
+    // Prefer an event happening today; otherwise show the nearest upcoming
+    // non-cancelled stage so the dashboard never loses its primary stage card.
     const currentStage = await this.prisma.stage.findFirst({
       where: {
         isDeleted: false,
         status: { not: 'CANCELLED' },
-        date: {
-          gte: todayStart,
-          lt: tomorrowStart,
-        },
+        date: { gte: todayStart },
       },
       orderBy: { date: 'asc' },
       select: {
