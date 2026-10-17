@@ -92,6 +92,12 @@ jobs:
         run: npm install
       - name: Build frontend
         run: npm run build
+      - name: Validate laptop Docker Compose configuration
+        working-directory: .
+        run: |
+          cp deploy/laptop/.env.example deploy/laptop/.env
+          docker compose --env-file deploy/laptop/.env -f deploy/laptop/docker-compose.yml config --quiet
+          rm deploy/laptop/.env
 
   publish:
     name: Build and publish images
