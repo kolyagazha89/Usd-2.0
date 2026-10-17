@@ -182,6 +182,51 @@ describe('ImportsService import-name normalization', () => {
   });
 });
 
+describe('ImportsService historical participant-number rules', () => {
+  it('allocates missing historical result numbers starting at 001 and skips numbers already present in source sheets', async () => {
+    const service = createService() as any;
+    service.prisma = {
+      registration: {
+        aggregate: jest.fn(async () => ({ _max: { participantNumber: 0 } })),
+      },
+    };
+
+    const allocated = await service.buildHistoricalFallbackNumbers(
+      'stage-1',
+      [{ 'Номер участника': 1 }],
+      [
+        { ФИО: 'Иванов Иван', Номер: 2 },
+        { ФИО: 'Петров Пётр' },
+        { ФИО: 'Сидоров Сергей' },
+      ],
+    );
+
+    expect(allocated.get('петров петр')).toBe(3);
+    expect(allocated.get('сидоров сергей')).toBe(4);
+  });
+
+  it('allocates a duplicate historical BassRace number after the maximum number already used on the stage', async () => {
+    const service = createService() as any;
+    const tx = {
+      result: {
+        findMany: jest.fn(async () => [
+          {
+            registration: { participantNumber: 8 },
+            registrationClass: { number: { number: 12 } },
+          },
+        ]),
+      },
+      registrationNumber: {
+        findMany: jest.fn(async () => [{ number: 15 }]),
+      },
+    };
+
+    await expect(
+      service.allocateNextHistoricalBassRaceNumber(tx, 'stage-1'),
+    ).resolves.toBe(16);
+  });
+});
+
 describe('ImportsService.createImportRegistration', () => {
   it('reuses an existing registration when stage, car, participant and number match', async () => {
     const existing: RegistrationRow = {
