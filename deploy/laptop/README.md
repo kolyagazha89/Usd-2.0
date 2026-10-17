@@ -2,6 +2,8 @@
 
 This directory is for a temporary Windows/Docker Desktop host. It does not replace the existing Railway API or Cloudflare Worker, and it must not be used to change production DNS without a separate owner-approved cutover.
 
+For the domain/DNS stage, see [REG.RU + Cloudflare Tunnel DNS guide](./REG-RU-DNS.md). It includes both options (keep DNS at REG.RU or delegate DNS to Cloudflare), and explicitly marks the steps that must wait until local acceptance.
+
 ## Architecture
 
 - GHCR images are built only after backend checks and frontend build pass on `main`.
