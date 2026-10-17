@@ -1509,11 +1509,10 @@ export class ImportsService {
   }
 
   private nameTokens(value: string): string[] {
-    const transliterated = this.transliterateRussianName(value);
-    return transliterated
-      .normalize('NFKC')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
+    // Normalize Latin/Cyrillic spellings into the same canonical Russian
+    // tokens before comparing. This also makes surname/name order irrelevant.
+    return this.normalizePersonName(value)
+      .replace(/-/g, ' ')
       .split(/\s+/)
       .filter(Boolean)
       .sort();
@@ -2766,11 +2765,16 @@ export class ImportsService {
   private normalizePersonName(
     value: string,
   ): string {
-    return String(value ?? '')
+    /*
+     * Keep one canonical name-normalization path for import matching.
+     * The old implementation only cleaned text, so Latin names did not
+     * match the same participant stored in Cyrillic. Normalize first,
+     * then apply matching-only cleanup without changing persisted names.
+     */
+    return this.nameNormalizer
+      .normalize(String(value ?? ''))
       .normalize('NFKC')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\u200B/g, '')
-      .replace(/\uFEFF/g, '')
+      .replace(/[\u00A0\u200B-\u200D\uFEFF]/g, ' ')
       .replace(/ё/gi, 'е')
       .replace(/[^a-zа-я0-9\s-]/gi, ' ')
       .replace(/\s+/g, ' ')
@@ -2794,11 +2798,18 @@ export class ImportsService {
 
   private nameAliases(value: string): string[] {
     const normalized = this.normalizePersonName(value);
-    const transliterated = this.transliterateRussianName(value);
+    if (!normalized) return [];
+
+    const transliterated = this.transliterateRussianName(normalized);
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    const tokenOrderIndependent = [...tokens].sort().join(' ');
+
     return [...new Set([
       normalized,
+      tokenOrderIndependent,
       transliterated,
       normalized.replace(/\s+/g, ''),
+      tokenOrderIndependent.replace(/\s+/g, ''),
       transliterated.replace(/\s+/g, ''),
     ].filter(Boolean))];
   }
