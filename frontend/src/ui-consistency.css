@@ -1,0 +1,402 @@
+/*
+ * USD UI consistency layer
+ * Shared visual contracts for admin and public surfaces.
+ * Keep page-specific themes (sidebar, record cards, participant graphite portal) scoped locally.
+ */
+:root {
+  --usd-control-height: 44px;
+  --usd-control-radius: 10px;
+  --usd-control-border: #cfd3d7;
+  --usd-control-focus: rgba(226, 29, 47, .14);
+  --usd-space-1: 4px;
+  --usd-space-2: 8px;
+  --usd-space-3: 12px;
+  --usd-space-4: 16px;
+  --usd-space-5: 20px;
+  --usd-space-6: 24px;
+}
+
+/* Admin work area only — deliberately excludes the fixed sidebar and its navigation. */
+.main .content {
+  padding: clamp(16px, 2.2vw, 30px);
+}
+.main .content .page-heading {
+  align-items: flex-start;
+  margin-bottom: var(--usd-space-6);
+}
+.main .content .page-heading > div {
+  min-width: 0;
+}
+.main .content .page-heading h1 {
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+.main .content .page-heading p {
+  line-height: 1.55;
+}
+.main .content .panel {
+  min-width: 0;
+}
+.main .content .panel-title {
+  gap: var(--usd-space-3);
+  flex-wrap: wrap;
+}
+.main .content .toolbar,
+.main .content .inspection-toolbar,
+.main .content .page-actions,
+.main .content .detail-actions {
+  flex-wrap: wrap;
+}
+.main .content .form,
+.main .content .modal-form {
+  gap: var(--usd-space-4);
+}
+.main .content .entity-fields {
+  gap: var(--usd-space-4);
+}
+.main .content .entity-fields > label,
+.main .content .form > label,
+.main .content .modal-form > label {
+  min-width: 0;
+  line-height: 1.45;
+}
+.main .content .field-label {
+  display: inline-block;
+  margin-bottom: var(--usd-space-2);
+}
+.main .content .field-help,
+.main .content .settings-help,
+.main .content .form small {
+  line-height: 1.5;
+}
+
+/* One predictable control treatment for admin forms, filters and search fields. */
+.main .content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.search-box input),
+.main .content select,
+.main .content textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--usd-control-border);
+  border-radius: var(--usd-control-radius);
+  background-color: #fff;
+  color: #17191c;
+  box-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color .14s ease, box-shadow .14s ease, background-color .14s ease;
+}
+.main .content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.main .content select {
+  min-height: var(--usd-control-height);
+  padding: 0 12px;
+}
+.main .content textarea {
+  min-height: 112px;
+  padding: 11px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.main .content input::placeholder,
+.main .content textarea::placeholder {
+  color: #858b92;
+  opacity: 1;
+}
+.main .content input:focus,
+.main .content select:focus,
+.main .content textarea:focus {
+  border-color: var(--red);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--usd-control-focus);
+}
+.main .content input:disabled,
+.main .content select:disabled,
+.main .content textarea:disabled {
+  background: #f0f1f2;
+  color: #777d84;
+  cursor: not-allowed;
+}
+.main .content .inline-select {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.main .content .search-box {
+  min-width: 0;
+}
+.main .content .search-box input {
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 13px;
+}
+.main .content input[type="checkbox"],
+.main .content input[type="radio"] {
+  accent-color: var(--red);
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  min-height: 17px;
+  vertical-align: middle;
+}
+.main .content .field-check,
+.main .content .field-check > span,
+.main .content .checkbox-row {
+  min-width: 0;
+}
+.main .content .field-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.main .content .field-check input[type="checkbox"] {
+  flex: 0 0 17px;
+  margin: 2px 0 0;
+}
+
+/* Shared action hierarchy; intentional compact/icon variants retain their sizing. */
+.main .content .primary-button,
+.main .content .secondary-button,
+.main .content .danger-button {
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}
+.main .content .primary-button {
+  background: var(--red);
+  border: 1px solid var(--red);
+  color: #fff;
+}
+.main .content .primary-button:hover:not(:disabled) {
+  background: var(--red-dark);
+  border-color: var(--red-dark);
+}
+.main .content .secondary-button {
+  background: #fff;
+  border: 1px solid #c9cdd1;
+  color: #262a2e;
+}
+.main .content .secondary-button:hover:not(:disabled) {
+  background: #f5f6f7;
+  border-color: #aeb3b8;
+}
+.main .content .danger-button {
+  background: #fff;
+  border-color: #e29da6;
+  color: var(--red-dark);
+}
+.main .content .primary-button.compact,
+.main .content .secondary-button.compact,
+.main .content .danger-button.compact {
+  min-height: 36px;
+  height: auto;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+.main .content button:disabled {
+  cursor: not-allowed;
+}
+.main .content .icon-button,
+.main .content .topbar-refresh {
+  flex: 0 0 auto;
+}
+.main .content .modal-backdrop {
+  background: rgba(9, 10, 11, .54);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.main .content .modal {
+  max-height: min(90vh, 900px);
+  overflow: auto;
+}
+.main .content .modal-form input[type="file"],
+.main .content input[type="file"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 7px;
+  border: 1px dashed #c5c9ce;
+  border-radius: 10px;
+  background: #f8f9fa;
+  color: #444a51;
+  font: inherit;
+  font-size: 12px;
+}
+.main .content input[type="file"]::file-selector-button {
+  min-height: 30px;
+  margin-right: 10px;
+  padding: 6px 11px;
+  border: 1px solid #c9cdd1;
+  border-radius: 7px;
+  background: #fff;
+  color: #25292d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.main .content input[type="file"]::file-selector-button:hover {
+  border-color: var(--red);
+  color: var(--red-dark);
+}
+.main .content .homepage-hero-upload,
+.main .content .media-upload,
+.main .content .photo-upload {
+  min-width: 0;
+  max-width: 100%;
+}
+.main .content img {
+  max-width: 100%;
+}
+.main .content .data-table td {
+  line-height: 1.45;
+}
+.main .content .data-table th {
+  line-height: 1.35;
+}
+
+/* Public pages: consistent spacing and form controls without changing the records' black theme. */
+.public-site .public-page {
+  box-sizing: border-box;
+  width: min(100%, 1500px);
+  margin-inline: auto;
+  padding: clamp(18px, 3vw, 36px);
+}
+.public-site .public-page > h1 {
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.public-site .public-page p {
+  line-height: 1.6;
+}
+.public-site input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.public-site select,
+.public-site textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  min-height: var(--usd-control-height);
+  border: 1px solid var(--usd-control-border);
+  border-radius: var(--usd-control-radius);
+  padding: 0 12px;
+  background: #fff;
+  color: #17191c;
+  font: inherit;
+  font-size: 14px;
+}
+.public-site textarea {
+  min-height: 112px;
+  padding-block: 11px;
+  line-height: 1.5;
+}
+.public-site input::placeholder,
+.public-site textarea::placeholder {
+  color: #858b92;
+}
+.public-site input:focus-visible,
+.public-site select:focus-visible,
+.public-site textarea:focus-visible {
+  outline: 3px solid var(--usd-control-focus);
+  outline-offset: 1px;
+  border-color: var(--red);
+}
+.public-site input[type="checkbox"],
+.public-site input[type="radio"] {
+  accent-color: var(--red);
+  width: 17px;
+  height: 17px;
+}
+.public-site .public-stage-actions,
+.public-site .public-stage-secondary,
+.public-site .public-footer-links {
+  flex-wrap: wrap;
+}
+.public-site .public-stage-actions > *,
+.public-site .public-stage-secondary > * {
+  min-width: 0;
+}
+.public-site img {
+  max-width: 100%;
+}
+.public-site .public-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  .main .content {
+    padding: 18px;
+  }
+  .main .content .page-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .main .content .dashboard-grid,
+  .main .content .race-command-grid,
+  .main .content .import-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .main .content .kpi-grid,
+  .main .content .kpi-grid.small {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .main .content {
+    padding: 14px;
+  }
+  .main .content .page-heading h1 {
+    font-size: clamp(23px, 7vw, 30px);
+  }
+  .main .content .panel {
+    padding: 15px;
+  }
+  .main .content .toolbar,
+  .main .content .inspection-toolbar {
+    align-items: stretch;
+  }
+  .main .content .toolbar > *,
+  .main .content .inspection-toolbar > * {
+    max-width: 100%;
+  }
+  .main .content .kpi-grid,
+  .main .content .kpi-grid.small,
+  .main .content .quality-summary,
+  .main .content .dashboard-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .main .content .modal-backdrop {
+    padding: 12px;
+  }
+  .main .content .modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    padding: 17px;
+  }
+  .main .content .primary-button,
+  .main .content .secondary-button,
+  .main .content .danger-button {
+    max-width: 100%;
+  }
+  .public-site .public-page {
+    padding: 18px 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .main .content *,
+  .public-site * {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
