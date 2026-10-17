@@ -98,21 +98,23 @@ try {
     const sheet = stageMap(s);
     return { year: s.year, stage: s.name, city: s.city, date: s.date, resultsInDb: s.results, sourceSheet: sheet, expectedResults: sheet ? expectedBySheet[sheet] : null, delta: sheet ? s.results - expectedBySheet[sheet] : null, registrations: s.registrations, registrationClasses: s.registration_classes, registrationNumbers: s.registration_numbers, historicalResults: s.historical_results, invalidRegistrationNumbers: s.invalid_registration_numbers, invalidAssignedNumbers: s.invalid_assigned_numbers, deleted: s.isDeleted };
   });
-  console.log(JSON.stringify({
-    audit: 'READ_ONLY',
-    database: { name: identity.rows[0].database, server: identity.rows[0].server_address, user: identity.rows[0].db_user },
-    sourceWorkbook: {
-      registrationHelperRows: sourceRegistrationStats.reduce((n, x) => n + x.helperRegistrations, 0),
-      resultRows: sourceResultStats.reduce((n, x) => n + x.expectedResults, 0),
-      zeroSourceNumbers: sourceResultStats.reduce((n, x) => n + Object.values(x.zeroNumberByClass).reduce((a, b) => a + b, 0), 0),
-      sourceRegistrationStats,
-      sourceResultStats
-    },
-    databaseTableCounts: counts,
-    integrity: integrity.rows[0],
-    stageComparison,
-    databaseResultsByClass: classCounts.rows
-  }, null, 2));
+  const sourceSummary = {
+    registrationHelperRows: sourceRegistrationStats.reduce((n, x) => n + x.helperRegistrations, 0),
+    resultRows: sourceResultStats.reduce((n, x) => n + x.expectedResults, 0),
+    zeroSourceNumbers: sourceResultStats.reduce((n, x) => n + Object.values(x.zeroNumberByClass).reduce((a, b) => a + b, 0), 0),
+    registrationsBySheet: sourceRegistrationStats,
+    resultsBySheet: sourceResultStats.map(x => ({
+      sheet: x.sheet,
+      expectedResults: x.expectedResults,
+      zeroNumbers: Object.values(x.zeroNumberByClass).reduce((a, b) => a + b, 0),
+      zeroNumberByClass: x.zeroNumberByClass
+    }))
+  };
+  console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0] }));
+  console.log('AUDIT_SOURCE ' + JSON.stringify(sourceSummary));
+  console.log('AUDIT_STAGES ' + JSON.stringify(stageComparison));
+  console.log('AUDIT_CLASS_ANOMALIES ' + JSON.stringify(classCounts.rows.filter(x => x.result_rows_with_zero_assigned_number > 0 || x.mismatched_registration_links > 0)));
+
 } finally {
   await client.end().catch(() => {});
 }
