@@ -25,6 +25,8 @@ const CONTROLLER_MODULES: Record<string, string> = {
   CarsController: 'cars',
   ClassesController: 'classes',
   ImportsController: 'imports',
+  DataQualityController: 'imports',
+  NormalizationDryRunController: 'imports',
   DisqualificationsController: 'disqualifications',
   ConfigurationsController: 'configurations',
   MediaController: 'media',
