@@ -37,6 +37,18 @@ describe('RolesGuard', () => {
     });
   });
 
+  it('allows a custom role with imports view access to read the data-quality report', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { imports: ['view'] } });
+    const ctx = context({ method: 'GET', path: '/data-quality/report', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'DataQualityController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('allows a custom role with imports view access to run the read-only normalization dry-run', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { imports: ['view'] } });
+    const ctx = context({ method: 'GET', path: '/admin/data-quality/normalization/dry-run', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'NormalizationDryRunController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
   it('treats media upload as a create action for custom roles', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { media: ['create'] } });
     const ctx = context({ method: 'PUT', path: '/media/upload', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
