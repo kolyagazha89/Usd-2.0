@@ -12,7 +12,7 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 
 ## Important caveats
 
-1. The laptop frontend image is deliberately built with `VITE_API_URL=http://127.0.0.1:3000` and the API allows only `http://localhost:8080` during local smoke testing. This prevents accidental requests to the production API. This image is for local validation only: before using the Cloudflare Tunnel or assigning public hostnames, we must implement a safe runtime API-base configuration or a separately built domain-specific frontend image, then explicitly approve the routing change.
+1. The laptop frontend image is deliberately built with `VITE_API_URL=http://localhost:3000` and the API allows only `http://localhost:8080` during local smoke testing. This prevents accidental requests to the production API. This image is for local validation only: before using the Cloudflare Tunnel or assigning public hostnames, we must implement a safe runtime API-base configuration or a separately built domain-specific frontend image, then explicitly approve the routing change.
 2. Backend production startup requires S3-compatible media storage. Configure a dedicated test bucket and least-privilege test credentials, not the existing production bucket unless an explicit migration plan has been approved.
 3. First start runs the repository's guarded Prisma migrations and historical bootstrap. Use an empty local test database for initial validation; do not import production data until a verified backup and restore plan is approved.
 4. The updater checks API and frontend HTTP responses and container health, but this is a basic smoke check, not full browser/business-flow acceptance.
@@ -23,7 +23,7 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 1. Install/update Docker Desktop and verify `docker run --rm hello-world` works.
 2. In this directory, copy `.env.example` to `.env`. Generate unique passwords/secrets locally. Never paste secrets into GitHub issues, commits, or chat.
 3. Configure a separate S3-compatible test bucket and credentials.
-4. Create a dedicated Cloudflare Tunnel in the Cloudflare dashboard, but do not assign `app.usd-russia.ru` or `api.usd-russia.ru` to it yet. Copy its token into `.env`. The tunnel's eventual public hostnames should target `http://frontend:80` and `http://api:3000` on the Docker network.
+4. Do not create or route a public tunnel during initial local validation. The `cloudflared` service is disabled unless Compose is started with the `public-tunnel` profile. After local acceptance, create a dedicated Cloudflare Tunnel, configure hostnames to target `http://frontend:80` and `http://api:3000` on the Docker network, then enable the profile only after a separately approved cutover. Do not route `app.usd-russia.ru` or `api.usd-russia.ru` yet.
 5. Log into GHCR from PowerShell using a GitHub token with `read:packages` only:
    `$env:GH_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin`
    Keep the token in a local secret manager/environment only; do not put it in `.env`. If the packages are public, this login may not be required.
