@@ -68,9 +68,19 @@ $commit = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/commits/mai
 $newTag = "sha-$($commit.sha)"
 
 if ($previousTag -eq $newTag) {
-  Write-Host "USD is already configured for main commit $($commit.sha). Checking containers."
+  Write-Host "USD is already configured for main commit $($commit.sha). Checking health."
   Invoke-Compose @("ps")
-  exit 0
+  if (Wait-ForHealth) {
+    Write-Host "USD is healthy on $newTag; no update needed."
+    exit 0
+  }
+  Write-Warning "Health checks failed on the current tag. Attempting to reconcile containers."
+  Invoke-Compose @("up", "-d", "--no-build", "--pull", "never")
+  if (Wait-ForHealth) {
+    Write-Host "USD recovered on $newTag."
+    exit 0
+  }
+  throw "USD remains unhealthy on $newTag. Inspect Docker logs before retrying."
 }
 
 Write-Host "Preparing USD update to $newTag. Previous tag: $previousTag"
