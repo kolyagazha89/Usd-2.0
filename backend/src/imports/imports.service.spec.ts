@@ -121,6 +121,42 @@ const input = {
   participantNumber: 10,
 };
 
+describe('ImportsService import-name normalization', () => {
+  it('matches the same participant when the source switches between Latin and Cyrillic', () => {
+    const service = createService() as any;
+
+    expect(service.normalizePersonName('Misheryakov Sergey'))
+      .toBe(service.normalizePersonName('Мещеряков Сергей'));
+    expect(service.normalizePersonName('Sergey Meshcheryakov'))
+      .toBe(service.normalizePersonName('Сергей Мещеряков'));
+  });
+
+  it('matches surname/name order variants with canonical tokens', () => {
+    const service = createService() as any;
+
+    expect(service.nameTokens('Misheryakov Sergey'))
+      .toEqual(service.nameTokens('Сергей Мещеряков'));
+  });
+
+  it('normalizes ё/е, invisible characters and repeated whitespace before matching', () => {
+    const service = createService() as any;
+
+    expect(service.normalizePersonName('  ПЁТР\\u200B   Королёв  '))
+      .toBe(service.normalizePersonName('Петр Королев'));
+  });
+
+  it('keeps ambiguous participant matches as candidates rather than merging them', () => {
+    const service = createService() as any;
+    const participantIndex = service.buildParticipantIndex([
+      { id: 'p1', lastName: 'Мещеряков', firstName: 'Сергей', middleName: null, team: null },
+      { id: 'p2', lastName: 'Мещеряков', firstName: 'Сергей', middleName: null, team: null },
+    ]);
+
+    expect(service.findParticipant('Misheryakov Sergey', participantIndex).status)
+      .toBe('AMBIGUOUS');
+  });
+});
+
 describe('ImportsService.createImportRegistration', () => {
   it('reuses an existing registration when stage, car, participant and number match', async () => {
     const existing: RegistrationRow = {
