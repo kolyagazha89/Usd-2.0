@@ -6,7 +6,7 @@ const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
 const registrations = source['USD _ Регистрация.xlsx'] ?? {};
 const results = source['USD _ Результаты.xlsx'] ?? {};
 const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
-const norm = (v) => String(v ?? '').normalize('NFKC').toLocaleLowerCase('ru')
+  .replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
   .replace(/ё/g, 'е').replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim().replace(/\\s+/g, ' ');
 
 const sourceResultStats = Object.entries(results).map(([sheet, rows]) => {
@@ -79,9 +79,15 @@ try {
       (SELECT count(*)::int FROM "ImportJob" j WHERE j.metadata->>'source' = 'HISTORICAL_XLSX') AS historical_import_jobs,
       (SELECT count(*)::int FROM "ImportJob" j WHERE j.metadata->>'source' = 'HISTORICAL_XLSX' AND j.status = 'COMMITTED') AS committed_historical_import_jobs
   `);
+  const classKey = (value) => {
+    let k = norm(value).replace(/\s+/g, '');
+    if (k === 'limited20' || k === 'limited2.0') k = 'limited';
+    if (k === 'nolimit') k = 'nolim';
+    return k;
+  };
   const stageMap = (stage) => {
     const n = norm([stage.name, stage.city, stage.year].join(' '));
-    if (stage.year === 2025 && /волгоград|volgograd/.test(n)) return 'final_volgograd2025';
+    if (stage.year === 2025 && /волгоград|volgograd/.test(n) && /финал|final/.test(n)) return 'final_volgograd2025';
     if (stage.year === 2026 && /астрахан|astraxan|astrakhan/.test(n)) return 'astraxan';
     if (stage.year === 2026 && /ижевск|ijevsk|izhevsk/.test(n)) return 'ijevsk';
     if (stage.year === 2026 && /открыти|open/.test(n) && /волгоград|volgograd/.test(n)) return 'open_volgograd2026';
@@ -89,11 +95,43 @@ try {
     if (stage.year === 2026 && /липец|lipetsk/.test(n)) return 'lipetsk';
     if (stage.year === 2026 && /орел|орел|orel|oryol/.test(n)) return 'orel';
     if (stage.year === 2026 && /смолен|smolensk/.test(n)) return 'smolensk';
-    if (stage.year === 2026 && /ростов|rostov/.test(n) && !/финал|final/.test(n)) return 'rostov-on-don';
+    if (stage.year === 2026 && /ростов|rostov/.test(n) && !/финал|final/.test(n) && !String(stage.date).startsWith('2026-09-05')) return 'rostov-on-don';
     if (stage.year === 2026 && /волгоград|volgograd/.test(n) && /финал|final/.test(n)) return 'final_volg2026';
     return null;
   };
   const expectedBySheet = Object.fromEntries(sourceResultStats.map(x => [x.sheet, x.expectedResults]));
+  const sourceStatsBySheet = Object.fromEntries(sourceResultStats.map(x => [x.sheet, x]));
+  const classDiffs = [];
+  for (const stage of stages.rows) {
+    const sheet = stageMap(stage);
+    if (!sheet) continue;
+    const sourceStage = sourceStatsBySheet[sheet];
+    const expectedClasses = sourceStage?.classes ?? {};
+    const dbRows = classCounts.rows.filter(x => x.year === stage.year && x.stage === stage.name);
+    const allKeys = new Set([...Object.keys(expectedClasses).map(classKey), ...dbRows.map(x => classKey(x.class))]);
+    for (const k of allKeys) {
+      const sourceClass = Object.keys(expectedClasses).find(x => classKey(x) === k) ?? k;
+      const expected = Object.entries(expectedClasses).filter(([name]) => classKey(name) === k).reduce((n, [, count]) => n + count, 0);
+      const actual = dbRows.filter(x => classKey(x.class) === k).reduce((n, x) => n + x.results, 0);
+      if (expected !== actual) classDiffs.push({ year: stage.year, stage: stage.name, sourceClass, expected, actual, delta: actual - expected });
+    }
+  }
+  const importJobStatuses = await client.query(`
+    SELECT status, count(*)::int AS jobs
+    FROM "ImportJob"
+    WHERE metadata->>'source' = 'HISTORICAL_XLSX'
+    GROUP BY status ORDER BY status
+  `);
+  const historicalJobsByStage = await client.query(`
+    SELECT se.year, s.name AS stage, j.status, count(*)::int AS jobs,
+      coalesce(sum((SELECT count(*) FROM "ImportRow" ir WHERE ir."importJobId" = j.id)), 0)::int AS rows
+    FROM "ImportJob" j
+    JOIN "Stage" s ON s.id = j."stageId"
+    JOIN "Season" se ON se.id = s."seasonId"
+    WHERE j.metadata->>'source' = 'HISTORICAL_XLSX'
+    GROUP BY se.year, s.name, j.status
+    ORDER BY se.year, s.name, j.status
+  `);
   const stageComparison = stages.rows.map(s => {
     const sheet = stageMap(s);
     return { year: s.year, stage: s.name, city: s.city, date: s.date, resultsInDb: s.results, sourceSheet: sheet, expectedResults: sheet ? expectedBySheet[sheet] : null, delta: sheet ? s.results - expectedBySheet[sheet] : null, registrations: s.registrations, registrationClasses: s.registration_classes, registrationNumbers: s.registration_numbers, historicalResults: s.historical_results, invalidRegistrationNumbers: s.invalid_registration_numbers, invalidAssignedNumbers: s.invalid_assigned_numbers, deleted: s.isDeleted };
@@ -110,9 +148,10 @@ try {
       zeroNumberByClass: x.zeroNumberByClass
     }))
   };
-  console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0] }));
+  console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0], historicalImportJobStatuses: importJobStatuses.rows, historicalJobsByStage: historicalJobsByStage.rows }));
   console.log('AUDIT_SOURCE ' + JSON.stringify(sourceSummary));
   console.log('AUDIT_STAGES ' + JSON.stringify(stageComparison));
+  console.log('AUDIT_CLASS_DIFFS ' + JSON.stringify(classDiffs));
   console.log('AUDIT_CLASS_ANOMALIES ' + JSON.stringify(classCounts.rows.filter(x => x.result_rows_with_zero_assigned_number > 0 || x.mismatched_registration_links > 0)));
 
 } finally {
