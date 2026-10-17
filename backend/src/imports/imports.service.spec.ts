@@ -155,6 +155,31 @@ describe('ImportsService import-name normalization', () => {
     expect(service.findParticipant('Misheryakov Sergey', participantIndex).status)
       .toBe('AMBIGUOUS');
   });
+
+  it('does not auto-match a fuzzy transliteration candidate without admin review', () => {
+    const service = createService() as any;
+    const match = {
+      rowNumber: 1,
+      rawName: 'Misheryakov Sergey',
+      normalizedName: service.normalizePersonName('Misheryakov Sergey'),
+      participantNumber: 1,
+      email: '',
+      team: '',
+      car: { model: '', plateNumber: '' },
+    };
+    const byName = new Map<string, any[]>();
+    for (const alias of service.nameAliases(match.rawName)) {
+      byName.set(alias, [match]);
+    }
+
+    const result = service.findRegistrationParticipant('Misheryakov Sergei', {
+      byName,
+      byNumber: new Map(),
+    });
+
+    expect(result.status).toBe('AMBIGUOUS');
+    expect(result.matches).toHaveLength(1);
+  });
 });
 
 describe('ImportsService.createImportRegistration', () => {
