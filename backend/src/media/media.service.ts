@@ -173,7 +173,7 @@ export class MediaService {
     });
     if (!upload) throw new BadRequestException('Файл не найден');
     const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
-    return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, expiresIn), expiresIn, contentType: upload.contentType };
+    return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, expiresIn, true), expiresIn, contentType: upload.contentType };
   }
 
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
@@ -231,7 +231,7 @@ export class MediaService {
 
     return {
       success: true,
-      url: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
+      url: this.presignedUrl('GET', upload.objectKey, null, expiresIn, true),
       expiresIn,
       contentType: upload.contentType,
     };
@@ -342,7 +342,7 @@ export class MediaService {
         contentType: upload.contentType,
         completedAt: upload.completedAt,
         createdAt: upload.createdAt,
-        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
+        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn, true),
         isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
           ? referenced.has(upload.targetId)
           : true,
