@@ -55,6 +55,7 @@ services:
     networks: [usd-internal]
 
   cloudflared:
+    profiles: ["public-tunnel"]
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
