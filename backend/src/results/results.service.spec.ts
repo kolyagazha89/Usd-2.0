@@ -150,14 +150,12 @@ describe('ResultsService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('delegates result correction authorization to the permission guard', async () => {
-    prisma.$transaction.mockRejectedValueOnce(new Error('reached update transaction'));
-
+  it('rejects result correction for a judge at the service boundary', async () => {
     await expect(
       service.update('result-1', { value: 151 }, judgeRequest),
-    ).rejects.toThrow('reached update transaction');
+    ).rejects.toThrow('Изменение и удаление результатов доступно только ADMIN');
 
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   function setupCreateTx(overrides: any = {}) {
