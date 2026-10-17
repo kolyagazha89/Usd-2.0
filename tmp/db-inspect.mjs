@@ -73,6 +73,22 @@ try {
     ORDER BY se.year, s.name, c.name
   `);
   console.log('AUDIT_CLASS_COUNTS_READY');
+  console.log('AUDIT_CLASS_COUNTS_READY');
+  const resultRows = await client.query(`
+    SELECT se.year, s.name AS stage, s.city, s.date, c.name AS class,
+      p."fullName" AS participant, r."participantNumber" AS participant_number,
+      rn.number AS assigned_number, x.place, x.value::text AS value, x."isHistorical" AS historical
+    FROM "Result" x
+    JOIN "Registration" r ON r.id = x."registrationId"
+    JOIN "Participant" p ON p.id = r."participantId"
+    JOIN "Stage" s ON s.id = r."stageId"
+    JOIN "Season" se ON se.id = s."seasonId"
+    JOIN "RegistrationClass" rc ON rc.id = x."registrationClassId"
+    JOIN "Class" c ON c.id = rc."classId"
+    LEFT JOIN "RegistrationNumber" rn ON rn.id = rc."numberId"
+    WHERE x."isHistorical" = true
+    ORDER BY se.year, s.date, s.name, c.name, x.place
+  `);
   const integrity = await client.query(`
     SELECT
       (SELECT count(*)::int FROM "Result" x JOIN "RegistrationClass" rc ON rc.id = x."registrationClassId" WHERE x."registrationId" <> rc."registrationId") AS result_registration_class_mismatches,
@@ -100,7 +116,7 @@ try {
     if (stage.year === 2026 && /липец|lipetsk/.test(n)) return 'lipetsk';
     if (stage.year === 2026 && /орел|орел|orel|oryol/.test(n)) return 'orel';
     if (stage.year === 2026 && /смолен|smolensk/.test(n)) return 'smolensk';
-    if (stage.year === 2026 && /ростов|rostov/.test(n) && !/финал|final/.test(n) && !String(stage.date).startsWith('2026-09-05')) return 'rostov-on-don';
+    if (stage.year === 2026 && /ростов|rostov/.test(n) && !/финал|final/.test(n) && new Date(stage.date).toISOString().slice(0, 10) !== '2026-09-05') return 'rostov-on-don';
     if (stage.year === 2026 && /волгоград|volgograd/.test(n) && /финал|final/.test(n)) return 'final_volg2026';
     return null;
   };
@@ -120,6 +136,47 @@ try {
       const actual = dbRows.filter(x => classKey(x.class) === k).reduce((n, x) => n + x.results, 0);
       if (expected !== actual) classDiffs.push({ year: stage.year, stage: stage.name, sourceClass, expected, actual, delta: actual - expected });
     }
+  }
+  const sourceResultRows = [];
+  for (const [sheet, rows] of Object.entries(results)) {
+    let currentClass = '';
+    for (const row of rows.slice(1)) {
+      if (has(row[0])) currentClass = String(row[0]).trim();
+      if (!has(row[4])) continue;
+      sourceResultRows.push({ sheet, class: currentClass, place: Number(row[1]), number: Number(row[2]), value: Number(row[3]).toFixed(3), participant: String(row[4]).trim() });
+    }
+  }
+  const dbHistoricalRows = resultRows.rows.map(row => {
+    const stage = stages.rows.find(s => s.year === row.year && s.name === row.stage);
+    return { ...row, sheet: stage ? stageMap(stage) : null, classKey: classKey(row.class), nameKey: norm(row.participant), valueKey: Number(row.value).toFixed(3) };
+  }).filter(row => row.sheet);
+  const dbBySheet = new Map();
+  for (const row of dbHistoricalRows) {
+    if (!dbBySheet.has(row.sheet)) dbBySheet.set(row.sheet, []);
+    dbBySheet.get(row.sheet).push(row);
+  }
+  const missingSourceRows = [];
+  const nameMismatches = [];
+  const extraDatabaseRows = [];
+  for (const sourceRow of sourceResultRows) {
+    const candidates = dbBySheet.get(sourceRow.sheet) ?? [];
+    const ck = classKey(sourceRow.class);
+    const vk = Number(sourceRow.value).toFixed(3);
+    const exactIndex = candidates.findIndex(db => db.classKey === ck && Number(db.place) === sourceRow.place && db.valueKey === vk && db.nameKey === norm(sourceRow.participant));
+    if (exactIndex >= 0) {
+      candidates.splice(exactIndex, 1);
+      continue;
+    }
+    const performanceIndex = candidates.findIndex(db => db.classKey === ck && Number(db.place) === sourceRow.place && db.valueKey === vk);
+    if (performanceIndex >= 0) {
+      const [db] = candidates.splice(performanceIndex, 1);
+      nameMismatches.push({ sheet: sourceRow.sheet, class: sourceRow.class, place: sourceRow.place, value: sourceRow.value, sourceName: sourceRow.participant, databaseName: db.participant });
+      continue;
+    }
+    missingSourceRows.push(sourceRow);
+  }
+  for (const [sheet, rows] of dbBySheet) {
+    for (const row of rows) extraDatabaseRows.push({ sheet, class: row.class, place: row.place, value: row.value, participant: row.participant });
   }
   const importJobStatuses = await client.query(`
     SELECT status, count(*)::int AS jobs
@@ -147,7 +204,10 @@ try {
   console.log('AUDIT_DATABASE ' + JSON.stringify({ identity: identity.rows[0], tableCounts: counts, integrity: integrity.rows[0], historicalImportJobStatuses: importJobStatuses.rows }));
   console.log('AUDIT_SOURCE ' + JSON.stringify(sourceSummary));
   console.log('AUDIT_STAGES ' + JSON.stringify(stageComparison));
-  console.log('AUDIT_CLASS_DIFFS ' + JSON.stringify(classDiffs));
+  console.log('AUDIT_CLASS_DIFFS ' + JSON.stringify(classDiffs.filter(x => x.delta !== -98)));
+  console.log('AUDIT_MISSING_ROWS ' + JSON.stringify(missingSourceRows));
+  console.log('AUDIT_NAME_MISMATCHES ' + JSON.stringify(nameMismatches));
+  console.log('AUDIT_EXTRA_ROWS ' + JSON.stringify(extraDatabaseRows));
   console.log('AUDIT_CLASS_ANOMALIES ' + JSON.stringify(classCounts.rows.filter(x => x.result_rows_with_zero_assigned_number > 0 || x.mismatched_registration_links > 0)));
 
 } finally {
