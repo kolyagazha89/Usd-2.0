@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { StatisticsService } from './statistics.service';
 
 describe('StatisticsService dashboard stage selection', () => {
