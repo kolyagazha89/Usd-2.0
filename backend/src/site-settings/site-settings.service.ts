@@ -17,7 +17,7 @@ const DEFAULTS:SiteSettingsShape={
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
     {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
     {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
-    heroTitle:'United Sound Derby',heroSubtitle:'Официальный чемпионат по автозвуку',
+    heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
     showNextStage:true,showLatestResults:true,showRecords:true,showParticipants:true,showLiveStream:true,showLiveResults:true},
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
