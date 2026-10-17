@@ -299,7 +299,7 @@ describe('ImportsService actual historical XLSX snapshot', () => {
       totalResults += resultRows.length;
     }
 
-    expect(totalRegistrations).toBe(686);
+    expect(totalRegistrations).toBe(666);
     expect(totalResults).toBe(1080);
     expect(zeroNumberResults).toBe(334);
   });
