@@ -20,7 +20,7 @@ export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingP
   </section>
   <section className="dashboard-main-grid">
    <div className="panel dashboard-stage-card">
-    <PanelTitle title={stage?'Рабочий этап':'Ближайший этап'} icon={Flag} action="Открыть этап" onAction={()=>stage&&go('/admin/stages/'+stage.id)}/>
+    <PanelTitle title={stage?(new Date(stage.date).toDateString()===new Date().toDateString()?'Рабочий этап':'Ближайший этап'):'Ближайший этап'} icon={Flag} action="Открыть этап" onAction={()=>stage&&go('/admin/stages/'+stage.id)}/>
     {stage?<div className="dashboard-working-stage">
       <button className="dashboard-feature" onClick={()=>go('/admin/stages/'+stage.id)}>
         <div className="stage-number large">{stage.stageNumber}</div>

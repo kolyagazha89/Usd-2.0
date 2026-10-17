@@ -1290,9 +1290,6 @@ export class StatisticsService {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
     // "Рабочий этап" means an event scheduled for the current calendar day.
     // Future stages must stay in "Ближайшие этапы" and must never leak into
     // the working-stage or recent-stage blocks.
