@@ -71,7 +71,7 @@ SET "registration" = jsonb_set(
       END
       ORDER BY ordinal
     )
-    FROM jsonb_array_elements(s."registration"->'emailTemplates')
+    FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s."registration"->'emailTemplates') = 'array' THEN s."registration"->'emailTemplates' ELSE '[]'::jsonb END)
       WITH ORDINALITY AS templates(item, ordinal)
   ),
   true
@@ -80,7 +80,7 @@ WHERE s."id" = 'default'
   AND jsonb_typeof(s."registration"->'emailTemplates') = 'array'
   AND EXISTS (
     SELECT 1
-    FROM jsonb_array_elements(s."registration"->'emailTemplates') AS templates(item)
+    FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s."registration"->'emailTemplates') = 'array' THEN s."registration"->'emailTemplates' ELSE '[]'::jsonb END) AS templates(item)
     WHERE item->>'id' = ANY (ARRAY[
       'stage-registration-open',
       'registration-confirmed',
