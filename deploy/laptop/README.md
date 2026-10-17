@@ -33,13 +33,14 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 
 ## Automatic polling
 
-After the first successful manual update and smoke test, create a Windows Task Scheduler task to run every 5 minutes while the user is logged in or the machine is available:
+After a successful manual update and smoke test, open PowerShell in this directory and run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\usd-dev\usd-2.0\deploy\laptop\update.ps1"
+Set-ExecutionPolicy -Scope Process Bypass
+.\\install-updater-task.ps1
 ```
 
-Adjust the path to the actual repository directory. Configure the task to start in the same directory and prevent overlapping runs. Do not create the scheduled task until manual update and rollback have been tested.
+This registers a current-user Scheduled Task that checks for updates every 5 minutes and ignores overlapping runs. Review the task in Windows Task Scheduler as **USD Laptop Auto Update**. Logs are written to `deploy/laptop/logs`. The task cannot run while the laptop is powered off; configure Windows power settings to prevent sleep when continuous availability is required. Do not install the scheduled task until manual update and rollback have been tested.
 
 ## Recovery
 
