@@ -207,6 +207,26 @@ describe('ImportsService historical participant-number rules', () => {
     expect(allocated.get('сидоров сергей')).toBe(4);
   });
 
+  it('preserves historical Bass Race number 0 separately from the positive primary registration number', () => {
+    const service = createService() as any;
+
+    expect(service.resolveHistoricalClassNumber({
+      rawData: { Номер: 0 },
+      isBassRace: true,
+      historicalResults: true,
+      historicalOrResolvedNumber: 17,
+      primaryNumber: 4,
+    })).toBe(0);
+
+    expect(service.resolveHistoricalClassNumber({
+      rawData: { Номер: 0 },
+      isBassRace: false,
+      historicalResults: true,
+      historicalOrResolvedNumber: 17,
+      primaryNumber: 4,
+    })).toBe(4);
+  });
+
   it('allocates a duplicate historical BassRace number after the maximum number already used on the stage', async () => {
     const service = createService() as any;
     const tx = {
