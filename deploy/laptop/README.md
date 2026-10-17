@@ -12,7 +12,7 @@ This directory is for a temporary Windows/Docker Desktop host. It does not repla
 
 ## Important caveats
 
-1. The frontend image currently bakes `VITE_API_URL=https://api.usd-russia.ru` into the static bundle. Until a separately approved tunnel/domain cutover, do not use the laptop-served frontend for authenticated workflows: it may send API requests to the currently configured production API. We must complete an isolated frontend/API test configuration before any live domain routing change.
+1. The laptop frontend image is deliberately built with `VITE_API_URL=http://127.0.0.1:3000` and the API allows only `http://localhost:8080` during local smoke testing. This prevents accidental requests to the production API. This image is for local validation only: before using the Cloudflare Tunnel or assigning public hostnames, we must implement a safe runtime API-base configuration or a separately built domain-specific frontend image, then explicitly approve the routing change.
 2. Backend production startup requires S3-compatible media storage. Configure a dedicated test bucket and least-privilege test credentials, not the existing production bucket unless an explicit migration plan has been approved.
 3. First start runs the repository's guarded Prisma migrations and historical bootstrap. Use an empty local test database for initial validation; do not import production data until a verified backup and restore plan is approved.
 4. The updater checks API and frontend HTTP responses and container health, but this is a basic smoke check, not full browser/business-flow acceptance.
