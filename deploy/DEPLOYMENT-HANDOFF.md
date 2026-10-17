@@ -22,6 +22,7 @@ The laptop is only a possible test machine; the agreed plan is to move directly 
 - Repository: `kolyagazha89/Usd-2.0`
 - Working branch: `infra/github-container-auto-update`
 - Draft PR #232: https://github.com/kolyagazha89/Usd-2.0/pull/232
+- **Pre-migration data-quality gate:** review and pass CI for import-normalization PR #233 (https://github.com/kolyagazha89/Usd-2.0/pull/233), then merge it to `main` before building the final deployment image or migrating data. It adds canonical Latin/Cyrillic matching, conservative review of fuzzy name candidates, and duplicate result-row warnings. Do not assume it is merged or CI-passed until verified.
 - PR must remain unmerged until reviewed, tested, and explicitly approved by the user.
 - Deployment instructions:
   - `deploy/laptop/README.md`
