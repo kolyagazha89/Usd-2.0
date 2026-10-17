@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import {BarChart3,RefreshCw,Search,UserRound} from 'lucide-react';
 import {apiGet,listData} from '../../api';
-import {PageFrame,ErrorPanel,LoadingPage,Empty} from '../AdminUI';
+import {PageFrame,ErrorPanel,LoadingPage,Empty} from '../AdminPrimitives';
 
 function PanelTitle({title,icon:Icon}:{title:string;icon:any}){return <div className="panel-title"><div><Icon size={17}/><h2>{title}</h2></div></div>}
 
