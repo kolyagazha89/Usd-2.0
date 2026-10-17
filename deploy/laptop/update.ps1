@@ -35,7 +35,8 @@ function Set-EnvValue([string]$Name, [string]$Value) {
     }
   }
   if (-not $found) { $lines += "$Name=$Value" }
-  Set-Content -LiteralPath $EnvFile -Value $lines -Encoding utf8
+  $content = ($lines -join "`r`n") + "`r`n"
+  [System.IO.File]::WriteAllText($EnvFile, $content, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Wait-ForHealth {
