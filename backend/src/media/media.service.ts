@@ -56,7 +56,7 @@ export class MediaService {
 
   private presignedUrl(method: string, key: string, contentType: string | null, expiresIn: number, usePublicEndpoint = false) {
     const cfg = this.config();
-    const endpoint = (usePublicEndpoint ? process.env.S3_PUBLIC_ENDPOINT : undefined)?.replace(/\\/$/, '') ?? cfg.endpoint;
+    const endpoint = (usePublicEndpoint ? process.env.S3_PUBLIC_ENDPOINT : undefined)?.replace(/\/$/, '') ?? cfg.endpoint;
     const service = 's3';
     const now = new Date();
     const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -90,7 +90,7 @@ export class MediaService {
 
   private objectUrl(key: string) {
     const cfg = this.config();
-    const url = new URL((process.env.S3_PUBLIC_ENDPOINT ?? cfg.endpoint).replace(/\\/$/, ''));
+    const url = new URL((process.env.S3_PUBLIC_ENDPOINT ?? cfg.endpoint).replace(/\/$/, ''));
     const encodedKey = key.split('/').map((p) => this.awsEncode(p)).join('/');
     if (process.env.S3_FORCE_PATH_STYLE === 'true') {
       url.pathname = `/${this.awsEncode(cfg.bucket)}/${encodedKey}`;
