@@ -6,7 +6,7 @@ INSERT INTO "SiteSettings" (
 ) VALUES (
   'default',
   '{"siteName":"USD","logoUrl":null,"splashLogoUrl":null,"mobileLogoUrl":null,"faviconUrl":null,"organizationName":"USD Russia"}'::jsonb,
-  '{"blocks":[],"heroTitle":"КОГДА ЗВУК","heroSubtitle":"Официальный чемпионат по автозвуку","showNextStage":true,"showLatestResults":true,"showRecords":true,"showParticipants":true,"showLiveStream":true,"showLiveResults":true}'::jsonb,
+  '{"blocks":[],"heroTitle":"USD","heroSubtitle":"Официальный чемпионат по автозвуку","showNextStage":true,"showLatestResults":true,"showRecords":true,"showParticipants":true,"showLiveStream":true,"showLiveResults":true}'::jsonb,
   '{"enabled":false,"provider":"YOUTUBE","url":"","embedUrl":"","title":"USD LIVE","autoShowOnStageDay":true,"showChat":false}'::jsonb,
   '{"enabled":true,"stageId":null,"refreshSeconds":5,"showOnlyPublished":true}'::jsonb,
   '{"items":[]}'::jsonb,
