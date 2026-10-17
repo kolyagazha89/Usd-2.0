@@ -1,0 +1,13 @@
+{
+  "name": "usd-readonly-normalization-audit",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "tsx backend/src/scripts/participant-normalization-audit.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.0.1",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  }
+}
