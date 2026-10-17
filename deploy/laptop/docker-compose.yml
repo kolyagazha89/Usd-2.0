@@ -71,7 +71,7 @@ services:
     restart: "no"
     entrypoint: ["/bin/sh", "-c"]
     command: >-
-      until mc alias set local http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do sleep 2; done;
+      until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 2; done;
       mc mb --ignore-existing local/${S3_BUCKET};
       printf '%s' '{"CORSRules":[{"AllowedOrigins":["http://localhost:8080"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3000}]}' > /tmp/cors.json;
       mc cors set local/${S3_BUCKET} /tmp/cors.json
