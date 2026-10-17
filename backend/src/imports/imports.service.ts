@@ -185,6 +185,48 @@ export class ImportsService {
       ),
     );
 
+    // Detect repeated participant/class/number rows inside this file before
+    // commit. Existing-result checks protect the database, but without this
+    // pass a duplicate pair would only fail late inside the transaction.
+    const resultRowsByIdentity = new Map<string, number[]>();
+    resultPreview.forEach((item: any, index: number) => {
+      const participant = item.participant;
+      const classKey =
+        item.class?.status === 'MATCHED'
+          ? String(item.class.classId)
+          : this.normalizePersonName(String(item.class?.className ?? ''));
+      if (!classKey) return;
+
+      let participantKey: string;
+      if (participant?.status === 'MATCHED') {
+        const matched = participant.matches?.[0];
+        participantKey =
+          participant.source === 'DATABASE'
+            ? `database:${matched?.id ?? participant.normalizedName}`
+            : `registration:${matched?.rowNumber ?? participant.normalizedName}`;
+      } else {
+        participantKey = `name:${this.nameTokens(String(participant?.normalizedName ?? '')).join('|')}`;
+      }
+
+      const numberKey = item.participantNumber ?? item.resultParticipantNumber ?? 'unknown';
+      const key = `${participantKey}::${classKey}::${numberKey}`;
+      const rowNumbers = resultRowsByIdentity.get(key) ?? [];
+      rowNumbers.push(index + 1);
+      resultRowsByIdentity.set(key, rowNumbers);
+    });
+
+    for (const rowNumbers of resultRowsByIdentity.values()) {
+      if (rowNumbers.length < 2) continue;
+      for (const rowNumber of rowNumbers) {
+        const preview = resultPreview[rowNumber - 1] as any;
+        if (!preview) continue;
+        preview.warnings.push(
+          `Строка ${rowNumber}: возможный дубль результата — тот же участник, класс и номер также указаны в строках ${rowNumbers.filter((number) => number !== rowNumber).join(', ')}. Проверьте строки до импорта.`,
+        );
+        preview.status = 'WARNING';
+      }
+    }
+
     const participantsNew = new Set<string>();
     const participantsMatched = new Set<string>();
     const participantsAmbiguous = new Set<string>();
@@ -1449,8 +1491,11 @@ export class ImportsService {
       }
 
       if (fuzzyMatches.length === 1) {
+        // A near match is useful evidence for the admin, not proof of identity.
+        // Only canonical/exact aliases may auto-match; fuzzy transliteration
+        // candidates remain reviewable and cannot silently merge participants.
         return {
-          status: 'MATCHED' as const,
+          status: 'AMBIGUOUS' as const,
           normalizedName,
           matches: fuzzyMatches,
           matchType: 'NAME' as const,
@@ -1509,11 +1554,10 @@ export class ImportsService {
   }
 
   private nameTokens(value: string): string[] {
-    const transliterated = this.transliterateRussianName(value);
-    return transliterated
-      .normalize('NFKC')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
+    // Normalize Latin/Cyrillic spellings into the same canonical Russian
+    // tokens before comparing. This also makes surname/name order irrelevant.
+    return this.normalizePersonName(value)
+      .replace(/-/g, ' ')
       .split(/\s+/)
       .filter(Boolean)
       .sort();
@@ -2766,11 +2810,16 @@ export class ImportsService {
   private normalizePersonName(
     value: string,
   ): string {
-    return String(value ?? '')
+    /*
+     * Keep one canonical name-normalization path for import matching.
+     * The old implementation only cleaned text, so Latin names did not
+     * match the same participant stored in Cyrillic. Normalize first,
+     * then apply matching-only cleanup without changing persisted names.
+     */
+    return this.nameNormalizer
+      .normalize(String(value ?? ''))
       .normalize('NFKC')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\u200B/g, '')
-      .replace(/\uFEFF/g, '')
+      .replace(/[\u00A0\u200B-\u200D\uFEFF]/g, ' ')
       .replace(/ё/gi, 'е')
       .replace(/[^a-zа-я0-9\s-]/gi, ' ')
       .replace(/\s+/g, ' ')
@@ -2794,11 +2843,18 @@ export class ImportsService {
 
   private nameAliases(value: string): string[] {
     const normalized = this.normalizePersonName(value);
-    const transliterated = this.transliterateRussianName(value);
+    if (!normalized) return [];
+
+    const transliterated = this.transliterateRussianName(normalized);
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    const tokenOrderIndependent = [...tokens].sort().join(' ');
+
     return [...new Set([
       normalized,
+      tokenOrderIndependent,
       transliterated,
       normalized.replace(/\s+/g, ''),
+      tokenOrderIndependent.replace(/\s+/g, ''),
       transliterated.replace(/\s+/g, ''),
     ].filter(Boolean))];
   }
@@ -6263,12 +6319,15 @@ export class ImportsService {
             primaryNumber = historicalOrResolvedNumber;
           }
 
-          let classNumber =
-            isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
-              ? historicalOrResolvedNumber
-              : primaryNumber;
+          let classNumber = this.resolveHistoricalClassNumber({
+            rawData: row.rawData as ImportRow,
+            isBassRace,
+            historicalResults,
+            historicalOrResolvedNumber,
+            primaryNumber,
+          });
 
-          if (historicalResults && isBassRace && classNumber > 0) {
+          if (historicalResults && isBassRace && classNumber >= 0) {
             const occupiedBassRaceNumber = await tx.registrationNumber.findUnique({
               where: {
                 stageId_number: {
@@ -6778,6 +6837,37 @@ export class ImportsService {
       results,
 
       records,    };
+  }
+
+  private resolveHistoricalClassNumber(args: {
+    rawData: ImportRow;
+    isBassRace: boolean;
+    historicalResults: boolean;
+    historicalOrResolvedNumber: number | null;
+    primaryNumber: number;
+  }): number {
+    const rawHistoricalBassRaceNumber =
+      args.historicalResults && args.isBassRace
+        ? this.numberValue(
+            this.getImportFieldValue(args.rawData, [
+              'Номер',
+              'Номер участника',
+              'participantNumber',
+            ]),
+          )
+        : null;
+
+    // A printed Bass Race 0 is valid historical class-number data. Keep it
+    // separate from the positive primary registration number.
+    if (rawHistoricalBassRaceNumber !== null) {
+      return rawHistoricalBassRaceNumber;
+    }
+
+    return args.isBassRace &&
+      args.historicalOrResolvedNumber !== null &&
+      args.historicalOrResolvedNumber > 0
+      ? args.historicalOrResolvedNumber
+      : args.primaryNumber;
   }
 
   private parseParticipantNumber(
