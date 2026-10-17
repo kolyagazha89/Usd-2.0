@@ -54,15 +54,16 @@ export class MediaService {
     return crypto.createHmac('sha256', kService).update('aws4_request').digest();
   }
 
-  private presignedUrl(method: string, key: string, contentType: string | null, expiresIn: number) {
+  private presignedUrl(method: string, key: string, contentType: string | null, expiresIn: number, usePublicEndpoint = false) {
     const cfg = this.config();
+    const endpoint = (usePublicEndpoint ? process.env.S3_PUBLIC_ENDPOINT : undefined)?.replace(/\\/$/, '') ?? cfg.endpoint;
     const service = 's3';
     const now = new Date();
     const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
     const date = amzDate.slice(0, 8);
     const credentialScope = `${date}/${cfg.region}/${service}/aws4_request`;
-    const host = this.host(cfg.endpoint, cfg.bucket);
-    const canonicalUri = this.canonicalUri(cfg.endpoint, cfg.bucket, key);
+    const host = this.host(endpoint, cfg.bucket);
+    const canonicalUri = this.canonicalUri(endpoint, cfg.bucket, key);
     const params: Record<string, string> = {
       'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
       'X-Amz-Credential': `${cfg.accessKey}/${credentialScope}`,
@@ -80,7 +81,7 @@ export class MediaService {
     const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
     const signature = crypto.createHmac('sha256', this.signingKey(cfg.secretKey, date, cfg.region, service)).update(stringToSign).digest('hex');
     params['X-Amz-Signature'] = signature;
-    const baseUrl = new URL(cfg.endpoint);
+    const baseUrl = new URL(endpoint);
     baseUrl.host = host;
     baseUrl.pathname = canonicalUri;
     baseUrl.search = Object.keys(params).sort().map((k) => `${this.awsEncode(k)}=${this.awsEncode(params[k])}`).join('&');
@@ -89,7 +90,7 @@ export class MediaService {
 
   private objectUrl(key: string) {
     const cfg = this.config();
-    const url = new URL(cfg.endpoint);
+    const url = new URL((process.env.S3_PUBLIC_ENDPOINT ?? cfg.endpoint).replace(/\\/$/, ''));
     const encodedKey = key.split('/').map((p) => this.awsEncode(p)).join('/');
     if (process.env.S3_FORCE_PATH_STYLE === 'true') {
       url.pathname = `/${this.awsEncode(cfg.bucket)}/${encodedKey}`;
@@ -125,7 +126,7 @@ export class MediaService {
     await this.prisma.mediaUpload.create({ data: { userId, targetType, targetId, objectKey: key, contentType: contentType.toLowerCase(), tokenHash: this.hashToken(token), expiresAt: new Date(Date.now() + expiresIn * 1000) } });
     return {
       uploadToken: token,
-      uploadUrl: this.presignedUrl('PUT', key, contentType.toLowerCase(), expiresIn),
+      uploadUrl: this.presignedUrl('PUT', key, contentType.toLowerCase(), expiresIn, true),
       objectUrl: this.objectUrl(key),
       expiresIn,
       maxBytes: MAX_IMAGE_BYTES,
