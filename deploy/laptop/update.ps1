@@ -8,6 +8,10 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = "kolyagazha89/Usd-2.0"
 $ComposeDir = $PSScriptRoot
+$LogDir = Join-Path $PSScriptRoot "logs"
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+Get-ChildItem -LiteralPath $LogDir -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-14) } | Remove-Item -Force -ErrorAction SilentlyContinue
+Start-Transcript -Path (Join-Path $LogDir ("update-{0}.log" -f (Get-Date -Format "yyyyMMdd"))) -Append | Out-Null
 
 function Invoke-Compose([string[]]$ComposeArgs) {
   & docker compose --project-directory $ComposeDir --env-file $EnvFile -f $ComposeFile @ComposeArgs
@@ -69,6 +73,13 @@ if ($previousTag -eq $newTag) {
 }
 
 Write-Host "Preparing USD update to $newTag. Previous tag: $previousTag"
+$previousApiExists = $false
+$previousFrontendExists = $false
+& docker image inspect "ghcr.io/kolyagazha89/usd-2.0-api:$previousTag" *> $null
+$previousApiExists = ($LASTEXITCODE -eq 0)
+& docker image inspect "ghcr.io/kolyagazha89/usd-2.0-frontend:$previousTag" *> $null
+$previousFrontendExists = ($LASTEXITCODE -eq 0)
+$canRollback = $previousApiExists -and $previousFrontendExists
 # Pull exact commit tags first. This does not stop or recreate running containers.
 & docker pull "ghcr.io/kolyagazha89/usd-2.0-api:$newTag"
 if ($LASTEXITCODE -ne 0) { throw "Could not pull API image $newTag. Current deployment was not changed." }
@@ -85,17 +96,22 @@ try {
   throw "Health checks did not pass within $HealthTimeoutSeconds seconds."
 } catch {
   $updateError = $_
-  Write-Warning "Update failed. Rolling back to $previousTag"
-  Set-EnvValue "USD_IMAGE_TAG" $previousTag
-  try {
-    Invoke-Compose @("up", "-d", "--no-build", "--pull", "never")
-    if (Wait-ForHealth) {
-      Write-Warning "Rollback succeeded. USD is running with $previousTag"
-    } else {
-      Write-Error "Rollback was attempted but health checks are still failing. Inspect Docker logs immediately."
+  if ($canRollback) {
+    Write-Warning "Update failed. Rolling back to $previousTag"
+    Set-EnvValue "USD_IMAGE_TAG" $previousTag
+    try {
+      Invoke-Compose @("up", "-d", "--no-build", "--pull", "never")
+      if (Wait-ForHealth) {
+        Write-Warning "Rollback succeeded. USD is running with $previousTag"
+      } else {
+        Write-Error "Rollback was attempted but health checks are still failing. Inspect Docker logs immediately."
+      }
+    } catch {
+      Write-Error "Rollback command failed: $_"
     }
-  } catch {
-    Write-Error "Rollback command failed: $_"
+  } else {
+    Write-Warning "No complete previous image pair exists locally; this is likely the first install, so automatic image rollback is unavailable."
+    Write-Warning "The new image tag remains in .env. Inspect Docker logs and repair the deployment before retrying."
   }
   throw $updateError
 }
