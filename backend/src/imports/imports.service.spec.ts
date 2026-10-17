@@ -249,6 +249,77 @@ describe('ImportsService historical participant-number rules', () => {
   });
 });
 
+describe('ImportsService historical XLSX preparation dry run', () => {
+  it('loads the two real workbook snapshots and prepares all configured stage mappings without a database', async () => {
+    const service = createService() as any;
+    let nextStage = 0;
+    const previewCalls: any[] = [];
+    service.prisma = {
+      season: {
+        findUnique: jest.fn(async ({ where }: any) => ({
+          id: `season-${where.year}`,
+          year: where.year,
+        })),
+        create: jest.fn(),
+      },
+      stage: {
+        findUnique: jest.fn(async () => null),
+        create: jest.fn(async ({ data }: any) => ({
+          id: `stage-${++nextStage}`,
+          ...data,
+        })),
+        update: jest.fn(),
+      },
+      importJob: {
+        findMany: jest.fn(async () => []),
+        deleteMany: jest.fn(),
+        update: jest.fn(async () => ({})),
+      },
+      class: {
+        findMany: jest.fn(async () => []),
+      },
+      stageClass: {
+        upsert: jest.fn(),
+      },
+    };
+    service.previewStage = jest.fn(async (body: any) => {
+      previewCalls.push(body);
+      return {
+        importJobId: `job-${body.stageId}`,
+        warnings: [],
+      };
+    });
+
+    const result = await service.prepareHistoricalXlsxImport({
+      user: { sub: 'test-admin' },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.source.workbooks).toEqual([
+      'USD _ Регистрация.xlsx',
+      'USD _ Результаты.xlsx',
+    ]);
+    expect(result.prepared).toHaveLength(11);
+    expect(result.prepared.reduce((sum: number, item: any) => sum + item.registrations, 0)).toBe(666);
+    expect(result.prepared.reduce((sum: number, item: any) => sum + item.results, 0)).toBe(1080);
+    expect(previewCalls).toHaveLength(11);
+
+    const septemberStage = result.prepared.find((item: any) => item.stageNumber === 11);
+    expect(septemberStage).toMatchObject({
+      stageName: 'Ростов-на-Дону — 05.09',
+      registrations: 52,
+      results: 0,
+    });
+    expect(previewCalls.find((call: any) => call.stageId === septemberStage.stageId))
+      .toMatchObject({ historicalResults: false, results: [] });
+
+    const 2025Final = result.prepared.find((item: any) => item.stageName === 'Финал Волгоград 2025');
+    expect(2025Final).toMatchObject({ registrations: 0, results: 182 });
+    expect(previewCalls.find((call: any) => call.stageId === 2025Final.stageId))
+      .toMatchObject({ historicalResults: true, registrations: [], results: expect.any(Array) });
+  });
+});
+
 describe('ImportsService actual historical XLSX snapshot', () => {
   it('parses both source workbooks using the real mapped stage sheets without dropping result rows or zero numbers', () => {
     const service = createService() as any;
