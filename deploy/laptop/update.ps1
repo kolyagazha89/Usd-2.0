@@ -60,6 +60,36 @@ if (-not (Test-Path -LiteralPath $EnvFile)) {
   throw "Missing .env. Copy .env.example to .env and configure it first."
 }
 
+# Fail closed if local secrets were not replaced or the database URL password differs.
+$postgresUser = Get-EnvValue "POSTGRES_USER"
+$postgresDb = Get-EnvValue "POSTGRES_DB"
+$postgresPassword = Get-EnvValue "POSTGRES_PASSWORD"
+$databaseUrl = Get-EnvValue "DATABASE_URL"
+$jwtSecret = Get-EnvValue "JWT_SECRET"
+$s3AccessKey = Get-EnvValue "S3_ACCESS_KEY_ID"
+$s3Secret = Get-EnvValue "S3_SECRET_ACCESS_KEY"
+$s3Bucket = Get-EnvValue "S3_BUCKET"
+foreach ($entry in @(
+  @{ Name = "POSTGRES_USER"; Value = $postgresUser },
+  @{ Name = "POSTGRES_DB"; Value = $postgresDb },
+  @{ Name = "POSTGRES_PASSWORD"; Value = $postgresPassword },
+  @{ Name = "DATABASE_URL"; Value = $databaseUrl },
+  @{ Name = "JWT_SECRET"; Value = $jwtSecret },
+  @{ Name = "S3_ACCESS_KEY_ID"; Value = $s3AccessKey },
+  @{ Name = "S3_SECRET_ACCESS_KEY"; Value = $s3Secret },
+  @{ Name = "S3_BUCKET"; Value = $s3Bucket }
+)) {
+  if ([string]::IsNullOrWhiteSpace($entry.Value) -or $entry.Value -match "REPLACE_WITH") {
+    throw "$($entry.Name) is missing or still contains a placeholder. Configure deploy/laptop/.env first."
+  }
+}
+if ($postgresPassword.Length -lt 32) { throw "POSTGRES_PASSWORD must be at least 32 characters." }
+if ($jwtSecret.Length -lt 64) { throw "JWT_SECRET must be at least 64 characters." }
+if ($s3Secret.Length -lt 32) { throw "S3_SECRET_ACCESS_KEY must be at least 32 characters." }
+$expectedDbSegment = "://" + $postgresUser + ":" + $postgresPassword + "@db:5432/" + $postgresDb
+if (-not $databaseUrl.Contains($expectedDbSegment)) {
+  throw "DATABASE_URL must use the configured POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB with host db:5432."
+}
 $previousTag = Get-EnvValue "USD_IMAGE_TAG"
 if (-not $previousTag) { throw "USD_IMAGE_TAG is missing from .env" }
 
