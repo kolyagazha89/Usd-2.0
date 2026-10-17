@@ -619,6 +619,9 @@ export class ResultsService {
     data: UpdateResultDto,
     request: AuthenticatedRequest,
   ) {
+    if (request.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Изменение и удаление результатов доступно только ADMIN');
+    }
     this.validateValue(data.value ?? 0);
     this.validatePlace(data.place);
 
