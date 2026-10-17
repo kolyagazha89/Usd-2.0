@@ -64,7 +64,8 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/statistics'))return 'statistics';
  if(path.startsWith('/admin/import'))return 'imports';
  if(path.startsWith('/admin/historical-results'))return 'historicalResults';
- if(path.startsWith('/admin/data-quality')||path.startsWith('/admin/audit'))return 'statistics';
+ if(path.startsWith('/admin/data-quality'))return 'imports';
+ if(path.startsWith('/admin/audit'))return 'statistics';
  if(path.startsWith('/admin/media'))return 'media';
  if(path.startsWith('/admin/assistant'))return 'assistant';
  if(path.startsWith('/admin/google'))return 'integrations';
