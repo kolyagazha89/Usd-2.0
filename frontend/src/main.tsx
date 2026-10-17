@@ -4,6 +4,7 @@ import App from './App';
 import CookieNotice from './CookieNotice';
 import './styles.css';
 import './participant-ui-polish.css';
+import './ui-consistency.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
