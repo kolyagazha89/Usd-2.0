@@ -141,7 +141,7 @@ describe('ImportsService import-name normalization', () => {
   it('normalizes ё/е, invisible characters and repeated whitespace before matching', () => {
     const service = createService() as any;
 
-    expect(service.normalizePersonName('  ПЁТР\\u200B   Королёв  '))
+    expect(service.normalizePersonName('  ПЁТР\u200B   Королёв  '))
       .toBe(service.normalizePersonName('Петр Королев'));
   });
 
