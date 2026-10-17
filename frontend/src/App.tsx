@@ -11,7 +11,7 @@ import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,Loadin
 import AdminShell from './admin/AdminShell';
 import AdminRoutes from './admin/AdminRoutes';
 import {validateImageUpload} from './admin/upload-validation';
-import {publicResultUnit,publicResultValue,recordDirectionKind,resultNumericValue,sortRecordRows,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
+import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
 import './catalog.css';
 import { formatPlateInput, formatRussianPhoneInput, isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
