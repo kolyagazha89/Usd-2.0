@@ -1491,8 +1491,11 @@ export class ImportsService {
       }
 
       if (fuzzyMatches.length === 1) {
+        // A near match is useful evidence for the admin, not proof of identity.
+        // Only canonical/exact aliases may auto-match; fuzzy transliteration
+        // candidates remain reviewable and cannot silently merge participants.
         return {
-          status: 'MATCHED' as const,
+          status: 'AMBIGUOUS' as const,
           normalizedName,
           matches: fuzzyMatches,
           matchType: 'NAME' as const,
