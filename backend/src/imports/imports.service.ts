@@ -185,6 +185,48 @@ export class ImportsService {
       ),
     );
 
+    // Detect repeated participant/class/number rows inside this file before
+    // commit. Existing-result checks protect the database, but without this
+    // pass a duplicate pair would only fail late inside the transaction.
+    const resultRowsByIdentity = new Map<string, number[]>();
+    resultPreview.forEach((item: any, index: number) => {
+      const participant = item.participant;
+      const classKey =
+        item.class?.status === 'MATCHED'
+          ? String(item.class.classId)
+          : this.normalizePersonName(String(item.class?.className ?? ''));
+      if (!classKey) return;
+
+      let participantKey: string;
+      if (participant?.status === 'MATCHED') {
+        const matched = participant.matches?.[0];
+        participantKey =
+          participant.source === 'DATABASE'
+            ? `database:${matched?.id ?? participant.normalizedName}`
+            : `registration:${matched?.rowNumber ?? participant.normalizedName}`;
+      } else {
+        participantKey = `name:${this.nameTokens(String(participant?.normalizedName ?? '')).join('|')}`;
+      }
+
+      const numberKey = item.participantNumber ?? item.resultParticipantNumber ?? 'unknown';
+      const key = `${participantKey}::${classKey}::${numberKey}`;
+      const rowNumbers = resultRowsByIdentity.get(key) ?? [];
+      rowNumbers.push(index + 1);
+      resultRowsByIdentity.set(key, rowNumbers);
+    });
+
+    for (const rowNumbers of resultRowsByIdentity.values()) {
+      if (rowNumbers.length < 2) continue;
+      for (const rowNumber of rowNumbers) {
+        const preview = resultPreview[rowNumber - 1] as any;
+        if (!preview) continue;
+        preview.warnings.push(
+          `Строка ${rowNumber}: возможный дубль результата — тот же участник, класс и номер также указаны в строках ${rowNumbers.filter((number) => number !== rowNumber).join(', ')}. Проверьте строки до импорта.`,
+        );
+        preview.status = 'WARNING';
+      }
+    }
+
     const participantsNew = new Set<string>();
     const participantsMatched = new Set<string>();
     const participantsAmbiguous = new Set<string>();
