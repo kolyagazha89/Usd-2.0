@@ -429,9 +429,25 @@
   background: #f5f6f7;
   color: var(--red-dark);
 }
-.main .content .file-picker input,
-.participant-portal .file-picker input {
-  display: none !important;
+.main .content .file-picker,
+.participant-portal .file-picker {
+  position: relative;
+  overflow: hidden;
+}
+.main .content .file-picker input[type="file"],
+.participant-portal .file-picker input[type="file"] {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  cursor: pointer;
 }
 .main .content .file-picker:focus-within,
 .participant-portal .file-picker:focus-within {
