@@ -37,8 +37,8 @@ function renderBrandedEmail(input: {
   const detailsValue = [detailsBefore, input.note, detailsAfter].filter(Boolean).join('\n');
   const buttonValue = String(input.template?.buttonLabel || input.actionLabel);
   const bodyTemplate = String(input.template?.body || '{{intro}}\n\n{{details}}');
-  const footerValue = String(input.template?.footer || 'ЮСД · Звук. Мощность. Характер.');
-  const subjectValue = String(input.template?.subject || input.subject || 'Уведомление ЮСД')
+  const footerValue = String(input.template?.footer || 'USD · Звук. Мощность. Характер.');
+  const subjectValue = String(input.template?.subject || input.subject || 'Уведомление USD')
     .replace(/\{\{heading\}\}/g, headingValue)
     .replace(/\{\{intro\}\}/g, introValue)
     .replace(/\{\{details\}\}/g, detailsValue)
@@ -67,7 +67,7 @@ function renderBrandedEmail(input: {
     '',
     'Открыть сайт: ' + input.frontendUrl,
   ].join('\n');
-  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingValue) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 24px">' + bodyHtml + '</div><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + escapeHtml(buttonValue) + '</a></p><p style="font-size:12px;line-height:1.6;color:#777;margin:0">' + escapeHtml(footerValue).replace(/\n/g, '<br>') + '</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777"><a href="' + frontendUrl + '" style="color:#777">Открыть сайт ЮСД</a></footer></div></div></body></html>';
+  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingValue) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 24px">' + bodyHtml + '</div><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + escapeHtml(buttonValue) + '</a></p><p style="font-size:12px;line-height:1.6;color:#777;margin:0">' + escapeHtml(footerValue).replace(/\n/g, '<br>') + '</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777"><a href="' + frontendUrl + '" style="color:#777">Открыть сайт USD</a></footer></div></div></body></html>';
   return { html, text, subject: subjectValue };
 }
 
@@ -278,9 +278,9 @@ export class MailService {
 
   async sendTestAuthTemplate(email: string, type: 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE'): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; type: string; message: string }> {
     const configs = {
-      AUTH_EMAIL_VERIFICATION: { subject: 'Подтверждение email — ЮСД', heading: 'Подтверждение email', actionLabel: 'Подтвердить email' },
-      AUTH_PASSWORD_RESET: { subject: 'Восстановление пароля — ЮСД', heading: 'Восстановление пароля', actionLabel: 'Восстановить пароль' },
-      AUTH_EMAIL_CHANGE: { subject: 'Подтверждение нового email — ЮСД', heading: 'Подтверждение нового email', actionLabel: 'Подтвердить новый email' },
+      AUTH_EMAIL_VERIFICATION: { subject: 'Подтверждение email — USD', heading: 'Подтверждение email', actionLabel: 'Подтвердить email' },
+      AUTH_PASSWORD_RESET: { subject: 'Восстановление пароля — USD', heading: 'Восстановление пароля', actionLabel: 'Восстановить пароль' },
+      AUTH_EMAIL_CHANGE: { subject: 'Подтверждение нового email — USD', heading: 'Подтверждение нового email', actionLabel: 'Подтвердить новый email' },
     };
     const config = configs[type];
     const template = await this.getEmailTemplate(type);
@@ -288,7 +288,7 @@ export class MailService {
       subject: config.subject,
       template,
       heading: config.heading,
-      intro: 'Это тестовый экземпляр шаблона из административной панели ЮСД. Он не подтверждает email и не изменяет пароль.',
+      intro: 'Это тестовый экземпляр шаблона из административной панели USD. Он не подтверждает email и не изменяет пароль.',
       actionLabel: config.actionLabel,
       actionUrl: this.frontendUrl,
       note: 'Тестовая ссылка ведёт только на сайт. Настоящий токен аккаунта не создавался.',
@@ -302,7 +302,7 @@ export class MailService {
     const sentAt = new Date().toISOString();
     const message = renderBrandedEmail({
       heading: 'Проверка почтового канала',
-      intro: 'Это тестовое письмо из административной панели ЮСД.',
+      intro: 'Это тестовое письмо из административной панели USD.',
       subject: 'USD — проверка почтового канала',
       actionLabel: 'Открыть USD',
       actionUrl: this.frontendUrl,

@@ -56,16 +56,16 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   private render(notice: Notice, logoUrl: string | null = null, template?: Record<string, any>) {
     const details = notice.details.filter(Boolean);
     const stageLine = details.find((line) => line.startsWith('Этап:')) ?? '';
-    const stageName = stageLine.replace(/^Этап:\s*/, '').split(' · №')[0] || 'этап ЮСД';
+    const stageName = stageLine.replace(/^Этап:\s*/, '').split(' · №')[0] || 'этап USD';
     const variableTexts = (template?.variableTexts && typeof template.variableTexts === 'object' ? template.variableTexts : {}) as Record<string, unknown>;
     const headingText = String(variableTexts.heading ?? '').trim() || notice.heading;
     const introText = String(variableTexts.intro ?? '').trim() || notice.intro;
     const detailsBefore = String(variableTexts.detailsBefore ?? '').trim();
     const detailsAfter = String(variableTexts.detailsAfter ?? '').trim();
     const detailsText = [detailsBefore, details.join('\n'), detailsAfter].filter(Boolean).join('\n');
-    const buttonLabel = String(template?.buttonLabel || 'Открыть ЮСД');
+    const buttonLabel = String(template?.buttonLabel || 'Открыть USD');
     const bodyTemplate = String(template?.body || '{{intro}}\n\n{{details}}');
-    const footerText = String(template?.footer || 'Это сервисное сообщение ЮСД. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.');
+    const footerText = String(template?.footer || 'Это сервисное сообщение USD. Ответ почтового провайдера подтверждает принятие запроса, но не гарантирует попадание во входящие.');
     const textBody = bodyTemplate
       .replace(/\{\{heading\}\}/g, headingText)
       .replace(/\{\{intro\}\}/g, introText)
@@ -78,17 +78,17 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       .replace(/\{\{details\}\}/g, detailsText)
       .replace(/\s+/g, ' ').trim();
     const text = [
-      'ЮСД · ULTIMATE SOUND DESTRUCTION',
+      'USD · ULTIMATE SOUND DESTRUCTION',
       textBody,
       '',
       buttonLabel + ': ' + notice.href,
       '',
       footerText,
       '',
-      'ЮСД · Звук. Мощность. Характер. · Управление рассылкой: ' + this.frontendUrl + '/participant?tab=profile',
+      'USD · Звук. Мощность. Характер. · Управление рассылкой: ' + this.frontendUrl + '/participant?tab=profile',
     ].join('\n');
     const detailHtml = details.map((line) => '<li style="margin:0 0 8px">' + escapeHtml(line) + '</li>').join('');
-    const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип ЮСД" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">ЮСД<span style="color:#ed2638">.</span></div>';
+    const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип USD" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div>';
     const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|stageName|details)\}\})/g).map((part) => {
       if (part === '{{heading}}') return escapeHtml(headingText);
       if (part === '{{intro}}') return escapeHtml(introText);
@@ -97,7 +97,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       return escapeHtml(part).replace(/\n/g, '<br>');
     }).join('');
     const footerHtml = escapeHtml(footerText).replace(/\n/g, '<br>');
-    const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff">' + logoHtml + '<div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingText) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 18px">' + bodyHtml + '</div><p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px;font-size:14px">' + escapeHtml(buttonLabel) + '</a></p><p style="font-size:12px;line-height:1.6;color:#73737a;margin:0">' + footerHtml + '</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">ЮСД · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></div></body></html>';
+    const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><div style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff">' + logoHtml + '<div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></div><div style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingText) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 18px">' + bodyHtml + '</div><p style="margin:26px 0"><a href="' + escapeHtml(notice.href) + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px;font-size:14px">' + escapeHtml(buttonLabel) + '</a></p><p style="font-size:12px;line-height:1.6;color:#73737a;margin:0">' + footerHtml + '</p></div><div style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777">USD · Звук. Мощность. Характер. · <a href="' + escapeHtml(this.frontendUrl + '/participant?tab=profile') + '" style="color:#777;text-decoration:underline">Управление рассылкой</a></div></div></div></body></html>';
     return { subject, text, html };
   }
 
@@ -232,7 +232,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         'Основные классы (' + regularClasses.length + '): ' + (regularClasses.join(', ') || 'не указаны'),
         ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\s*/i, '')).sort((a: string, b: string) => Number.parseFloat(a) - Number.parseFloat(b)).join(', ')] : []),
         ...(classCount > 0 ? ['Оплата участия: ' + amountDue.toLocaleString('ru-RU') + ' ₽ на месте (' + mainClassPrice.toLocaleString('ru-RU') + ' ₽ за основной класс' + (classCount > 1 ? ' + ' + (classCount - 1) + ' доп. × ' + additionalClassPrice.toLocaleString('ru-RU') + ' ₽' : '') + '). Онлайн-регистрация бесплатна.'] : ['Оплата участия: уточняется организатором.']),
-        'Управление заявкой: откройте личный кабинет участника на сайте ЮСД.',
+        'Управление заявкой: откройте личный кабинет участника на сайте USD.',
       ],
       href: this.frontendUrl + '/participant',
     });
@@ -288,7 +288,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       eventKey: eventType.toLowerCase() + ':' + updated.id + ':' + updated.updatedAt.toISOString(),
       heading: wasCancelled ? 'Этап отменён' : 'Изменились сведения об этапе',
       intro: wasCancelled
-        ? 'Организатор отменил этап. Пожалуйста, ознакомьтесь с информацией и следите за обновлениями на сайте ЮСД.'
+        ? 'Организатор отменил этап. Пожалуйста, ознакомьтесь с информацией и следите за обновлениями на сайте USD.'
         : 'Организатор обновил сведения об этапе. Проверьте актуальные дату и место проведения.',
       details,
     });
@@ -334,7 +334,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       type: 'REGISTRATION_CANCELLED', recipient: user.email, stageId: registration.stageId, registrationId,
       subject: 'Регистрация отменена — ' + registration.stage.name,
       heading: 'Регистрация отменена',
-      intro: 'Заявка на участие отменена. Если это произошло по ошибке, свяжитесь с организатором ЮСД.',
+      intro: 'Заявка на участие отменена. Если это произошло по ошибке, свяжитесь с организатором USD.',
       details: [
         'Этап: ' + registration.stage.name + ' · №' + registration.stage.stageNumber,
         'Дата: ' + formatStageDate(registration.stage),
@@ -383,13 +383,13 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     await this.dispatch({
       eventKey: 'new-record:' + record.id,
       type: 'NEW_RECORD_SET', recipient: user.email, stageId: registration.stageId, registrationId: registration.id,
-      subject: 'Новый рекорд ЮСД: ' + record.value + ' ' + record.unit,
-      heading: 'Новый рекорд ЮСД!',
-      intro: 'Поздравляем! Ваш результат стал текущим рекордом ЮСД в своём классе.',
+      subject: 'Новый рекорд USD: ' + record.value + ' ' + record.unit,
+      heading: 'Новый рекорд USD!',
+      intro: 'Поздравляем! Ваш результат стал текущим рекордом USD в своём классе.',
       details: [
         'Класс: ' + result.registrationClass.class.name,
         'Результат: ' + record.value + ' ' + record.unit,
-        'Участник: ' + (participantName || 'участник ЮСД'),
+        'Участник: ' + (participantName || 'участник USD'),
         'Автомобиль: ' + ([registration.car?.brand, registration.car?.model].filter(Boolean).join(' ') || 'не указан'),
         'Этап: ' + stage.name + ' · №' + stage.stageNumber,
         'Дата: ' + formatStageDate(stage),
@@ -413,9 +413,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       INSPECTION_FAILED: 'Тест: техосмотр не пройден',
       REGISTRATION_CANCELLED: 'Тест: регистрация отменена',
       STAGE_RESULTS_PUBLISHED: 'Тест: результаты опубликованы',
-      NEW_RECORD_SET: 'Тест: новый рекорд ЮСД',
+      NEW_RECORD_SET: 'Тест: новый рекорд USD',
     };
-    const heading = testHeadings[type] ?? 'Тестовое уведомление ЮСД';
+    const heading = testHeadings[type] ?? 'Тестовое уведомление USD';
     const details = [
       'Этап: ' + title + (stage?.stageNumber ? ' · №' + stage.stageNumber : ''),
       'Дата: ' + (stage?.date ? formatStageDate(stage) : 'пример даты'),
@@ -425,8 +425,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const logoUrl = await this.getLogoUrl().catch(() => null);
     const templates = await this.getEmailTemplates();
     const template = templates.find((item: any) => item?.trigger === type);
-    const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — ЮСД', heading, intro: 'Это тестовый экземпляр письма. Он не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' }, logoUrl, template);
-    await this.mail.sendNotificationEmail({ to: recipient, subject: message.subject || heading + ' — ЮСД', text: message.text, html: message.html });
+    const message = this.render({ eventKey: 'test:' + randomUUID(), type, recipient, stageId: stage?.id ?? 'test-stage', subject: heading + ' — USD', heading, intro: 'Это тестовый экземпляр письма. Он не изменяет регистрацию и не запускает рассылку участникам.', details, href: stage ? this.frontendUrl + '/stages/' + encodeURIComponent(stage.id) : this.frontendUrl + '/stages' }, logoUrl, template);
+    await this.mail.sendNotificationEmail({ to: recipient, subject: message.subject || heading + ' — USD', text: message.text, html: message.html });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
   }
 

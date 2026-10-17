@@ -4120,3 +4120,12 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 .registration-class-option.configuration-required .registration-class-text small{color:#a56a16;font-weight:600}
 .registration-class-option.configuration-required.disabled{opacity:.7}
+
+/* Audit correction: keep dialogs centered on desktop and mobile despite legacy overrides. */
+.modal-backdrop {
+  align-items: center !important;
+  justify-content: center !important;
+}
+.modal-backdrop .modal {
+  max-height: calc(100dvh - 32px) !important;
+}

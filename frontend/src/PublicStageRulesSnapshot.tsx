@@ -58,7 +58,7 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
     return (
       <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Общий регламент соревнований">
         <strong>Общий регламент соревнований</strong>
-        <p>Для всех этапов действует единый регламент ЮСД. Отдельный регламент для этапа «{stageName}» не требуется. Особенности конкретного этапа указаны в его описании.</p>
+        <p>Для всех этапов действует единый регламент USD. Отдельный регламент для этапа «{stageName}» не требуется. Особенности конкретного этапа указаны в его описании.</p>
         <p><a href="/rules">Открыть общий регламент ↗</a></p>
       </aside>
     );

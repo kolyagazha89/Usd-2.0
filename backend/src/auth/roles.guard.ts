@@ -25,6 +25,8 @@ const CONTROLLER_MODULES: Record<string, string> = {
   CarsController: 'cars',
   ClassesController: 'classes',
   ImportsController: 'imports',
+  DataQualityController: 'imports',
+  NormalizationDryRunController: 'imports',
   DisqualificationsController: 'disqualifications',
   ConfigurationsController: 'configurations',
   MediaController: 'media',
@@ -95,6 +97,11 @@ export class RolesGuard implements CanActivate {
       }
       const module = controllerModule(context);
       const action = actionFor(request);
+      // Result entry is delegated work; corrections and deletion remain ADMIN-only
+      // even if a custom role's editable permission matrix is misconfigured.
+      if (module === 'results' && (action === 'update' || action === 'delete')) {
+        throw new ForbiddenException('Изменение и удаление результатов доступно только ADMIN');
+      }
       const role = await this.prisma.role.findUnique({
         where: { id: request.user.customRoleId },
         select: { permissions: true },

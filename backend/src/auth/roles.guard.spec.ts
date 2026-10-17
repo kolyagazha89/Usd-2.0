@@ -37,6 +37,18 @@ describe('RolesGuard', () => {
     });
   });
 
+  it('allows a custom role with imports view access to read the data-quality report', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { imports: ['view'] } });
+    const ctx = context({ method: 'GET', path: '/data-quality/report', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'DataQualityController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('allows a custom role with imports view access to run the read-only normalization dry-run', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { imports: ['view'] } });
+    const ctx = context({ method: 'GET', path: '/admin/data-quality/normalization/dry-run', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'NormalizationDryRunController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
   it('treats media upload as a create action for custom roles', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { media: ['create'] } });
     const ctx = context({ method: 'PUT', path: '/media/upload', user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
@@ -49,10 +61,17 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('allows a custom role to edit results when explicitly granted', async () => {
+  it('allows a custom judge role to enter results when create is granted', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { results: ['view', 'create'] } });
+    const ctx = context({ method: 'POST', path: '/results', user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'ResultsController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('keeps result corrections ADMIN-only even when a custom role is granted update/delete', async () => {
     prisma.role.findUnique.mockResolvedValue({ permissions: { results: ['view', 'create', 'update', 'delete'] } });
     const ctx = context({ method: 'PATCH', path: '/results/1', user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'ResultsController');
-    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Изменение и удаление результатов доступно только ADMIN');
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
 
   it('keeps built-in role restrictions when no custom role is assigned', async () => {
