@@ -313,9 +313,9 @@ describe('ImportsService historical XLSX preparation dry run', () => {
     expect(previewCalls.find((call: any) => call.stageId === septemberStage.stageId))
       .toMatchObject({ historicalResults: false, results: [] });
 
-    const 2025Final = result.prepared.find((item: any) => item.stageName === 'Финал Волгоград 2025');
-    expect(2025Final).toMatchObject({ registrations: 0, results: 182 });
-    expect(previewCalls.find((call: any) => call.stageId === 2025Final.stageId))
+    const final2025 = result.prepared.find((item: any) => item.stageName === 'Финал Волгоград 2025');
+    expect(final2025).toMatchObject({ registrations: 0, results: 182 });
+    expect(previewCalls.find((call: any) => call.stageId === final2025.stageId))
       .toMatchObject({ historicalResults: true, registrations: [], results: expect.any(Array) });
   });
 });
