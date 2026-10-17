@@ -1527,3 +1527,91 @@
   .configuration-editor-page .config-editor-actions { bottom: 5px; }
   .configuration-editor-page .config-editor-actions .primary-button { width: 100%; justify-content: center; }
 }
+
+
+/* Shared participant header actions */
+.participant-portal-header .participant-site-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: #45454f !important;
+  background: linear-gradient(135deg,#25252c,#1a1a20) !important;
+  color: #f5f5f7 !important;
+  font-weight: 750;
+}
+.participant-portal-header .participant-site-return:hover {
+  border-color: #e54855 !important;
+  background: linear-gradient(135deg,#332126,#21181c) !important;
+}
+.configurations-embedded-content { min-width: 0; }
+.configurations-page-shell:not(.admin-configurations-shell) { min-height: 0; background: transparent; }
+@media(max-width:680px) {
+  .participant-portal-header .participant-header-actions { gap: 7px; }
+  .participant-portal-header .participant-header-actions > span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .participant-portal-header .participant-site-return { white-space: nowrap; }
+}
+
+
+/* Mobile configuration editor: prevent intrinsic-width overflow and the white gutter. */
+.configuration-editor-page,
+.configuration-editor-page > .config-editor,
+.configuration-editor-page .config-direction-workspace,
+.configuration-editor-page .config-section,
+.configuration-editor-page .config-row,
+.configuration-editor-page .config-row-content,
+.configuration-editor-page .link-editor,
+.configurations-embedded-content {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 760px) {
+  .participant-portal,
+  .participant-portal-main,
+  .configurations-page-shell,
+  .configurations-embedded-content,
+  .configuration-editor-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+  .configuration-editor-page,
+  .configuration-editor-page * {
+    box-sizing: border-box;
+  }
+  .configuration-editor-page .config-direction-workspace-head {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .configuration-editor-page .config-direction-code {
+    margin-left: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .configuration-editor-page .config-direction-workspace .config-section-head {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .configuration-editor-page .config-direction-workspace .config-section-head > button {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .configuration-editor-page .config-direction-workspace .config-row {
+    grid-template-columns: 25px minmax(0, 1fr) 28px !important;
+    gap: 7px !important;
+  }
+  .configuration-editor-page .config-direction-workspace .config-row-content,
+  .configuration-editor-page .config-direction-workspace .inline-field-label,
+  .configuration-editor-page .link-editor .form-grid-3 > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .configuration-editor-page .link-editor .form-grid-3 {
+    grid-template-columns: minmax(0, 1fr) 64px !important;
+  }
+  .configuration-editor-page .config-editor-actions {
+    width: 100%;
+    max-width: 100%;
+  }
+}
