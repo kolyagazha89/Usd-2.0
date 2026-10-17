@@ -1,0 +1,161 @@
+name: Docker images (GHCR)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  backend-checks:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/usd
+      JWT_ISSUER: usd-2.0-api
+      JWT_AUDIENCE: usd-2.0-client
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      AUTH_COOKIE_SECURE: 'false'
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://localhost:5173
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: usd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Generate CI JWT secret
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+      - name: Dependency audit
+        run: npm audit --omit=dev --omit=optional --audit-level=high
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test -- --runInBand
+      - name: E2E tests
+        run: npm run test:e2e -- --runInBand
+
+  frontend-checks:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Build frontend
+        run: npm run build
+      - name: Validate laptop Docker Compose configuration
+        working-directory: .
+        run: |
+          cp deploy/laptop/.env.example deploy/laptop/.env
+          docker compose --env-file deploy/laptop/.env -f deploy/laptop/docker-compose.yml config --quiet
+          rm deploy/laptop/.env
+
+  publish:
+    name: Build and publish images
+    runs-on: ubuntu-latest
+    needs:
+      - backend-checks
+      - frontend-checks
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/usd-2.0-api
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=raw,value=latest
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/usd-2.0-api:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/usd-2.0-api:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=http://localhost:3000
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/usd-2.0-frontend:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/usd-2.0-frontend:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
