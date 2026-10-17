@@ -1,5 +1,7 @@
 # USD laptop deployment (isolated)
 
+> **Current agreed plan:** do not set up the Docker stack on the laptop now. Resume deployment later on the permanent Windows 10/11 PC with a public IP. See [deployment handoff](../DEPLOYMENT-HANDOFF.md) for the decisions, current Git state, and safe resume checklist.
+
 This directory is for a temporary Windows/Docker Desktop host. It does not replace the existing Railway API or Cloudflare Worker, and it must not be used to change production DNS without a separate owner-approved cutover.
 
 For the domain/DNS stage, see [REG.RU DNS guide](./REG-RU-DNS.md). The primary plan for the permanent Windows PC is direct public IP with `A` records and a separately tested HTTPS reverse proxy; Cloudflare Tunnel is an alternative if inbound access is unavailable. The guide explicitly marks the steps that must wait until local acceptance.
