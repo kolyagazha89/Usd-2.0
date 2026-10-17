@@ -12,12 +12,15 @@ import { ResultsService } from './results.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { CreateResultDto, UpdateResultDto } from './dto/result.dto';
+import { DeleteResultDto } from './dto/delete-result.dto';
+import { ResultDeletionService } from './result-deletion.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('results')
 export class ResultsController {
   constructor(
     private readonly resultsService: ResultsService,
+    private readonly resultDeletionService: ResultDeletionService,
   ) {}
 
   @Public()
@@ -69,6 +72,16 @@ export class ResultsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.resultsService.create(body, request);
+  }
+
+  @Roles('ADMIN')
+  @Post(':id/delete')
+  delete(
+    @Param('id') id: string,
+    @Body() body: DeleteResultDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.resultDeletionService.delete(id, body, request);
   }
 
   @Roles('ADMIN')
