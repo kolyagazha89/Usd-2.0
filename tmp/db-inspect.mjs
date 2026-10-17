@@ -6,8 +6,8 @@ const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
 const registrations = source['USD _ Регистрация.xlsx'] ?? {};
 const results = source['USD _ Результаты.xlsx'] ?? {};
 const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+const norm = (v) => String(v ?? '').normalize('NFKC').toLocaleLowerCase('ru')
   .replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
-  .replace(/ё/g, 'е').replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim().replace(/\\s+/g, ' ');
 
 const sourceResultStats = Object.entries(results).map(([sheet, rows]) => {
   let cls = '';
