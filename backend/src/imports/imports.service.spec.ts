@@ -174,7 +174,7 @@ describe('ImportsService import-name normalization', () => {
       byName.set(alias, [match]);
     }
 
-    const result = service.findRegistrationParticipant('Misheryakov Sergei', {
+    const result = service.findRegistrationParticipant('Misheryakov Sergeyy', {
       byName,
       byNumber: new Map(),
     });
