@@ -366,6 +366,32 @@ describe('ImportsService historical vibration configuration', () => {
   });
 });
 
+describe('ImportsService missing source vibration', () => {
+  it('keeps an immutable blank configuration when Registration has no vibration', async () => {
+    const config = { id: 'config-1', carId: 'car-1', name: 'LEGACY_IMPORT', currentVersion: 1 };
+    const existingVersion = { id: 'old-version', configurationId: config.id, version: 1,
+      vibrationIsolation: 'STP', additionalDescription: 'legacy' };
+    const tx: any = {
+      carConfiguration: {
+        findFirst: jest.fn(async () => config),
+        update: jest.fn(async ({ data }: any) => ({ ...config, ...data })),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn(async () => existingVersion),
+        create: jest.fn(async ({ data }: any) => ({ id: 'new-version', ...data })),
+        update: jest.fn(),
+      },
+      registration: { count: jest.fn(async () => 1) },
+    };
+    const service: any = createService();
+    const result = await service.ensureLegacyImportConfiguration(tx, 'car-1', undefined);
+    expect(result.version.vibrationIsolation).toBeNull();
+    expect(result.version.version).toBe(2);
+    expect(tx.carConfigurationVersion.update).not.toHaveBeenCalled();
+    expect(existingVersion.vibrationIsolation).toBe('STP');
+  });
+});
+
 describe('ImportsService preview concurrency', () => {
   it('preserves row order while limiting concurrent queries to eight', async () => {
     const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
