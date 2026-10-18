@@ -1954,17 +1954,16 @@ export class ImportsService {
       let car = null;
 
       if (rawPlate) {
-        car =
-          await this.prisma.car.findFirst({
-            where: {
-              participantId,
-              registrationNumber:
-                rawPlate,
-            },
-            orderBy: {
-              createdAt: 'asc',
-            },
+        const participantCars =
+          await this.prisma.car.findMany({
+            where: { participantId },
+            orderBy: { createdAt: 'asc' },
           });
+        car = participantCars.find(
+          (candidate) =>
+            this.normalizeImportedPlate(candidate.registrationNumber) ===
+            this.normalizeImportedPlate(rawPlate),
+        ) ?? null;
       }
 
       if (!car && rawModel) {
@@ -2800,6 +2799,18 @@ export class ImportsService {
       aliases[normalized] ??
       normalized
     );
+  }
+
+  private normalizeImportedPlate(value: unknown): string {
+    const lookalikes: Record<string, string> = {
+      A: 'А', B: 'В', E: 'Е', K: 'К', M: 'М',
+      H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т',
+      Y: 'У', X: 'Х',
+    };
+    return [...String(value ?? '').normalize('NFKC').toLocaleUpperCase('ru-RU')]
+      .map(ch => /[|\\s.\\-_/\\\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch))
+      .join('')
+      .replace(/[^\\p{L}\\p{N}]/gu, '');
   }
 
   private normalizeClassName(
@@ -3739,14 +3750,17 @@ export class ImportsService {
       ).trim();
 
     if (plateNumber) {
-      const existingByPlate =
-        await tx.car.findFirst({
-          where: {
-            participantId,
-            registrationNumber:
-              plateNumber,
-          },
+      const participantCars =
+        await tx.car.findMany({
+          where: { participantId },
+          orderBy: { createdAt: 'asc' },
         });
+      const existingByPlate =
+        participantCars.find(
+          (candidate) =>
+            this.normalizeImportedPlate(candidate.registrationNumber) ===
+            this.normalizeImportedPlate(plateNumber),
+        ) ?? null;
 
       if (existingByPlate) {
         if (
