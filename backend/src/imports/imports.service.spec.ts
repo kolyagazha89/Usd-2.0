@@ -252,55 +252,84 @@ describe('ImportsService.createImportRegistration', () => {
 });
 
 describe('ImportsService historical vibration configuration', () => {
-  it('allows assigning a catalog brand to a READY result without resolving unrelated fields', async () => {
-    const saved = {
-      id: 'row-1',
-      importJobId: 'job-1',
-      type: 'RESULT',
-      status: 'READY',
-      resolution: { participant: { action: 'CREATE', fullName: 'Иванов Иван' } },
+  it('sources historical vibration from the name-matched Registration sheet row, not Results', async () => {
+    const service: any = new ImportsService({
+      registration: { findUnique: jest.fn(async () => null) },
+    } as unknown as PrismaService, new NameNormalizerService());
+    const registrationIndex = service.buildRegistrationParticipantIndex([{
+      'Фамилия и имя': 'Иванов Иван',
+      'Номер участника': '010',
+      'Виброизоляция': 'STP',
+    }]);
+    const row = {
+      'ФИО': 'Иванов Иван',
+      'Номер': '010',
+      'Класс': 'Bass Race 129.9',
+      'Результат': '128,8',
+      'Виброизоляция': 'ДРУГОЙ БРЕНД В РЕЗУЛЬТАТАХ',
     };
-    const tx: any = {
-      $queryRaw: jest.fn(async () => []),
-      importJob: {
-        findUnique: jest.fn(async () => ({ id: 'job-1', status: 'DRAFT', metadata: { historicalResults: true } })),
-      },
-      importRow: {
-        findFirst: jest.fn(async () => saved),
-        update: jest.fn(async ({ data }: any) => ({ ...saved, ...data })),
-      },
-      siteSettings: {
-        findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP', 'ComfortMat'] } })),
-      },
-    };
-    const prisma: any = { $transaction: jest.fn(async (callback: any) => callback(tx)) };
-    const service = new ImportsService(prisma, new NameNormalizerService());
-    const result = await service.setImportVibration('job-1', 'row-1', 'STP');
-
-    expect(result.row.status).toBe('READY');
-    expect(result.row.resolution).toMatchObject({
-      participant: { action: 'CREATE', fullName: 'Иванов Иван' },
-      car: { vibrationIsolation: 'STP' },
-    });
-    expect(tx.importRow.update).toHaveBeenCalledTimes(1);
+    const stageClasses = [{ class: { id: 'bass-129', name: 'BassRace 129.9', unit: 'DB' } }];
+    const preview = await service.previewResultRow(
+      row, 1, new Map(), registrationIndex, stageClasses, 'stage-1', true,
+    );
+    expect(preview.status).toBe('READY');
+    expect(preview.class.isBassRace).toBe(true);
+    expect(preview.car.vibrationIsolation).toBe('STP');
+    expect(preview.participantNumber).toBe(10);
   });
 
-  it('rejects a vibration brand not registered in the site catalog', async () => {
+  it('uses an unspecified vibration when Registration is absent or matched only by a reused number', async () => {
+    const service: any = new ImportsService({
+      registration: { findUnique: jest.fn(async () => null) },
+    } as unknown as PrismaService, new NameNormalizerService());
+    const otherPersonRegistration = service.buildRegistrationParticipantIndex([{
+      'Фамилия и имя': 'Иванов Иван', 'Номер участника': '010', 'Виброизоляция': 'STP',
+    }]);
+    const raw = { 'ФИО': 'Петров Пётр', 'Номер': '010', 'Класс': 'BassRace 139.9', 'Результат': '138.8' };
+    const stageClasses = [{ class: { id: 'bass-139', name: 'BassRace 139.9', unit: 'DB' } }];
+    const byNumber = await service.previewResultRow(raw, 1, new Map(), otherPersonRegistration, stageClasses, 'stage-1', true);
+    expect(byNumber.car.vibrationIsolation).toBeNull();
+    const missing = await service.previewResultRow(raw, 1, new Map(),
+      service.buildRegistrationParticipantIndex([]), stageClasses, 'stage-1', true);
+    expect(missing.car.vibrationIsolation).toBeNull();
+  });
+
+  it('preserves source vibration when absent from catalog', async () => {
     const tx: any = {
-      $queryRaw: jest.fn(async () => []),
-      importJob: { findUnique: jest.fn(async () => ({ status: 'DRAFT', metadata: { historicalResults: true } })) },
-      importRow: {
-        findFirst: jest.fn(async () => ({ id: 'row-1', status: 'READY', resolution: null })),
-        update: jest.fn(),
-      },
-      siteSettings: {
-        findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP'] } })),
-      },
+      siteSettings: { findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP'] } })) },
     };
-    const prisma: any = { $transaction: jest.fn(async (callback: any) => callback(tx)) };
-    const service = new ImportsService(prisma, new NameNormalizerService());
-    await expect(service.setImportVibration('job-1', 'row-1', 'Unknown brand')).rejects.toThrow(BadRequestException);
-    expect(tx.importRow.update).not.toHaveBeenCalled();
+    const service: any = createService();
+    expect(await service.importVibrationBrand(tx, 'New Brand From Registration', true)).toBe('New Brand From Registration');
+    await expect(service.importVibrationBrand(tx, 'New Brand From Registration')).rejects.toThrow(BadRequestException);
+    expect(await service.importVibrationBrand(tx, 'не указана', true)).toBeNull();
+  });
+
+  it('auto-allocates distinct BassRace class numbers after the maximum in Results and stage', async () => {
+    const service: any = createService();
+    const tx: any = {
+      registrationClass: {
+        findUnique: jest.fn(async () => null),
+        findMany: jest.fn(async () => [{ class: { name: 'BassRace 129.9' } }]),
+      },
+      registrationNumber: {
+        findUnique: jest.fn(async () => ({ registrationId: 'reg-1' })),
+        findMany: jest.fn(async () => [{ number: 95 }]),
+      },
+      result: { findMany: jest.fn(async () => [{
+        registration: { participantNumber: 25 },
+        registrationClass: { number: { number: 95 } },
+      }]) },
+    };
+    const next = await service.resolveHistoricalBassRaceClassNumber(tx, 'stage-1', 'reg-1', 'bass-139', 25, 130);
+    expect(next).toBe(131);
+    expect(tx.registrationClass.findMany).toHaveBeenCalledWith({
+      where: { registrationId: 'reg-1' }, select: { class: { select: { name: true } } },
+    });
+
+    tx.registrationClass.findUnique.mockResolvedValueOnce({ number: { number: 42 } });
+    const existing = await service.resolveHistoricalBassRaceClassNumber(tx, 'stage-1', 'reg-1', 'bass-139', 25, 130);
+    expect(existing).toBe(42);
+    expect(tx.result.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('makes a new immutable version when a previously used car receives a different brand', async () => {
@@ -334,6 +363,71 @@ describe('ImportsService historical vibration configuration', () => {
       where: { id: 'config-1' }, data: { currentVersion: 2 },
     });
     expect(result.version.vibrationIsolation).toBe('ComfortMat');
+  });
+});
+
+describe('ImportsService BassRace historical preview', () => {
+  it('marks second distinct BassRace class with automatically allocated number without adding a warning', async () => {
+    let created: any = null;
+    const db: any = {
+      stage: { findUnique: jest.fn(async () => ({ id: 'stage-1', stageNumber: 1, name: 'Stage', seasonId: 'season' })) },
+      participant: { findMany: jest.fn(async () => []) },
+      stageClass: { findMany: jest.fn(async () => [
+        { class: { id: 'bass-129', name: 'BassRace 129.9', code: 'BASSRACE_129_9', unit: 'DB' } },
+        { class: { id: 'bass-139', name: 'BassRace 139.9', code: 'BASSRACE_139_9', unit: 'DB' } },
+        { class: { id: 'bass-149', name: 'BassRace 149.9', code: 'BASSRACE_149_9', unit: 'DB' } },
+      ]) },
+      registration: { aggregate: jest.fn(async () => ({ _max: { participantNumber: 15 } })) },
+      registrationNumber: { aggregate: jest.fn(async () => ({ _max: { number: 15 } })) },
+      importJob: { create: jest.fn(async ({ data }: any) => {
+        created = data;
+        return { id: 'job-1', status: 'DRAFT', createdAt: new Date(), rows: [] };
+      }) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await service.previewStage({
+      stageId: 'stage-1',
+      historicalResults: true,
+      registrations: [],
+      results: [
+        { 'ФИО': 'Петров Иван', 'Номер': 10, 'Класс': 'Bass Race 129.9', 'Результат': '128,9' },
+        { 'ФИО': 'Петров Иван', 'Номер': 10, 'Класс': 'Bass Race 139.9', 'Результат': '138,9' },
+        { 'ФИО': 'Сидоров Пётр', 'Номер': 11, 'Класс': 'Bass Race 149.9', 'Результат': '148,9' },
+      ],
+    });
+    const resultRows = created.rows.create.filter((row: any) => row.type === 'RESULT');
+    expect(resultRows.map((row: any) => row.status)).toEqual(['READY','READY','READY']);
+    expect(resultRows[1].normalizedData.classNumberSource).toBe('AUTO');
+    expect(resultRows[1].normalizedData.classParticipantNumber).toBe(16);
+    expect(resultRows[1].warnings).toEqual([]);
+    expect(resultRows[2].normalizedData.classParticipantNumber).toBe(11);
+    expect(resultRows[0].normalizedData.classParticipantNumber).toBe(10);
+  });
+});
+
+describe('ImportsService missing source vibration', () => {
+  it('keeps an immutable blank configuration when Registration has no vibration', async () => {
+    const config = { id: 'config-1', carId: 'car-1', name: 'LEGACY_IMPORT', currentVersion: 1 };
+    const existingVersion = { id: 'old-version', configurationId: config.id, version: 1,
+      vibrationIsolation: 'STP', additionalDescription: 'legacy' };
+    const tx: any = {
+      carConfiguration: {
+        findFirst: jest.fn(async () => config),
+        update: jest.fn(async ({ data }: any) => ({ ...config, ...data })),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn(async () => existingVersion),
+        create: jest.fn(async ({ data }: any) => ({ id: 'new-version', ...data })),
+        update: jest.fn(),
+      },
+      registration: { count: jest.fn(async () => 1) },
+    };
+    const service: any = createService();
+    const result = await service.ensureLegacyImportConfiguration(tx, 'car-1', undefined);
+    expect(result.version.vibrationIsolation).toBeNull();
+    expect(result.version.version).toBe(2);
+    expect(tx.carConfigurationVersion.update).not.toHaveBeenCalled();
+    expect(existingVersion.vibrationIsolation).toBe('STP');
   });
 });
 
