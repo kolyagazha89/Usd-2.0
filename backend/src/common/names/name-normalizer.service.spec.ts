@@ -92,5 +92,4 @@ describe('NameNormalizerService', () => {
     expect(service.toLatin('Теплов Владислав')).toContain('teplov');
     expect(service.toLatin('Войтенко Евгений')).toContain('voitenko');
   });
-
-}
+});
