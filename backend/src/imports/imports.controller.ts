@@ -71,6 +71,16 @@ checkImport(@Param('id') id: string) {
   ) {
     return this.importsService.getImportRow(importId, rowId);
   }
+  @Patch(':importId/rows/:rowId/vibration')
+  setImportVibration(
+    @Param('importId') importId: string,
+    @Param('rowId') rowId: string,
+    @Body() body: { vibrationIsolation?: unknown },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.importsService.setImportVibration(importId, rowId, body?.vibrationIsolation, req);
+  }
+
   @Patch(':importId/rows/:rowId/resolve')
   resolveImportRow(
     @Param('importId') importId: string,
