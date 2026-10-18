@@ -104,6 +104,125 @@ export class HistoricalOrphanCleanupService {
     };
   }
 
+  /**
+   * Inventory AFTER the first reset: its ImportJob provenance may already have
+   * been destroyed. This endpoint makes the difference between "two orphans"
+   * and "remaining import registrations" observable, without guessing origin
+   * or allowing any destructive write.
+   */
+  async diagnostics() {
+    const participants = await this.prisma.participant.findMany({
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleName: true,
+        user: { select: { id: true } },
+        registrations: {
+          select: {
+            id: true,
+            source: true,
+            stage: {
+              select: {
+                id: true,
+                stageNumber: true,
+                name: true,
+                season: { select: { year: true } },
+              },
+            },
+          },
+        },
+        cars: {
+          select: {
+            id: true,
+            registrations: { select: { id: true } },
+          },
+        },
+        disqualifications: { select: { id: true } },
+        stageInspections: { select: { id: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+    const withoutAccount = participants.filter((person) => !person.user);
+    const personIds = withoutAccount.map((person) => person.id);
+    const carIds = withoutAccount.flatMap((person) => person.cars.map((car) => car.id));
+    const recordLinks = personIds.length
+      ? await this.prisma.record.findMany({
+          where: {
+            OR: [
+              { participantId: { in: personIds } },
+              { carId: { in: carIds } },
+            ],
+          },
+          select: { participantId: true, carId: true, isManualOverride: true },
+        })
+      : [];
+    const referencedPeople = new Set(
+      recordLinks.map((r) => r.participantId).filter((id): id is string => Boolean(id)),
+    );
+    const referencedCars = new Set(
+      recordLinks.map((r) => r.carId).filter((id): id is string => Boolean(id)),
+    );
+    const enriched = withoutAccount.map((person) => {
+      const imports = person.registrations.filter((registration) => registration.source === 'IMPORT');
+      const other = person.registrations.filter((registration) => registration.source !== 'IMPORT');
+      const linkedRecords = referencedPeople.has(person.id) || person.cars.some((car) => referencedCars.has(car.id));
+      const hasOtherCarRegistration = person.cars.some((car) =>
+        car.registrations.some((registration) => !person.registrations.some((own) => own.id === registration.id)),
+      );
+      const hasProtectedHistory = person.disqualifications.length > 0
+        || person.stageInspections.length > 0 || linkedRecords || hasOtherCarRegistration;
+      const kind = person.registrations.length === 0 ? 'NO_REGISTRATIONS'
+        : other.length === 0 ? 'IMPORT_ONLY'
+        : imports.length === 0 ? 'OTHER_ONLY' : 'MIXED';
+      return {
+        id: person.id,
+        name: [person.lastName, person.firstName, person.middleName].filter(Boolean).join(' '),
+        kind,
+        importRegistrations: imports.length,
+        otherRegistrations: other.length,
+        cars: person.cars.length,
+        hasProtectedHistory,
+        stages: [...new Set(person.registrations.map((registration) =>
+          `${registration.stage.season.year} · №${registration.stage.stageNumber} · ${registration.stage.name}`))],
+      };
+    });
+    const sample = (kind: string) => enriched
+      .filter((person) => person.kind === kind)
+      .slice(0, 20)
+      .map(({ id, name, importRegistrations, otherRegistrations, cars, hasProtectedHistory, stages }) =>
+        ({ id, name, importRegistrations, otherRegistrations, cars, hasProtectedHistory, stages: stages.slice(0, 3) }));
+    const countKind = (kind: string) => enriched.filter((person) => person.kind === kind).length;
+    const totalImportRegistrations = enriched.reduce((n, person) => n + person.importRegistrations, 0);
+    const totalOtherRegistrations = enriched.reduce((n, person) => n + person.otherRegistrations, 0);
+    return {
+      success: true,
+      readOnly: true,
+      mode: 'PARTICIPANT_DATA_INVENTORY',
+      warning: 'Старые журналы исторического импорта уже могли быть удалены. IMPORT — источник регистрации, но не доказательство, что участник создан именно историческим импортом. Здесь также видны ручные тестовые и обычные профили.',
+      counts: {
+        totalParticipants: participants.length,
+        linkedToUserAccounts: participants.length - withoutAccount.length,
+        withoutUserAccounts: withoutAccount.length,
+        withoutRegistrations: countKind('NO_REGISTRATIONS'),
+        withImportOnlyRegistrations: countKind('IMPORT_ONLY'),
+        withOtherOnlyRegistrations: countKind('OTHER_ONLY'),
+        withMixedRegistrations: countKind('MIXED'),
+        importRegistrationsOnUnclaimedProfiles: totalImportRegistrations,
+        otherRegistrationsOnUnclaimedProfiles: totalOtherRegistrations,
+        unclaimedWithProtectedHistory: enriched.filter((person) => person.hasProtectedHistory).length,
+        unclaimedWithoutProtectedHistory: enriched.filter((person) => !person.hasProtectedHistory).length,
+      },
+      examples: {
+        noRegistrations: sample('NO_REGISTRATIONS'),
+        importOnly: sample('IMPORT_ONLY'),
+        otherOnly: sample('OTHER_ONLY'),
+        mixed: sample('MIXED'),
+      },
+      nextStep: 'Сначала разберите группу IMPORT_ONLY и защищённые связи. Ничего автоматически не удаляется.',
+    };
+  }
+
   async preview() {
     const plan = await this.plan();
     return {
