@@ -1196,14 +1196,7 @@ export class ImportsService {
      * Include the two-token form to handle source rows without patronymics.
      */
     if (matches.length === 0) {
-      const targetTokenSets = [
-        this.nameTokens(rawName),
-      ];
-      if (targetTokenSets[0].length >= 3) {
-        targetTokenSets.push(
-          this.nameTokens(targetTokenSets[0].slice(0, 2).join(' ')),
-        );
-      }
+      const targetTokens = this.nameTokens(rawName);
 
       const allCandidates = this.uniqueParticipants(
         [...participantIndex.values()].flat(),
@@ -1219,17 +1212,17 @@ export class ImportsService {
           candidate.firstName,
         ].filter(Boolean).join(' ');
 
-        const candidateTokenSets = [
-          this.nameTokens(fullName),
-          this.nameTokens(withoutMiddle),
-        ];
-        return targetTokenSets.some((target) =>
-          target.length >= 2 &&
-          candidateTokenSets.some((candidateTokens) =>
-            candidateTokens.length === target.length &&
-            target.every((token) => candidateTokens.includes(token)),
-          ),
-        );
+        const fullTokens = this.nameTokens(fullName);
+        const shortTokens = this.nameTokens(withoutMiddle);
+        const exactSet = (left: string[], right: string[]) =>
+          left.length >= 2 &&
+          left.length === right.length &&
+          left.every((token) => right.includes(token));
+
+        return exactSet(targetTokens, fullTokens) ||
+          (targetTokens.length >= 3 &&
+            shortTokens.length === 2 &&
+            shortTokens.every((token) => targetTokens.includes(token)));
       });
 
       if (exactTokenMatches.length === 1) {
@@ -3163,6 +3156,9 @@ export class ImportsService {
         left.every((token) => right.includes(token));
 
       return sameTokens(targetTokens, fullTokens) ||
+        (targetTokens.length >= 3 &&
+          shortTokens.length === 2 &&
+          shortTokens.every((token) => targetTokens.includes(token))) ||
         sameTokens(targetTokens, shortTokens);
     });
 
