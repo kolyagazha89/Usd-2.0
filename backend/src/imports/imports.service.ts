@@ -48,6 +48,25 @@ export class ImportsService {
     private readonly nameNormalizer: NameNormalizerService,
   ) {}
 
+  // Bound concurrent Preview queries so importing an entire season does not
+  // exhaust the PostgreSQL connection pool. Output preserves source row order.
+  private async mapPreviewRows<T, R>(
+    rows: T[],
+    mapper: (row: T, index: number) => Promise<R>,
+  ): Promise<R[]> {
+    const limit = Math.min(8, rows.length);
+    const output = new Array<R>(rows.length);
+    let cursor = 0;
+    await Promise.all(Array.from({ length: limit }, async () => {
+      while (true) {
+        const index = cursor++;
+        if (index >= rows.length) return;
+        output[index] = await mapper(rows[index], index);
+      }
+    }));
+    return output;
+  }
+
   async getImportJob(id: string) {
     const importJob = await this.prisma.importJob.findFirst({
       where: {
@@ -127,20 +146,13 @@ export class ImportsService {
         ? this.buildRegistrationParticipantIndex(registrations)
         : await this.buildStageRegistrationParticipantIndex(body.stageId);
 
-    const registrationPreview =
-      await Promise.all(
-        registrations.map(
-          (row, index) =>
-            this.previewRegistrationRow(
-              row,
-              index + 1,
-              participantMatches,
-              stageClasses,
-              body.stageId,
-              body.historicalResults === true,
-            ),
-        ),
-      );
+    const registrationPreview = await this.mapPreviewRows(
+      registrations,
+      (row, index) => this.previewRegistrationRow(
+        row, index + 1, participantMatches, stageClasses, body.stageId,
+        body.historicalResults === true,
+      ),
+    );
 
     // Проверяем дубли номеров внутри самого файла до Commit.
     const importedNumberRows = new Map<number, number[]>();
@@ -170,18 +182,12 @@ export class ImportsService {
         ? await this.buildHistoricalFallbackNumbers(stage.id, registrations, results)
         : undefined;
 
-    const resultPreview = await Promise.all(
-      results.map((row, index) =>
-        this.previewResultRow(
-          row,
-          index + 1,
-          participantMatches,
-          registrationParticipants,
-          stageClasses,
-          body.stageId,
-          body.historicalResults === true,
-          historicalNumberMap,
-        ),
+    const resultPreview = await this.mapPreviewRows(
+      results,
+      (row, index) => this.previewResultRow(
+        row, index + 1, participantMatches, registrationParticipants,
+        stageClasses, body.stageId, body.historicalResults === true,
+        historicalNumberMap,
       ),
     );
 
