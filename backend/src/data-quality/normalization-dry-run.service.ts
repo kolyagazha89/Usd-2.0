@@ -17,7 +17,17 @@ function key(value: unknown): string {
   return clean(value).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
 }
 function plateKey(country: unknown, value: unknown): string {
-  return String(country ?? '').toUpperCase() + ':' + clean(value).toLocaleUpperCase('ru-RU').replace(/[^\p{L}\p{N}]/gu, '');
+  const normalizedCountry = String(country ?? '').toUpperCase();
+  let plate = clean(value).toLocaleUpperCase('ru-RU');
+  if (normalizedCountry === 'RU') {
+    const lookalikes: Record<string, string> = {
+      A: 'А', B: 'В', E: 'Е', K: 'К', M: 'М',
+      H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т',
+      Y: 'У', X: 'Х',
+    };
+    plate = [...plate].map(ch => /[|\s.\-_/\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch)).join('');
+  }
+  return normalizedCountry + ':' + plate.replace(/[^\p{L}\p{N}]/gu, '');
 }
 function phoneKey(value: unknown): string {
   return clean(value).replace(/\D/g, '');

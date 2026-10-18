@@ -50,7 +50,7 @@ export function isValidRegistrationPlate(country: string, value: string): boolea
   if (!number || number.length > 16) return false;
   if (country === 'RU') {
     const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
-    number = [...number].map(ch => lookalikes[ch] ?? ch).join('');
+    number = [...number].map(ch => /[|\s.\-_/\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch)).join('');
   }
   const patterns: Record<string,RegExp> = {
     RU:/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/,

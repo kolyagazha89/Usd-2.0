@@ -33,15 +33,48 @@ export class ParticipantsService {
     return phone;
   }
 
-  private normalizeRegistrationNumber(value: string): string {
-    return value.trim().toUpperCase().replace(/\s+/g, ' ');
+  private normalizeRegistrationNumber(value: string, country?: RegistrationCountry): string {
+    let number = value.normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/[\u00A0\u202F]/g, ' ')
+      .trim()
+      .toLocaleUpperCase('ru-RU');
+    if (country === 'RU') {
+      const lookalikes: Record<string, string> = {
+        A: 'А', B: 'В', E: 'Е', K: 'К', M: 'М',
+        H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т',
+        Y: 'У', X: 'Х',
+      };
+      number = [...number]
+        .map((char) => /[|\s.\-_/\\]/.test(char) ? '' : (lookalikes[char] ?? char))
+        .join('');
+    } else {
+      number = number.replace(/\s+/g, ' ');
+    }
+    return number;
+  }
+
+  private plateIdentity(country: RegistrationCountry, value: string): string {
+    return this.normalizeRegistrationNumber(value, country).replace(/[^\p{L}\p{N}]/gu, '');
+  }
+
+  private async ensurePlateUnique(country: RegistrationCountry, number: string, excludeCarId?: string): Promise<void> {
+    const candidates = await this.prisma.car.findMany({
+      where: { registrationCountry: country, ...(excludeCarId ? { id: { not: excludeCarId } } : {}) },
+      select: { id: true, registrationNumber: true },
+    });
+    const identity = this.plateIdentity(country, number);
+    const duplicate = candidates.find(car => this.plateIdentity(country, car.registrationNumber) === identity);
+    if (duplicate) {
+      throw new ConflictException(`Автомобиль с госномером ${number} уже существует в базе (ID: ${duplicate.id}). Проверьте существующий автомобиль вместо создания дубля.`);
+    }
   }
 
   private validateRegistrationNumber(
     country: RegistrationCountry,
     value: string,
   ): string {
-    const number = this.normalizeRegistrationNumber(value);
+    const number = this.normalizeRegistrationNumber(value, country);
     if (!isValidRegistrationPlate(country, number)) {
       throw new BadRequestException(
         `Некорректный регистрационный номер для страны ${country}`,
@@ -1279,6 +1312,8 @@ export class ParticipantsService {
         registrationNumber,
       );
 
+    await this.ensurePlateUnique(registrationCountry, normalizedRegistrationNumber);
+
     return this.prisma.car.create({
       data: {
         participantId,
@@ -1555,6 +1590,7 @@ export class ParticipantsService {
           finalCountry,
           requiredNumber,
         );
+      await this.ensurePlateUnique(finalCountry, data.registrationNumber, id);
     }
 
     if (body.color !== undefined) {
