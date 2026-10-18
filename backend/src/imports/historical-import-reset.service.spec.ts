@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { jest } from '@jest/globals';
 import { HistoricalImportResetService } from './historical-import-reset.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RecordsService } from '../records/records.service';
 
 const historicalJob = {
   id: 'job-historical',
@@ -30,7 +31,7 @@ function fixture(shared = false) {
       deleteMany: jest.fn(async () => ({ count: 1 })),
     },
     result: {
-      findMany: jest.fn(async () => [{ id: 'result-historical' }]),
+      findMany: jest.fn(async () => [{ id: 'result-historical', registrationClass: { classId: 'class-1' } }]),
     },
     record: {
       count: jest.fn(async () => 1),
@@ -59,7 +60,10 @@ function fixture(shared = false) {
   client.$transaction = jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(client));
   return {
     client,
-    service: new HistoricalImportResetService(client as PrismaService),
+    service: new HistoricalImportResetService(
+      client as PrismaService,
+      { recalculateCurrentRecord: jest.fn(async () => []) } as unknown as RecordsService,
+    ),
   };
 }
 
