@@ -250,3 +250,108 @@ describe('ImportsService.createImportRegistration', () => {
     ).rejects.toBe(error);
   });
 });
+
+describe('ImportsService historical vibration configuration', () => {
+  it('allows assigning a catalog brand to a READY result without resolving unrelated fields', async () => {
+    const saved = {
+      id: 'row-1',
+      importJobId: 'job-1',
+      type: 'RESULT',
+      status: 'READY',
+      resolution: { participant: { action: 'CREATE', fullName: 'Иванов Иван' } },
+    };
+    const tx: any = {
+      $queryRaw: jest.fn(async () => []),
+      importJob: {
+        findUnique: jest.fn(async () => ({ id: 'job-1', status: 'DRAFT', metadata: { historicalResults: true } })),
+      },
+      importRow: {
+        findFirst: jest.fn(async () => saved),
+        update: jest.fn(async ({ data }: any) => ({ ...saved, ...data })),
+      },
+      siteSettings: {
+        findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP', 'ComfortMat'] } })),
+      },
+    };
+    const prisma: any = { $transaction: jest.fn(async (callback: any) => callback(tx)) };
+    const service = new ImportsService(prisma, new NameNormalizerService());
+    const result = await service.setImportVibration('job-1', 'row-1', 'STP');
+
+    expect(result.row.status).toBe('READY');
+    expect(result.row.resolution).toMatchObject({
+      participant: { action: 'CREATE', fullName: 'Иванов Иван' },
+      car: { vibrationIsolation: 'STP' },
+    });
+    expect(tx.importRow.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a vibration brand not registered in the site catalog', async () => {
+    const tx: any = {
+      $queryRaw: jest.fn(async () => []),
+      importJob: { findUnique: jest.fn(async () => ({ status: 'DRAFT', metadata: { historicalResults: true } })) },
+      importRow: {
+        findFirst: jest.fn(async () => ({ id: 'row-1', status: 'READY', resolution: null })),
+        update: jest.fn(),
+      },
+      siteSettings: {
+        findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP'] } })),
+      },
+    };
+    const prisma: any = { $transaction: jest.fn(async (callback: any) => callback(tx)) };
+    const service = new ImportsService(prisma, new NameNormalizerService());
+    await expect(service.setImportVibration('job-1', 'row-1', 'Unknown brand')).rejects.toThrow(BadRequestException);
+    expect(tx.importRow.update).not.toHaveBeenCalled();
+  });
+
+  it('makes a new immutable version when a previously used car receives a different brand', async () => {
+    const config = { id: 'config-1', carId: 'car-1', name: 'LEGACY_IMPORT', currentVersion: 1 };
+    const version = {
+      id: 'old-version', configurationId: 'config-1', version: 1,
+      vibrationIsolation: 'STP', additionalDescription: 'Legacy import',
+    };
+    const tx: any = {
+      siteSettings: {
+        findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP', 'ComfortMat'] } })),
+      },
+      carConfiguration: {
+        findFirst: jest.fn(async () => config),
+        update: jest.fn(async ({ data }: any) => ({ ...config, ...data })),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn(async () => version),
+        create: jest.fn(async ({ data }: any) => ({ id: 'new-version', ...data })),
+        update: jest.fn(),
+      },
+      registration: { count: jest.fn(async () => 1) },
+    };
+    const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    const result = await service.ensureLegacyImportConfiguration(tx, 'car-1', 'ComfortMat');
+    expect(tx.carConfigurationVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ configurationId: 'config-1', version: 2, vibrationIsolation: 'ComfortMat' }),
+    });
+    expect(tx.carConfigurationVersion.update).not.toHaveBeenCalled();
+    expect(tx.carConfiguration.update).toHaveBeenCalledWith({
+      where: { id: 'config-1' }, data: { currentVersion: 2 },
+    });
+    expect(result.version.vibrationIsolation).toBe('ComfortMat');
+  });
+});
+
+describe('ImportsService preview concurrency', () => {
+  it('preserves row order while limiting concurrent queries to eight', async () => {
+    const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    let active = 0;
+    let peak = 0;
+    const input = Array.from({ length: 41 }, (_, index) => index);
+    const output = await service.mapPreviewRows(input, async (value: number) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+      return value * 2;
+    });
+    expect(output).toEqual(input.map((value) => value * 2));
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(peak).toBeGreaterThan(0);
+  });
+});
