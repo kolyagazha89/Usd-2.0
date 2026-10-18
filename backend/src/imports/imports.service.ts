@@ -2446,12 +2446,13 @@ export class ImportsService {
 
     if (
       historicalResults &&
-      databaseParticipant.status === 'MATCHED'
+      (databaseParticipant.status === 'MATCHED' ||
+       databaseParticipant.status === 'AMBIGUOUS')
     ) {
-      // Historical results must prefer the canonical Participant from the
-      // database. The Registration sheet is only auxiliary data (car/number).
-      // Otherwise every historical import can create a duplicate participant
-      // when the sheet contains a spelling that already exists in the DB.
+      // Existing Participant IDs are authoritative, even when they clash.
+      // A matching Registration helper cannot erase the fact that the DB
+      // contains multiple different people with the same name. Only a unique
+      // stage-number/car link may disambiguate them safely.
       participant = {
         ...databaseParticipant,
         source: 'DATABASE',
