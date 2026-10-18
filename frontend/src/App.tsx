@@ -1,15 +1,15 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
-import * as XLSX from 'xlsx';
+import {usePublicSeo} from './use-public-seo';
+import {lazy,useEffect,useMemo,useRef,useState} from 'react';
 import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { QRCodeSVG } from 'qrcode.react';
 import PublicRulesPage from './PublicRulesPage';
 import PublicStageRulesSnapshot from './PublicStageRulesSnapshot';
-import ConfigurationsPage from './admin/ConfigurationsPage';
-import ResourcePageModule from './admin/ResourcePage';
+const ConfigurationsPage=lazy(()=>import('./admin/ConfigurationsPage'));
+const ResourcePageModule=lazy(()=>import('./admin/ResourcePage'));
 import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} from './admin/FormComponents';
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
-import AdminShell from './admin/AdminShell';
-import AdminRoutes from './admin/AdminRoutes';
+const AdminShell=lazy(()=>import('./admin/AdminShell'));
+const AdminRoutes=lazy(()=>import('./admin/AdminRoutes'));
 import {validateImageUpload} from './admin/upload-validation';
 import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
 import './catalog.css';
@@ -36,7 +36,7 @@ function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;con
 function App(){
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname+location.search),[mobileOpen,setMobileOpen]=useState(false);
  useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
- useEffect(()=>{const route=path.split('?')[0];document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
+ useEffect(()=>{const route=path.split('?')[0];if(!route.startsWith('/admin')&&route!=='/login'&&!route.startsWith('/participant'))return;document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
  useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
@@ -105,6 +105,7 @@ function EmailVerificationPage({onGoLogin}:{onGoLogin:()=>void}){
 function PublicSite({path,go}:{path:string;go:(p:string)=>void}){
  const [stages,setStages]=useState<any[]>([]),[records,setRecords]=useState<any[]>([]),[results,setResults]=useState<any[]>([]),[latestResults,setLatestResults]=useState<any[]>([]),[liveResultsRows,setLiveResultsRows]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[settings,setSettings]=useState<any>({}),[loading,setLoading]=useState(true),[resultsLoading,setResultsLoading]=useState(false),[error,setError]=useState(''),[selectedStageId,setSelectedStageId]=useState(()=>{try{return new URLSearchParams(location.search).get('stageId')??''}catch{return ''}}),[autoDiscoverResults,setAutoDiscoverResults]=useState(()=>{try{return !new URLSearchParams(location.search).get('stageId')}catch{return true}}),[stageDetailResults,setStageDetailResults]=useState<any[]>([]),[stageDetailLoading,setStageDetailLoading]=useState(false),[stageDetailData,setStageDetailData]=useState<any>(null);const [publicLogoUrl,setPublicLogoUrl]=useState(''),[logoOverride,setLogoOverride]=useState(''),[logoFailed,setLogoFailed]=useState(false),[failedLogoUrls,setFailedLogoUrls]=useState<string[]>([]);
  const route=path.split('?')[0],stageDetailMatch=route.match(/^\/stages\/([^/]+)$/),stageDetailId=stageDetailMatch?decodeURIComponent(stageDetailMatch[1]):'',page=stageDetailId?'stage-detail':route==='/stages'?'stages':route==='/results'?'results':route==='/records'?'records':route==='/rules'?'rules':route==='/privacy'?'privacy':route==='/terms'?'terms':route==='/consent'?'consent':'home';
+ usePublicSeo(route,settings.seo,stageDetailData??stages.find((stage:any)=>stage.id===stageDetailId));
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(active)setPublicLogoUrl(r.url)}).catch(()=>{});return()=>{active=false}},[]);
  useEffect(()=>{if(publicLogoUrl){setLogoFailed(false);setLogoOverride('');setFailedLogoUrls([])}},[publicLogoUrl]);
  useEffect(()=>{let alive=true;setLoading(true);setError('');Promise.allSettled([apiGet<any>('/stages/public'),apiGet<any>('/records/current'),apiGet<any>('/site-settings/public')]).then(([stageResult,recordResult,settingsResult])=>{if(!alive)return;const failures:string[]=[];const available=stageResult.status==='fulfilled'?listData<any>(stageResult.value):[];if(stageResult.status==='fulfilled')setStages(available);else failures.push('этапы');if(recordResult.status==='fulfilled')setRecords(listData<any>(recordResult.value));else failures.push('рекорды');if(settingsResult.status==='fulfilled')setSettings(settingsResult.value?.settings??settingsResult.value??{});else failures.push('настройки сайта');setSelectedStageId(current=>available.some((x:any)=>x.id===current)?current:'');if(failures.length)setError('Не удалось загрузить: '+failures.join(', ')+'. Проверьте соединение и обновите страницу.')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[page]);

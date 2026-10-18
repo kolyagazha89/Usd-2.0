@@ -1,3 +1,4 @@
+import { serializable } from '../common/database/serializable';
 import {
   ConflictException,
   ForbiddenException,
@@ -534,7 +535,7 @@ export class ResultsService {
     this.validateValue(data.value);
     this.validatePlace(data.place);
 
-    const result = await this.prisma.$transaction(
+    const result = await serializable(this.prisma,
       async (tx) => {
         const registration = await this.getRegistrationContext(
           tx,
@@ -551,9 +552,14 @@ export class ResultsService {
           where: {
             registrationClassId: data.registrationClassId,
           },
-          select: { id: true },
+          include: this.adminInclude,
         });
 
+        if (existing && !existing.isHistorical && existing.createdByUserId === request.user.sub
+          && Number(existing.value) === data.value && (existing.notes ?? '') === (data.notes?.trim() ?? '')
+          && (!this.isBassRace(registrationClass.class.name) || (existing.place ?? null) === (data.place ?? null))) {
+          return { result: existing };
+        }
         if (existing) {
           throw new ConflictException(
             'Для этого класса результат уже внесён',
@@ -593,25 +599,17 @@ export class ResultsService {
           },
         });
 
-        return {
-          result,
-          stageId: registration.stageId,
-          classId: registrationClass.classId,
-        };
+        await this.recordsService.recalculateInTransaction(tx, registrationClass.classId);
+        await this.rankingService.recalculateInTransaction(tx, registration.stageId, registrationClass.classId);
+        return { result: await tx.result.findUniqueOrThrow({ where: { id: result.id }, include: this.adminInclude }) };
       },
-      { isolationLevel: 'Serializable' },
     );
 
-    await this.recordsService.createFromResultIfEligible(result.result.id);
-    await this.rankingService.recalculateByStageClass(
-      result.stageId,
-      result.classId,
-    );
     if (typeof this.emailNotifications?.recordSet === 'function') {
       void Promise.resolve(this.emailNotifications.recordSet(result.result.id)).catch(() => undefined);
     }
 
-    return this.findOneAdmin(result.result.id);
+    return result.result;
   }
 
   async update(
@@ -625,7 +623,7 @@ export class ResultsService {
     this.validateValue(data.value ?? 0);
     this.validatePlace(data.place);
 
-    const updated = await this.prisma.$transaction(
+    const updated = await serializable(this.prisma,
       async (tx) => {
         const existing = await tx.result.findUnique({
           where: { id },
@@ -733,24 +731,16 @@ export class ResultsService {
           },
         });
 
-        return {
-          result: updated,
-          stageId: existing.registration.stageId,
-          classId: existing.registrationClass.classId,
-        };
+        await this.recordsService.recalculateInTransaction(tx, existing.registrationClass.classId);
+        await this.rankingService.recalculateInTransaction(tx, existing.registration.stageId, existing.registrationClass.classId);
+        return { result: await tx.result.findUniqueOrThrow({ where: { id: updated.id }, include: this.adminInclude }) };
       },
-      { isolationLevel: 'Serializable' },
     );
 
-    await this.recordsService.syncAfterResultUpdate(updated.result.id);
-    await this.rankingService.recalculateByStageClass(
-      updated.stageId,
-      updated.classId,
-    );
     if (typeof this.emailNotifications?.recordSet === 'function') {
       void Promise.resolve(this.emailNotifications.recordSet(updated.result.id)).catch(() => undefined);
     }
 
-    return this.findOneAdmin(updated.result.id);
+    return updated.result;
   }
 }

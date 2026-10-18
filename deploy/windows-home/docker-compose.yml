@@ -1,0 +1,84 @@
+name: usd-home
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: usd
+      POSTGRES_USER: usd_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U usd_app -d usd"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 2560m
+    cpus: 2
+    logging: *logging
+  api:
+    build: {context: ../../backend}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NODE_OPTIONS: --max-old-space-size=1536
+      DATABASE_URL: postgresql://usd_app:${POSTGRES_PASSWORD}@db:5432/usd
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_SAME_SITE: lax
+      AUTH_COOKIE_PATH: /api/auth
+      AUTH_REFRESH_BODY_ENABLED: "false"
+      CORS_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      FRONTEND_URL: https://${APP_DOMAIN}
+      PUBLIC_API_URL: https://${APP_DOMAIN}/api
+      TRUST_PROXY_HOPS: 1
+    depends_on: {db: {condition: service_healthy}}
+    mem_limit: 2304m
+    cpus: 2
+    logging: *logging
+  frontend:
+    build:
+      context: ../../frontend
+      args: {VITE_API_URL: /api, VITE_AUTH_SESSION_MODE: cookie}
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *logging
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    volumes: [./gateway.conf:/etc/nginx/conf.d/default.conf:ro]
+    ports: ["127.0.0.1:8088:80"]
+    depends_on: [api, frontend]
+    mem_limit: 128m
+    logging: *logging
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.0
+    profiles: [public]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${TUNNEL_TOKEN:-}"
+    depends_on: [gateway]
+    mem_limit: 128m
+    logging: *logging
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: usd_app
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: usd
+    volumes: [backups:/backups, ./backup.sh:/backup.sh:ro]
+    entrypoint: [sh, /backup.sh]
+    depends_on: {db: {condition: service_healthy}}
+    mem_limit: 256m
+    logging: *logging
+volumes:
+  postgres_data:
+  backups:

@@ -642,17 +642,23 @@ export class AuthService {
     }
 
     const normalizedInput = this.normalizeProfileName(fullName);
-    if (!normalizedInput) {
-      throw new BadRequestException('ФИО обязательно');
+    if (normalizedInput.length < 2) {
+      throw new BadRequestException('Введите минимум два символа ФИО');
     }
 
     // Search by any part of the name, not only an exact full-name match.
     // Requiring every token to match one of the name fields supports both
     // "Иван" and multi-part queries such as "Иванов Иван", in any order.
+    const ownedProfiles = await this.prisma.participantLegacyEmail.findMany({
+      where: { email: { equals: user.email.trim(), mode: 'insensitive' } },
+      select: { participantId: true },
+    });
+    const ownedIds = ownedProfiles.map((row) => row.participantId);
     const searchTokens = normalizedInput.split(' ').filter(Boolean);
     const participants = await this.prisma.participant.findMany({
       where: {
         user: { is: null },
+        OR: [{ isPublic: true }, { id: { in: ownedIds } }],
         AND: searchTokens.map((token) => ({
           OR: [
             { lastName: { contains: token, mode: 'insensitive' as const } },
@@ -671,18 +677,18 @@ export class AuthService {
         lastName: true,
         firstName: true,
         middleName: true,
+        isPublic: true,
         team: true,
         city: true,
         user: { select: { id: true } },
         cars: {
-          where: { isActive: true },
+          where: { isActive: true, isPublic: true },
           orderBy: { createdAt: 'asc' },
           take: 3,
           select: {
             id: true,
             brand: true,
             model: true,
-            registrationNumber: true,
           },
         },
         _count: { select: { registrations: true } },
@@ -690,35 +696,24 @@ export class AuthService {
       take: 100,
     });
 
-    const candidates = participants;
-
-    /*
-     * Исторический профиль нельзя привязать только по ФИО.
-     * Это было бы IDOR/захватом чужой исторической сущности:
-     * любой зарегистрированный PARTICIPANT мог бы подобрать UUID
-     * незанятого профиля и привязать его к своему аккаунту.
-     *
-     * Для self-service привязки нужен дополнительный ownership proof:
-     * legacy email участника должен совпадать с подтверждённым email аккаунта.
-     * Профили без сохранённого legacy email привязываются только администратором.
-     */
-    const userEmail = user.email.trim().toLowerCase();
-    const candidatesWithOwnership = await Promise.all(candidates.map(async (candidate) => {
-      const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
-        where: { participantId: candidate.id },
-        select: { email: true },
-      });
-      const canSelfLink = Boolean(
-        legacyEmail?.email &&
-        legacyEmail.email.trim().toLowerCase() === userEmail
-      );
-      return { ...candidate, canSelfLink };
-    }));
-
+    // Search is a discovery view, never an ownership proof. Use an explicit
+    // response shape so future database fields cannot leak into this endpoint.
+    const owned = new Set(ownedIds);
+    const candidates = participants.filter((candidate) => candidate.isPublic || owned.has(candidate.id));
     return {
       success: true,
-      found: candidatesWithOwnership.length,
-      candidates: candidatesWithOwnership.map(({ user: _user, ...participant }) => participant),
+      found: candidates.length,
+      candidates: candidates.map((candidate) => ({
+        id: candidate.id,
+        lastName: candidate.lastName,
+        firstName: candidate.firstName,
+        middleName: candidate.middleName,
+        team: candidate.team,
+        city: candidate.city,
+        cars: candidate.cars.map((car) => ({ id: car.id, brand: car.brand, model: car.model })),
+        _count: candidate._count,
+        canSelfLink: owned.has(candidate.id),
+      })),
     };
   }
 
@@ -842,7 +837,7 @@ export class AuthService {
       'stages', 'seasons', 'registrations', 'inspections', 'results',
       'records', 'participants', 'teams', 'cars', 'classes', 'imports',
       'disqualifications', 'configurations', 'media', 'siteSettings',
-      'historicalResults', 'history', 'statistics', 'integrations', 'assistant',
+      'historicalResults', 'history', 'statistics', 'integrations', 'assistant', 'componentCatalogRequests',
     ]);
     const actions = new Set(['view', 'create', 'update', 'delete']);
     if (!input || typeof input !== 'object' || Array.isArray(input)) {

@@ -16,11 +16,13 @@ describe('ResultsService', () => {
 
   const records: any = {
     createFromResultIfEligible: jest.fn(),
+    recalculateInTransaction: jest.fn(),
     syncAfterResultUpdate: jest.fn(),
   };
 
   const ranking: any = {
     recalculateByStageClass: jest.fn(),
+    recalculateInTransaction: jest.fn(),
   };
 
   let service: ResultsService;
@@ -226,6 +228,7 @@ describe('ResultsService', () => {
           },
         }),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({id:"result-1"}),
       },
       auditLog: {
         create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
@@ -377,6 +380,7 @@ describe('ResultsService', () => {
   it('updates only through the admin path and records before/after audit data', async () => {
     const tx: any = {
       result: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({id:"result-1"}),
         findUnique: jest.fn().mockResolvedValue({
           id: 'result-1',
           value: { toString: () => '150.000' },

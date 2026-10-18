@@ -819,6 +819,10 @@ export class RecordsService {
     );
   }
 
+  async recalculateInTransaction(tx: Prisma.TransactionClient, classId: string) {
+    return this.recalculateCurrentRecordForClass(tx, classId);
+  }
+
   async recalculateCurrentRecord(classId: string) {
     return this.prisma.$transaction(
       async (tx) => this.recalculateCurrentRecordForClass(tx, classId),

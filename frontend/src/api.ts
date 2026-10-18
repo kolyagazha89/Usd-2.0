@@ -1,6 +1,6 @@
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? '';
 const API_BASE = configuredApiBase
-  ? (/^https?:\/\//i.test(configuredApiBase)
+  ? (configuredApiBase.startsWith('/') && !configuredApiBase.startsWith('//') ? configuredApiBase : /^https?:\/\//i.test(configuredApiBase)
       ? configuredApiBase
       : 'https://' + configuredApiBase.replace(/^\/+/, ''))
   : 'https://usd-api-production.up.railway.app';
@@ -8,6 +8,16 @@ const API_BASE = configuredApiBase
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
+// Same-origin deployments keep the refresh credential exclusively in HttpOnly
+// cookies. Legacy cross-site deployments retain their existing browser fallback.
+const legacyRefreshStorage = import.meta.env.VITE_AUTH_SESSION_MODE === 'legacy'
+  || (import.meta.env.VITE_AUTH_SESSION_MODE !== 'cookie'
+    && new URL(API_BASE, window.location.origin).origin !== window.location.origin);
+function storedRefreshToken(){ return legacyRefreshStorage ? localStorage.getItem('usd_refresh_token') : null; }
+function rememberRefreshToken(token?:string){
+  if(legacyRefreshStorage && token) localStorage.setItem('usd_refresh_token',token);
+  else if(!legacyRefreshStorage) localStorage.removeItem('usd_refresh_token');
+}
 
 export type Role = 'ADMIN' | 'PARTICIPANT';
 export type CustomRoleInfo = { id:string; key:string; name:string; permissions:Record<string,string[]> };
@@ -72,9 +82,9 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   }
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
-export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
-export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch(()=>{accessToken=null;return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
-export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}finally{accessToken=null;localStorage.removeItem('usd_refresh_token');}}
+export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;rememberRefreshToken(r.refreshToken);return r.user;}
+export async function refresh(){if(refreshPromise)return refreshPromise;const token=storedRefreshToken();refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:token?JSON.stringify({refreshToken:token}):undefined},false).then(r=>{accessToken=r.accessToken;rememberRefreshToken(r.refreshToken);return r;}).catch(()=>{accessToken=null;return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
+export async function logout(){const refreshToken=storedRefreshToken();try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}finally{accessToken=null;localStorage.removeItem('usd_refresh_token');}}
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
