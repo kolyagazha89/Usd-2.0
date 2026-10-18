@@ -71,7 +71,6 @@ export class NameNormalizerService {
     musharsky: 'Мушарский',
     musharskii: 'Мушарский',
     musharski: 'Мушарский',
-    nikolai: 'Николай',
     nokolai: 'Николай',
     nokolay: 'Николай',
     anatooly: 'Анатолий',
