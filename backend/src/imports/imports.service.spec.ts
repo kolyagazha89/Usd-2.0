@@ -251,6 +251,107 @@ describe('ImportsService.createImportRegistration', () => {
   });
 });
 
+describe('ImportsService historical team attribution', () => {
+  const stageClass = [{ class: { id: 'bass-129', name: 'BassRace 129.9', unit: 'DB' } }];
+  const service = () => new ImportsService({
+    registration: { findUnique: jest.fn(async () => null) },
+  } as unknown as PrismaService, new NameNormalizerService()) as any;
+  const preview = (sut: any, helpers: any[], fio: string, number = 77) =>
+    sut.previewResultRow(
+      { 'ФИО': fio, 'Номер': number, 'Класс': 'BassRace 129.9', 'Результат': '128.8' },
+      1, new Map(), sut.buildRegistrationParticipantIndex(helpers),
+      stageClass, 'stage-1', true,
+    );
+
+  it('matches a short Results name to Registration with a patronymic (Lyutov and Saulyak)', async () => {
+    const sut = service();
+    const registrations = [
+      { 'Фамилия и имя': 'Лютов Виктор Александрович', 'Номер участника': 1,
+        'Команда': 'Team Deaf Bonce', 'Модель автомобиля': 'ВАЗ 2112', 'Номер автомобиля': 'А426РХ161' },
+      { 'Фамилия и имя': 'Сауляк Валерий Валерьевич', 'Номер участника': 49,
+        'Команда': 'Team Ural Sound', 'Модель автомобиля': 'Chevrolet Aveo' },
+      { 'Фамилия и имя': '#Teamdeafbonce Лютов Виктор', 'Номер участника': 101,
+        'Команда': 'Без команды' },
+    ];
+    const l = await preview(sut, registrations, 'Лютов Виктор', 1);
+    const s = await preview(sut, registrations, 'Сауляк Валерий', 49);
+    expect(l.historicalTeam).toBe('Team Deaf Bonce');
+    expect(s.historicalTeam).toBe('Team Ural Sound');
+    expect(l.participant.status).toBe('NEW');
+    // The third helper row is not a patronymic and must not override the team.
+    expect(sut.findHistoricalTeamFromRegistration('Лютов Виктор', sut.buildRegistrationParticipantIndex(registrations)))
+      .toBe('Team Deaf Bonce');
+  });
+
+  it('uses unanimous team for two Voitenko cars, without selecting car or email', async () => {
+    const sut = service();
+    const result = await preview(sut, [
+      { 'Фамилия и имя': 'Войтенко Евгений', 'Номер участника': 11,
+        'Команда': 'Team Deaf Bonce', 'Модель автомобиля': 'Dodge Ram',
+        'Номер автомобиля': 'А111АА34', 'Виброизоляция': 'STP',
+        'Email': 'first@example.com' },
+      { 'Фамилия и имя': 'Войтенко Евгений', 'Номер участника': 12,
+        'Команда': 'Team Deaf Bonce', 'Модель автомобиля': 'Opel Corsa',
+        'Номер автомобиля': 'В222ВВ34', 'Виброизоляция': 'ComfortMat',
+        'Email': 'second@example.com' },
+    ], 'Войтенко Евгений', 77);
+    expect(result.historicalTeam).toBe('Team Deaf Bonce');
+    expect(result.registration.status).toBe('AMBIGUOUS');
+    expect(result.car.vibrationIsolation).toBeNull();
+    expect(result.car.model).toBe('');
+    expect(result.car.plateNumber).toBe('');
+  });
+
+  it('does not copy team from a number-only helper row belonging to someone else', async () => {
+    const sut = service();
+    const result = await preview(sut, [{
+      'Фамилия и имя': 'Иванов Иван', 'Номер участника': 77,
+      'Команда': 'Team Other',
+    }], 'Петров Пётр', 77);
+    expect(result.historicalTeam).toBeNull();
+    expect(result.registration.matchType).toBe('NUMBER');
+  });
+
+  it('rejects conflicting teams and mixed team/no-team values', async () => {
+    const sut = service();
+    const make = (teamA: string, teamB: string) => [
+      { 'Фамилия и имя': 'Войтенко Евгений', 'Номер участника': 11,
+        'Номер автомобиля': 'А111АА34', 'Команда': teamA },
+      { 'Фамилия и имя': 'Войтенко Евгений', 'Номер участника': 12,
+        'Номер автомобиля': 'В222ВВ34', 'Команда': teamB },
+    ];
+    expect((await preview(sut, make('Team A', 'Team B'), 'Войтенко Евгений')).historicalTeam).toBeNull();
+    expect((await preview(sut, make('Team A', 'Без команды'), 'Войтенко Евгений')).historicalTeam).toBeNull();
+    expect((await preview(sut, make('Без команды', '  —  '), 'Войтенко Евгений')).historicalTeam).toBeNull();
+  });
+
+  it('rejects different patronymics for one short name and never treats a nickname as FIO', async () => {
+    const sut = service();
+    const matches = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Лютов Виктор Александрович', 'Команда': 'Team A' },
+      { 'Фамилия и имя': 'Лютов Виктор Сергеевич', 'Команда': 'Team A' },
+    ]);
+    expect(sut.findHistoricalTeamFromRegistration('Лютов Виктор', matches)).toBeNull();
+    expect(sut.findHistoricalTeamFromRegistration('34 Sound', matches)).toBeNull();
+  });
+
+  it('stores literal no-team markers as NULL rather than a fictional team', async () => {
+    const sut = service();
+    const tx: any = {
+      participant: {
+        findFirst: jest.fn(async () => null),
+        findMany: jest.fn(async () => []),
+        create: jest.fn(async ({ data }: any) => ({ id: 'person-one', ...data })),
+      },
+    };
+    await sut.createParticipantFromImport(tx, { fullName: 'Лютов Виктор', team: 'Без команды' });
+    expect(tx.participant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ team: null }),
+    });
+    expect(sut.normalizeImportedTeam('Team Deaf   Bonce')).toBe('Team Deaf Bonce');
+  });
+});
+
 describe('ImportsService historical vibration configuration', () => {
   it('sources historical vibration from the name-matched Registration sheet row, not Results', async () => {
     const service: any = new ImportsService({
