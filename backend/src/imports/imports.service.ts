@@ -3717,14 +3717,14 @@ export class ImportsService {
           'Для CREATE необходимо указать непустое ФИО или архивное название',
         );
       }
-      if (action === 'CREATE_ALIAS' && (
-        row.type !== 'RESULT' ||
-        (await this.prisma.importJob.findUnique({
+      if (action === 'CREATE_ALIAS') {
+        const job = await this.prisma.importJob.findUnique({
           where: { id: importId },
           select: { metadata: true },
-        }))?.metadata?.historicalResults !== true
-      )) {
-        throw new BadRequestException('Архивное название допустимо только для исторических результатов');
+        });
+        if (row.type !== 'RESULT' || (job?.metadata as any)?.historicalResults !== true) {
+          throw new BadRequestException('Архивное название допустимо только для исторических результатов');
+        }
       }
       if (action === 'CREATE_ALIAS' && (
         resolution.participant.fullName!.length > 160 ||
