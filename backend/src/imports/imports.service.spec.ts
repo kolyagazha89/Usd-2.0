@@ -546,7 +546,8 @@ describe('ImportsService import-name gate', () => {
       'stage-1', true,
     );
     expect(result.status).toBe('WARNING');
-    expect(result.warnings.some((w: string) => w.includes('подозрительное ФИО'))).toBe(true);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('проверьте ФИО');
   });
 
   it('refuses commit-side creation of suspicious participants, even if a stale preview had been READY', async () => {
