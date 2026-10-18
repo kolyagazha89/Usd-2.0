@@ -194,6 +194,7 @@ export class ImportsService {
       ),
     );
 
+    if (body.historicalResults === true) {
     // BassRace can assign a different stage sticker to each additional
     // class of one participant. Reserve from AFTER the largest number in
     // the entire source, so early extra classes cannot take a later rider's
@@ -230,6 +231,7 @@ export class ImportsService {
       }
       seen.add(item.class.classId);
       bassRaceClassesByParticipant.set(participantKey, seen);
+    }
     }
 
     const participantsNew = new Set<string>();
@@ -4023,7 +4025,7 @@ export class ImportsService {
       });
     }
 
-    if (version && brand && version.vibrationIsolation !== brand) {
+    if (version && (version.vibrationIsolation ?? null) !== brand) {
       // Never rewrite a configuration version used by an earlier registration.
       const alreadyUsed = await tx.registration.count({
         where: { configurationVersionId: version.id },
@@ -4035,7 +4037,7 @@ export class ImportsService {
             configurationId: configuration.id,
             version: nextVersion,
             vibrationIsolation: brand,
-            additionalDescription: 'LEGACY_IMPORT: марка виброизоляции из нового исторического импорта.',
+            additionalDescription: 'LEGACY_IMPORT: виброизоляция из новой исторической регистрации или не указана.',
           },
         });
         configuration = await tx.carConfiguration.update({
