@@ -30,13 +30,57 @@ function resultSheetRows(values:any){
   });
 }
 
-// Bulk resolution is intentionally limited to explicitly verified nicknames.
+// Bulk selection is strictly limited to the archive nicknames confirmed by
+// the organizer. Never treat an arbitrary Latin first/last name as an alias.
 export function historicalAliasCandidate(row:any):string|null {
-  if(row?.type!=='RESULT'||row?.status!=='WARNING')return null;
+  if(row?.type!=='RESULT'||!['WARNING','RESOLVED'].includes(row?.status))return null;
   if(row?.normalizedData?.existingResult?.state&&row.normalizedData.existingResult.state!=='NONE')return null;
+  if(row.status==='RESOLVED'&&row.resolution?.participant?.action!=='CREATE_ALIAS')return null;
   const raw=row?.rawData??{};
-  const name=String(raw['ФИО']??raw['Фамилия и имя']??raw['participantName']??row?.normalizedData?.participant?.rawName??'').normalize('NFKC').trim().replace(/\s+/g,' ');
-  return ['34 Sound','Bass Market','Aleksey SF','Maks SF','Antoha SF'].includes(name)?name:null;
+  const name=String(raw['ФИО']??raw['Фамилия и имя']??raw['participantName']??row?.normalizedData?.participant?.rawName??'')
+    .normalize('NFKC').trim().replace(/\s+/g,' ');
+  const known=new Set(['34 sound','bass market','aleksey sf','maks sf','antoha sf']);
+  return known.has(name.toLowerCase())?name:null;
+}
+
+// A nickname decision MUST also create its stage registration. A participant
+// resolution alone marks the row RESOLVED but cannot be committed as a result.
+// The number comes from the Results-driven preview, including its safe AUTO
+// allocation. The Registration sheet only enriches car metadata; no no-shows.
+export function historicalAliasResolution(row:any):any|null {
+  const name=historicalAliasCandidate(row);
+  if(!name)return null;
+  const previous=row?.resolution&&typeof row.resolution==='object'&&!Array.isArray(row.resolution)?row.resolution:{};
+  // Never overwrite an administrator-selected existing registration.
+  if(previous.registration?.action==='USE_EXISTING')return null;
+  if(previous.registration?.action==='CREATE'&&Number.isSafeInteger(previous.registration.participantNumber)&&previous.registration.participantNumber>0)return null;
+  const normalized=row?.normalizedData??{};
+  const participantNumber=Number(normalized.participantNumber);
+  if(!Number.isSafeInteger(participantNumber)||participantNumber<=0)return null;
+  // These are not nickname-only problems: require manual intervention for
+  // a missing class, unreadable result, or an already existing result.
+  if(normalized.class?.status!=='MATCHED'||!normalized.class.classId||
+     typeof normalized.result!=='number'||!Number.isFinite(normalized.result))return null;
+
+  const raw=row?.rawData??{};
+  const rawModel=String(raw['Модель автомобиля']??raw['Модель']??'').trim();
+  const rawPlate=String(raw['Номер автомобиля']??raw['Гос. номер']??'').trim();
+  // Only borrow a car from Registration when matched by NAME, never by
+  // a possibly duplicate sticker number belonging to somebody else.
+  const matchingHelper=normalized.registration?.matchType==='NAME';
+  const model=rawModel||(matchingHelper?String(normalized.car?.model??'').trim():'');
+  const plate=rawPlate||(matchingHelper?String(normalized.car?.plateNumber??'').trim():'');
+  const car=(model||plate)?{
+    action:'CREATE',brand:String(raw['Марка автомобиля']??raw['Марка']??'Не указано').trim()||'Не указано',
+    model:model||'Не указано',...(plate?{registrationNumber:plate}:{}),registrationCountry:'RU'
+  }:undefined;
+
+  return {
+    ...previous,
+    participant:{action:'CREATE_ALIAS',fullName:name},
+    registration:{action:'CREATE',participantNumber},
+    ...(previous.car?{}:car?{car}:{}),
+  };
 }
 
 function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(value:any)=>string}){
@@ -253,20 +297,32 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
    finally{setLoading(false)}
  };
  const resolve=async()=>{if(!resolveRow||!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+resolveRow.id+'/resolve',{resolution:JSON.parse(resolution||'{}')});setResolveRow(null);await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение строки')}finally{setLoading(false)}};
- const aliasCandidates=mode==='HISTORICAL'?rows.map((row:any)=>({row,name:historicalAliasCandidate(row)})).filter((entry:any)=>entry.name):[];
+ const aliasCandidates=mode==='HISTORICAL'
+    ?rows.map((row:any)=>({row,name:historicalAliasCandidate(row),resolution:historicalAliasResolution(row)}))
+      .filter((entry:any)=>entry.name&&entry.resolution)
+    :[];
   const confirmAliases=async()=>{
     if(!job?.id||!aliasCandidates.length||loading)return;
     setLoading(true);setError('');let done=0;
     try{
       for(const entry of aliasCandidates){
-        await apiPatch('/imports/'+job.id+'/rows/'+entry.row.id+'/resolve',{resolution:{participant:{action:'CREATE_ALIAS',fullName:entry.name}}});
+        await apiPatch('/imports/'+job.id+'/rows/'+entry.row.id+'/resolve',{resolution:entry.resolution});
         done++;
       }
       await refreshJob(job.id);
     }catch(e){
       await refreshJob(job.id);
-      setError('Подтверждено '+done+' из '+aliasCandidates.length+' архивных названий. '+(e instanceof Error?e.message:'Остальные строки не изменены'));
+      setError('Подтверждено '+done+' из '+aliasCandidates.length+' никнеймов с регистрациями. '+(e instanceof Error?e.message:'Остальные строки не изменены'));
     }finally{setLoading(false)}
+  };
+  const confirmOneAlias=async(row:any)=>{
+    if(!job?.id||loading)return;
+    const decision=historicalAliasResolution(row);
+    if(!decision)return;
+    setLoading(true);setError('');
+    try{await apiPatch('/imports/'+job.id+'/rows/'+row.id+'/resolve',{resolution:decision});await refreshJob(job.id)}
+    catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить никнейм и регистрацию')}
+    finally{setLoading(false)}
   };
   const commit=async()=>{if(!job?.id)return;setLoading(true);setError('');try{const committed=await apiPost<any>('/imports/'+job.id+'/commit',{});await refreshJob(job.id);if(Array.isArray(committed?.postProcessingWarnings)&&committed.postProcessingWarnings.length)setError('Импорт записан, но пересчёт требует внимания: '+committed.postProcessingWarnings.join(' · '))}catch(e){setError(e instanceof Error?e.message:'Не удалось завершить импорт')}finally{setLoading(false)}}; const resolveExistingResult=async(row:any,action:'KEEP_EXISTING'|'REPLACE')=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+row.id+'/resolve',{resolution:{existingResultAction:action}});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить решение результата')}finally{setLoading(false)}};
  const visibleRows=mode==='HISTORICAL'?rows.filter((r:any)=>r.type==='RESULT'):rows;
@@ -396,9 +452,9 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
    </div>
    <div className="panel"><PanelTitle title="Результат проверки" icon={FileInput}/>
     {job?<><div className="import-summary"><div><b>{readyCount}</b><span>готово</span></div><div className="warning"><b>{warnCount}</b><span>нужно исправить</span></div><div className="resolved"><b>{resolvedCount}</b><span>исправлено</span></div>{mode==='HISTORICAL'?<><div className="good"><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='REGISTRATION').length}</b><span>номер из регистрации</span></div><div><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='RESULT'||r.normalizedData?.participantNumberSource==='BOTH').length}</b><span>номер из результатов</span></div><div className="warning"><b>{visibleRows.filter((r:any)=>r.normalizedData?.participantNumberSource==='NONE'&&r.status==='READY').length}</b><span>номер авто</span></div></>:<div><b>{visibleRows.length}</b><span>строк в работе</span></div>}</div>
-      {mode==='HISTORICAL'&&aliasCandidates.length>0&&<div className="notice import-alias-bulk"><span>Архивные никнеймы: {aliasCandidates.map((x:any)=>x.name).filter((x:string,i:number,a:string[])=>a.indexOf(x)===i).join(', ')}. Латиница сохранится.</span><button type="button" className="primary-button compact" disabled={loading} onClick={()=>void confirmAliases()}>{loading?'Подтверждаем…':'Подтвердить все никнеймы · '+aliasCandidates.length}</button></div>}<div className="import-job-line">Состояние импорта: <strong>{enumLabel(job.status)}</strong></div>
+      {mode==='HISTORICAL'&&aliasCandidates.length>0&&<div className="notice import-alias-bulk"><span>Архивные никнеймы: {aliasCandidates.map((x:any)=>x.name).filter((x:string,i:number,a:string[])=>a.indexOf(x)===i).join(', ')}. Одним нажатием подтвердятся псевдонимы и регистрации с номерами из результатов; автомобиль возьмётся только из надёжно сопоставленного источника. Латиница сохранится.</span><button type="button" className="primary-button compact" disabled={loading} onClick={()=>void confirmAliases()}>{loading?'Подтверждаем…':'Подтвердить никнеймы и регистрации · '+aliasCandidates.length}</button></div>}<div className="import-job-line">Состояние импорта: <strong>{enumLabel(job.status)}</strong></div>
       {rowErrors.length>0&&<div className="panel import-errors-panel"><PanelTitle title={`Ошибки по строкам · ${rowErrors.length}`} icon={AlertTriangle}/><div className="import-errors-list">{rowErrors.map((e:any,i:number)=><div className="import-error-item" key={`${e.row}-${i}`}><span className="badge warning">Строка {e.row}</span><span>{e.message}</span></div>)}</div></div>}
-      <div className="import-rows">{visibleRows.slice(0,200).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{enumLabel(r.status)}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small>{mode==='HISTORICAL'&&r.type==='RESULT'&&<small className="table-sub">Виброизоляция из «Регистрация»: <strong>{r.normalizedData?.car?.vibrationIsolation||'Не указана'}</strong></small>}{mode==='HISTORICAL'&&r.type==='RESULT'&&<small className="table-sub">{r.normalizedData?.participantNumberSource==='REGISTRATION'?'Номер взят из «Регистрация»':r.normalizedData?.participantNumberSource==='RESULT'?'Номер взят из «Результаты»':r.normalizedData?.participantNumberSource==='BOTH'?'Номер совпал в обоих листах':r.normalizedData?.participantNumberSource==='AUTO'?'Номер выдан автоматически':'Номер будет определён при commit'}{r.normalizedData?.car?.model||r.normalizedData?.car?.plateNumber?' · Авто из справочника':''}{r.normalizedData?.class?.isBassRace&&r.normalizedData?.classNumberSource==='AUTO'?' · Доп. номер Bass Race №'+String(r.normalizedData.classParticipantNumber).padStart(3,'0')+' (автоматически)':''}</small>}</span>{r.status==='WARNING'&&r.type==='RESULT'&&r.normalizedData?.existingResult?.state&&r.normalizedData.existingResult.state!=='NONE'&&<><button className="secondary-button compact" disabled={loading} onClick={()=>void resolveExistingResult(r,'KEEP_EXISTING')}>Оставить текущий</button><button className="secondary-button compact" disabled={loading} onClick={()=>void resolveExistingResult(r,'REPLACE')}>Заменить</button></>}{historicalAliasCandidate(r)&&mode==='HISTORICAL'&&<button className="secondary-button compact" disabled={loading} onClick={async()=>{if(!job?.id)return;setLoading(true);setError('');try{await apiPatch('/imports/'+job.id+'/rows/'+r.id+'/resolve',{resolution:{participant:{action:'CREATE_ALIAS',fullName:historicalAliasCandidate(r)}}});await refreshJob(job.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось подтвердить никнейм')}finally{setLoading(false)}}}>Подтвердить никнейм</button>}{(r.status==='WARNING'||r.status==='RESOLVED')&&(!r.normalizedData?.existingResult?.state||r.normalizedData?.existingResult?.state==='NONE')&&(mode!=='HISTORICAL'||r.type==='RESULT')&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):JSON.stringify({},null,2))}}>{r.status==='RESOLVED'?'Изменить решение':'Исправить'}</button>}</div>)}</div>
+      <div className="import-rows">{visibleRows.slice(0,200).map((r:any,i:number)=><div className="import-row" key={r.id??i}><span className={`import-row-status ${String(r.status).toLowerCase()}`}>{enumLabel(r.status)}</span><span className="import-row-main"><b>{r.type==='REGISTRATION'?'Регистрация':'Результат'} · строка {r.rowNumber}</b><small>{Array.isArray(r.warnings)?r.warnings.join(' · '):typeof r.warnings==='object'?JSON.stringify(r.warnings):r.warnings||'Ошибок нет'}</small>{mode==='HISTORICAL'&&r.type==='RESULT'&&<small className="table-sub">Виброизоляция из «Регистрация»: <strong>{r.normalizedData?.car?.vibrationIsolation||'Не указана'}</strong></small>}{mode==='HISTORICAL'&&r.type==='RESULT'&&<small className="table-sub">{r.normalizedData?.participantNumberSource==='REGISTRATION'?'Номер взят из «Регистрация»':r.normalizedData?.participantNumberSource==='RESULT'?'Номер взят из «Результаты»':r.normalizedData?.participantNumberSource==='BOTH'?'Номер совпал в обоих листах':r.normalizedData?.participantNumberSource==='AUTO'?'Номер выдан автоматически':'Номер будет определён при commit'}{r.normalizedData?.car?.model||r.normalizedData?.car?.plateNumber?' · Авто из справочника':''}{r.normalizedData?.class?.isBassRace&&r.normalizedData?.classNumberSource==='AUTO'?' · Доп. номер Bass Race №'+String(r.normalizedData.classParticipantNumber).padStart(3,'0')+' (автоматически)':''}</small>}</span>{r.status==='WARNING'&&r.type==='RESULT'&&r.normalizedData?.existingResult?.state&&r.normalizedData.existingResult.state!=='NONE'&&<><button className="secondary-button compact" disabled={loading} onClick={()=>void resolveExistingResult(r,'KEEP_EXISTING')}>Оставить текущий</button><button className="secondary-button compact" disabled={loading} onClick={()=>void resolveExistingResult(r,'REPLACE')}>Заменить</button></>}{mode==='HISTORICAL'&&historicalAliasResolution(r)&&<button className="secondary-button compact" disabled={loading} onClick={()=>void confirmOneAlias(r)}>Подтвердить никнейм и регистрацию №{String(r.normalizedData.participantNumber).padStart(3,'0')}</button>}{(r.status==='WARNING'||r.status==='RESOLVED')&&(!r.normalizedData?.existingResult?.state||r.normalizedData?.existingResult?.state==='NONE')&&(mode!=='HISTORICAL'||r.type==='RESULT')&&<button className="secondary-button compact" onClick={()=>{setResolveRow(r);setResolution(r.resolution?JSON.stringify(r.resolution,null,2):JSON.stringify({},null,2))}}>{r.status==='RESOLVED'?'Изменить решение':'Исправить'}</button>}</div>)}</div>
       {blockingWarnCount===0&&job.status==='DRAFT'&&<button className="primary-button" disabled={loading} onClick={()=>void commit()}>4. Подтвердить и записать импорт</button>}
       {blockingWarnCount>0&&<div className="notice"><AlertTriangle size={16}/><span>{mode==='HISTORICAL'?'Исправьте предупреждения в строках результатов. Лист «Регистрация» используется только как справочник и сам по себе ничего не создаёт.':'Есть предупреждения. Пока остаётся хотя бы один WARNING — запись заблокирована.'}</span></div>}
       {job.status==='COMMITTED'&&job.metadata?.historicalResults===true&&<div className="notice"><Check size={17}/><span>Архив записан в базу. Исторические результаты пока ожидают подтверждения и не появятся публично, пока администратор не подтвердит их. После импорта откройте <a href="/admin/historical-results">«История результатов»</a> и нажмите «Подтвердить все».{job.metadata?.sourcePostUrl&&<small className="table-sub"><a href={job.metadata.sourcePostUrl} target="_blank" rel="noreferrer">Открыть публикацию VK</a></small>}</span></div>}{job.status==='COMMITTED'&&job.metadata?.historicalResults!==true&&<div className="notice"><Check size={17}/><span>Импорт успешно записан в базу USD. Пересчёт рейтингов и рекордов выполнен для затронутых классов, если ниже не указаны предупреждения.</span></div>}
@@ -455,7 +511,19 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  }).slice(0,8);
 
  const createParticipant=()=>setPart({action:'CREATE',fullName:String(participantName).trim(),team:String(raw['Команда']??'').trim()||null,email:String(raw['Email']??'').trim()||null});
- const createArchiveAlias=()=>setPart({action:'CREATE_ALIAS',fullName:String(participantName).trim(),team:null,email:null});
+ const createArchiveAlias=()=>{
+   const number=Number(normalized.participantNumber??participantNumber);
+   if(!Number.isSafeInteger(number)||number<=0){
+     setLocalError('Не удалось определить номер участника. Уточните номер в источнике перед созданием регистрации.');
+     return;
+   }
+   setLocalError('');
+   setResolution(JSON.stringify({...parsed,
+     participant:{action:'CREATE_ALIAS',fullName:String(participantName).trim(),team:null,email:null},
+     registration:parsed.registration?.action==='USE_EXISTING'
+       ?parsed.registration:{action:'CREATE',participantNumber:number},
+   },null,2));
+ };
  const useParticipant=(p:any)=>setPart({action:'USE_EXISTING',participantId:p.id});
  const createRegistration=()=>setReg({action:'CREATE',participantNumber:Number(participantNumber)});
  const useRegistration=(r:any)=>setReg({action:'USE_EXISTING',registrationId:r.id,participantNumber:r.participantNumber});
@@ -483,7 +551,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
       {selectedParticipantId&&<span className="badge good"><Check size={11}/>Участник выбран</span>}
       {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
       {mode==='HISTORICAL'&&<button className="primary-button compact" type="button" onClick={createParticipant}><Plus size={14}/>Создать участника с реальным ФИО</button>}
-      {mode==='HISTORICAL'&&<button className="secondary-button compact" type="button" onClick={createArchiveAlias}><Plus size={14}/>Сохранить архивное название без ФИО</button>}
+      {mode==='HISTORICAL'&&<button className="secondary-button compact" type="button" onClick={createArchiveAlias}><Plus size={14}/>Сохранить архивное название и регистрацию</button>}
      </div>
      {(parsed.participant?.action==='CREATE'||parsed.participant?.action==='CREATE_ALIAS')&&<div className="resolution-fields">
        <label>{parsed.participant.action==='CREATE_ALIAS'?'Архивное название (не ФИО)':'Подтверждённые фамилия и имя'}
