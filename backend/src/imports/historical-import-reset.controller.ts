@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 import { HistoricalImportResetService } from './historical-import-reset.service';
 
@@ -13,7 +14,7 @@ export class HistoricalImportResetController {
   }
 
   @Post('execute')
-  execute(@Body() body: { confirmation?: string }) {
-    return this.service.execute(String(body?.confirmation ?? ''));
+  execute(@Body() body: { confirmation?: string }, @Req() req: AuthenticatedRequest) {
+    return this.service.execute(String(body?.confirmation ?? ''), req);
   }
 }
