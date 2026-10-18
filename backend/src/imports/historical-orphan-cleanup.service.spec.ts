@@ -7,7 +7,7 @@ function fixture() {
   const participants = [
     {
       id: 'orphan-a', firstName: 'Иван', lastName: 'Иванов', middleName: null,
-      cars: [{ id: 'car-a', isPublic: true, configurations: [{ name: 'MANUAL' }], registrations: [] }],
+      cars: [{ id: 'car-a', isPublic: true, configurations: [{ name: 'MANUAL', versions: [{ registrations: [] }] }], registrations: [] }],
     },
     {
       id: 'orphan-with-record', firstName: 'Пётр', lastName: 'Петров', middleName: null,
@@ -37,9 +37,12 @@ function fixture() {
 
 describe('HistoricalOrphanCleanupService', () => {
   const original = process.env.ALLOW_HISTORICAL_IMPORT_RESET;
+  const originalOrphans = process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP;
   afterEach(() => {
     if (original === undefined) delete process.env.ALLOW_HISTORICAL_IMPORT_RESET;
     else process.env.ALLOW_HISTORICAL_IMPORT_RESET = original;
+    if (originalOrphans === undefined) delete process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP;
+    else process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP = originalOrphans;
   });
 
   it('previews orphan accounts without deleting records and explicitly warns about manual profiles', async () => {
@@ -73,6 +76,7 @@ describe('HistoricalOrphanCleanupService', () => {
     await expect(service.execute(preview.confirmationRequired, preview.fingerprint)).rejects.toThrow(ForbiddenException);
     expect(db.$transaction).not.toHaveBeenCalled();
     process.env.ALLOW_HISTORICAL_IMPORT_RESET = 'true';
+    process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP = 'true';
     await expect(service.execute('WRONG', preview.fingerprint)).rejects.toThrow(BadRequestException);
     await expect(service.execute(preview.confirmationRequired, 'bad')).rejects.toThrow(BadRequestException);
     participants[0]!.cars[0]!.id = 'different-car';
@@ -82,6 +86,7 @@ describe('HistoricalOrphanCleanupService', () => {
 
   it('removes only eligible orphan cars and participants and audits the operation', async () => {
     process.env.ALLOW_HISTORICAL_IMPORT_RESET = 'true';
+    process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP = 'true';
     const { db, service } = fixture();
     const preview = await service.preview();
     const result = await service.execute(preview.confirmationRequired, preview.fingerprint);
@@ -106,6 +111,7 @@ describe('HistoricalOrphanCleanupService', () => {
 
   it('rolls back when the number of deleted cars differs from the snapshot', async () => {
     process.env.ALLOW_HISTORICAL_IMPORT_RESET = 'true';
+    process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP = 'true';
     const { db, service } = fixture();
     db.car.deleteMany.mockResolvedValueOnce({ count: 0 });
     const preview = await service.preview();
