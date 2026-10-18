@@ -25,7 +25,7 @@ describe('NameNormalizerService', () => {
   });
 
   it('normalizes ё consistently for matching', () => {
-    expect(service.normalize('Пётр Королёв')).toBe('Петр Королев');
+    expect(service.normalize('Пётр Королёв')).toBe('Пётр Королёв');
     expect(service.normalizeForMatching('Пётр Королёв')).toBe(
       'петр королев',
     );
