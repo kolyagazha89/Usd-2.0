@@ -558,7 +558,7 @@ export class ResultsService {
         if (existing && !existing.isHistorical && existing.createdByUserId === request.user.sub
           && Number(existing.value) === data.value && (existing.notes ?? '') === (data.notes?.trim() ?? '')
           && (!this.isBassRace(registrationClass.class.name) || (existing.place ?? null) === (data.place ?? null))) {
-          return { result: existing };
+          return { result: existing, created: false };
         }
         if (existing) {
           throw new ConflictException(
@@ -601,11 +601,11 @@ export class ResultsService {
 
         await this.recordsService.recalculateInTransaction(tx, registrationClass.classId);
         await this.rankingService.recalculateInTransaction(tx, registration.stageId, registrationClass.classId);
-        return { result: await tx.result.findUniqueOrThrow({ where: { id: result.id }, include: this.adminInclude }) };
+        return { result: await tx.result.findUniqueOrThrow({ where: { id: result.id }, include: this.adminInclude }), created: true };
       },
     );
 
-    if (typeof this.emailNotifications?.recordSet === 'function') {
+    if (result.created && typeof this.emailNotifications?.recordSet === 'function') {
       void Promise.resolve(this.emailNotifications.recordSet(result.result.id)).catch(() => undefined);
     }
 
