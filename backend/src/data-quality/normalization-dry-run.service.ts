@@ -56,7 +56,7 @@ export class NormalizationDryRunService {
   constructor(private readonly prisma: PrismaService, private readonly nameNormalizer: NameNormalizerService) {}
 
   async run() {
-    const [participants, cars, users, directions, importRows, importRowCount] = await Promise.all([
+    const [participants, cars, users, directions, importRows, importRowCount, unresolvedImportRowCount] = await Promise.all([
       this.prisma.participant.findMany({
         select: { id: true, firstName: true, lastName: true, middleName: true, team: true, city: true, phone: true },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -74,7 +74,8 @@ export class NormalizationDryRunService {
         take: 2000,
       }),
       this.prisma.importRow.count(),
-    ]) as [Row[], Row[], Row[], Row[], Row[], number];
+      this.prisma.importRow.count({ where: { status: { notIn: ['COMMITTED', 'RESOLVED'] } } }),
+    ]) as [Row[], Row[], Row[], Row[], Row[], number, number];
 
     const duplicatePeople = groupBy(participants, p => [key(this.nameNormalizer.normalize(p.lastName)), key(this.nameNormalizer.normalize(p.firstName)), key(this.nameNormalizer.normalize(p.middleName))].join('|'))
       .filter(group => [group[0].lastName, group[0].firstName].every(Boolean))
@@ -161,7 +162,8 @@ export class NormalizationDryRunService {
         invalidEmails: invalidEmails.length,
         directionDuplicateGroups: directionDuplicates.length,
         classDuplicateGroups: classDuplicates.length,
-        unresolvedImportRows: unresolvedImports.length,
+        unresolvedImportRows: unresolvedImportRowCount,
+        unresolvedImportRowsSampled: unresolvedImports.length,
       },
       findings: {
         duplicatePeople: duplicatePeople.slice(0, 200),
