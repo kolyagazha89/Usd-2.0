@@ -407,7 +407,7 @@ describe('ImportsService historical same-name disambiguation', () => {
     const result = await sut.previewResultRow(
       { ФИО: 'Teplov Vladislav', Номер: '000', Класс: 'BassRace 129.9', Результат: '128.2' },
       51, new Map(), index, stageClass, 'stage-1', true,
-      new Map([['teplov vladislav', 201]]),
+      new Map([['теплов владислав', 201]]),
     );
     expect(result.status).toBe('READY');
     expect(result.participantNumber).toBe(201);
