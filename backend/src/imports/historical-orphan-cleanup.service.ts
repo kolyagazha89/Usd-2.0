@@ -33,7 +33,7 @@ export class HistoricalOrphanCleanupService {
           select: {
             id: true,
             isPublic: true,
-            configurations: { select: { name: true } },
+            configurations: { select: { name: true, versions: { select: { registrations: { select: { id: true } } } } } },
             registrations: { select: { id: true } },
           },
         },
@@ -43,7 +43,8 @@ export class HistoricalOrphanCleanupService {
 
     // Cars can theoretically have registrations belonging to another profile.
     const candidates = unclaimed.filter((person) =>
-      person.cars.every((car) => car.registrations.length === 0),
+      person.cars.every((car) => car.registrations.length === 0 &&
+        car.configurations.every((config) => config.versions.every((version) => version.registrations.length === 0))),
     );
     const candidateIds = candidates.map((person) => person.id);
     const candidateCarIds = candidates.flatMap((person) => person.cars.map((car) => car.id));
@@ -75,7 +76,13 @@ export class HistoricalOrphanCleanupService {
     const participantIds = eligible.map((person) => person.id).sort();
     const carIds = eligible.flatMap((person) => person.cars.map((car) => car.id)).sort();
     const fingerprint = createHash('sha256')
-      .update(JSON.stringify({ participantIds, carIds }))
+      .update(JSON.stringify({ participantIds, carIds, profileState: eligible.map((person) => ({
+        id: person.id,
+        fullName: [person.lastName, person.firstName, person.middleName].filter(Boolean).join(' '),
+        cars: person.cars.map((car) => ({ id: car.id, isPublic: car.isPublic,
+          configurations: car.configurations.map((config) => config.name).sort(),
+        })),
+      })) }))
       .digest('hex');
     return {
       participantIds,
@@ -112,14 +119,15 @@ export class HistoricalOrphanCleanupService {
         'Аккаунты пользователей и связанные с ними участники не удаляются.',
         'Участники и машины с регистрациями, инспекциями, дисквалификациями или рекордами не удаляются.',
         'Сезоны, этапы, классы, настройки, справочники и журналы аудита сохраняются.',
-        'Удаление доступно только администратору при временно включённом флаге тестовой очистки.',
+        'Удаление доступно только администратору с обоими временными флагами разрешения тестовой очистки.',
       ],
     };
   }
 
   async execute(confirmation: string, fingerprint: string, request?: AuthenticatedRequest) {
-    if (process.env.ALLOW_HISTORICAL_IMPORT_RESET !== 'true') {
-      throw new ForbiddenException('Очистка отключена. Разрешите её только на тестовой базе после резервного копирования.');
+    if (process.env.ALLOW_HISTORICAL_IMPORT_RESET !== 'true' ||
+      process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP !== 'true') {
+      throw new ForbiddenException('Дополнительная очистка отключена. Только после резервной копии тестовой БД временно разрешите ALLOW_HISTORICAL_IMPORT_RESET=true и ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP=true.');
     }
     if (confirmation !== CONFIRMATION || !/^[a-f0-9]{64}$/.test(fingerprint)) {
       throw new BadRequestException('Требуется новая контрольная фраза и fingerprint из предпросмотра.');
