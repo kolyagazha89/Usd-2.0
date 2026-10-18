@@ -161,7 +161,7 @@ export class NameNormalizerService {
       const fix = this.knownGivenNameCorrections[words[1].toLocaleLowerCase('ru')];
       if (fix) words[1] = fix;
     }
-    return words.join(' ').replace(/ё/gi, 'е');
+    return words.join(' ');
   }
 
   /**
@@ -194,6 +194,6 @@ export class NameNormalizerService {
   }
 
   normalizeForMatching(value: string | null | undefined): string {
-    return this.normalize(value).split(' ').slice(0, 2).join(' ').toLowerCase();
+    return this.normalize(value).replace(/ё/gi, 'е').split(' ').slice(0, 2).join(' ').toLowerCase();
   }
 }
