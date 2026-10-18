@@ -3625,12 +3625,12 @@ export class ImportsService {
       );
     }
 
-    if (
-      row.status !==
-      'WARNING'
-    ) {
+    // A failed commit leaves its manually resolved rows in RESOLVED state.
+    // Allow an administrator to revise that *uncommitted* decision without
+    // creating a fresh import job or changing already committed history.
+    if (row.status !== 'WARNING' && row.status !== 'RESOLVED') {
       throw new BadRequestException(
-        `Строка ${rowId} не находится в статусе WARNING`,
+        `Строка ${rowId} уже сохранена и не доступна для сопоставления`,
       );
     }
 
