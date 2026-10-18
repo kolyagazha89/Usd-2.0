@@ -336,3 +336,22 @@ describe('ImportsService historical vibration configuration', () => {
     expect(result.version.vibrationIsolation).toBe('ComfortMat');
   });
 });
+
+describe('ImportsService preview concurrency', () => {
+  it('preserves row order while limiting concurrent queries to eight', async () => {
+    const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    let active = 0;
+    let peak = 0;
+    const input = Array.from({ length: 41 }, (_, index) => index);
+    const output = await service.mapPreviewRows(input, async (value: number) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+      return value * 2;
+    });
+    expect(output).toEqual(input.map((value) => value * 2));
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(peak).toBeGreaterThan(0);
+  });
+});
