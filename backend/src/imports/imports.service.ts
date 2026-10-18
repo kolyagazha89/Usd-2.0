@@ -2808,9 +2808,9 @@ export class ImportsService {
       Y: 'У', X: 'Х',
     };
     return [...String(value ?? '').normalize('NFKC').toLocaleUpperCase('ru-RU')]
-      .map(ch => /[|\\s.\\-_/\\\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch))
+      .map(ch => /[|\s.\-_/\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch))
       .join('')
-      .replace(/[^\\p{L}\\p{N}]/gu, '');
+      .replace(/[^\p{L}\p{N}]/gu, '');
   }
 
   private normalizeClassName(
