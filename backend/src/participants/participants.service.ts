@@ -35,8 +35,8 @@ export class ParticipantsService {
 
   private normalizeRegistrationNumber(value: string, country?: RegistrationCountry): string {
     let number = value.normalize('NFKC')
-      .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
-      .replace(/[\\u00A0\\u202F]/g, ' ')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/[\u00A0\u202F]/g, ' ')
       .trim()
       .toLocaleUpperCase('ru-RU');
     if (country === 'RU') {
@@ -46,16 +46,16 @@ export class ParticipantsService {
         Y: 'У', X: 'Х',
       };
       number = [...number]
-        .map((char) => /[|\\s.\\-_/\\\\]/.test(char) ? '' : (lookalikes[char] ?? char))
+        .map((char) => /[|\s.\-_/\\]/.test(char) ? '' : (lookalikes[char] ?? char))
         .join('');
     } else {
-      number = number.replace(/\\s+/g, ' ');
+      number = number.replace(/\s+/g, ' ');
     }
     return number;
   }
 
   private plateIdentity(country: RegistrationCountry, value: string): string {
-    return this.normalizeRegistrationNumber(value, country).replace(/[^\\p{L}\\p{N}]/gu, '');
+    return this.normalizeRegistrationNumber(value, country).replace(/[^\p{L}\p{N}]/gu, '');
   }
 
   private async ensurePlateUnique(country: RegistrationCountry, number: string, excludeCarId?: string): Promise<void> {
