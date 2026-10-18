@@ -87,3 +87,13 @@ describe('isValidRegistrationPlate', () => {
     expect(isValidRegistrationPlate('RU', '')).toBe(false);
   });
 });
+
+
+describe('Russian registration plate normalization', () => {
+  it('accepts a separator accidentally pasted into the region', () => {
+    expect(isValidRegistrationPlate('RU', 'е666ее|66')).toBe(true);
+  });
+  it('accepts Latin lookalikes and separators in Russian plates', () => {
+    expect(isValidRegistrationPlate('RU', 'E666EE-66')).toBe(true);
+  });
+});
