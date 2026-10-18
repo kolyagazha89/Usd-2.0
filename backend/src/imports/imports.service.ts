@@ -1220,7 +1220,9 @@ export class ImportsService {
           left.every((token) => right.includes(token));
 
         return exactSet(targetTokens, fullTokens) ||
+          (targetTokens.length === 2 && exactSet(targetTokens, shortTokens)) ||
           (targetTokens.length >= 3 &&
+            !candidate.middleName &&
             shortTokens.length === 2 &&
             shortTokens.every((token) => targetTokens.includes(token)));
       });
@@ -3156,10 +3158,11 @@ export class ImportsService {
         left.every((token) => right.includes(token));
 
       return sameTokens(targetTokens, fullTokens) ||
+        (targetTokens.length === 2 && sameTokens(targetTokens, shortTokens)) ||
         (targetTokens.length >= 3 &&
+          !candidate.middleName &&
           shortTokens.length === 2 &&
-          shortTokens.every((token) => targetTokens.includes(token))) ||
-        sameTokens(targetTokens, shortTokens);
+          shortTokens.every((token) => targetTokens.includes(token)));
     });
 
     if (!exactExistingParticipant && equivalentCandidates.length > 1) {
