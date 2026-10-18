@@ -1,13 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RecordsService } from '../records/records.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 const RESET_CONFIRMATION = 'RESET_HISTORICAL_IMPORT_TEST_DATA';
 
 @Injectable()
 export class HistoricalImportResetService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly recordsService: RecordsService) {}
 
   private async plan(client: PrismaService | Prisma.TransactionClient = this.prisma) {
     // Both imported XLSX snapshots and the two-Google-Sheets historical flow
@@ -83,10 +84,11 @@ export class HistoricalImportResetService {
     const resultRows = registrationIds.length
       ? await client.result.findMany({
           where: { registrationId: { in: registrationIds } },
-          select: { id: true },
+          select: { id: true, registrationClass: { select: { classId: true } } },
         })
       : [];
     const resultIds = resultRows.map((row) => row.id);
+    const affectedClassIds = [...new Set(resultRows.map((row) => row.registrationClass.classId))];
     const linkedRecordCount = resultIds.length
       ? await client.record.count({ where: { resultId: { in: resultIds } } })
       : 0;
@@ -145,7 +147,7 @@ export class HistoricalImportResetService {
       .filter((id) => !protectedParticipantIds.has(id));
 
     return {
-      jobs, jobIds, stageIds, registrations, registrationIds, resultIds,
+      jobs, jobIds, stageIds, registrations, registrationIds, resultIds, affectedClassIds,
       linkedRecordCount, removableCarIds, removableParticipantIds,
       sharedOrManualRegistrationsPreserved: linkedRegistrationIds.length - registrationIds.length,
       stages: jobs.map((job) => ({
@@ -195,7 +197,7 @@ export class HistoricalImportResetService {
       throw new BadRequestException(`Для подтверждения передайте confirmation=${RESET_CONFIRMATION}`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const removal = await this.prisma.$transaction(async (tx) => {
       // Import commit also takes a lock on its job followed by a stage-level
       // advisory lock; use the same ordering to avoid racing a commit.
       const initial = await this.plan(tx);
@@ -277,7 +279,21 @@ export class HistoricalImportResetService {
         mode: 'RESET_HISTORICAL_IMPORT',
         ...counts,
         message: 'Тестовые исторические импорты очищены; этапы и справочники сохранены для повторного импорта.',
+        affectedClassIds: plan.affectedClassIds,
       };
     }, { maxWait: 15000, timeout: 120000 });
+
+    const postProcessingWarnings: string[] = [];
+    let recalculatedRecordClasses = 0;
+    for (const classId of removal.affectedClassIds) {
+      try {
+        await this.recordsService.recalculateCurrentRecord(classId);
+        recalculatedRecordClasses += 1;
+      } catch {
+        postProcessingWarnings.push('Не удалось пересчитать рекорды класса ' + classId);
+      }
+    }
+    const { affectedClassIds: _, ...report } = removal;
+    return { ...report, recalculatedRecordClasses, postProcessingWarnings };
   }
 }
