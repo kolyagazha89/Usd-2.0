@@ -24,6 +24,10 @@ export class HistoricalImportResetService {
     const resultRows = registrationIds.length
       ? await this.prisma.result.findMany({ where: { registrationId: { in: registrationIds } }, select: { id: true } })
       : [];
+    const resultIds = resultRows.map((result) => result.id);
+    const linkedRecordCount = resultIds.length
+      ? await this.prisma.record.count({ where: { resultId: { in: resultIds } } })
+      : 0;
     const importOnlyParticipantIds = [...new Set(registrations.map((registration) => registration.participantId))];
     const importCarIds = [...new Set(registrations.map((registration) => registration.carId))];
 
@@ -42,6 +46,7 @@ export class HistoricalImportResetService {
             user: { is: null },
             disqualifications: { none: {} },
             stageInspections: { none: {} },
+            cars: { none: { id: { notIn: removableCarIds } } },
           },
           select: { id: true },
         })
@@ -52,7 +57,8 @@ export class HistoricalImportResetService {
       stageIds,
       registrations,
       registrationIds,
-      resultIds: resultRows.map((result) => result.id),
+      resultIds,
+      linkedRecordCount,
       removableCarIds,
       removableParticipantIds: removableParticipants.map((participant) => participant.id),
       stages: jobs.map((job) => ({ id: job.stage.id, seasonYear: job.stage.season.year, stageNumber: job.stage.stageNumber, name: job.stage.name, importJobId: job.id, importStatus: job.status })),
@@ -72,7 +78,7 @@ export class HistoricalImportResetService {
         affectedStages: plan.stageIds.length,
         importedRegistrations: plan.registrations.length,
         results: plan.resultIds.length,
-        recordsLinkedToThoseResults: plan.resultIds.length,
+        recordsLinkedToThoseResults: plan.linkedRecordCount,
         orphanCarsEligibleForRemoval: plan.removableCarIds.length,
         orphanParticipantsEligibleForRemoval: plan.removableParticipantIds.length,
       },
@@ -124,12 +130,13 @@ export class HistoricalImportResetService {
               user: { is: null },
               disqualifications: { none: {} },
               stageInspections: { none: {} },
+              cars: { none: {} },
             },
             select: { id: true },
           })
         : [];
       const deletedParticipants = safeParticipants.length
-        ? await tx.participant.deleteMany({ where: { id: { in: safeParticipants.map((p) => p.id) } })
+        ? await tx.participant.deleteMany({ where: { id: { in: safeParticipants.map((p) => p.id) } } })
         : { count: 0 };
 
       return {
