@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
@@ -3263,6 +3263,40 @@ export class ImportsService {
     return this.nameNormalizer.normalize(value);
   }
 
+  /**
+   * A performer alias in a historical results sheet is NOT a real person's
+   * name. Keep it verbatim, marked as unverified, so it can be attributed to
+   * the correct person later without permanently falsifying their FIO.
+   *
+   * Scope the synthetic profile to ONE stage, since the same label can be
+   * used by different people at different events.
+   */
+  private async createHistoricalAliasParticipant(
+    tx: Prisma.TransactionClient,
+    stageId: string,
+    rawAlias: string,
+  ) {
+    const alias = this.stringValue(rawAlias).normalize('NFKC').replace(/\s+/g, ' ').trim();
+    if (!alias || alias.length > 160 || !this.nameNormalizer.inspect(alias).needsReview) {
+      throw new BadRequestException('Укажите корректное архивное название для неизвестного участника');
+    }
+    const identityKey = alias.toLocaleLowerCase('ru');
+    const legacyId = 'HISTORICAL_ALIAS:' + createHash('sha256')
+      .update(stageId + ':' + identityKey).digest('hex');
+    return tx.participant.upsert({
+      where: { legacyId },
+      create: {
+        legacyId,
+        historicalAlias: alias,
+        lastName: alias,
+        firstName: '',
+        middleName: null,
+        isPublic: true,
+      },
+      update: {},
+    });
+  }
+
   private async createParticipantFromImport(
     tx: any,
     participant: {
@@ -3534,7 +3568,8 @@ export class ImportsService {
       participant?: {
         action:
           | 'USE_EXISTING'
-          | 'CREATE';
+          | 'CREATE'
+          | 'CREATE_ALIAS';
 
         participantId?: string;
 
@@ -3658,7 +3693,7 @@ export class ImportsService {
 
     if (resolution.participant) {
       const action = resolution.participant.action;
-      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+      if (action !== 'USE_EXISTING' && action !== 'CREATE' && action !== 'CREATE_ALIAS') {
         throw new BadRequestException('Некорректное действие participant');
       }
 
@@ -3673,14 +3708,29 @@ export class ImportsService {
       }
 
       if (
-        action === 'CREATE' &&
+        (action === 'CREATE' || action === 'CREATE_ALIAS') &&
         (!resolution.participant.fullName ||
           typeof resolution.participant.fullName !== 'string' ||
           !resolution.participant.fullName.trim())
       ) {
         throw new BadRequestException(
-          'Для CREATE необходимо указать непустое ФИО участника',
+          'Для CREATE необходимо указать непустое ФИО или архивное название',
         );
+      }
+      if (action === 'CREATE_ALIAS') {
+        const job = await this.prisma.importJob.findUnique({
+          where: { id: importId },
+          select: { metadata: true },
+        });
+        if (row.type !== 'RESULT' || (job?.metadata as any)?.historicalResults !== true) {
+          throw new BadRequestException('Архивное название допустимо только для исторических результатов');
+        }
+      }
+      if (action === 'CREATE_ALIAS' && (
+        resolution.participant.fullName!.length > 160 ||
+        this.nameNormalizer.inspect(resolution.participant.fullName).needsReview === false
+      )) {
+        throw new BadRequestException('Архивное название должно быть не более 160 символов и не должно подменять обычное ФИО');
       }
     }
 
@@ -4507,6 +4557,7 @@ export class ImportsService {
     tx: Prisma.TransactionClient,
     importJob: {
       stageId: string;
+      metadata?: unknown;
       rows: Array<{
         id: string;
         type: 'REGISTRATION' | 'RESULT';
@@ -4552,14 +4603,26 @@ export class ImportsService {
             `Строка ${row.rowNumber}: выбранный участник больше не существует`,
           );
         }
-      } else if (resolution.participant?.action === 'CREATE') {
-        if (
-          typeof resolution.participant.fullName !== 'string' ||
-          !resolution.participant.fullName.trim()
-        ) {
+      } else if (resolution.participant?.action === 'CREATE' ||
+        resolution.participant?.action === 'CREATE_ALIAS') {
+        const name = resolution.participant.fullName;
+        if (typeof name !== 'string' || !name.trim()) {
           throw new BadRequestException(
-            `Строка ${row.rowNumber}: для нового участника не указано ФИО`,
+            `Строка ${row.rowNumber}: для нового участника не указано ФИО или архивное название`,
           );
+        }
+        if (resolution.participant.action === 'CREATE_ALIAS') {
+          if ((importJob.metadata as any)?.historicalResults !== true || row.type !== 'RESULT') {
+            throw new BadRequestException(
+              `Строка ${row.rowNumber}: архивный псевдоним допустим только в исторических результатах`,
+            );
+          }
+          if (name.trim().length > 160 ||
+              !this.nameNormalizer.inspect(name).needsReview) {
+            throw new BadRequestException(
+              `Строка ${row.rowNumber}: архивное название не подходит для ручного режима псевдонима`,
+            );
+          }
         }
       }
 
@@ -5784,6 +5847,19 @@ export class ImportsService {
               resolution
                 .participant
                 .participantId;
+          }
+
+          if (resolution?.participant?.action === 'CREATE_ALIAS') {
+            const person = await this.createHistoricalAliasParticipant(
+              tx,
+              importJob.stageId,
+              this.stringValue(resolution.participant.fullName),
+            );
+            participantId = person.id;
+            importedParticipants.set(
+              this.normalizePersonName(this.stringValue(resolution.participant.fullName)),
+              person.id,
+            );
           }
 
           if (

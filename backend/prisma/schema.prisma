@@ -78,6 +78,7 @@ model Participant {
   photoUrl          String?
   isPublic          Boolean            @default(true)
   legacyId          String?            @unique
+  historicalAlias   String?            // Original name in archival Results when legal identity is unknown
   createdAt         DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
   birthDate         DateTime?          @db.Date
