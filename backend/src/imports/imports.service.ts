@@ -3902,6 +3902,7 @@ export class ImportsService {
   private async ensureLegacyImportConfiguration(
     tx: Prisma.TransactionClient,
     carId: string,
+    vibrationIsolation?: string,
   ) {
     const name = 'LEGACY_IMPORT';
 
@@ -3934,6 +3935,7 @@ export class ImportsService {
         data: {
           configurationId: configuration.id,
           version: configuration.currentVersion,
+          vibrationIsolation: vibrationIsolation || null,
           additionalDescription:
             'LEGACY_IMPORT: точная конфигурация автомобиля в историческом импорте отсутствовала.',
         },
@@ -4091,12 +4093,14 @@ export class ImportsService {
       participantId: string;
       carId: string;
       participantNumber: number;
+      vibrationIsolation?: string;
     },
   ) {
     const { configuration, version } =
       await this.ensureLegacyImportConfiguration(
         tx,
         data.carId,
+        data.vibrationIsolation,
       );
 
     const configurationSnapshot = {
@@ -5150,6 +5154,7 @@ export class ImportsService {
                   participantId,
                   carId,
                   participantNumber,
+                  vibrationIsolation: this.stringValue(resolution?.car?.vibrationIsolation ?? this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
                 },
               );
 
@@ -6051,6 +6056,7 @@ export class ImportsService {
                       participantId,
                       carId,
                       participantNumber: primaryParticipantNumber,
+                      vibrationIsolation: this.stringValue(resolution?.car?.vibrationIsolation ?? this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
                     },
                   );
 
