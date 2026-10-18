@@ -1187,7 +1187,67 @@ export class ImportsService {
         normalizedName,
       ) ?? [];
 
+    /*
+     * Safe historical-import fallback:
+     * - compare normalized/transliterated name tokens without depending on
+     *   surname-first vs first-name-first order;
+     * - accept only exact token sets (no edit-distance guessing);
+     * - treat multiple candidates as ambiguous instead of creating a duplicate.
+     * Include the two-token form to handle source rows without patronymics.
+     */
     if (matches.length === 0) {
+      const targetTokenSets = [
+        this.nameTokens(rawName),
+      ];
+      if (targetTokenSets[0].length >= 3) {
+        targetTokenSets.push(
+          this.nameTokens(targetTokenSets[0].slice(0, 2).join(' ')),
+        );
+      }
+
+      const allCandidates = this.uniqueParticipants(
+        [...participantIndex.values()].flat(),
+      );
+      const exactTokenMatches = allCandidates.filter((candidate) => {
+        const fullName = [
+          candidate.lastName,
+          candidate.firstName,
+          candidate.middleName,
+        ].filter(Boolean).join(' ');
+        const withoutMiddle = [
+          candidate.lastName,
+          candidate.firstName,
+        ].filter(Boolean).join(' ');
+
+        const candidateTokenSets = [
+          this.nameTokens(fullName),
+          this.nameTokens(withoutMiddle),
+        ];
+        return targetTokenSets.some((target) =>
+          target.length >= 2 &&
+          candidateTokenSets.some((candidateTokens) =>
+            candidateTokens.length === target.length &&
+            target.every((token) => candidateTokens.includes(token)),
+          ),
+        );
+      });
+
+      if (exactTokenMatches.length === 1) {
+        return {
+          status: 'MATCHED' as const,
+          normalizedName,
+          matches: exactTokenMatches,
+        };
+      }
+
+      if (exactTokenMatches.length > 1) {
+        return {
+          status: 'AMBIGUOUS' as const,
+          normalizedName,
+          matches: exactTokenMatches,
+        };
+      }
+
       const fallbackMatches =
         this.findParticipantByTokens(
           normalizedName,
@@ -3052,7 +3112,7 @@ export class ImportsService {
     // Final DB-level guard: preview matching is not enough. An import can be
     // resolved from a registration/result sheet, so before creating a new
     // Participant we always check the canonical Participant table itself.
-    const existingParticipant =
+    const exactExistingParticipant =
       await tx.participant.findFirst({
         where: {
           lastName: parsedName.lastName,
@@ -3062,6 +3122,63 @@ export class ImportsService {
             : { middleName: null }),
         },
       });
+
+    /*
+     * Last database-level idempotency guard. The preview can be stale or a
+     * row can be resolved manually as CREATE. Re-check order-independent,
+     * exact normalized/transliterated tokens inside the transaction before
+     * inserting, so "Surname Name" and "Name Surname" don't create a second
+     * participant. Never guess between multiple candidates.
+     */
+    const allNameCandidates = exactExistingParticipant
+      ? []
+      : await tx.participant.findMany({
+          select: {
+            id: true,
+            lastName: true,
+            firstName: true,
+            middleName: true,
+          },
+        });
+
+    const targetTokens = this.nameTokens(fullName);
+    const equivalentCandidates = allNameCandidates.filter((candidate: {
+      id: string;
+      lastName: string;
+      firstName: string;
+      middleName: string | null;
+    }) => {
+      const fullTokens = this.nameTokens([
+        candidate.lastName,
+        candidate.firstName,
+        candidate.middleName,
+      ].filter(Boolean).join(' '));
+      const shortTokens = this.nameTokens([
+        candidate.lastName,
+        candidate.firstName,
+      ].filter(Boolean).join(' '));
+      const sameTokens = (left: string[], right: string[]) =>
+        left.length >= 2 &&
+        left.length === right.length &&
+        left.every((token) => right.includes(token));
+
+      return sameTokens(targetTokens, fullTokens) ||
+        sameTokens(targetTokens, shortTokens);
+    });
+
+    if (!exactExistingParticipant && equivalentCandidates.length > 1) {
+      throw new BadRequestException(
+        `Нельзя создать участника "${fullName}": найдено несколько существующих участников с тем же нормализованным ФИО. Выберите существующего участника вручную.`,
+      );
+    }
+
+    const existingParticipant =
+      exactExistingParticipant ??
+      (equivalentCandidates.length === 1
+        ? await tx.participant.findUnique({
+            where: { id: equivalentCandidates[0].id },
+          })
+        : null);
 
     if (existingParticipant) {
       const email = this.stringValue(participant.email);
