@@ -1555,21 +1555,25 @@ export class ImportsService {
         : '';
     const normalizedPlate = this.normalizeImportedPlate(rawPlate);
 
-    if (normalizedPlate && !normalizedPlate.startsWith('IMPORT')) {
-      const byPlate = matches.filter((person) => person.cars?.some((car) =>
-        this.normalizeImportedPlate(car.registrationNumber) === normalizedPlate));
-      if (byPlate.length === 1) {
-        return { ...candidate, status: 'MATCHED' as const, matches: byPlate };
-      }
-      if (byPlate.length > 1) return candidate;
-    }
+    const byPlate = normalizedPlate && !normalizedPlate.startsWith('IMPORT')
+      ? matches.filter((person) => person.cars?.some((car) =>
+          this.normalizeImportedPlate(car.registrationNumber) === normalizedPlate))
+      : [];
+    const byStageNumber = resultNumber !== null
+      ? matches.filter((person) =>
+          person.registrations?.some((row) => row.participantNumber === resultNumber))
+      : [];
 
-    if (resultNumber !== null) {
-      const byStageNumber = matches.filter((person) =>
-        person.registrations?.some((row) => row.participantNumber === resultNumber));
-      if (byStageNumber.length === 1) {
-        return { ...candidate, status: 'MATCHED' as const, matches: byStageNumber };
-      }
+    // If two strong sources point to DIFFERENT Participant IDs, do not pick
+    // whichever happened to be checked first: require human verification.
+    if (byPlate.length === 1 && byStageNumber.length === 1 &&
+      byPlate[0].id !== byStageNumber[0].id) {
+      return candidate;
+    }
+    const verified = byPlate.length === 1 ? byPlate :
+      byStageNumber.length === 1 ? byStageNumber : [];
+    if (verified.length === 1) {
+      return { ...candidate, status: 'MATCHED' as const, matches: verified };
     }
     // Do not automatically merge or select actual duplicate Participant IDs.
     return candidate;
