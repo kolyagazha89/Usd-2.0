@@ -132,6 +132,7 @@ describe('NameNormalizerService', () => {
     ['Blazhko Nokolay', 'Блажко Николай'],
     ['Golubnyak Anatooly', 'Голубняк Анатолий'],
     ['Zhidkov Yryi', 'Жидков Юрий'],
+    ['Zhidkov Yriy', 'Жидков Юрий'],
     ['Kudryashov Egor', 'Кудряшов Егор'],
     ['Mirzabekyan Lavrenty', 'Мирзабекян Лаврентий'],
     ['Musharsky Igor', 'Мушарский Игорь'],
@@ -159,6 +160,13 @@ describe('NameNormalizerService', () => {
     expect(service.normalize(raw)).toBe(expected);
     expect(service.inspect(raw).needsReview).toBe(false);
     expect(service.normalize(expected)).toBe(expected);
+  });
+
+  it('accepts the user-confirmed Zhidkov Yriy spelling without review', () => {
+    expect(service.inspect('Zhidkov Yriy')).toEqual({
+      original: 'Zhidkov Yriy', normalized: 'Жидков Юрий',
+      needsReview: false, reasons: [],
+    });
   });
 
   it('flags a new unknown mistransliterated given name instead of creating a malformed person', () => {

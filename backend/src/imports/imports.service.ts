@@ -3276,6 +3276,8 @@ export class ImportsService {
     stageId: string,
     rawAlias: string,
   ) {
+    // Archive labels are identities, not personal names. Never run Latin-to-Cyrillic
+    // name normalization here: preserve the spelling supplied in Results.
     const alias = this.stringValue(rawAlias).normalize('NFKC').replace(/\s+/g, ' ').trim();
     if (!alias || alias.length > 160 || !this.nameNormalizer.inspect(alias).needsReview) {
       throw new BadRequestException('Укажите корректное архивное название для неизвестного участника');
