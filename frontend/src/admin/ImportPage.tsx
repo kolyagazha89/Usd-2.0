@@ -22,7 +22,12 @@ function resultSheetRows(values:any){
     const classValue=String(row['Класс']??'').trim();
     if(classValue)currentClass=classValue;
     return currentClass?{...row,'Класс':currentClass}:row;
-  }).filter((row:any)=>String(row['Номер']??row['Номер участника']??'').trim()!=='');
+  }).filter((row:any)=>{
+    // Historical Results is the source of truth. A missing sticker number is
+    // a warning for Preview, not permission to silently drop a participant.
+    const name=String(row['ФИО']??row['Фамилия и имя']??row['Участник']??'').trim();
+    return name!==''&&String(row['Класс']??'').trim()!=='';
+  });
 }
 function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(value:any)=>string}){
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
