@@ -3329,6 +3329,94 @@ export class ImportsService {
     };
   }
 
+  private async importVibrationBrand(
+    client: Prisma.TransactionClient | PrismaService,
+    rawBrand: unknown,
+  ): Promise<string | null> {
+    if (rawBrand === null || rawBrand === undefined || rawBrand === '') return null;
+    if (typeof rawBrand !== 'string' || rawBrand.length > 120) {
+      throw new BadRequestException('Некорректная марка виброизоляции');
+    }
+    const value = rawBrand.trim();
+    if (!value) return null;
+    const siteSettings = await client.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { catalogs: true },
+    });
+    const catalogs = siteSettings?.catalogs as Record<string, unknown> | null | undefined;
+    const brands = Array.isArray(catalogs?.vibrationBrands)
+      ? catalogs.vibrationBrands.filter((item): item is string => typeof item === 'string')
+      : ['STP', 'ComfortMat', 'Audior', 'Global'];
+    const match = brands.find((item) => item.trim().toLocaleLowerCase('ru') === value.toLocaleLowerCase('ru'));
+    if (!match) {
+      throw new BadRequestException('Марка виброизоляции отсутствует в справочнике. Выберите марку из настроек сайта.');
+    }
+    return match;
+  }
+
+  // A READY result can be assigned a vibration brand without marking the entire
+  // import row RESOLVED. The selection is stored in ImportRow.resolution so it is
+  // passed into the car's immutable configuration snapshot at commit.
+  async setImportVibration(
+    importId: string,
+    rowId: string,
+    vibrationIsolation: unknown,
+    request?: AuthenticatedRequest,
+  ) {
+    if (typeof vibrationIsolation !== 'string') {
+      throw new BadRequestException('Выберите марку виброизоляции или пустое значение');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM "ImportJob" WHERE id = ${importId} FOR UPDATE
+      `;
+      const job = await tx.importJob.findUnique({
+        where: { id: importId },
+        select: { id: true, status: true, metadata: true },
+      });
+      if (!job) throw new NotFoundException('Импорт не найден');
+      if (job.status !== 'DRAFT' || (job.metadata as any)?.historicalResults !== true) {
+        throw new BadRequestException('Виброизоляцию можно менять только в черновике исторического импорта');
+      }
+
+      const row = await tx.importRow.findFirst({
+        where: { id: rowId, importJobId: importId, type: 'RESULT' },
+      });
+      if (!row || row.status === 'COMMITTED') {
+        throw new BadRequestException('Строка исторического результата недоступна для изменения');
+      }
+      const brand = await this.importVibrationBrand(tx, vibrationIsolation);
+      const prior = row.resolution && typeof row.resolution === 'object' && !Array.isArray(row.resolution)
+        ? row.resolution as Record<string, any>
+        : {};
+      const car = prior.car && typeof prior.car === 'object' && !Array.isArray(prior.car)
+        ? prior.car as Record<string, unknown>
+        : {};
+      const updated = await tx.importRow.update({
+        where: { id: row.id },
+        data: {
+          resolution: this.toJson({
+            ...prior,
+            car: { ...car, vibrationIsolation: brand ?? '' },
+          }),
+        },
+      });
+      if (request) {
+        await tx.auditLog.create({
+          data: {
+            userId: request.user.sub,
+            action: 'IMPORT_VIBRATION_SELECTED',
+            entity: 'ImportRow',
+            entityId: row.id,
+            ipAddress: request.ip,
+            metadata: { importJobId: importId, vibrationIsolation: brand },
+          },
+        });
+      }
+      return { success: true, row: updated };
+    });
+  }
+
   async resolveImportRow(
     importId: string,
     rowId: string,
@@ -3368,6 +3456,7 @@ export class ImportsService {
         model?: string;
         registrationNumber?: string;
         registrationCountry?: string;
+        vibrationIsolation?: string;
       };
 
       existingResultAction?: 'KEEP_EXISTING' | 'REPLACE';
@@ -3537,6 +3626,10 @@ export class ImportsService {
           'Для CREATE автомобиля необходимо указать марку и модель',
         );
       }
+    }
+
+    if (resolution.car?.vibrationIsolation !== undefined) {
+      await this.importVibrationBrand(this.prisma, resolution.car.vibrationIsolation);
     }
 
     if (resolution.existingResultAction !== undefined &&
@@ -3905,6 +3998,7 @@ export class ImportsService {
     vibrationIsolation?: string,
   ) {
     const name = 'LEGACY_IMPORT';
+    const brand = await this.importVibrationBrand(tx, vibrationIsolation);
 
     let configuration = await tx.carConfiguration.findFirst({
       where: {
@@ -3935,11 +4029,38 @@ export class ImportsService {
         data: {
           configurationId: configuration.id,
           version: configuration.currentVersion,
-          vibrationIsolation: vibrationIsolation || null,
+          vibrationIsolation: brand,
           additionalDescription:
             'LEGACY_IMPORT: точная конфигурация автомобиля в историческом импорте отсутствовала.',
         },
       });
+    }
+
+    if (version && brand && version.vibrationIsolation !== brand) {
+      // Never rewrite a configuration version used by an earlier registration.
+      const alreadyUsed = await tx.registration.count({
+        where: { configurationVersionId: version.id },
+      });
+      if (alreadyUsed > 0) {
+        const nextVersion = configuration.currentVersion + 1;
+        version = await tx.carConfigurationVersion.create({
+          data: {
+            configurationId: configuration.id,
+            version: nextVersion,
+            vibrationIsolation: brand,
+            additionalDescription: 'LEGACY_IMPORT: марка виброизоляции из нового исторического импорта.',
+          },
+        });
+        configuration = await tx.carConfiguration.update({
+          where: { id: configuration.id },
+          data: { currentVersion: nextVersion },
+        });
+      } else {
+        version = await tx.carConfigurationVersion.update({
+          where: { id: version.id },
+          data: { vibrationIsolation: brand },
+        });
+      }
     }
 
     return {
