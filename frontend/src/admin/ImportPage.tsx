@@ -538,7 +538,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
    <details className="resolution-json-preview"><summary>Показать сформированное решение</summary><pre className="json-view">{JSON.stringify(parsed,null,2)}</pre></details>
    <div className="resolution-footer"><button className="secondary-button" onClick={onClose}>Отмена</button><button className="primary-button" disabled={loading||loadingOptions} onClick={()=>void onSave()}>{loading?<><Loader2 className="spin" size={15}/>Сохраняем…</>:<><Check size={15}/>Сохранить решение</>}</button></div>
   </div>
- </section>
+ </section></div>
 }
 
 export default ImportPage;
