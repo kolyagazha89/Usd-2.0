@@ -71,6 +71,12 @@ export class NameNormalizerService {
     musharsky: 'Мушарский',
     musharskii: 'Мушарский',
     musharski: 'Мушарский',
+    // The source contains both Mushar- and Muhar-/Mukhar- spellings.
+    // Preserve the root consonant: these are NOT a confirmed same person.
+    muharskiy: 'Мухарский',
+    muharsky: 'Мухарский',
+    mukharskiy: 'Мухарский',
+    mukharsky: 'Мухарский',
     nokolai: 'Николай',
     nokolay: 'Николай',
     anatooly: 'Анатолий',
@@ -150,6 +156,7 @@ export class NameNormalizerService {
 
   private readonly knownSurnameCorrections: Readonly<Record<string, string>> = {
     'мушарскиы': 'Мушарский',
+    'мухарскиы': 'Мухарский',
     'чаыка': 'Чайка',
   };
 
@@ -244,6 +251,10 @@ export class NameNormalizerService {
     // Unrecognized non-Russian endings remain for operator review.
     if (parts[1] && /ы$/i.test(parts[1]))
       reasons.push('Подозрительное окончание имени после транслитерации: проверьте написание');
+    // Reject an *unknown* broken surname ending too. It is safer to
+    // review than store a misspelled person or silently rewrite the root.
+    if (parts[0] && /скиы$/i.test(parts[0]))
+      reasons.push('Подозрительное окончание фамилии после транслитерации: проверьте исходное написание');
     if (parts[0] && this.surnamesForReview.has(parts[0].toLocaleLowerCase('ru')))
       reasons.push('Сомнительное написание фамилии из исторического импорта; сверить с источником');
     // A mixed-script token has no safe general transliteration. Latin-only

@@ -96,6 +96,27 @@ describe('HistoricalNameRepairService', () => {
     expect(db.participant.update).not.toHaveBeenCalled();
   });
 
+  it('previews a spelling-only repair for Мухарскиы without overwriting distinct Мушарский', async () => {
+    const { db, people, service } = setup();
+    people.push(
+      { id: 'mukhar', lastName: 'Мухарскиы', firstName: 'Игорь', middleName: null,
+        user: null, registrations: [{ id: 'reg-mukhar' }] },
+      { id: 'mushar', lastName: 'Мушарский', firstName: 'Игорь', middleName: null,
+        user: null, registrations: [{ id: 'reg-mushar' }] },
+    );
+    const preview = await service.preview();
+    expect(preview.readOnly).toBe(true);
+    expect(preview.examples.safe).toContainEqual({
+      before: 'Мухарскиы Игорь',
+      after: 'Мухарский Игорь',
+    });
+    expect(preview.examples.safe).not.toContainEqual({
+      before: 'Мухарскиы Игорь',
+      after: 'Мушарский Игорь',
+    });
+    expect(db.participant.update).not.toHaveBeenCalled();
+  });
+
   it('keeps duplicate target FIO and linked user profiles out of automatic corrections', async () => {
     const { db, service, people } = setup();
     people.push({
