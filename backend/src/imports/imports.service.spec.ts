@@ -366,6 +366,135 @@ describe('ImportsService historical vibration configuration', () => {
   });
 });
 
+describe('ImportsService historical same-name disambiguation', () => {
+  function service() {
+    const db: any = {
+      registration: { findUnique: jest.fn(async () => null) },
+    };
+    return new ImportsService(db as PrismaService, new NameNormalizerService()) as any;
+  }
+  const stageClass = [{ class: { id: 'bass-129', name: 'BassRace 129.9', unit: 'DB' } }];
+
+  it('chooses matching Registration number from several same-name BassRace helper rows', async () => {
+    const sut = service();
+    const index = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Teplov Vladislav', 'Номер участника': 51, 'Номер автомобиля': 'А111АА72', 'Виброизоляция': 'STP' },
+      { 'Фамилия и имя': 'Teplov Vladislav', 'Номер участника': 87, 'Номер автомобиля': 'А111АА72', 'Виброизоляция': 'STP' },
+    ]);
+    const person = sut.findRegistrationParticipant('Teplov Vladislav', index, 87);
+    expect(person.status).toBe('MATCHED');
+    expect(person.matches).toHaveLength(1);
+    expect(person.matches[0].participantNumber).toBe(87);
+    const result = await sut.previewResultRow(
+      { ФИО: 'Teplov Vladislav', Номер: 87, Класс: 'BassRace 129.9', Результат: '128.2' },
+      87, new Map(), index, stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('READY');
+    expect(result.warnings).toEqual([]);
+    expect(result.car.vibrationIsolation).toBe('STP');
+    expect(result.participantNumber).toBe(87);
+  });
+
+  it('uses AUTO stage-safe number for blank Results number when same-name Registration rows share a car', async () => {
+    const sut = service();
+    const index = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Teplov Vladislav', 'Номер участника': 51, 'Номер автомобиля': 'А111АА72', 'Виброизоляция': 'STP' },
+      { 'Фамилия и имя': 'Teplov Vladislav', 'Номер участника': 87, 'Номер автомобиля': 'А111АА72', 'Виброизоляция': 'STP' },
+    ]);
+    const person = sut.findRegistrationParticipant('Teplov Vladislav', index, null);
+    expect(person.status).toBe('MATCHED');
+    expect(person.matches[0].participantNumber).toBeNull();
+    const result = await sut.previewResultRow(
+      { ФИО: 'Teplov Vladislav', Номер: '000', Класс: 'BassRace 129.9', Результат: '128.2' },
+      51, new Map(), index, stageClass, 'stage-1', true,
+      new Map([['teplov vladislav', 201]]),
+    );
+    expect(result.status).toBe('READY');
+    expect(result.participantNumber).toBe(201);
+    expect(result.participantNumberSource).toBe('AUTO');
+    expect(result.car.vibrationIsolation).toBe('STP');
+  });
+
+  it('disambiguates two DB Participant IDs ONLY when one matches the helper car', async () => {
+    const sut = service();
+    const db = sut.buildParticipantIndex([
+      { id: 'right', firstName: 'Vladislav', lastName: 'Teplov', middleName: null, team: null,
+        cars: [{ registrationNumber: 'А111АА72' }], registrations: [] },
+      { id: 'wrong', firstName: 'Vladislav', lastName: 'Teplov', middleName: null, team: null,
+        cars: [{ registrationNumber: 'В222ВВ72' }], registrations: [] },
+    ]);
+    const registration = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Teplov Vladislav', 'Номер участника': 87, 'Номер автомобиля': 'А111АА72' },
+    ]);
+    const preview = await sut.previewResultRow(
+      { ФИО: 'Teplov Vladislav', Номер: 87, Класс: 'BassRace 129.9', Результат: '128.2' },
+      87, db, registration, stageClass, 'stage-1', true,
+    );
+    expect(preview.status).toBe('READY');
+    expect(preview.participant.status).toBe('MATCHED');
+    expect(preview.participant.matches[0].id).toBe('right');
+  });
+
+  it('uses an existing stage sticker to distinguish same-name DB profiles when the helper sheet has no reliable car', async () => {
+    const sut = service();
+    const db = sut.buildParticipantIndex([
+      { id: 'right', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null,
+        cars: [], registrations: [{ participantNumber: 123 }] },
+      { id: 'wrong', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null,
+        cars: [], registrations: [{ participantNumber: 4 }] },
+    ]);
+    const result = await sut.previewResultRow(
+      { ФИО: 'Vorobiev Ivan', Номер: 123, Класс: 'BassRace 129.9', Результат: '128.2' },
+      123, db, sut.buildRegistrationParticipantIndex([]), stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('READY');
+    expect(result.participant.matches[0].id).toBe('right');
+  });
+
+  it('does NOT silently combine unrelated same-name profiles or cars', async () => {
+    const sut = service();
+    const db = sut.buildParticipantIndex([
+      { id: 'person-a', firstName: 'Evgeny', lastName: 'Voitenko', middleName: null, team: null,
+        cars: [{ registrationNumber: 'А111АА72' }], registrations: [] },
+      { id: 'person-b', firstName: 'Evgeny', lastName: 'Voitenko', middleName: null, team: null,
+        cars: [{ registrationNumber: 'В222ВВ72' }], registrations: [] },
+    ]);
+    const source = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Voitenko Evgeny', 'Номер участника': 88, 'Номер автомобиля': 'А111АА72' },
+      { 'Фамилия и имя': 'Voitenko Evgeny', 'Номер участника': 99, 'Номер автомобиля': 'В222ВВ72' },
+    ]);
+    const unmatched = sut.findRegistrationParticipant('Voitenko Evgeny', source, null);
+    expect(unmatched.status).toBe('AMBIGUOUS');
+    const result = await sut.previewResultRow(
+      { ФИО: 'Voitenko Evgeny', Номер: 94, Класс: 'BassRace 129.9', Результат: '128.2' },
+      94, db, source, stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('WARNING');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('несколько разных карточек участников');
+    expect(result.participant.status).toBe('AMBIGUOUS');
+    expect(result.car.vibrationIsolation).toBeNull();
+  });
+
+  it('never masks ambiguous DB matches even if Registration helper matches exactly', async () => {
+    const sut = service();
+    const db = sut.buildParticipantIndex([
+      { id: 'person-a', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null },
+      { id: 'person-b', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null },
+    ]);
+    const helpers = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Vorobiev Ivan', 'Номер участника': 123 },
+    ]);
+    const result = await sut.previewResultRow(
+      { ФИО: 'Vorobiev Ivan', Номер: 123, Класс: 'BassRace 129.9', Результат: '128.2' },
+      123, db, helpers, stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('WARNING');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.participant.source).toBe('DATABASE');
+  });
+});
+
 describe('ImportsService BassRace historical preview', () => {
   it('marks second distinct BassRace class with automatically allocated number without adding a warning', async () => {
     let created: any = null;
