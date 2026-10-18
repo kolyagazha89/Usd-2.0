@@ -412,12 +412,10 @@ export class ImportsService {
                                   action: 'CREATE',
                                   fullName:
                                     this.normalizedDisplayName(preview.participant.rawName),
-                                  team:
-                                    preview.participant.source === 'REGISTRATION'
-                                      ? preview.participant.matches?.[0]?.team || null
-                                      : null,
+                                  team: preview.historicalTeam,
                                   email:
-                                    preview.participant.source === 'REGISTRATION'
+                                    preview.participant.source === 'REGISTRATION' &&
+                                    preview.registration.matchType === 'NAME'
                                       ? preview.participant.matches?.[0]?.email || null
                                       : null,
                                 },
@@ -791,7 +789,7 @@ export class ImportsService {
               : {
                   action: 'CREATE',
                   fullName: this.normalizedDisplayName(rawName),
-                  team: null,
+                  team: this.normalizeImportedTeam(normalized?.historicalTeam),
                   email: null,
                 },
             registration: {
@@ -1577,6 +1575,72 @@ export class ImportsService {
     }
     // Do not automatically merge or select actual duplicate Participant IDs.
     return candidate;
+  }
+
+  /**
+   * Historical Results is the ONLY source of competitors. Registration is a
+   * helper for metadata, never a source of extra participants. Copy team only
+   * after an exact name-token match (not the sticker-number fallback).
+   *
+   * A Results FIO can omit a patronymic that Registration includes. Multiple
+   * helper rows (e.g. Voitenko's two cars) may still establish ONE team when
+   * every matching row agrees. Car/email/plate remain ambiguous and must
+   * NEVER be selected through this team consensus.
+   */
+  private normalizeImportedTeam(value: unknown): string | null {
+    const team = this.stringValue(value).normalize('NFKC').replace(/\s+/g, ' ').trim();
+    const absent = new Set([
+      '', '-', '—', '–', 'нет', 'без команды', 'нет команды',
+      'не указано', 'не указана', 'none', 'no team', 'n/a',
+    ]);
+    return absent.has(team.toLocaleLowerCase('ru')) ? null : team;
+  }
+
+  private findHistoricalTeamFromRegistration(
+    rawName: string,
+    registrationIndex: RegistrationParticipantIndex,
+  ): string | null {
+    if (this.nameNormalizer.inspect(rawName).needsReview) return null;
+    const target = this.nameTokens(rawName);
+    if (target.length !== 2 && target.length !== 3) return null;
+
+    const matches: RegistrationParticipantMatch[] = [];
+    const seenRows = new Set<number>();
+
+    for (const candidateRows of registrationIndex.byName.values()) {
+      for (const candidate of candidateRows) {
+        if (seenRows.has(candidate.rowNumber)) continue;
+        const tokens = this.nameTokens(candidate.rawName);
+        const exact = tokens.length === target.length &&
+          target.every((token) => tokens.includes(token));
+        const extra = target.length === 2 && tokens.length === 3 &&
+          target.every((token) => tokens.includes(token))
+          ? tokens.find((token) => !target.includes(token))
+          : null;
+        // Extra label words (#Team...) must not masquerade as a patronymic.
+        const withPatronymic = Boolean(extra && /(?:ovich|evich|ovna|evna|ichna)$/.test(extra));
+        if (!exact && !withPatronymic) continue;
+        seenRows.add(candidate.rowNumber);
+        matches.push(candidate);
+      }
+    }
+
+    if (!matches.length) return null;
+    if (target.length === 2) {
+      const patronymics = new Set(matches
+        .map((candidate) => this.nameTokens(candidate.rawName)
+          .filter((token) => !target.includes(token)).join(' '))
+        .filter(Boolean));
+      // Same short name + different patronymics may be different people.
+      if (patronymics.size > 1) return null;
+    }
+
+    const values = matches.map((candidate) => this.normalizeImportedTeam(candidate.team));
+    // Conflicting teams, or a mixture of named and empty teams, is uncertain.
+    if (new Set(values.map((team) => (team ?? '').toLocaleLowerCase('ru'))).size !== 1) {
+      return null;
+    }
+    return values[0];
   }
 
   private findRegistrationParticipant(
@@ -2398,6 +2462,9 @@ export class ImportsService {
       );
 
     const nameInspection = this.nameNormalizer.inspect(rawName);
+    const historicalTeam = historicalResults
+      ? this.findHistoricalTeamFromRegistration(rawName, registrationParticipantIndex)
+      : null;
 
     const rawNumber =
       this.numberValue(
@@ -2864,6 +2931,10 @@ export class ImportsService {
       participantNumber,
 
       participantNumberSource,
+
+      // Historical team is an independent, name-only, unanimous helper match.
+      // It never controls selection of a car, email or registration identity.
+      historicalTeam,
 
       classParticipantNumber: participantNumber,
       classNumberSource: 'RESULT_OR_REGISTRATION' as 'RESULT_OR_REGISTRATION' | 'AUTO',
@@ -3424,9 +3495,7 @@ export class ImportsService {
           middleName:
             parsedName.middleName,
 
-          team:
-            participant.team ??
-            null,
+          team: this.normalizeImportedTeam(participant.team),
         },
       });
 
