@@ -277,7 +277,7 @@ describe('ImportsService historical team attribution', () => {
     const s = await preview(sut, registrations, 'Сауляк Валерий', 49);
     expect(l.historicalTeam).toBe('Team Deaf Bonce');
     expect(s.historicalTeam).toBe('Team Ural Sound');
-    expect(l.participant.status).toBe('NEW');
+    expect(l.registration.matchType).toBe('NUMBER'); // Patronymic is not a license to borrow car/email.
     // The third helper row is not a patronymic and must not override the team.
     expect(sut.findHistoricalTeamFromRegistration('Лютов Виктор', sut.buildRegistrationParticipantIndex(registrations)))
       .toBe('Team Deaf Bonce');
