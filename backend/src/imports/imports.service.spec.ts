@@ -581,6 +581,64 @@ describe('ImportsService historical performer aliases', () => {
       .rejects.toThrow('подозрительным ФИО');
   });
 
+  it.each(['34 Sound', 'Bass Market', 'Aleksey SF', 'Maks SF', 'Antoha SF'])(
+    'resolves a historical nickname and its registration together: %s',
+    async (fullName) => {
+      const db: any = {
+        importRow: {
+          findFirst: jest.fn(async () => ({
+            id: 'row-32', type: 'RESULT', status: 'WARNING', rowNumber: 32,
+          })),
+          update: jest.fn(async ({ data }: any) => ({ id: 'row-32', ...data })),
+        },
+        importJob: {
+          findUnique: jest.fn(async () => ({ metadata: { historicalResults: true } })),
+        },
+      };
+      const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+      const resolution: any = {
+        participant: { action: 'CREATE_ALIAS', fullName },
+        registration: { action: 'CREATE', participantNumber: 34 },
+        car: { action: 'CREATE', brand: 'Не указано', model: 'Не указано', registrationCountry: 'RU' },
+      };
+      const response = await service.resolveImportRow('job-one', 'row-32', resolution);
+      expect(response.row.status).toBe('RESOLVED');
+      expect(db.importRow.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'row-32' },
+        data: expect.objectContaining({
+          status: 'RESOLVED',
+          resolution: expect.objectContaining({
+            participant: { action: 'CREATE_ALIAS', fullName },
+            registration: { action: 'CREATE', participantNumber: 34 },
+          }),
+        }),
+      }));
+    },
+  );
+
+  it('lets an already-resolved archive nickname acquire its missing registration', async () => {
+    const db: any = {
+      importRow: {
+        findFirst: jest.fn(async () => ({
+          id: 'row-32', type: 'RESULT', status: 'RESOLVED', rowNumber: 32,
+          resolution: { participant: { action: 'CREATE_ALIAS', fullName: '34 Sound' } },
+        })),
+        update: jest.fn(async ({ data }: any) => ({ id: 'row-32', ...data })),
+      },
+      importJob: { findUnique: jest.fn(async () => ({ metadata: { historicalResults: true } })) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await expect(service.resolveImportRow('job-one', 'row-32', {
+      participant: { action: 'CREATE_ALIAS', fullName: '34 Sound' },
+      registration: { action: 'CREATE', participantNumber: 34 },
+    })).resolves.toMatchObject({
+      row: { status: 'RESOLVED', resolution: {
+        participant: { action: 'CREATE_ALIAS', fullName: '34 Sound' },
+        registration: { action: 'CREATE', participantNumber: 34 },
+      } },
+    });
+  });
+
   it('can revise a resolved 34 Sound row after commit validation rejected CREATE', async () => {
     const db: any = {
       importRow: {
