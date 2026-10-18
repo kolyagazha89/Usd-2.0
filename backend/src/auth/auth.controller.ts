@@ -32,8 +32,8 @@ export class AuthController {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
     // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
-    // In production the refresh cookie must therefore be a secure cross-site cookie.
-    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
+    // Legacy cross-site hosting uses SameSite=None; the same-origin home server opts into Lax.
+    const sameSite = process.env.AUTH_COOKIE_SAME_SITE === 'lax' ? ('lax' as const) : isProduction ? ('none' as const) : ('lax' as const);
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
@@ -43,7 +43,7 @@ export class AuthController {
         httpOnly: true,
         secure,
         sameSite,
-        path: '/auth',
+        path: process.env.AUTH_COOKIE_PATH ?? '/auth',
         maxAge:
           Number(
             process.env.JWT_REFRESH_EXPIRES_IN_DAYS ??
@@ -63,8 +63,8 @@ export class AuthController {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
     // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
-    // In production the refresh cookie must therefore be a secure cross-site cookie.
-    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
+    // Legacy cross-site hosting uses SameSite=None; the same-origin home server opts into Lax.
+    const sameSite = process.env.AUTH_COOKIE_SAME_SITE === 'lax' ? ('lax' as const) : isProduction ? ('none' as const) : ('lax' as const);
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
@@ -74,7 +74,7 @@ export class AuthController {
         httpOnly: true,
         secure,
         sameSite,
-        path: '/auth',
+        path: process.env.AUTH_COOKIE_PATH ?? '/auth',
         maxAge: 0,
       },
     );
@@ -192,7 +192,7 @@ export class AuthController {
       ...publicResult
     } = result;
 
-    return { ...publicResult, refreshToken };
+    return process.env.AUTH_REFRESH_BODY_ENABLED === 'false' ? publicResult : { ...publicResult, refreshToken };
   }
 
   @Public()
@@ -208,7 +208,7 @@ export class AuthController {
       'usd_refresh_token';
 
     const refreshToken =
-      body?.refreshToken || request.cookies?.[cookieName];
+      (process.env.AUTH_REFRESH_BODY_ENABLED !== 'false' ? body?.refreshToken : undefined) || request.cookies?.[cookieName];
 
     const result =
       await this.authService.refresh(
@@ -225,7 +225,7 @@ export class AuthController {
       ...publicResult
     } = result;
 
-    return { ...publicResult, refreshToken: _refreshToken };
+    return process.env.AUTH_REFRESH_BODY_ENABLED === 'false' ? publicResult : { ...publicResult, refreshToken: _refreshToken };
   }
 
   @Public()
@@ -241,7 +241,7 @@ export class AuthController {
       'usd_refresh_token';
 
     const refreshToken =
-      body?.refreshToken || request.cookies?.[cookieName];
+      (process.env.AUTH_REFRESH_BODY_ENABLED !== 'false' ? body?.refreshToken : undefined) || request.cookies?.[cookieName];
 
     await this.authService.logout(
       refreshToken,

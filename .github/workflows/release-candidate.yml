@@ -1,0 +1,86 @@
+name: Release candidate (build and package, no deploy)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Build and package release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Compile backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://usd:usd@127.0.0.1:5432/usd?schema=public
+        run: |
+          npm ci
+          npm run build
+
+      - name: Compile same-origin frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: /api
+          VITE_AUTH_SESSION_MODE: cookie
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+          npm run check:bundle
+
+      - name: Validate Windows home-server Compose
+        run: |
+          cp deploy/windows-home/.env.example deploy/windows-home/.env
+          docker compose --project-directory deploy/windows-home -f deploy/windows-home/docker-compose.yml config --quiet
+
+      - name: Build release Docker images without launching or deploying
+        run: |
+          docker compose --project-directory deploy/windows-home -f deploy/windows-home/docker-compose.yml build api frontend
+          docker image inspect usd-home-api:latest usd-home-frontend:latest --format '{{.Id}}'
+
+      - name: Package reproducible release source and compiled public site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-out
+          commit="$(git rev-parse HEAD)"
+          printf 'USD RELEASE CANDIDATE — NOT PRODUCTION APPROVED\nSource commit: %s\nBuild run: %s\nAPI mode: same-origin /api; cookie sessions\nDeploy: NOT EXECUTED\nProduction database migration: NOT EXECUTED\nDNS: NOT CHANGED\n' "$commit" "${GITHUB_RUN_ID}" > release-out/RELEASE-MANIFEST.txt
+
+          # Only committed source enters the deployable archive; no generated .env
+          # or GitHub secret is included. Build locally using Docker Compose.
+          git archive --format=tar HEAD backend frontend deploy/windows-home docs/PLATFORM_HARDENING_2026-10-18.md docs/RELEASE_CANDIDATE_2026-10-18.md | gzip -9 > release-out/usd-release-source.tar.gz
+          tar -czf release-out/usd-public-dist.tar.gz -C frontend dist
+          tar -tzf release-out/usd-release-source.tar.gz | grep -Fx 'deploy/windows-home/docker-compose.yml'
+          tar -tzf release-out/usd-public-dist.tar.gz | grep -Fx 'dist/index.html'
+          (
+            cd release-out
+            sha256sum usd-release-source.tar.gz usd-public-dist.tar.gz > SHA256SUMS
+          )
+          echo "Release candidate commit: $commit" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Two archives and SHA256SUMS created; no deployment performed." >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: usd-rc-${{ github.event.pull_request.head.sha || github.sha }}
+          path: release-out/
+          retention-days: 14
+          if-no-files-found: error

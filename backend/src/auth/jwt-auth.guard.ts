@@ -1,3 +1,5 @@
+import { HttpException } from '@nestjs/common';
+import { SecurityMiddleware } from '../common/security/security.middleware';
 
 import {
   CanActivate,
@@ -13,6 +15,7 @@ import type { AuthenticatedRequest } from './authenticated-request';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly limits = new SecurityMiddleware();
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
@@ -68,9 +71,10 @@ export class JwtAuthGuard implements CanActivate {
         customRoleId: user.customRoleId ?? undefined,
         customRole: user.customRole ?? null,
       };
+      this.limits.assertAuthenticated(request, context.switchToHttp().getResponse(), user.id);
       return true;
     } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
+      if (error instanceof HttpException) throw error;
       throw new UnauthorizedException('Недействительный или просроченный токен');
     }
   }

@@ -85,4 +85,10 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow('Управление пользователями и ролями доступно только ADMIN');
     expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
+  it('allows staff to manage their own account without users-module grants', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(undefined);
+    const ctx = context({method:'GET',path:'/auth/me',user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}},'AuthController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+  });
 });

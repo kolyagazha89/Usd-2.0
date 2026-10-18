@@ -207,7 +207,7 @@ export class MediaService {
   }
 
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
 
     const upload = await this.prisma.mediaUpload.findFirst({
       where: {

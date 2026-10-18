@@ -58,6 +58,13 @@ export class ParticipantsService {
     return this.normalizeRegistrationNumber(value, country).replace(/[^\p{L}\p{N}]/gu, '');
   }
 
+  private rethrowPlateConflict(error: unknown): never {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      throw new ConflictException('Автомобиль с таким госномером уже существует. Проверьте имеющийся автомобиль.');
+    }
+    throw error;
+  }
+
   private async ensurePlateUnique(country: RegistrationCountry, number: string, excludeCarId?: string): Promise<void> {
     const candidates = await this.prisma.car.findMany({
       where: { registrationCountry: country, ...(excludeCarId ? { id: { not: excludeCarId } } : {}) },
@@ -66,7 +73,7 @@ export class ParticipantsService {
     const identity = this.plateIdentity(country, number);
     const duplicate = candidates.find(car => this.plateIdentity(country, car.registrationNumber) === identity);
     if (duplicate) {
-      throw new ConflictException(`Автомобиль с госномером ${number} уже существует в базе (ID: ${duplicate.id}). Проверьте существующий автомобиль вместо создания дубля.`);
+      throw new ConflictException(`Автомобиль с госномером ${number} уже существует в базе. Проверьте существующий автомобиль вместо создания дубля.`);
     }
   }
 
@@ -1344,7 +1351,7 @@ export class ParticipantsService {
         createdAt: true,
         updatedAt: true,
       },
-    });
+    }).catch((error: unknown) => this.rethrowPlateConflict(error));
   }
 
   // =========================================================
@@ -1679,7 +1686,7 @@ export class ParticipantsService {
           },
         },
       },
-    });
+    }).catch((error: unknown) => this.rethrowPlateConflict(error));
   }
 
   // =========================================================

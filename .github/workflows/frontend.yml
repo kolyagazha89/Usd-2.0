@@ -34,9 +34,17 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci --ignore-scripts
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
       - name: Build frontend
         run: npm run build
+      - name: Public JavaScript budget
+        run: npm run check:bundle
+      - name: Install browser for acceptance tests
+        run: npx playwright install --with-deps chromium
+      - name: Browser acceptance tests
+        run: npm run test:e2e
       - name: Validate Wrangler Worker assets without publishing
         run: npx --yes wrangler deploy --dry-run
         env:

@@ -88,6 +88,10 @@ export class RolesGuard implements CanActivate {
     // ADMIN is a permanent system superuser, independent of custom-role settings.
     if (request.user.role === 'ADMIN') return true;
 
+    // Own-account handlers deliberately have no role metadata. Staff retain
+    // the same self-service access as every other authenticated account.
+    if (context.getClass().name === 'AuthController' && !roles) return true;
+
     if (request.user.customRoleId) {
       // User/role administration stays reserved to the permanent ADMIN role.
       // A custom permission matrix must never grant the ability to assign ADMIN

@@ -20,6 +20,7 @@ const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
  {key:'history',label:'История участников',description:'История выступлений и профилей участников'},
  {key:'statistics',label:'Статистика и панель',description:'Сводки, метрики и аналитика'},
  {key:'siteSettings',label:'Настройки и контент сайта',description:'Новости, партнёры, медиа, регламент и настройки'},
+ {key:'componentCatalogRequests',label:'Запросы комплектующих',description:'Рассмотрение запросов на добавление в каталог'},
  {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
  {key:'integrations',label:'Интеграции',description:'Google и внешние подключения'},
  {key:'assistant',label:'Ассистент USD',description:'Запросы и действия ассистента'},

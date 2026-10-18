@@ -34,3 +34,7 @@ usd_backup_before_participant_car.sql
 .agents/
 .claude/
 .windsurf/
+
+# Browser acceptance artifacts
+frontend/test-results/
+frontend/playwright-report/

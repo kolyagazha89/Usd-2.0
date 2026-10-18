@@ -16,11 +16,13 @@ describe('ResultsService', () => {
 
   const records: any = {
     createFromResultIfEligible: jest.fn(),
+    recalculateInTransaction: jest.fn(),
     syncAfterResultUpdate: jest.fn(),
   };
 
   const ranking: any = {
     recalculateByStageClass: jest.fn(),
+    recalculateInTransaction: jest.fn(),
   };
 
   let service: ResultsService;
@@ -226,6 +228,7 @@ describe('ResultsService', () => {
           },
         }),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({id:"result-1"}),
       },
       auditLog: {
         create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
@@ -321,6 +324,48 @@ describe('ResultsService', () => {
     expect(tx.result.create).not.toHaveBeenCalled();
   });
 
+  it('does not notify twice when the same judge retries an identical result', async () => {
+    const tx = setupCreateTx();
+    tx.result.findFirst.mockResolvedValue({
+      id: 'existing-result',
+      createdByUserId: 'judge-1',
+      isHistorical: false,
+      value: 150,
+      notes: null,
+      place: null,
+    });
+    const email: any = { recordSet: jest.fn(() => Promise.resolve()) };
+    const notifyingService = new ResultsService(prisma, records, ranking, email);
+
+    const saved = await notifyingService.create({
+      registrationId: 'registration-1',
+      registrationClassId: 'registration-class-1',
+      value: 150,
+      confirmed: true,
+    }, judgeRequest);
+
+    expect(saved.id).toBe('existing-result');
+    expect(tx.result.create).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(records.recalculateInTransaction).not.toHaveBeenCalled();
+    expect(ranking.recalculateInTransaction).not.toHaveBeenCalled();
+    expect(email.recordSet).not.toHaveBeenCalled();
+  });
+
+  it('notifies once after a newly created result is committed', async () => {
+    setupCreateTx();
+    const email: any = { recordSet: jest.fn(() => Promise.resolve()) };
+    const notifyingService = new ResultsService(prisma, records, ranking, email);
+    await notifyingService.create({
+      registrationId: 'registration-1',
+      registrationClassId: 'registration-class-1',
+      value: 150,
+      confirmed: true,
+    }, judgeRequest);
+    expect(email.recordSet).toHaveBeenCalledTimes(1);
+    expect(email.recordSet).toHaveBeenCalledWith('result-1');
+  });
+
   it('takes measurement unit from the class instead of trusting the client', async () => {
     const tx = setupCreateTx();
 
@@ -377,6 +422,7 @@ describe('ResultsService', () => {
   it('updates only through the admin path and records before/after audit data', async () => {
     const tx: any = {
       result: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({id:"result-1"}),
         findUnique: jest.fn().mockResolvedValue({
           id: 'result-1',
           value: { toString: () => '150.000' },

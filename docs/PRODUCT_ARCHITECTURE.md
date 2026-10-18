@@ -48,6 +48,12 @@ The current small team must be able to work without organizational bureaucracy. 
 - Content, mailing campaigns, documents, analytics and integrations.
 - Health monitoring, audit, backups and tested restoration.
 
+## Accepted deployment topology — 2026-10-18
+
+The owner selected a permanently running Windows home PC (i5 / 16 GB initially) for the main site/API and a separate venue laptop for local event operations. Keep the current modular monolith and PostgreSQL. Use one HTTPS origin for the home frontend/API, private database networking, tested backups, explicit updates and recovery. Hardware capacity must be measured; adding hardware does not replace event data integrity.
+
+The venue laptop must run the event independently of the home PC and public internet, serving judges over local Wi-Fi. VPN/proxy can change routing but cannot restore an absent data link. Synchronization must be explicit and idempotent. A venue package is scoped to one stage and must not copy production credentials or unrelated private data. See OFFLINE_MODE.md. This accepted topology does not imply the local hub is implemented.
+
 ## Offline operation is a core requirement
 
 Events must continue when mobile data, public internet, DNS, CDN or the public site is unavailable. Use a prepared event package and PWA local persistence for single-device fallback, plus a venue local hub and Wi-Fi for shared multi-judge work. Offline operations must be durable, idempotent, auditable, versioned and explicitly synchronized; conflicts must never silently overwrite critical data. See [OFFLINE_MODE.md](./OFFLINE_MODE.md) for the detailed architecture, security model, synchronization protocol and acceptance tests.

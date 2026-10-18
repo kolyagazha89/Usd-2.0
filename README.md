@@ -35,7 +35,7 @@ Set backend environment variables for PostgreSQL, JWT, CORS/CSRF, and any config
 - [Phase 1 release checklist](docs/PHASE_1_STATUS.md)
 - [Timeweb VPS deployment guide](deploy/timeweb/README.md)
 
-The planned final hosting target is a Timeweb VPS. Deployment files are being validated separately; no live cutover is implied by a successful build. Keep the existing `usd-russia.ru` Tilda site and root DNS records untouched until the new site is accepted and the owner explicitly approves the cutover. Before the first API start on a new server, verify the production database backup/restore and media-storage migration plan.
+The agreed hosting target is a Windows home PC (i5 / 16 GB) with a separate venue laptop for autonomous event operations. See [Windows home-server preparation](deploy/windows-home/README.md); the Timeweb setup remains an alternative. Deployment files are being validated separately; no live cutover is implied by a successful build. Keep the existing `usd-russia.ru` Tilda site and root DNS records untouched until the new site is accepted and the owner explicitly approves the cutover. Before the first API start on a new server, verify the production database backup/restore and media-storage migration plan.
 
 ## Important operating rules
 
