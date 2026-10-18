@@ -4129,3 +4129,15 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .modal-backdrop .modal {
   max-height: calc(100dvh - 32px) !important;
 }
+
+/* Historical import resolution: one bounded dialog, not a full-height page. */
+.import-resolution-overlay{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:clamp(12px,3vw,28px);background:rgba(14,19,27,.52);backdrop-filter:blur(5px);overflow:hidden}
+.import-resolution-overlay .import-resolution-page{box-sizing:border-box;width:min(100%,940px);max-width:940px;max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;margin:0;padding:clamp(14px,2vw,24px);background:#fff;color:#16191d;box-shadow:0 22px 70px rgba(0,0,0,.22)}
+.import-resolution-overlay .resolution-source{grid-template-columns:repeat(2,minmax(0,1fr))}
+.import-resolution-overlay .resolution-source>div{min-width:0}
+.import-resolution-overlay .resolution-source .json-view{max-height:110px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.import-resolution-overlay .resolution-actions{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.import-resolution-overlay .resolution-action-card{min-width:0}
+.import-resolution-overlay .resolution-footer{position:sticky;bottom:-24px;background:#fff;padding:12px 0 4px;z-index:1;border-top:1px solid #e5e7eb}
+.import-alias-bulk{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+@media(max-width:700px){.import-resolution-overlay{padding:8px}.import-resolution-overlay .import-resolution-page{max-height:calc(100dvh - 16px);padding:14px}.import-resolution-overlay .resolution-source,.import-resolution-overlay .resolution-actions{grid-template-columns:minmax(0,1fr)}.import-resolution-overlay .resolution-footer{bottom:-14px}}
