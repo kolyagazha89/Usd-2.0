@@ -82,6 +82,7 @@ export class NameNormalizerService {
     anatooly: 'Анатолий',
     anatooliy: 'Анатолий',
     yryi: 'Юрий',
+    yriy: 'Юрий', // Verified source spelling: Zhidkov Yriy
     yry: 'Юрий',
     srgey: 'Сергей',
     srgei: 'Сергей',
