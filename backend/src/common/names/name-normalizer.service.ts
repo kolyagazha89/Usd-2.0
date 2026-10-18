@@ -55,6 +55,13 @@ export class NameNormalizerService {
     zaharov: 'Захаров',
     latysheva: 'Латышева',
     andrey: 'Андрей',
+    // Real-world simplified spellings with Latin h/j/c or a nonstandard y.
+    // Keep these precise documented spellings rather than guessing names
+    // from unsupported letters inside the library.
+    kamensjikov: 'Каменщиков',
+    kolyhailo: 'Колыхайло',
+    mamcev: 'Мамцев',
+    baibekov: 'Байбеков',
     misheryakov: 'Мещеряков', korolev: 'Королев',
     lyutov: 'Лютов', lytov: 'Лютов',
     zemskov: 'Земсков', isaev: 'Исаев',
@@ -115,9 +122,10 @@ export class NameNormalizerService {
   // Reported suspect SURNAME spellings: expose them for review, but never
   // rewrite/merge different profiles without stronger identity evidence.
   private readonly surnamesForReview = new Set([
+    // Only manifestly malformed spellings (not genuine family-name
+    // variants such as Телпов, Зуборев, Байбеков or Мамкев).
     'василрнко', 'каменсджиков', 'колйхаило',
-    'зуборев', 'мамкев', 'малйшко', 'смолийанинов',
-    'телпов', 'сапрйкин', 'баибеков',
+    'малйшко', 'смолийанинов', 'сапрйкин',
   ]);
 
   private clean(value: string | null | undefined): string {
@@ -144,8 +152,18 @@ export class NameNormalizerService {
       // The published library performs the complex digraph conversion.
       // Word starts are handled individually so hyphenated names work.
       return this.capitalized(value.split('-')
-        .map((part) => this.latinExceptions[part.toLowerCase()]
-          ?? this.transliterator.reverse(part.toLowerCase()))
+        .map((part) => {
+          const key = part.toLowerCase();
+          const known = this.latinExceptions[key];
+          if (known) return known;
+          // cyrillic-to-translit-js supports "kh" but NOT a standalone
+          // "h". It consequently leaves Latin h in otherwise Cyrillic
+          // words (Urih, Haritonov, Apuhtin, Govoruhin, etc.).
+          // Adapt the input to its supported transliteration convention:
+          // h -> kh, but preserve actual sh/ch/zh/kh/shch digraphs.
+          const libraryInput = key.replace(/(?<![sczk])h/g, 'kh');
+          return this.transliterator.reverse(libraryInput);
+        })
         .join('-'));
     }
     return this.capitalized(value);

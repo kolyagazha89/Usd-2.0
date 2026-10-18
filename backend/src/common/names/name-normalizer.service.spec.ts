@@ -72,11 +72,46 @@ describe('NameNormalizerService', () => {
     'Басс Маркет',
     'Василрнко Ксения',
     'Каменсджиков Павел',
-    'Зуборев Владислав',
-    'Телпов Анатолий',
   ])('quarantines suspicious source names instead of creating fake participants: %s', (raw) => {
     expect(service.inspect(raw).needsReview).toBe(true);
     expect(service.inspect(raw).reasons.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['Urih Alexandr', 'Урих Александр'],
+    ['Haritonov Daniil', 'Харитонов Даниил'],
+    ['Apuhtin Alexandr', 'Апухтин Александр'],
+    ['Timohin Alexandr', 'Тимохин Александр'],
+    ['Holodilin Ivan', 'Холодилин Иван'],
+    ['Govoruhin Iliya', 'Говорухин Илья'],
+    ['Harkov Vitaly', 'Харков Виталий'],
+    ['Kolyhailo Denis', 'Колыхайло Денис'],
+    ['Kamensjikov Pavel', 'Каменщиков Павел'],
+    ['Mamcev Roman', 'Мамцев Роман'],
+    ['Baibekov Arsen', 'Байбеков Арсен'],
+    ['Zuborev Vladislav', 'Зуборев Владислав'],
+    ['Telpov Anatoly', 'Телпов Анатолий'],
+  ])('correctly transliterates the exact reported Latin name %s', (source, expected) => {
+    expect(service.normalize(source)).toBe(expected);
+    expect(service.inspect(source).needsReview).toBe(false);
+    expect(service.inspect(source).normalized).not.toMatch(/[a-z]/i);
+  });
+
+  it.each([
+    ['34 Sound', 'цифры/псевдоним'],
+    ['Bass Market', 'псевдоним'],
+    ['Aleksey SF', 'сокращённая фамилия'],
+    ['Maks SF', 'сокращённая фамилия'],
+    ['Antoha SF', 'псевдоним'],
+    ['Vasilrnko Kseniya', 'неоднозначная фамилия'],
+  ])('flags the actual ambiguous input %s (%s)', (source) => {
+    expect(service.inspect(source).needsReview).toBe(true);
+  });
+
+  it('preserves actual Russian digraphs after lone-h conversion', () => {
+    expect(service.normalize('Shcherbakov Ivan')).toBe('Щербаков Иван');
+    expect(service.normalize('Churikov Pavel')).toBe('Чуриков Павел');
+    expect(service.normalize('Zhukov Roman')).toBe('Жуков Роман');
   });
 
   it('does not automatically turn two distinct surname variants into one person', () => {

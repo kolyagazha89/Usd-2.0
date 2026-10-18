@@ -2571,8 +2571,11 @@ export class ImportsService {
       | 'AUTO'
       | 'NONE' = 'NONE';
 
-    const warnings: string[] = nameInspection.reasons.map((reason) =>
-      `Строка ${rowNumber}: подозрительное ФИО «${rawName}»: ${reason}`);
+    // A bad source name is ONE actionable issue, not a stack of repeated
+    // warnings for the same row (e.g. 34 Sound has digits and is a nickname).
+    const warnings: string[] = nameInspection.needsReview
+      ? [`Строка ${rowNumber}: проверьте ФИО «${rawName}» (получилось «${nameInspection.normalized}»): ${nameInspection.reasons.join('; ')}`]
+      : [];
 
     if (
       registrationParticipant.status ===
