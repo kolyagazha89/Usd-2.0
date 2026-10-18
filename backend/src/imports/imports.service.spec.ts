@@ -535,6 +535,72 @@ describe('ImportsService historical same-name disambiguation', () => {
 });
 
 
+describe('ImportsService historical performer aliases', () => {
+  it('creates a clearly marked alias profile without inventing a first or last name', async () => {
+    const db = {} as PrismaService;
+    const service: any = new ImportsService(db, new NameNormalizerService());
+    const tx: any = { participant: { upsert: jest.fn(async ({ create }: any) =>
+      ({ id: 'archived-performer', ...create })) } };
+
+    const alias = await service.createHistoricalAliasParticipant(tx, 'stage-one', '34 Sound');
+    expect(alias).toMatchObject({
+      id: 'archived-performer',
+      historicalAlias: '34 Sound',
+      lastName: '34 Sound',
+      firstName: '',
+      middleName: null,
+    });
+    const opts = tx.participant.upsert.mock.calls[0][0];
+    expect(opts.where.legacyId).toMatch(/^HISTORICAL_ALIAS:[a-f0-9]{64}$/);
+    await service.createHistoricalAliasParticipant(tx, 'stage-one', '34 Sound');
+    expect(tx.participant.upsert.mock.calls[1][0].where.legacyId).toBe(opts.where.legacyId);
+    await service.createHistoricalAliasParticipant(tx, 'another-stage', '34 Sound');
+    expect(tx.participant.upsert.mock.calls[2][0].where.legacyId).not.toBe(opts.where.legacyId);
+  });
+
+  it('requires an explicit manual alias decision, scoped to a historical RESULT row', async () => {
+    const db: any = {
+      importRow: {
+        findFirst: jest.fn(async () => ({ id: 'row-one', type: 'RESULT', status: 'WARNING', rowNumber: 32 })),
+        update: jest.fn(async ({ data }: any) => ({ id: 'row-one', ...data })),
+      },
+      importJob: { findUnique: jest.fn(async () => ({ metadata: { historicalResults: true } })) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    const decision: any = { participant: { action: 'CREATE_ALIAS', fullName: '34 Sound' } };
+    await expect(service.resolveImportRow('job-one', 'row-one', decision)).resolves.toMatchObject({
+      success: true, row: { status: 'RESOLVED' },
+    });
+    expect(db.importRow.update).toHaveBeenCalledTimes(1);
+    await expect(service.resolveImportRow('job-one', 'row-one', {
+      participant: { action: 'CREATE', fullName: '34 Sound' },
+    })).resolves.toMatchObject({ success: true });
+    // Standard CREATE still cannot commit an invalid personal name:
+    const invalid: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    await expect(invalid.createParticipantFromImport({} as any, { fullName: '34 Sound' }))
+      .rejects.toThrow('подозрительным ФИО');
+  });
+
+  it('refuses archival alias resolutions in normal imports or when a real name is supplied', async () => {
+    const db: any = {
+      importRow: {
+        findFirst: jest.fn(async () => ({ id: 'row-1', type: 'RESULT', status: 'WARNING', rowNumber: 32 })),
+        update: jest.fn(),
+      },
+      importJob: { findUnique: jest.fn(async () => ({ metadata: { historicalResults: false } })) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await expect(service.resolveImportRow('job-1', 'row-1', {
+      participant: { action: 'CREATE_ALIAS' as any, fullName: '34 Sound' },
+    })).rejects.toThrow('только для исторических результатов');
+    db.importJob.findUnique.mockResolvedValueOnce({ metadata: { historicalResults: true } });
+    await expect(service.resolveImportRow('job-1', 'row-1', {
+      participant: { action: 'CREATE_ALIAS' as any, fullName: 'Иванов Иван' },
+    })).rejects.toThrow('не должно подменять обычное ФИО');
+    expect(db.importRow.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('ImportsService import-name gate', () => {
   it('blocks a team nickname with no real first name before importing an archival result', async () => {
     const db: any = { registration: { findUnique: jest.fn(async () => null) } };
