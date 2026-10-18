@@ -470,6 +470,26 @@ describe('ImportsService historical same-name disambiguation', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('stops automatic identity choice when matching plate and stage number point to different IDs', async () => {
+    const sut = service();
+    const db = sut.buildParticipantIndex([
+      { id: 'plate-person', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null,
+        cars: [{ registrationNumber: 'А111АА72' }], registrations: [] },
+      { id: 'number-person', firstName: 'Ivan', lastName: 'Vorobiev', middleName: null, team: null,
+        cars: [{ registrationNumber: 'В222ВВ72' }], registrations: [{ participantNumber: 123 }] },
+    ]);
+    const helpers = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Vorobiev Ivan', 'Номер участника': 123, 'Номер автомобиля': 'А111АА72' },
+    ]);
+    const result = await sut.previewResultRow(
+      { ФИО: 'Vorobiev Ivan', Номер: 123, Класс: 'BassRace 129.9', Результат: '128.2' },
+      123, db, helpers, stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('WARNING');
+    expect(result.participant.status).toBe('AMBIGUOUS');
+    expect(result.warnings).toHaveLength(1);
+  });
+
   it('does NOT silently combine unrelated same-name profiles or cars', async () => {
     const sut = service();
     const db = sut.buildParticipantIndex([
