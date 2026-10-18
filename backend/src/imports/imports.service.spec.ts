@@ -451,6 +451,25 @@ describe('ImportsService historical same-name disambiguation', () => {
     expect(result.participant.matches[0].id).toBe('right');
   });
 
+  it('does not invent database-duplicate warnings when only the helper sheet has ambiguous people', async () => {
+    const sut = service();
+    const helpers = sut.buildRegistrationParticipantIndex([
+      { 'Фамилия и имя': 'Voitenko Evgeny', 'Номер участника': 88,
+        'Номер автомобиля': 'А111АА72', 'Виброизоляция': 'STP' },
+      { 'Фамилия и имя': 'Voitenko Evgeny', 'Номер участника': 99,
+        'Номер автомобиля': 'В222ВВ72', 'Виброизоляция': 'ComfortMat' },
+    ]);
+    const result = await sut.previewResultRow(
+      { ФИО: 'Voitenko Evgeny', Номер: 94, Класс: 'BassRace 129.9', Результат: '128.2' },
+      94, new Map(), helpers, stageClass, 'stage-1', true,
+    );
+    expect(result.status).toBe('READY');
+    expect(result.participant.status).toBe('NEW');
+    expect(result.registration.status).toBe('AMBIGUOUS');
+    expect(result.car.vibrationIsolation).toBeNull();
+    expect(result.warnings).toEqual([]);
+  });
+
   it('does NOT silently combine unrelated same-name profiles or cars', async () => {
     const sut = service();
     const db = sut.buildParticipantIndex([
