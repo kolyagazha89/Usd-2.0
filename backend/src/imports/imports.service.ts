@@ -1588,7 +1588,7 @@ export class ImportsService {
    * NEVER be selected through this team consensus.
    */
   private normalizeImportedTeam(value: unknown): string | null {
-    const team = this.stringValue(value).normalize('NFKC').replace(/\\s+/g, ' ').trim();
+    const team = this.stringValue(value).normalize('NFKC').replace(/\s+/g, ' ').trim();
     const absent = new Set([
       '', '-', '—', '–', 'нет', 'без команды', 'нет команды',
       'не указано', 'не указана', 'none', 'no team', 'n/a',
