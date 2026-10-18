@@ -37,3 +37,28 @@ test('administrator deep link reaches login without loading administrative tools
  await expect(page.getByLabel('Email',{exact:true})).toBeVisible();
  expect(chunks.filter(url=>/AdminRoutes|ImportPage/.test(url))).toEqual([]);
 });
+
+
+test('participant registration deep link asks for login and preserves the selected stage',async({page})=>{
+ await page.route('**/api/auth/login',route=>route.fulfill({json:{accessToken:'test-access',user:{id:'user-1',email:'driver@example.test',role:'PARTICIPANT',participantId:'participant-1'}}}));
+ await page.goto('/participant/register?stageId=stage-1');
+ await expect(page.getByRole('heading',{name:'С возвращением'})).toBeVisible();
+ await page.getByLabel('Email',{exact:true}).fill('driver@example.test');
+ await page.getByLabel('Пароль',{exact:true}).fill('password123');
+ await page.getByRole('button',{name:/^Войти/}).click();
+ await expect(page).toHaveURL(/\/participant\/register\?stageId=stage-1$/);
+ await expect(page.getByRole('heading',{name:'Регистрация на этап'})).toBeVisible();
+ await expect(page.locator('.registration-hero-meta')).toContainText('Тестовый этап');
+});
+
+test('invalid stage link gives participant a way back instead of endless loading',async({page})=>{
+ await page.route('**/api/auth/refresh',route=>route.fulfill({json:{accessToken:'test-access',user:{id:'user-1',email:'driver@example.test',role:'PARTICIPANT',participantId:'participant-1'}}}));
+ await page.goto('/participant/register?stageId=missing');
+ await expect(page.getByText('Этап не найден. Вернитесь в личный кабинет и выберите этап заново.')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Не удалось открыть регистрацию'})).toBeVisible();
+ await expect(page.getByText('Подготавливаем форму регистрации…')).toHaveCount(0);
+ const cookieNotice=page.getByRole('dialog',{name:'Уведомление об использовании cookie'});
+ if(await cookieNotice.isVisible())await cookieNotice.getByRole('button',{name:'Понятно'}).click();
+ await page.getByRole('button',{name:'В личный кабинет'}).click();
+ await expect(page).toHaveURL(/\/participant$/);
+});
