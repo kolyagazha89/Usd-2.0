@@ -581,6 +581,42 @@ describe('ImportsService historical performer aliases', () => {
       .rejects.toThrow('подозрительным ФИО');
   });
 
+  it('can revise a resolved 34 Sound row after commit validation rejected CREATE', async () => {
+    const db: any = {
+      importRow: {
+        findFirst: jest.fn(async () => ({
+          id: 'row-32', type: 'RESULT', status: 'RESOLVED', rowNumber: 32,
+          resolution: { participant: { action: 'CREATE', fullName: '34 Sound' } },
+        })),
+        update: jest.fn(async ({ data }: any) => ({ id: 'row-32', ...data })),
+      },
+      importJob: { findUnique: jest.fn(async () => ({ metadata: { historicalResults: true } })) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await expect(service.resolveImportRow('job-id', 'row-32', {
+      participant: { action: 'CREATE_ALIAS' as any, fullName: '34 Sound' },
+    })).resolves.toMatchObject({
+      success: true,
+      row: { status: 'RESOLVED', resolution: { participant: { action: 'CREATE_ALIAS' } } },
+    });
+  });
+
+  it('still refuses changes to already COMMITTED rows', async () => {
+    const db: any = {
+      importRow: {
+        findFirst: jest.fn(async () => ({
+          id: 'row-32', type: 'RESULT', status: 'COMMITTED', rowNumber: 32,
+        })),
+        update: jest.fn(),
+      },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await expect(service.resolveImportRow('job-id', 'row-32', {
+      participant: { action: 'CREATE_ALIAS' as any, fullName: '34 Sound' },
+    })).rejects.toThrow('не доступна для сопоставления');
+    expect(db.importRow.update).not.toHaveBeenCalled();
+  });
+
   it('refuses archival alias resolutions in normal imports or when a real name is supplied', async () => {
     const db: any = {
       importRow: {
