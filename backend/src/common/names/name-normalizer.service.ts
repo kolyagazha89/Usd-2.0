@@ -60,7 +60,6 @@ export class NameNormalizerService {
     // from unsupported letters inside the library.
     kamensjikov: 'Каменщиков',
     kolyhailo: 'Колыхайло',
-    kolyhailo: 'Колыхайло',
     mamcev: 'Мамцев',
     baibekov: 'Байбеков',
     misheryakov: 'Мещеряков', korolev: 'Королев',
