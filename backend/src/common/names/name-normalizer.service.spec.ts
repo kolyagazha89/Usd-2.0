@@ -127,4 +127,98 @@ describe('NameNormalizerService', () => {
     expect(service.toLatin('Теплов Владислав')).toContain('teplov');
     expect(service.toLatin('Войтенко Евгений')).toContain('voitenko');
   });
+
+  it.each([
+    ['Blazhko Nokolay', 'Блажко Николай'],
+    ['Golubnyak Anatooly', 'Голубняк Анатолий'],
+    ['Zhidkov Yryi', 'Жидков Юрий'],
+    ['Kudryashov Egor', 'Кудряшов Егор'],
+    ['Mirzabekyan Lavrenty', 'Мирзабекян Лаврентий'],
+    ['Musharsky Igor', 'Мушарский Игорь'],
+    ['Musharskiy Igor', 'Мушарский Игорь'],
+    ['Ovchinnikov Srgey', 'Овчинников Сергей'],
+    ['Sergushin Terenty', 'Сергушин Терентий'],
+    ['Chayka Yaroslav', 'Чайка Ярослав'],
+    ['Chaika Yaroslav', 'Чайка Ярослав'],
+  ])('never produces mangled Russian endings from Latin Results: %s', (raw, expected) => {
+    expect(service.normalize(raw)).toBe(expected);
+    expect(service.inspect(raw).needsReview).toBe(false);
+  });
+
+  it.each([
+    ['Блажко Ноколаы', 'Блажко Николай'],
+    ['Голубняк Анатоолы', 'Голубняк Анатолий'],
+    ['Жидков Йрыи', 'Жидков Юрий'],
+    ['Кудряшов Эгор', 'Кудряшов Егор'],
+    ['Мирзабекян Лавренты', 'Мирзабекян Лаврентий'],
+    ['Мушарскиы Игорь', 'Мушарский Игорь'],
+    ['Овчинников Сргеы', 'Овчинников Сергей'],
+    ['Сергушин Терентиы', 'Сергушин Терентий'],
+    ['Чаыка Ярослав', 'Чайка Ярослав'],
+  ])('proposes exact verified repairs for previous mangled Cyrillic display %s', (raw, expected) => {
+    expect(service.normalize(raw)).toBe(expected);
+    expect(service.inspect(raw).needsReview).toBe(false);
+    expect(service.normalize(expected)).toBe(expected);
+  });
+
+  it('flags a new unknown mistransliterated given name instead of creating a malformed person', () => {
+    expect(service.inspect('Петров Иваны').needsReview).toBe(true);
+    expect(service.inspect('Петров Иваны').reasons.some((reason) =>
+      reason.includes('Подозрительное окончание'))).toBe(true);
+  });
+
+  it.each([
+    'Агеенко Александр', 'Анташвили Тимур', 'Антоненко Артем',
+    'Апухтин Александр', 'Байбеков Арсен', 'Бакулев Артем',
+    'Белов Егор', 'Блажко Николай', 'Бочаров Виталий',
+    'Бруднов Алексей', 'Булатов Константин', 'Бурдин Алексей',
+    'Бушкин Дмитрий', 'Василенко Ксения', 'Василиев Андрей',
+    'Воитов Владимир', 'Войтенко Евгений', 'Волков Артём',
+    'Воробьев Андрей', 'Воробьев Иван', 'Гажа Николай',
+    'Галушкин Александр', 'Ганс Ричард', 'Ганшмидт Евгений',
+    'Говорухин Илья', 'Голубняк Анатолий', 'Даков Олег',
+    'Джаббаров Роман', 'Докторов Андрей', 'Дубровин Илья',
+    'Жидков Юрий', 'Захаров Антон', 'Зацепилов Кирилл',
+    'Земсков Дмитрий', 'Зинченко Михаил', 'Зубарев Владислав',
+    'Зуборев Владислав', 'Иванов Александр', 'Иванов Иван',
+    'Исаев Евгений', 'Каменщиков Павел', 'Камынин Вячеслав',
+    'Каргин Андрей', 'Карпенко Кирилл', 'Климов Виктор',
+    'Колыхайло Денис', 'Кононов Сергей', 'Корандо Андрей',
+    'Королев Даниил', 'Коршиков Денис', 'Кривоносов Александр',
+    'Кудряшов Егор', 'Кузнецов Максим', 'Ладо Иван',
+    'Лапшев Игорь', 'Латышева Ксения', 'Лютов Виктор',
+    'Малышко Максим', 'Мамцев Роман', 'Меркулов Артем',
+    'Мирзабекян Лаврентий', 'Морозов Денис', 'Муратбаев Аллаяр',
+    'Мушарский Игорь', 'Никулин Максим', 'Овчинников Сергей',
+    'Орлов Никита', 'Павлов Павел', 'Пастушин Денис',
+    'Петров Иван', 'Пономарев Сергей', 'Потапов Александр',
+    'Пучков Александр', 'Рысухин Никита', 'Сабельников Дмитрий',
+    'Савин Алексей', 'Салагубов Даниил', 'Саломатин Вадим',
+    'Сапрыкин Вадим', 'Сауляк Валерий', 'Сергушин Терентий',
+    'Сигаев Павел', 'Смирнов Александр', 'Смолиянинов Валентин',
+    'Соколов Алексей', 'Телпов Анатолий', 'Теплов Владислав',
+    'Тимохин Александр', 'Туманов Никита', 'Урих Александр',
+    'Фёдоров Роман', 'Харитонов Даниил', 'Харков Виталий',
+    'Холодилин Иван', 'Чамин Никита', 'Чайка Ярослав',
+    'Чернов Андрей', 'Чуреев Валентин', 'Шилов Сергей',
+    'Ширшов Александр', 'Шкрилев Владислав', 'Шувалов Назар',
+    'Шульгин Эдуард', 'Яковлев Максим',
+  ])('keeps already-correct Cyrillic FIO unchanged across repeated normalization: %s', (raw) => {
+    expect(service.normalize(raw)).toBe(raw);
+    expect(service.normalize(service.normalize(raw))).toBe(raw);
+    expect(service.inspect(raw).needsReview).toBe(false);
+  });
+
+  it('never merges genuine distinct surname variants merely by their similarity', () => {
+    expect(service.normalizeForMatching('Зубарев Владислав')).not.toBe(
+      service.normalizeForMatching('Зуборев Владислав'));
+    expect(service.normalizeForMatching('Василенко Ксения')).not.toBe(
+      service.normalizeForMatching('Василрнко Ксения'));
+    expect(service.inspect('34 Sound').needsReview).toBe(true);
+    expect(service.inspect('Aleksey SF').needsReview).toBe(true);
+    expect(service.inspect('Antoha SF').needsReview).toBe(true);
+    expect(service.inspect('Bass Market').needsReview).toBe(true);
+    expect(service.inspect('Maks SF').needsReview).toBe(true);
+  });
+
 });

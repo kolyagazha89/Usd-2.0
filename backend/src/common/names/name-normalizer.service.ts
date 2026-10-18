@@ -62,6 +62,29 @@ export class NameNormalizerService {
     kolyhailo: 'Колыхайло',
     mamcev: 'Мамцев',
     baibekov: 'Байбеков',
+    // Real strings from the Results export: reverse transliteration of "y"
+    // is ambiguous (й/ы/ий), so preserve verified whole-name spellings.
+    // Never use edit distance to rewrite an arbitrary surname.
+    chaika: 'Чайка',
+    chayka: 'Чайка',
+    musharskiy: 'Мушарский',
+    musharsky: 'Мушарский',
+    musharskii: 'Мушарский',
+    musharski: 'Мушарский',
+    nokolai: 'Николай',
+    nokolay: 'Николай',
+    anatooly: 'Анатолий',
+    anatooliy: 'Анатолий',
+    yryi: 'Юрий',
+    yry: 'Юрий',
+    srgey: 'Сергей',
+    srgei: 'Сергей',
+    lavrenty: 'Лаврентий',
+    terenty: 'Терентий',
+    terentiy: 'Терентий',
+    egor: 'Егор',
+    yegor: 'Егор',
+    anatooli: 'Анатолий',
     misheryakov: 'Мещеряков', korolev: 'Королев',
     lyutov: 'Лютов', lytov: 'Лютов',
     zemskov: 'Земсков', isaev: 'Исаев',
@@ -113,6 +136,21 @@ export class NameNormalizerService {
     'анатолй': 'Анатолий', 'ноколай': 'Николай',
     'сргей': 'Сергей', 'йры': 'Юрий',
     'костантин': 'Константин', 'лаврентй': 'Лаврентий',
+    // Keep the precise damaged outputs from the old name-normalizer as
+    // corrections in read-only repair previews and future re-imports.
+    'ноколаы': 'Николай',
+    'анатоолы': 'Анатолий',
+    'йрыи': 'Юрий',
+    'сргеы': 'Сергей',
+    'эгор': 'Егор',
+    'лавренты': 'Лаврентий',
+    'терентыи': 'Терентий',
+    'терентиы': 'Терентий',
+  };
+
+  private readonly knownSurnameCorrections: Readonly<Record<string, string>> = {
+    'мушарскиы': 'Мушарский',
+    'чаыка': 'Чайка',
   };
 
   private readonly invalidPersonTokens = new Set([
@@ -173,11 +211,13 @@ export class NameNormalizerService {
     const cleaned = this.clean(value);
     if (!cleaned) return '';
     const words = cleaned.split(' ').map((word) => this.convertWord(word));
-    // Correct only the GIVEN NAME (normally the 2nd word in Results),
-    // not a surname that happens to resemble another valid name.
+    // Corrections are positional and exact. A given-name word is never
+    // interpreted as a surname and vice versa; no fuzzy person matching.
     if (words.length > 1) {
-      const fix = this.knownGivenNameCorrections[words[1].toLocaleLowerCase('ru')];
-      if (fix) words[1] = fix;
+      const surnameFix = this.knownSurnameCorrections[words[0].toLocaleLowerCase('ru')];
+      if (surnameFix) words[0] = surnameFix;
+      const givenFix = this.knownGivenNameCorrections[words[1].toLocaleLowerCase('ru')];
+      if (givenFix) words[1] = givenFix;
     }
     return words.join(' ');
   }
@@ -199,6 +239,11 @@ export class NameNormalizerService {
       reasons.push('Слишком короткая часть ФИО, требуется проверить источник');
     if (parts.some((part) => this.invalidPersonTokens.has(part.toLocaleLowerCase('ru'))))
       reasons.push('Похоже на псевдоним или название команды, проверьте ФИО');
+    // A reverse-transliteration artifact like "Ноколаы" / "Терентиы"
+    // must NEVER be silently written to the Participant table.
+    // Unrecognized non-Russian endings remain for operator review.
+    if (parts[1] && /ы$/i.test(parts[1]))
+      reasons.push('Подозрительное окончание имени после транслитерации: проверьте написание');
     if (parts[0] && this.surnamesForReview.has(parts[0].toLocaleLowerCase('ru')))
       reasons.push('Сомнительное написание фамилии из исторического импорта; сверить с источником');
     // A mixed-script token has no safe general transliteration. Latin-only
