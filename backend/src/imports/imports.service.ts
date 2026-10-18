@@ -21,6 +21,8 @@ type ParticipantIndexItem = {
   firstName: string;
   middleName: string | null;
   team: string | null;
+  cars?: Array<{ registrationNumber: string }>;
+  registrations?: Array<{ participantNumber: number }>;
 };
 
 type RegistrationParticipantMatch = {
@@ -127,6 +129,13 @@ export class ImportsService {
         firstName: true,
         middleName: true,
         team: true,
+        // Used only to distinguish genuinely different Participant IDs that
+        // share a full name. Never choose one from a name alone.
+        cars: { select: { registrationNumber: true } },
+        registrations: {
+          where: { stageId: body.stageId },
+          select: { participantNumber: true },
+        },
       },
     });
 
@@ -1483,6 +1492,93 @@ export class ImportsService {
     return true;
   }
 
+  /**
+   * Multiple Registration sheet rows often describe the SAME car entered in
+   * different BassRace classes. Rows are not distinct people. Collapse only
+   * when evidence is compatible; otherwise keep the ambiguity visible.
+   *
+   * Results number is used to select a helper row, never to rewrite it.
+   * Missing result number + several distinct helper numbers => use AUTO
+   * fallback instead of arbitrarily choosing one historical sticker.
+   */
+  private chooseRegistrationSheetCandidate(
+    candidates: RegistrationParticipantMatch[],
+    resultNumber?: number | null,
+  ): RegistrationParticipantMatch | null {
+    if (candidates.length === 1) return candidates[0];
+    if (candidates.length === 0) return null;
+
+    const exactNumber = resultNumber && resultNumber > 0
+      ? candidates.filter((candidate) => candidate.participantNumber === resultNumber)
+      : [];
+    if (exactNumber.length === 1) return exactNumber[0];
+
+    const group = exactNumber.length > 1 ? exactNumber : candidates;
+    // A plate or verified email shared by all rows is a stronger identity
+    // signal than equal names. Two *different* nonempty plates/emails block.
+    const plates = group.map((item) => this.normalizeImportedPlate(item.car.plateNumber))
+      .filter((value) => value.length > 0 && !value.startsWith('IMPORT'));
+    const emails = group.map((item) => item.email.trim().toLowerCase()).filter(Boolean);
+    const numbers = [...new Set(group.map((item) => item.participantNumber).filter((n) => n !== null))];
+    const brands = [...new Set(group.map((item) => item.car.vibrationIsolation?.trim().toLowerCase())
+      .filter(Boolean))];
+    const samePlate = plates.length === group.length && new Set(plates).size === 1;
+    const sameEmail = emails.length === group.length && new Set(emails).size === 1;
+    const repeatedIdenticalNumber = numbers.length === 1 &&
+      group.every((item) => item.participantNumber === numbers[0]);
+    const compatibleMetadata =
+      new Set(plates).size <= 1 &&
+      new Set(emails).size <= 1 &&
+      brands.length <= 1;
+    if (!compatibleMetadata || !(samePlate || sameEmail || repeatedIdenticalNumber)) {
+      return null;
+    }
+    const row = group.find((item) => item.car.vibrationIsolation?.trim()) ?? group[0];
+    // The source has multiple number variants for this exact same car/email.
+    // The single result row with no number must use stage-safe AUTO fallback.
+    return !resultNumber && numbers.length > 1
+      ? { ...row, participantNumber: null }
+      : row;
+  }
+
+  private resolveDatabaseNameCollision(
+    candidate: ReturnType<ImportsService['findParticipant']>,
+    resultNumber: number | null,
+    registration: ReturnType<ImportsService['findRegistrationParticipant']>,
+  ) {
+    if (candidate.status !== 'AMBIGUOUS') return candidate;
+
+    const matches = candidate.matches;
+    const rawPlate = registration.status === 'MATCHED' &&
+      registration.matchType === 'NAME'
+        ? registration.matches[0]?.car.plateNumber ?? ''
+        : '';
+    const normalizedPlate = this.normalizeImportedPlate(rawPlate);
+
+    const byPlate = normalizedPlate && !normalizedPlate.startsWith('IMPORT')
+      ? matches.filter((person) => person.cars?.some((car) =>
+          this.normalizeImportedPlate(car.registrationNumber) === normalizedPlate))
+      : [];
+    const byStageNumber = resultNumber !== null
+      ? matches.filter((person) =>
+          person.registrations?.some((row) => row.participantNumber === resultNumber))
+      : [];
+
+    // If two strong sources point to DIFFERENT Participant IDs, do not pick
+    // whichever happened to be checked first: require human verification.
+    if (byPlate.length === 1 && byStageNumber.length === 1 &&
+      byPlate[0].id !== byStageNumber[0].id) {
+      return candidate;
+    }
+    const verified = byPlate.length === 1 ? byPlate :
+      byStageNumber.length === 1 ? byStageNumber : [];
+    if (verified.length === 1) {
+      return { ...candidate, status: 'MATCHED' as const, matches: verified };
+    }
+    // Do not automatically merge or select actual duplicate Participant IDs.
+    return candidate;
+  }
+
   private findRegistrationParticipant(
     rawName: string,
     registrationIndex: RegistrationParticipantIndex,
@@ -1520,10 +1616,11 @@ export class ImportsService {
     }
 
     if (exactMatches.length > 1) {
+      const selected = this.chooseRegistrationSheetCandidate(exactMatches, participantNumber);
       return {
-        status: 'AMBIGUOUS' as const,
+        status: selected ? ('MATCHED' as const) : ('AMBIGUOUS' as const),
         normalizedName,
-        matches: exactMatches,
+        matches: selected ? [selected] : exactMatches,
         matchType: 'NAME' as const,
       };
     }
@@ -1564,10 +1661,11 @@ export class ImportsService {
       }
 
       if (fuzzyMatches.length > 1) {
+        const selected = this.chooseRegistrationSheetCandidate(fuzzyMatches, participantNumber);
         return {
-          status: 'AMBIGUOUS' as const,
+          status: selected ? ('MATCHED' as const) : ('AMBIGUOUS' as const),
           normalizedName,
-          matches: fuzzyMatches,
+          matches: selected ? [selected] : fuzzyMatches,
           matchType: 'NAME' as const,
         };
       }
@@ -2327,9 +2425,10 @@ export class ImportsService {
       );
 
     const databaseParticipant =
-      this.findParticipant(
-        rawName,
-        participantIndex,
+      this.resolveDatabaseNameCollision(
+        this.findParticipant(rawName, participantIndex),
+        resultParticipantNumber,
+        registrationParticipant,
       );
 
     let participant:
@@ -2351,16 +2450,26 @@ export class ImportsService {
 
     if (
       historicalResults &&
-      databaseParticipant.status === 'MATCHED'
+      (databaseParticipant.status === 'MATCHED' ||
+       databaseParticipant.status === 'AMBIGUOUS')
     ) {
-      // Historical results must prefer the canonical Participant from the
-      // database. The Registration sheet is only auxiliary data (car/number).
-      // Otherwise every historical import can create a duplicate participant
-      // when the sheet contains a spelling that already exists in the DB.
+      // Existing Participant IDs are authoritative, even when they clash.
+      // A matching Registration helper cannot erase the fact that the DB
+      // contains multiple different people with the same name. Only a unique
+      // stage-number/car link may disambiguate them safely.
       participant = {
         ...databaseParticipant,
         source: 'DATABASE',
       };
+    } else if (
+      historicalResults &&
+      databaseParticipant.status === 'NEW' &&
+      registrationParticipant.status === 'AMBIGUOUS'
+    ) {
+      // Historical Results drives new participant identity. Conflicting helper
+      // rows are not evidence of multiple Participants in the database.
+      // Create from Results, and do not borrow uncertain car/vibration values.
+      participant = { ...databaseParticipant, source: 'DATABASE' };
     } else if (
       registrationParticipant.status ===
       'MATCHED'
@@ -2487,7 +2596,7 @@ export class ImportsService {
       } else if (registrationParticipantNumber !== null) {
         participantNumber = registrationParticipantNumber;
         participantNumberSource = 'REGISTRATION';
-      } else {
+      } else if (!historicalResults) {
         warnings.push(
           'Строка ' + rowNumber + ': номер участника отсутствует и в результате, и в регистрации этапа',
         );
@@ -2499,14 +2608,16 @@ export class ImportsService {
       if (resultParticipantNumber !== null) {
         participantNumber = resultParticipantNumber;
         participantNumberSource = 'RESULT';
+      }
+      if (!historicalResults) {
         warnings.push(
-          'Строка ' + rowNumber + ': найдено несколько регистраций с ФИО "' + rawName + '", используется номер из результата',
-        );
-      } else {
-        warnings.push(
-          'Строка ' + rowNumber + ': найдено несколько регистраций с ФИО "' + rawName + '", определить номер автоматически нельзя',
+          'Строка ' + rowNumber + ': несколько регистраций с ФИО "' + rawName + '". Выберите нужную вручную',
         );
       }
+      // For historical Results the helper sheet never dictates identity.
+      // If helper rows cannot be distinguished, skip uncertain car/vibration
+      // metadata. A missing number is allocated from Results using AUTO.
+
     } else {
       if (resultParticipantNumber !== null) {
         participantNumber = resultParticipantNumber;
@@ -2550,7 +2661,7 @@ export class ImportsService {
       'AMBIGUOUS'
     ) {
       warnings.push(
-        `Строка ${rowNumber}: найдено несколько участников с ФИО "${rawName}" в базе`,
+        `Строка ${rowNumber}: несколько разных карточек участников с ФИО "${rawName}" в базе (${participant.matches.length}). Автоматически выбрать нельзя — укажите правильного участника вручную`,
       );
     }
 
