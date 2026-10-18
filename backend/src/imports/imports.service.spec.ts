@@ -290,7 +290,7 @@ describe('ImportsService historical vibration configuration', () => {
     expect(missing.car.vibrationIsolation).toBeNull();
   });
 
-  it('preserves raw Registration-source vibration when it is not yet in the site's brand catalog', async () => {
+  it('preserves source vibration when absent from catalog', async () => {
     const tx: any = {
       siteSettings: { findUnique: jest.fn(async () => ({ catalogs: { vibrationBrands: ['STP'] } })) },
     };
