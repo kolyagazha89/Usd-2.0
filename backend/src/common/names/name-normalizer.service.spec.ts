@@ -209,6 +209,35 @@ describe('NameNormalizerService', () => {
     expect(service.inspect(raw).needsReview).toBe(false);
   });
 
+  it.each([
+    ['Мухарскиы Игорь', 'Мухарский Игорь'],
+    ['Muharskiy Igor', 'Мухарский Игорь'],
+    ['Muharsky Igor', 'Мухарский Игорь'],
+    ['Mukharskiy Igor', 'Мухарский Игорь'],
+    ['Mukharsky Igor', 'Мухарский Игорь'],
+    ['Musharsky Igor', 'Мушарский Игорь'],
+    ['Мушарскиы Игорь', 'Мушарский Игорь'],
+  ])('keeps Mushar/Mukhar surname identities separate while fixing broken endings: %s', (raw, expected) => {
+    expect(service.normalize(raw)).toBe(expected);
+    expect(service.inspect(raw).needsReview).toBe(false);
+  });
+
+  it('never joins an unverified Mukharskiy and Musharskiy just because the names look similar', () => {
+    const mukhar = service.normalizeForMatching('Мухарскиы Игорь');
+    const mushar = service.normalizeForMatching('Мушарскиы Игорь');
+    expect(mukhar).toBe('мухарский игорь');
+    expect(mushar).toBe('мушарский игорь');
+    expect(mukhar).not.toBe(mushar);
+  });
+
+  it('blocks any unknown corrupted Russian surname ending -скиы before participant creation', () => {
+    const inspection = service.inspect('Незнакомскиы Игорь');
+    expect(inspection.needsReview).toBe(true);
+    expect(inspection.reasons).toContain(
+      'Подозрительное окончание фамилии после транслитерации: проверьте исходное написание',
+    );
+  });
+
   it('never merges genuine distinct surname variants merely by their similarity', () => {
     expect(service.normalizeForMatching('Зубарев Владислав')).not.toBe(
       service.normalizeForMatching('Зуборев Владислав'));
