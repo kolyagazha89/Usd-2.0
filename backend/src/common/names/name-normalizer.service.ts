@@ -15,7 +15,7 @@ export type NameInspection = {
  */
 @Injectable()
 export class NameNormalizerService {
-  private readonly transliterator = new CyrillicToTranslit({ preset: 'ru' });
+  private readonly transliterator = CyrillicToTranslit({ preset: 'ru' });
 
   // Exceptions needed because standard transliteration is lossy and English
   // spellings of Russian given names are not one-to-one. No fuzzy replacement
