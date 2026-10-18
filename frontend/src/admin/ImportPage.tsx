@@ -38,7 +38,8 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const[historicalSheetSelections,setHistoricalSheetSelections]=useState<Record<string,{registration:string;results:string}>>({});
  const[vibrationBrands,setVibrationBrands]=useState<string[]>(['STP','ComfortMat','Audior','Global']);const[vibrationBusyRowId,setVibrationBusyRowId]=useState('');
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
- const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
+ const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null);
+ const[orphanPreview,setOrphanPreview]=useState<any>(null),[orphanConfirmation,setOrphanConfirmation]=useState(''),[orphanBusy,setOrphanBusy]=useState(false),[orphanError,setOrphanError]=useState(''),[orphanReport,setOrphanReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const previewHistoricalReset=async()=>{
    setResetBusy(true);setResetError('');setResetPreview(null);setResetConfirmation('');setResetReport(null);
    try{
@@ -66,6 +67,27 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
      setStages(listData(stagesResponse));
    }catch(e){setResetError(e instanceof Error?e.message:'Очистка не выполнена')}
    finally{setResetBusy(false)}
+ };
+ const previewOrphanCleanup=async()=>{
+   setOrphanBusy(true);setOrphanError('');setOrphanPreview(null);setOrphanConfirmation('');setOrphanReport(null);
+   try{setOrphanPreview(await apiGet<any>('/admin/imports/historical-orphans/preview'))}
+   catch(e){setOrphanError(e instanceof Error?e.message:'Не удалось проверить оставшиеся карточки')}
+   finally{setOrphanBusy(false)}
+ };
+ const executeOrphanCleanup=async()=>{
+   const phrase='DELETE_TEST_ORPHAN_PARTICIPANTS';
+   if(!orphanPreview?.readOnly||orphanConfirmation!==phrase||!orphanPreview?.fingerprint||!Number(orphanPreview?.counts?.orphanParticipantsEligibleForRemoval??0))return;
+   setOrphanBusy(true);setOrphanError('');setOrphanReport(null);
+   try{
+     const fresh=await apiGet<any>('/admin/imports/historical-orphans/preview');
+     if(fresh.fingerprint!==orphanPreview.fingerprint){
+       setOrphanPreview(fresh);setOrphanConfirmation('');
+       throw new Error('Состав участников изменился. Проверьте новый список и подтвердите заново.');
+     }
+     const data=await apiPost<any>('/admin/imports/historical-orphans/execute',{confirmation:phrase,fingerprint:orphanPreview.fingerprint});
+     setOrphanReport(data);setOrphanPreview(null);setOrphanConfirmation('');
+   }catch(e){setOrphanError(e instanceof Error?e.message:'Не удалось удалить оставшихся тестовых участников')}
+   finally{setOrphanBusy(false)}
  };
  const prepareHistorical=async()=>{setLoading(true);setError('');setHistoricalPrepare(null);setHistoricalJobId('');try{const r=await prepareHistoricalImport();setHistoricalPrepare(r);const prepared=Array.isArray(r?.prepared)?r.prepared:[];const first=prepared[0];if(first?.importJobId){setHistoricalJobId(first.importJobId);setStageId(first.stageId);await refreshJob(first.importJobId)}const x=await apiGet('/stages');setStages(listData(x))}catch(e){setError(e instanceof Error?e.message:'Не удалось подготовить исторический XLSX импорт')}finally{setLoading(false)}}; const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
  useEffect(()=>{
@@ -177,6 +199,22 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  {mode==='HISTORICAL'&&<section className="panel" aria-label="Очистка оставшихся участников">
+    <div className="resource-editor-heading"><div><strong>Дополнительная очистка · оставшиеся участники и автомобили</strong>
+    <p>После первой очистки могли остаться профили без зарегистрированных выступлений. Эта операция ищет ВСЕ незарегистрированные профили без аккаунта, в том числе созданные вручную. Источник их создания после удаления журнала импортов определить нельзя.</p>
+    </div></div>
+    <button type="button" className="secondary-button" disabled={orphanBusy} onClick={()=>void previewOrphanCleanup()}>{orphanBusy?'Проверяем…':'Проверить оставшихся участников без удаления'}</button>
+    {orphanError&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{orphanError}</div>}
+    {orphanReport&&<div className="notice" role="status"><Check size={16}/><div><strong>Дополнительная очистка завершена.</strong><p>Удалено участников: {orphanReport.deletedParticipants??0}; автомобилей: {orphanReport.deletedCars??0}. Аккаунты, этапы и справочники сохранены.</p></div></div>}
+    {orphanPreview&&<div className="import-example">
+     <strong>План дополнительной очистки (без изменений БД)</strong>
+     <p>Участников к удалению: {orphanPreview.counts?.orphanParticipantsEligibleForRemoval??0}; автомобилей: {orphanPreview.counts?.orphanCarsEligibleForRemoval??0}; среди автомобилей публичных: {orphanPreview.counts?.publicCarsAmongCandidates??0}; с неархивными конфигурациями: {orphanPreview.counts?.carsWithNonLegacyConfigurations??0}. Дополнительно защищено по связям с рекордами: {orphanPreview.counts?.orphanProfilesProtectedByRecords??0}.</p>
+     {Array.isArray(orphanPreview.examples)&&orphanPreview.examples.length>0&&<details><summary>Показать примеры участников (до 20 ФИО)</summary><ul>{orphanPreview.examples.map((person:any,index:number)=><li key={index}>{person.name||'Без имени'} · машин: {person.cars??0}</li>)}</ul></details>}
+     <div className="notice"><AlertTriangle size={16}/><div><strong>Внимание: это более широкая очистка, чем удаление исторического импорта.</strong><p>Могут быть удалены созданные вручную профили без аккаунтов и регистраций. Не запускайте без независимой резервной копии и проверки количества/примеров. Профили с регистрациями, рекордами, инспекциями и аккаунтами защищены.</p>
+     {Number(orphanPreview.counts?.orphanParticipantsEligibleForRemoval??0)>0?<><label>Отдельная контрольная фраза<input type="text" autoComplete="off" spellCheck={false} value={orphanConfirmation} onChange={e=>setOrphanConfirmation(e.target.value)} placeholder="DELETE_TEST_ORPHAN_PARTICIPANTS"/></label>
+     <button type="button" className="secondary-button" disabled={orphanBusy||orphanConfirmation!=='DELETE_TEST_ORPHAN_PARTICIPANTS'} onClick={()=>void executeOrphanCleanup()}>Удалить показанных незарегистрированных участников и машины</button></>:<p>Подходящих карточек нет. Если участники остались, у них имеются защищённые связи — их нельзя удалять автоматически.</p>}</div></div>
+    </div>}
+   </section>}
   {mode==='HISTORICAL'&&<section className="panel" aria-label="Очистка прежнего исторического импорта">
    <div className="resource-editor-heading"><div><strong>Шаг 0 · Очистка прежнего тестового импорта</strong><p>Перед повторным импортом можно проверить, какие исторические записи созданы прежними загрузками. Предпросмотр ничего не удаляет. Обычные регистрации, аккаунты, этапы и справочники сохраняются.</p></div></div>
    <div className="resolution-buttons"><button type="button" className="secondary-button" disabled={resetBusy} onClick={()=>void previewHistoricalReset()}>{resetBusy?'Проверяем…':'Проверить прежний импорт (без удаления)'}</button></div>
