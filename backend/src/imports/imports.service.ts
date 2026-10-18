@@ -2458,6 +2458,15 @@ export class ImportsService {
         source: 'DATABASE',
       };
     } else if (
+      historicalResults &&
+      databaseParticipant.status === 'NEW' &&
+      registrationParticipant.status === 'AMBIGUOUS'
+    ) {
+      // Historical Results drives new participant identity. Conflicting helper
+      // rows are not evidence of multiple Participants in the database.
+      // Create from Results, and do not borrow uncertain car/vibration values.
+      participant = { ...databaseParticipant, source: 'DATABASE' };
+    } else if (
       registrationParticipant.status ===
       'MATCHED'
     ) {
