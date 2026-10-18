@@ -430,6 +430,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  }).slice(0,8);
 
  const createParticipant=()=>setPart({action:'CREATE',fullName:String(participantName).trim(),team:String(raw['Команда']??'').trim()||null,email:String(raw['Email']??'').trim()||null});
+ const createArchiveAlias=()=>setPart({action:'CREATE_ALIAS',fullName:String(participantName).trim(),team:null,email:null});
  const useParticipant=(p:any)=>setPart({action:'USE_EXISTING',participantId:p.id});
  const createRegistration=()=>setReg({action:'CREATE',participantNumber:Number(participantNumber)});
  const useRegistration=(r:any)=>setReg({action:'USE_EXISTING',registrationId:r.id,participantNumber:r.participantNumber});
@@ -456,8 +457,17 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
      <div className="resolution-buttons">
       {selectedParticipantId&&<span className="badge good"><Check size={11}/>Участник выбран</span>}
       {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
-      {mode==='HISTORICAL'&&<button className="primary-button compact" onClick={createParticipant}><Plus size={14}/>Создать участника</button>}
+      {mode==='HISTORICAL'&&<button className="primary-button compact" type="button" onClick={createParticipant}><Plus size={14}/>Создать участника с реальным ФИО</button>}
+      {mode==='HISTORICAL'&&<button className="secondary-button compact" type="button" onClick={createArchiveAlias}><Plus size={14}/>Сохранить архивное название без ФИО</button>}
      </div>
+     {(parsed.participant?.action==='CREATE'||parsed.participant?.action==='CREATE_ALIAS')&&<div className="resolution-fields">
+       <label>{parsed.participant.action==='CREATE_ALIAS'?'Архивное название (не ФИО)':'Подтверждённые фамилия и имя'}
+         <input type="text" value={parsed.participant.fullName??''} onChange={e=>setPart({fullName:e.target.value})} placeholder={parsed.participant.action==='CREATE_ALIAS'?'Например, 34 Sound':'Например, Иванов Иван'}/>
+       </label>
+       <small className="field-help">{parsed.participant.action==='CREATE_ALIAS'
+         ?'Создаётся отдельная архивная карточка с оригинальной подписью. Это не установленная личность. Результат сохранится, ФИО можно будет уточнить позднее.'
+         :'Используй только реальное подтверждённое ФИО; название команды или псевдоним сюда не подходит.'}</small>
+     </div>}
     </div>
 
     <div className="resolution-action-card">
