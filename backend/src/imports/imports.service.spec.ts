@@ -253,7 +253,9 @@ describe('ImportsService.createImportRegistration', () => {
 
 describe('ImportsService historical vibration configuration', () => {
   it('sources historical vibration from the name-matched Registration sheet row, not Results', async () => {
-    const service: any = createService();
+    const service: any = new ImportsService({
+      registration: { findUnique: jest.fn(async () => null) },
+    } as unknown as PrismaService, new NameNormalizerService());
     const registrationIndex = service.buildRegistrationParticipantIndex([{
       'Фамилия и имя': 'Иванов Иван',
       'Номер участника': '010',
@@ -277,7 +279,9 @@ describe('ImportsService historical vibration configuration', () => {
   });
 
   it('uses an unspecified vibration when Registration is absent or matched only by a reused number', async () => {
-    const service: any = createService();
+    const service: any = new ImportsService({
+      registration: { findUnique: jest.fn(async () => null) },
+    } as unknown as PrismaService, new NameNormalizerService());
     const otherPersonRegistration = service.buildRegistrationParticipantIndex([{
       'Фамилия и имя': 'Иванов Иван', 'Номер участника': '010', 'Виброизоляция': 'STP',
     }]);
