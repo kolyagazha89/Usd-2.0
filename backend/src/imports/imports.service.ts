@@ -3604,7 +3604,9 @@ export class ImportsService {
 
     if (resolution.car) {
       const action = resolution.car.action;
-      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
+      const vibrationOnly = action === undefined &&
+        Object.keys(resolution.car).every((key) => key === 'vibrationIsolation');
+      if (action !== 'USE_EXISTING' && action !== 'CREATE' && !vibrationOnly) {
         throw new BadRequestException('Некорректное действие car');
       }
 
@@ -3704,21 +3706,20 @@ export class ImportsService {
       }
     }
 
-    const updatedRow =
-      await this.prisma.importRow.update({
-        where: {
-          id: row.id,
-        },
-
-        data: {
-          resolution:
-            this.toJson(
-              resolution,
-            ),
-
-          status: 'RESOLVED',
-        },
-      });
+    // Preserve an already selected catalog brand when resolving an unrelated
+    // result conflict (KEEP_EXISTING/REPLACE) or participant warning.
+    const existingVibration = (row.resolution as any)?.car?.vibrationIsolation;
+    const resolvedData = typeof existingVibration === 'string' &&
+      resolution.car?.vibrationIsolation === undefined
+        ? {
+            ...resolution,
+            car: { ...(resolution.car ?? {}), vibrationIsolation: existingVibration },
+          }
+        : resolution;
+    const updatedRow = await this.prisma.importRow.update({
+      where: { id: row.id },
+      data: { resolution: this.toJson(resolvedData), status: 'RESOLVED' },
+    });
 
     if (request) {
       await this.prisma.auditLog.create({
