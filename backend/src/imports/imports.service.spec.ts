@@ -534,6 +534,30 @@ describe('ImportsService historical same-name disambiguation', () => {
   });
 });
 
+
+describe('ImportsService import-name gate', () => {
+  it('blocks a team nickname with no real first name before importing an archival result', async () => {
+    const db: any = { registration: { findUnique: jest.fn(async () => null) } };
+    const service: any = new ImportsService(db as PrismaService, new NameNormalizerService());
+    const result = await service.previewResultRow(
+      { 'ФИО': '34 Sound', 'Номер': 34, 'Класс': 'BassRace 129.9', 'Результат': '129.9' },
+      1, new Map(), service.buildRegistrationParticipantIndex([]),
+      [{ class: { id: 'bass-129', name: 'BassRace 129.9', unit: 'DB' } }],
+      'stage-1', true,
+    );
+    expect(result.status).toBe('WARNING');
+    expect(result.warnings.some((w: string) => w.includes('подозрительное ФИО'))).toBe(true);
+  });
+
+  it('refuses commit-side creation of suspicious participants, even if a stale preview had been READY', async () => {
+    const tx: any = { participant: { findFirst: jest.fn(), findMany: jest.fn(), create: jest.fn() } };
+    const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    await expect(service.createParticipantFromImport(tx, { fullName: 'Антоха Сф' }))
+      .rejects.toThrow('подозрительным ФИО');
+    expect(tx.participant.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('ImportsService BassRace historical preview', () => {
   it('marks second distinct BassRace class with automatically allocated number without adding a warning', async () => {
     let created: any = null;
