@@ -109,4 +109,46 @@ describe('HistoricalNameRepairService', () => {
       item.reason.includes('Совпадает с другой карточкой'))).toBe(true);
     expect(db.participant.update).not.toHaveBeenCalled();
   });
+
+  it('proposes all verified old Y-transliteration fixes but does not merge duplicate people', async () => {
+    const { db, service, people } = setup();
+    for (const [i, surname, given] of [
+      ['bad-1', 'Блажко', 'Ноколаы'],
+      ['bad-2', 'Голубняк', 'Анатоолы'],
+      ['bad-3', 'Жидков', 'Йрыи'],
+      ['bad-4', 'Кудряшов', 'Эгор'],
+      ['bad-5', 'Мирзабекян', 'Лавренты'],
+      ['bad-6', 'Мушарскиы', 'Игорь'],
+      ['bad-7', 'Овчинников', 'Сргеы'],
+      ['bad-8', 'Сергушин', 'Терентиы'],
+      ['bad-9', 'Чаыка', 'Ярослав'],
+    ]) {
+      people.push({
+        id: i, lastName: surname, firstName: given, middleName: null,
+        user: null, registrations: [{ id: 'registration-' + i }],
+      });
+    }
+    // An already correct participant creates an identity conflict: the
+    // spelling repair must not silently combine two Participant IDs.
+    people.push({ id: 'real-sergey', lastName: 'Овчинников', firstName: 'Сергей',
+      middleName: null, user: null, registrations: [] });
+    // Archival performer title must remain verbatim even with a proposed spelling.
+    people.push({ id: 'archive-title', lastName: '34 Sound', firstName: '',
+      middleName: null, historicalAlias: '34 Sound', user: null, registrations: [] });
+    const preview = await service.preview();
+    expect(preview.readOnly).toBe(true);
+    expect(preview.counts).toMatchObject({
+      safeCorrections: 9, archivalAliasesProtected: 1,
+    }); // eight damaged spellings + original Говорухин; Овчинников is blocked
+    const changes = new Map(preview.examples.safe.map((v) => [v.before, v.after]));
+    expect(changes.get('Блажко Ноколаы')).toBe('Блажко Николай');
+    expect(changes.get('Голубняк Анатоолы')).toBe('Голубняк Анатолий');
+    expect(changes.get('Мушарскиы Игорь')).toBe('Мушарский Игорь');
+    expect(changes.get('Чаыка Ярослав')).toBe('Чайка Ярослав');
+    expect(preview.examples.review.some((r) =>
+      r.name === 'Овчинников Сргеы' && r.reason.includes('Совпадает'))).toBe(true);
+    expect(preview.examples.review.some((r) => r.name === '34 Sound')).toBe(true);
+    expect(db.participant.update).not.toHaveBeenCalled();
+  });
+
 });
