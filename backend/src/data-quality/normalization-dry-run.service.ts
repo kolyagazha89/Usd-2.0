@@ -25,9 +25,9 @@ function plateKey(country: unknown, value: unknown): string {
       H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т',
       Y: 'У', X: 'Х',
     };
-    plate = [...plate].map(ch => /[|\\s.\\-_/\\\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch)).join('');
+    plate = [...plate].map(ch => /[|\s.\-_/\\]/.test(ch) ? '' : (lookalikes[ch] ?? ch)).join('');
   }
-  return normalizedCountry + ':' + plate.replace(/[^\\p{L}\\p{N}]/gu, '');
+  return normalizedCountry + ':' + plate.replace(/[^\p{L}\p{N}]/gu, '');
 }
 function phoneKey(value: unknown): string {
   return clean(value).replace(/\D/g, '');
