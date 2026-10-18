@@ -42,4 +42,55 @@ describe('NameNormalizerService', () => {
     expect(service.normalize(undefined)).toBe('');
     expect(service.normalize('   ')).toBe('');
   });
-});
+  it.each([
+    ['Teplov Vladislav', 'Теплов Владислав'],
+    ['Voitenko Evgeny', 'Войтенко Евгений'],
+    ['Vorobiev Ivan', 'Воробьев Иван'],
+    ['Misheryakov Sergey', 'Мещеряков Сергей'],
+    ['Golubnyak Anatoliy', 'Голубняк Анатолий'],
+  ])('transliterates Latin words with the library: %s', (raw, normalized) => {
+    expect(service.normalize(raw)).toBe(normalized);
+  });
+
+  it.each([
+    ['Говорухин Илийа', 'Говорухин Илья'],
+    ['Голубняк Анатоолй', 'Голубняк Анатолий'],
+    ['Жидков Йры', 'Жидков Юрий'],
+    ['Блажко Ноколай', 'Блажко Николай'],
+    ['Овчинников Сргей', 'Овчинников Сергей'],
+    ['Мирзабекян Лаврентй', 'Мирзабекян Лаврентий'],
+    ['Булатов Костантин', 'Булатов Константин'],
+  ])('corrects an explicitly known bad given name: %s', (raw, normalized) => {
+    expect(service.normalize(raw)).toBe(normalized);
+    expect(service.inspect(raw).needsReview).toBe(false);
+  });
+
+  it.each([
+    '34 Соунд',
+    'Антоха Сф',
+    'Алексей Сф',
+    'Басс Маркет',
+    'Василрнко Ксения',
+    'Каменсджиков Павел',
+    'Зуборев Владислав',
+    'Телпов Анатолий',
+  ])('quarantines suspicious source names instead of creating fake participants: %s', (raw) => {
+    expect(service.inspect(raw).needsReview).toBe(true);
+    expect(service.inspect(raw).reasons.length).toBeGreaterThan(0);
+  });
+
+  it('does not automatically turn two distinct surname variants into one person', () => {
+    expect(service.normalize('Зубарев Владислав')).not.toBe(
+      service.normalize('Зуборев Владислав'),
+    );
+    expect(service.normalize('Василенко Ксения')).not.toBe(
+      service.normalize('Василрнко Ксения'),
+    );
+  });
+
+  it('uses a published implementation for Russian-to-Latin aliases without the handmade character map', () => {
+    expect(service.toLatin('Теплов Владислав')).toContain('teplov');
+    expect(service.toLatin('Войтенко Евгений')).toContain('voitenko');
+  });
+
+}
