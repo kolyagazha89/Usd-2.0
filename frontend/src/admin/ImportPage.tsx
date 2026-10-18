@@ -37,7 +37,36 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const[historicalRegistrationSheet,setHistoricalRegistrationSheet]=useState(''),[historicalResultsSheet,setHistoricalResultsSheet]=useState('');
  const[historicalSheetSelections,setHistoricalSheetSelections]=useState<Record<string,{registration:string;results:string}>>({});
  const[vibrationBrands,setVibrationBrands]=useState<string[]>(['STP','ComfortMat','Audior','Global']);const[vibrationBusyRowId,setVibrationBusyRowId]=useState('');
- const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}'); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
+ const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
+ const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
+ const previewHistoricalReset=async()=>{
+   setResetBusy(true);setResetError('');setResetPreview(null);setResetConfirmation('');setResetReport(null);
+   try{
+     const data=await apiGet<any>('/admin/imports/historical-reset/preview');
+     setResetPreview(data);
+   }catch(e){setResetError(e instanceof Error?e.message:'Не удалось проверить исторические записи')}
+   finally{setResetBusy(false)}
+ };
+ const executeHistoricalReset=async()=>{
+   const phrase='RESET_HISTORICAL_IMPORT_TEST_DATA';
+   if(!resetPreview?.readOnly||resetConfirmation!==phrase||!resetPreview?.counts?.historicalImportJobs)return;
+   setResetBusy(true);setResetError('');setResetReport(null);
+   try{
+     // One more dry run immediately before the delete; do not execute if
+     // another admin has changed the import-job/registration footprint.
+     const fresh=await apiGet<any>('/admin/imports/historical-reset/preview');
+     if(JSON.stringify(fresh?.counts)!==JSON.stringify(resetPreview.counts)||JSON.stringify(fresh?.stages)!==JSON.stringify(resetPreview.stages)){
+       setResetPreview(fresh);setResetConfirmation('');
+       throw new Error('Состав исторических данных изменился. Просмотрите новый план очистки и подтвердите заново.');
+     }
+     const data=await apiPost<any>('/admin/imports/historical-reset/execute',{confirmation:phrase});
+     setResetReport(data);setResetPreview(null);setResetConfirmation('');
+     setJob(null);setRows([]);setResult(null);setHistoricalPrepare(null);setHistoricalJobId('');setDbCheck(null);
+     const stagesResponse=await apiGet<any>('/stages');
+     setStages(listData(stagesResponse));
+   }catch(e){setResetError(e instanceof Error?e.message:'Очистка не выполнена')}
+   finally{setResetBusy(false)}
+ };
  const prepareHistorical=async()=>{setLoading(true);setError('');setHistoricalPrepare(null);setHistoricalJobId('');try{const r=await prepareHistoricalImport();setHistoricalPrepare(r);const prepared=Array.isArray(r?.prepared)?r.prepared:[];const first=prepared[0];if(first?.importJobId){setHistoricalJobId(first.importJobId);setStageId(first.stageId);await refreshJob(first.importJobId)}const x=await apiGet('/stages');setStages(listData(x))}catch(e){setError(e instanceof Error?e.message:'Не удалось подготовить исторический XLSX импорт')}finally{setLoading(false)}}; const loadGoogle=async()=>{try{const s=await getGoogleStatus();setGoogle(s);if(s.connected){const r=await getGoogleSpreadsheets();setSpreadsheets(r.spreadsheets??[])}}catch(e){setError(e instanceof Error?e.message:'Не удалось проверить Google')}};
  useEffect(()=>{
    const load=async()=>{
@@ -148,6 +177,22 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  {mode==='HISTORICAL'&&<section className="panel" aria-label="Очистка прежнего исторического импорта">
+   <div className="resource-editor-heading"><div><strong>Шаг 0 · Очистка прежнего тестового импорта</strong><p>Перед повторным импортом можно проверить, какие исторические записи созданы прежними загрузками. Предпросмотр ничего не удаляет. Обычные регистрации, аккаунты, этапы и справочники сохраняются.</p></div></div>
+   <div className="resolution-buttons"><button type="button" className="secondary-button" disabled={resetBusy} onClick={()=>void previewHistoricalReset()}>{resetBusy?'Проверяем…':'Проверить прежний импорт (без удаления)'}</button></div>
+   {resetError&&<p className="form-error" role="alert"><AlertTriangle size={16}/>{resetError}</p>}
+   {resetReport&&<div className="notice" role="status"><Check size={16}/><div><strong>Очистка тестовой истории завершена.</strong><p>Удалено импортированных регистраций: {resetReport.deletedImportedRegistrations??0}; записей рекордов: {resetReport.deletedRecords??0}; машин: {resetReport.deletedOrphanCars??0}; участников: {resetReport.deletedOrphanParticipants??0}. Теперь можно заново запускать исторический импорт.</p>{Array.isArray(resetReport.postProcessingWarnings)&&resetReport.postProcessingWarnings.length>0&&<p>Предупреждения пересчёта рекордов: {resetReport.postProcessingWarnings.join('; ')}</p>}</div></div>}
+   {resetPreview&&<div className="import-example">
+     <strong>Предпросмотр удаления · {resetPreview.counts?.historicalImportJobs??0} исторических загрузок</strong>
+     <p>Регистраций: {resetPreview.counts?.importedRegistrations??0}; результатов: {resetPreview.counts?.results??0}; связанных рекордов: {resetPreview.counts?.recordsLinkedToThoseResults??0}; машин-кандидатов: {resetPreview.counts?.orphanCarsEligibleForRemoval??0}; участников-кандидатов: {resetPreview.counts?.orphanParticipantsEligibleForRemoval??0}.</p>
+     <p>Защищено регистраций, связанных с другими импортами или ручными результатами: {resetPreview.counts?.registrationsProtectedByOtherImportsOrManualResults??0}.</p>
+     {Array.isArray(resetPreview.stages)&&resetPreview.stages.length>0&&<details><summary>Затронутые этапы ({resetPreview.counts?.affectedStages??0})</summary><ul>{resetPreview.stages.map((stage:any,index:number)=><li key={String(stage.importJobId??index)}>{stage.seasonYear} · этап №{stage.stageNumber} · {stage.name}</li>)}</ul></details>}
+     {Number(resetPreview.counts?.historicalImportJobs??0)>0?<div className="notice"><AlertTriangle size={16}/><div><strong>Необратимое действие: только для тестовой БД с резервной копией.</strong><p>После проверки этапов введите точную контрольную фразу. Если сервер не разрешает тестовую очистку, запрос будет отклонён. Ничего не удаляем без отдельного нажатия.</p>
+      <label>Контрольная фраза<input type="text" autoComplete="off" spellCheck={false} value={resetConfirmation} onChange={e=>setResetConfirmation(e.target.value)} placeholder="RESET_HISTORICAL_IMPORT_TEST_DATA"/></label>
+      <button type="button" className="secondary-button" disabled={resetBusy||resetConfirmation!=='RESET_HISTORICAL_IMPORT_TEST_DATA'} onClick={()=>void executeHistoricalReset()}>Удалить только ранее импортированные исторические записи</button>
+     </div></div>:<p>Завершённых исторических импортов для очистки не найдено.</p>}
+   </div>}
+  </section>}
   <div className="import-grid">
    <div className="panel form">
     <div className="segmented"><button className={mode==='NORMAL'?'selected':''} onClick={()=>changeMode('NORMAL')}>Обычный импорт</button><button className={mode==='HISTORICAL'?'selected':''} onClick={()=>changeMode('HISTORICAL')}>Исторический</button></div>{mode==='HISTORICAL'&&<div className="notice historical-source-action"><div><strong>Исторический импорт из двух Google-таблиц</strong><br/><span>Выберите общую таблицу регистрации и общую таблицу результатов, затем листы для выбранного этапа. Исправляйте данные в Google Sheets и перечитывайте их здесь.</span></div></div>}
