@@ -112,6 +112,14 @@ export class NameNormalizerService {
     'сф', 'sound', 'соунд', 'маркет', 'market',
   ]);
 
+  // Reported suspect SURNAME spellings: expose them for review, but never
+  // rewrite/merge different profiles without stronger identity evidence.
+  private readonly surnamesForReview = new Set([
+    'василрнко', 'каменсджиков', 'колйхаило',
+    'зуборев', 'мамкев', 'малйшко', 'смолийанинов',
+    'телпов', 'сапрйкин', 'баибеков',
+  ]);
+
   private clean(value: string | null | undefined): string {
     return String(value ?? '')
       .normalize('NFKC')
@@ -173,6 +181,8 @@ export class NameNormalizerService {
       reasons.push('Слишком короткая часть ФИО, требуется проверить источник');
     if (parts.some((part) => this.invalidPersonTokens.has(part.toLocaleLowerCase('ru'))))
       reasons.push('Похоже на псевдоним или название команды, проверьте ФИО');
+    if (parts[0] && this.surnamesForReview.has(parts[0].toLocaleLowerCase('ru')))
+      reasons.push('Сомнительное написание фамилии из исторического импорта; сверить с источником');
     // A mixed-script token has no safe general transliteration. Latin-only
     // tokens have been converted above, so any remaining Latin is suspect.
     if (/[a-z]/i.test(normalized)) reasons.push('Смешанное или неподдерживаемое написание');
