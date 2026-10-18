@@ -2583,7 +2583,7 @@ export class ImportsService {
       } else if (registrationParticipantNumber !== null) {
         participantNumber = registrationParticipantNumber;
         participantNumberSource = 'REGISTRATION';
-      } else {
+      } else if (!historicalResults) {
         warnings.push(
           'Строка ' + rowNumber + ': номер участника отсутствует и в результате, и в регистрации этапа',
         );
