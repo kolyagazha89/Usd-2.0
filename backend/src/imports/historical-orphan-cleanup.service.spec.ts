@@ -45,6 +45,52 @@ describe('HistoricalOrphanCleanupService', () => {
     else process.env.ALLOW_TEST_ORPHAN_PARTICIPANT_CLEANUP = originalOrphans;
   });
 
+  it('inventories all participants by registration provenance without deleting or assuming that IMPORT means historical', async () => {
+    const { db, service } = fixture();
+    const stage = { id: 'stage-1', stageNumber: 1, name: 'Этап', season: { year: 2026 } };
+    const person = (id: string, registrations: { id: string; source: string; stage: typeof stage }[], user: any = null) => ({
+      id, firstName: 'Имя', lastName: id, middleName: null, user, registrations,
+      cars: [{ id: 'car-' + id, registrations: registrations.map((r) => ({ id: r.id })) }],
+      disqualifications: [], stageInspections: [],
+    });
+    const dataset = [
+      person('linked', [], { id: 'user-1' }),
+      person('unused', []),
+      person('imported', [{ id: 'reg-a', source: 'IMPORT', stage }]),
+      person('manual', [{ id: 'reg-b', source: 'ONLINE', stage }]),
+      person('mixed', [
+        { id: 'reg-c', source: 'IMPORT', stage },
+        { id: 'reg-d', source: 'ONLINE', stage },
+      ]),
+    ];
+    db.participant.findMany.mockResolvedValueOnce(dataset);
+    db.record.findMany.mockResolvedValueOnce([
+      { participantId: null, carId: 'car-mixed', isManualOverride: true },
+    ]);
+
+    const report = await service.diagnostics();
+    expect(report.readOnly).toBe(true);
+    expect(report.counts).toEqual({
+      totalParticipants: 5,
+      linkedToUserAccounts: 1,
+      withoutUserAccounts: 4,
+      withoutRegistrations: 1,
+      withImportOnlyRegistrations: 1,
+      withOtherOnlyRegistrations: 1,
+      withMixedRegistrations: 1,
+      importRegistrationsOnUnclaimedProfiles: 2,
+      otherRegistrationsOnUnclaimedProfiles: 2,
+      unclaimedWithProtectedHistory: 1,
+      unclaimedWithoutProtectedHistory: 3,
+    });
+    expect(report.examples.importOnly[0].name).toBe('imported Имя');
+    expect(report.examples.mixed[0].hasProtectedHistory).toBe(true);
+    expect(report.warning).toContain('не доказательство');
+    expect(db.participant.deleteMany).not.toHaveBeenCalled();
+    expect(db.car.deleteMany).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
   it('previews orphan accounts without deleting records and explicitly warns about manual profiles', async () => {
     const { db, service } = fixture();
     const report = await service.preview();
