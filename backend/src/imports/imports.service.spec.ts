@@ -366,6 +366,45 @@ describe('ImportsService historical vibration configuration', () => {
   });
 });
 
+describe('ImportsService BassRace historical preview', () => {
+  it('marks second distinct BassRace class with automatically allocated number without adding a warning', async () => {
+    let created: any = null;
+    const db: any = {
+      stage: { findUnique: jest.fn(async () => ({ id: 'stage-1', stageNumber: 1, name: 'Stage', seasonId: 'season' })) },
+      participant: { findMany: jest.fn(async () => []) },
+      stageClass: { findMany: jest.fn(async () => [
+        { class: { id: 'bass-129', name: 'BassRace 129.9', code: 'BASSRACE_129_9', unit: 'DB' } },
+        { class: { id: 'bass-139', name: 'BassRace 139.9', code: 'BASSRACE_139_9', unit: 'DB' } },
+        { class: { id: 'bass-149', name: 'BassRace 149.9', code: 'BASSRACE_149_9', unit: 'DB' } },
+      ]) },
+      registration: { aggregate: jest.fn(async () => ({ _max: { participantNumber: 15 } })) },
+      registrationNumber: { aggregate: jest.fn(async () => ({ _max: { number: 15 } })) },
+      importJob: { create: jest.fn(async ({ data }: any) => {
+        created = data;
+        return { id: 'job-1', status: 'DRAFT', createdAt: new Date(), rows: [] };
+      }) },
+    };
+    const service = new ImportsService(db as PrismaService, new NameNormalizerService());
+    await service.previewStage({
+      stageId: 'stage-1',
+      historicalResults: true,
+      registrations: [],
+      results: [
+        { 'ФИО': 'Петров Иван', 'Номер': 10, 'Класс': 'Bass Race 129.9', 'Результат': '128,9' },
+        { 'ФИО': 'Петров Иван', 'Номер': 10, 'Класс': 'Bass Race 139.9', 'Результат': '138,9' },
+        { 'ФИО': 'Сидоров Пётр', 'Номер': 11, 'Класс': 'Bass Race 149.9', 'Результат': '148,9' },
+      ],
+    });
+    const resultRows = created.rows.create.filter((row: any) => row.type === 'RESULT');
+    expect(resultRows.map((row: any) => row.status)).toEqual(['READY','READY','READY']);
+    expect(resultRows[1].normalizedData.classNumberSource).toBe('AUTO');
+    expect(resultRows[1].normalizedData.classParticipantNumber).toBe(16);
+    expect(resultRows[1].warnings).toEqual([]);
+    expect(resultRows[2].normalizedData.classParticipantNumber).toBe(11);
+    expect(resultRows[0].normalizedData.classParticipantNumber).toBe(10);
+  });
+});
+
 describe('ImportsService missing source vibration', () => {
   it('keeps an immutable blank configuration when Registration has no vibration', async () => {
     const config = { id: 'config-1', carId: 'car-1', name: 'LEGACY_IMPORT', currentVersion: 1 };
