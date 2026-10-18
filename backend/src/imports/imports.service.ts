@@ -33,6 +33,7 @@ type RegistrationParticipantMatch = {
   car: {
     model: string;
     plateNumber: string;
+    vibrationIsolation: string | null;
   };
 };
 
@@ -171,8 +172,10 @@ export class ImportsService {
       for (const rowNumber of rowNumbers) {
         const preview = registrationPreview[rowNumber - 1];
         if (preview) {
-          preview.warnings.push(`Строка ${rowNumber}: номер участника ${number} указан ещё в строках ${rowNumbers.filter((n) => n !== rowNumber).join(', ')} этого импорта`);
-          preview.status = 'WARNING';
+          if (body.historicalResults !== true) {
+            preview.warnings.push(`Строка ${rowNumber}: номер участника ${number} указан ещё в строках ${rowNumbers.filter((n) => n !== rowNumber).join(', ')} этого импорта`);
+            preview.status = 'WARNING';
+          }
         }
       }
     }
@@ -190,6 +193,44 @@ export class ImportsService {
         historicalNumberMap,
       ),
     );
+
+    // BassRace can assign a different stage sticker to each additional
+    // class of one participant. Reserve from AFTER the largest number in
+    // the entire source, so early extra classes cannot take a later rider's
+    // original printed number. These are non-blocking preview hints; commit
+    // repeats the allocation against live RegistrationNumber rows.
+    const sourceNumbers = [...registrations, ...results].map((row) =>
+      this.parseParticipantNumber(this.getImportFieldValue(row, [
+        'Номер участника', '№ участника', 'Номер', 'participantNumber',
+      ]))).filter((n): n is number => n !== null);
+    const stageMax = await this.prisma.registrationNumber.aggregate({
+      where: { stageId: body.stageId },
+      _max: { number: true },
+    });
+    const stagePrimaryMax = await this.prisma.registration.aggregate({
+      where: { stageId: body.stageId },
+      _max: { participantNumber: true },
+    });
+    let nextBassRaceNumber = Math.max(0, stageMax._max.number ?? 0,
+      stagePrimaryMax._max.participantNumber ?? 0, ...sourceNumbers);
+    const bassRaceClassesByParticipant = new Map<string, Set<string>>();
+    for (const item of resultPreview) {
+      if (!item.class?.isBassRace || !item.class?.classId) continue;
+      const participantKey = item.participant.normalizedName ||
+        this.normalizePersonName(item.participant.rawName);
+      if (!participantKey) continue;
+      const seen = bassRaceClassesByParticipant.get(participantKey) ?? new Set<string>();
+      if (seen.size > 0 && !seen.has(item.class.classId)) {
+        nextBassRaceNumber += 1;
+        item.classParticipantNumber = nextBassRaceNumber;
+        item.classNumberSource = 'AUTO';
+      } else {
+        item.classParticipantNumber = item.participantNumber;
+        item.classNumberSource = 'RESULT_OR_REGISTRATION';
+      }
+      seen.add(item.class.classId);
+      bassRaceClassesByParticipant.set(participantKey, seen);
+    }
 
     const participantsNew = new Set<string>();
     const participantsMatched = new Set<string>();
@@ -1076,15 +1117,17 @@ export class ImportsService {
                 this.getImportFieldValue(
                   row,
                   [
-                    'Номер автомобиля',
-                    'Гос. номер',
-                    'Гос номер',
-                    'Регистрационный номер',
-                    'registrationNumber',
-                    'plateNumber',
+                    'Номер автомобиля', 'Гос. номер', 'Гос номер',
+                    'Регистрационный номер', 'registrationNumber', 'plateNumber',
                   ],
                 ),
               ),
+            // This is the ONLY source of historical vibration isolation.
+            // The Results sheet is intentionally not consulted.
+            vibrationIsolation: this.stringValue(this.getImportFieldValue(row, [
+              'Виброизоляция', 'Марка виброизоляции', 'Бренд виброизоляции',
+              'vibrationIsolation',
+            ])) || null,
           },
         };
 
@@ -1153,7 +1196,7 @@ export class ImportsService {
         participantNumber: registration.participantNumber,
         email: '',
         team: '',
-        car: { model: '', plateNumber: '' },
+        car: { model: '', plateNumber: '', vibrationIsolation: null },
       };
       if (normalizedName) {
         const list = byName.get(normalizedName) ?? [];
@@ -2615,6 +2658,13 @@ export class ImportsService {
       },
 
       car: {
+        // Only trust a name-matched Registration row. A number-only fallback
+        // could refer to another participant when historical stickers repeat.
+        vibrationIsolation:
+          registrationParticipant.status === 'MATCHED' &&
+          registrationParticipant.matchType === 'NAME'
+            ? registrationParticipant.matches[0]?.car.vibrationIsolation ?? null
+            : null,
         model:
           registrationParticipant.status === 'MATCHED'
             ? registrationParticipant.matches[0]?.car.model ?? ''
@@ -2697,6 +2747,9 @@ export class ImportsService {
       participantNumber,
 
       participantNumberSource,
+
+      classParticipantNumber: participantNumber,
+      classNumberSource: 'RESULT_OR_REGISTRATION' as 'RESULT_OR_REGISTRATION' | 'AUTO',
 
       resultParticipantNumber,
 
@@ -3338,13 +3391,14 @@ export class ImportsService {
   private async importVibrationBrand(
     client: Prisma.TransactionClient | PrismaService,
     rawBrand: unknown,
+    fromRegistrationSheet = false,
   ): Promise<string | null> {
     if (rawBrand === null || rawBrand === undefined || rawBrand === '') return null;
     if (typeof rawBrand !== 'string' || rawBrand.length > 120) {
       throw new BadRequestException('Некорректная марка виброизоляции');
     }
     const value = rawBrand.trim();
-    if (!value) return null;
+    if (!value || ['не указана', 'не указано', '-', 'нет'].includes(value.toLocaleLowerCase('ru'))) return null;
     const siteSettings = await client.siteSettings.findUnique({
       where: { id: 'default' },
       select: { catalogs: true },
@@ -3355,72 +3409,10 @@ export class ImportsService {
       : ['STP', 'ComfortMat', 'Audior', 'Global'];
     const match = brands.find((item) => item.trim().toLocaleLowerCase('ru') === value.toLocaleLowerCase('ru'));
     if (!match) {
+      if (fromRegistrationSheet) return value; // preserve original archival source
       throw new BadRequestException('Марка виброизоляции отсутствует в справочнике. Выберите марку из настроек сайта.');
     }
     return match;
-  }
-
-  // A READY result can be assigned a vibration brand without marking the entire
-  // import row RESOLVED. The selection is stored in ImportRow.resolution so it is
-  // passed into the car's immutable configuration snapshot at commit.
-  async setImportVibration(
-    importId: string,
-    rowId: string,
-    vibrationIsolation: unknown,
-    request?: AuthenticatedRequest,
-  ) {
-    if (typeof vibrationIsolation !== 'string') {
-      throw new BadRequestException('Выберите марку виброизоляции или пустое значение');
-    }
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT id FROM "ImportJob" WHERE id = ${importId} FOR UPDATE
-      `;
-      const job = await tx.importJob.findUnique({
-        where: { id: importId },
-        select: { id: true, status: true, metadata: true },
-      });
-      if (!job) throw new NotFoundException('Импорт не найден');
-      if (job.status !== 'DRAFT' || (job.metadata as any)?.historicalResults !== true) {
-        throw new BadRequestException('Виброизоляцию можно менять только в черновике исторического импорта');
-      }
-
-      const row = await tx.importRow.findFirst({
-        where: { id: rowId, importJobId: importId, type: 'RESULT' },
-      });
-      if (!row || row.status === 'COMMITTED') {
-        throw new BadRequestException('Строка исторического результата недоступна для изменения');
-      }
-      const brand = await this.importVibrationBrand(tx, vibrationIsolation);
-      const prior = row.resolution && typeof row.resolution === 'object' && !Array.isArray(row.resolution)
-        ? row.resolution as Record<string, any>
-        : {};
-      const car = prior.car && typeof prior.car === 'object' && !Array.isArray(prior.car)
-        ? prior.car as Record<string, unknown>
-        : {};
-      const updated = await tx.importRow.update({
-        where: { id: row.id },
-        data: {
-          resolution: this.toJson({
-            ...prior,
-            car: { ...car, vibrationIsolation: brand ?? '' },
-          }),
-        },
-      });
-      if (request) {
-        await tx.auditLog.create({
-          data: {
-            userId: request.user.sub,
-            action: 'IMPORT_VIBRATION_SELECTED',
-            entity: 'ImportRow',
-            entityId: row.id,
-            ipAddress: request.ip,
-            metadata: { importJobId: importId, vibrationIsolation: brand },
-          },
-        });
-      }
-      return { success: true, row: updated };
-    });
   }
 
   async resolveImportRow(
@@ -3610,9 +3602,7 @@ export class ImportsService {
 
     if (resolution.car) {
       const action = resolution.car.action;
-      const vibrationOnly = action === undefined &&
-        Object.keys(resolution.car).every((key) => key === 'vibrationIsolation');
-      if (action !== 'USE_EXISTING' && action !== 'CREATE' && !vibrationOnly) {
+      if (action !== 'USE_EXISTING' && action !== 'CREATE') {
         throw new BadRequestException('Некорректное действие car');
       }
 
@@ -3637,7 +3627,7 @@ export class ImportsService {
     }
 
     if (resolution.car?.vibrationIsolation !== undefined) {
-      await this.importVibrationBrand(this.prisma, resolution.car.vibrationIsolation);
+      throw new BadRequestException('Виброизоляция определяется автоматически из листа «Регистрация» и не редактируется в импорте');
     }
 
     if (resolution.existingResultAction !== undefined &&
@@ -3712,19 +3702,9 @@ export class ImportsService {
       }
     }
 
-    // Preserve an already selected catalog brand when resolving an unrelated
-    // result conflict (KEEP_EXISTING/REPLACE) or participant warning.
-    const existingVibration = (row.resolution as any)?.car?.vibrationIsolation;
-    const resolvedData = typeof existingVibration === 'string' &&
-      resolution.car?.vibrationIsolation === undefined
-        ? {
-            ...resolution,
-            car: { ...(resolution.car ?? {}), vibrationIsolation: existingVibration },
-          }
-        : resolution;
     const updatedRow = await this.prisma.importRow.update({
       where: { id: row.id },
-      data: { resolution: this.toJson(resolvedData), status: 'RESOLVED' },
+      data: { resolution: this.toJson(resolution), status: 'RESOLVED' },
     });
 
     if (request) {
@@ -4005,7 +3985,7 @@ export class ImportsService {
     vibrationIsolation?: string,
   ) {
     const name = 'LEGACY_IMPORT';
-    const brand = await this.importVibrationBrand(tx, vibrationIsolation);
+    const brand = await this.importVibrationBrand(tx, vibrationIsolation, true);
 
     let configuration = await tx.carConfiguration.findFirst({
       where: {
@@ -5282,7 +5262,7 @@ export class ImportsService {
                   participantId,
                   carId,
                   participantNumber,
-                  vibrationIsolation: this.stringValue(resolution?.car?.vibrationIsolation ?? this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
+                  vibrationIsolation: historicalResults ? this.stringValue(normalized?.car?.vibrationIsolation) : this.stringValue(this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
                 },
               );
 
@@ -6184,7 +6164,7 @@ export class ImportsService {
                       participantId,
                       carId,
                       participantNumber: primaryParticipantNumber,
-                      vibrationIsolation: this.stringValue(resolution?.car?.vibrationIsolation ?? this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
+                      vibrationIsolation: historicalResults ? this.stringValue(normalized?.car?.vibrationIsolation) : this.stringValue(this.getImportFieldValue(rawData, ['Виброизоляция', 'vibrationIsolation'])),
                     },
                   );
 
