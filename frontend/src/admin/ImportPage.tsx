@@ -511,7 +511,19 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
  }).slice(0,8);
 
  const createParticipant=()=>setPart({action:'CREATE',fullName:String(participantName).trim(),team:String(raw['Команда']??'').trim()||null,email:String(raw['Email']??'').trim()||null});
- const createArchiveAlias=()=>setPart({action:'CREATE_ALIAS',fullName:String(participantName).trim(),team:null,email:null});
+ const createArchiveAlias=()=>{
+   const number=Number(normalized.participantNumber??participantNumber);
+   if(!Number.isSafeInteger(number)||number<=0){
+     setLocalError('Не удалось определить номер участника. Уточните номер в источнике перед созданием регистрации.');
+     return;
+   }
+   setLocalError('');
+   setResolution(JSON.stringify({...parsed,
+     participant:{action:'CREATE_ALIAS',fullName:String(participantName).trim(),team:null,email:null},
+     registration:parsed.registration?.action==='USE_EXISTING'
+       ?parsed.registration:{action:'CREATE',participantNumber:number},
+   },null,2));
+ };
  const useParticipant=(p:any)=>setPart({action:'USE_EXISTING',participantId:p.id});
  const createRegistration=()=>setReg({action:'CREATE',participantNumber:Number(participantNumber)});
  const useRegistration=(r:any)=>setReg({action:'USE_EXISTING',registrationId:r.id,participantNumber:r.participantNumber});
@@ -539,7 +551,7 @@ function ImportResolutionModal({row,stageId,mode,resolution,setResolution,loadin
       {selectedParticipantId&&<span className="badge good"><Check size={11}/>Участник выбран</span>}
       {participantCandidates.map(p=><button key={p.id} className="secondary-button compact" onClick={()=>useParticipant(p)}>Использовать: {[p.lastName,p.firstName].filter(Boolean).join(' ')}</button>)}
       {mode==='HISTORICAL'&&<button className="primary-button compact" type="button" onClick={createParticipant}><Plus size={14}/>Создать участника с реальным ФИО</button>}
-      {mode==='HISTORICAL'&&<button className="secondary-button compact" type="button" onClick={createArchiveAlias}><Plus size={14}/>Сохранить архивное название без ФИО</button>}
+      {mode==='HISTORICAL'&&<button className="secondary-button compact" type="button" onClick={createArchiveAlias}><Plus size={14}/>Сохранить архивное название и регистрацию</button>}
      </div>
      {(parsed.participant?.action==='CREATE'||parsed.participant?.action==='CREATE_ALIAS')&&<div className="resolution-fields">
        <label>{parsed.participant.action==='CREATE_ALIAS'?'Архивное название (не ФИО)':'Подтверждённые фамилия и имя'}
