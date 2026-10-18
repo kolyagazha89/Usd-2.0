@@ -96,6 +96,7 @@ export class HistoricalResultsService {
               lastName: true,
               firstName: true,
               middleName: true,
+              historicalAlias: true,
               team: true,
               city: true,
               photoUrl: true,
