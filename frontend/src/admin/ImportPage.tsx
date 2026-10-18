@@ -40,7 +40,8 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
  const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null);
  const[orphanPreview,setOrphanPreview]=useState<any>(null),[orphanConfirmation,setOrphanConfirmation]=useState(''),[orphanBusy,setOrphanBusy]=useState(false),[orphanError,setOrphanError]=useState(''),[orphanReport,setOrphanReport]=useState<any>(null);
- const[participantInventory,setParticipantInventory]=useState<any>(null),[inventoryBusy,setInventoryBusy]=useState(false),[inventoryError,setInventoryError]=useState(''); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
+ const[participantInventory,setParticipantInventory]=useState<any>(null),[inventoryBusy,setInventoryBusy]=useState(false),[inventoryError,setInventoryError]=useState('');
+ const[purgePreview,setPurgePreview]=useState<any>(null),[purgePhrase,setPurgePhrase]=useState(''),[purgeBackupConfirmed,setPurgeBackupConfirmed]=useState(false),[purgeBusy,setPurgeBusy]=useState(false),[purgeError,setPurgeError]=useState(''),[purgeReport,setPurgeReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const previewHistoricalReset=async()=>{
    setResetBusy(true);setResetError('');setResetPreview(null);setResetConfirmation('');setResetReport(null);
    try{
@@ -68,6 +69,32 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
      setStages(listData(stagesResponse));
    }catch(e){setResetError(e instanceof Error?e.message:'Очистка не выполнена')}
    finally{setResetBusy(false)}
+ };
+ const previewUnclaimedPurge=async()=>{
+   setPurgeBusy(true);setPurgeError('');setPurgePreview(null);setPurgePhrase('');setPurgeBackupConfirmed(false);setPurgeReport(null);
+   try{setPurgePreview(await apiGet<any>('/admin/imports/unclaimed-test-purge/preview'))}
+   catch(e){setPurgeError(e instanceof Error?e.message:'Не удалось получить план полной тестовой очистки')}
+   finally{setPurgeBusy(false)}
+ };
+ const executeUnclaimedPurge=async()=>{
+   if(!purgePreview?.allowed||!purgeBackupConfirmed||purgePhrase!==purgePreview.confirmationRequired||!purgePreview.fingerprint)return;
+   setPurgeBusy(true);setPurgeError('');setPurgeReport(null);
+   try{
+     const fresh=await apiGet<any>('/admin/imports/unclaimed-test-purge/preview');
+     if(!fresh.allowed||fresh.fingerprint!==purgePreview.fingerprint||
+       JSON.stringify(fresh.counts)!==JSON.stringify(purgePreview.counts)){
+       setPurgePreview(fresh);setPurgePhrase('');setPurgeBackupConfirmed(false);
+       throw new Error('Состав базы изменился либо найдены защищённые связи. Проверьте обновлённый план.');
+     }
+     const report=await apiPost<any>('/admin/imports/unclaimed-test-purge/execute',{
+       confirmation:purgePhrase,fingerprint:purgePreview.fingerprint,
+       expectedParticipants:Number(purgePreview.counts.participants),
+     });
+     setPurgeReport(report);setPurgePreview(null);setPurgePhrase('');setPurgeBackupConfirmed(false);
+     setParticipantInventory(null);setOrphanPreview(null);setResetPreview(null);
+     setJob(null);setRows([]);setResult(null);setHistoricalPrepare(null);setHistoricalJobId('');setDbCheck(null);
+   }catch(e){setPurgeError(e instanceof Error?e.message:'Массовая очистка не выполнена')}
+   finally{setPurgeBusy(false)}
  };
  const inspectRemainingParticipants=async()=>{
    setInventoryBusy(true);setInventoryError('');setParticipantInventory(null);
@@ -206,6 +233,28 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  {mode==='HISTORICAL'&&<section className="panel" aria-label="Полная очистка тестовых участников без аккаунтов">
+   <div className="resource-editor-heading"><div><strong>Полная очистка тестовых участников без аккаунтов</strong>
+   <p>Для повторного импорта удаляем всех участников без аккаунтов и регистраций — вместе с их автомобилями, связанными рекордами и тестовыми инспекциями. Привязанные к аккаунтам люди и зарегистрированные участники не затрагиваются. Это отличается от узкой очистки сирот ниже.</p></div></div>
+   <button type="button" className="secondary-button" disabled={purgeBusy} onClick={()=>void previewUnclaimedPurge()}>{purgeBusy?'Проверяем все связи…':'Рассчитать полную очистку без удаления'}</button>
+   {purgeError&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{purgeError}</div>}
+   {purgeReport&&<div className="notice" role="status"><Check size={16}/><div><strong>Полная тестовая очистка завершена</strong><p>Удалено участников: {purgeReport.deletedParticipants??0}; машин: {purgeReport.deletedCars??0}; записей рекордов: {purgeReport.deletedRecords??0}; дисквалификаций: {purgeReport.deletedDisqualifications??0}; инспекций: {purgeReport.deletedStageInspections??0}.</p>{Array.isArray(purgeReport.recordWarnings)&&purgeReport.recordWarnings.length>0&&<p>Предупреждения пересчёта: {purgeReport.recordWarnings.join('; ')}</p>}</div></div>}
+   {purgePreview&&<div className="import-example">
+     <strong>Предпросмотр · без удаления</strong>
+     <p><b>Участников:</b> {purgePreview.counts?.participants??0}; <b>автомобилей:</b> {purgePreview.counts?.cars??0}; <b>связанных рекордов:</b> {purgePreview.counts?.linkedRecords??0}, включая {purgePreview.counts?.manualRecordOverrides??0} ручных рекордов.</p>
+     <p>Связанных дисквалификаций: {purgePreview.counts?.disqualifications??0}; инспекций: {purgePreview.counts?.stageInspections??0}; фото-ссылок во внешнем хранилище: {purgePreview.counts?.mediaLinksNotDeleted??0}.</p>
+     <p>Защита: записи с живыми результатами {purgePreview.blocking?.recordsWithLiveResults??0}; связи с чужими участниками/автомобилями {purgePreview.blocking?.recordsLinkingOtherParticipantsOrCars??0}; занятые версии конфигураций {purgePreview.blocking?.carOrConfigurationRegistrations??0}; ссылки из других задач импорта {purgePreview.blocking?.activeImportRowReferences??0}.</p>
+     {Array.isArray(purgePreview.examples)&&purgePreview.examples.length>0&&<details><summary>Первые 25 участников из выбранной группы</summary><ul>{purgePreview.examples.map((p:any,i:number)=><li key={i}>{p.name||'Без имени'} · автомобилей: {p.cars??0}</li>)}</ul></details>}
+     {!purgePreview.allowed?<div className="form-error" role="alert"><AlertTriangle size={16}/>Обнаружены опасные внешние связи. Удаление всей группы заблокировано на сервере. Нужен отдельный разбор зависимостей.</div>:
+      <div className="notice"><AlertTriangle size={16}/><div><strong>Необратимая операция. Только для тестовой базы!</strong>
+       <p>Вместе с профилями удалятся связанные записи рекордов, включая созданные вручную. Обычные аккаунты, этапы и справочники останутся. Перед удалением нужна независимо сохранённая и проверенная резервная копия PostgreSQL.</p>
+       <label className="field-check"><input type="checkbox" checked={purgeBackupConfirmed} onChange={e=>setPurgeBackupConfirmed(e.target.checked)}/><span>Я проверил независимую резервную копию и понимаю, что удаляются ВСЕ незарегистрированные профили без аккаунтов, не только исторические.</span></label>
+       <label>Для подтверждения введите точную фразу <b>{purgePreview.confirmationRequired}</b><input type="text" autoComplete="off" spellCheck={false} value={purgePhrase} onChange={e=>setPurgePhrase(e.target.value)} placeholder={purgePreview.confirmationRequired}/></label>
+       <button type="button" className="secondary-button" disabled={purgeBusy||!purgeBackupConfirmed||purgePhrase!==purgePreview.confirmationRequired||!Number(purgePreview.counts?.participants??0)} onClick={()=>void executeUnclaimedPurge()}>Удалить {purgePreview.counts?.participants??0} тестовых участников и связанные данные</button>
+       <p>Если сервер отказывает: администратору нужны временные разрешения ALLOW_HISTORICAL_IMPORT_RESET=true и ALLOW_TEST_UNCLAIMED_PROFILE_PURGE=true. После очистки отключите оба.</p>
+      </div></div>}
+   </div>}
+  </section>}
   {mode==='HISTORICAL'&&<section className="panel" aria-label="Сводка участников после очистки истории">
     <div className="resource-editor-heading"><div><strong>Диагностика · куда делись остальные исторические участники?</strong><p>Предыдущий предпросмотр показывал только людей БЕЗ регистраций. Это не полный список старых участников. Ниже — общая сводка базы по аккаунтам и типам регистраций. Просмотр не меняет данные.</p></div></div>
     <button type="button" className="secondary-button" disabled={inventoryBusy} onClick={()=>void inspectRemainingParticipants()}>{inventoryBusy?'Проверяем связи…':'Показать всех участников и связи'}</button>
