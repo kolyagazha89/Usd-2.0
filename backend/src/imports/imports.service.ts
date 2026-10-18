@@ -4099,6 +4099,7 @@ export class ImportsService {
   private async allocateNextHistoricalBassRaceNumber(
     tx: Prisma.TransactionClient,
     stageId: string,
+    maxSourceNumber = 0,
   ): Promise<number> {
     const [resultRows, registrationNumbers] = await Promise.all([
       tx.result.findMany({
@@ -4144,7 +4145,46 @@ export class ImportsService {
       maxNumber = Math.max(maxNumber, row.number);
     }
 
-    return maxNumber + 1;
+    return Math.max(maxNumber, maxSourceNumber) + 1;
+  }
+
+  /**
+   * Historical BassRace classes may share one Registration but must not share
+   * the class sticker after the first distinct BassRace class. Allocate after
+   * the maximum number in the input spreadsheet AND current stage; never
+   * steal a printed number from a result row that has not committed yet.
+   */
+  private async resolveHistoricalBassRaceClassNumber(
+    tx: Prisma.TransactionClient,
+    stageId: string,
+    registrationId: string,
+    classId: string,
+    preferredNumber: number,
+    maxSourceNumber: number,
+  ): Promise<number> {
+    const existingClass = await tx.registrationClass.findUnique({
+      where: { registrationId_classId: { registrationId, classId } },
+      select: { number: { select: { number: true } } },
+    });
+    if (existingClass) return existingClass.number.number;
+
+    const priorClasses = await tx.registrationClass.findMany({
+      where: { registrationId },
+      select: { class: { select: { name: true } } },
+    });
+    const hasAnotherBassRace = priorClasses.some((row) =>
+      row.class.name.trim().toLowerCase().replace(/[\s_-]+/g, '').startsWith('bassrace'));
+
+    const occupiedClassNumber = await tx.registrationNumber.findUnique({
+      where: { stageId_number: { stageId, number: preferredNumber } },
+      select: { registrationId: true },
+    });
+
+    if (hasAnotherBassRace ||
+      (occupiedClassNumber && occupiedClassNumber.registrationId !== registrationId)) {
+      return this.allocateNextHistoricalBassRaceNumber(tx, stageId, maxSourceNumber);
+    }
+    return preferredNumber;
   }
 
   private async ensureRegistrationNumber(
@@ -4723,6 +4763,16 @@ export class ImportsService {
          * или зарегистрировать один автомобиль.
          */
         await tx.$queryRaw<{ locked: string }[]>`SELECT pg_advisory_xact_lock(hashtext(${importJob.stageId}))::text AS locked`;
+
+        const historicalMaxSourceNumber = Math.max(0, ...importJob.rows.map((row) =>
+          this.parseParticipantNumber(
+            (row.normalizedData as any)?.resultParticipantNumber ??
+            (row.normalizedData as any)?.participantNumber ??
+            this.getImportFieldValue(row.rawData as ImportRow, [
+              'Номер', 'Номер участника', '№ участника', 'participantNumber',
+            ]),
+          ) ?? 0,
+        ));
 
         const importedParticipants =
           new Map<
@@ -5868,11 +5918,13 @@ export class ImportsService {
                 numberBelongsToAnotherParticipant ||
                 importedNumberBelongsToAnotherRegistration
               ) {
-                let allocatedNumber = await this.allocateFreeImportNumber(
-                  tx,
-                  importJob.stageId,
-                  participantNumber,
-                );
+                let allocatedNumber = normalized?.class?.isBassRace === true
+                  ? await this.allocateNextHistoricalBassRaceNumber(
+                      tx, importJob.stageId, historicalMaxSourceNumber,
+                    )
+                  : await this.allocateFreeImportNumber(
+                      tx, importJob.stageId, participantNumber,
+                    );
 
                 // The in-memory map is also authoritative during this transaction:
                 // never allocate a number already mapped to an imported registration,
@@ -6052,6 +6104,7 @@ export class ImportsService {
 
               if (
                 historicalResults &&
+                normalized?.class?.isBassRace !== true &&
                 registrationId &&
                 Number.isInteger(primaryParticipantNumber) &&
                 primaryParticipantNumber > 0
@@ -6508,40 +6561,15 @@ export class ImportsService {
           }
 
           let classNumber =
-            isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0
+            isBassRace && historicalOrResolvedNumber && historicalOrResolvedNumber > 0 && !historicalNumberAllocated
               ? historicalOrResolvedNumber
               : primaryNumber;
 
           if (historicalResults && isBassRace && classNumber > 0) {
-            const occupiedBassRaceNumber = await tx.registrationNumber.findUnique({
-              where: {
-                stageId_number: {
-                  stageId: importJob.stageId,
-                  number: classNumber,
-                },
-              },
-              select: {
-                registrationId: true,
-              },
-            });
-
-            if (
-              occupiedBassRaceNumber &&
-              occupiedBassRaceNumber.registrationId !== registrationId
-            ) {
-              /*
-               * BassRace: одинаковый исходный номер в архиве не блокирует импорт.
-               * Если этот номер уже принадлежит другой регистрации, автоматически
-               * выдаём следующий номер после максимального номера этапа.
-               *
-               * Если такой же номер уже есть у обычного класса этой ЖЕ регистрации,
-               * это нормально: конфликт отсутствует, номер переиспользуется.
-               */
-              classNumber = await this.allocateNextHistoricalBassRaceNumber(
-                tx,
-                importJob.stageId,
-              );
-            }
+            classNumber = await this.resolveHistoricalBassRaceClassNumber(
+              tx, importJob.stageId, registrationId, classId,
+              classNumber, historicalMaxSourceNumber,
+            );
           }
 
           // Final guard: class-number reservations have their own unique namespace.
