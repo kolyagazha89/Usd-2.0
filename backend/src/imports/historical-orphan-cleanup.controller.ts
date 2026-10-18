@@ -8,6 +8,11 @@ import { HistoricalOrphanCleanupService } from './historical-orphan-cleanup.serv
 export class HistoricalOrphanCleanupController {
   constructor(private readonly service: HistoricalOrphanCleanupService) {}
 
+  @Get('diagnostics')
+  diagnostics() {
+    return this.service.diagnostics();
+  }
+
   @Get('preview')
   preview() {
     return this.service.preview();
