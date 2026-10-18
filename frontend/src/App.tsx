@@ -19,7 +19,6 @@ import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageS
 
 const roleName:Record<Role,string>={ADMIN:'Администратор',PARTICIPANT:'Участник'};
 
-const NAME_TRANSLITERATION:Record<string,string>={mokhov:'Мохов',kosolapov:'Косолапов',vasily:'Василий',vasiliy:'Василий',vasili:'Василий',vasilii:'Василий',vassily:'Василий',wassily:'Василий',vitaly:'Виталий',vitaliy:'Виталий',maksim:'Максим',maxim:'Максим',sergey:'Сергей',sergei:'Сергей',vladislav:'Владислав',konstantin:'Константин',shamil:'Шамиль',anton:'Антон',daniil:'Даниил',danil:'Данил',dmitry:'Дмитрий',dmitriy:'Дмитрий',nikrasov:'Никрасов',ruslan:'Руслан',yan:'Ян',damir:'Дамир',andrey:'Андрей',alexey:'Алексей',aleksey:'Алексей',ilnur:'Ильнур',artem:'Артем',ivan:'Иван',androsov:'Андросов',krasnov:'Краснов',yakovenko:'Яковенко',kashapov:'Кашапов',zorin:'Зорин',sobyanin:'Собянин',zhernakov:'Жернаков',naidanov:'Найданов',shtyagin:'Штягин',mihailov:'Михайлов',usolcev:'Усольцев',polikarpov:'Поликарпов',cvirko:'Цвирко',nizaforov:'Низафоров',aleksashin:'Алексашин',zamatov:'Заматов',sozontov:'Созонтов',tarasov:'Тарасов',bakulin:'Бакулин',zbarev:'Зубарев',zubarev:'Зубарев',ahmetov:'Ахметов',nikonov:'Никонов',permyakov:'Пермяков'};
 const PHONE_COUNTRY_NAMES=new Intl.DisplayNames(['ru'],{type:'region'});
 const PHONE_COUNTRIES=getCountries().map(code=>[code,PHONE_COUNTRY_NAMES.of(code)||code,getCountryCallingCode(code),15] as const).sort((a,b)=>a[1].localeCompare(b[1],'ru'));
 function countryForPhone(value:string){return parsePhoneNumberFromString(String(value??''))?.country??'RU'}
@@ -27,8 +26,15 @@ function formatPhoneForCountry(value:string,country:string,forceCountry=false){c
 
 function displayCarName(car:any,fallback='Не указано'){if(!car)return fallback;const unknown=(value:any)=>!String(value??'').trim()||/^(импорт|неизвестно|не указано|автомобиль не указан|unknown|n\/a|—|-)$/i.test(String(value).trim());const model=String(car.model??'').trim();const brand=String(car.brand??'').trim();if(unknown(model))return unknown(brand)?fallback:brand;return [unknown(brand)?'':brand,model].filter(Boolean).join(' ')||fallback}
 function humanizeAuditKey(x:string){const m:Record<string,string>={stageId:'Этап',rowsCount:'Количество строк',historicalResults:'Исторический импорт',type:'Тип',title:'Название',functionCode:'Функция',scope:'Область',reason:'Причина',confirmation:'Подтверждение',status:'Статус',risk:'Риск',entity:'Раздел',before:'До изменения',after:'После изменения',sections:'Изменённые разделы',model:'Модель ассистента'};return m[x]??humanize(x)}
-function displayPersonName(value:any){if(!value)return '';return String(value).trim().replace(/\s+/g,' ').split(' ').map((word)=>{const key=word.toLowerCase();if(NAME_TRANSLITERATION[key])return NAME_TRANSLITERATION[key];if(/^[a-z]+$/i.test(word))return transliterateLatin(word);return word.charAt(0).toUpperCase()+word.slice(1).toLowerCase()}).join(' ')}
-function transliterateLatin(value:string){const d:[string,string][]=[['shch','щ'],['sch','щ'],['zh','ж'],['kh','х'],['ts','ц'],['ch','ч'],['sh','ш'],['yu','ю'],['ya','я'],['yo','ё'],['ye','е'],['iy','ий'],['ey','ей']];let s=value.toLowerCase(),out='';for(const [a,b] of d){s=s.split(a).join(b)}const m:Record<string,string>={a:'а',b:'б',c:'к',d:'д',e:'е',f:'ф',g:'г',h:'х',i:'и',j:'дж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'кс',y:'й',z:'з'};out=[...s].map(ch=>m[ch]??ch).join('');return out?out.charAt(0).toUpperCase()+out.slice(1):value}
+/**
+ * Stored participant names are canonical data from the API.
+ * Never re-transliterate them in the browser: the old character-by-character
+ * implementation corrupted Latin y into "ы" and changed real names.
+ * Archived aliases must also remain exactly as recorded.
+ */
+function displayPersonName(value:any){
+ return value==null?'':String(value).normalize('NFKC').trim().replace(/\s+/g,' ');
+}
 const BRAND_LOGO_CACHE='usd_brand_logo';
 function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}catch{return''}}
 function cacheBrandLogo(url:string){try{localStorage.setItem(BRAND_LOGO_CACHE,url)}catch{}}
