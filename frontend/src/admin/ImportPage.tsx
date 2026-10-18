@@ -41,6 +41,7 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null);
  const[orphanPreview,setOrphanPreview]=useState<any>(null),[orphanConfirmation,setOrphanConfirmation]=useState(''),[orphanBusy,setOrphanBusy]=useState(false),[orphanError,setOrphanError]=useState(''),[orphanReport,setOrphanReport]=useState<any>(null);
  const[participantInventory,setParticipantInventory]=useState<any>(null),[inventoryBusy,setInventoryBusy]=useState(false),[inventoryError,setInventoryError]=useState('');
+ const[namePreview,setNamePreview]=useState<any>(null),[nameBusy,setNameBusy]=useState(false),[nameError,setNameError]=useState(''),[nameReport,setNameReport]=useState<any>(null),[namePhrase,setNamePhrase]=useState(''),[nameBackupOk,setNameBackupOk]=useState(false);
  const[purgePreview,setPurgePreview]=useState<any>(null),[purgePhrase,setPurgePhrase]=useState(''),[purgeBackupConfirmed,setPurgeBackupConfirmed]=useState(false),[purgeBusy,setPurgeBusy]=useState(false),[purgeError,setPurgeError]=useState(''),[purgeReport,setPurgeReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const previewHistoricalReset=async()=>{
    setResetBusy(true);setResetError('');setResetPreview(null);setResetConfirmation('');setResetReport(null);
@@ -95,6 +96,31 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
      setJob(null);setRows([]);setResult(null);setHistoricalPrepare(null);setHistoricalJobId('');setDbCheck(null);
    }catch(e){setPurgeError(e instanceof Error?e.message:'Массовая очистка не выполнена')}
    finally{setPurgeBusy(false)}
+ };
+ const checkNameRepairs=async()=>{
+   setNameBusy(true);setNameError('');setNamePreview(null);setNameReport(null);setNamePhrase('');setNameBackupOk(false);
+   try{setNamePreview(await apiGet<any>('/admin/imports/historical-name-repair/preview'))}
+   catch(e){setNameError(e instanceof Error?e.message:'Не удалось проверить нормализацию ФИО')}
+   finally{setNameBusy(false)}
+ };
+ const applyNameRepairs=async()=>{
+   if(!namePreview?.readOnly||!nameBackupOk||!namePreview.fingerprint||
+     namePhrase!==namePreview.confirmationRequired||!Number(namePreview.counts?.safeCorrections))return;
+   setNameBusy(true);setNameError('');
+   try{
+     const latest=await apiGet<any>('/admin/imports/historical-name-repair/preview');
+     if(latest.fingerprint!==namePreview.fingerprint||
+       latest.counts?.safeCorrections!==namePreview.counts.safeCorrections){
+       setNamePreview(latest);setNamePhrase('');setNameBackupOk(false);
+       throw new Error('Данные изменились: сверьте новый предпросмотр');
+     }
+     const result=await apiPost<any>('/admin/imports/historical-name-repair/execute',{
+       confirmation:namePhrase,fingerprint:namePreview.fingerprint,
+       expectedCount:namePreview.counts.safeCorrections,
+     });
+     setNameReport(result);setNamePreview(null);setNamePhrase('');setNameBackupOk(false);setParticipantInventory(null);
+   }catch(e){setNameError(e instanceof Error?e.message:'Не удалось исправить ФИО')}
+   finally{setNameBusy(false)}
  };
  const inspectRemainingParticipants=async()=>{
    setInventoryBusy(true);setInventoryError('');setParticipantInventory(null);
@@ -233,6 +259,26 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  {mode==='HISTORICAL'&&<section className="panel" aria-label="Нормализация ФИО участников">
+    <div className="resource-editor-heading"><div><strong>Нормализация ФИО · исправление тестовых карточек</strong>
+    <p>Проверка имён уже записанных участников. Разрешены только однозначные исправления транслитерации и известных ошибок имени. Дубли, псевдонимы и сомнительные фамилии выделяются отдельно и не объединяются.</p></div></div>
+    <button type="button" className="secondary-button" disabled={nameBusy} onClick={()=>void checkNameRepairs()}>{nameBusy?'Проверка…':'Проверить и показать исправления ФИО'}</button>
+    {nameError&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{nameError}</div>}
+    {nameReport&&<div className="notice" role="status"><Check size={16}/><div><strong>Исправление завершено</strong><p>Исправлено ФИО: {nameReport.fixed??0}; оставлено для ручной проверки: {nameReport.skippedForReview??0}. Участники не объединялись.</p></div></div>}
+    {namePreview&&<div className="import-example">
+      <strong>Предпросмотр без изменений базы</strong>
+      <p>Всего участников: {namePreview.counts?.totalParticipants??0}; <b>безопасных исправлений:</b> {namePreview.counts?.safeCorrections??0}; <b>требуют проверки:</b> {namePreview.counts?.requiresReview??0}; с аккаунтами: {namePreview.counts?.accountLinked??0}.</p>
+      <div className="notice"><AlertTriangle size={16}/><div>Это исправление написания существующих карточек. Оно не удаляет людей, не объединяет дубли и не изменяет результаты выступлений. Сомнительные фамилии нужно проверить отдельно.</div></div>
+      <details><summary>Список исправлений · до 40</summary><ul>{(namePreview.examples?.safe??[]).map((item:any,i:number)=><li key={i}>{item.before} → <b>{item.after}</b></li>)}</ul></details>
+      <details><summary>Нужна ручная проверка · до 40</summary><ul>{(namePreview.examples?.review??[]).map((item:any,i:number)=><li key={i}><b>{item.name}</b> · {item.reason}{item.suggested!==item.name?' · вариант: '+item.suggested:''}</li>)}</ul></details>
+      {Number(namePreview.counts?.safeCorrections??0)>0&&<>
+        <div className="notice"><AlertTriangle size={16}/><div><strong>Перед записью проверь резервную копию PostgreSQL.</strong><p>Для этой тестовой операции сервер требует ALLOW_HISTORICAL_IMPORT_RESET=true и ALLOW_TEST_NAME_REPAIR=true. После исправлений оба временных разрешения нужно отключить.</p></div></div>
+        <label className="field-check"><input type="checkbox" checked={nameBackupOk} onChange={e=>setNameBackupOk(e.target.checked)}/><span>Независимая резервная копия проверена, список исправлений просмотрен</span></label>
+        <label>Контрольная фраза: <b>{namePreview.confirmationRequired}</b><input autoComplete="off" spellCheck={false} type="text" value={namePhrase} onChange={e=>setNamePhrase(e.target.value)} placeholder={namePreview.confirmationRequired}/></label>
+        <button className="secondary-button" type="button" disabled={nameBusy||!nameBackupOk||namePhrase!==namePreview.confirmationRequired} onClick={()=>void applyNameRepairs()}>Исправить {namePreview.counts.safeCorrections} ФИО (без объединения участников)</button>
+      </>}
+    </div>}
+  </section>}
   {mode==='HISTORICAL'&&<section className="panel" aria-label="Полная очистка тестовых участников без аккаунтов">
    <div className="resource-editor-heading"><div><strong>Полная очистка тестовых участников без аккаунтов</strong>
    <p>Для повторного импорта удаляем всех участников без аккаунтов и регистраций — вместе с их автомобилями, связанными рекордами и тестовыми инспекциями. Привязанные к аккаунтам люди и зарегистрированные участники не затрагиваются. Это отличается от узкой очистки сирот ниже.</p></div></div>

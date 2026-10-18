@@ -407,7 +407,7 @@ describe('ImportsService historical same-name disambiguation', () => {
     const result = await sut.previewResultRow(
       { ФИО: 'Teplov Vladislav', Номер: '000', Класс: 'BassRace 129.9', Результат: '128.2' },
       51, new Map(), index, stageClass, 'stage-1', true,
-      new Map([['teplov vladislav', 201]]),
+      new Map([['теплов владислав', 201]]),
     );
     expect(result.status).toBe('READY');
     expect(result.participantNumber).toBe(201);
@@ -531,6 +531,30 @@ describe('ImportsService historical same-name disambiguation', () => {
     expect(result.status).toBe('WARNING');
     expect(result.warnings).toHaveLength(1);
     expect(result.participant.source).toBe('DATABASE');
+  });
+});
+
+
+describe('ImportsService import-name gate', () => {
+  it('blocks a team nickname with no real first name before importing an archival result', async () => {
+    const db: any = { registration: { findUnique: jest.fn(async () => null) } };
+    const service: any = new ImportsService(db as PrismaService, new NameNormalizerService());
+    const result = await service.previewResultRow(
+      { 'ФИО': '34 Sound', 'Номер': 34, 'Класс': 'BassRace 129.9', 'Результат': '129.9' },
+      1, new Map(), service.buildRegistrationParticipantIndex([]),
+      [{ class: { id: 'bass-129', name: 'BassRace 129.9', unit: 'DB' } }],
+      'stage-1', true,
+    );
+    expect(result.status).toBe('WARNING');
+    expect(result.warnings.some((w: string) => w.includes('подозрительное ФИО'))).toBe(true);
+  });
+
+  it('refuses commit-side creation of suspicious participants, even if a stale preview had been READY', async () => {
+    const tx: any = { participant: { findFirst: jest.fn(), findMany: jest.fn(), create: jest.fn() } };
+    const service: any = new ImportsService({} as PrismaService, new NameNormalizerService());
+    await expect(service.createParticipantFromImport(tx, { fullName: 'Антоха Сф' }))
+      .rejects.toThrow('подозрительным ФИО');
+    expect(tx.participant.create).not.toHaveBeenCalled();
   });
 });
 

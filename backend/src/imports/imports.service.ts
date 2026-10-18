@@ -2397,7 +2397,7 @@ export class ImportsService {
         ),
       );
 
-    const normalizedDisplayName = this.nameNormalizer.normalize(rawName);
+    const nameInspection = this.nameNormalizer.inspect(rawName);
 
     const rawNumber =
       this.numberValue(
@@ -2571,7 +2571,8 @@ export class ImportsService {
       | 'AUTO'
       | 'NONE' = 'NONE';
 
-    const warnings: string[] = [];
+    const warnings: string[] = nameInspection.reasons.map((reason) =>
+      `Строка ${rowNumber}: подозрительное ФИО «${rawName}»: ${reason}`);
 
     if (
       registrationParticipant.status ===
@@ -3004,7 +3005,7 @@ export class ImportsService {
   private normalizePersonName(
     value: string,
   ): string {
-    return String(value ?? '')
+    return this.nameNormalizer.normalize(value)
       .normalize('NFKC')
       .replace(/\u00A0/g, ' ')
       .replace(/\u200B/g, '')
@@ -3017,17 +3018,7 @@ export class ImportsService {
   }
 
   private transliterateRussianName(value: string): string {
-    const map: Record<string, string> = {
-      а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh',
-      з:'z', и:'i', й:'y', к:'k', л:'l', м:'m', н:'n', о:'o',
-      п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'h', ц:'ts',
-      ч:'ch', ш:'sh', щ:'sh', ъ:'', ы:'y', ь:'', э:'e', ю:'yu',
-      я:'ya',
-    };
-    return this.normalizePersonName(value)
-      .split('')
-      .map((char) => map[char] ?? char)
-      .join('');
+    return this.nameNormalizer.toLatin(value);
   }
 
   private nameAliases(value: string): string[] {
@@ -3277,10 +3268,15 @@ export class ImportsService {
       email?: string | null;
     },
   ) {
-    const fullName =
-      this.nameNormalizer.normalize(
-        this.stringValue(participant.fullName),
+    const inspected = this.nameNormalizer.inspect(
+      this.stringValue(participant.fullName),
+    );
+    if (inspected.needsReview) {
+      throw new BadRequestException(
+        `Нельзя создать участника с подозрительным ФИО «${inspected.original}»: ${inspected.reasons.join('; ')}. Уточните фамилию и имя в источнике.`,
       );
+    }
+    const fullName = inspected.normalized;
 
     const parsedName =
       this.splitFullName(
