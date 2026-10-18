@@ -39,7 +39,8 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const[vibrationBrands,setVibrationBrands]=useState<string[]>(['STP','ComfortMat','Audior','Global']);const[vibrationBusyRowId,setVibrationBusyRowId]=useState('');
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
  const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null);
- const[orphanPreview,setOrphanPreview]=useState<any>(null),[orphanConfirmation,setOrphanConfirmation]=useState(''),[orphanBusy,setOrphanBusy]=useState(false),[orphanError,setOrphanError]=useState(''),[orphanReport,setOrphanReport]=useState<any>(null); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
+ const[orphanPreview,setOrphanPreview]=useState<any>(null),[orphanConfirmation,setOrphanConfirmation]=useState(''),[orphanBusy,setOrphanBusy]=useState(false),[orphanError,setOrphanError]=useState(''),[orphanReport,setOrphanReport]=useState<any>(null);
+ const[participantInventory,setParticipantInventory]=useState<any>(null),[inventoryBusy,setInventoryBusy]=useState(false),[inventoryError,setInventoryError]=useState(''); const [historicalPrepare,setHistoricalPrepare]=useState<any>(null),[historicalJobId,setHistoricalJobId]=useState('');const [dbCheck,setDbCheck]=useState<any>(null);
  const previewHistoricalReset=async()=>{
    setResetBusy(true);setResetError('');setResetPreview(null);setResetConfirmation('');setResetReport(null);
    try{
@@ -67,6 +68,12 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
      setStages(listData(stagesResponse));
    }catch(e){setResetError(e instanceof Error?e.message:'Очистка не выполнена')}
    finally{setResetBusy(false)}
+ };
+ const inspectRemainingParticipants=async()=>{
+   setInventoryBusy(true);setInventoryError('');setParticipantInventory(null);
+   try{setParticipantInventory(await apiGet<any>('/admin/imports/historical-orphans/diagnostics'))}
+   catch(e){setInventoryError(e instanceof Error?e.message:'Не удалось получить полную сводку участников')}
+   finally{setInventoryBusy(false)}
  };
  const previewOrphanCleanup=async()=>{
    setOrphanBusy(true);setOrphanError('');setOrphanPreview(null);setOrphanConfirmation('');setOrphanReport(null);
@@ -199,9 +206,30 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  {mode==='HISTORICAL'&&<section className="panel" aria-label="Сводка участников после очистки истории">
+    <div className="resource-editor-heading"><div><strong>Диагностика · куда делись остальные исторические участники?</strong><p>Предыдущий предпросмотр показывал только людей БЕЗ регистраций. Это не полный список старых участников. Ниже — общая сводка базы по аккаунтам и типам регистраций. Просмотр не меняет данные.</p></div></div>
+    <button type="button" className="secondary-button" disabled={inventoryBusy} onClick={()=>void inspectRemainingParticipants()}>{inventoryBusy?'Проверяем связи…':'Показать всех участников и связи'}</button>
+    {inventoryError&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{inventoryError}</div>}
+    {participantInventory&&<div className="import-example">
+      <strong>Полная сводка · только чтение</strong>
+      <p>Всего участников: {participantInventory.counts?.totalParticipants??0}; привязаны к аккаунтам: {participantInventory.counts?.linkedToUserAccounts??0}; без аккаунтов: {participantInventory.counts?.withoutUserAccounts??0}.</p>
+      <p><b>Без регистраций:</b> {participantInventory.counts?.withoutRegistrations??0}; <b>только регистрации IMPORT:</b> {participantInventory.counts?.withImportOnlyRegistrations??0}; <b>только другие регистрации:</b> {participantInventory.counts?.withOtherOnlyRegistrations??0}; <b>смешанные:</b> {participantInventory.counts?.withMixedRegistrations??0}.</p>
+      <p>Регистраций с источником IMPORT у людей без аккаунтов: {participantInventory.counts?.importRegistrationsOnUnclaimedProfiles??0}; остальных регистраций: {participantInventory.counts?.otherRegistrationsOnUnclaimedProfiles??0}; профилей с защищённой историей: {participantInventory.counts?.unclaimedWithProtectedHistory??0}.</p>
+      <div className="notice"><AlertTriangle size={16}/><div>Метка IMPORT означает источник регистрации, но не доказывает, что участник создан именно старым историческим импортом. Удалять такие группы автоматически нельзя.</div></div>
+      {([
+        ['importOnly','Участники только с импортными регистрациями'],
+        ['mixed','Участники со смешанными регистрациями'],
+        ['otherOnly','Участники только с другими регистрациями'],
+        ['noRegistrations','Участники без регистраций'],
+      ] as const).map(([key,label])=><details key={key}><summary>{label} · примеры (до 20)</summary>
+        <ul>{(participantInventory.examples?.[key]??[]).map((person:any)=><li key={person.id}><b>{person.name||'Без имени'}</b> · машин {person.cars}; регистраций IMPORT {person.importRegistrations}, других {person.otherRegistrations}{person.hasProtectedHistory?' · есть защищённые связи':''}{Array.isArray(person.stages)&&person.stages.length>0?<small> · {person.stages.join('; ')}</small>:null}</li>)}</ul>
+      </details>)}
+      <p><b>Следующий шаг:</b> определить, какие категории можно безопасно пересоздать из таблиц «Результаты». Эта диагностика ничего не удаляет.</p>
+    </div>}
+  </section>}
   {mode==='HISTORICAL'&&<section className="panel" aria-label="Очистка оставшихся участников">
-    <div className="resource-editor-heading"><div><strong>Дополнительная очистка · оставшиеся участники и автомобили</strong>
-    <p>После первой очистки могли остаться профили без зарегистрированных выступлений. Эта операция ищет ВСЕ незарегистрированные профили без аккаунта, в том числе созданные вручную. Источник их создания после удаления журнала импортов определить нельзя.</p>
+    <div className="resource-editor-heading"><div><strong>Узкая очистка · только участники без регистраций</strong>
+    <p>Этот раздел НЕ удаляет всех исторических участников. Он находит только карточки без единой регистрации и без аккаунта, в том числе созданные вручную. Источник их создания после удаления журнала импортов определить нельзя.</p>
     </div></div>
     <button type="button" className="secondary-button" disabled={orphanBusy} onClick={()=>void previewOrphanCleanup()}>{orphanBusy?'Проверяем…':'Проверить оставшихся участников без удаления'}</button>
     {orphanError&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{orphanError}</div>}
