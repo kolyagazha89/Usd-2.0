@@ -18,6 +18,7 @@ export class HistoricalNameRepairService {
     const participants = await db.participant.findMany({
       select: {
         id: true, lastName: true, firstName: true, middleName: true,
+        historicalAlias: true,
         user: { select: { id: true } },
         registrations: { select: { id: true } },
       },
@@ -41,6 +42,7 @@ export class HistoricalNameRepairService {
         changed,
         reason: inspected.reasons,
         accountLinked: Boolean(p.user),
+        historicalAlias: Boolean(p.historicalAlias),
         registrations: p.registrations.length,
         key: [next.lastName, next.firstName, next.middleName ?? '']
           .join('|').toLocaleLowerCase('ru').replace(/ё/g, 'е'),
@@ -54,6 +56,8 @@ export class HistoricalNameRepairService {
       const reasons = [...p.reason];
       if (p.accountLinked && p.changed)
         reasons.push('Профиль привязан к аккаунту; имя изменяет только владелец/администратор вручную');
+      if (p.historicalAlias)
+        reasons.push('Это архивный псевдоним: исходное название не переписывается нормализацией');
       if ((shared.get(p.key)?.length ?? 0) > 1)
         reasons.push('Совпадает с другой карточкой участника: объединять автоматически нельзя');
       return { ...p, reasons, eligible: p.changed && reasons.length === 0 };
@@ -61,8 +65,8 @@ export class HistoricalNameRepairService {
     const eligible = reviewed.filter((r) => r.eligible);
     const uncertain = reviewed.filter((r) => r.reasons.length > 0);
     const fingerprint = createHash('sha256')
-      .update(JSON.stringify(reviewed.map(({ id, original, next, accountLinked, registrations }) =>
-        ({ id, original, next, accountLinked, registrations }))))
+      .update(JSON.stringify(reviewed.map(({ id, original, next, accountLinked, historicalAlias, registrations }) =>
+        ({ id, original, next, accountLinked, historicalAlias, registrations }))))
       .digest('hex');
     return {
       eligible, uncertain, fingerprint,
@@ -71,12 +75,13 @@ export class HistoricalNameRepairService {
         safeCorrections: eligible.length,
         requiresReview: uncertain.length,
         accountLinked: proposals.filter((p) => p.accountLinked).length,
+        archivalAliasesProtected: proposals.filter((p) => p.historicalAlias).length,
         noChange: reviewed.filter((p) => !p.changed && p.reasons.length === 0).length,
       },
       examples: {
-        safe: eligible.slice(0, 40).map((r) => ({ before: r.original, after:
+        safe: eligible.slice(0, 150).map((r) => ({ before: r.original, after:
           [r.next.lastName, r.next.firstName, r.next.middleName].filter(Boolean).join(' ') })),
-        review: uncertain.slice(0, 40).map((r) => ({ name: r.original,
+        review: uncertain.slice(0, 150).map((r) => ({ name: r.original,
           suggested: [r.next.lastName, r.next.firstName, r.next.middleName].filter(Boolean).join(' '),
           reason: r.reasons.join('; '), registrations: r.registrations })),
       },
