@@ -38,18 +38,18 @@ describe('HistoricalNameRepairService', () => {
     else process.env.ALLOW_TEST_NAME_REPAIR = oldFlag;
   });
 
-  it('previews safe given-name corrections but quarantines fake people and suspect surnames', async () => {
+  it('previews known spelling corrections while leaving legitimate surnames and fake people distinct', async () => {
     const { db, service } = setup();
     const preview = await service.preview();
     expect(preview.readOnly).toBe(true);
     expect(preview.counts).toMatchObject({
-      totalParticipants: 4, safeCorrections: 1, requiresReview: 2, accountLinked: 1,
+      totalParticipants: 4, safeCorrections: 1, requiresReview: 1, accountLinked: 1,
     });
     expect(preview.examples.safe[0]).toEqual({
       before: 'Говорухин Илийа', after: 'Говорухин Илья',
     });
     expect(preview.examples.review.map((r) => r.name).sort()).toEqual([
-      'Антоха Сф', 'Зуборев Владислав',
+      'Антоха Сф',
     ]);
     expect(db.participant.update).not.toHaveBeenCalled();
   });
@@ -74,7 +74,7 @@ describe('HistoricalNameRepairService', () => {
     const { db, service } = setup();
     const preview = await service.preview();
     const result = await service.execute(preview.confirmationRequired, preview.fingerprint, 1);
-    expect(result).toMatchObject({ fixed: 1, skippedForReview: 2 });
+    expect(result).toMatchObject({ fixed: 1, skippedForReview: 1 });
     expect(db.participant.update).toHaveBeenCalledTimes(1);
     expect(db.participant.update).toHaveBeenCalledWith({
       where: { id: 'a' },
