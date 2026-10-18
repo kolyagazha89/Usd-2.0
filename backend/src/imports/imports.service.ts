@@ -4557,6 +4557,7 @@ export class ImportsService {
     tx: Prisma.TransactionClient,
     importJob: {
       stageId: string;
+      metadata?: unknown;
       rows: Array<{
         id: string;
         type: 'REGISTRATION' | 'RESULT';
