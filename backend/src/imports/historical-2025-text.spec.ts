@@ -55,7 +55,7 @@ describe('additive 2025 archive', () => {
     const names = new NameNormalizerService();
     const snapshot = readFileSync(join(base, 'historical-xlsx.json'), 'utf8');
     const plan = buildGlobalHistoricalPlan(snapshot, names, sources);
-    expect(plan.identityRulesVersion).toBe(5);
+    expect(plan.identityRulesVersion).toBe(6);
     expect(plan.stages).toHaveLength(17);
     expect(plan.sourceResults).toBe(1697);
     expect(plan.stages.filter(s => s.year === 2025)).toHaveLength(7);
