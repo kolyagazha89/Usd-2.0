@@ -6,6 +6,8 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
 import { AppModule } from '../src/app.module';
+import {JwtAuthGuard} from '../src/auth/jwt-auth.guard';
+import {RolesGuard} from '../src/auth/roles.guard';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { GlobalHistoricalImportService } from '../src/imports/global-historical-import.service';
 import type { ArchivePlan } from '../src/imports/global-historical-plan';
@@ -18,7 +20,7 @@ describe('one-button global historical import with a real test database', () => 
   const url = new URL(process.env.DATABASE_URL ?? 'postgresql://invalid');
   if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname)) throw Error('Integration test requires an isolated local PostgreSQL database');
   const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = module.createNestApplication(new ExpressAdapter()); app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true,forbidNonWhitelisted:true})); await app.init();
+  app = module.createNestApplication(new ExpressAdapter()); app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true,forbidNonWhitelisted:true})); app.useGlobalGuards(app.get(JwtAuthGuard),app.get(RolesGuard)); await app.init();
   db = app.get(PrismaService); service = app.get(GlobalHistoricalImportService);
   const suffix = randomUUID(); sourceHash = 'e2e-' + suffix;
   const admin = await db.user.create({ data: { email: 'global-admin-' + suffix + '@example.invalid', passwordHash: 'not-used-by-jwt', role: 'ADMIN', emailVerifiedAt: new Date() } });
