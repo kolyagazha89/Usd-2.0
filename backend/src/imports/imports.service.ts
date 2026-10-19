@@ -3355,7 +3355,13 @@ export class ImportsService {
     if (!alias || alias.length > 160 || !this.nameNormalizer.inspect(alias).needsReview) {
       throw new BadRequestException('Укажите корректное архивное название для неизвестного участника');
     }
-    const identityKey = alias.toLocaleLowerCase('ru');
+    const literalKey = alias.toLocaleLowerCase('ru');
+    // Only verified formatting variants of *the same archival label* may
+    // share a stage-scoped identity. Never strip separators for arbitrary
+    // people or merge stage-scoped aliases across different events.
+    const compactKey = literalKey.replace(/[\s._-]+/g, '');
+    const verifiedLabelVariants = new Set(['34sound', 'bassmarket', 'caraudiobryansk']);
+    const identityKey = verifiedLabelVariants.has(compactKey) ? compactKey : literalKey;
     const legacyId = 'HISTORICAL_ALIAS:' + createHash('sha256')
       .update(stageId + ':' + identityKey).digest('hex');
     return tx.participant.upsert({
