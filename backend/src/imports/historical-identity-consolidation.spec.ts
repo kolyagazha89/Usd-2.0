@@ -10,6 +10,7 @@ const p = (id: string, alias: string, stage: string) => ({
   id, lastName: alias, firstName: '', middleName: null, createdAt: new Date(stage),
   legacyId: hash(stage + ':' + alias.toLowerCase()), historicalAlias: alias,
   phone: null, photoUrl: null, birthDate: null, user: null,
+  registrations: [{ source: 'IMPORT' }],
 });
 
 function setup(people: any[], opts: { sameStageInspections?: boolean; emails?: Array<{ participantId: string; email: string }>; protectedUser?: boolean } = {}) {
@@ -70,6 +71,16 @@ describe('historical identity consolidation', () => {
         legacyId: hash('GLOBAL:34sound'), lastName: '34 Sound', historicalAlias: '34 Sound',
       }),
     }));
+  });
+
+  it('does not consolidate an on-site registration even when archive aliases match', async () => {
+    const { db, participant } = setup([p('a','34sound','2026-01-01'),p('b','34 Sound','2026-01-02')]);
+    const entries = await db.participant.findMany();
+    entries[1].registrations[0].source = 'ON_SITE';
+    const summary = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(summary.profilesMerged).toBe(0);
+    expect(summary.skipped[0].reason).toMatch(/защищённые/);
+    expect(participant.deleteMany).not.toHaveBeenCalled();
   });
 
   it('refuses to merge a duplicate tied to a real account', async () => {
