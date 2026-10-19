@@ -1,5 +1,6 @@
 export type HistoricalStage = { name: string; year: number; number: number; status: string; sourceRows: number; imported: number; aliases: number; kept: number; jobId?: string; error?: string; review: Array<{ sheet: string; row: number; name: string; reason: string }> };
-export type HistoricalBatch = { id: string; status: string; sourceResults: number; imported: number; kept: number; aliases: number; needsReview: number; failedStages: number; processedStages: number; totalStages: number; peopleInSource: number; stages: HistoricalStage[] };
+export type HistoricalConsolidation = { groupsMerged: number; profilesMerged: number; skipped: Array<{ label: string; reason: string }> };
+export type HistoricalBatch = { id: string; status: string; sourceResults: number; imported: number; kept: number; aliases: number; needsReview: number; failedStages: number; processedStages: number; totalStages: number; peopleInSource: number; stages: HistoricalStage[]; consolidation: HistoricalConsolidation | null };
 
 /** Nest can serialize a null return value as an empty HTTP body. The API
  * client parses that as {}, which must never become a renderable batch. */
@@ -19,5 +20,16 @@ export function parseHistoricalBatch(value: unknown): HistoricalBatch | null {
    jobId:typeof item.jobId==='string'?item.jobId:undefined,error:typeof item.error==='string'?item.error:undefined,
    review:review.map(raw=>{if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Сервер вернул некорректную строку проверки.');const row=raw as Record<string,unknown>;return {sheet:text(row,'sheet'),row:count(row,'row'),name:text(row,'name'),reason:text(row,'reason')}})};
  });
- return {id:data.id,status:data.status,stages,sourceResults:count(data,'sourceResults'),imported:count(data,'imported'),kept:count(data,'kept'),aliases:count(data,'aliases'),needsReview:count(data,'needsReview'),failedStages:count(data,'failedStages'),processedStages:count(data,'processedStages'),totalStages:count(data,'totalStages'),peopleInSource:count(data,'peopleInSource')};
+ const rawConsolidation = data.consolidation;
+ let consolidation: HistoricalConsolidation | null = null;
+ if(rawConsolidation && typeof rawConsolidation === 'object' && !Array.isArray(rawConsolidation)){
+  const summary = rawConsolidation as Record<string,unknown>;
+  const skipped = Array.isArray(summary.skipped) ? summary.skipped : [];
+  consolidation = {
+   groupsMerged: count(summary,'groupsMerged'),profilesMerged: count(summary,'profilesMerged'),
+   skipped: skipped.filter((x): x is {label:string;reason:string} => Boolean(x && typeof x === 'object' &&
+     typeof (x as {label?:unknown}).label === 'string' && typeof (x as {reason?:unknown}).reason === 'string')),
+  };
+ }
+ return {id:data.id,status:data.status,stages,sourceResults:count(data,'sourceResults'),imported:count(data,'imported'),kept:count(data,'kept'),aliases:count(data,'aliases'),needsReview:count(data,'needsReview'),failedStages:count(data,'failedStages'),processedStages:count(data,'processedStages'),totalStages:count(data,'totalStages'),peopleInSource:count(data,'peopleInSource'),consolidation};
 }

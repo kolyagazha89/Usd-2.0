@@ -112,7 +112,7 @@ describe('archive duplicate prevention', () => {
     ]);
   });
 
-  it('deduplicates exact approved alias formatting variants only within one stage', async () => {
+  it('deduplicates globally confirmed alias formatting variants across stages', async () => {
     const upsert = jest.fn().mockImplementation(async () => ({ id: 'archival' }));
     const service = new ImportsService({} as never, names) as unknown as {
       createHistoricalAliasParticipant: (tx: unknown, stageId: string, alias: string) => Promise<unknown>;
@@ -125,7 +125,7 @@ describe('archive duplicate prevention', () => {
     await service.createHistoricalAliasParticipant(tx, 'stage-a', 'Car Audio Bryansk');
     const keys = upsert.mock.calls.map(call => (call[0] as { where: { legacyId: string } }).where.legacyId);
     expect(keys[0]).toBe(keys[1]);
-    expect(keys[0]).not.toBe(keys[2]);
+    expect(keys[0]).toBe(keys[2]);
     expect(keys[3]).toBe(keys[4]);
   });
 });

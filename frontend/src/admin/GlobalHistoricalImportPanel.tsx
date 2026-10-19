@@ -80,6 +80,11 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
         <strong>{complete ? 'Все исходные результаты обработаны' : running ? 'Импортируем архив. Страницу можно закрыть — задача сохранится.' : 'Проверенные данные сохранены. Остались строки для проверки.'}</strong>
         <p>Результатов в источнике: {batch.sourceResults}. Записано или уже совпало: <b>{batch.imported}</b>. Из них сохранено без замены: {batch.kept}. Требуют проверки: <b>{batch.needsReview}</b>.</p>
         <p>Этапов завершено: {batch.processedStages} из {batch.totalStages}. Архивных обозначений без подтверждённого ФИО: {batch.aliases}.</p>
+        {batch.consolidation && <p>Объединено дублирующих карточек: <b>{batch.consolidation.profilesMerged}</b> · групп: {batch.consolidation.groupsMerged}.</p>}
+        {batch.consolidation && batch.consolidation.skipped.length > 0 && <details>
+          <summary>Объединение требует проверки · {batch.consolidation.skipped.length}</summary>
+          <ul>{batch.consolidation.skipped.map(item => <li key={item.label}><b>{item.label}</b> — {item.reason}</li>)}</ul>
+        </details>}
         {batch.failedStages > 0 && <p>Не завершено этапов: {batch.failedStages}. После устранения причины нажмите «Продолжить общий импорт».</p>}
       </div></div>
       <progress max={Math.max(1, batch.sourceResults)} value={batch.imported} aria-label="Прогресс общего импорта" style={{ width: '100%', accentColor: '#b91c1c' }} />

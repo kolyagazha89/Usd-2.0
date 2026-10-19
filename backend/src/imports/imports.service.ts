@@ -1,5 +1,5 @@
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
-import { archivalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
+import { archivalAliasKey, globalHistoricalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -3359,8 +3359,9 @@ export class ImportsService {
     }
     const identityKey = archivalAliasKey(alias) +
       (conflictingSticker ? ':conflicting-sticker:' + conflictingSticker : '');
+    const globalIdentity = !conflictingSticker ? globalHistoricalAliasKey(alias) : null;
     const legacyId = 'HISTORICAL_ALIAS:' + createHash('sha256')
-      .update(stageId + ':' + identityKey).digest('hex');
+      .update(globalIdentity ? 'GLOBAL:' + globalIdentity : stageId + ':' + identityKey).digest('hex');
     return tx.participant.upsert({
       where: { legacyId },
       create: {

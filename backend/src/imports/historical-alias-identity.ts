@@ -58,3 +58,21 @@ export function historicalAliasStickerDiscriminators(
   }
   return discriminators;
 }
+
+/**
+ * These repeated archival labels represent one performer/project identity
+ * across events. Only known, exact labels are eligible; Bassmarket is excluded
+ * because two different stickers occur in the SAME class at the 2025 final.
+ */
+export const globalHistoricalAliasLabels: Readonly<Record<string, string>> = {
+  '34sound': '34 Sound',
+  'caraudiobryansk': 'Car Audio Bryansk',
+  'alekseysf': 'Aleksey SF',
+  'antohasf': 'Antoha SF',
+  'igorbassfix63': 'Igor Bassfix63',
+};
+
+export function globalHistoricalAliasKey(label: string): string | null {
+  const compact = label.normalize('NFKC').toLocaleLowerCase('ru').replace(/[\s._-]+/g, '');
+  return Object.hasOwn(globalHistoricalAliasLabels, compact) ? compact : null;
+}

@@ -9,6 +9,7 @@ const progress = (status = 'PENDING'):any => ({ updatedAt: '', stages: [{ name: 
 const batch = (state = 'RUNNING'):any => ({ id: 'batch', status: state, sourceHash: 'source-hash', plan, progress: progress(state === 'COMPLETED' ? 'DONE' : 'PENDING'), createdByUserId: null, createdAt: new Date(), updatedAt: new Date() });
 const request:any = { user: { sub: 'admin', role: 'ADMIN' } };
 function make(db:any, imports:any = {}) {
+ if (!db.participant) db.participant = { findMany: jest.fn(async () => []) };
  const service:any = new GlobalHistoricalImportService(db, imports, new NameNormalizerService());
  jest.spyOn(service, 'loadPlan').mockReturnValue(plan);
  return service;
