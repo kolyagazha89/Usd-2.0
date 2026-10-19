@@ -45,7 +45,7 @@ function App(){
  useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
  useEffect(()=>{const route=path.split('?')[0];document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
- const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
+ const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false);window.scrollTo({top:0,behavior:'auto'})};
  useEffect(()=>{if(user&&(user.role!=='PARTICIPANT'||user.customRoleId)&&path==='/login'){history.replaceState({},'','/admin');setPath('/admin')}},[user,path]);
  useEffect(()=>{if(user?.customRoleId&&path.split('?')[0]==='/admin'){
    const permissions=user.customRole?.permissions??{};

@@ -533,3 +533,52 @@
 .participant-portal input[type="file"]::file-selector-button:hover {
   border-color: var(--red);
 }
+
+
+/* Admin detail/edit routes are ordinary document pages, never scrollable
+   boxes inherited from the former modal implementation. Tables and select
+   option menus may scroll horizontally; the editor workspace may not. */
+.main .content .page,
+.main .content .resource-editor-page,
+.main .content .resource-editor-page.panel {
+  height: auto !important;
+  min-height: 0;
+  max-height: none !important;
+  overflow: visible !important;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
+}
+.main .content .modal-form,
+.main .content .resource-editor-page .modal-form,
+.main .content .resource-editor-page .form,
+.main .content .resource-editor-page .entity-fields,
+.main .content .resource-editor-page .modal-actions,
+.main .content .import-resolution-page,
+.main .content .import-resolution {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
+}
+.main .content .resource-editor-page .modal-form {
+  width: 100%;
+  padding-block: 0;
+}
+.main .content .resource-editor-page .resource-editor-heading {
+  position: static;
+}
+.main .content .import-resolution-page .resolution-footer {
+  position: static;
+  bottom: auto;
+  margin-top: 22px;
+  padding: 16px 0 0;
+}
+@media (max-width: 720px) {
+  .main .content .resource-editor-page {
+    width: 100%;
+  }
+  .main .content .resource-editor-page .modal-form {
+    padding-inline: 0;
+  }
+}
