@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {Prisma} from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordsService } from '../records/records.service';
 import { ResultsRankingService } from '../results/results-ranking.service';
@@ -207,23 +208,31 @@ export class HistoricalResultsService {
     return this.sanitizePublicResult(result);
   }
 
-  async findPending() {
-    return this.prisma.result.findMany({
-      where: {
-        isHistorical: true,
-        verificationStatus: 'PENDING',
-      },
-      include: this.include(),
-      orderBy: { createdAt: 'asc' },
-    });
+  async findPending(query: {season?:string;page?:string;limit?:string} = {}) {
+    return this.findAllAdmin({...query,status:'PENDING'});
   }
 
-  async findAllAdmin() {
-    return this.prisma.result.findMany({
-      where: { isHistorical: true },
-      include: this.include(),
-      orderBy: { createdAt: 'desc' },
-    });
+  private listSelect() {
+    return {
+      id:true,value:true,unit:true,place:true,notes:true,verificationStatus:true,isHistorical:true,
+      registration:{select:{id:true,stageId:true,participantNumber:true,participant:{select:{id:true,lastName:true,firstName:true,middleName:true}},stage:{select:{id:true,name:true,city:true,stageNumber:true,date:true,season:{select:{id:true,year:true,name:true}}}}}},
+      registrationClass:{select:{id:true,classId:true,class:{select:{id:true,name:true,code:true,unit:true}}}},
+    } satisfies Prisma.ResultSelect;
+  }
+  async findAllAdmin(query: {season?:string;page?:string;limit?:string;status?:string} = {}) {
+    if(query.season!==undefined&&!/^\d{4}$/.test(query.season))throw new BadRequestException('Укажите год сезона из четырёх цифр');
+    const page=Number(query.page??1),limit=Number(query.limit??50);
+    if(!Number.isInteger(page)||page<1||page>1000000||!Number.isInteger(limit)||limit<1||limit>100)throw new BadRequestException('Размер страницы должен быть от 1 до 100, номер страницы — положительное целое число');
+    if(query.status!==undefined&&!['PENDING','VERIFIED'].includes(query.status))throw new BadRequestException('Некорректный статус проверки');
+    const scope:Prisma.ResultWhereInput={isHistorical:true,...(query.season?{registration:{stage:{season:{year:Number(query.season)}}}}:{})};
+    const where:Prisma.ResultWhereInput={...scope,...(query.status?{verificationStatus:query.status as 'PENDING'|'VERIFIED'}:{})};
+    const [items,total,pending,seasons]=await Promise.all([
+      this.prisma.result.findMany({where,select:this.listSelect(),take:limit,skip:(page-1)*limit,orderBy:[{createdAt:'desc'},{id:'asc'}]}),
+      this.prisma.result.count({where}),
+      this.prisma.result.count({where:{...scope,verificationStatus:'PENDING'}}),
+      this.prisma.season.findMany({where:{stages:{some:{registrations:{some:{results:{some:{isHistorical:true}}}}}}},select:{year:true},orderBy:{year:'desc'}}),
+    ]);
+    return {items,total,pending,page,limit,seasons:seasons.map(s=>String(s.year))};
   }
 
   async findOneAdmin(id: string) {
@@ -530,7 +539,8 @@ export class HistoricalResultsService {
         registration: { select: { stageId: true } },
         registrationClass: { select: { classId: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      take:100,
+      orderBy: [{registrationClass:{classId:'asc'}},{registration:{stageId:'asc'}},{createdAt:'asc'},{id:'asc'}],
     });
 
     if (pending.length === 0) {
@@ -605,7 +615,7 @@ export class HistoricalResultsService {
       success: true,
       processed: pending.length,
       total: pending.length,
-      remaining: 0,
+      remaining: await this.prisma.result.count({where:{isHistorical:true,verificationStatus:'PENDING',...(season?{registration:{stage:{season:{year:Number(season)}}}}:{})}}),
       recordRecalculationWarnings: recordErrors,
     };
   }

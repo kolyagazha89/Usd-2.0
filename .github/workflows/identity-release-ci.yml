@@ -47,3 +47,7 @@ jobs:
         env:
           USD_PERMANENT_DELETE_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/admin-permanent-deletion.e2e-spec.ts
+      - name: Verify bounded history listing and chunked confirmation
+        env:
+          USD_HISTORICAL_LIST_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/historical-results-list.e2e-spec.ts
