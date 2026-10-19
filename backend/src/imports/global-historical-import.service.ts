@@ -183,8 +183,16 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     if (target) {
       const live = await this.prisma.result.count({ where: { registration: { stageId: target.id }, isHistorical: false } });
       const ordinary = await this.prisma.registration.count({ where: { stageId: target.id, source: { not: 'IMPORT' } } });
-      if (live || ordinary || target.registrationOpen || target.legacyId?.startsWith('USD_TEST_') || target.isDeleted || target.date.toISOString().slice(0, 10) !== stage.date) {
-        throw new Error('Этап содержит обычные данные или отличается от архива; автоматическое изменение запрещено');
+      const blocked: string[] = [];
+      if (live) blocked.push('неисторических результатов: ' + live);
+      if (ordinary) blocked.push('обычных регистраций: ' + ordinary);
+      if (target.registrationOpen) blocked.push('открыта регистрация');
+      if (target.legacyId?.startsWith('USD_TEST_')) blocked.push('тестовый этап');
+      if (target.isDeleted) blocked.push('этап удалён');
+      if (target.date.toISOString().slice(0, 10) !== stage.date)
+        blocked.push('дата этапа ' + target.date.toISOString().slice(0, 10) + ' не совпадает с архивом ' + stage.date);
+      if (blocked.length) {
+        throw new Error('Этап содержит обычные данные или отличается от архива; изменение запрещено: ' + blocked.join('; '));
       }
     } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: 'PUBLISHED', registrationOpen: false } });
     const classes = await this.prisma.class.findMany({ where: { isActive: true } });
