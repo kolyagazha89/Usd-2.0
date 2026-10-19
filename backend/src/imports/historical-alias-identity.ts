@@ -61,11 +61,13 @@ export function historicalAliasStickerDiscriminators(
 
 /**
  * These repeated archival labels represent one performer/project identity
- * across events. Only known, exact labels are eligible; Bassmarket is excluded
- * because two different stickers occur in the SAME class at the 2025 final.
+ * across events. Only known, exact labels are eligible. The newer GitHub
+ * Results source removed the conflicting 2025 Bassmarket sticker 105;
+ * Bassmarket can now safely share an identity across stages.
  */
 export const globalHistoricalAliasLabels: Readonly<Record<string, string>> = {
   '34sound': '34 Sound',
+  'bassmarket': 'Bassmarket',
   'caraudiobryansk': 'Car Audio Bryansk',
   'alekseysf': 'Aleksey SF',
   'antohasf': 'Antoha SF',
