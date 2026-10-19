@@ -1,0 +1,132 @@
+Результаты ЛИПЕЦК 19.07.2025
+Limited 
+1 147,4 081 Chernuhin Denis 
+2 138,2 022 Yarcev Dmitry 
+3 0,0 007 Smirnov Sergey 
+ 
+1x2 
+1 153,9 005 Isaev Evgeny 
+2 153,4 067 Fedorov Pavel 
+3 153,1 074 Sherstnyakov Maksim 
+4 152,4 051 Naidenov Iliya 
+5 152,0 032 Zarubin Vadim 
+6 150,9 070 Gutishev Pavel 
+7 146,9 014 Shkutin Artem 
+ 
+2x2 
+1 156,9 053 Golubnyak Antoly 
+2 153,0 021 Zarubin Sergey 
+3 152,7 029 Chernov Andrey 
+4 149,1 038 Legostaev Andrey 
+5 141,2 031 Vadyhin Ivan 
+6 123,3 047 Avdyshin Daniil 
+ 
+Nolim 
+1 158,6 001 Hvorostyan Nikolay 
+2 157,6 057 Koryavih Andrey 
+3 157,2 064 Belyaev Vladimir 
+ 
+Sedan 
+1 155,1 012 Rybakov Evgeny 
+2 148,5 052 Filatov Denis 
+3 143,9 062 Belevitin Aleksey 
+ 
+Coffin 
+1 162,8 023 34sound - Рекорд России
+2 159,3 019 Bobrovsky Sergey 
+ 
+Wall 
+1 166,4 015 Lapshev Igor 
+2 164,1 030 Latishev Maksim 
+3 155,8 013 Telpov Anatoly 
+4 148,6 018 Sushkevich Aleksey 
+
+Wall+ 
+1 164,0 044 Shvedov Alexandr 
+2 160,5 071 Bochenkov Stanislav 
+3 157,1 041 Kravcov Mihail 
+4 155,8 068 Shevyrin Sergey 
+ 
+Mad-x 
+1 166,8 039 Belyi Valery 
+2 165,0 063 Didenko Artem 
+3 162,7 080 Gulidov Alexandr 
+4 159,5 045 Nichiporov Sergey 
+5 159,3 073 Tlepcerishin Vadim 
+6 153,6 079 Shevyrin Sergey 
+ 
+BassRace 
+BassRace 129.9
+1 129,90 090 Al-tamimi Ruslan  129,82 129,90 129,40 129,90 
+2 129,90 012 Rybakov Evgeny  129,82 129,70 129,90 
+3 129,45 016 Romanov Nikolay  129,45 129,20 
+4 129,85 049 Vasiliev Andrey  129,85 119,80 
+5 129,88 059 Gerasimov Lev  129,88 
+6 129,83 021 Zarubin Sergey  129,83 
+7 129,39 031 Vadyhin Ivan  129,39 
+8 125,51 022 Yarcev Dmitry  125,51 
+ 
+BassRace 139.9
+1 139,93 020 Teplov Vladislav  139,93 139,90 139,90 139,90 
+2 139,62 032 Zarubin Vadim  139,62 127,40 135,70 
+3 139,82 001 Hvorostyan Nikolay  139,82 139,80 
+4 139,40 007 Smirnov Sergey  137,79 139,40 
+5 139,94 050 Vasiliev Andrey  139,94 
+6 139,63 054 Zaharov Anton  139,63 
+7 136,04 018 Sushkevich Aleksey  136,04 
+8 130,10 011 Matveev Alexandr  130,10 
+9 130,01 024 Laptev Nikolay 
+ 
+BassRace 149.9
+1 149,95 048 Vasiliev Andrey  149,95 148,60 149,70 149,40 
+2 149,84 030 Latishev Maksim  149,84 149,80 149,10 
+3 149,92 073 Tlepcerishin Vadim  149,92 149,00 
+4 143,77 056 Tararin Sergey  143,77 134,90 
+5 148,85 053 Golubnyak Anatoly  148,85 
+6 147,97 019 Bobrovsky Sergey  147,97 
+7 143,30 041 Kravcov Mihail  143,30 
+8 143,06 037 Tuleninov Egor 
+9 140,04 065 Aseev Aleksey 
+10 140,01 067 Fedorov Pavel 
+
+BFSPL
+Gate 1-6
+1. Захаров Антон - 125.26
+2. Хворостян Николай - 125.14
+3. Тюрин Александр - 123.24
+4. Аль-Тамими Руслан - 112.07
+5. Ярцев Дмитрий - 107.29
+6. Парамонов Дмитрий - 107.27
+7. Плишкин Дмитрий - 105.78
+
+Wicket 6-10
+1. Тарасов Сергей - 127.66
+2. Сауляк Валерий - 127.53
+3. Анташвили Тимур - 127.39
+4. Шведов Александр - 124.85
+5. Тлепцеришин Вадим - 123.77
+6. Михайлов Данил - 123.44
+7. Перов Владислав - 122.44
+8. Горюнов Владислав - 112.50
+
+Wicket 10+
+1. Вооробьев Андрей - 130.33
+2. Хусаинов Александр - 127.23
+3. Оводов Виталий - 126.53
+4. Кравцов Михаил - 124.41
+5. Перцев Петр - 123.95
+6. Алейник Игорь - 123.03
+7. Ничипоров Сергей - 121.64
+
+BDW 
+1. Воробьев Андрей - 121.95
+2. Тюрин Александр - 117.21
+3. Шведов Александр - 117.06
+4. Саввин Никита - 114.29
+
+BDW Ex
+1. Войтенко Евгений AC - 126.27
+2. Оводов Виталий - 124.44
+3. Стоялов Владимир - 116.80
+4. Чеботарев Евгений - 116.03
+5. Тихонов Александр - 115.68
