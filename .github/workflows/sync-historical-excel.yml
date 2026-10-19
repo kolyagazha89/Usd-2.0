@@ -1,0 +1,41 @@
+name: Sync historical Excel source
+
+on:
+  push:
+    branches:
+      - main
+      - fix/import-current-github-excel-results-20261019
+    paths:
+      - 'USD _ Регистрация.xlsx'
+      - 'USD _ Результаты.xlsx'
+      - 'scripts/sync_historical_xlsx.py'
+      - '.github/workflows/sync-historical-excel.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Regenerate source JSON from checked-in XLSX
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout triggering branch
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+      - name: Install XLSX reader
+        run: python3 -m pip install --disable-pip-version-check --break-system-packages openpyxl==3.1.5
+      - name: Regenerate import snapshot
+        run: python3 scripts/sync_historical_xlsx.py --write
+      - name: Commit the regenerated source to the same branch
+        run: |
+          if git diff --quiet -- backend/data/historical-xlsx.json; then
+            echo "Historical snapshot is already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/data/historical-xlsx.json
+          git commit -m "data(import): sync historical JSON to latest Excel workbook"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
