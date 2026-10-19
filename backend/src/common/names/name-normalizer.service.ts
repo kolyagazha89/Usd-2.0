@@ -30,6 +30,20 @@ export class NameNormalizerService {
     cvirko: 'Цвирко', davletshin: 'Давлетшин', kargopolcev: 'Каргополцев',
     kareckih: 'Карецких', gerasimec: 'Герасимец', gricenko: 'Гриценко',
     kupyansky: 'Купянский', dmutry: 'Дмитрий',
+    // In the archive this Latin spelling has a matching Cyrillic Registration
+    // spelling (Смольянинов Валентин, Волгоград 2026). This is a precise
+    // transliteration correction, never a fuzzy identity merge.
+    smoliyaninov: 'Смольянинов',
+    // Explicit Latin spellings present in Results. Fix common Russian
+    // surname suffixes lost by the reverse transliterator, not identities.
+    belyi: 'Белый',
+    bobrovsky: 'Бобровский',
+    gladovsky: 'Гладовский',
+    nikitinsky: 'Никитинский',
+    nashansky: 'Нашанский',
+    pshenichnyi: 'Пшеничный',
+    veliky: 'Великий',
+    geyn: 'Гейн',
     zubanov: 'Зубанов',
     ivanov: 'Иванов',
     wassily: 'Василий',
@@ -249,6 +263,11 @@ export class NameNormalizerService {
     const normalized = this.normalize(original);
     const parts = normalized.split(/\s+/).filter(Boolean);
     const reasons: string[] = [];
+    // These exact archive labels are businesses/teams, not people. A Latin
+    // company label that transliterates cleanly must still stay an alias.
+    if (/^(?:34\s*sound|bass\s*market|car\s*audio\s*bryansk)$/i.test(original.replace(/[^a-z0-9 ]/gi, ' ').replace(/\s+/g, ' ').trim())) {
+      reasons.push('Архивное название команды или проекта, а не подтверждённое ФИО');
+    }
     if (parts.length < 2) reasons.push('Не указаны фамилия и имя');
     if (parts.length > 4) reasons.push('Необычно много частей ФИО');
     if (/[0-9]/.test(normalized)) reasons.push('Цифры в ФИО: возможно название команды, а не человек');
