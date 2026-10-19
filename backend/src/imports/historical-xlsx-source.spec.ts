@@ -27,7 +27,7 @@ describe('supplied historical XLSX source', () => {
     // embedded 1069-row snapshot that still included sticker 105.
     const final2025 = source['USD _ Результаты.xlsx'].final_volgograd2025;
     const bassmarket = final2025.filter((row: unknown[]) =>
-      /^(?:bass\\s*market)$/i.test(String(row?.[4] ?? '')));
+      /^(?:bass\s*market)$/i.test(String(row?.[4] ?? '')));
     expect(bassmarket).toHaveLength(2);
     expect(bassmarket.every((row: unknown[]) => row[2] === 157)).toBe(true);
     expect(source['USD _ Результаты.xlsx'].astraxan[25][4]).toBe('Al-tamimi Ruslan');
