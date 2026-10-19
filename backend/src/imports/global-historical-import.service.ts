@@ -72,7 +72,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     const refreshIdentityPlan = Boolean(previous && (previous.plan as unknown as ArchivePlan).identityRulesVersion !== plan.identityRulesVersion);
     if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress)) {
       const consolidation = await consolidateApprovedHistoricalIdentities(this.prisma, this.names);
-      if (consolidation.profilesMerged || consolidation.skipped.length) {
+      if (consolidation.profilesMerged || consolidation.namesCorrected || consolidation.skipped.length) {
         const progress = previous.progress as unknown as Progress;
         progress.consolidation = consolidation;
         await this.prisma.historicalImportBatch.update({ where: { id: previous.id }, data: { progress: asJson(progress) } });

@@ -1,5 +1,5 @@
 export type HistoricalStage = { name: string; year: number; number: number; status: string; sourceRows: number; imported: number; aliases: number; kept: number; jobId?: string; error?: string; review: Array<{ sheet: string; row: number; name: string; reason: string }> };
-export type HistoricalConsolidation = { groupsMerged: number; profilesMerged: number; skipped: Array<{ label: string; reason: string }> };
+export type HistoricalConsolidation = { groupsMerged: number; profilesMerged: number; namesCorrected: number; skipped: Array<{ label: string; reason: string }> };
 export type HistoricalBatch = { id: string; status: string; sourceResults: number; imported: number; kept: number; aliases: number; needsReview: number; failedStages: number; processedStages: number; totalStages: number; peopleInSource: number; stages: HistoricalStage[]; consolidation: HistoricalConsolidation | null };
 
 /** Nest can serialize a null return value as an empty HTTP body. The API
@@ -27,6 +27,7 @@ export function parseHistoricalBatch(value: unknown): HistoricalBatch | null {
   const skipped = Array.isArray(summary.skipped) ? summary.skipped : [];
   consolidation = {
    groupsMerged: count(summary,'groupsMerged'),profilesMerged: count(summary,'profilesMerged'),
+   namesCorrected: typeof summary.namesCorrected === 'number' ? count(summary,'namesCorrected') : 0,
    skipped: skipped.filter((x): x is {label:string;reason:string} => Boolean(x && typeof x === 'object' &&
      typeof (x as {label?:unknown}).label === 'string' && typeof (x as {reason?:unknown}).reason === 'string')),
   };

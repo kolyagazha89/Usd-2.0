@@ -61,3 +61,27 @@ it.each([
 ])('normalizes the actual archival spelling %s without creating an alias', (raw, expected) => {
  expect(names.inspect(raw)).toMatchObject({ normalized: expected, needsReview: false });
 });
+
+
+it.each([
+ ['Suleymanov Ruslan', 'Сулеыманов Руслан', 'Сулейманов Руслан'],
+ ['Chudaykin Dmitry', 'Чудаыкин Дмитрий', 'Чудайкин Дмитрий'],
+ ['Staylovsky Vasily', 'Стаыловскы Василий', 'Стайловский Василий'],
+ ['Lvov Petr', 'Лвов Петр', 'Львов Петр'],
+ ['Emeliyanenko Evgeny', 'Эмелияненко Евгений', 'Емельяненко Евгений'],
+])('repairs the exact source and previously damaged Cyrillic spelling %s', (source, damaged, canonical) => {
+ expect(names.normalize(source)).toBe(canonical);
+ expect(names.normalize(damaged)).toBe(canonical);
+ expect(archivePersonName(source, names)).toBe(canonical);
+ expect(archiveNameKey(source, names)).toBe(archiveNameKey(damaged, names));
+ expect(names.inspect(source).needsReview).toBe(false);
+});
+it.each(['Sidoorov Alexandr', 'Shaulsky Mihail', 'Chyaev Tigran', 'Shychkin Egor', 'Ksy Aperol'])(
+ 'quarantines suspicious archive label %s instead of inventing a verified human', label => {
+  expect(names.inspect(label).needsReview).toBe(true);
+ });
+
+it.each(['Sidoorov Alexandr', 'Shaulsky Mihail', 'Chyaev Tigran', 'Shychkin Egor'])(
+ 'does not silently rewrite unverified surname %s to a different person', source => {
+  expect(names.normalize(source)).not.toMatch(/Сидоров Александр|Шаульский Михаил|Чаев Тигран|Шичкин Егор/);
+ });

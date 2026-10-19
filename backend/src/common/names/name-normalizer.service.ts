@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import CyrillicToTranslit from 'cyrillic-to-translit-js';
+import { historicalExistingFullNameRepairs, historicalLatinSurnameSpellings } from './historical-source-corrections';
 
 export type NameInspection = {
   original: string;
@@ -21,6 +22,7 @@ export class NameNormalizerService {
   // spellings of Russian given names are not one-to-one. No fuzzy replacement
   // of family names or unrelated Participant IDs is permitted.
   private readonly latinExceptions: Readonly<Record<string, string>> = {
+    ...historicalLatinSurnameSpellings,
     // Exact spellings present in the supplied Results and Registration files.
     // These adapt unsupported source conventions without fuzzy person merging.
     matvey: 'Матвей', arseny: 'Арсений', savely: 'Савелий',
@@ -195,6 +197,8 @@ export class NameNormalizerService {
     // variants such as Телпов, Зуборев, Байбеков or Мамкев).
     'василрнко', 'каменсджиков', 'колйхаило',
     'малйшко', 'смолийанинов', 'сапрйкин',
+    // Source "Sidoorov Alexandr" has a doubled vowel; identity unconfirmed.
+    'сидооров',
   ]);
 
   private clean(value: string | null | undefined): string {
@@ -250,7 +254,11 @@ export class NameNormalizerService {
       const givenFix = this.knownGivenNameCorrections[words[1].toLocaleLowerCase('ru')];
       if (givenFix) words[1] = givenFix;
     }
-    return words.join(' ');
+    const normalized = words.join(' ');
+    // Repair only full names whose exact malformed Cyrillic spelling was
+    // observed in an earlier version of our historical import. This cannot
+    // rewrite a namesake with a similar surname or a different given name.
+    return historicalExistingFullNameRepairs[normalized.toLocaleLowerCase('ru')] ?? normalized;
   }
 
   /**
@@ -282,8 +290,15 @@ export class NameNormalizerService {
       reasons.push('Подозрительное окончание имени после транслитерации: проверьте написание');
     // Reject an *unknown* broken surname ending too. It is safer to
     // review than store a misspelled person or silently rewrite the root.
-    if (parts[0] && /скиы$/i.test(parts[0]))
+    if (parts[0] && /(?:скиы|скы)$/i.test(parts[0]))
       reasons.push('Подозрительное окончание фамилии после транслитерации: проверьте исходное написание');
+    // The reverse-transliteration package can turn -sky into -скы,
+    // -ay- into -аы-, and hard/soft sounds into invalid Russian syllables.
+    // Never turn these unverified spellings into a claimed human identity.
+    if (parts[0] && /(?:[аеёиоуэюя]ы[а-я]|[жш]ы|чя|[аеёиоуыэюя]{3})/i.test(parts[0]))
+      reasons.push('Похоже на повреждённую фамилию после транслитерации; проверьте написание');
+    if (/^Ksy\s+Aperol$/i.test(original) || normalized === 'Ксы Аперол')
+      reasons.push('Архивный псевдоним без подтверждённого ФИО');
     if (parts[0] && this.surnamesForReview.has(parts[0].toLocaleLowerCase('ru')))
       reasons.push('Сомнительное написание фамилии из исторического импорта; сверить с источником');
     // A mixed-script token has no safe general transliteration. Latin-only

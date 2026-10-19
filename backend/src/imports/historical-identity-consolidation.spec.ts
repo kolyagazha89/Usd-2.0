@@ -22,7 +22,9 @@ function setup(people: any[], opts: { sameStageInspections?: boolean; conflictin
     return { count: 1 };
   });
   const participant = {
-    findMany: jest.fn(async () => current),
+    findMany: jest.fn(async ({ where }: any = {}) => where?.id?.in
+      ? current.filter(p => where.id.in.includes(p.id)) : current),
+    findFirst: jest.fn(async () => null),
     update: jest.fn(async (args: any) => { updates.push({ model: 'participant.update', args }); return {}; }),
     deleteMany: jest.fn(async (args: any) => { updates.push({ model: 'participant.deleteMany', args }); return { count: 1 }; }),
   };
@@ -63,7 +65,7 @@ describe('historical identity consolidation', () => {
       i % 2 ? '34 Sound' : '34sound', '2026-01-0' + (i + 1)));
     const { db, updates, participant } = setup(items);
     const result = await consolidateApprovedHistoricalIdentities(db, names);
-    expect(result).toEqual({ groupsMerged: 1, profilesMerged: 4, skipped: [] });
+    expect(result).toEqual({ groupsMerged: 1, profilesMerged: 4, namesCorrected: 0, skipped: [] });
     const survivor = 'a';
     for (const model of ['car','registration','record','disqualification','participantStageInspection','importRow']) {
       expect(updates).toContainEqual(expect.objectContaining({
@@ -77,6 +79,57 @@ describe('historical identity consolidation', () => {
         legacyId: hash('GLOBAL:34sound'), lastName: '34 Sound', historicalAlias: '34 Sound',
       }),
     }));
+  });
+
+
+  it('repairs existing archive-only misspellings without deleting results or registrations', async () => {
+    const original = {
+      ...p('a', 'unused', '2026-06-01'),
+      lastName: 'Сулеыманов', firstName: 'Руслан', historicalAlias: null, legacyId: null,
+    };
+    const { db, participant, updates } = setup([original]);
+    const outcome = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(outcome).toMatchObject({ groupsMerged: 0, profilesMerged: 0, namesCorrected: 1, skipped: [] });
+    expect(participant.update).toHaveBeenCalledWith({
+      where: { id: 'a' }, data: { lastName: 'Сулейманов', firstName: 'Руслан' },
+    });
+    expect(updates.filter(record => ['registration','car','record','participant.deleteMany'].includes(record.model))).toEqual([]);
+  });
+
+  it('does not rename a malformed name linked to an onsite registration', async () => {
+    const original = {
+      ...p('a', 'unused', '2026-06-01'),
+      lastName: 'Чудаыкин', firstName: 'Дмитрий', historicalAlias: null, legacyId: null,
+      registrations: [{ source: 'ON_SITE' }],
+    };
+    const { db, participant } = setup([original]);
+    const outcome = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(outcome.namesCorrected).toBe(0);
+    expect(participant.update).not.toHaveBeenCalled();
+  });
+
+  it('normalizes the remaining sole 34sound profile and its global legacy identity', async () => {
+    const { db, participant } = setup([p('a', '34sound', '2026-04-01')]);
+    const outcome = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(outcome).toMatchObject({ groupsMerged: 0, profilesMerged: 0, namesCorrected: 1 });
+    expect(participant.update).toHaveBeenCalledWith({
+      where: { id: 'a' },
+      data: { lastName: '34 Sound', historicalAlias: '34 Sound', legacyId: hash('GLOBAL:34sound') },
+    });
+    expect(participant.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses rewriting a historical name when its canonical profile already exists', async () => {
+    const original = {
+      ...p('a', 'unused', '2026-06-01'),
+      lastName: 'Чудаыкин', firstName: 'Дмитрий', historicalAlias: null, legacyId: null,
+    };
+    const { db, participant } = setup([original]);
+    db.participant.findFirst.mockResolvedValueOnce({ id: 'already-canonical' });
+    const outcome = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(outcome.namesCorrected).toBe(0);
+    expect(outcome.skipped[0].reason).toMatch(/Правильное ФИО уже занято/);
+    expect(participant.update).not.toHaveBeenCalled();
   });
 
   it('does not consolidate an on-site registration even when archive aliases match', async () => {

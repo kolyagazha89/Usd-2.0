@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
+import { historicalExistingFullNameRepairs } from '../common/names/historical-source-corrections';
 import { archivePersonName, approvedHistoricalNamePairs } from './global-historical-plan';
 import { globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
 
@@ -16,6 +17,7 @@ type MinimalParticipant = {
 export type HistoricalIdentityMergeSummary = {
   groupsMerged: number;
   profilesMerged: number;
+  namesCorrected: number;
   skipped: Array<{ label: string; reason: string }>;
 };
 
@@ -41,6 +43,9 @@ export async function consolidateApprovedHistoricalIdentities(
           { lastName: pair.source.split(' ')[0] },
           { lastName: pair.canonical.split(' ')[0] },
         ]),
+        ...Object.keys(historicalExistingFullNameRepairs).map(label => ({
+          lastName: label.split(' ')[0].charAt(0).toLocaleUpperCase('ru') + label.split(' ')[0].slice(1),
+        })),
       ],
     },
     select: {
@@ -81,10 +86,43 @@ export async function consolidateApprovedHistoricalIdentities(
   }
 
   const summary: HistoricalIdentityMergeSummary = {
-    groupsMerged: 0, profilesMerged: 0, skipped: [],
+    groupsMerged: 0, profilesMerged: 0, namesCorrected: 0, skipped: [],
   };
+  const safeHistorical = (p: MinimalParticipant) => !p.user && !p.phone && !p.photoUrl && !p.birthDate &&
+    !p.legacyId?.startsWith('USD_TEST_') &&
+    p.registrations.length > 0 && p.registrations.every(registration => registration.source === 'IMPORT');
+
   for (const group of groups.values()) {
-    if (group.people.length < 2) continue;
+    if (group.people.length === 1) {
+      // An earlier merge may already have left a single `34sound` profile.
+      // Normalize its display name even though there are no duplicates to delete.
+      const only = group.people[0];
+      const aliasKey = group.aliasKey;
+      if (aliasKey && safeHistorical(only) &&
+        (only.lastName !== group.label || only.historicalAlias !== group.label ||
+          only.legacyId !== globalLegacyId(aliasKey))) {
+        try {
+          await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+            const current = await tx.participant.findMany({
+              where: { id: { in: [only.id] } },
+              include: { user: { select: { id: true } }, registrations: { select: { source: true } } },
+            });
+            if (current.length !== 1 || !safeHistorical(current[0]) ||
+              globalHistoricalAliasKey(current[0].historicalAlias ?? '') !== group.aliasKey)
+              throw new Error('Архивный профиль изменился до исправления написания');
+            await tx.participant.update({
+              where: { id: only.id },
+              data: { lastName: group.label, historicalAlias: group.label, legacyId: globalLegacyId(aliasKey) },
+            });
+          }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
+          summary.namesCorrected++;
+        } catch (error) {
+          summary.skipped.push({ label: group.label, reason: error instanceof Error ? error.message : 'Неизвестная ошибка' });
+        }
+      }
+      continue;
+    }
     if (group.people.some(p =>
       p.user || p.phone || p.photoUrl || p.birthDate ||
       !p.registrations.length || p.registrations.some(r => r.source !== 'IMPORT') ||
@@ -181,6 +219,42 @@ export async function consolidateApprovedHistoricalIdentities(
         label: group.label,
         reason: error instanceof Error ? error.message : 'Неизвестная ошибка',
       });
+    }
+  }
+  // Repair *existing* corrupted Cyrillic FIO, not only future import previews.
+  // Each correction is an exact verified full name, never an edit-distance
+  // guess. Account-linked, manually created and on-site profiles are exempt.
+  for (const person of people) {
+    if (person.historicalAlias || person.middleName || !safeHistorical(person)) continue;
+    const oldFullName = [person.lastName, person.firstName].join(' ');
+    const canonical = historicalExistingFullNameRepairs[oldFullName.toLocaleLowerCase('ru')];
+    if (!canonical || canonical === oldFullName) continue;
+    const [lastName, firstName] = canonical.split(' ');
+    try {
+      await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+        const current = await tx.participant.findMany({
+          where: { id: { in: [person.id] } },
+          include: { user: { select: { id: true } }, registrations: { select: { source: true } } },
+        });
+        if (current.length !== 1 || !safeHistorical(current[0]) || current[0].middleName ||
+          current[0].lastName !== person.lastName || current[0].firstName !== person.firstName ||
+          current[0].historicalAlias) {
+          throw new Error('Данные участника изменились до проверки');
+        }
+        const duplicate = await tx.participant.findFirst({
+          where: { id: { not: person.id }, lastName, firstName, middleName: null },
+          select: { id: true },
+        });
+        if (duplicate) throw new Error('Правильное ФИО уже занято другой карточкой; сначала нужно безопасное объединение');
+        await tx.participant.update({
+          where: { id: person.id },
+          data: { lastName, firstName },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
+      summary.namesCorrected++;
+    } catch (error) {
+      summary.skipped.push({ label: oldFullName, reason: error instanceof Error ? error.message : 'Неизвестная ошибка' });
     }
   }
   return summary;
