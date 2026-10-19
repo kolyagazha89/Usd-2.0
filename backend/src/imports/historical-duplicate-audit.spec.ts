@@ -1,4 +1,6 @@
 import { jest } from '@jest/globals';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { ImportsService } from './imports.service';
 import { buildGlobalHistoricalPlan, archiveNameKey } from './global-historical-plan';
@@ -43,31 +45,71 @@ describe('archive duplicate prevention', () => {
     },
   );
 
-  it('reports near FIO and cross-stage alias variants without merging them', () => {
+  it('joins only the three operator-approved identities while retaining every result row', () => {
     const plan = buildGlobalHistoricalPlan(source(
       [
         ['Coffin', 1, 10, 151, 'Dergunova Dariya'],
         ['Coffin', 2, 11, 149, 'Latishev Malsim'],
-        ['Coffin', 3, 12, 147, '34sound'],
+        ['Coffin', 3, 12, 147, 'Dmitry Nikrasov'],
+        ['Coffin', 4, 13, 146, '34sound'],
       ],
       [
         ['Coffin', 1, 20, 155, 'Дергунова Дарья'],
         ['Coffin', 2, 21, 151, 'Latyshev Maksim'],
-        ['Coffin', 3, 22, 148, '34 Sound'],
+        ['Coffin', 3, 22, 148, 'Nekrasov Dmitry'],
+        ['Coffin', 4, 23, 149, '34 Sound'],
       ],
     ), names);
     const audit = auditHistoricalDuplicates(plan, names);
-    expect(audit.possiblePeople.some(p =>
-      [p.left, p.right].includes('Дергунова Дария') &&
-      [p.left, p.right].includes('Дергунова Дарья'))).toBe(true);
-    expect(audit.possiblePeople.some(p =>
-      [p.left, p.right].includes('Латишев Малсим') &&
-      [p.left, p.right].includes('Латышев Максим'))).toBe(true);
+    expect(audit.confirmedPeople).toEqual([
+      expect.objectContaining({ canonical: 'Дергунова Дарья', resultRows: 2 }),
+      expect.objectContaining({ canonical: 'Латышев Максим', resultRows: 2 }),
+      expect.objectContaining({ canonical: 'Некрасов Дмитрий', resultRows: 2 }),
+    ]);
+    for (const pair of [
+      ['Dergunova Dariya', 'Дергунова Дарья'],
+      ['Latishev Malsim', 'Latyshev Maksim'],
+      ['Dmitry Nikrasov', 'Nekrasov Dmitry'],
+    ]) {
+      expect(archiveNameKey(pair[0], names)).toBe(archiveNameKey(pair[1], names));
+      const matching = plan.people.find(p => p.key === archiveNameKey(pair[1], names));
+      expect(matching?.resultRows).toBe(2);
+      expect(matching?.names).toEqual(expect.arrayContaining(pair));
+    }
+    expect(plan.stages[0].results[0]._archiveOriginalName).toBe('Dergunova Dariya');
+    expect(plan.stages[0].results[0]['ФИО']).toBe('Дергунова Дарья');
+    expect(plan.stages[0].results[2]['ФИО']).toBe('Некрасов Дмитрий');
+    expect(audit.possiblePeople).toEqual([]);
     expect(audit.aliasesAcrossStages).toEqual(expect.arrayContaining([
-      expect.objectContaining({ variants: ['34 Sound', '34sound'], stages: expect.arrayContaining(['2025 · Финал Волгоград 2025', '2026 · Открытие Волгоград']) }),
+      expect.objectContaining({ variants: ['34 Sound', '34sound'] }),
     ]));
-    expect(plan.sourceResults).toBe(6);
-    expect(plan.people.reduce((sum, p) => sum + p.resultRows, 0)).toBe(6);
+    expect(plan.sourceResults).toBe(8);
+    expect(plan.people.reduce((sum, p) => sum + p.resultRows, 0)).toBe(8);
+  });
+
+  it('never merges the other unconfirmed look-alike names', () => {
+    for (const [left, right] of [
+      ['Бушкин Дмитрий', 'Бабушкин Дмитрий'],
+      ['Зарубин Сергей', 'Заруба Сергей'],
+      ['Пучков Александр', 'Дубков Александр'],
+      ['Туманов Никита', 'Романов Никита'],
+      ['Чамин Никита', 'Халин Никита'],
+      ['Яковлев Максим', 'Ковалев Максим'],
+      ['Латышева Ксения', 'Латышев Максим'],
+    ]) expect(archiveNameKey(left, names)).not.toBe(archiveNameKey(right, names));
+  });
+
+  it('consolidates exact approved archive names in the real 1069-result snapshot', () => {
+    const snapshot = readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8');
+    const plan = buildGlobalHistoricalPlan(snapshot, names);
+    const audit = auditHistoricalDuplicates(plan, names);
+    expect(plan.sourceResults).toBe(1069);
+    expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1069);
+    expect(audit.confirmedPeople).toEqual([
+      expect.objectContaining({ canonical: 'Дергунова Дарья', resultRows: 2 }),
+      expect.objectContaining({ canonical: 'Латышев Максим', resultRows: 4 }),
+      expect.objectContaining({ canonical: 'Некрасов Дмитрий', resultRows: 2 }),
+    ]);
   });
 
   it('deduplicates exact approved alias formatting variants only within one stage', async () => {
