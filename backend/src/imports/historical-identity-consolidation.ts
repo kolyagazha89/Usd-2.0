@@ -10,6 +10,7 @@ type MinimalParticipant = {
   legacyId: string | null; historicalAlias: string | null;
   phone: string | null; photoUrl: string | null; birthDate: Date | null;
   user: { id: string } | null; createdAt: Date;
+  registrations: Array<{ source: string }>;
 };
 
 export type HistoricalIdentityMergeSummary = {
@@ -46,6 +47,7 @@ export async function consolidateApprovedHistoricalIdentities(
       id: true, lastName: true, firstName: true, middleName: true,
       legacyId: true, historicalAlias: true, phone: true, photoUrl: true,
       birthDate: true, user: { select: { id: true } }, createdAt: true,
+      registrations: { select: { source: true } }, 
     },
   });
   type Candidate = MinimalParticipant;
@@ -85,6 +87,7 @@ export async function consolidateApprovedHistoricalIdentities(
     if (group.people.length < 2) continue;
     if (group.people.some(p =>
       p.user || p.phone || p.photoUrl || p.birthDate ||
+      !p.registrations.length || p.registrations.some(r => r.source !== 'IMPORT') ||
       p.legacyId?.startsWith('USD_TEST_')
     )) {
       summary.skipped.push({ label: group.label, reason: 'Найдены защищённые или дополненные профили' });
@@ -96,10 +99,11 @@ export async function consolidateApprovedHistoricalIdentities(
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: allIds } },
-          include: { user: { select: { id: true } } },
+          include: { user: { select: { id: true } }, registrations: { select: { source: true } } }, 
         });
         if (current.length !== allIds.length ||
           current.some(p => p.user || p.phone || p.photoUrl || p.birthDate ||
+            !p.registrations.length || p.registrations.some(r => r.source !== 'IMPORT') ||
             (group.aliasKey
               ? !p.legacyId?.startsWith('HISTORICAL_ALIAS:') ||
                 globalHistoricalAliasKey(p.historicalAlias ?? '') !== group.aliasKey
