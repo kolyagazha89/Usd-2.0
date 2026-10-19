@@ -288,8 +288,15 @@ export class NameNormalizerService {
       reasons.push('Подозрительное окончание имени после транслитерации: проверьте написание');
     // Reject an *unknown* broken surname ending too. It is safer to
     // review than store a misspelled person or silently rewrite the root.
-    if (parts[0] && /скиы$/i.test(parts[0]))
+    if (parts[0] && /(?:скиы|скы)$/i.test(parts[0]))
       reasons.push('Подозрительное окончание фамилии после транслитерации: проверьте исходное написание');
+    // The reverse-transliteration package can turn -sky into -скы,
+    // -ay- into -аы-, and hard/soft sounds into invalid Russian syllables.
+    // Never turn these unverified spellings into a claimed human identity.
+    if (parts[0] && /(?:[аеёиоуэюя]ы[а-я]|[жш]ы|чя|[аеёиоуыэюя]{3})/i.test(parts[0]))
+      reasons.push('Похоже на повреждённую фамилию после транслитерации; проверьте написание');
+    if (/^Ksy\s+Aperol$/i.test(original) || normalized === 'Ксы Аперол')
+      reasons.push('Архивный псевдоним без подтверждённого ФИО');
     if (parts[0] && this.surnamesForReview.has(parts[0].toLocaleLowerCase('ru')))
       reasons.push('Сомнительное написание фамилии из исторического импорта; сверить с источником');
     // A mixed-script token has no safe general transliteration. Latin-only
