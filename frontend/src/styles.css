@@ -4200,3 +4200,13 @@ body:has(.modal-backdrop){overflow:hidden!important}
   max-height: none;
   overflow: visible;
 }
+
+
+/* Season navigation: compact, readable in dark public and light admin UI. */
+.public-stage-season-filter{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 24px;padding:16px 18px;border:1px solid #303035;background:#171719;border-radius:13px}
+.public-stage-season-filter label{color:#f1f1f4;font-size:13px;font-weight:800}
+.public-stage-season-filter select{min-width:170px;min-height:42px;padding:9px 36px 9px 12px;border:1px solid #45454b;border-radius:9px;background:#212125;color:#fff;font-size:13px}
+.public-stage-season-filter span{color:#aaaab3;font-size:12px;margin-left:auto}
+.main .content .resource-season-filter{display:flex;align-items:center;gap:9px;color:#414751;font-size:12px;font-weight:750}
+.main .content .resource-season-filter select{min-width:154px;min-height:42px;padding:8px 12px;border:1px solid #ccd1d7;border-radius:10px;background:#fff;color:#191c21}
+@media(max-width:640px){.public-stage-season-filter{align-items:stretch;gap:8px}.public-stage-season-filter label{width:100%}.public-stage-season-filter select{flex:1;min-width:0}.public-stage-season-filter span{align-self:center}.main .content .resource-season-filter{width:100%;justify-content:space-between}.main .content .resource-season-filter select{flex:1}}

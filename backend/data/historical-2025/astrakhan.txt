@@ -1,0 +1,133 @@
+РУЗЕЛЬТАТЫ 17.05.2025 г. Астрахань
+Limited 
+1 150,8 003 Trubnikov Matvey 
+2 150,3 021 Zhidkov Yryi 
+3 149,6 039 Torikov Aleksey 
+4 142,8 032 Babashov Timur 
+5 139,7 048 Goryaev Daniil 
+6 132,9 054 Voroncov Alexandr 
+7 132,0 052 Pustohailov Pavel 
+
+ 
+1x2 
+1 155,5 006 Dzhanhotov Muslim - Рекорд России
+2 154,1 007 Isaev Evgeny 
+3 151,4 038 Vorobiev Andrey 
+4 149,3 017 Kiyakov Shakir 
+5 148,5 034 Valov Aleksey 
+6 129,7 044 Rumyancev Aleksey 
+7 120,6 053 Azovskov Alexandr 
+ 
+2x2 
+1 154,2 014 Zinchenko Mihail 
+2 153,9 010 Zarudnev Sergey 
+3 151,2 004 Mursalimov Artem 
+4 151,0 142 Potapov Alexandr 
+5 143,2 012 Belyaev Aleksey 
+ 
+Nolim 
+1 158,4 001 Hvorostyan Nikolay - Рекорд России
+2 149,6 051 Tumanov Nikita 
+3 143,9 040 Sova Tatiyana 
+ 
+Sedan 
+1 152,1 024 Roman Vasiliy 
+2 150,8 020 Sabelnikov Dmitry 
+3 150,1 037 Bocharov Vitaliy 
+4 124,7 027 Vorobiev Iliya 
+ 
+Coffin 
+1 161,3 064 Torgashin Anton 
+2 160,0 134 Sichev Nikita 
+3 154,8 058 Bakulev Artem 
+ 
+Wall 
+1 161,6 043 Kenzhibaev Ravil 
+2 155,3 008 Zaicev Alexandr 
+3 149,7 065 Timohin Alexandr 
+ 
+Mad-x 
+1 172,4 041 Doktorov Andrey - Рекорд России
+2 161,6 019 Sushkevich Aleksey 
+3 156,6 026 Troickiy Nikolay 
+4 156,1 123 Andreychenko Lev 
+5 148,8 002 Chureev Valentin 
+ 
+Wall+ 
+1 163,6 049 Risuhin Nikita 
+2 156,0 141 Mesheryakov Sergey 
+3 142,2 029 Zaharov Anton 
+ 
+BassRace 
+120.0 To 129.9 
+1 129,90 055 Kostrykov Alexandr 
+2 129,65 024 Roman Vasiliy 
+3 129,70 004 Mursalimov Artem 
+4 129,20 142 Potapov Alexandr 
+5 129,93 050 Haritonov Danil 
+6 129,89 029 Zaharov Anton 
+7 129,75 057 Korolev Igor 
+8 127,13 036 Lyah Artem 
+9 122,20 067 Lybart Vladimir 
+ 
+130.0 To 139.9 
+1 139,70 077 Antoha Fs 
+2 139,80 021 Zhidkov Yriy 
+3 139,97 123 Andreychenko Lev 
+4 139,90 063 Stoilovskiy Vasiliy 
+5 139,86 051 Tumanov Nikita 
+6 139,44 031 Matievskyi Danila 
+7 139,07 002 Chureev Valentin 
+8 138,99 056 Drozhdeckyi Andrey 
+9 138,42 001 Hvorostyan Nikolay 
+10 135,75 130 Ismagulov Bek 
+11 135,44 039 Torikov Aleksey 
+12 132,68 068 Gerasimenko Vladimir 
+13 130,15 060 Kadnova Valeriya 
+ 
+140.0 To 149.9 
+1 149,82 049 Risuhin Nikita 
+2 149,95 134 Sichev Nikita 
+3 149,20 111 Antoha Sf 
+4 140,18 028 Al-tamimi Ruslan 
+5 140,09 141 Mesheryakov Sergey 
+6 140,02 065 Timohin Alexandr 
+
+BFSPL
+Gate 1-6
+1. Хворостян Николай - 123.59
+2. Каданов Дмитрий - 122.88
+3. Захаров Антон - 120.77
+4. Арустамян Армен - 119.31
+5. Лях Артем - 111.18
+6. Яковлев Александр - 108.37
+7. Магомедов Магомед - 107.03
+8. Химанин Максим - 105.77
+9. Лунев Денис - 105.48
+10. Беляев Александр - 105.08
+11. Бельский Владимир - 104.68
+12. Ермалин Андрей - 95.66
+
+Wicket 6-10
+1. Латышев Максим - 121.8
+2. Матиевский Данила - 116.96
+3. Кияков Шакир - 111.48
+4. Юсупов Дамир - 106.57
+5. Джанхотов Муслим - 106.52
+
+Wicket 10+
+1. Макленкова Марина - 115.37
+2. Докторов Андрей - 110.73
+3. Андрейченко Лев - 101.63
+
+BDW
+1. Хацкевич Роман - 122.54
+2. Пронькин Александр - 113.95
+3. Арустамян Армен - 113.22
+4. Байрамов Сергей - 112.87
+5. Воробьев Иван - 104.73
+ 
+BDW Ex
+1. Войтенко Евгений - 126.53
+2. Пчелинцев Артем - 110.31
+3. Трубников Матвей - 105.80

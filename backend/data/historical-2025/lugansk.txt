@@ -1,0 +1,115 @@
+РЕЗУЛЬТАТЫ 24.05.2025 г. Луганск
+Limited 
+1 144,9 039 Kondratenko Taras 
+ 
+1x2 
+1 152,5 045 Fedorov Pavel 
+2 148,4 037 Dubovik Alexandr 
+3 148,3 026 Cinkler Denis 
+4 147,4 024 Bulavkin Daniil 
+5 146,7 007 Leshenko Dmitry 
+6 137,1 038 Hohlenko Alexandr 
+ 
+2x2 
+1 154,8 046 Ladnev Artem 
+2 153,9 012 Gerasimov Lev 
+3 150,0 009 Ponomarev Sergey 
+4 149,6 036 Timashov Yaroslav 
+5 149,3 028 Radionov Igor 
+6 141,5 006 Antonov Dmitry 
+7 133,1 031 Skromniy Denis 
+ 
+Nolim 
+1 158,5 001 Hvorostyan Nikolay - Рекорд России
+2 155,4 020 Toichka Valeriy 
+3 145,7 029 Liskin Egor 
+ 
+Sedan 
+1 153,9 002 Hachaturov Vladimir 
+2 124,6 021 Kovalenko Alexandr 
+ 
+Coffin 
+1 150,1 027 Tkachenko Alexandr 
+2 148,3 017 Zaharov Anton 
+3 139,4 043 Chaika Yaroslav 
+4 136,7 033 Baidalinov Danila 
+ 
+Wall 
+1 161,7 030 Latishev Maksim 
+2 139,9 016 Kupyansky Vyacheslav 
+ 
+Mad-x 
+1 163,7 042 Hailo Pavel 
+2 161,5 015 Tishin Vitaliy 
+3 160,2 023 Pisanov Egor 
+4 160,0 040 Hailo Pavel 
+5 157,8 048 Vasiliev Andrey 
+6 157,0 041 Romanenko Danila 
+7 151,9 004 Matievskiy Danila 
+8 149,4 047 Yakuba Aleksey 
+ 
+Wall+ 
+1 159,9 008 Kuchma Aleksey 
+2 151,8 032 Stalicin Sergey 
+3 142,1 018 Tereshenko Egor 
+ 
+BassRace 
+120.0 To 129.9 
+1 129,80 016 Kupyanskiy Vyacheslav 
+2 129,94 026 Cinkler Denis 
+3 129,89 011 Apuhtin Alexandr 
+4 129,54 039 Kondratenko Taras 
+5 129,25 010 Velichko Vladislav 
+ 
+130.0 To 139.9 
+1 139,90 017 Zaharov Anton 
+2 139,90 029 Liskin Egor 
+3 139,31 002 Hachaturov Vladimir 
+4 139,57 001 Hvorostyan Nikolay 
+5 139,86 045 Fedorov Pavel 
+6 139,76 004 Matievskiy Danila 
+7 138,71 049 Baizhumanov Alexandr 
+8 134,77 013 Elohov Andrey 
+9 134,42 021 Kovalenko Alexandr 
+10 130,02 018 Tereshenko Egor 
+ 
+140.0 To 149.9 
+1 149,70 042 Hailo Pavel 
+2 149,91 048 Vasiliev Andrey 
+3 149,14 030 Latishev Maksim 
+4 148,81 008 Kuchma Aleksey 
+5 149,30 047 Yakuba Aleksey 
+
+BFSPL
+Gate 1-6
+1. Захаров Антон - 125.02
+2. Хворостян Николай - 124.81
+3. Купянский Вячеслав - 123.05
+4. Ладнев Артем - 118.74
+5. Величко Владислав - 112.87
+6. Терещенко Егор - 108.90
+7. Пономарев Сергей - 107.05
+8. Капинос Антон - 105.40
+9. Буча Руслан - 104.05
+10. Антонов Дмитрий - 104.00
+11. Клонцак Алексей - 103.64
+
+Wicket 6-10
+1. Латышев Максим - 121.49
+2. Матиевский Данила - 119.11
+3. Ядковский Дмитрий - 117.60
+4. Ёлохов Андрей - 116.63
+5. Сталицин Сергей - 113.70
+6. Лещенко Дмитрий - 111.76
+
+Wicket 10+
+1. Якуба Алексей - 117. 74
+2. Войтенко Евгений - 114.3
+3. Хайло Павел - 112.19
+4. Байжуманов Александр - 109.79
+
+BDW Ex 
+1. Войтенко Евгений - 121.73
+2. Докучаев Руслан - 121.43
+3. Вареников Роман - 108.28
+4. Хайло Павел - 106.92

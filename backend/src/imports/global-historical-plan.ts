@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
+import { HISTORICAL_2025_TEXT_STAGES, parseHistorical2025Text } from './historical-2025-text';
 
 export type ArchiveRow = Record<string, unknown>;
 export type ArchiveStage = {
@@ -82,16 +83,29 @@ function sheetRows(sheet: unknown, label: string, results: boolean): ArchiveRow[
   return rows;
 }
 
-export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNormalizerService): ArchivePlan {
+export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNormalizerService, resultsOnly2025Sources: Record<string, string> = {}): ArchivePlan {
   const source = JSON.parse(snapshot);
   const registration = source['USD _ Регистрация.xlsx'] ?? {};
   const results = source['USD _ Результаты.xlsx'] ?? {};
-  const stages: ArchiveStage[] = HISTORICAL_STAGE_MAPPINGS.map(mapping => ({
+  const workbookStages: ArchiveStage[] = HISTORICAL_STAGE_MAPPINGS.map(mapping => ({
     year: mapping.year, number: mapping.number, name: mapping.name, city: mapping.city, date: mapping.date,
     registrationSheet: mapping.reg, resultsSheet: mapping.result,
     registrations: mapping.reg ? sheetRows(registration[mapping.reg], mapping.reg, false) : [],
     results: mapping.result ? sheetRows(results[mapping.result], mapping.result, true) : [],
-  })).sort((left, right) => left.date.localeCompare(right.date) || left.number - right.number);
+  }));
+  const newStages: ArchiveStage[] = HISTORICAL_2025_TEXT_STAGES.filter(stage =>
+    Object.prototype.hasOwnProperty.call(resultsOnly2025Sources, stage.file),
+  ).map(stage => ({
+    year: stage.year, number: stage.number, name: stage.name, city: stage.city, date: stage.date,
+    registrationSheet: null, resultsSheet: '2025 TXT: ' + stage.file, registrations: [],
+    results: parseHistorical2025Text(resultsOnly2025Sources[stage.file], stage.file),
+  }));
+  for (const stage of newStages) {
+    if (workbookStages.some(existing => existing.year === stage.year && existing.number === stage.number))
+      throw new Error('Этап 2025 уже имеет такой номер в XLSX: ' + stage.number);
+  }
+  const stages: ArchiveStage[] = [...workbookStages, ...newStages]
+    .sort((left, right) => left.date.localeCompare(right.date) || left.number - right.number);
   const people = new Map<string, { key: string; names: Set<string>; resultRows: number; cars: Map<string, { plate: string; model: string; sheet: string; row: number }>; teams: Set<string> }>();
   const fullNames = new Map<string, Set<string>>();
   for (const stage of stages) for (const row of stage.results) {
@@ -135,14 +149,22 @@ export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNorm
     if (team && !/^(?:без команды|нет|—|-|none|no team)$/i.test(team)) person.teams.add(team);
   }
   const plan: ArchivePlan = {
-    version: 1, identityRulesVersion: 4, sourceHash: createHash('sha256').update(snapshot).digest('hex'),
-    sourceWorkbooks: source._source?.workbooks ?? [],
+    version: 1, identityRulesVersion: 5, sourceHash: createHash('sha256').update(snapshot)
+      .update(Object.entries(resultsOnly2025Sources).sort(([a], [b]) => a.localeCompare(b))
+        .map(([file, text]) => file + ':' + text).join('\\n')).digest('hex'),
+    sourceWorkbooks: [
+      ...(source._source?.workbooks ?? []),
+      ...Object.entries(resultsOnly2025Sources).sort(([a], [b]) => a.localeCompare(b))
+        .map(([file, text]) => ({ name: file, format: '2025-RESULTS-ONLY-TXT',
+          sha256: createHash('sha256').update(text).digest('hex') })),
+    ],
     sourceResults: stages.reduce((sum, stage) => sum + stage.results.length, 0),
     registrationRows: stages.reduce((sum, stage) => sum + stage.registrations.length, 0), stages,
     people: [...people.values()].map(person => ({ key: person.key, names: [...person.names], resultRows: person.resultRows, cars: [...person.cars.values()], teams: [...person.teams] })),
   };
   const rawCount = Object.entries(results).reduce((sum, [sheet, rows]) => sum + sheetRows(rows, sheet, true).length, 0);
-  if (rawCount !== plan.sourceResults) throw new Error('Есть листы Results, не включённые в план: импорт остановлен без потери строк');
+  if (rawCount !== workbookStages.reduce((sum, stage) => sum + stage.results.length, 0))
+    throw new Error('Есть листы Results, не включённые в план: импорт остановлен без потери строк');
   if (!plan.sourceResults) throw new Error('В архиве нет результатов');
   return plan;
 }

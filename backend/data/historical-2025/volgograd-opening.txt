@@ -1,0 +1,185 @@
+Результаты открытие г. Волгоград 03.05.2025
+
+Limited
+1 150,8 013 Trubnikov Matvey 
+2 149,8 023 Zhidkov Yriy 
+3 149,2 009 Voitov Vladimir 
+4 149,2 108 Torikov Aleksey 
+5 148,7 040 Suhih Dmitry 
+6 145,7 119 Miheenko Ivan 
+7 142,4 039 Pustovalov Aleksey 
+8 141,9 027 Lihachev Anton 
+9 128,5 112 Sova Tatiyana 
+10 0,0 020 Begmuradov Artur 
+11 0,0 034 Bekker Aleksey 
+12 0,0 036 Polyansky Iliya 
+13 0,0 042 Bistray Vladimir 
+14 0,0 046 Morozov Mihail 
+15 0,0 051 Al-tamimi Ruslan 
+16 0,0 088 Antonenko Artem 
+17 0,0 097 Rogozhnikov Evgeny 
+18 0,0 116 Kalashnikov Daniil 
+19 0,0 122 Mihailov Vladimir 
+ 
+1x2
+1 154,7 016 Zinchenko Mihail 
+2 153,3 114 Rumyancev Aleksey 
+3 152,0 005 Dzhanhotov Muslim 
+4 151,8 089 Vorobiev Andrey 
+5 141,5 118 Zakatimov Maksim 
+6 132,9 129 Petrik Alexandr 
+7 132,0 095 Korolev Igor 
+ 
+2x2
+1 153,9 080 Anikeev Sergey 
+2 153,3 002 Chakiryan Artem 
+3 148,6 058 Alimov Aleksey 
+4 147,0 068 Puchkov Alexandr 
+5 139,7 035 Golubnyak Anatoly 
+6 130,2 096 Potapov Alexandr 
+ 
+Nolim 
+---— 
+ 
+1 157,9 001 Hvorostyan Nikolay 
+2 155,3 015 Toichka Valery 
+3 155,1 103 Smirnov Sergey 
+4 153,0 104 Chistyakov Vladimir 
+5 147,5 083 Puzakov Vladislav 
+ 
+Sedan
+1 153,2 006 Korando Andrey 
+2 150,2 010 Lazarev Sergey 
+3 149,8 063 Bocharov Vitaly 
+4 145,4 074 Pozdnyakov Alexandr 
+5 143,5 086 Dubrovin Iliya 
+6 131,9 017 Kaminin Vyacheslav 
+7 123,4 022 Roman Vasilyi 
+ 
+Coffin
+1 161,9 113 Blazhko Nikolay 
+2 161,2 135 34 Sound 
+3 159,8 055 Gurenko Mihail 
+4 147,2 093 Tumanov Nikita 
+ 
+Wall
+1 166,0 008 Lapshev Igor 
+2 162,2 101 Merculov Sergey 
+3 161,4 045 Kenzhibaev Ravil 
+4 154,2 029 Zaicev Alexandr 
+5 138,7 030 Latishev Maksim 
+6 134,4 007 Zarudnev Sergey 
+ 
+Mad-x
+1 168,9 044 Doktorov Andrey 
+2 165,6 123 Gorelov Roman 
+3 164,8 200 Car V Shishku 
+4 160,6 107 Ilyha Vshishku 
+5 159,6 052 Troickiy Nikolay 
+6 159,1 203 Sushkevich Aleksey 
+7 154,7 065 Krychkov Nikolay 
+8 154,0 031 Glushenko Sergey 
+9 150,8 090 Tkachenko Alexndr 
+10 147,7 069 Chureev Valentin 
+11 138,5 003 Pavlov Roman 
+12 134,2 105 Chaika Yaroslav 
+13 130,0 081 Misheryakv Sergey 
+ 
+Wall+
+1 164,3 075 Risuhin Nikita 
+2 158,6 128 Vasynin Nikita 
+3 147,4 024 Merculov Artem 
+
+BassRace
+120.0 To 129.9
+1 129,95 124 Shilov Sergey  129,95 129,40 129,90 129,90 
+2 129,94 047 Kamenshikov Pavel  129,94 129,00 128,60 
+3 129,81 037 Zaharov Anton  129,81 129,80 
+4 129,73 109 Kadanova Valeriya  129,73 125,00 
+5 129,80 019 Geraimenko Vyachelav  129,80 
+6 129,75 111 Antoha Force  129,75 
+7 129,65 076 Haritonov Daniil  129,65 
+8 129,41 099 Kostrykov Alexandr  129,41 
+9 128,98 002 Chyakiryan Artem 
+10 128,97 069 Chureev Valentin 
+11 128,88 096 Potapov Alexandr 
+12 126,53 086 Dubrovin Iliya 
+13 126,48 017 Kaminin Vyachelav 
+ 
+130.0 To 139.9
+1 139,90 072 Teplov Vladislav 
+2 139,89 021 Lado Ivan 
+3 139,84 094 Stailovsky Vasiliy 
+4 139,28 026 Frolov Egor 
+5 139,94 023 Zhidkov Yryi 
+6 139,93 083 Puzikov Vladislav  1
+7 139,87 204 Sushkevich Aleksey 
+8 139,36 117 Timohin Alexandr 
+9 139,13 074 Pozdnyakov Alexandr 
+10 139,08 084 Chubkov Vadim 
+11 138,82 103 Smirnov Sergey 
+12 138,65 040 Suhih Dmittry 
+13 138,24 020 Begmuradov Artur 
+14 136,95 060 Gladihev Anton 
+15 134,90 092 Shushpannikov Danil 
+16 134,50 032 Kodenkov Denis 
+17 130,39 115 Harkov Vitaliy 
+18 130,32 112 Sova Tatiyana 
+19 130,16 041 Kupyansky Vyacheslav 
+ 
+140.0 To 149.9
+1 149,90 127 Dksound 
+2 149,94 048 Vasiliev Andrey 
+3 149,91 075 Risuhin Nikita 
+4 149,90 101 Merculov Sergey 
+5 149,95 134 Sichev Nikita 
+6 149,84 107 Ilyha Vshishku 
+7 149,66 203 Sushkevich Aleksey 
+8 149,58 030 Latyshev Maksim 
+9 146,31 001 Hvorotyan Nikolay 
+10 140,91 068 Puchkov Alexandr 
+11 140,03 202 Luzhkov Leha 
+12 140,00 022 Roman Vasiliy 
+
+BFSPL
+Gate 1-6
+1. Хворостян Николай - 124.1
+2. Гуринович Никита - 122.6
+3. Каданов Дмитрий - 121.6
+4. Купянский Вячеслав - 120.9
+5. Яковлев Масим - 120.8
+6. Арустамян Армен - 118.1
+7. Захаров Антон - 114.6
+8. Цыбуленко Виктор - 112.4
+9. Ткаченко Александр - 107.5
+10. Макаров Максим - 107.3
+11. Холодилин Иван - 106.2
+12. Васильев Владимир - 105.7
+13. Дандев Максим - 101.9
+14. Химанин Максим - 101.5
+15. Лунев Денис - 101.2
+16. Чакирян Артем - 99.6
+17. Лагунов Сергей - 98.3
+18. Камынин Вячеслав - 90.5
+
+Wicket 6-10
+1. Латышев Максим - 124.0
+2. Чуреев Валентин - 113.9
+3. Джаббаров Роман - 107.3
+4. Петров Алексей - 105.2
+
+Wicket 10+
+1. Соловьев Игорь - 126.4
+2. Михайлов Данил - 115.7
+3. Гладышев Антон - 114.3
+
+BDW
+1. Бурдин Алексей - 114.9
+2. Арустамян Армен - 111.6
+3. Бастраков Сергей - 111.4
+4. Воробьев Иван - 93.3
+
+BDW Ex
+1. Войтенко Евгений - 122.0
+2. Гуринович Никита - 100.0
+3. Шилов Сергей -80.6
