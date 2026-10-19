@@ -13,7 +13,7 @@ const p = (id: string, alias: string, stage: string) => ({
   registrations: [{ source: 'IMPORT' }],
 });
 
-function setup(people: any[], opts: { sameStageInspections?: boolean; emails?: Array<{ participantId: string; email: string }>; protectedUser?: boolean } = {}) {
+function setup(people: any[], opts: { sameStageInspections?: boolean; conflictingClassStickers?: boolean; emails?: Array<{ participantId: string; email: string }>; protectedUser?: boolean } = {}) {
   let current = people.map(item => ({ ...item }));
   if (opts.protectedUser) current[1].user = { id: 'owner' };
   const updates: Array<{ model: string; args: any }> = [];
@@ -30,7 +30,13 @@ function setup(people: any[], opts: { sameStageInspections?: boolean; emails?: A
   const db:any = {
     participant,
     car: { updateMany: write('car') },
-    registration: { updateMany: write('registration') },
+    registration: {
+      updateMany: write('registration'),
+      findMany: jest.fn(async () => opts.conflictingClassStickers ? [
+        { participantId: 'a', stageId: 'one', participantNumber: 157, classes: [{ classId: 'bassrace149' }] },
+        { participantId: 'b', stageId: 'one', participantNumber: 105, classes: [{ classId: 'bassrace149' }] },
+      ] : []),
+    },
     record: { updateMany: write('record') },
     disqualification: { updateMany: write('disqualification') },
     participantStageInspection: {
@@ -80,6 +86,14 @@ describe('historical identity consolidation', () => {
     const summary = await consolidateApprovedHistoricalIdentities(db, names);
     expect(summary.profilesMerged).toBe(0);
     expect(summary.skipped[0].reason).toMatch(/защищённые/);
+    expect(participant.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('protects two real competitors sharing an archive alias and class with different stickers', async () => {
+    const { db, participant } = setup([p('a','34sound','2026-01-01'),p('b','34 Sound','2026-01-02')],{ conflictingClassStickers:true });
+    const result = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(result.profilesMerged).toBe(0);
+    expect(result.skipped[0].reason).toMatch(/разными номерами/);
     expect(participant.deleteMany).not.toHaveBeenCalled();
   });
 
