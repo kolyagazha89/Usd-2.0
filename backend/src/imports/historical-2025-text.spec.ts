@@ -8,9 +8,9 @@ import { HISTORICAL_2025_TEXT_STAGES, parseHistorical2025Text } from './historic
 const base = join(process.cwd(), 'data');
 const getText = (file: string) => readFileSync(join(base, 'historical-2025', file), 'utf8');
 const cases: Array<[string, number]> = [
-  ['volgograd-opening.txt', 146], ['astrakhan.txt', 96],
-  ['lugansk.txt', 81], ['rostov.txt', 118],
-  ['orel.txt', 92], ['lipetsk.txt', 96],
+  ['volgograd-opening.txt', 136], ['astrakhan.txt', 96],
+  ['lugansk.txt', 80], ['rostov.txt', 118],
+  ['orel.txt', 88], ['lipetsk.txt', 96], ['chelyabinsk.txt', 95],
 ];
 
 describe('2025 results-only source parser', () => {
@@ -26,8 +26,9 @@ describe('2025 results-only source parser', () => {
     const shilov = rows.find(row => row['ФИО'] === 'Shilov Sergey' && row['Класс'] === 'BassRace 129.9');
     expect(shilov).toMatchObject({ 'Место': 1, 'Номер': 124, 'Результат': 129.95 });
     expect(String(shilov?._archiveExtraRounds)).toContain('129,95');
-    const opening = rows.find(row => row['ФИО'] === 'Begmuradov Artur' && row['Класс'] === 'Limited 2.0');
-    expect(opening?.['Результат']).toBe(0);
+    const chelyabinsk = parseHistorical2025Text(getText('chelyabinsk.txt'), 'chelyabinsk.txt');
+    const unscored = chelyabinsk.find(row => row['ФИО'] === 'Palkin Alexandr' && row['Класс'] === 'Limited 2.0');
+    expect(unscored).toMatchObject({ 'Место': 3, 'Номер': 9, 'Результат': 0 });
   });
   it('parses BFSPL and BDW without inventing a sticker number', () => {
     const rows = parseHistorical2025Text(getText('astrakhan.txt'), 'astrakhan.txt');
@@ -36,12 +37,19 @@ describe('2025 results-only source parser', () => {
     expect(rows.find(row => row['ФИО'] === 'Войтенко Евгений' && row['Класс'] === 'BDW Ex'))
       .toMatchObject({ 'Место': 1, 'Номер': null, 'Результат': 126.53 });
   });
-  it('does not discard same-name duplicate stickers or same-class results', () => {
+  it('accepts user corrections: removed duplicate/zero rows, while retaining original finish positions', () => {
     const orel = parseHistorical2025Text(getText('orel.txt'), 'orel.txt');
-    const kovalev = orel.filter(row => row['ФИО'] === 'Kovalev Maksim' && row['Класс'] === 'Limited 2.0');
-    expect(kovalev.map(row => row['Номер'])).toEqual([23, 28]);
+    expect(orel.some(row => row['ФИО'] === 'Kovalev Maksim' && row['Класс'] === 'Limited 2.0')).toBe(false);
     const ksenia = orel.filter(row => row['ФИО'] === 'Vasilenko Kseniya' && row['Класс'] === 'Coffin');
-    expect(ksenia.map(row => row['Номер'])).toEqual([8, 9]);
+    expect(ksenia.map(row => row['Номер'])).toEqual([8]);
+    expect(orel.some(row => row['Класс'] === 'Coffin' && row['Место'] === 8)).toBe(true);
+    const opening = parseHistorical2025Text(getText('volgograd-opening.txt'), 'volgograd-opening.txt');
+    expect(opening.filter(row => row['Класс'] === 'Limited 2.0')).toHaveLength(9);
+    const lugansk = parseHistorical2025Text(getText('lugansk.txt'), 'lugansk.txt');
+    expect(lugansk.some(row => row['ФИО'] === 'Hailo Pavel' && row['Класс'] === 'Mad-X' && row['Место'] === 4)).toBe(false);
+    const lipetsk = parseHistorical2025Text(getText('lipetsk.txt'), 'lipetsk.txt');
+    expect(lipetsk.some(row => row['ФИО'] === 'Golubnyak Anatoly' && row['Класс'] === '2x2')).toBe(true);
+    expect(lipetsk.some(row => row['ФИО'] === 'Воробьев Андрей' && row['Класс'] === 'Wicket 10+')).toBe(true);
   });
   it('fails closed on a new unknown section or corrupt result line', () => {
     expect(() => parseHistorical2025Text('Результаты\nNew class\n1 150,0 003 Petrov Ivan', 'bad.txt'))
@@ -50,21 +58,26 @@ describe('2025 results-only source parser', () => {
 });
 
 describe('additive 2025 archive', () => {
-  it('adds six source-only stages to existing historical workbook without touching the 2025 final', () => {
+  it('adds seven results-only 2025 stages without touching the existing 2025 final', () => {
     const sources = Object.fromEntries(HISTORICAL_2025_TEXT_STAGES.map(s => [s.file, getText(s.file)]));
     const names = new NameNormalizerService();
     const snapshot = readFileSync(join(base, 'historical-xlsx.json'), 'utf8');
     const plan = buildGlobalHistoricalPlan(snapshot, names, sources);
     expect(plan.identityRulesVersion).toBe(6);
-    expect(plan.stages).toHaveLength(17);
-    expect(plan.sourceResults).toBe(1697);
-    expect(plan.stages.filter(s => s.year === 2025)).toHaveLength(7);
-    expect(plan.stages.filter(s => s.year === 2025 && s.registrationSheet === null)).toHaveLength(7);
+    expect(plan.stages).toHaveLength(18);
+    expect(plan.sourceResults).toBe(1777);
+    expect(plan.stages.filter(s => s.year === 2025)).toHaveLength(8);
+    expect(plan.stages.filter(s => s.year === 2025 && s.registrationSheet === null)).toHaveLength(8);
     expect(plan.stages.find(s => s.year === 2025 && s.number === 1)?.name).toBe('Финал Волгоград 2025');
-    expect(plan.stages.find(s => s.year === 2025 && s.number === 2)?.results).toHaveLength(146);
+    expect(plan.stages.find(s => s.year === 2025 && s.number === 2)?.results).toHaveLength(136);
     expect(plan.stages.find(s => s.year === 2025 && s.number === 3)?.results).toHaveLength(96);
+    expect(plan.stages.find(s => s.year === 2025 && s.number === 8)).toMatchObject({
+      name: 'Челябинск 2025', city: 'Челябинск', date: '2025-07-29',
+      registrationSheet: null,
+    });
+    expect(plan.stages.find(s => s.year === 2025 && s.number === 8)?.results).toHaveLength(95);
     expect(plan.stages.filter(s => s.year === 2026)).toHaveLength(10);
-    expect(new Set(plan.stages.flatMap(s => s.results).map(r => r._archiveRowKey)).size).toBe(1697);
+    expect(new Set(plan.stages.flatMap(s => s.results).map(r => r._archiveRowKey)).size).toBe(1777);
     const originalOnly = buildGlobalHistoricalPlan(snapshot, names);
     expect(plan.registrationRows).toBe(originalOnly.registrationRows);
     expect(plan.sourceHash).not.toBe(originalOnly.sourceHash);
