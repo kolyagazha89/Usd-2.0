@@ -76,6 +76,11 @@ it.each([
  expect(archiveNameKey(source, names)).toBe(archiveNameKey(damaged, names));
  expect(names.inspect(source).needsReview).toBe(false);
 });
+it.each(['Sidoorov Alexandr', 'Shaulsky Mihail', 'Chyaev Tigran', 'Shychkin Egor', 'Ksy Aperol'])(
+ 'quarantines suspicious archive label %s instead of inventing a verified human', label => {
+  expect(names.inspect(label).needsReview).toBe(true);
+ });
+
 it.each(['Sidoorov Alexandr', 'Shaulsky Mihail', 'Chyaev Tigran', 'Shychkin Egor'])(
  'does not silently rewrite unverified surname %s to a different person', source => {
   expect(names.normalize(source)).not.toMatch(/Сидоров Александр|Шаульский Михаил|Чаев Тигран|Шичкин Егор/);
