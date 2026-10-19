@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import CyrillicToTranslit from 'cyrillic-to-translit-js';
+import { historicalExistingFullNameRepairs, historicalLatinSurnameSpellings } from './historical-source-corrections';
 
 export type NameInspection = {
   original: string;
@@ -21,6 +22,7 @@ export class NameNormalizerService {
   // spellings of Russian given names are not one-to-one. No fuzzy replacement
   // of family names or unrelated Participant IDs is permitted.
   private readonly latinExceptions: Readonly<Record<string, string>> = {
+    ...historicalLatinSurnameSpellings,
     // Exact spellings present in the supplied Results and Registration files.
     // These adapt unsupported source conventions without fuzzy person merging.
     matvey: 'Матвей', arseny: 'Арсений', savely: 'Савелий',
@@ -250,7 +252,11 @@ export class NameNormalizerService {
       const givenFix = this.knownGivenNameCorrections[words[1].toLocaleLowerCase('ru')];
       if (givenFix) words[1] = givenFix;
     }
-    return words.join(' ');
+    const normalized = words.join(' ');
+    // Repair only full names whose exact malformed Cyrillic spelling was
+    // observed in an earlier version of our historical import. This cannot
+    // rewrite a namesake with a similar surname or a different given name.
+    return historicalExistingFullNameRepairs[normalized.toLocaleLowerCase('ru')] ?? normalized;
   }
 
   /**
