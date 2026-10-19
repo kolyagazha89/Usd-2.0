@@ -548,6 +548,7 @@
   overscroll-behavior: auto;
   scrollbar-gutter: auto;
 }
+.main .content .modal-form,
 .main .content .resource-editor-page .modal-form,
 .main .content .resource-editor-page .form,
 .main .content .resource-editor-page .entity-fields,
