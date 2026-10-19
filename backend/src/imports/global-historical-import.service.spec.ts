@@ -12,6 +12,7 @@ function make(db:any, imports:any = {}) {
  if (!db.participant) db.participant = { findMany: jest.fn(async () => []) };
  const service:any = new GlobalHistoricalImportService(db, imports, new NameNormalizerService());
  jest.spyOn(service, 'loadPlan').mockReturnValue(plan);
+ jest.spyOn(service, 'validateCompletedStage').mockResolvedValue(undefined);
  return service;
 }
 describe('durable global import coordination', () => {
@@ -163,7 +164,7 @@ describe('per-stage source accounting and protected profiles', () => {
  it('preserves a protected row, keeps an existing result, and imports a raw alias without losing source rows', async () => {
   const row = (id:string, name:string, extra:any = {}):any => ({ id, type: 'RESULT', rowNumber: Number(id.slice(1)), status: 'WARNING', rawData: { 'ФИО': name, _archiveOriginalName: name, _archiveRow: Number(id.slice(1)) + 1, _archiveSheet: 'Results' }, normalizedData: { participant: { source: 'DATABASE', status: 'NEW', matches: [] }, participantNumber: Number(id.slice(1)), class: { classId: 'class' }, result: 150, place: 1, car: {}, ...extra }, resolution: null, registrationId: null, classId: null });
   const rows = [row('r1', 'Петров Иван'), row('r2', 'Сидоров Пётр', { existingResult: { state: 'SAME' } }), row('r3', '34 Sound')]; rows[1].status='READY';
-  const job:any = { id: 'job', rows };
+  const job:any = { id: 'job', stageId:'stage', rows };
   const db:any = { importJob: { findUnique: jest.fn(async () => job), findUniqueOrThrow: jest.fn(async () => job) }, participant: { findMany: jest.fn(async () => [{ id: 'protected', lastName: 'Петров', firstName: 'Иван', middleName: null }]) }, importRow: { update: jest.fn(async ({ where, data }:any) => Object.assign(rows.find(r => r.id === where.id)!, data)) }, result: { findMany: jest.fn(async () => [{ id: 'a' }, { id: 'b' }]) } };
   const imports:any = { resolveImportRow: jest.fn(async (_j:string, id:string, resolution:any) => Object.assign(rows.find(r => r.id === id)!, { status: 'RESOLVED', resolution })), commitImport: jest.fn(async () => { for (const r of rows.filter(r => r.status === 'RESOLVED')) Object.assign(r, { status: 'COMMITTED', registrationId: r.id, classId: 'class' }); }) };
   const sut = make(db, imports); jest.spyOn(sut, 'ensureStage').mockResolvedValue({ id: 'stage' });
@@ -175,9 +176,17 @@ describe('per-stage source accounting and protected profiles', () => {
   expect(imports.commitImport).toHaveBeenCalledWith('job', undefined, { allowHistoricalPartial: true });
   expect(p.imported + p.review.length).toBe(3);
  });
+ it('refuses to reuse committed rows attached to another stage', async()=>{
+  const job:any={id:'job',stageId:'wrong-stage',rows:[{status:'COMMITTED'}]};
+  const db:any={importJob:{findUnique:jest.fn(async()=>job)}};
+  const imports:any={previewStage:jest.fn(),commitImport:jest.fn()};
+  const sut=make(db,imports);jest.spyOn(sut,'ensureStage').mockResolvedValue({id:'correct-stage'});
+  await expect(sut.importStage({id:'batch',createdByUserId:null},sourceStage,{...progress().stages[0],jobId:'job'},()=>false)).rejects.toThrow('связан с другим этапом');
+  expect(imports.previewStage).not.toHaveBeenCalled();expect(imports.commitImport).not.toHaveBeenCalled();
+ });
  it('reuses the persisted job on recovery instead of previewing and committing it twice', async () => {
   const rows:any[] = [{ id: 'r', type: 'RESULT', status: 'COMMITTED', registrationId: 'reg', classId: 'class', resolution: {} }];
-  const job:any = { id: 'job', rows };
+  const job:any = { id: 'job', stageId:'stage', rows };
   const db:any = { importJob: { findUnique: jest.fn(async () => job), findUniqueOrThrow: jest.fn(async () => job) }, participant: { findMany: jest.fn(async () => []) }, result: { findMany: jest.fn(async () => [{ id: 'result' }]) } };
   const imports:any = { previewStage: jest.fn(), commitImport: jest.fn() };
   const sut = make(db, imports); jest.spyOn(sut, 'ensureStage').mockResolvedValue({ id: 'stage' });
@@ -201,7 +210,8 @@ describe('adopting empty test stages for archival import', () => {
    const findUniqueOrThrow = jest.fn(async () => ({ ...target, legacyId: null, name: sourceStage.name, status: 'PUBLISHED' }));
    const db:any = {
      season: { upsert: jest.fn(async () => ({ id: 'season' })) },
-     stage: { findUnique: jest.fn(async () => target), updateMany, findUniqueOrThrow },
+     stage: { findMany: jest.fn(async () => [target]), findUnique: jest.fn(async () => target), updateMany, findUniqueOrThrow },
+     $executeRaw: jest.fn(async()=>0),
      registration: { count: jest.fn(async ({ where }:any) => where.source ? 0 : options.registrationCount ?? 0) },
      result: { count: jest.fn(async () => 0) },
      record: { count: jest.fn(async () => options.recordCount ?? 0) },
@@ -211,6 +221,7 @@ describe('adopting empty test stages for archival import', () => {
      class: { findMany: jest.fn(async () => []) },
      stageClass: { upsert: jest.fn() },
    };
+   db.$transaction=async(fn:any)=>fn(db);
    return { db, updateMany, findUniqueOrThrow };
  };
  it('converts an otherwise empty USD_TEST_ stage to the matching published archive', async () => {

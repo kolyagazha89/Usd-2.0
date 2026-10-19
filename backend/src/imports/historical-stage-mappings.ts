@@ -1,3 +1,5 @@
+// Numbers below identify rows in the original archive plan and saved progress.
+// They are not database stage numbers: match events by date/location instead.
 export const HISTORICAL_STAGE_MAPPINGS = [
       { year: 2026, number: 3, name: 'Открытие Волгоград', city: 'Волгоград', date: '2026-05-16', reg: 'Открытие Волгоград', result: 'open_volgograd2026' },
       { year: 2026, number: 4, name: 'Астрахань', city: 'Астрахань', date: '2026-05-23', reg: 'Астрахань', result: 'astraxan' },

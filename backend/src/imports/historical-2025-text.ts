@@ -1,9 +1,9 @@
 import type { ArchiveRow } from './global-historical-plan';
 
 /**
- * Source-backed 2025 events missing from the Results XLSX. The existing final
- * Volgograd 2025 is stage #1 in the current database, so do not renumber it or
- * mutate any registrations/results. These seven new slots are stable #2–#8.
+ * Source-backed 2025 events missing from the Results XLSX. These numbers are
+ * stable archive-plan identifiers (the original final occupied source slot #1).
+ * Database stage numbers may be edited and must never be used as event identity.
  */
 export const HISTORICAL_2025_TEXT_STAGES = [
   { year: 2025, number: 2, name: 'Открытие Волгоград 2025', city: 'Волгоград', date: '2025-05-03', file: 'volgograd-opening.txt' },

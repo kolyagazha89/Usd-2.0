@@ -22,6 +22,12 @@ replay('full 1777-row archive on a fresh real PostgreSQL database',()=>{
   request={user:{sub:admin.id,role:'ADMIN'},ip:'isolated-archive-replay'} as AuthenticatedRequest;
   imports=new ImportsService(db,names);service=new GlobalHistoricalImportService(db,imports,names);
   plan=(service as any).loadPlan();
+  // Reproduce the operator's chronological renumbering before importing.
+  for(const year of [2025,2026]){
+   const season=await db.season.create({data:{year,name:'USD '+year,status:'ARCHIVED'}});
+   const stages=plan.stages.filter(s=>s.year===year).sort((a,b)=>a.date.localeCompare(b.date));
+   for(let i=0;i<stages.length;i++){const stage=stages[i];await db.stage.create({data:{seasonId:season.id,stageNumber:i+1,name:stage.name,city:stage.city,date:new Date(stage.date+'T12:00:00Z'),status:'PUBLISHED'}});}
+  }
  },30000);
  afterAll(async()=>{service?.onModuleDestroy();if(db)await db.$disconnect()});
  const finish=async(id:string)=>{
@@ -33,6 +39,8 @@ replay('full 1777-row archive on a fresh real PostgreSQL database',()=>{
   const first=await service.start(request);batchId=first.id;const status=await finish(batchId);
   expect({status:status.status,review:status.needsReview,failed:status.failedStages}).toEqual({status:'COMPLETED',review:0,failed:0});
   expect(status.imported).toBe(1777);expect(status.processedStages).toBe(18);
+  expect(await db.stage.count({where:{season:{year:{in:[2025,2026]}}}})).toBe(18);
+  for(const source of plan.stages){const matches=await db.stage.findMany({where:{season:{year:source.year},date:new Date(source.date+'T12:00:00Z'),city:source.city}});expect(matches).toHaveLength(1);}
   expect(await db.result.count()).toBe(1777);
   const people=await db.participant.findMany();
   expect(people).toHaveLength(plan.people.length);
@@ -85,4 +93,32 @@ replay('full 1777-row archive on a fresh real PostgreSQL database',()=>{
   expect(await db.participant.count({where:{lastName:'Параллельный',firstName:'Алексей'}})).toBe(1);
   expect(await db.result.count({where:{registration:{stage:{seasonId:season.id}}}})).toBe(2);
  },120000);
+ it('reconciles the already completed imported final into the original empty event without changing result IDs',async()=>{
+  const source=plan.stages.find(s=>s.year===2026&&s.name==='Финал Волгоград')!;
+  const imported=await db.stage.findFirstOrThrow({where:{season:{year:2026},date:new Date(source.date+'T12:00:00Z'),city:source.city}});
+  const before=await db.result.findMany({where:{registration:{stageId:imported.id}},orderBy:{id:'asc'}});
+  const regs=await db.registration.findMany({where:{stageId:imported.id},orderBy:{id:'asc'},select:{id:true,configurationVersionId:true,configurationSnapshot:true,inspection:true}});
+  const original=await db.stage.create({data:{seasonId:imported.seasonId,stageNumber:777,name:'USD Финал Волгоград 2026',city:'Волгоград',date:imported.date,status:'PUBLISHED',description:'Original calendar event'}});
+  let resumed=await service.start(request);if(resumed.status==='RUNNING')resumed=await finish(resumed.id);expect(resumed.status).toBe('COMPLETED');expect(resumed.id).toBe(batchId);
+  expect(await db.stage.findUnique({where:{id:imported.id}})).toBeNull();
+  const surviving=await db.stage.findUniqueOrThrow({where:{id:original.id}});expect(surviving.stageNumber).toBe(777);expect(surviving.name).toBe(original.name);expect(surviving.description).toBe(original.description);
+  expect(await db.result.findMany({where:{registration:{stageId:original.id}},orderBy:{id:'asc'}})).toEqual(before);
+  expect(await db.registration.findMany({where:{stageId:original.id},orderBy:{id:'asc'},select:{id:true,configurationVersionId:true,configurationSnapshot:true,inspection:true}})).toEqual(regs);
+  expect(await db.importJob.count({where:{stageId:imported.id}})).toBe(0);
+  expect(await db.stage.count({where:{season:{year:{in:[2025,2026]}}}})).toBe(18);
+  expect((await service.start(request)).status).toBe('COMPLETED');
+ },30000);
+ it('does not merge a duplicate final when the proposed original already contains competition history',async()=>{
+  const source=plan.stages.find(s=>s.year===2026&&s.name==='Финал Волгоград')!;
+  const imported=await db.stage.findFirstOrThrow({where:{season:{year:2026},date:new Date(source.date+'T12:00:00Z'),city:source.city}});
+  const original=await db.stage.create({data:{seasonId:imported.seasonId,stageNumber:778,name:'Финал Волгоград',city:'Волгоград',date:imported.date,status:'PUBLISHED'}});
+  const cls=await db.class.findFirstOrThrow();
+  const record=await db.record.create({data:{classId:cls.id,stageId:original.id,value:100,unit:'DB',achievedAt:original.date,isManualOverride:true}});
+  const count=await db.result.count({where:{registration:{stageId:imported.id}}});
+  await expect((service as any).ensureStage(source)).rejects.toThrow('объединение небезопасно');
+  expect(await db.stage.findUnique({where:{id:imported.id}})).not.toBeNull();expect(await db.stage.findUnique({where:{id:original.id}})).not.toBeNull();
+  expect(await db.result.count({where:{registration:{stageId:imported.id}}})).toBe(count);
+  await db.record.delete({where:{id:record.id}});await db.stage.delete({where:{id:original.id}});
+ },30000);
+
 });
