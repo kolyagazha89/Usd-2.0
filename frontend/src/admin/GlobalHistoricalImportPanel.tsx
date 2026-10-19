@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '../api';
 import { AlertTriangle, Check, Download, RefreshCw } from 'lucide-react';
 
-type Stage = { name: string; year: number; number: number; status: string; sourceRows: number; imported: number; aliases: number; kept: number; jobId?: string; error?: string; review: Array<{ sheet: string; row: number; name: string; reason: string }> };
-type Batch = { id: string; status: string; sourceResults: number; imported: number; kept: number; aliases: number; needsReview: number; failedStages: number; processedStages: number; totalStages: number; peopleInSource: number; stages: Stage[] };
+import {parseHistoricalBatch,type HistoricalBatch as Batch} from './global-historical-response';
 const labels: Record<string, string> = { PENDING: 'В очереди', RUNNING: 'Импортируем', DONE: 'Готово', NO_RESULTS: 'Нет листа результатов', REVIEW: 'Нужна проверка', FAILED: 'Не завершён' };
 
 export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: string) => void }) {
@@ -14,9 +13,9 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
     let stopped = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
-        const next = await apiGet<Batch | null>('/imports/historical/global/latest');
+        const next = parseHistoricalBatch(await apiGet<unknown>('/imports/historical/global/latest'));
         if (stopped) return;
-        setBatch(next);
+        setBatch(next); setError('');
         if (next?.status === 'RUNNING') timer = setTimeout(() => void poll(), 2000);
       } catch (caught) { if (!stopped) { setError(caught instanceof Error ? caught.message : 'Не удалось получить состояние импорта'); timer = setTimeout(() => void poll(), 4000); } }
     };
@@ -26,7 +25,7 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
   const start = async () => {
     if (busy || batch?.status === 'RUNNING') return;
     setBusy(true); setError('');
-    try { setBatch(await apiPost<Batch>('/imports/historical/global/start', {})); }
+    try { const next=parseHistoricalBatch(await apiPost<unknown>('/imports/historical/global/start', {})); if(!next)throw new Error('Сервер не вернул задачу импорта. Повторите запуск.'); setBatch(next); }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Не удалось запустить общий импорт'); }
     finally { setBusy(false); }
   };
