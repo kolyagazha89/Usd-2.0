@@ -1,5 +1,5 @@
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
-import { archivalAliasKey, globalHistoricalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
+import { archivalAliasDisplayLabel, archivalAliasKey, globalHistoricalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -3366,8 +3366,8 @@ export class ImportsService {
       where: { legacyId },
       create: {
         legacyId,
-        historicalAlias: alias,
-        lastName: alias,
+        historicalAlias: archivalAliasDisplayLabel(alias),
+        lastName: archivalAliasDisplayLabel(alias),
         firstName: '',
         middleName: null,
         isPublic: true,
