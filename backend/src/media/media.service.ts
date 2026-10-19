@@ -87,6 +87,19 @@ export class MediaService {
     return baseUrl.toString();
   }
 
+  async deleteStoredObjects(keys: string[]): Promise<string[]> {
+    const pending: string[] = [];
+    const deadline = Date.now() + 15000;
+    for (const key of keys) {
+      if (Date.now() >= deadline) { pending.push(key); continue; }
+      try {
+        const response = await fetch(this.presignedUrl('DELETE', key, null, 60), {method:'DELETE',signal:AbortSignal.timeout(Math.min(5000,deadline-Date.now()))});
+        if (!response.ok && response.status !== 404) pending.push(key);
+      } catch { pending.push(key); }
+    }
+    return pending;
+  }
+
   private objectUrl(key: string) {
     const cfg = this.config();
     const url = new URL(cfg.endpoint);

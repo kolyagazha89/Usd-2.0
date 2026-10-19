@@ -62,7 +62,10 @@ export class ResultsRankingService {
     stageId: string,
     classId: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(tx => this.recalculateInTransaction(tx, stageId, classId));
+  }
+
+  async recalculateInTransaction(tx: any, stageId: string, classId: string) {
       const stageClass =
         await tx.stageClass.findUnique({
           where: {
@@ -288,7 +291,6 @@ export class ResultsRankingService {
           },
         ],
       });
-    });
   }
 
   async recalculateByStage(stageId: string) {
