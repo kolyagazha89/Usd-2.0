@@ -107,11 +107,11 @@ function ImportPage({path,go,PageFrame,PanelTitle,Empty,enumLabel}: {path:string
    if(!imported){setError('Импорт не найден');return;}
    setJob(imported);
    setRows(imported.rows??[]);
+   setMode(imported.metadata?.historicalResults===true?'HISTORICAL':'NORMAL');
    if(imported.stageId)setStageId(imported.stageId);
    if(isResolutionRoute){
     const row=(imported.rows??[]).find((item:any)=>String(item.id)===routeParams.get('rowId'));
     if(!row){setError('Строка импорта не найдена');return;}
-    setMode(imported.metadata?.historicalResults===true?'HISTORICAL':'NORMAL');
     setResolveRow(row);
     setResolution(JSON.stringify(row.resolution??{},null,2));
    }
