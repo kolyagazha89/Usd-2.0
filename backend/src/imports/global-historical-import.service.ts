@@ -309,7 +309,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         }
         target = await this.prisma.stage.findUniqueOrThrow({ where: { id: target.id } });
       }
-    } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: 'PUBLISHED', registrationOpen: false } });
+    } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: stage.year < 2026 ? 'COMPLETED' : 'PUBLISHED', registrationOpen: false } });
     const classes = await this.prisma.class.findMany({ where: { isActive: true } });
     const classKey = (value: string) => value.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '');
     for (const label of new Set(stage.results.map(row => this.imports.historicalClassName(String(row['Класс'] ?? ''))))) {
