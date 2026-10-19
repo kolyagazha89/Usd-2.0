@@ -34,6 +34,16 @@ export class NameNormalizerService {
     // spelling (Смольянинов Валентин, Волгоград 2026). This is a precise
     // transliteration correction, never a fuzzy identity merge.
     smoliyaninov: 'Смольянинов',
+    // Explicit Latin spellings present in Results. Fix common Russian
+    // surname suffixes lost by the reverse transliterator, not identities.
+    belyi: 'Белый',
+    bobrovsky: 'Бобровский',
+    gladovsky: 'Гладовский',
+    nikitinsky: 'Никитинский',
+    nashansky: 'Нашанский',
+    pshenichnyi: 'Пшеничный',
+    veliky: 'Великий',
+    geyn: 'Гейн',
     zubanov: 'Зубанов',
     ivanov: 'Иванов',
     wassily: 'Василий',
