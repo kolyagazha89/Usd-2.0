@@ -1,3 +1,5 @@
+import { GlobalHistoricalImportController } from './global-historical-import.controller';
+import { GlobalHistoricalImportService } from './global-historical-import.service';
 import { Module } from '@nestjs/common';
 import { ImportsController } from './imports.controller';
 import { ImportsService } from './imports.service';
@@ -13,7 +15,7 @@ import { RecordsModule } from '../records/records.module';
 
 @Module({
   imports: [RecordsModule],
-  controllers: [ImportsController, HistoricalImportResetController, HistoricalOrphanCleanupController, UnclaimedTestPurgeController, HistoricalNameRepairController],
-  providers: [ImportsService, HistoricalImportResetService, HistoricalOrphanCleanupService, UnclaimedTestPurgeService, HistoricalNameRepairService],
+  controllers: [GlobalHistoricalImportController, ImportsController, HistoricalImportResetController, HistoricalOrphanCleanupController, UnclaimedTestPurgeController, HistoricalNameRepairController],
+  providers: [GlobalHistoricalImportService, ImportsService, HistoricalImportResetService, HistoricalOrphanCleanupService, UnclaimedTestPurgeService, HistoricalNameRepairService],
 })
 export class ImportsModule {}
