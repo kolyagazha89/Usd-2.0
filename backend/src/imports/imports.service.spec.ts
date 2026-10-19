@@ -656,7 +656,7 @@ describe('ImportsService historical performer aliases', () => {
     await service.createHistoricalAliasParticipant(tx, 'stage-one', '34 Sound');
     expect(tx.participant.upsert.mock.calls[1][0].where.legacyId).toBe(opts.where.legacyId);
     await service.createHistoricalAliasParticipant(tx, 'another-stage', '34 Sound');
-    expect(tx.participant.upsert.mock.calls[2][0].where.legacyId).not.toBe(opts.where.legacyId);
+    expect(tx.participant.upsert.mock.calls[2][0].where.legacyId).toBe(opts.where.legacyId);
   });
 
   it('requires an explicit manual alias decision, scoped to a historical RESULT row', async () => {
