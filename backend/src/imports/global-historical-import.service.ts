@@ -183,16 +183,63 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     if (target) {
       const live = await this.prisma.result.count({ where: { registration: { stageId: target.id }, isHistorical: false } });
       const ordinary = await this.prisma.registration.count({ where: { stageId: target.id, source: { not: 'IMPORT' } } });
+      const isTestStage = target.legacyId?.startsWith('USD_TEST_') ?? false;
       const blocked: string[] = [];
       if (live) blocked.push('неисторических результатов: ' + live);
       if (ordinary) blocked.push('обычных регистраций: ' + ordinary);
       if (target.registrationOpen) blocked.push('открыта регистрация');
-      if (target.legacyId?.startsWith('USD_TEST_')) blocked.push('тестовый этап');
       if (target.isDeleted) blocked.push('этап удалён');
       if (target.date.toISOString().slice(0, 10) !== stage.date)
         blocked.push('дата этапа ' + target.date.toISOString().slice(0, 10) + ' не совпадает с архивом ' + stage.date);
+
+      // A USD_TEST_ marker by itself is not data. A genuinely empty test
+      // stage can become its matching historical stage, but never recycle a
+      // stage that has participants or other competition-linked records.
+      if (isTestStage) {
+        const [registrations, results, records, disqualifications, inspections, numbers] = await Promise.all([
+          this.prisma.registration.count({ where: { stageId: target.id } }),
+          this.prisma.result.count({ where: { registration: { stageId: target.id } } }),
+          this.prisma.record.count({ where: { stageId: target.id } }),
+          this.prisma.disqualification.count({ where: { stageId: target.id } }),
+          this.prisma.participantStageInspection.count({ where: { stageId: target.id } }),
+          this.prisma.registrationNumber.count({ where: { stageId: target.id } }),
+        ]);
+        const occupied = [
+          ['регистрации', registrations],
+          ['результаты', results],
+          ['рекорды', records],
+          ['дисквалификации', disqualifications],
+          ['техосмотры', inspections],
+          ['номера', numbers],
+        ].filter(([, count]) => Number(count) > 0).map(([name, count]) => name + ': ' + count);
+        if (occupied.length) blocked.push('тестовый этап не пуст (' + occupied.join(', ') + ')');
+      }
       if (blocked.length) {
         throw new Error('Этап содержит обычные данные или отличается от архива; изменение запрещено: ' + blocked.join('; '));
+      }
+
+      if (isTestStage) {
+        // Guard the actual write against a registration being created after
+        // the emptiness checks. No related competition data is removed.
+        const converted = await this.prisma.stage.updateMany({
+          where: {
+            id: target.id,
+            legacyId: target.legacyId,
+            registrationOpen: false,
+            isDeleted: false,
+            date: target.date,
+            registrations: { none: {} },
+            records: { none: {} },
+            disqualifications: { none: {} },
+            participantInspections: { none: {} },
+            registrationNumbers: { none: {} },
+          },
+          data: { legacyId: null, name: stage.name, city: stage.city, status: 'PUBLISHED' },
+        });
+        if (!converted.count) {
+          throw new Error('Состав тестового этапа изменился во время проверки; повторите импорт');
+        }
+        target = await this.prisma.stage.findUniqueOrThrow({ where: { id: target.id } });
       }
     } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: 'PUBLISHED', registrationOpen: false } });
     const classes = await this.prisma.class.findMany({ where: { isActive: true } });
