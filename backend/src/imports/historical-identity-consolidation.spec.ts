@@ -96,6 +96,39 @@ describe('historical identity consolidation', () => {
     expect(updates.filter(record => ['registration','car','record','participant.deleteMany'].includes(record.model))).toEqual([]);
   });
 
+  it('restores historical Ksy Aperol as a stage-scoped alias without changing any results', async () => {
+    const original = {
+      ...p('a', 'unused', '2026-06-01'),
+      lastName: 'Ксы', firstName: 'Аперол', historicalAlias: null, legacyId: null,
+      registrations: [{ source: 'IMPORT', stageId: 'final-2026' }],
+    };
+    const { db, participant, updates } = setup([original]);
+    const result = await consolidateApprovedHistoricalIdentities(db, names);
+    const expectedLegacyId = hash('final-2026:ksy aperol');
+    expect(result).toMatchObject({ profilesMerged: 0, namesCorrected: 1, skipped: [] });
+    expect(participant.update).toHaveBeenCalledWith({
+      where: { id: 'a' },
+      data: {
+        legacyId: expectedLegacyId, historicalAlias: 'Ксю Апероль',
+        lastName: 'Ксю Апероль', firstName: '', middleName: null,
+      },
+    });
+    expect(updates.filter(entry => entry.model !== 'participant.update')).toEqual([]);
+  });
+
+  it('protects a Ksy Aperol profile with an attached real account', async () => {
+    const person = {
+      ...p('a', 'unused', '2026-06-01'),
+      lastName: 'Ксы', firstName: 'Аперол', historicalAlias: null, legacyId: null,
+      registrations: [{ source: 'IMPORT', stageId: 'final-2026' }],
+      user: { id: 'claimed-user' },
+    };
+    const { db, participant } = setup([person]);
+    const result = await consolidateApprovedHistoricalIdentities(db, names);
+    expect(result.namesCorrected).toBe(0);
+    expect(participant.update).not.toHaveBeenCalled();
+  });
+
   it('does not rename a malformed name linked to an onsite registration', async () => {
     const original = {
       ...p('a', 'unused', '2026-06-01'),

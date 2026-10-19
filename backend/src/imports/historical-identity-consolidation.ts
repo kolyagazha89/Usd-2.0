@@ -4,14 +4,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { historicalExistingFullNameRepairs } from '../common/names/historical-source-corrections';
 import { archivePersonName, approvedHistoricalNamePairs } from './global-historical-plan';
-import { globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
+import { archivalAliasDisplayLabel, archivalAliasKey, globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
 
 type MinimalParticipant = {
   id: string; lastName: string; firstName: string; middleName: string | null;
   legacyId: string | null; historicalAlias: string | null;
   phone: string | null; photoUrl: string | null; birthDate: Date | null;
   user: { id: string } | null; createdAt: Date;
-  registrations: Array<{ source: string }>;
+  registrations: Array<{ source: string; stageId: string }>;
 };
 
 export type HistoricalIdentityMergeSummary = {
@@ -43,6 +43,7 @@ export async function consolidateApprovedHistoricalIdentities(
           { lastName: pair.source.split(' ')[0] },
           { lastName: pair.canonical.split(' ')[0] },
         ]),
+        { lastName: 'Ксы', firstName: 'Аперол' },
         ...Object.keys(historicalExistingFullNameRepairs).map(label => ({
           lastName: label.split(' ')[0].charAt(0).toLocaleUpperCase('ru') + label.split(' ')[0].slice(1),
         })),
@@ -52,7 +53,7 @@ export async function consolidateApprovedHistoricalIdentities(
       id: true, lastName: true, firstName: true, middleName: true,
       legacyId: true, historicalAlias: true, phone: true, photoUrl: true,
       birthDate: true, user: { select: { id: true } }, createdAt: true,
-      registrations: { select: { source: true } }, 
+      registrations: { select: { source: true, stageId: true } }, 
     },
   });
   type Candidate = MinimalParticipant;
@@ -106,7 +107,7 @@ export async function consolidateApprovedHistoricalIdentities(
             await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
             const current = await tx.participant.findMany({
               where: { id: { in: [only.id] } },
-              include: { user: { select: { id: true } }, registrations: { select: { source: true } } },
+              include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },
             });
             if (current.length !== 1 || !safeHistorical(current[0]) ||
               globalHistoricalAliasKey(current[0].historicalAlias ?? '') !== group.aliasKey)
@@ -137,7 +138,7 @@ export async function consolidateApprovedHistoricalIdentities(
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: allIds } },
-          include: { user: { select: { id: true } }, registrations: { select: { source: true } } }, 
+          include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } }, 
         });
         if (current.length !== allIds.length ||
           current.some(p => p.user || p.phone || p.photoUrl || p.birthDate ||
@@ -235,7 +236,7 @@ export async function consolidateApprovedHistoricalIdentities(
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: [person.id] } },
-          include: { user: { select: { id: true } }, registrations: { select: { source: true } } },
+          include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },
         });
         if (current.length !== 1 || !safeHistorical(current[0]) || current[0].middleName ||
           current[0].lastName !== person.lastName || current[0].firstName !== person.firstName ||
@@ -255,6 +256,52 @@ export async function consolidateApprovedHistoricalIdentities(
       summary.namesCorrected++;
     } catch (error) {
       summary.skipped.push({ label: oldFullName, reason: error instanceof Error ? error.message : 'Неизвестная ошибка' });
+    }
+  }
+  // This exact label comes from the final 2026 Results row #44, sticker
+  // 142. It is an unverified stage alias, NOT a verified Russian surname and
+  // given name. Convert only an old import-only synthetic name in-place.
+  for (const person of people) {
+    if (person.lastName !== 'Ксы' || person.firstName !== 'Аперол' ||
+      person.historicalAlias || person.middleName || !safeHistorical(person)) continue;
+    try {
+      await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+        const current = await tx.participant.findMany({
+          where: { id: { in: [person.id] } },
+          include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },
+        });
+        if (current.length !== 1 || !safeHistorical(current[0]) ||
+          current[0].lastName !== 'Ксы' || current[0].firstName !== 'Аперол' ||
+          current[0].middleName || current[0].historicalAlias)
+          throw new Error('Профиль изменился до проверки псевдонима');
+        const stageIds = [...new Set(current[0].registrations.map(item => item.stageId))];
+        if (stageIds.length !== 1 || !stageIds[0])
+          throw new Error('Архивное название встречается в разных этапах: требуется подтверждение');
+        const attachedEmail = await tx.participantLegacyEmail.findMany({
+          where: { participantId: person.id },
+        });
+        if (attachedEmail.length)
+          throw new Error('Присутствует архивный email: автоматическое переименование запрещено');
+        const alias = 'Ksy Aperol';
+        const legacyId = 'HISTORICAL_ALIAS:' + createHash('sha256')
+          .update(stageIds[0] + ':' + archivalAliasKey(alias)).digest('hex');
+        const other = await tx.participant.findFirst({
+          where: { legacyId, id: { not: person.id } },
+          select: { id: true },
+        });
+        if (other) throw new Error('Архивный псевдоним уже занят другой карточкой');
+        await tx.participant.update({
+          where: { id: person.id },
+          data: { legacyId, historicalAlias: archivalAliasDisplayLabel(alias), lastName: archivalAliasDisplayLabel(alias), firstName: '', middleName: null },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
+      summary.namesCorrected++;
+    } catch (error) {
+      summary.skipped.push({
+        label: 'Ксы Аперол',
+        reason: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      });
     }
   }
   return summary;
