@@ -1,0 +1,49 @@
+name: Archive replay and permanent deletion
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/usd_identity_ci
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: usd_identity_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd_identity_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/seed.ts
+      - name: Replay all archive rows and repeat without duplicates
+        env:
+          USD_FULL_ARCHIVE_REPLAY: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/full-archive-replay.e2e-spec.ts
+      - name: Verify permanent deletion, preserved neighbours and transactional rollback
+        env:
+          USD_PERMANENT_DELETE_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/admin-permanent-deletion.e2e-spec.ts

@@ -240,3 +240,33 @@ describe('historical identity consolidation', () => {
     expect(ids[0]).toBe(ids[1]);
   });
 });
+
+
+describe('source-verified personal-name aliases',()=>{
+ const plan:any={stages:[{results:[{'ФИО':'Цинклер Денис'}]}]};
+ const personal=(id:string)=>({...p(id,'Цинклер','2025-01-01'),lastName:'Цинклер',firstName:'Денис',historicalAlias:null,legacyId:null});
+ it('merges a previously synthetic Latin FIO into its canonical person and transfers every dependent reference',async()=>{
+  const {db,updates,participant}=setup([p('a','Cinkler Denis','2025-01-01'),personal('b')]);
+  const result=await consolidateApprovedHistoricalIdentities(db,names,plan);
+  expect(result).toMatchObject({profilesMerged:1,skipped:[]});
+  expect(participant.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({lastName:'Цинклер',firstName:'Денис',historicalAlias:null})}));
+  for(const model of ['car','registration','record','disqualification','participantStageInspection','importRow'])expect(updates.some(x=>x.model===model)).toBe(true);
+ });
+ it('repairs a single broken FIO alias without deleting its registrations or results',async()=>{
+  const {db,participant}=setup([p('a','Cinkler Denis','2025-01-01')]);
+  expect(await consolidateApprovedHistoricalIdentities(db,names,plan)).toMatchObject({profilesMerged:0,namesCorrected:1,skipped:[]});
+  expect(participant.deleteMany).not.toHaveBeenCalled();
+ });
+ it('does not touch an account-linked canonical participant or merge conflicting class stickers',async()=>{
+  for(const options of [{protectedUser:true},{conflictingClassStickers:true}]){
+   const {db,participant}=setup([p('a','Cinkler Denis','2025-01-01'),personal('b')],options);
+   const result=await consolidateApprovedHistoricalIdentities(db,names,plan);
+   expect(result.profilesMerged).toBe(0);expect(result.skipped).toHaveLength(1);expect(participant.deleteMany).not.toHaveBeenCalled();
+  }
+ });
+ it('requires exact source evidence for personal-name aliases and never uses surname similarity',async()=>{
+  const {db,participant}=setup([p('a','Cinkler Denis','2025-01-01'),personal('b')]);
+  expect(await consolidateApprovedHistoricalIdentities(db,names,{stages:[]} as any)).toMatchObject({profilesMerged:0,namesCorrected:0});
+  expect(participant.deleteMany).not.toHaveBeenCalled();
+ });
+});

@@ -1,3 +1,4 @@
+import {historicalProjectLabel} from '../common/names/historical-project-labels';
 import { createHash } from 'crypto';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
@@ -18,11 +19,28 @@ export type ArchivePlan = {
 const givenNames = new Set(('Александр Алексей Андрей Антон Артем Артём Арсен Арсений Валентин Валерий Вадим Василий Виталий Виктор Владимир Владислав Вячеслав Григорий Даниил Данил Денис Дмитрий Егор Евгений Иван Игорь Илья Кирилл Константин Ксения Лаврентий Максим Матвей Михаил Назар Никита Николай Олег Павел Ричард Роман Руслан Сергей Терентий Тимофей Тимур Эдуард Юрий Яков Ярослав Ян').toLowerCase().split(' '));
 
 /**
- * These THREE full-name identities were explicitly approved by the archive
- * operator on 2026-10-19. Correct only the entire normalized name; neither
+ * These exact full-name identities were explicitly approved by the archive
+ * operator on 2026-10-19/20. Correct only the entire normalized name; neither
  * generic surnames nor people who merely share a first name are ever merged.
  */
 export const approvedHistoricalNamePairs = [
+  // Full list explicitly confirmed by the operator on 2026-10-20.
+  { source: 'Яковлев Масим', canonical: 'Яковлев Максим' },
+  { source: 'Антащвили Тимур', canonical: 'Анташвили Тимур' },
+  { source: 'Мешеряков Сергей', canonical: 'Мещеряков Сергей' },
+  { source: 'Гладихев Антон', canonical: 'Гладышев Антон' },
+  { source: 'Терешенко Егор', canonical: 'Терещенко Егор' },
+  { source: 'Никифиров Владислав', canonical: 'Никифоров Владислав' },
+  { source: 'Стоиловский Василий', canonical: 'Стайловский Василий' },
+  { source: 'Харитонов Данил', canonical: 'Харитонов Даниил' },
+  { source: 'Романенко Данила', canonical: 'Романенко Даниил' },
+  { source: 'Гречуха Евгений', canonical: 'Гречухин Евгений' },
+  { source: 'Зубарев Влад', canonical: 'Зубарев Владислав' },
+  { source: 'Радионов Игорь', canonical: 'Родионов Игорь' },
+  { source: 'Дандев Максим', canonical: 'Данцев Максим' },
+  { source: 'Кутишев Павел', canonical: 'Гутишев Павел' },
+  { source: 'Лужков Леха', canonical: 'Лыжков Леха' },
+  { source: 'Каднова Валерия', canonical: 'Каданова Валерия' },
   { source: 'Дергунова Дария', canonical: 'Дергунова Дарья' },
   { source: 'Латишев Малсим', canonical: 'Латышев Максим' },
   { source: 'Никрасов Дмитрий', canonical: 'Некрасов Дмитрий' },
@@ -38,6 +56,19 @@ const approvedFullNames = new Map<string, string>(
  * The original source value remains in _archiveOriginalName and source line.
  */
 export const sourceVerified2025FullNames: Readonly<Record<string, string>> = {
+  // Same event and sticker in different directions, with original evidence
+  // retained on every row: opening 2025 #17; Orel #15; Chelyabinsk #22.
+  // Same opening-2025 sticker #83 in SPL and BassRace; trailing 1 is
+  // an annotation, not part of a second performer's surname.
+  'puzikov vladislav 1': 'Пузаков Владислав',
+  // Exact source annotations SS / AC are not patronymics. Keep their raw
+  // text in the result's archival evidence, outside the Participant FIO.
+  'gukov kirill ss': 'Гуков Кирилл',
+  'войтенко евгений ac': 'Войтенко Евгений',
+  'kaminin vyacheslav': 'Камынин Вячеслав',
+  'kaminin vyachelav': 'Камынин Вячеслав',
+  'kovalchyk kirill': 'Ковалчук Кирилл',
+  'martemiyamov denis': 'Мартемиянов Денис',
   'hvorotyan nikolay': 'Хворостян Николай', // Volgograd opening #001, also Hvorostyan Nikolay #001
   'chyakiryan artem': 'Чакирян Артем', // Volgograd opening #002, also Chakiryan Artem #002
   'kupyanskiy vyacheslav': 'Купянский Вячеслав', // Lugansk #016, also Kupyansky Vyacheslav #016
@@ -50,6 +81,8 @@ export const sourceVerified2025FullNames: Readonly<Record<string, string>> = {
 
 export function archivePersonName(raw: unknown, normalizer: NameNormalizerService): string {
   const sourceLabel = String(raw ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
+  const project=historicalProjectLabel(String(raw??''));
+  if(project)return project;
   const verified = sourceVerified2025FullNames[sourceLabel];
   if (verified) return verified;
   const name = normalizer.normalize(String(raw ?? ''));
@@ -169,7 +202,7 @@ export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNorm
     if (team && !/^(?:без команды|нет|—|-|none|no team)$/i.test(team)) person.teams.add(team);
   }
   const plan: ArchivePlan = {
-    version: 1, identityRulesVersion: 6, sourceHash: createHash('sha256').update(snapshot)
+    version: 1, identityRulesVersion: 8, sourceHash: createHash('sha256').update(snapshot)
       .update(Object.entries(resultsOnly2025Sources).sort(([a], [b]) => a.localeCompare(b))
         .map(([file, text]) => file + ':' + text).join('\\n')).digest('hex'),
     sourceWorkbooks: [

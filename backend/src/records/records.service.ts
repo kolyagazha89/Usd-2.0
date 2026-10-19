@@ -231,7 +231,7 @@ export class RecordsService {
    * A disqualified result is temporarily excluded while its disqualification
    * is ACTIVE. Old Record rows are never deleted: they form the record history.
    */
-  private async recalculateCurrentRecordForClass(
+  async recalculateCurrentRecordForClass(
     tx: any,
     classId: string,
   ) {

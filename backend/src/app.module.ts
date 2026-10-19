@@ -1,3 +1,4 @@
+import {AdminDeletionModule} from './admin-deletion/admin-deletion.module';
 import { Module } from '@nestjs/common';
 
 import { AppController } from './app.controller';
@@ -33,6 +34,7 @@ import { ComponentCatalogRequestsModule } from './component-catalog-requests/com
 @Module({
   imports: [
     PrismaModule,
+    AdminDeletionModule,
     AuthModule,
     MailModule,
     StagesModule,

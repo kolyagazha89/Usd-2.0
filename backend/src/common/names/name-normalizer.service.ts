@@ -1,3 +1,4 @@
+import {historicalProjectKey} from './historical-project-labels';
 import { Injectable } from '@nestjs/common';
 import CyrillicToTranslit from 'cyrillic-to-translit-js';
 import { historicalExistingFullNameRepairs, historicalLatinSurnameSpellings } from './historical-source-corrections';
@@ -23,6 +24,30 @@ export class NameNormalizerService {
   // of family names or unrelated Participant IDs is permitted.
   private readonly latinExceptions: Readonly<Record<string, string>> = {
     ...historicalLatinSurnameSpellings,
+    // Exact Latin spellings in the 2025 Results export. Unsupported c/y
+    // conventions used to leave mixed scripts and misclassify real names as
+    // stage-local aliases. These are spelling conversions, not fuzzy matches.
+    // Remaining endings / soft signs from the full Results audit.
+    'al-tamimi': 'Аль-Тамими', delta: 'Дельта',
+    skromniy: 'Скромный', vasilyi: 'Василий',
+    tatiyana: 'Татьяна', vyachelav: 'Вячеслав', aidar: 'Айдар',
+    albert: 'Альберт', rafael: 'Рафаэль', emil: 'Эмиль', ilnur: 'Ильнур',
+    baidalinov: 'Байдалинов', baizhumanov: 'Байжуманов', bairamov: 'Байрамов',
+    hailo: 'Хайло', haimin: 'Хаймин', shnaider: 'Шнайдер',
+    naidenov: 'Найденов', naidanov: 'Найданов',
+    bolshakov: 'Большаков', danilchenko: 'Данильченко', demiyanov: 'Демьянов',
+    lybimov: 'Любимов', lybart: 'Любарт',
+    rumyancev: 'Румянцев', merculov: 'Меркулов', zaicev: 'Зайцев',
+    troickiy: 'Троицкий', voroncov: 'Воронцов', andreychenko: 'Андрейченко',
+    bobrovskiy: 'Бобровский', cinkler: 'Цинклер', stalicin: 'Сталицин',
+    stailovsky: 'Стайловский', stoilovskiy: 'Стоиловский',
+    drozhdeckyi: 'Дрождецкий', pozharsky: 'Пожарский',
+    kurgansky: 'Курганский', hmelnicky: 'Хмельницкий',
+    gorbachevsky: 'Горбачевский', krushinsky: 'Крушинский',
+    yarcev: 'Ярцев', tlepcerishin: 'Тлепцеришин', gornicyn: 'Горницын',
+    pokrovsky: 'Покровский', efimov: 'Ефимов',
+    alexndr: 'Александр', dmittry: 'Дмитрий', georgy: 'Георгий',
+
     // Exact spellings present in the supplied Results and Registration files.
     // These adapt unsupported source conventions without fuzzy person merging.
     matvey: 'Матвей', arseny: 'Арсений', savely: 'Савелий',
@@ -271,6 +296,7 @@ export class NameNormalizerService {
     const normalized = this.normalize(original);
     const parts = normalized.split(/\s+/).filter(Boolean);
     const reasons: string[] = [];
+    if (historicalProjectKey(original)) reasons.push('Архивный псевдоним или проект: личное ФИО не подтверждено');
     // These exact archive labels are businesses/teams, not people. A Latin
     // company label that transliterates cleanly must still stay an alias.
     if (/^(?:34\s*sound|bass\s*market|car\s*audio\s*bryansk)$/i.test(original.replace(/[^a-z0-9 ]/gi, ' ').replace(/\s+/g, ' ').trim())) {
@@ -295,7 +321,7 @@ export class NameNormalizerService {
     // The reverse-transliteration package can turn -sky into -скы,
     // -ay- into -аы-, and hard/soft sounds into invalid Russian syllables.
     // Never turn these unverified spellings into a claimed human identity.
-    if (parts[0] && /(?:[аеёиоуэюя]ы[а-я]|[жш]ы|чя|[аеёиоуыэюя]{3})/i.test(parts[0]))
+    if (parts[0] && parts[0].toLocaleLowerCase('ru') !== 'чяев' && /(?:[аеёиоуэюя]ы[а-я]|[жш]ы|чя|[аеёиоуыэюя]{3})/i.test(parts[0]))
       reasons.push('Похоже на повреждённую фамилию после транслитерации; проверьте написание');
     if (/^Ksy\s+Aperol$/i.test(original) || normalized === 'Ксы Аперол')
       reasons.push('Архивный псевдоним без подтверждённого ФИО');

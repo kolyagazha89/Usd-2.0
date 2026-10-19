@@ -1,9 +1,13 @@
+import {historicalProjectKey,historicalProjectLabels} from '../common/names/historical-project-labels';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 
 /** Normalize only verified business-name formatting, never fuzzy-match people. */
 export function archivalAliasKey(rawAlias: string): string {
   const lower = rawAlias.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
   const compact = lower.replace(/[\s._-]+/g, '');
+  const known=historicalProjectKey(rawAlias);
+  if(known==='ksyaperol')return 'ksy aperol';
+  if(known)return known;
   return new Set(['34sound', 'bassmarket', 'caraudiobryansk']).has(compact)
     ? compact : lower;
 }
@@ -76,20 +80,11 @@ export function historicalAliasStickerDiscriminators(
  * Results source removed the conflicting 2025 Bassmarket sticker 105;
  * Bassmarket can now safely share an identity across stages.
  */
-export const globalHistoricalAliasLabels: Readonly<Record<string, string>> = {
-  '34sound': '34 Sound',
-  'bassmarket': 'Bassmarket',
-  'caraudiobryansk': 'Car Audio Bryansk',
-  'alekseysf': 'Aleksey SF',
-  'antohasf': 'Antoha SF',
-  'igorbassfix63': 'Igor Bassfix63',
-};
+export const globalHistoricalAliasLabels: Readonly<Record<string, string>> = Object.fromEntries(
+ Object.entries(historicalProjectLabels).filter(([key])=>key!=='ksyaperol'),
+);
 
 export function globalHistoricalAliasKey(label: string): string | null {
-  const compact = label.normalize('NFKC').toLocaleLowerCase('ru').replace(/[\s._-]+/g, '');
-  // Astrakhan 2025 BassRace lists "Antoha Fs" in 139.9 and "Antoha Sf"
-  // in 149.9. This exact transposition is a known project-label variant,
-  // not permission to fuzzy-merge other names.
-  const verified = compact === 'antohafs' ? 'antohasf' : compact;
-  return Object.hasOwn(globalHistoricalAliasLabels, verified) ? verified : null;
+  const key=historicalProjectKey(label);
+  return key && Object.hasOwn(globalHistoricalAliasLabels,key)?key:null;
 }

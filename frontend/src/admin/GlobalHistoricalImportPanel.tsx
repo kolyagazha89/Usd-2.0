@@ -57,10 +57,11 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
   };
   const running = busy || batch?.status === 'RUNNING';
   const complete = batch?.status === 'COMPLETED';
+  const invalidated = batch?.status === 'INVALIDATED';
   return <section className="panel global-history-panel" aria-label="Общий импорт всех исторических этапов">
     <div className="resource-editor-heading"><div><strong>Весь исторический архив — одной кнопкой</strong>
       <p>Общее сопоставление участников и машин по всем этапам из загруженного архива. Участие подтверждается результатами каждого этапа; конфигурации сохраняются по времени.</p>
-    </div><button type="button" className="primary-button" disabled={running} onClick={() => void start()}><RefreshCw size={16} />{running ? 'Импорт выполняется…' : complete ? 'Проверить архив повторно' : batch ? 'Продолжить общий импорт' : 'Импортировать все этапы'}</button></div>
+    </div><button type="button" className="primary-button" disabled={running} onClick={() => void start()}><RefreshCw size={16} />{running ? 'Импорт выполняется…' : complete || invalidated ? 'Проверить архив повторно' : batch ? 'Продолжить общий импорт' : 'Импортировать все этапы'}</button></div>
     <p>Аккаунты участников и тестовые профили защищены. Уже совпадающие результаты сохраняются. Спорные строки остаются в отчёте для проверки.</p>
     {error && <div className="form-error" role="alert"><AlertTriangle size={16} />{error}</div>}
     {audit && <details>
@@ -77,8 +78,8 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
     </details>}
     {batch && <>
       <div className="notice" role="status" aria-live="polite">{complete ? <Check size={18} /> : <RefreshCw size={18} />}<div>
-        <strong>{complete ? 'Все исходные результаты обработаны' : running ? 'Импортируем архив. Страницу можно закрыть — задача сохранится.' : 'Проверенные данные сохранены. Остались строки для проверки.'}</strong>
-        <p>Результатов в источнике: {batch.sourceResults}. Записано или уже совпало: <b>{batch.imported}</b>. Из них сохранено без замены: {batch.kept}. Требуют проверки: <b>{batch.needsReview}</b>.</p>
+        <strong>{invalidated ? 'После полного удаления данные изменились. Повторная проверка архива обновит отчёт.' : complete ? 'Все исходные результаты обработаны' : running ? 'Импортируем архив. Страницу можно закрыть — задача сохранится.' : 'Проверенные данные сохранены. Остались строки для проверки.'}</strong>
+        <p>{invalidated && 'Ниже сохранён отчёт до удаления. ' }Результатов в источнике: {batch.sourceResults}. Записано или уже совпало: <b>{batch.imported}</b>. Из них сохранено без замены: {batch.kept}. Требуют проверки: <b>{batch.needsReview}</b>.</p>
         <p>Этапов завершено: {batch.processedStages} из {batch.totalStages}. Архивных обозначений без подтверждённого ФИО: {batch.aliases}.</p>
         {batch.consolidation && <p>Объединено дублирующих карточек: <b>{batch.consolidation.profilesMerged}</b> · групп: {batch.consolidation.groupsMerged}. Исправлено написаний ФИО и архивных обозначений: <b>{batch.consolidation.namesCorrected}</b>.</p>}
         {batch.consolidation && batch.consolidation.skipped.length > 0 && <details>

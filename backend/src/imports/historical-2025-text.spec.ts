@@ -63,7 +63,7 @@ describe('additive 2025 archive', () => {
     const names = new NameNormalizerService();
     const snapshot = readFileSync(join(base, 'historical-xlsx.json'), 'utf8');
     const plan = buildGlobalHistoricalPlan(snapshot, names, sources);
-    expect(plan.identityRulesVersion).toBe(6);
+    expect(plan.identityRulesVersion).toBe(8);
     expect(plan.stages).toHaveLength(18);
     expect(plan.sourceResults).toBe(1777);
     expect(plan.stages.filter(s => s.year === 2025)).toHaveLength(8);
@@ -118,7 +118,8 @@ describe('2025 evidence-backed identities (same event/sticker; no fuzzy merges)'
   it('maps Antoha Fs to the exact vetted archival project without guessing unrelated labels', () => {
     expect(globalHistoricalAliasKey('Antoha Fs')).toBe('antohasf');
     expect(globalHistoricalAliasKey('Antoha Sf')).toBe('antohasf');
-    expect(globalHistoricalAliasKey('Antoha Force')).toBeNull();
+    expect(globalHistoricalAliasKey('Antoha Force')).toBe('antohaforce');
+    expect(globalHistoricalAliasKey('Antoha Force')).not.toBe(globalHistoricalAliasKey('Antoha Sf'));
     expect(globalHistoricalAliasKey('34sound')).toBe('34sound');
   });
   it('does not collapse distinct people with the same given name', () => {

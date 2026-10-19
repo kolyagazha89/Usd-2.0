@@ -3023,6 +3023,7 @@ export class ImportsService {
   private mapClassName(
     value: string,
   ): string {
+    value = value.trim().replace(/^bdw[\s_-]*spl(?=$|[\s_-])/i, 'BDW');
     const normalized =
       value
         .trim()
@@ -5051,6 +5052,10 @@ export class ImportsService {
          * которые пытаются выдать один и тот же номер
          * или зарегистрировать один автомобиль.
          */
+        // Stage locks alone allow two different-stage imports to both see
+        // no existing person and insert duplicate profiles. Always acquire
+        // the common identity lock first, then the stage lock, in that order.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
         await tx.$queryRaw<{ locked: string }[]>`SELECT pg_advisory_xact_lock(hashtext(${importJob.stageId}))::text AS locked`;
 
         const historicalMaxSourceNumber = Math.max(0, ...importJob.rows.map((row) =>

@@ -31,7 +31,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = window.setTimeout(() => controller.abort(), path.startsWith('/admin/permanent-deletion/') ? 120_000 : REQUEST_TIMEOUT_MS);
 
   try {
     const response=await fetch(`${API_BASE}${path}`,{
