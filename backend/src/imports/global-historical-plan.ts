@@ -31,7 +31,27 @@ const approvedFullNames = new Map<string, string>(
   approvedHistoricalNamePairs.map(pair => [pair.source.toLocaleLowerCase('ru'), pair.canonical]),
 );
 
+/**
+ * Exact 2025 Results spelling repairs backed by the very same stage and
+ * sticker number, or by an accompanying Cyrillic BFSPL entry on that event.
+ * Never apply these to an unrelated surname or fuzzy-match participants.
+ * The original source value remains in _archiveOriginalName and source line.
+ */
+export const sourceVerified2025FullNames: Readonly<Record<string, string>> = {
+  'hvorotyan nikolay': 'Хворостян Николай', // Volgograd opening #001, also Hvorostyan Nikolay #001
+  'chyakiryan artem': 'Чакирян Артем', // Volgograd opening #002, also Chakiryan Artem #002
+  'kupyanskiy vyacheslav': 'Купянский Вячеслав', // Lugansk #016, also Kupyansky Vyacheslav #016
+  'latishev maksim': 'Латышев Максим', // Same 2025 stage also contains Латышев Максим in BFSPL
+  'matievskyi danila': 'Матиевский Данила', // Astrakhan result + Cyrillic BFSPL
+  'matievskiy danila': 'Матиевский Данила', // Lugansk result + Cyrillic BFSPL
+  'латишев максим': 'Латышев Максим', // Old naive transliteration of the exact same Latin source
+};
+
+
 export function archivePersonName(raw: unknown, normalizer: NameNormalizerService): string {
+  const sourceLabel = String(raw ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
+  const verified = sourceVerified2025FullNames[sourceLabel];
+  if (verified) return verified;
   const name = normalizer.normalize(String(raw ?? ''));
   const words = name.split(/\s+/).filter(Boolean);
   // Restore an unambiguous given-name-first pair before approved corrections.
@@ -149,7 +169,7 @@ export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNorm
     if (team && !/^(?:без команды|нет|—|-|none|no team)$/i.test(team)) person.teams.add(team);
   }
   const plan: ArchivePlan = {
-    version: 1, identityRulesVersion: 5, sourceHash: createHash('sha256').update(snapshot)
+    version: 1, identityRulesVersion: 6, sourceHash: createHash('sha256').update(snapshot)
       .update(Object.entries(resultsOnly2025Sources).sort(([a], [b]) => a.localeCompare(b))
         .map(([file, text]) => file + ':' + text).join('\\n')).digest('hex'),
     sourceWorkbooks: [
