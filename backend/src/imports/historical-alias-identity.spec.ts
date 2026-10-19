@@ -1,12 +1,29 @@
 import { jest } from '@jest/globals';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { ImportsService } from './imports.service';
-import { archivalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
+import { archivalAliasDisplayLabel, archivalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
 
 const names = new NameNormalizerService();
 const source = (id: string, alias: string, className: string, sticker: number) => ({
   id, type: 'RESULT', rawData: { 'ФИО': alias, 'Класс': className, 'Номер': sticker },
   normalizedData: { class: { classId: className }, participantNumber: sticker },
+});
+
+describe('confirmed historical nickname display', () => {
+  it('uses the Cyrillic Registration spelling without changing the source identity hash', async () => {
+    expect(archivalAliasDisplayLabel('Ksy Aperol')).toBe('Ксю Апероль');
+    expect(archivalAliasDisplayLabel('34sound')).toBe('34sound');
+    const service = new ImportsService({} as never, names) as unknown as {
+      createHistoricalAliasParticipant: (tx: unknown, stage: string, alias: string) => Promise<unknown>;
+    };
+    const upsert = jest.fn(async () => ({ id: 'old-profile' }));
+    await service.createHistoricalAliasParticipant({ participant: { upsert } }, 'stage-2026-final', 'Ksy Aperol');
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        lastName: 'Ксю Апероль', firstName: '', historicalAlias: 'Ксю Апероль',
+      }),
+    }));
+  });
 });
 
 describe('historical alias conflicting source stickers', () => {
