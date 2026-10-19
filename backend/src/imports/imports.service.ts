@@ -661,7 +661,9 @@ export class ImportsService {
         });
       }
 
-      const historicalResults = mapping.result !== null;
+      // Archive participants always require Results, even when a helper sheet
+      // has no corresponding Results sheet. Registration alone is not attendance.
+      const historicalResults = true;
       const result = await this.previewStage(
         { stageId: stage.id, registrations, results, historicalResults },
         request,
@@ -672,6 +674,7 @@ export class ImportsService {
         data: {
           metadata: {
             source: 'HISTORICAL_XLSX',
+            sourceWorkbooks: source._source?.workbooks ?? null,
             workbookRegistrationSheet: mapping.reg,
             workbookResultSheet: mapping.result,
             historicalResults,
@@ -4924,6 +4927,12 @@ export class ImportsService {
         const historicalResults =
           (importJob.metadata as any)?.historicalResults === true;
 
+        if ((importJob.metadata as any)?.source === 'HISTORICAL_XLSX' && !historicalResults) {
+          throw new BadRequestException('Устаревший режим исторического импорта: подготовьте архив заново');
+        }
+        // Registration rows enrich Results; they are never commit candidates.
+        const commitRows = importJob.rows.filter((row) => !historicalResults || row.type === 'RESULT');
+
         if (
           importJob.status !==
           'DRAFT'
@@ -4934,7 +4943,7 @@ export class ImportsService {
         }
 
         const unresolvedRows =
-          importJob.rows.filter(
+          commitRows.filter(
             (row) =>
               row.status === 'WARNING' &&
               (!historicalResults || row.type === 'RESULT'),
@@ -4959,7 +4968,7 @@ export class ImportsService {
          * WARNING -> RESOLVED -> повторная проверка -> COMMITTED.
          */
         const invalidResolvedRows =
-          importJob.rows.filter(
+          commitRows.filter(
             (row) =>
               row.status === 'RESOLVED' &&
               (!row.resolution ||
@@ -4978,7 +4987,7 @@ export class ImportsService {
         }
 
         const unsupportedStatuses =
-          importJob.rows.filter(
+          commitRows.filter(
             (row) =>
               row.status !== 'READY' &&
               row.status !== 'RESOLVED',
@@ -4997,7 +5006,7 @@ export class ImportsService {
 
         await this.validateResolvedRowsForCommit(
           tx,
-          importJob,
+          { ...importJob, rows: commitRows },
         );
 
 
@@ -7048,7 +7057,7 @@ export class ImportsService {
           });
         }
 
-        if (historicalResults) {
+        if (historicalResults && committedRows.some((row) => row.type === 'RESULT')) {
           await tx.stage.update({
             where: { id: importJob.stageId },
             data: { resultsPublishedAt: new Date(), status: 'PUBLISHED', registrationOpen: false },
