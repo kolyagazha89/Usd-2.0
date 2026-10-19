@@ -62,10 +62,13 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     const active = await this.prisma.historicalImportBatch.findUnique({ where: { activeKey: ACTIVE_KEY } });
     if (active) {
       if (active.sourceHash !== plan.sourceHash) throw new BadRequestException('Сначала завершите уже запущенный архив: его исходные файлы отличаются');
+      if ((active.plan as unknown as ArchivePlan).identityRulesVersion !== plan.identityRulesVersion)
+        throw new BadRequestException('В уже запущенном импорте сохранены старые правила сопоставления ФИО. Дождитесь завершения текущей задачи и повторите запуск.');
       this.launch(active.id); return this.publicStatus(active);
     }
     const previous = await this.prisma.historicalImportBatch.findFirst({ where: { sourceHash: plan.sourceHash }, orderBy: { createdAt: 'desc' } });
     if (previous?.status === 'RUNNING') { this.launch(previous.id); return this.publicStatus(previous); }
+    const refreshIdentityPlan = Boolean(previous && (previous.plan as unknown as ArchivePlan).identityRulesVersion !== plan.identityRulesVersion);
     if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress)) return this.publicStatus(previous);
     const progress: Progress = previous ? previous.progress as unknown as Progress : {
       stages: plan.stages.map(stage => ({ name: stage.name, year: stage.year, number: stage.number, status: 'PENDING', sourceRows: stage.results.length, imported: 0, aliases: 0, kept: 0, review: [], resultIds: [] })), updatedAt: new Date().toISOString(),
@@ -76,6 +79,17 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       if (stage.status === 'DONE' && !await this.stageIntact(stage)) {
         stage.status = 'PENDING'; delete stage.jobId; stage.imported = 0; stage.resultIds = []; stage.kept = 0; stage.aliases = 0;
       } else if (stage.status !== 'DONE' && stage.status !== 'NO_RESULTS') stage.status = 'PENDING';
+      if (refreshIdentityPlan && stage.status === 'PENDING') {
+        // Old ImportJob rows contain a pre-correction preview. Recreate only
+        // unfinished jobs; committed stages must never be silently rewritten.
+        delete stage.jobId;
+        stage.imported = 0;
+        stage.resultIds = [];
+        stage.kept = 0;
+        stage.aliases = 0;
+        stage.review = [];
+        delete stage.error;
+      }
     }
     try {
       let batch;
@@ -84,7 +98,8 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         // active worker's lease when two start requests race.
         await this.prisma.historicalImportBatch.updateMany({
           where: { id: previous.id, status: previous.status, activeKey: null },
-          data: { status: 'RUNNING', activeKey: ACTIVE_KEY, leaseOwner: null, leaseUntil: null, progress: asJson(progress) },
+          data: { status: 'RUNNING', activeKey: ACTIVE_KEY, leaseOwner: null, leaseUntil: null, progress: asJson(progress),
+            ...(refreshIdentityPlan ? { plan: asJson(plan) } : {}) },
         });
         batch = await this.prisma.historicalImportBatch.findUniqueOrThrow({ where: { id: previous.id } });
       } else {
