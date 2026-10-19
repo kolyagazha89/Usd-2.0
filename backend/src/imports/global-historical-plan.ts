@@ -9,7 +9,7 @@ export type ArchiveStage = {
   registrations: ArchiveRow[]; results: ArchiveRow[];
 };
 export type ArchivePlan = {
-  version: 1; sourceHash: string; sourceWorkbooks: unknown[];
+  version: 1; identityRulesVersion?: number; sourceHash: string; sourceWorkbooks: unknown[];
   sourceResults: number; registrationRows: number; stages: ArchiveStage[];
   people: Array<{ key: string; names: string[]; resultRows: number; cars: Array<{ plate: string; model: string; sheet: string; row: number }>; teams: string[] }>;
 };
@@ -135,7 +135,7 @@ export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNorm
     if (team && !/^(?:без команды|нет|—|-|none|no team)$/i.test(team)) person.teams.add(team);
   }
   const plan: ArchivePlan = {
-    version: 1, sourceHash: createHash('sha256').update(snapshot).digest('hex'),
+    version: 1, identityRulesVersion: 2, sourceHash: createHash('sha256').update(snapshot).digest('hex'),
     sourceWorkbooks: source._source?.workbooks ?? [],
     sourceResults: stages.reduce((sum, stage) => sum + stage.results.length, 0),
     registrationRows: stages.reduce((sum, stage) => sum + stage.registrations.length, 0), stages,
