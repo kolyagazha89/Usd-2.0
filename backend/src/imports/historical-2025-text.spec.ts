@@ -125,3 +125,8 @@ describe('2025 evidence-backed identities (same event/sticker; no fuzzy merges)'
     expect(archivePersonName('Tumanov Nikita', names)).not.toBe(archivePersonName('Romanov Nikita', names));
   });
 });
+
+
+it.each(['BDW', 'BDW SPL', 'BDWSPL'])('parses %s as canonical BDW', heading => {
+  expect(parseHistorical2025Text(heading+'\n1. Иванов Иван - 145,2', 'bdw.txt')[0]['Класс']).toBe('BDW');
+});

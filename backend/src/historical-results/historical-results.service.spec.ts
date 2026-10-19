@@ -18,6 +18,18 @@ describe('HistoricalResultsService', () => {
     jest.clearAllMocks();
   });
 
+  it('scopes bulk verification to the selected season', async () => {
+    prisma.result.findMany.mockResolvedValue([]);
+    await new HistoricalResultsService(prisma, records, ranking).verifyAll(admin1, '2025');
+    expect(prisma.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {isHistorical:true, verificationStatus:'PENDING', registration:{stage:{season:{year:2025}}}},
+    }));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+  it('rejects malformed season instead of verifying all seasons', async () => {
+    await expect(new HistoricalResultsService(prisma, records, ranking).verifyAll(admin1, 'oops')).rejects.toThrow('Укажите год');
+    expect(prisma.result.findMany).not.toHaveBeenCalled();
+  });
   it('allows creation only for ADMIN', async () => {
     const service = new HistoricalResultsService(prisma, records, ranking);
 

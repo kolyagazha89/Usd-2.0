@@ -86,7 +86,7 @@ const directions = [
   },
 
   {
-    name: 'BDWSPL',
+    name: 'BDW',
     sortOrder: 3,
     classes: [
       {

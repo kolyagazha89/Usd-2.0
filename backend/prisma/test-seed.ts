@@ -185,7 +185,7 @@ async function main() {
       ['WICKET_6_10', 'Wicket 6-10', 2, 'DB'],
       ['WICKET_10_PLUS', 'Wicket 10+', 3, 'DB'],
     ]},
-    { name: 'BDWSPL', sortOrder: 3, classes: [
+    { name: 'BDW', sortOrder: 3, classes: [
       ['BDW', 'BDW', 1, 'DB'],
       ['BDW_EX', 'BDW Ex', 2, 'DB'],
     ]},

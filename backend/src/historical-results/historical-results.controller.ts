@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { HistoricalResultsService } from './historical-results.service';
@@ -47,8 +47,8 @@ export class HistoricalResultsController {
 
   @Roles('ADMIN')
   @Post('verify-all')
-  verifyAll(@Req() req: AuthenticatedRequest) {
-    return this.service.verifyAll(req);
+  verifyAll(@Req() req: AuthenticatedRequest, @Query('season') season?: string) {
+    return this.service.verifyAll(req, season);
   }
 
   @Roles('ADMIN')

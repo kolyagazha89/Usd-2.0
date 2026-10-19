@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -510,16 +511,19 @@ export class HistoricalResultsService {
     return result;
   }
 
-  async verifyAll(request: AuthenticatedRequest) {
+  async verifyAll(request: AuthenticatedRequest, season?: string) {
     if (request.user.role !== 'ADMIN') {
       throw new ForbiddenException('Подтверждать исторические результаты может только администратор');
     }
 
+    if (season !== undefined && !/^\d{4}$/.test(season)) {
+      throw new BadRequestException('Укажите год сезона из четырёх цифр');
+    }
     // Confirm pending historical rows in one short transaction. The previous
     // implementation recalculated records/rankings for every row, repeatedly
     // touching the same classes and often exceeding the proxy request timeout.
     const pending = await this.prisma.result.findMany({
-      where: { isHistorical: true, verificationStatus: 'PENDING' },
+      where: { isHistorical: true, verificationStatus: 'PENDING', ...(season ? { registration: { stage: { season: { year: Number(season) } } } } : {}) },
       select: {
         id: true,
         createdByUserId: true,

@@ -1940,7 +1940,7 @@ export class ImportsService {
       {
         column: 'BDW SPL',
         value: row['BDW SPL'],
-        direction: 'BDWSPL',
+        direction: 'BDW',
       },
       {
         column: 'Bass Race',
@@ -3067,6 +3067,8 @@ export class ImportsService {
     value: string,
   ): string {
     return value
+      .trim()
+      .replace(/^bdw[\s_-]*spl(?=$|[\s_-])/i, 'BDW')
       .trim()
       .replace(
         /\s+/g,

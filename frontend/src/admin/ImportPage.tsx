@@ -1,3 +1,4 @@
+import {useListScroll,useViewState,seasonYears,matchesSeason} from './view-state';
 import { GlobalHistoricalImportPanel } from './GlobalHistoricalImportPanel';
 import {useEffect,useMemo,useState} from 'react';
 import * as XLSX from 'xlsx';
@@ -88,6 +89,7 @@ function ImportPage({path,go,PageFrame,PanelTitle,Empty,enumLabel}: {path:string
  const isResolutionRoute=path.split('?')[0]==='/admin/import/resolve';
  const routeParams=new URLSearchParams(path.split('?')[1]??'');
  const returnToImport=()=>go('/admin/import?jobId='+encodeURIComponent(job?.id??routeParams.get('jobId')??''));
+ const[season,setSeason]=useViewState('import:season','ALL');
  const[stages,setStages]=useState<any[]>([]),[stageId,setStageId]=useState(''),[mode,setMode]=useState<'NORMAL'|'HISTORICAL'>('NORMAL');
  const[google,setGoogle]=useState<any>(null),[spreadsheets,setSpreadsheets]=useState<any[]>([]),[spreadsheetId,setSpreadsheetId]=useState(''),[spreadsheet,setSpreadsheet]=useState<any>(null);const[uploadedFile,setUploadedFile]=useState<File|null>(null);const[sourcePostUrl,setSourcePostUrl]=useState('');
  const[historicalRegistrationSpreadsheetId,setHistoricalRegistrationSpreadsheetId]=useState(''),[historicalResultsSpreadsheetId,setHistoricalResultsSpreadsheetId]=useState('');
@@ -96,6 +98,7 @@ function ImportPage({path,go,PageFrame,PanelTitle,Empty,enumLabel}: {path:string
  const[historicalSheetSelections,setHistoricalSheetSelections]=useState<Record<string,{registration:string;results:string}>>({});
 
  const[result,setResult]=useState<any>(null),[job,setJob]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resolveRow,setResolveRow]=useState<any|null>(null),[resolution,setResolution]=useState('{}');
+ useListScroll('import:'+(job?.id??routeParams.get('jobId')??''),!isResolutionRoute,Boolean(job));
  const[resetPreview,setResetPreview]=useState<any>(null),[resetConfirmation,setResetConfirmation]=useState(''),[resetBusy,setResetBusy]=useState(false),[resetError,setResetError]=useState(''),[resetReport,setResetReport]=useState<any>(null);
  useEffect(()=>{
   const jobId=routeParams.get('jobId');
@@ -466,7 +469,7 @@ function ImportPage({path,go,PageFrame,PanelTitle,Empty,enumLabel}: {path:string
    <div className="panel form">
     <div className="segmented"><button className={mode==='NORMAL'?'selected':''} onClick={()=>changeMode('NORMAL')}>Обычный импорт</button><button className={mode==='HISTORICAL'?'selected':''} onClick={()=>changeMode('HISTORICAL')}>Исторический</button></div>{mode==='HISTORICAL'&&<div className="notice historical-source-action"><div><strong>Исторический импорт из двух Google-таблиц</strong><br/><span>Выберите общую таблицу регистрации и общую таблицу результатов, затем листы для выбранного этапа. Исправляйте данные в Google Sheets и перечитывайте их здесь.</span></div></div>}
     {!google?.connected?<div className="notice"><AlertTriangle size={16}/><span>Google аккаунт ещё не подключён.</span><button className="primary-button compact" onClick={()=>void connectGoogle()}>Подключить Google</button></div>:<div className="notice"><Check size={16}/><span>Подключён: <strong>{google.email}</strong></span></div>}
-    <label>Этап<select value={stageId} onChange={e=>{setStageId(e.target.value);setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');setDbCheck(null);setError('')}}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
+    <label>Сезон<select aria-label="Сезон импорта" value={season} onChange={e=>{setSeason(e.target.value);if(!matchesSeason(stages.find(s=>s.id===stageId),e.target.value)){setStageId('');setJob(null);setRows([]);setResult(null);setResolveRow(null);setDbCheck(null)}}}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(year=><option key={year} value={year}>{year}</option>)}</select></label><label>Этап<select value={stageId} onChange={e=>{setStageId(e.target.value);setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');setDbCheck(null);setError('')}}><option value="">Выберите этап</option>{stages.filter(s=>matchesSeason(s,season)).map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
     {mode==='HISTORICAL'?<>
       <label>Google-таблица «Регистрация»<select value={historicalRegistrationSpreadsheetId} onChange={e=>{setHistoricalRegistrationSpreadsheetId(e.target.value);setJob(null);setRows([]);setResult(null);setError('')}} disabled={!google?.connected}><option value="">Выберите таблицу регистрации</option>{spreadsheets.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       {historicalRegistrationSpreadsheet&&<div className="import-example"><b>{historicalRegistrationSpreadsheet.title}</b><br/><a href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(historicalRegistrationSpreadsheetId)}/edit`} target="_blank" rel="noreferrer">Открыть и редактировать таблицу регистрации ↗</a><label>Лист регистрации для этапа<select value={historicalRegistrationSheet} onChange={e=>{const value=e.target.value;setHistoricalRegistrationSheet(value);if(stageId)setHistoricalSheetSelections(old=>({...old,[stageId]:{registration:value,results:old[stageId]?.results??historicalResultsSheet}}));setJob(null);setRows([]);setResult(null)}}><option value="">Выберите лист</option>{(historicalRegistrationSpreadsheet.sheets??[]).map((s:any)=><option key={s.id} value={s.title}>{s.title}</option>)}</select></label></div>}
