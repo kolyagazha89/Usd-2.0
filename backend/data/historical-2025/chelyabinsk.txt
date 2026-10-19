@@ -1,0 +1,131 @@
+Результаты г. Челябинск 29.07.2025
+Limited
+1 143,3 017 Federyaev Aleksey 
+2 142,2 050 Nikitenko Andrey 
+3 0,0 009 Palkin Alexandr 
+4 0,0 011 Medvedev Alexandr 
+5 0,0 028 Gornicyn Stepan 
+6 0,0 039 Parhomenko Sergey 
+7 0,0 043 Pankratov Dmitry 
+8 0,0 045 Gilimiyanov Rafael 
+9 0,0 052 Smolin Iliya 
+ 
+1x2
+1 154,4 032 Pashin Alexandr 
+2 146,6 014 Moskalev Aleksey 
+3 141,7 058 Polunov Ivan 
+4 141,0 051 Zemlyakov Evgeny 
+ 
+2x2
+1 156,1 031 Pokrovsky Dmitry 
+2 154,3 038 Kosolapov Vasily 
+3 153,4 061 Belyaev Sergey 
+4 153,2 042 Vorobiev Viktor 
+5 148,5 044 Vasiliev Evgeny 
+6 146,3 065 Manatin Denis 
+ 
+Nolim
+1 157,8 001 Hvorostyan Nikolay 
+2 149,1 004 Soloviev Mihail 
+3 147,1 033 Otrohov Artem 
+ 
+Sedan
+1 152,0 025 Zuev Vladislav 
+2 151,0 054 Davydov Semen 
+3 151,0 055 Ibragimov Almaz 
+4 151,0 063 Kuznecov Nikita 
+5 141,3 026 Grechuha Evgeny 
+6 137,8 041 Panachev Pavel 
+ 
+Coffin
+1 161,7 008 Nechaev Alexandr 
+2 155,6 037 Bogdan Andrey 
+3 154,2 002 Prmotorov Daniil 
+4 151,3 016 Sustretov Ivan 
+5 150,8 003 Pimenov Egor 
+ 
+Wall
+1 163,4 012 Matrosov Alexandr 
+2 162,1 023 Garipov Alexandr 
+3 161,1 021 Batutin Iliya 
+ 
+Mad-x
+1 170,8 013 Permyakov Andrey 
+2 168,0 018 Romanov Maksim 
+3 165,1 022 Martemiyamov Denis 
+4 162,1 024 Chemodurov Vladimir 
+5 160,4 029 Mosunov Artem 
+ 
+Wall+
+1 166,5 062 Kuznecov Daniil 
+2 164,1 027 Voroncov Alexandr 
+3 164,0 057 Trofimenko Vladislav 
+4 144,8 036 Abakumov Rostislav 
+5 138,0 053 Lavrov Diamid 
+ 
+ 
+BassRace 129.9
+1 129,90 043 Pankratov Dmitry  129,49 129,80 129,90 129,90 
+2 129,80 060 Holodilin Ivan  129,65 129,80 129,60 
+3 129,88 007 Grogoriev Georgy  129,88 129,30 
+4 129,33 037 Bogdan Andrey  129,33 129,00 
+5 129,92 031 Pokrovsky Dmitry  129,92 
+6 129,88 015 Nikifirov Vladislav  129,88 
+7 129,44 004 Soloviev Mihail  129,44 
+8 129,19 017 Federyaev Aleksey  129,19 
+ 
+BassRace 139.9
+1 139,89 001 Hvorostyan Nikolay  139,89 137,40 138,00 129,70 
+2 139,90 023 Garipov Alexandr  138,66 138,90 139,90 
+3 139,97 006 Volkov Denis  139,97 139,90 
+4 139,98 055 Ibragimov Almaz  139,98 139,60 
+5 139,88 047 Veprikov Oleg  139,88 
+6 136,92 056 Raspopov Dmitry  136,92 
+7 136,43 008 Nechaev Alexandr  136,43 
+8 130,22 035 Efimov Daniil  130,22 
+ 
+BassRace 149.9
+1 149,90 038 Kosolapov Vasily  149,76 147,80 149,90 147,50 
+2 149,80 022 Martemiyanov Denis  149,80 149,40 149,10 
+3 149,90 030 Fominyh Alexandr  149,72 149,90 
+4 149,40 027 Voroncov Alexandr  148,33 149,40 
+5 149,83 018 Romanov Maksim  149,83 
+6 149,60 013 Permyakov Andrey  149,60 
+7 149,37 021 Batutin Iliya  149,37 
+8 140,92 040 Grigoriev Vladislav  140,92 
+9 140,19 061 Belyaev Sergey 
+
+BFSPL
+Gate 1-6
+1. Хворостян Николай - 121.50
+2. Никифоров Владислав - 115.64
+3. Клявлин Александр - 115.12
+4. Веприков Олег - 111.04
+5. Зуев Владислав - 109.73
+6. Холодилин Иван - 109.65
+7. Распопов Дмитрий - 105.78
+8. Ефимов Даниил - 100.28
+9. Гречухин Евгений - 99.28
+
+Wicket 6-10
+1. Назаров Сергей - 119.00
+2. Волков Денис - 116.92
+3. Панарин Андрей - 116.09
+4. Ибрагимов Алмаз - 110.97
+5. Гимолдинов Константин - 108.24
+
+Wicket 10+
+1. Романов Максим - 111.42
+2. Пермяков Андрей - 110.48
+3. Потапов Никита - 109.43
+4. Самохвалов Александр - 105.66
+
+BDW
+1. Пополамов Даниил - 108.16
+
+BDW Ex
+1. Пермяков Андрей - 115.17
+2. Мостовщиков Дмитрий - 114.56
+3. Клявлин Александр - 113.04
+4. Романов Максим - 107.26
+5. Калинин Алексей - 103.76

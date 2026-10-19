@@ -14,7 +14,7 @@ Limited
 7 146,9 014 Shkutin Artem 
  
 2x2 
-1 156,9 053 Golubnyak Antoly 
+1 156,9 053 Golubnyak Anatoly 
 2 153,0 021 Zarubin Sergey 
 3 152,7 029 Chernov Andrey 
 4 149,1 038 Legostaev Andrey 
@@ -110,7 +110,7 @@ Wicket 6-10
 8. Горюнов Владислав - 112.50
 
 Wicket 10+
-1. Вооробьев Андрей - 130.33
+1. Воробьев Андрей - 130.33
 2. Хусаинов Александр - 127.23
 3. Оводов Виталий - 126.53
 4. Кравцов Михаил - 124.41
