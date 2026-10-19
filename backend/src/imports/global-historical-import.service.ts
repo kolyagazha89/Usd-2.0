@@ -59,6 +59,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       this.launch(active.id); return this.publicStatus(active);
     }
     const previous = await this.prisma.historicalImportBatch.findFirst({ where: { sourceHash: plan.sourceHash }, orderBy: { createdAt: 'desc' } });
+    if (previous?.status === 'RUNNING') { this.launch(previous.id); return this.publicStatus(previous); }
     if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress)) return this.publicStatus(previous);
     const progress: Progress = previous ? previous.progress as unknown as Progress : {
       stages: plan.stages.map(stage => ({ name: stage.name, year: stage.year, number: stage.number, status: 'PENDING', sourceRows: stage.results.length, imported: 0, aliases: 0, kept: 0, review: [], resultIds: [] })), updatedAt: new Date().toISOString(),
@@ -71,9 +72,18 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       } else if (stage.status !== 'DONE' && stage.status !== 'NO_RESULTS') stage.status = 'PENDING';
     }
     try {
-      const batch = previous
-        ? await this.prisma.historicalImportBatch.update({ where: { id: previous.id }, data: { status: 'RUNNING', activeKey: ACTIVE_KEY, leaseOwner: null, leaseUntil: null, progress: asJson(progress) } })
-        : await this.prisma.historicalImportBatch.create({ data: { sourceHash: plan.sourceHash, activeKey: ACTIVE_KEY, status: 'RUNNING', plan: asJson(plan), progress: asJson(progress), createdByUserId: request.user.sub } });
+      let batch;
+      if (previous) {
+        // Only one request may resume a completed/review batch. Never reset an
+        // active worker's lease when two start requests race.
+        await this.prisma.historicalImportBatch.updateMany({
+          where: { id: previous.id, status: previous.status, activeKey: null },
+          data: { status: 'RUNNING', activeKey: ACTIVE_KEY, leaseOwner: null, leaseUntil: null, progress: asJson(progress) },
+        });
+        batch = await this.prisma.historicalImportBatch.findUniqueOrThrow({ where: { id: previous.id } });
+      } else {
+        batch = await this.prisma.historicalImportBatch.create({ data: { sourceHash: plan.sourceHash, activeKey: ACTIVE_KEY, status: 'RUNNING', plan: asJson(plan), progress: asJson(progress), createdByUserId: request.user.sub } });
+      }
       this.launch(batch.id); return this.publicStatus(batch);
     } catch (error) {
       if ((error as { code?: string }).code !== 'P2002') throw error;

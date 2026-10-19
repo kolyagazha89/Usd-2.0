@@ -44,13 +44,13 @@ describe('one-button global historical import with a real test database', () => 
  afterAll(async () => { if (app) await app.close(); });
  const auth = () => ({ Authorization: 'Bearer ' + adminToken });
  const finish = async () => {
-  const deadline = Date.now() + 90_000;
+  const deadline = Date.now() + 90_000; let last:any; 
   while (Date.now() < deadline) {
    const response = await request(app.getHttpServer()).get('/imports/historical/global/' + batchId).set(auth()).expect(200);
-   if (response.body.status !== 'RUNNING') return response.body;
+   last=response.body; if (response.body.status !== 'RUNNING') return response.body;
    await new Promise(resolve => setTimeout(resolve, 100));
   }
-  throw Error('Global import did not settle');
+  throw Error('Global import did not settle: '+JSON.stringify(last));
  };
  it('requires ADMIN and refuses anonymous or participant execution', async () => {
   await request(app.getHttpServer()).post('/imports/historical/global/start').send({}).expect(401);
@@ -61,7 +61,7 @@ describe('one-button global historical import with a real test database', () => 
   const [left, right] = await Promise.all([request(app.getHttpServer()).post('/imports/historical/global/start').set(auth()).send({}), request(app.getHttpServer()).post('/imports/historical/global/start').set(auth()).send({})]);
   expect(left.status).toBe(201); expect(right.status).toBe(201); expect(left.body.id).toBe(right.body.id); batchId = left.body.id;
   const report = await finish();
-  expect(report.status).toBe('NEEDS_REVIEW'); expect(report.imported).toBe(3); expect(report.needsReview).toBe(1); expect(report.failedStages).toBe(0); expect(report.aliases).toBe(1);
+  expect({status:report.status,failed:report.stages.filter((stage:any)=>stage.status==='FAILED')}).toEqual({status:'NEEDS_REVIEW',failed:[]}); expect(report.imported).toBe(3); expect(report.needsReview).toBe(1); expect(report.failedStages).toBe(0); expect(report.aliases).toBe(1);
   expect(report.imported + report.needsReview).toBe(plan.sourceResults);
   expect(report.stages[2].status).toBe('NO_RESULTS');
   const people = await db.participant.findMany({ where: { lastName: 'Тестов', firstName: 'Алексей' }, include: { cars: true, registrations: { include: { configurationVersion: true, stage: true } } } });

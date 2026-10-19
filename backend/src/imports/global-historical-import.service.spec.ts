@@ -26,10 +26,21 @@ describe('durable global import coordination', () => {
   expect((await sut.start(request)).status).toBe('COMPLETED'); expect(launch).not.toHaveBeenCalled(); expect(db.result.count).toHaveBeenCalled();
  });
  it('rechecks a completed stage after a separate reset removed its results', async () => {
-  const completed = batch('COMPLETED'); const update = jest.fn(async ({ data }:any) => ({ ...completed, ...data }));
-  const db:any = { historicalImportBatch: { findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => completed), update }, result: { count: jest.fn(async () => 0) } };
+  const completed = batch('COMPLETED'); const updateMany = jest.fn(async ({ data }:any) => { Object.assign(completed,data); return {count:1}; });
+  const db:any = { historicalImportBatch: { findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => completed), updateMany, findUniqueOrThrow:jest.fn(async()=>completed) }, result: { count: jest.fn(async () => 0) } };
   const sut = make(db); jest.spyOn(sut, 'launch').mockImplementation(() => {});
   const next = await sut.start(request); expect(next.imported).toBe(0); expect(next.stages[0].jobId).toBeUndefined(); expect(next.status).toBe('RUNNING');
+ });
+ it('does not reset a lease when a new batch appears between active and previous reads',async()=>{
+  const running=batch();const db:any={historicalImportBatch:{findUnique:jest.fn(async()=>null),findFirst:jest.fn(async()=>running),updateMany:jest.fn(),create:jest.fn()}};
+  const sut=make(db);jest.spyOn(sut,'launch').mockImplementation(()=>{});
+  expect((await sut.start(request)).id).toBe(running.id);expect(db.historicalImportBatch.updateMany).not.toHaveBeenCalled();expect(db.historicalImportBatch.create).not.toHaveBeenCalled();
+ });
+ it('uses an atomic resume so concurrent requests cannot clear a worker lease',async()=>{
+  const old=batch('NEEDS_REVIEW');const running={...old,status:'RUNNING'};
+  const db:any={historicalImportBatch:{findUnique:jest.fn(async()=>null),findFirst:jest.fn(async()=>old),updateMany:jest.fn(async()=>({count:0})),findUniqueOrThrow:jest.fn(async()=>running)}};
+  const sut=make(db);jest.spyOn(sut,'launch').mockImplementation(()=>{});
+  expect((await sut.start(request)).status).toBe('RUNNING');expect(db.historicalImportBatch.updateMany).toHaveBeenCalledWith(expect.objectContaining({where:{id:'batch',status:'NEEDS_REVIEW',activeKey:null}}));
  });
  it('does not let a second process steal an unexpired worker lease', async () => {
   const active = { ...batch(), leaseUntil: new Date(Date.now() + 60_000) };
