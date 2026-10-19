@@ -135,7 +135,7 @@ export function buildGlobalHistoricalPlan(snapshot: string, normalizer: NameNorm
     if (team && !/^(?:без команды|нет|—|-|none|no team)$/i.test(team)) person.teams.add(team);
   }
   const plan: ArchivePlan = {
-    version: 1, identityRulesVersion: 3, sourceHash: createHash('sha256').update(snapshot).digest('hex'),
+    version: 1, identityRulesVersion: 4, sourceHash: createHash('sha256').update(snapshot).digest('hex'),
     sourceWorkbooks: source._source?.workbooks ?? [],
     sourceResults: stages.reduce((sum, stage) => sum + stage.results.length, 0),
     registrationRows: stages.reduce((sum, stage) => sum + stage.registrations.length, 0), stages,
