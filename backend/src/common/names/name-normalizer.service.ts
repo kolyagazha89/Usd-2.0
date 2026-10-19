@@ -197,6 +197,8 @@ export class NameNormalizerService {
     // variants such as Телпов, Зуборев, Байбеков or Мамкев).
     'василрнко', 'каменсджиков', 'колйхаило',
     'малйшко', 'смолийанинов', 'сапрйкин',
+    // Source "Sidoorov Alexandr" has a doubled vowel; identity unconfirmed.
+    'сидооров',
   ]);
 
   private clean(value: string | null | undefined): string {
