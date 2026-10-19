@@ -3,7 +3,7 @@ import type { ArchiveRow } from './global-historical-plan';
 /**
  * Source-backed 2025 events missing from the Results XLSX. The existing final
  * Volgograd 2025 is stage #1 in the current database, so do not renumber it or
- * mutate any registrations/results. These six new slots are stable #2–#7.
+ * mutate any registrations/results. These seven new slots are stable #2–#8.
  */
 export const HISTORICAL_2025_TEXT_STAGES = [
   { year: 2025, number: 2, name: 'Открытие Волгоград 2025', city: 'Волгоград', date: '2025-05-03', file: 'volgograd-opening.txt' },
@@ -12,6 +12,7 @@ export const HISTORICAL_2025_TEXT_STAGES = [
   { year: 2025, number: 5, name: 'Ростов-на-Дону 2025', city: 'Ростов-на-Дону', date: '2025-06-26', file: 'rostov.txt' },
   { year: 2025, number: 6, name: 'Орёл 2025', city: 'Орёл', date: '2025-07-12', file: 'orel.txt' },
   { year: 2025, number: 7, name: 'Липецк 2025', city: 'Липецк', date: '2025-07-19', file: 'lipetsk.txt' },
+  { year: 2025, number: 8, name: 'Челябинск 2025', city: 'Челябинск', date: '2025-07-29', file: 'chelyabinsk.txt' },
 ] as const;
 
 const headings: Record<string, string> = {
