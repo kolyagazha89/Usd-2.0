@@ -23,6 +23,19 @@ describe('archive duplicate prevention', () => {
       .toBe(archiveNameKey('Смольянинов Валентин', names));
   });
 
+  it.each([
+    ['Belyi Ivan', 'Белый Иван'],
+    ['Bobrovsky Sergey', 'Бобровский Сергей'],
+    ['Gladovsky Stanislav', 'Гладовский Станислав'],
+    ['Nikitinsky Nikolay', 'Никитинский Николай'],
+    ['Nashansky Sergey', 'Нашанский Сергей'],
+    ['Pshenichnyi Vladislav', 'Пшеничный Владислав'],
+    ['Veliky Yryi', 'Великий Юрий'],
+    ['Geyn Roman', 'Гейн Роман'],
+  ])('corrects a source transliteration suffix for %s', (raw, expected) => {
+    expect(names.inspect(raw)).toMatchObject({ normalized: expected, needsReview: false });
+  });
+
   it.each(['34sound', '34 Sound', 'Bassmarket', 'Bass Market',
     'Caraudio Bryansk', 'CarAudio Bryansk', 'Car Audio Bryansk'])(
     'does not silently convert archival business labels to real FIO: %s', label => {
