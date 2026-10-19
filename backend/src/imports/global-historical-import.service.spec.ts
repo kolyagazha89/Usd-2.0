@@ -89,3 +89,70 @@ describe('per-stage source accounting and protected profiles', () => {
   expect(p.status).toBe('DONE'); expect(p.imported).toBe(1); expect(imports.previewStage).not.toHaveBeenCalled(); expect(imports.commitImport).not.toHaveBeenCalled();
  });
 });
+
+
+describe('adopting empty test stages for archival import', () => {
+ const storedStage = () => ({
+   id: 'test-stage', seasonId: 'season', stageNumber: 3, legacyId: 'USD_TEST_123',
+   date: new Date('2026-05-16T12:00:00.000Z'), registrationOpen: false,
+   isDeleted: false, name: 'Testing', city: 'City', status: 'DRAFT',
+ });
+ const mockDb = (options: { registrationCount?: number; recordCount?: number; convertedCount?: number; date?: Date } = {}) => {
+   const target = storedStage();
+   if (options.date) target.date = options.date;
+   const updateMany = jest.fn(async () => ({ count: options.convertedCount ?? 1 }));
+   const findUniqueOrThrow = jest.fn(async () => ({ ...target, legacyId: null, name: sourceStage.name, status: 'PUBLISHED' }));
+   const db:any = {
+     season: { upsert: jest.fn(async () => ({ id: 'season' })) },
+     stage: { findUnique: jest.fn(async () => target), updateMany, findUniqueOrThrow },
+     registration: { count: jest.fn(async ({ where }:any) => where.source ? 0 : options.registrationCount ?? 0) },
+     result: { count: jest.fn(async () => 0) },
+     record: { count: jest.fn(async () => options.recordCount ?? 0) },
+     disqualification: { count: jest.fn(async () => 0) },
+     participantStageInspection: { count: jest.fn(async () => 0) },
+     registrationNumber: { count: jest.fn(async () => 0) },
+     class: { findMany: jest.fn(async () => []) },
+     stageClass: { upsert: jest.fn() },
+   };
+   return { db, updateMany, findUniqueOrThrow };
+ };
+ it('converts an otherwise empty USD_TEST_ stage to the matching published archive', async () => {
+   const { db, updateMany, findUniqueOrThrow } = mockDb();
+   const sut = make(db, { historicalClassName: (s:string) => s });
+   const result = await sut.ensureStage(sourceStage);
+   expect(result.legacyId).toBeNull();
+   expect(findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'test-stage' } });
+   expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+     where: expect.objectContaining({
+       legacyId: 'USD_TEST_123', registrations: { none: {} },
+       records: { none: {} }, disqualifications: { none: {} },
+       participantInspections: { none: {} }, registrationNumbers: { none: {} },
+     }),
+     data: { legacyId: null, name: sourceStage.name, city: sourceStage.city, status: 'PUBLISHED' },
+   }));
+ });
+ it('refuses a test stage with import registrations even if ordinary registrations are zero', async () => {
+   const { db, updateMany } = mockDb({ registrationCount: 1 });
+   const sut = make(db);
+   await expect(sut.ensureStage(sourceStage)).rejects.toThrow('тестовый этап не пуст (регистрации: 1)');
+   expect(updateMany).not.toHaveBeenCalled();
+ });
+ it('protects records linked to an otherwise registration-free test stage', async () => {
+   const { db, updateMany } = mockDb({ recordCount: 2 });
+   const sut = make(db);
+   await expect(sut.ensureStage(sourceStage)).rejects.toThrow('рекорды: 2');
+   expect(updateMany).not.toHaveBeenCalled();
+ });
+ it('keeps the original stage if another process adds records during conversion', async () => {
+   const { db, updateMany } = mockDb({ convertedCount: 0 });
+   const sut = make(db);
+   await expect(sut.ensureStage(sourceStage)).rejects.toThrow('Состав тестового этапа изменился');
+   expect(updateMany).toHaveBeenCalledTimes(1);
+ });
+ it('does not adopt a test stage with a different archive date', async () => {
+   const { db, updateMany } = mockDb({ date: new Date('2026-05-17T12:00:00.000Z') });
+   const sut = make(db);
+   await expect(sut.ensureStage(sourceStage)).rejects.toThrow('дата этапа 2026-05-17 не совпадает');
+   expect(updateMany).not.toHaveBeenCalled();
+ });
+});
