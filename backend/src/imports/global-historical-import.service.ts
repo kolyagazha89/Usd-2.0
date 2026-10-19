@@ -1,3 +1,4 @@
+import {archiveStageKey,resolveHistoricalStage} from './historical-stage-resolution';
 import {historicalProjectKey} from '../common/names/historical-project-labels';
 import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { readFileSync } from 'fs';
@@ -81,7 +82,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     const previous = await this.prisma.historicalImportBatch.findFirst({ where: { sourceHash: plan.sourceHash }, orderBy: { createdAt: 'desc' } });
     if (previous?.status === 'RUNNING') { this.launch(previous.id); return this.publicStatus(previous); }
     const refreshIdentityPlan = Boolean(previous && (previous.plan as unknown as ArchivePlan).identityRulesVersion !== plan.identityRulesVersion);
-    if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress)) {
+    if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress, plan)) {
       const consolidation = initialConsolidation;
       if (refreshIdentityPlan || consolidation.profilesMerged || consolidation.namesCorrected || consolidation.skipped.length) {
         const progress = previous.progress as unknown as Progress;
@@ -173,8 +174,19 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     if (!ids.length) return stage.sourceRows === 0;
     return await this.prisma.result.count({ where: { id: { in: ids } } }) === ids.length;
   }
-  private async isIntact(progress: Progress) {
-    for (const stage of progress.stages) if (stage.status !== 'NO_RESULTS' && (stage.status !== 'DONE' || !await this.stageIntact(stage))) return false;
+  private async validateCompletedStage(source: ArchiveStage, progress: StageProgress) {
+    const target = await this.ensureStage(source);
+    const job = progress.jobId ? await this.prisma.importJob.findUnique({where:{id:progress.jobId},select:{stageId:true}}) : null;
+    if (!job || job.stageId !== target.id) throw new Error('Сохранённые результаты связаны с другим этапом; автоматическая перепривязка запрещена');
+  }
+  private async isIntact(progress: Progress, plan: ArchivePlan) {
+    for (const stage of progress.stages) {
+      if(stage.status === 'NO_RESULTS') continue;
+      if(stage.status !== 'DONE' || !await this.stageIntact(stage)) return false;
+      const source = plan.stages.find(item=>item.year===stage.year&&item.number===stage.number);
+      if(!source)return false;
+      try { await this.validateCompletedStage(source,stage); } catch { return false; }
+    }
     return true;
   }
   private publicStatus(batch: { id: string; status: string; sourceHash: string; plan: unknown; progress: unknown; createdAt: Date; updatedAt: Date }) {
@@ -218,7 +230,12 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       for (let index = 0; index < plan.stages.length; index += 1) {
         if (this.stopping || leaseLost) return;
         const stage = plan.stages[index]; const current = progress.stages[index];
-        if (current.status === 'DONE' || current.status === 'NO_RESULTS') continue;
+        if (current.status === 'NO_RESULTS') continue;
+        if (current.status === 'DONE') {
+          try { await this.validateCompletedStage(stage,current); delete current.error; }
+          catch(error) { current.status='FAILED';current.error=error instanceof Error?error.message:'Не удалось проверить привязку этапа'; }
+          await this.saveProgress(id,owner,progress);continue;
+        }
         current.status = 'RUNNING'; delete current.error;
         await this.saveProgress(id, owner, progress);
         try {
@@ -253,7 +270,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
 
   private async ensureStage(stage: ArchiveStage) {
     const season = await this.prisma.season.upsert({ where: { year: stage.year }, update: {}, create: { year: stage.year, name: 'USD ' + stage.year, status: stage.year < 2026 ? 'ARCHIVED' : 'ACTIVE', isActive: true } });
-    let target = await this.prisma.stage.findUnique({ where: { seasonId_stageNumber: { seasonId: season.id, stageNumber: stage.number } } });
+    let target = await resolveHistoricalStage(this.prisma, stage, season.id);
     if (target) {
       const live = await this.prisma.result.count({ where: { registration: { stageId: target.id }, isHistorical: false } });
       const ordinary = await this.prisma.registration.count({ where: { stageId: target.id, source: { not: 'IMPORT' } } });
@@ -315,7 +332,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         }
         target = await this.prisma.stage.findUniqueOrThrow({ where: { id: target.id } });
       }
-    } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: stage.year < 2026 ? 'COMPLETED' : 'PUBLISHED', registrationOpen: false } });
+    }
     const classes = await this.prisma.class.findMany({ where: { isActive: true } });
     const classKey = (value: string) => value.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9+]/g, '');
     for (const label of new Set(stage.results.map(row => this.imports.historicalClassName(String(row['Класс'] ?? ''))))) {
@@ -328,9 +345,13 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
   private async importStage(batch: { id: string; sourceHash: string; createdByUserId: string | null }, stage: ArchiveStage, progress: StageProgress, stopped: () => boolean) {
     const target = await this.ensureStage(stage);
     let job = progress.jobId ? await this.prisma.importJob.findUnique({ where: { id: progress.jobId }, include: { rows: { orderBy: [{ type: 'asc' }, { rowNumber: 'asc' }] } } }) : null;
+    if (job && job.stageId !== target.id) {
+      if (job.rows.some(row => row.status === 'COMMITTED')) throw new Error('Сохранённый импорт связан с другим этапом; требуется проверка привязки, результаты не изменены');
+      job = null; delete progress.jobId;
+    }
     if (!job) {
       const preview = await this.imports.previewStage({ stageId: target.id, registrations: stage.registrations, results: stage.results, historicalResults: true, strictHistoricalNames: true });
-      const updated = await this.prisma.importJob.update({ where: { id: preview.importJobId }, data: { metadata: asJson({ source: 'GLOBAL_HISTORICAL_XLSX', globalBatchId: batch.id, sourceHash: batch.sourceHash, historicalResults: true, carMetadataPolicy: 'REGISTRATION_NAME_REQUIRED_V1', workbookRegistrationSheet: stage.registrationSheet, workbookResultSheet: stage.resultsSheet }) }, include: { rows: { orderBy: [{ type: 'asc' }, { rowNumber: 'asc' }] } } });
+      const updated = await this.prisma.importJob.update({ where: { id: preview.importJobId }, data: { metadata: asJson({ source: 'GLOBAL_HISTORICAL_XLSX', archiveStageKey: archiveStageKey(stage), globalBatchId: batch.id, sourceHash: batch.sourceHash, historicalResults: true, carMetadataPolicy: 'REGISTRATION_NAME_REQUIRED_V1', workbookRegistrationSheet: stage.registrationSheet, workbookResultSheet: stage.resultsSheet }) }, include: { rows: { orderBy: [{ type: 'asc' }, { rowNumber: 'asc' }] } } });
       job = updated; progress.jobId = updated.id;
       // Persist the job ID before any commit. Recovery reuses the same rows.
       const current = await this.prisma.historicalImportBatch.findUniqueOrThrow({ where: { id: batch.id } });
