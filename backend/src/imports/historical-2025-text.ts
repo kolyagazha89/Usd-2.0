@@ -56,7 +56,7 @@ export function parseHistorical2025Text(source: string, file: string): ArchiveRo
     const classHeading = headings[raw.toLocaleLowerCase('ru-RU')];
     if (classHeading) {
       className = classHeading;
-      mode = ['Gate 1-6', 'Wicket 6-10', 'Wicket 10+'].includes(className) ? 'BFSPL' : 'SPL';
+      mode = ['Gate 1-6', 'Wicket 6-10', 'Wicket 10+', 'BDW SPL', 'BDW Ex'].includes(className) ? 'BFSPL' : 'SPL';
       continue;
     }
     const raceClass = raw.match(/^(?:BassRace\s+)?(?:120(?:[.,]0)?\s+To\s+)?(129[.,]9|139[.,]9|149[.,]9|159[.,]9)$/i)
