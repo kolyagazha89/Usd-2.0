@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
-import { buildGlobalHistoricalPlan } from './global-historical-plan';
+import { archivePersonName, buildGlobalHistoricalPlan } from './global-historical-plan';
 import { globalHistoricalAliasKey } from './historical-alias-identity';
 import { HISTORICAL_2025_TEXT_STAGES, parseHistorical2025Text } from './historical-2025-text';
 
@@ -69,5 +69,46 @@ describe('additive 2025 archive', () => {
     expect(plan.registrationRows).toBe(originalOnly.registrationRows);
     expect(plan.sourceHash).not.toBe(originalOnly.sourceHash);
     expect(globalHistoricalAliasKey('34sound')).toBe(globalHistoricalAliasKey('34 Sound'));
+  });
+});
+
+describe('2025 evidence-backed identities (same event/sticker; no fuzzy merges)', () => {
+  const names = new NameNormalizerService();
+  it.each([
+    ['Hvorotyan Nikolay', 'Хворостян Николай'],
+    ['Chyakiryan Artem', 'Чакирян Артем'],
+    ['Kupyanskiy Vyacheslav', 'Купянский Вячеслав'],
+    ['Latishev Maksim', 'Латышев Максим'],
+    ['Matievskyi Danila', 'Матиевский Данила'],
+    ['Matievskiy Danila', 'Матиевский Данила'],
+  ])('restores only approved archived spelling %s', (raw, expected) => {
+    expect(archivePersonName(raw, names)).toBe(expected);
+  });
+  it('uses the 2025 stage and original sticker to corroborate spelling differences', () => {
+    const opening = parseHistorical2025Text(getText('volgograd-opening.txt'), 'volgograd-opening.txt');
+    const pairs: Array<[string, string, number]> = [
+      ['Hvorostyan Nikolay', 'Hvorotyan Nikolay', 1],
+      ['Chakiryan Artem', 'Chyakiryan Artem', 2],
+    ];
+    for (const [canonical, damaged, sticker] of pairs) {
+      const a = opening.find(row => row['ФИО'] === canonical && row['Номер'] === sticker);
+      const b = opening.find(row => row['ФИО'] === damaged && row['Номер'] === sticker);
+      expect(a).toBeDefined();
+      expect(b).toBeDefined();
+      expect(archivePersonName(a!['ФИО'], names)).toBe(archivePersonName(b!['ФИО'], names));
+    }
+    const lugansk = parseHistorical2025Text(getText('lugansk.txt'), 'lugansk.txt');
+    expect(lugansk.filter(row => row['Номер'] === 16)
+      .map(row => archivePersonName(row['ФИО'], names)))
+      .toContain('Купянский Вячеслав');
+  });
+  it('maps Antoha Fs to the exact vetted archival project without guessing unrelated labels', () => {
+    expect(globalHistoricalAliasKey('Antoha Fs')).toBe('antohasf');
+    expect(globalHistoricalAliasKey('Antoha Sf')).toBe('antohasf');
+    expect(globalHistoricalAliasKey('Antoha Force')).toBeNull();
+    expect(globalHistoricalAliasKey('34sound')).toBe('34sound');
+  });
+  it('does not collapse distinct people with the same given name', () => {
+    expect(archivePersonName('Tumanov Nikita', names)).not.toBe(archivePersonName('Romanov Nikita', names));
   });
 });
