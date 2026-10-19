@@ -31,6 +31,42 @@ describe('durable global import coordination', () => {
   const sut = make(db); jest.spyOn(sut, 'launch').mockImplementation(() => {});
   const next = await sut.start(request); expect(next.imported).toBe(0); expect(next.stages[0].jobId).toBeUndefined(); expect(next.status).toBe('RUNNING');
  });
+ it('refreshes the persisted source plan and discards stale previews of unfinished stages after identity correction', async () => {
+  const old = batch('NEEDS_REVIEW');
+  old.plan = { ...plan, identityRulesVersion: 1 };
+  old.progress.stages[0] = {
+    ...old.progress.stages[0], status: 'FAILED', jobId: 'old-preview',
+    imported: 1, resultIds: ['old-result'], review: [{ sheet: 'Results', row: 1, name: 'Латишев Малсим', reason: 'pending' }],
+    error: 'old error',
+  };
+  const newerPlan = { ...plan, identityRulesVersion: 2 };
+  const updateMany = jest.fn(async ({ data }:any) => {
+    Object.assign(old, data);
+    return {count:1};
+  });
+  const db:any = {
+    historicalImportBatch: {
+      findUnique: jest.fn(async () => null),
+      findFirst: jest.fn(async () => old),
+      updateMany,
+      findUniqueOrThrow: jest.fn(async () => old),
+    },
+  };
+  const sut = make(db);
+  jest.spyOn(sut, 'loadPlan').mockReturnValue(newerPlan);
+  jest.spyOn(sut, 'launch').mockImplementation(() => {});
+  const refreshed = await sut.start(request);
+  expect(refreshed.status).toBe('RUNNING');
+  expect(old.plan.identityRulesVersion).toBe(2);
+  expect(old.progress.stages[0]).toMatchObject({
+    status: 'PENDING', imported: 0, resultIds: [], review: [],
+  });
+  expect(old.progress.stages[0].jobId).toBeUndefined();
+  expect(old.progress.stages[0].error).toBeUndefined();
+  expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({ plan: newerPlan }),
+  }));
+ });
  it('does not reset a lease when a new batch appears between active and previous reads',async()=>{
   const running=batch();const db:any={historicalImportBatch:{findUnique:jest.fn(async()=>null),findFirst:jest.fn(async()=>running),updateMany:jest.fn(),create:jest.fn()}};
   const sut=make(db);jest.spyOn(sut,'launch').mockImplementation(()=>{});
