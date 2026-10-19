@@ -72,6 +72,8 @@ it.each([
  ['Grigoriev Aleksey', 'Григориев Алексей', 'Григорьев Алексей'],
  ['Klyev Daniil', 'Клыев Даниил', 'Клюев Даниил'],
  ['Shaulsky Mihail', 'Шаулскы Михаил', 'Шаульский Михаил'],
+ ['Shychkin Egor', 'Шычкин Егор', 'Щучкин Егор'],
+ ['Soloviev Andrey', 'Соловиев Андрей', 'Соловьёв Андрей'],
 ])('repairs the exact source and previously damaged Cyrillic spelling %s', (source, damaged, canonical) => {
  expect(names.normalize(source)).toBe(canonical);
  expect(names.normalize(damaged)).toBe(canonical);
@@ -79,12 +81,12 @@ it.each([
  expect(archiveNameKey(source, names)).toBe(archiveNameKey(damaged, names));
  expect(names.inspect(source).needsReview).toBe(false);
 });
-it.each(['Sidoorov Alexandr', 'Chyaev Tigran', 'Shychkin Egor', 'Ksy Aperol'])(
+it.each(['Sidoorov Alexandr', 'Chyaev Tigran', 'Ksy Aperol'])(
  'quarantines suspicious archive label %s instead of inventing a verified human', label => {
   expect(names.inspect(label).needsReview).toBe(true);
  });
 
-it.each(['Sidoorov Alexandr', 'Chyaev Tigran', 'Shychkin Egor'])(
+it.each(['Sidoorov Alexandr', 'Chyaev Tigran'])(
  'does not silently rewrite unverified surname %s to a different person', source => {
   expect(names.normalize(source)).not.toMatch(/Сидоров Александр|Шаульский Михаил|Чаев Тигран|Шичкин Егор/);
  });
@@ -94,6 +96,8 @@ it.each([
  ['orel', 'Орел', 'Klyev Daniil', 'Клюев Даниил', 20],
  ['smolensk', 'Смоленск', 'Klyev Daniil', 'Клюев Даниил', 26],
  ['rostov-on-don', 'Ростов', 'Shaulsky Mihail', 'Шаульский Михаил', 4],
+ ['samara', 'Самара', 'Shychkin Egor', 'Щучкин Егор', 72],
+ ['smolensk', 'Смоленск', 'Soloviev Andrey', 'Соловьёв Андрей', 3],
 ])('links verified Results surname to Registration at %s sticker %i', (sheet, regSheet, latin, verified, sticker) => {
   const plan = buildGlobalHistoricalPlan(readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8'), names);
   const stage = plan.stages.find(stage => stage.resultsSheet === sheet)!;
