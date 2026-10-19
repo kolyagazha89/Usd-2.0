@@ -112,15 +112,34 @@ export async function consolidateApprovedHistoricalIdentities(
           throw new Error('Профили изменились или больше не соответствуют подтверждённому совпадению');
         }
         const ids = current.map(p => p.id);
-        const [inspections, emails] = await Promise.all([
+        const [inspections, emails, registrations] = await Promise.all([
           tx.participantStageInspection.findMany({
             where: { participantId: { in: ids } },
             select: { participantId: true, stageId: true },
           }),
           tx.participantLegacyEmail.findMany({ where: { participantId: { in: ids } } }),
+          tx.registration.findMany({
+            where: { participantId: { in: ids } },
+            select: {
+              participantId: true, stageId: true, participantNumber: true,
+              classes: { select: { classId: true } },
+            },
+          }),
         ]);
         if (new Set(inspections.map(x => x.stageId)).size !== inspections.length) {
           throw new Error('Участники имеют разные техосмотры одного этапа');
+        }
+        const stageClasses = new Map<string, { participantId: string; number: number }>();
+        for (const registration of registrations) {
+          for (const entry of registration.classes) {
+            const key = registration.stageId + ':' + entry.classId;
+            const previous = stageClasses.get(key);
+            if (previous && previous.participantId !== registration.participantId &&
+              previous.number !== registration.participantNumber) {
+              throw new Error('Один архивный псевдоним использован разными номерами одного класса на одном этапе');
+            }
+            stageClasses.set(key, { participantId: registration.participantId, number: registration.participantNumber });
+          }
         }
         const nonEmptyEmails = [...new Set(emails.map(e => (e.email ?? '').toLowerCase()).filter(Boolean))];
         if (nonEmptyEmails.length > 1) throw new Error('Разные архивные email требуют отдельной проверки');
