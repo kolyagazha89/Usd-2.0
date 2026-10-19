@@ -1,4 +1,4 @@
-import { ArchivePlan, archivePersonName, archivePlateKey } from './global-historical-plan';
+import { ArchivePlan, archivePersonName, archivePlateKey, archiveNameKey, approvedHistoricalNamePairs } from './global-historical-plan';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 
 export type HistoricalDuplicateCandidate = {
@@ -104,8 +104,17 @@ export function auditHistoricalDuplicates(plan: ArchivePlan, names: NameNormaliz
     }))
     .sort((a, b) => b.stages.length - a.stages.length || a.label.localeCompare(b.label, 'ru'));
 
+  const confirmedPeople = approvedHistoricalNamePairs.flatMap(pair => {
+    const key = archiveNameKey(pair.canonical, names);
+    const person = plan.people.find(item => item.key === key);
+    return person && person.names.length > 1
+      ? [{ canonical: pair.canonical, variants: person.names, resultRows: person.resultRows }]
+      : [];
+  });
+
   return {
     sourcePeopleKeys: plan.people.length,
+    confirmedPeople,
     possiblePeople,
     aliasesAcrossStages,
     policy: 'Совпадение имени, ника или автомобиля не доказывает личность. Список служит для ручной проверки, не для автоматического слияния.',

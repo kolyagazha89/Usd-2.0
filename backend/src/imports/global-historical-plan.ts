@@ -16,19 +16,34 @@ export type ArchivePlan = {
 
 const givenNames = new Set(('Александр Алексей Андрей Антон Артем Артём Арсен Арсений Валентин Валерий Вадим Василий Виталий Виктор Владимир Владислав Вячеслав Григорий Даниил Данил Денис Дмитрий Егор Евгений Иван Игорь Илья Кирилл Константин Ксения Лаврентий Максим Матвей Михаил Назар Никита Николай Олег Павел Ричард Роман Руслан Сергей Терентий Тимофей Тимур Эдуард Юрий Яков Ярослав Ян').toLowerCase().split(' '));
 
+/**
+ * These THREE full-name identities were explicitly approved by the archive
+ * operator on 2026-10-19. Correct only the entire normalized name; neither
+ * generic surnames nor people who merely share a first name are ever merged.
+ */
+export const approvedHistoricalNamePairs = [
+  { source: 'Дергунова Дария', canonical: 'Дергунова Дарья' },
+  { source: 'Латишев Малсим', canonical: 'Латышев Максим' },
+  { source: 'Никрасов Дмитрий', canonical: 'Некрасов Дмитрий' },
+] as const;
+const approvedFullNames = new Map<string, string>(
+  approvedHistoricalNamePairs.map(pair => [pair.source.toLocaleLowerCase('ru'), pair.canonical]),
+);
+
 export function archivePersonName(raw: unknown, normalizer: NameNormalizerService): string {
   const name = normalizer.normalize(String(raw ?? ''));
   const words = name.split(/\s+/).filter(Boolean);
-  // Formatting only: an unambiguous given-name-first pair. The original label
-  // is retained on every row, and no fuzzy surname replacement is performed.
-  if (words.length === 2 && givenNames.has(words[0].toLowerCase()) && !givenNames.has(words[1].toLowerCase())) {
-    return words[1] + ' ' + words[0];
-  }
-  return name;
+  // Restore an unambiguous given-name-first pair before approved corrections.
+  // Keep the exact original result label in _archiveOriginalName for audit.
+  const ordered = words.length === 2 &&
+    givenNames.has(words[0].toLocaleLowerCase('ru')) &&
+    !givenNames.has(words[1].toLocaleLowerCase('ru'))
+    ? words[1] + ' ' + words[0] : name;
+  return approvedFullNames.get(ordered.toLocaleLowerCase('ru')) ?? ordered;
 }
 
 export function archiveNameKey(raw: unknown, normalizer: NameNormalizerService): string {
-  const words = normalizer.toLatin(String(raw ?? '')).toLowerCase().split(/\s+/).filter(Boolean);
+  const words = normalizer.toLatin(archivePersonName(raw, normalizer)).toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 3) {
     const middle = words.filter(word => /(?:ovich|evich|ovna|evna|ichna)$/.test(word));
     if (middle.length === 1) words.splice(words.indexOf(middle[0]), 1);
