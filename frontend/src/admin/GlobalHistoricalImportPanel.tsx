@@ -3,12 +3,25 @@ import { apiGet, apiPost } from '../api';
 import { AlertTriangle, Check, Download, RefreshCw } from 'lucide-react';
 
 import {parseHistoricalBatch,type HistoricalBatch as Batch} from './global-historical-response';
+type DuplicateAudit = {
+  sourceHash: string; sourceResults: number; sourcePeopleKeys: number; policy: string;
+  possiblePeople: Array<{ left: string; right: string; reason: string; sharedPlates: string[]; resultRows: [number, number] }>;
+  aliasesAcrossStages: Array<{ label: string; variants: string[]; stages: string[]; resultRows: number }>;
+};
 const labels: Record<string, string> = { PENDING: 'В очереди', RUNNING: 'Импортируем', DONE: 'Готово', NO_RESULTS: 'Нет листа результатов', REVIEW: 'Нужна проверка', FAILED: 'Не завершён' };
 
 export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: string) => void }) {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [audit, setAudit] = useState<DuplicateAudit | null>(null);
+  useEffect(() => {
+    let active = true;
+    void apiGet<DuplicateAudit>('/imports/historical/global/preflight')
+      .then(value => { if (active) setAudit(value); })
+      .catch(caught => { if (active) setError(caught instanceof Error ? caught.message : 'Не удалось проверить дубли архива'); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     let stopped = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -37,6 +50,11 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
       const link = document.createElement('a'); link.href = url; link.download = 'usd-historical-import-report.json'; link.click(); URL.revokeObjectURL(url);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Не удалось скачать отчёт'); }
   };
+  const downloadDuplicates = () => {
+    if (!audit) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(audit, null, 2)], { type: 'application/json;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'usd-historical-duplicate-audit.json'; link.click(); URL.revokeObjectURL(url);
+  };
   const running = busy || batch?.status === 'RUNNING';
   const complete = batch?.status === 'COMPLETED';
   return <section className="panel global-history-panel" aria-label="Общий импорт всех исторических этапов">
@@ -45,6 +63,18 @@ export function GlobalHistoricalImportPanel({ onOpenJob }: { onOpenJob: (id: str
     </div><button type="button" className="primary-button" disabled={running} onClick={() => void start()}><RefreshCw size={16} />{running ? 'Импорт выполняется…' : complete ? 'Проверить архив повторно' : batch ? 'Продолжить общий импорт' : 'Импортировать все этапы'}</button></div>
     <p>Аккаунты участников и тестовые профили защищены. Уже совпадающие результаты сохраняются. Спорные строки остаются в отчёте для проверки.</p>
     {error && <div className="form-error" role="alert"><AlertTriangle size={16} />{error}</div>}
+    {audit && <details>
+      <summary>Проверка дублей до импорта · похожих ФИО: {audit.possiblePeople.length}, повторных архивных обозначений: {audit.aliasesAcrossStages.length}</summary>
+      <p>{audit.policy}</p>
+      <p>Именных ключей в исходном архиве: {audit.sourcePeopleKeys}. Результатов: {audit.sourceResults}. Это не количество уникальных физических лиц.</p>
+      {audit.possiblePeople.length > 0 && <div className="table-scroll"><table className="resource-table"><thead><tr><th>Первая запись</th><th>Похожая запись</th><th>Почему нужна проверка</th></tr></thead><tbody>
+        {audit.possiblePeople.slice(0, 100).map((candidate, index) => <tr key={index}><td>{candidate.left} · {candidate.resultRows[0]} рез.</td><td>{candidate.right} · {candidate.resultRows[1]} рез.</td><td>{candidate.reason}{candidate.sharedPlates.length > 0 && <> · номера: {candidate.sharedPlates.join(', ')}</>}</td></tr>)}
+      </tbody></table></div>}
+      {audit.aliasesAcrossStages.length > 0 && <div className="table-scroll"><table className="resource-table"><thead><tr><th>Архивное название</th><th>Варианты</th><th>Этапов</th></tr></thead><tbody>
+        {audit.aliasesAcrossStages.map(group => <tr key={group.label}><td>{group.label}</td><td>{group.variants.join(' / ')}</td><td>{group.stages.length} · {group.resultRows} результатов</td></tr>)}
+      </tbody></table></div>}
+      <button type="button" className="secondary-button compact" onClick={downloadDuplicates}><Download size={15} />Скачать проверку дублей JSON</button>
+    </details>}
     {batch && <>
       <div className="notice" role="status" aria-live="polite">{complete ? <Check size={18} /> : <RefreshCw size={18} />}<div>
         <strong>{complete ? 'Все исходные результаты обработаны' : running ? 'Импортируем архив. Страницу можно закрыть — задача сохранится.' : 'Проверенные данные сохранены. Остались строки для проверки.'}</strong>
