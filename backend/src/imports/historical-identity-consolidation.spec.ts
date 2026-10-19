@@ -109,8 +109,8 @@ describe('historical identity consolidation', () => {
     expect(participant.update).toHaveBeenCalledWith({
       where: { id: 'a' },
       data: {
-        legacyId: expectedLegacyId, historicalAlias: 'Ksy Aperol',
-        lastName: 'Ksy Aperol', firstName: '', middleName: null,
+        legacyId: expectedLegacyId, historicalAlias: 'Ксю Апероль',
+        lastName: 'Ксю Апероль', firstName: '', middleName: null,
       },
     });
     expect(updates.filter(entry => entry.model !== 'participant.update')).toEqual([]);
