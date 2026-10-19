@@ -21,6 +21,66 @@ describe('durable global import coordination', () => {
   expect((await sut.start(request)).id).toBe('batch');
   expect(db.historicalImportBatch.create).not.toHaveBeenCalled(); expect(launch).toHaveBeenCalledTimes(1);
  });
+ it('carries only unchanged and intact historical stages into an additive 2025 results batch', async () => {
+  const old = batch('COMPLETED');
+  old.sourceHash = 'old-only-xlsx';
+  old.plan = { ...plan, sourceHash: 'old-only-xlsx' };
+  const added = { ...sourceStage, year: 2025, number: 2, name: 'Открытие 2025',
+    date: '2025-05-03', registrations: [], registrationSheet: null,
+    resultsSheet: '2025 TXT: volgograd-opening.txt',
+    results: [{ 'ФИО': 'Трубников Матвей', 'Класс': 'Limited 2.0' }] };
+  const newerPlan = { ...plan, sourceHash: 'new-2025-additive', stages: [sourceStage, added], sourceResults: 2 };
+  const create = jest.fn(async ({ data }:any) => ({
+    id: 'new-batch', status: 'RUNNING', sourceHash: data.sourceHash,
+    plan: data.plan, progress: data.progress, createdAt: new Date(), updatedAt: new Date(),
+  }));
+  const db:any = {
+    historicalImportBatch: {
+      findUnique: jest.fn(async () => null),
+      findFirst: jest.fn(async () => null),
+      findMany: jest.fn(async () => [old]),
+      create,
+    },
+    result: { count: jest.fn(async () => 1) },
+  };
+  const sut = make(db);
+  jest.spyOn(sut, 'loadPlan').mockReturnValue(newerPlan);
+  jest.spyOn(sut, 'launch').mockImplementation(() => {});
+  const started = await sut.start(request);
+  expect(started.sourceResults).toBe(2);
+  expect(started.stages).toMatchObject([
+    { year: 2026, number: 3, status: 'DONE', imported: 1 },
+    { year: 2025, number: 2, status: 'PENDING', imported: 0 },
+  ]);
+  expect(create).toHaveBeenCalledTimes(1);
+ });
+
+ it('queues a previously imported stage again if its committed results disappeared', async () => {
+  const old = batch('COMPLETED');
+  old.sourceHash = 'old-only-xlsx';
+  old.plan = { ...plan, sourceHash: 'old-only-xlsx' };
+  const nextPlan = { ...plan, sourceHash: 'new-2025-archive' };
+  const create = jest.fn(async ({ data }:any) => ({
+    id: 'new-batch', status: 'RUNNING', sourceHash: data.sourceHash,
+    plan: data.plan, progress: data.progress, createdAt: new Date(), updatedAt: new Date(),
+  }));
+  const db:any = {
+    historicalImportBatch: {
+      findUnique: jest.fn(async () => null),
+      findFirst: jest.fn(async () => null),
+      findMany: jest.fn(async () => [old]),
+      create,
+    },
+    result: { count: jest.fn(async () => 0) },
+  };
+  const sut = make(db);
+  jest.spyOn(sut, 'loadPlan').mockReturnValue(nextPlan);
+  jest.spyOn(sut, 'launch').mockImplementation(() => {});
+  const next = await sut.start(request);
+  expect(next.stages[0].status).toBe('PENDING');
+  expect(next.stages[0].imported).toBe(0);
+ });
+
  it('does not rerun a completed source while the actual result IDs are intact', async () => {
   const completed = batch('COMPLETED'); const db:any = { historicalImportBatch: { findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => completed), create: jest.fn() }, result: { count: jest.fn(async () => 1) } };
   const sut = make(db); const launch = jest.spyOn(sut, 'launch').mockImplementation(() => {});
