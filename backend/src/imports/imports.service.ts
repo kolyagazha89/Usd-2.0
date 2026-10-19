@@ -1,3 +1,4 @@
+import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -40,6 +41,7 @@ type RegistrationParticipantMatch = {
 };
 
 type RegistrationParticipantIndex = {
+  strictNames?: boolean;
   byName: Map<string, RegistrationParticipantMatch[]>;
   byNumber: Map<number, RegistrationParticipantMatch[]>;
 };
@@ -102,6 +104,7 @@ export class ImportsService {
       registrations?: ImportRow[];
       results?: ImportRow[];
       historicalResults?: boolean;
+      strictHistoricalNames?: boolean;
     },
     request?: AuthenticatedRequest,
   ) {
@@ -153,7 +156,7 @@ export class ImportsService {
 
     const registrationParticipants =
       body.historicalResults === true
-        ? this.buildRegistrationParticipantIndex(registrations)
+        ? this.buildRegistrationParticipantIndex(registrations, body.strictHistoricalNames === true)
         : await this.buildStageRegistrationParticipantIndex(body.stageId);
 
     const registrationPreview = await this.mapPreviewRows(
@@ -359,6 +362,7 @@ export class ImportsService {
             stageNumber: stage.stageNumber,
             stageName: stage.name,
             historicalResults: body.historicalResults === true,
+            carMetadataPolicy: 'REGISTRATION_NAME_REQUIRED_V1',
           },
 
           rows: {
@@ -541,6 +545,8 @@ export class ImportsService {
     };
   }
 
+  historicalClassName(value: string) { return this.mapClassName(value); }
+
   async prepareHistoricalXlsxImport(request: AuthenticatedRequest) {
     const sourcePath = join(process.cwd(), 'data', 'historical-xlsx.json');
     let source: any;
@@ -553,19 +559,7 @@ export class ImportsService {
     const registrationWorkbook = source['USD _ Регистрация.xlsx'] ?? {};
     const resultsWorkbook = source['USD _ Результаты.xlsx'] ?? {};
 
-    const mappings = [
-      { year: 2026, number: 3, name: 'Открытие Волгоград', city: 'Волгоград', date: '2026-05-16', reg: 'Открытие Волгоград', result: 'open_volgograd2026' },
-      { year: 2026, number: 4, name: 'Астрахань', city: 'Астрахань', date: '2026-05-23', reg: 'Астрахань', result: 'astraxan' },
-      { year: 2026, number: 5, name: 'Ижевск', city: 'Ижевск', date: '2026-05-30', reg: 'Ижевск', result: 'ijevsk' },
-      { year: 2026, number: 6, name: 'Липецк', city: 'Липецк', date: '2026-06-20', reg: 'Липецк', result: 'lipetsk' },
-      { year: 2026, number: 7, name: 'Орел', city: 'Орел', date: '2026-07-04', reg: 'Орел', result: 'orel' },
-      { year: 2026, number: 8, name: 'Смоленск', city: 'Смоленск', date: '2026-07-11', reg: 'Смоленск', result: 'smolensk' },
-      { year: 2026, number: 9, name: 'Ростов-на-Дону', city: 'Ростов-на-Дону', date: '2026-07-19', reg: 'Ростов', result: 'rostov-on-don' },
-      { year: 2026, number: 10, name: 'Самара', city: 'Самара', date: '2026-08-15', reg: 'Самара', result: 'samara' },
-      { year: 2026, number: 11, name: 'Ростов-на-Дону — 05.09', city: 'Ростов-на-Дону', date: '2026-09-05', reg: 'Ростов 05.09', result: null },
-      { year: 2026, number: 12, name: 'Финал Волгоград', city: 'Волгоград', date: '2026-09-12', reg: 'финал Волгоград', result: 'final_volg2026' },
-      { year: 2025, number: 1, name: 'Финал Волгоград 2025', city: 'Волгоград', date: '2025-09-13', reg: null, result: 'final_volgograd2025' },
-    ] as const;
+    const mappings = HISTORICAL_STAGE_MAPPINGS;
 
     const prepared: any[] = [];
 
@@ -675,6 +669,7 @@ export class ImportsService {
           metadata: {
             source: 'HISTORICAL_XLSX',
             sourceWorkbooks: source._source?.workbooks ?? null,
+            carMetadataPolicy: 'REGISTRATION_NAME_REQUIRED_V1',
             workbookRegistrationSheet: mapping.reg,
             workbookResultSheet: mapping.result,
             historicalResults,
@@ -1025,6 +1020,7 @@ export class ImportsService {
 
   private buildRegistrationParticipantIndex(
     registrations: ImportRow[],
+    strictNames = false,
   ): RegistrationParticipantIndex {
     const byName =
       new Map<
@@ -1178,6 +1174,7 @@ export class ImportsService {
     return {
       byName,
       byNumber,
+      strictNames,
     };
   }
 
@@ -1697,7 +1694,7 @@ export class ImportsService {
      * "Фамилия Имя" or "Имя Фамилия", and transliterations differ.
      * Compare transliterated token sets, not the whole string order.
      */
-    if (normalizedName) {
+    if (normalizedName && !registrationIndex.strictNames) {
       const targetTokens = this.nameTokens(rawName);
       const fuzzyMatches: RegistrationParticipantMatch[] = [];
 
@@ -2182,7 +2179,7 @@ export class ImportsService {
         ) ?? null;
       }
 
-      if (!car && rawModel) {
+      if (!car && rawModel && !rawPlate) {
         car =
           await this.prisma.car.findFirst({
             where: {
@@ -2534,7 +2531,7 @@ export class ImportsService {
     } else if (
       historicalResults &&
       databaseParticipant.status === 'NEW' &&
-      registrationParticipant.status === 'AMBIGUOUS'
+      (registrationParticipant.status === 'AMBIGUOUS' || registrationParticipant.matchType === 'NUMBER')
     ) {
       // Historical Results drives new participant identity. Conflicting helper
       // rows are not evidence of multiple Participants in the database.
@@ -2853,7 +2850,8 @@ export class ImportsService {
             ? registrationParticipant.matches[0]?.car.vibrationIsolation ?? null
             : null,
         model:
-          registrationParticipant.status === 'MATCHED'
+          registrationParticipant.status === 'MATCHED' &&
+          (!historicalResults || registrationParticipant.matchType === 'NAME')
             ? registrationParticipant.matches[0]?.car.model ?? ''
             : this.stringValue(
                 this.getImportFieldValue(row, [
@@ -2863,7 +2861,8 @@ export class ImportsService {
                 ]),
               ),
         plateNumber:
-          registrationParticipant.status === 'MATCHED'
+          registrationParticipant.status === 'MATCHED' &&
+          (!historicalResults || registrationParticipant.matchType === 'NAME')
             ? registrationParticipant.matches[0]?.car.plateNumber ?? ''
             : this.stringValue(
                 this.getImportFieldValue(row, [
@@ -3662,6 +3661,7 @@ export class ImportsService {
         registrationId?: string;
 
         participantNumber?: number;
+        primaryParticipantNumber?: number;
       };
 
       classIds?: string[];
@@ -4100,7 +4100,7 @@ export class ImportsService {
       }
     }
 
-    if (model) {
+    if (model && !plateNumber) {
       const existingByModel =
         await tx.car.findFirst({
           where: {
@@ -4240,11 +4240,12 @@ export class ImportsService {
       });
     }
 
-    let version = await tx.carConfigurationVersion.findFirst({
+    let version: (Prisma.CarConfigurationVersionGetPayload<{}> & { historicalConfirmations?: { id: string }[] }) | null = await tx.carConfigurationVersion.findFirst({
       where: {
         configurationId: configuration.id,
         version: configuration.currentVersion,
       },
+      include: { historicalConfirmations: { select: { id: true } } },
     });
 
     if (!version) {
@@ -4259,9 +4260,9 @@ export class ImportsService {
       });
     }
 
-    if (version && (version.vibrationIsolation ?? null) !== brand) {
+    if (version && ((version.vibrationIsolation ?? null) !== brand || version.historicalConfirmations?.length)) {
       // Never rewrite a configuration version used by an earlier registration.
-      const alreadyUsed = await tx.registration.count({
+      const alreadyUsed = version.historicalConfirmations?.length || await tx.registration.count({
         where: { configurationVersionId: version.id },
       });
       if (alreadyUsed > 0) {
@@ -4882,6 +4883,7 @@ export class ImportsService {
   async commitImport(
     importId: string,
     request?: AuthenticatedRequest,
+    options?: { allowHistoricalPartial?: boolean },
   ) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -4931,7 +4933,30 @@ export class ImportsService {
           throw new BadRequestException('Устаревший режим исторического импорта: подготовьте архив заново');
         }
         // Registration rows enrich Results; they are never commit candidates.
-        const commitRows = importJob.rows.filter((row) => !historicalResults || row.type === 'RESULT');
+        const globalBatch = historicalResults && typeof (importJob.metadata as any)?.globalBatchId === 'string';
+        const partial = options?.allowHistoricalPartial === true && globalBatch;
+        if (options?.allowHistoricalPartial && !globalBatch) {
+          throw new BadRequestException('Частичное подтверждение разрешено только общей задаче архива');
+        }
+        const commitRows = importJob.rows.filter((row) =>
+          (!historicalResults || row.type === 'RESULT') &&
+          (!globalBatch || row.status !== 'COMMITTED') &&
+          (!partial || row.status === 'READY' || row.status === 'RESOLVED'),
+        );
+        const pendingResults = globalBatch ? importJob.rows.filter((row) => row.type === 'RESULT' && row.status === 'WARNING').length : 0;
+        const finalStatus = partial && pendingResults ? 'DRAFT' as const : 'COMMITTED' as const;
+        // Older previews copied a different person's car from a shared sticker.
+        // Do not replay those saved resolutions after fixing the preview policy.
+        if (historicalResults && (importJob.metadata as any)?.carMetadataPolicy !== 'REGISTRATION_NAME_REQUIRED_V1') {
+          const unsafeCarRows = commitRows.filter((row) => {
+            const normalized = row.normalizedData as any;
+            return normalized?.registration?.matchType === 'NUMBER' &&
+              (this.stringValue(normalized?.car?.model) || this.stringValue(normalized?.car?.plateNumber));
+          });
+          if (unsafeCarRows.length) {
+            throw new BadRequestException('Устаревшее сопоставление автомобилей по номеру участника: подготовьте архив заново');
+          }
+        }
 
         if (
           importJob.status !==
@@ -7071,8 +7096,7 @@ export class ImportsService {
             },
 
             data: {
-              status:
-                'COMMITTED',
+              status: finalStatus,
             },
           },
         );
@@ -7101,8 +7125,8 @@ export class ImportsService {
           importJobId:
             importId,
 
-          status:
-            'COMMITTED',
+          status: finalStatus,
+          pendingResults,
 
           historicalResults:
             (importJob.metadata as any)?.historicalResults === true,

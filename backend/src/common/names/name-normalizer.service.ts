@@ -21,6 +21,15 @@ export class NameNormalizerService {
   // spellings of Russian given names are not one-to-one. No fuzzy replacement
   // of family names or unrelated Participant IDs is permitted.
   private readonly latinExceptions: Readonly<Record<string, string>> = {
+    // Exact spellings present in the supplied Results and Registration files.
+    // These adapt unsupported source conventions without fuzzy person merging.
+    matvey: 'Матвей', arseny: 'Арсений', savely: 'Савелий',
+    timofey: 'Тимофей', alexandra: 'Александра', yan: 'Ян',
+    maslencev: 'Масленцев', kravcov: 'Кравцов', kuznecov: 'Кузнецов',
+    kricin: 'Крицин', kartavcev: 'Картавцев', troicky: 'Троицкий',
+    cvirko: 'Цвирко', davletshin: 'Давлетшин', kargopolcev: 'Каргополцев',
+    kareckih: 'Карецких', gerasimec: 'Герасимец', gricenko: 'Гриценко',
+    kupyansky: 'Купянский', dmutry: 'Дмитрий',
     zubanov: 'Зубанов',
     ivanov: 'Иванов',
     wassily: 'Василий',
@@ -243,7 +252,7 @@ export class NameNormalizerService {
     if (parts.length < 2) reasons.push('Не указаны фамилия и имя');
     if (parts.length > 4) reasons.push('Необычно много частей ФИО');
     if (/[0-9]/.test(normalized)) reasons.push('Цифры в ФИО: возможно название команды, а не человек');
-    if (parts.some((part) => part.length < 3))
+    if (parts.some((part, index) => part.length < 3 && !(index === 1 && part === 'Ян')))
       reasons.push('Слишком короткая часть ФИО, требуется проверить источник');
     if (parts.some((part) => this.invalidPersonTokens.has(part.toLocaleLowerCase('ru'))))
       reasons.push('Похоже на псевдоним или название команды, проверьте ФИО');

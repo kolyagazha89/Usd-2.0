@@ -22,6 +22,18 @@ export class ConfigurationsController {
     private readonly configurationsService: ConfigurationsService,
   ) {}
 
+  @Roles('PARTICIPANT')
+  @Get('configurations/me/final-2026')
+  final2026(@Req() request: any) {
+    return this.configurationsService.final2026Configurations(request);
+  }
+
+  @Roles('PARTICIPANT')
+  @Post('configurations/me/final-2026/:registrationId/confirm')
+  confirmFinal2026(@Req() request: any, @Param('registrationId') registrationId: string, @Body() body: CreateConfigurationDto) {
+    return this.configurationsService.confirmFinal2026Configuration(request, registrationId, body);
+  }
+
   // =========================================================
   // CAR CONFIGURATIONS
   // =========================================================

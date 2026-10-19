@@ -153,6 +153,7 @@ model CarConfigurationVersion {
   generators            CarGenerator[]
   headUnits             CarHeadUnit[]
   registrations         Registration[]
+  historicalConfirmations HistoricalConfigurationConfirmation[]
 
   @@unique([configurationId, version])
   @@index([configurationId])
@@ -452,6 +453,7 @@ model Registration {
   participant Participant @relation(fields: [participantId], references: [id])
   car         Car         @relation(fields: [carId], references: [id])
   configurationVersion CarConfigurationVersion @relation(fields: [configurationVersionId], references: [id])
+  configurationConfirmation HistoricalConfigurationConfirmation?
 
   numbers    RegistrationNumber[]
   classes    RegistrationClass[]
@@ -974,4 +976,32 @@ model EmailNotificationLog {
   @@index([stageId])
   @@index([registrationId])
   @@index([createdAt])
+}
+
+model HistoricalImportBatch {
+  id              String   @id @default(uuid())
+  sourceHash      String
+  activeKey       String?  @unique
+  status          String   @default("RUNNING")
+  plan            Json
+  progress        Json
+  leaseOwner      String?
+  leaseUntil      DateTime? @db.Timestamptz(3)
+  createdByUserId String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([sourceHash])
+  @@index([status])
+}
+
+model HistoricalConfigurationConfirmation {
+  id String @id @default(uuid())
+  registrationId String @unique
+  versionId String
+  confirmedByUserId String
+  confirmedAt DateTime @default(now()) @db.Timestamptz(3)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  version CarConfigurationVersion @relation(fields: [versionId], references: [id])
+  @@index([versionId])
 }

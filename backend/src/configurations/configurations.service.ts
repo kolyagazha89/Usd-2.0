@@ -21,6 +21,61 @@ import { UpdateConfigurationDto } from './dto/update-configuration.dto';
 export class ConfigurationsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // A final correction is separate from the original registration snapshot.
+  private final2026Where(userId: string): Prisma.RegistrationWhereInput {
+    return {
+      source: 'IMPORT', status: { not: 'CANCELLED' },
+      participant: { user: { id: userId } },
+      car: { participant: { user: { id: userId } } },
+      stage: { season: { year: 2026 }, stageNumber: 12, isDeleted: false,
+        date: { gte: new Date('2026-09-12T00:00:00Z'), lt: new Date('2026-09-13T00:00:00Z') } },
+      results: { some: { isHistorical: true } },
+      configurationSnapshot: { path: ['legacyImport'], equals: true },
+    };
+  }
+
+  async final2026Configurations(request: any) {
+    if (!request.user?.sub) throw new ForbiddenException('Authenticated user is missing');
+    const rows = await this.prisma.registration.findMany({
+      where: this.final2026Where(request.user.sub),
+      orderBy: { id: 'asc' },
+      include: { car: true, stage: true, configurationConfirmation: true,
+        configurationVersion: { include: { configuration: true, headUnits: true, audioComponents: true,
+          amplifiers: { include: { componentLinks: true } }, batteries: true, generators: true } } },
+    });
+    return { items: rows.map(row => ({
+      registrationId: row.id, car: { id: row.car.id, brand: row.car.brand, model: row.car.model, registrationNumber: row.car.registrationNumber },
+      stageName: row.stage.name, stageDate: row.stage.date,
+      confirmedAt: row.configurationConfirmation?.confirmedAt ?? null,
+      configuration: { id: row.configurationVersion.configurationId, name: 'Финал 2026',
+        currentVersion: row.configurationVersion.version, versions: [row.configurationVersion] },
+    })) };
+  }
+
+  async confirmFinal2026Configuration(request: any, registrationId: string, dto: CreateConfigurationDto) {
+    if (!request.user?.sub) throw new ForbiddenException('Authenticated user is missing');
+    return this.prisma.$transaction(async tx => {
+      const registration = await tx.registration.findFirst({
+        where: { ...this.final2026Where(request.user.sub), id: registrationId },
+        include: { configurationVersion: true, configurationConfirmation: true },
+      });
+      if (!registration) throw new NotFoundException('Историческая конфигурация финала 2026 не найдена');
+      // Repeated submissions (including network retries) never create a duplicate.
+      if (registration.configurationConfirmation) return registration.configurationConfirmation;
+      const configurationId = registration.configurationVersion.configurationId;
+      const current = await tx.carConfiguration.findUniqueOrThrow({ where: { id: configurationId } });
+      const version = await tx.carConfigurationVersion.create({ data: {
+        configurationId, version: current.currentVersion + 1,
+        vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
+      } });
+      await this.createVersionChildren(tx, version.id, dto);
+      await tx.carConfiguration.update({ where: { id: configurationId }, data: { currentVersion: version.version } });
+      return tx.historicalConfigurationConfirmation.create({ data: {
+        registrationId, versionId: version.id, confirmedByUserId: request.user.sub,
+      } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
   // =========================================================
   // Helpers
   // =========================================================
@@ -226,6 +281,7 @@ export class ConfigurationsService {
           },
           take: 1,
           include: {
+            historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
             headUnits: true,
             audioComponents: true,
             amplifiers: {
@@ -269,6 +325,7 @@ export class ConfigurationsService {
         versions: {
           orderBy: { version: 'desc' },
           include: {
+            historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
             headUnits: true,
             audioComponents: true,
             amplifiers: {
@@ -317,6 +374,7 @@ export class ConfigurationsService {
         vibrationIsolation: true,
         additionalDescription: true,
         createdAt: true,
+        historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
       },
     });
   }
@@ -443,7 +501,8 @@ export class ConfigurationsService {
                 version: 1,
               },
               include: {
-                headUnits: true,
+                historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
+            headUnits: true,
                 audioComponents: true,
                 amplifiers: {
                   include: {
@@ -511,26 +570,29 @@ export class ConfigurationsService {
         });
         if (!currentVersion) throw new NotFoundException('Current configuration version not found');
 
-        // PUT edits the current version in place. A new version is created
-        // only by the explicit POST /versions action.
-        await tx.carAmplifierComponent.deleteMany({
-          where: { amplifier: { versionId: currentVersion.id } },
-        });
-        await tx.carHeadUnit.deleteMany({ where: { versionId: currentVersion.id } });
-        await tx.carAudioComponent.deleteMany({ where: { versionId: currentVersion.id } });
-        await tx.carAmplifier.deleteMany({ where: { versionId: currentVersion.id } });
-        await tx.carBattery.deleteMany({ where: { versionId: currentVersion.id } });
-        await tx.carGenerator.deleteMany({ where: { versionId: currentVersion.id } });
-
-        await tx.carConfigurationVersion.update({
-          where: { id: currentVersion.id },
-          data: {
-            vibrationIsolation: dto.vibrationIsolation,
-            additionalDescription: dto.additionalDescription,
-          },
-        });
-
-        await this.createVersionChildren(tx, currentVersion.id, dto);
+        // Versions used by an event or confirmed by a participant are immutable.
+        const references = await tx.registration.count({ where: { configurationVersionId: currentVersion.id } });
+        const confirmations = await tx.historicalConfigurationConfirmation.count({ where: { versionId: currentVersion.id } });
+        let targetVersionId = currentVersion.id;
+        if (references || confirmations) {
+          const next = await tx.carConfigurationVersion.create({ data: {
+            configurationId, version: current.currentVersion + 1,
+            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
+          } });
+          targetVersionId = next.id;
+          await tx.carConfiguration.update({ where: { id: configurationId }, data: { currentVersion: next.version } });
+        } else {
+          await tx.carAmplifierComponent.deleteMany({ where: { amplifier: { versionId: currentVersion.id } } });
+          await tx.carHeadUnit.deleteMany({ where: { versionId: currentVersion.id } });
+          await tx.carAudioComponent.deleteMany({ where: { versionId: currentVersion.id } });
+          await tx.carAmplifier.deleteMany({ where: { versionId: currentVersion.id } });
+          await tx.carBattery.deleteMany({ where: { versionId: currentVersion.id } });
+          await tx.carGenerator.deleteMany({ where: { versionId: currentVersion.id } });
+          await tx.carConfigurationVersion.update({ where: { id: currentVersion.id }, data: {
+            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
+          } });
+        }
+        await this.createVersionChildren(tx, targetVersionId, dto);
 
         return tx.carConfiguration.findUnique({
           where: { id: configurationId },
@@ -538,7 +600,8 @@ export class ConfigurationsService {
             versions: {
               orderBy: { version: 'desc' },
               include: {
-                headUnits: true,
+                historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
+            headUnits: true,
                 audioComponents: true,
                 amplifiers: { include: { componentLinks: { select: { amplifierId: true, componentId: true, quantity: true } } } },
                 batteries: true,
@@ -578,7 +641,8 @@ export class ConfigurationsService {
               },
             },
             include: {
-              headUnits: true,
+              historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
+            headUnits: true,
               audioComponents: true,
               amplifiers: {
                 include: {
@@ -759,7 +823,8 @@ export class ConfigurationsService {
                 version: nextVersion,
               },
               include: {
-                headUnits: true,
+                historicalConfirmations: { select: { confirmedAt: true, registrationId: true } },
+            headUnits: true,
                 audioComponents: true,
                 amplifiers: {
                   include: {

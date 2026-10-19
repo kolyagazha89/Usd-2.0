@@ -1,3 +1,4 @@
+import { GlobalHistoricalImportPanel } from './GlobalHistoricalImportPanel';
 import {useEffect,useMemo,useState} from 'react';
 import * as XLSX from 'xlsx';
 import {AlertTriangle,CarFront,Check,ChevronLeft,ClipboardCheck,Database,FileInput,Loader2,Plus,RefreshCw,Trophy,UserRound} from 'lucide-react';
@@ -279,7 +280,7 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  const refreshJob=async(id:string)=>{
    try{
      const r=await apiGet<any>('/imports/'+id);
-     setJob(r.importJob);setRows(r.importJob?.rows??[]);
+     setJob(r.importJob);setRows(r.importJob?.rows??[]);if(r.importJob?.stageId)setStageId(r.importJob.stageId);
    }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить импорт')}
  };
 
@@ -340,6 +341,7 @@ function ImportPage({PageFrame,PanelTitle,Empty,enumLabel}: {PageFrame:React.Com
  return <PageFrame title="Импорт" showHelp={false} subtitle="Импорт из Google Таблиц или XLSX из публикаций VK: сначала проверка, затем исправление предупреждений и только после этого запись в чемпионат." action={job?.id?<button className="secondary-button compact" onClick={()=>{setJob(null);setRows([]);setResult(null);setResolveRow(null);setResolution('{}');void preview()}}><RefreshCw size={14}/>{mode==='NORMAL'?'Перечитать таблицу и обновить предпросмотр':'Перечитать листы и обновить предпросмотр'}</button>:undefined}>
   <div className="import-steps"><div className="import-step active"><b>1</b><span>Источник и этап</span></div><div className="import-step"><b>2</b><span>Проверка</span></div><div className="import-step"><b>3</b><span>Исправление</span></div><div className="import-step"><b>4</b><span>Завершение импорта</span></div></div>
   <div className="notice"><FileInput size={17}/><div><strong>Исторический импорт:</strong> источником истины является только <b>Результаты</b>. Лист <b>Регистрация</b> используется только как справочник. Строки из «Регистрация» не попадают в очередь исправлений и сами по себе ничего не создают.</div></div>
+  <GlobalHistoricalImportPanel onOpenJob={id=>{setMode('HISTORICAL');setHistoricalJobId(id);void refreshJob(id)}}/>
   {mode==='HISTORICAL'&&<section className="panel" aria-label="Нормализация ФИО участников">
     <div className="resource-editor-heading"><div><strong>Нормализация ФИО · исправление тестовых карточек</strong>
     <p>Проверка имён уже записанных участников. Разрешены только однозначные исправления транслитерации и известных ошибок имени. Дубли, псевдонимы и сомнительные фамилии выделяются отдельно и не объединяются.</p></div></div>
