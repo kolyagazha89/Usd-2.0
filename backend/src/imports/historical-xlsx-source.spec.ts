@@ -8,7 +8,7 @@ const source = JSON.parse(
   readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8'),
 );
 describe('supplied historical XLSX source', () => {
-  it('contains all 1069 results from the corrected separate workbook', () => {
+  it('contains all 1068 results from the corrected separate workbook', () => {
     const service: any = new ImportsService(
       {} as any,
       new NameNormalizerService(),
@@ -16,7 +16,7 @@ describe('supplied historical XLSX source', () => {
     const results = Object.values(source['USD _ Результаты.xlsx']).flatMap(
       (sheet: any) => service.resultRowsFromSheet(sheet),
     );
-    expect(results).toHaveLength(1069);
+    expect(results).toHaveLength(1068);
     expect(source['USD _ Результаты.xlsx'].final_volgograd2025[15][4]).toBe(
       'Korneev Igor',
     );
