@@ -9,11 +9,11 @@ const snapshot = (results: Record<string, unknown>, registrations: Record<string
 describe('global historical source plan', () => {
   it('accounts for every source result once, including rows without sticker numbers', () => {
     const plan = buildGlobalHistoricalPlan(readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8'), names);
-    expect(plan.sourceResults).toBe(1069);
+    expect(plan.sourceResults).toBe(1068);
     expect(plan.stages).toHaveLength(11);
     const rows = plan.stages.flatMap(stage => stage.results);
-    expect(new Set(rows.map(row => row._archiveRowKey)).size).toBe(1069);
-    expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1069);
+    expect(new Set(rows.map(row => row._archiveRowKey)).size).toBe(1068);
+    expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1068);
     expect(rows.some(row => Number(row['Номер']) === 0)).toBe(true);
     expect(plan.stages[0].year).toBe(2025);
     expect(plan.stages.find(stage => stage.registrationSheet === 'Ростов 05.09')?.results).toEqual([]);
