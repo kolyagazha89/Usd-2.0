@@ -10,16 +10,6 @@ Limited
 7 142,4 039 Pustovalov Aleksey 
 8 141,9 027 Lihachev Anton 
 9 128,5 112 Sova Tatiyana 
-10 0,0 020 Begmuradov Artur 
-11 0,0 034 Bekker Aleksey 
-12 0,0 036 Polyansky Iliya 
-13 0,0 042 Bistray Vladimir 
-14 0,0 046 Morozov Mihail 
-15 0,0 051 Al-tamimi Ruslan 
-16 0,0 088 Antonenko Artem 
-17 0,0 097 Rogozhnikov Evgeny 
-18 0,0 116 Kalashnikov Daniil 
-19 0,0 122 Mihailov Vladimir 
  
 1x2
 1 154,7 016 Zinchenko Mihail 
@@ -83,7 +73,7 @@ Mad-x
 10 147,7 069 Chureev Valentin 
 11 138,5 003 Pavlov Roman 
 12 134,2 105 Chaika Yaroslav 
-13 130,0 081 Misheryakv Sergey 
+13 130,0 081 Misheryakov Sergey 
  
 Wall+
 1 164,3 075 Risuhin Nikita 
