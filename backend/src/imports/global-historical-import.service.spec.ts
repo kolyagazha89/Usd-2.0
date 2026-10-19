@@ -65,7 +65,7 @@ describe('durable global import coordination', () => {
 describe('per-stage source accounting and protected profiles', () => {
  it('preserves a protected row, keeps an existing result, and imports a raw alias without losing source rows', async () => {
   const row = (id:string, name:string, extra:any = {}):any => ({ id, type: 'RESULT', rowNumber: Number(id.slice(1)), status: 'WARNING', rawData: { 'ФИО': name, _archiveOriginalName: name, _archiveRow: Number(id.slice(1)) + 1, _archiveSheet: 'Results' }, normalizedData: { participant: { source: 'DATABASE', status: 'NEW', matches: [] }, participantNumber: Number(id.slice(1)), class: { classId: 'class' }, result: 150, place: 1, car: {}, ...extra }, resolution: null, registrationId: null, classId: null });
-  const rows = [row('r1', 'Петров Иван'), row('r2', 'Сидоров Пётр', { existingResult: { state: 'SAME' } }), row('r3', '34 Sound')];
+  const rows = [row('r1', 'Петров Иван'), row('r2', 'Сидоров Пётр', { existingResult: { state: 'SAME' } }), row('r3', '34 Sound')]; rows[1].status='READY';
   const job:any = { id: 'job', rows };
   const db:any = { importJob: { findUnique: jest.fn(async () => job), findUniqueOrThrow: jest.fn(async () => job) }, participant: { findMany: jest.fn(async () => [{ id: 'protected', lastName: 'Петров', firstName: 'Иван', middleName: null }]) }, importRow: { update: jest.fn(async ({ where, data }:any) => Object.assign(rows.find(r => r.id === where.id)!, data)) }, result: { findMany: jest.fn(async () => [{ id: 'a' }, { id: 'b' }]) } };
   const imports:any = { resolveImportRow: jest.fn(async (_j:string, id:string, resolution:any) => Object.assign(rows.find(r => r.id === id)!, { status: 'RESOLVED', resolution })), commitImport: jest.fn(async () => { for (const r of rows.filter(r => r.status === 'RESOLVED')) Object.assign(r, { status: 'COMMITTED', registrationId: r.id, classId: 'class' }); }) };
@@ -73,6 +73,7 @@ describe('per-stage source accounting and protected profiles', () => {
   const p = { ...progress().stages[0], jobId: 'job', sourceRows: 3 }; const stage:any = { ...sourceStage, results: rows.map(r => r.rawData) };
   await sut.importStage({ id: 'batch', createdByUserId: null }, stage, p, () => false);
   expect(p.imported).toBe(2); expect(p.review).toHaveLength(1); expect(p.review[0].name).toBe('Петров Иван'); expect(p.aliases).toBe(1); expect(p.kept).toBe(1); expect(p.status).toBe('REVIEW');
+  expect(db.importRow.update).toHaveBeenCalledWith({where:{id:'r2'},data:{status:'WARNING',warnings:[]}});
   expect(rows[0].status).toBe('WARNING'); expect(rows[2].resolution.participant).toEqual({ action: 'CREATE_ALIAS', fullName: '34 Sound' });
   expect(imports.commitImport).toHaveBeenCalledWith('job', undefined, { allowHistoricalPartial: true });
   expect(p.imported + p.review.length).toBe(3);

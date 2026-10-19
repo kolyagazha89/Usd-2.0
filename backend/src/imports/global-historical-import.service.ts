@@ -240,6 +240,11 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         ...(normalized?.existingResult?.state === 'SAME' ? { existingResultAction: 'KEEP_EXISTING' } : {}),
         notes: inspected.needsReview ? 'Исходное архивное обозначение сохранено; личность не подтверждена. ' + label : undefined,
       };
+      // The shared resolver accepts review rows only. A READY preview is still
+      // uncommitted; move it through the same validated resolution path.
+      if (row.status === 'READY') {
+        await this.prisma.importRow.update({ where: { id: row.id }, data: { status: 'WARNING', warnings: asJson([]) } });
+      }
       await this.imports.resolveImportRow(job.id, row.id, resolution);
     }
     if (stopped()) return;
