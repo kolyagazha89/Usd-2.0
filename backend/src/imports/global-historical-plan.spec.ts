@@ -10,7 +10,7 @@ describe('global historical source plan', () => {
   it('accounts for every source result once, including rows without sticker numbers', () => {
     const plan = buildGlobalHistoricalPlan(readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8'), names);
     expect(plan.sourceResults).toBe(1068);
-    expect(plan.identityRulesVersion).toBe(5);
+    expect(plan.identityRulesVersion).toBe(6);
     expect(plan.stages).toHaveLength(11);
     const rows = plan.stages.flatMap(stage => stage.results);
     expect(new Set(rows.map(row => row._archiveRowKey)).size).toBe(1068);
