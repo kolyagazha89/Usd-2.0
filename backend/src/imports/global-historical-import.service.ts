@@ -7,6 +7,7 @@ import { Prisma } from '../generated/prisma/client';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { ImportsService } from './imports.service';
 import { ArchivePlan, ArchiveStage, archiveNameKey, buildGlobalHistoricalPlan } from './global-historical-plan';
+import { HISTORICAL_2025_TEXT_STAGES } from './historical-2025-text';
 import { auditHistoricalDuplicates } from './historical-duplicate-audit';
 import { consolidateApprovedHistoricalIdentities, HistoricalIdentityMergeSummary } from './historical-identity-consolidation';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -55,7 +56,13 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
   }
 
   private loadPlan() {
-    return buildGlobalHistoricalPlan(readFileSync(join(process.cwd(), 'data', 'historical-xlsx.json'), 'utf8'), this.names);
+    const source = readFileSync(join(process.cwd(), 'data', 'historical-xlsx.json'), 'utf8');
+    // Read results-only 2025 sources from the deployment itself. There is no
+    // Registration workbook for these events, and no fallback to guessing it.
+    const resultsOnly = Object.fromEntries(HISTORICAL_2025_TEXT_STAGES.map(stage =>
+      [stage.file, readFileSync(join(process.cwd(), 'data', 'historical-2025', stage.file), 'utf8')],
+    ));
+    return buildGlobalHistoricalPlan(source, this.names, resultsOnly);
   }
 
   async start(request: AuthenticatedRequest) {
@@ -83,6 +90,36 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     const progress: Progress = previous ? previous.progress as unknown as Progress : {
       stages: plan.stages.map(stage => ({ name: stage.name, year: stage.year, number: stage.number, status: 'PENDING', sourceRows: stage.results.length, imported: 0, aliases: 0, kept: 0, review: [], resultIds: [] })), updatedAt: new Date().toISOString(),
     };
+    // The 2025 TXT package is additive. Never re-run an intact stage from an
+    // older batch if its registration AND results source rows are unchanged.
+    // This preserves 2026 imported IDs and the existing 2025 final; only
+    // genuinely new 2025 stages are queued for import.
+    if (!previous) {
+      const candidates = await this.prisma.historicalImportBatch.findMany({
+        where: { status: { in: ['COMPLETED', 'NEEDS_REVIEW'] } },
+        orderBy: { createdAt: 'desc' }, take: 10,
+      });
+      for (const oldBatch of candidates) {
+        const oldPlan = oldBatch.plan as unknown as ArchivePlan;
+        const oldProgress = oldBatch.progress as unknown as Progress;
+        if (!Array.isArray(oldPlan?.stages) || !Array.isArray(oldProgress?.stages)) continue;
+        for (const stage of progress.stages) {
+          if (stage.status === 'DONE') continue;
+          const target = plan.stages.find(item => item.year === stage.year && item.number === stage.number);
+          const original = oldPlan.stages.find(item => item.year === stage.year && item.number === stage.number);
+          const done = oldProgress.stages.find(item => item.year === stage.year && item.number === stage.number);
+          if (!target || !original || done?.status !== 'DONE') continue;
+          if (JSON.stringify(target.results) !== JSON.stringify(original.results) ||
+              JSON.stringify(target.registrations) !== JSON.stringify(original.registrations)) continue;
+          if (!await this.stageIntact(done)) continue;
+          Object.assign(stage, {
+            jobId: done.jobId, status: 'DONE', imported: done.imported,
+            resultIds: [...done.resultIds], aliases: done.aliases, kept: done.kept,
+            review: [], sourceRows: target.results.length,
+          });
+        }
+      }
+    }
     // Recheck completed stages too: a separate test-data reset may have removed
     // results after this batch finished. Do not trust a saved counter alone.
     for (const stage of progress.stages) {
