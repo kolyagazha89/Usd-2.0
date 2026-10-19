@@ -7,6 +7,7 @@ import { Prisma } from '../generated/prisma/client';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { ImportsService } from './imports.service';
 import { ArchivePlan, ArchiveStage, archiveNameKey, buildGlobalHistoricalPlan } from './global-historical-plan';
+import { auditHistoricalDuplicates } from './historical-duplicate-audit';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 type Review = { sheet: string; row: number; name: string; reason: string };
@@ -44,7 +45,12 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
     const batch = await this.prisma.historicalImportBatch.findUnique({ where: { id } });
     if (!batch) throw new BadRequestException('Общая задача импорта не найдена');
     const plan = batch.plan as unknown as ArchivePlan;
-    return { ...this.publicStatus(batch), people: plan.people, sourceWorkbooks: plan.sourceWorkbooks, sourceRows: plan.stages.map(stage => ({ name: stage.name, sheet: stage.resultsSheet, rows: stage.results })) };
+    return { ...this.publicStatus(batch), people: plan.people, duplicateAudit: auditHistoricalDuplicates(plan, this.names), sourceWorkbooks: plan.sourceWorkbooks, sourceRows: plan.stages.map(stage => ({ name: stage.name, sheet: stage.resultsSheet, rows: stage.results })) };
+  }
+
+  preflight() {
+    const plan = this.loadPlan();
+    return { sourceHash: plan.sourceHash, sourceResults: plan.sourceResults, ...auditHistoricalDuplicates(plan, this.names) };
   }
 
   private loadPlan() {
