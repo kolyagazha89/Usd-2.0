@@ -99,12 +99,12 @@ describe('archive duplicate prevention', () => {
     ]) expect(archiveNameKey(left, names)).not.toBe(archiveNameKey(right, names));
   });
 
-  it('consolidates exact approved archive names in the real 1069-result snapshot', () => {
+  it('consolidates exact approved archive names in the real 1068-result snapshot', () => {
     const snapshot = readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8');
     const plan = buildGlobalHistoricalPlan(snapshot, names);
     const audit = auditHistoricalDuplicates(plan, names);
-    expect(plan.sourceResults).toBe(1069);
-    expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1069);
+    expect(plan.sourceResults).toBe(1068);
+    expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1068);
     expect(audit.confirmedPeople).toEqual([
       expect.objectContaining({ canonical: 'Дергунова Дарья', resultRows: 2 }),
       expect.objectContaining({ canonical: 'Латышев Максим', resultRows: 4 }),
