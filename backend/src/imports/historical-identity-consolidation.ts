@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { historicalExistingFullNameRepairs } from '../common/names/historical-source-corrections';
 import { archivePersonName, approvedHistoricalNamePairs } from './global-historical-plan';
-import { archivalAliasKey, globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
+import { archivalAliasDisplayLabel, archivalAliasKey, globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
 
 type MinimalParticipant = {
   id: string; lastName: string; firstName: string; middleName: string | null;
@@ -293,7 +293,7 @@ export async function consolidateApprovedHistoricalIdentities(
         if (other) throw new Error('Архивный псевдоним уже занят другой карточкой');
         await tx.participant.update({
           where: { id: person.id },
-          data: { legacyId, historicalAlias: alias, lastName: alias, firstName: '', middleName: null },
+          data: { legacyId, historicalAlias: archivalAliasDisplayLabel(alias), lastName: archivalAliasDisplayLabel(alias), firstName: '', middleName: null },
         });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
       summary.namesCorrected++;
