@@ -87,5 +87,9 @@ export const globalHistoricalAliasLabels: Readonly<Record<string, string>> = {
 
 export function globalHistoricalAliasKey(label: string): string | null {
   const compact = label.normalize('NFKC').toLocaleLowerCase('ru').replace(/[\s._-]+/g, '');
-  return Object.hasOwn(globalHistoricalAliasLabels, compact) ? compact : null;
+  // Astrakhan 2025 BassRace lists "Antoha Fs" in 139.9 and "Antoha Sf"
+  // in 149.9. This exact transposition is a known project-label variant,
+  // not permission to fuzzy-merge other names.
+  const verified = compact === 'antohafs' ? 'antohasf' : compact;
+  return Object.hasOwn(globalHistoricalAliasLabels, verified) ? verified : null;
 }
