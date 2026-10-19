@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
-import { buildGlobalHistoricalPlan, archiveNameKey } from './global-historical-plan';
+import { buildGlobalHistoricalPlan } from './global-historical-plan';
+import { globalHistoricalAliasKey } from './historical-alias-identity';
 import { HISTORICAL_2025_TEXT_STAGES, parseHistorical2025Text } from './historical-2025-text';
 
 const base = join(process.cwd(), 'data');
@@ -67,6 +68,6 @@ describe('additive 2025 archive', () => {
     const originalOnly = buildGlobalHistoricalPlan(snapshot, names);
     expect(plan.registrationRows).toBe(originalOnly.registrationRows);
     expect(plan.sourceHash).not.toBe(originalOnly.sourceHash);
-    expect(archiveNameKey('34sound', names)).toBe(archiveNameKey('34 Sound', names));
+    expect(globalHistoricalAliasKey('34sound')).toBe(globalHistoricalAliasKey('34 Sound'));
   });
 });
