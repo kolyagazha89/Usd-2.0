@@ -8,6 +8,17 @@ export function archivalAliasKey(rawAlias: string): string {
     ? compact : lower;
 }
 
+/**
+ * Use a source-verified Cyrillic display label for an archival *alias*.
+ * Registration (final Volgograd 2026) sticker 142 lists "Ксю Апероль"
+ * for Results "Ksy Aperol" on the same car (Ford Focus 2).
+ * This is a display repair, NOT a verified surname/given name.
+ */
+export function archivalAliasDisplayLabel(rawAlias: string): string {
+  if (rawAlias.trim().toLocaleLowerCase('ru') === 'ksy aperol') return 'Ксю Апероль';
+  return rawAlias;
+}
+
 type ImportResultRow = {
   id: string;
   type: string;
