@@ -3,7 +3,7 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { historicalExistingFullNameRepairs } from '../common/names/historical-source-corrections';
-import { archivePersonName, approvedHistoricalNamePairs } from './global-historical-plan';
+import { archiveNameKey, archivePersonName, approvedHistoricalNamePairs, type ArchivePlan } from './global-historical-plan';
 import { archivalAliasDisplayLabel, archivalAliasKey, globalHistoricalAliasKey, globalHistoricalAliasLabels } from './historical-alias-identity';
 
 type MinimalParticipant = {
@@ -33,10 +33,12 @@ const globalLegacyId = (aliasKey: string) =>
 export async function consolidateApprovedHistoricalIdentities(
   prisma: PrismaService,
   names: NameNormalizerService,
+  plan?: ArchivePlan,
 ): Promise<HistoricalIdentityMergeSummary> {
   const people = await prisma.participant.findMany({
     where: {
       OR: [
+        ...(plan ? [{ registrations: { some: { source: 'IMPORT' as const } } }] : []),
         { legacyId: { startsWith: 'HISTORICAL_ALIAS:' } },
         { historicalAlias: { not: null } },
         ...approvedHistoricalNamePairs.flatMap(pair => [
@@ -56,6 +58,22 @@ export async function consolidateApprovedHistoricalIdentities(
       registrations: { select: { source: true, stageId: true } }, 
     },
   });
+  // A broken-name alias may be repaired only when the supplied Results
+  // plan contains its exact canonical identity. No edit-distance guessing.
+  const sourceNames=new Map<string,Set<string>>();
+  for(const stage of plan?.stages??[])for(const row of stage.results){
+    const label=archivePersonName(row['ФИО'],names);
+    if(names.inspect(label).needsReview||label.split(' ').length!==2)continue;
+    const key=archiveNameKey(label,names), group=sourceNames.get(key)??new Set<string>();
+    group.add(label);sourceNames.set(key,group);
+  }
+  const canonicalPerson=(person:MinimalParticipant):string|null=>{
+    if(person.middleName)return null;
+    const label=archivePersonName(person.historicalAlias??[person.lastName,person.firstName].filter(Boolean).join(' '),names);
+    if(names.inspect(label).needsReview||label.split(' ').length!==2)return null;
+    const sources=sourceNames.get(archiveNameKey(label,names));
+    return sources?.size===1?[...sources][0]:null;
+  };
   type Candidate = MinimalParticipant;
   const groups = new Map<string, { label: string; aliasKey: string | null; people: Candidate[] }>();
   for (const person of people) {
@@ -80,6 +98,7 @@ export async function consolidateApprovedHistoricalIdentities(
         label = approved.canonical;
       }
     }
+    if (!key) { const canonical=canonicalPerson(person);if(canonical){key='name:'+canonical;label=canonical;} }
     if (!key) continue;
     const group = groups.get(key) ?? { label, aliasKey, people: [] };
     group.people.push(person);
@@ -89,6 +108,7 @@ export async function consolidateApprovedHistoricalIdentities(
   const summary: HistoricalIdentityMergeSummary = {
     groupsMerged: 0, profilesMerged: 0, namesCorrected: 0, skipped: [],
   };
+  const handledPersonalIds=new Set<string>();
   const safeHistorical = (p: MinimalParticipant) => !p.user && !p.phone && !p.photoUrl && !p.birthDate &&
     !p.legacyId?.startsWith('USD_TEST_') &&
     p.registrations.length > 0 && p.registrations.every(registration => registration.source === 'IMPORT');
@@ -104,7 +124,7 @@ export async function consolidateApprovedHistoricalIdentities(
           only.legacyId !== globalLegacyId(aliasKey))) {
         try {
           await prisma.$transaction(async tx => {
-            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
             const current = await tx.participant.findMany({
               where: { id: { in: [only.id] } },
               include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },
@@ -122,6 +142,18 @@ export async function consolidateApprovedHistoricalIdentities(
           summary.skipped.push({ label: group.label, reason: error instanceof Error ? error.message : 'Неизвестная ошибка' });
         }
       }
+      if(!aliasKey && safeHistorical(only) && canonicalPerson(only)===group.label &&
+        (only.historicalAlias || [only.lastName,only.firstName].join(' ')!==group.label)) {
+        try {
+          await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
+            const current=await tx.participant.findMany({where:{id:{in:[only.id]}},include:{user:{select:{id:true}},registrations:{select:{source:true,stageId:true}}}});
+            if(current.length!==1||!safeHistorical(current[0])||canonicalPerson(current[0])!==group.label)throw new Error('Профиль изменился до исправления ФИО');
+            await tx.participant.update({where:{id:only.id},data:{lastName:group.label.split(' ')[0],firstName:group.label.split(' ')[1],middleName:null,historicalAlias:null,...(current[0].legacyId?.startsWith('HISTORICAL_ALIAS:')?{legacyId:null}:{})}});
+          },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:60000,maxWait:15000});
+          summary.namesCorrected++;handledPersonalIds.add(only.id);
+        }catch(error){summary.skipped.push({label:group.label,reason:error instanceof Error?error.message:'Не удалось исправить ФИО'})}
+      }
       continue;
     }
     if (group.people.some(p =>
@@ -135,7 +167,7 @@ export async function consolidateApprovedHistoricalIdentities(
     const allIds = group.people.map(p => p.id);
     try {
       const merged = await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: allIds } },
           include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } }, 
@@ -146,8 +178,7 @@ export async function consolidateApprovedHistoricalIdentities(
             (group.aliasKey
               ? !p.legacyId?.startsWith('HISTORICAL_ALIAS:') ||
                 globalHistoricalAliasKey(p.historicalAlias ?? '') !== group.aliasKey
-              : p.historicalAlias ||
-                archivePersonName([p.lastName, p.firstName, p.middleName].filter(Boolean).join(' '), names) !== group.label))) {
+              : (canonicalPerson(p) ?? (!p.historicalAlias ? archivePersonName([p.lastName,p.firstName,p.middleName].filter(Boolean).join(' '),names) : null)) !== group.label))) {
           throw new Error('Профили изменились или больше не соответствуют подтверждённому совпадению');
         }
         const ids = current.map(p => p.id);
@@ -210,11 +241,11 @@ export async function consolidateApprovedHistoricalIdentities(
           where: { id: target.id },
           data: group.aliasKey
             ? { legacyId: expectedId, lastName: group.label, firstName: '', middleName: null, historicalAlias: group.label }
-            : { lastName: group.label.split(' ')[0], firstName: group.label.split(' ')[1], middleName: null },
+            : { lastName: group.label.split(' ')[0], firstName: group.label.split(' ')[1], middleName: null, historicalAlias: null, ...(target.legacyId?.startsWith('HISTORICAL_ALIAS:')?{legacyId:null}:{}) },
         });
         return otherIds.length;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
-      if (merged) { summary.groupsMerged++; summary.profilesMerged += merged; }
+      if (merged) { summary.groupsMerged++; summary.profilesMerged += merged;if(!group.aliasKey)for(const id of allIds)handledPersonalIds.add(id); }
     } catch (error) {
       summary.skipped.push({
         label: group.label,
@@ -226,14 +257,14 @@ export async function consolidateApprovedHistoricalIdentities(
   // Each correction is an exact verified full name, never an edit-distance
   // guess. Account-linked, manually created and on-site profiles are exempt.
   for (const person of people) {
-    if (person.historicalAlias || person.middleName || !safeHistorical(person)) continue;
+    if (handledPersonalIds.has(person.id) || person.historicalAlias || person.middleName || !safeHistorical(person)) continue;
     const oldFullName = [person.lastName, person.firstName].join(' ');
     const canonical = historicalExistingFullNameRepairs[oldFullName.toLocaleLowerCase('ru')];
     if (!canonical || canonical === oldFullName) continue;
     const [lastName, firstName] = canonical.split(' ');
     try {
       await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: [person.id] } },
           include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },
@@ -266,7 +297,7 @@ export async function consolidateApprovedHistoricalIdentities(
       person.historicalAlias || person.middleName || !safeHistorical(person)) continue;
     try {
       await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_IMPORT_IDENTITIES'))::text`;
         const current = await tx.participant.findMany({
           where: { id: { in: [person.id] } },
           include: { user: { select: { id: true } }, registrations: { select: { source: true, stageId: true } } },

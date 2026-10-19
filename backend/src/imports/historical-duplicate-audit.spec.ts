@@ -105,11 +105,14 @@ describe('archive duplicate prevention', () => {
     const audit = auditHistoricalDuplicates(plan, names);
     expect(plan.sourceResults).toBe(1068);
     expect(plan.people.reduce((sum, person) => sum + person.resultRows, 0)).toBe(1068);
-    expect(audit.confirmedPeople).toEqual([
+    expect(audit.confirmedPeople).toEqual(expect.arrayContaining([
       expect.objectContaining({ canonical: 'Дергунова Дарья', resultRows: 2 }),
       expect.objectContaining({ canonical: 'Латышев Максим', resultRows: 4 }),
       expect.objectContaining({ canonical: 'Некрасов Дмитрий', resultRows: 2 }),
-    ]);
+      expect.objectContaining({ canonical: 'Яковлев Максим', resultRows: 2 }),
+      expect.objectContaining({ canonical: 'Анташвили Тимур', resultRows: 4 }),
+    ]));
+    expect(audit.confirmedPeople).toHaveLength(5);
   });
 
   it('deduplicates globally confirmed alias formatting variants across stages', async () => {

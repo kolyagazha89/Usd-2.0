@@ -10,7 +10,7 @@ describe('global historical source plan', () => {
   it('accounts for every source result once, including rows without sticker numbers', () => {
     const plan = buildGlobalHistoricalPlan(readFileSync(join(process.cwd(), 'data/historical-xlsx.json'), 'utf8'), names);
     expect(plan.sourceResults).toBe(1068);
-    expect(plan.identityRulesVersion).toBe(6);
+    expect(plan.identityRulesVersion).toBe(8);
     expect(plan.stages).toHaveLength(11);
     const rows = plan.stages.flatMap(stage => stage.results);
     expect(new Set(rows.map(row => row._archiveRowKey)).size).toBe(1068);
@@ -82,14 +82,15 @@ it.each([
  expect(archiveNameKey(source, names)).toBe(archiveNameKey(damaged, names));
  expect(names.inspect(source).needsReview).toBe(false);
 });
-it.each(['Sidoorov Alexandr', 'Chyaev Tigran', 'Ksy Aperol'])(
+it.each(['Ksy Aperol'])(
  'quarantines suspicious archive label %s instead of inventing a verified human', label => {
   expect(names.inspect(label).needsReview).toBe(true);
  });
 
-it.each(['Sidoorov Alexandr', 'Chyaev Tigran'])(
- 'does not silently rewrite unverified surname %s to a different person', source => {
-  expect(names.normalize(source)).not.toMatch(/Сидоров Александр|Шаульский Михаил|Чаев Тигран|Шичкин Егор/);
+it.each([['Sidoorov Alexandr','Сидоров Александр'],['Chyaev Tigran','Чяев Тигран']])(
+ 'uses operator-confirmed full name %s', (source,canonical)=>{
+  expect(names.normalize(source)).toBe(canonical);
+  expect(names.inspect(source).needsReview).toBe(false);
  });
 
 it.each([

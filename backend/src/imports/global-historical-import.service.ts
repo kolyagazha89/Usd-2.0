@@ -1,3 +1,4 @@
+import {historicalProjectKey} from '../common/names/historical-project-labels';
 import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -74,22 +75,26 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         throw new BadRequestException('В уже запущенном импорте сохранены старые правила сопоставления ФИО. Дождитесь завершения текущей задачи и повторите запуск.');
       this.launch(active.id); return this.publicStatus(active);
     }
+    // Repair source-proven stale aliases before a new preview can see two
+    // matching database profiles and freeze that ambiguity into ImportRow.
+    const initialConsolidation = await consolidateApprovedHistoricalIdentities(this.prisma, this.names, plan);
     const previous = await this.prisma.historicalImportBatch.findFirst({ where: { sourceHash: plan.sourceHash }, orderBy: { createdAt: 'desc' } });
     if (previous?.status === 'RUNNING') { this.launch(previous.id); return this.publicStatus(previous); }
     const refreshIdentityPlan = Boolean(previous && (previous.plan as unknown as ArchivePlan).identityRulesVersion !== plan.identityRulesVersion);
     if (previous?.status === 'COMPLETED' && await this.isIntact(previous.progress as unknown as Progress)) {
-      const consolidation = await consolidateApprovedHistoricalIdentities(this.prisma, this.names);
-      if (consolidation.profilesMerged || consolidation.namesCorrected || consolidation.skipped.length) {
+      const consolidation = initialConsolidation;
+      if (refreshIdentityPlan || consolidation.profilesMerged || consolidation.namesCorrected || consolidation.skipped.length) {
         const progress = previous.progress as unknown as Progress;
         progress.consolidation = consolidation;
-        await this.prisma.historicalImportBatch.update({ where: { id: previous.id }, data: { progress: asJson(progress) } });
-        return { ...this.publicStatus(previous), consolidation };
+        await this.prisma.historicalImportBatch.update({ where: { id: previous.id }, data: { progress: asJson(progress), ...(refreshIdentityPlan ? { plan: asJson(plan) } : {}), ...(consolidation.skipped.length ? {status:'NEEDS_REVIEW'} : {}) } });
+        return { ...this.publicStatus({...previous, plan: refreshIdentityPlan ? plan : previous.plan, progress, status: consolidation.skipped.length ? 'NEEDS_REVIEW' : previous.status}), consolidation };
       }
       return this.publicStatus(previous);
     }
     const progress: Progress = previous ? previous.progress as unknown as Progress : {
       stages: plan.stages.map(stage => ({ name: stage.name, year: stage.year, number: stage.number, status: 'PENDING', sourceRows: stage.results.length, imported: 0, aliases: 0, kept: 0, review: [], resultIds: [] })), updatedAt: new Date().toISOString(),
     };
+    if(initialConsolidation.profilesMerged||initialConsolidation.namesCorrected||initialConsolidation.skipped.length)progress.consolidation=initialConsolidation;
     // The 2025 TXT package is additive. Never re-run an intact stage from an
     // older batch if its registration AND results source rows are unchanged.
     // This preserves 2026 imported IDs and the existing 2025 final; only
@@ -182,7 +187,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       imported: stages.reduce((sum, stage) => sum + stage.imported, 0),
       kept: stages.reduce((sum, stage) => sum + stage.kept, 0),
       aliases: stages.reduce((sum, stage) => sum + stage.aliases, 0),
-      needsReview: stages.reduce((sum, stage) => sum + (stage.status === 'FAILED' ? Math.max(stage.review.length, stage.sourceRows - stage.imported) : stage.review.length), 0),
+      needsReview: stages.reduce((sum, stage) => sum + (stage.status === 'FAILED' ? Math.max(stage.review.length, stage.sourceRows - stage.imported) : stage.review.length), 0) + (progress.consolidation?.skipped.length??0),
       failedStages: stages.filter(stage => stage.status === 'FAILED').length, consolidation: progress.consolidation ?? null, stages,
     };
   }
@@ -225,13 +230,14 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         await this.saveProgress(id, owner, progress);
       }
       if (!leaseLost && !this.stopping) {
-        const consolidation = await consolidateApprovedHistoricalIdentities(this.prisma, this.names);
-        progress.consolidation = consolidation;
+        const consolidation = await consolidateApprovedHistoricalIdentities(this.prisma, this.names, plan);
+        const earlier=progress.consolidation;
+        progress.consolidation = {...consolidation,groupsMerged:consolidation.groupsMerged+(earlier?.groupsMerged??0),profilesMerged:consolidation.profilesMerged+(earlier?.profilesMerged??0),namesCorrected:consolidation.namesCorrected+(earlier?.namesCorrected??0)};
         if (consolidation.profilesMerged)
           this.logger.log('Unified ' + consolidation.profilesMerged + ' duplicate archival profiles across ' + consolidation.groupsMerged + ' identity groups');
         if (consolidation.skipped.length)
           this.logger.warn('Historical identity merges need review: ' + JSON.stringify(consolidation.skipped));
-        const complete = progress.stages.every(stage => stage.status === 'DONE' || stage.status === 'NO_RESULTS');
+        const complete = progress.stages.every(stage => stage.status === 'DONE' || stage.status === 'NO_RESULTS') && !consolidation.skipped.length;
         await this.prisma.historicalImportBatch.updateMany({ where: { id, leaseOwner: owner }, data: { status: complete ? 'COMPLETED' : 'NEEDS_REVIEW', activeKey: null, leaseOwner: null, leaseUntil: null, progress: asJson(progress) } });
       }
     } finally {
@@ -311,7 +317,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       }
     } else target = await this.prisma.stage.create({ data: { seasonId: season.id, stageNumber: stage.number, name: stage.name, city: stage.city, date: new Date(stage.date + 'T12:00:00.000Z'), status: stage.year < 2026 ? 'COMPLETED' : 'PUBLISHED', registrationOpen: false } });
     const classes = await this.prisma.class.findMany({ where: { isActive: true } });
-    const classKey = (value: string) => value.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '');
+    const classKey = (value: string) => value.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9+]/g, '');
     for (const label of new Set(stage.results.map(row => this.imports.historicalClassName(String(row['Класс'] ?? ''))))) {
       const match = classes.find(item => classKey(item.name) === classKey(label));
       if (match) await this.prisma.stageClass.upsert({ where: { stageId_classId: { stageId: target.id, classId: match.id } }, update: {}, create: { stageId: target.id, classId: match.id } });
@@ -346,6 +352,7 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
       let reason = '';
       if (protectedNames.has(archiveNameKey(raw['ФИО'], this.names)) || matches.some((person: any) => protectedIds.has(person.id))) reason = 'Профиль с аккаунтом или тестовый профиль защищён';
       else if (row.status === 'RESOLVED') continue; // Preserve an explicit administrator decision on resume.
+      else if (this.names.inspect(String(raw['ФИО']??label)).needsReview && !historicalProjectKey(String(raw['ФИО']??label))) reason = 'Непроверенное написание ФИО: требуется подтверждение, автоматическое создание псевдонима запрещено';
       else if (!normalized?.class?.classId) reason = 'Класс отсутствует в справочнике';
       else if (typeof normalized?.result !== 'number' || !Number.isFinite(normalized.result)) reason = 'Значение результата требует проверки';
       else if (!Number.isInteger(normalized?.participantNumber) || normalized.participantNumber <= 0) reason = 'Не удалось безопасно назначить номер участника';
