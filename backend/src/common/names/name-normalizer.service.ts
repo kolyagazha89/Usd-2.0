@@ -30,6 +30,10 @@ export class NameNormalizerService {
     cvirko: 'Цвирко', davletshin: 'Давлетшин', kargopolcev: 'Каргополцев',
     kareckih: 'Карецких', gerasimec: 'Герасимец', gricenko: 'Гриценко',
     kupyansky: 'Купянский', dmutry: 'Дмитрий',
+    // In the archive this Latin spelling has a matching Cyrillic Registration
+    // spelling (Смольянинов Валентин, Волгоград 2026). This is a precise
+    // transliteration correction, never a fuzzy identity merge.
+    smoliyaninov: 'Смольянинов',
     zubanov: 'Зубанов',
     ivanov: 'Иванов',
     wassily: 'Василий',
