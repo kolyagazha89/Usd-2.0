@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { NameNormalizerService } from '../common/names/name-normalizer.service';
 import { ImportsService } from './imports.service';
 import { buildGlobalHistoricalPlan, archiveNameKey } from './global-historical-plan';
