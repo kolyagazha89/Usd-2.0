@@ -97,9 +97,10 @@ export async function consolidateApprovedHistoricalIdentities(
       // An earlier merge may already have left a single `34sound` profile.
       // Normalize its display name even though there are no duplicates to delete.
       const only = group.people[0];
-      if (group.aliasKey && safeHistorical(only) &&
+      const aliasKey = group.aliasKey;
+      if (aliasKey && safeHistorical(only) &&
         (only.lastName !== group.label || only.historicalAlias !== group.label ||
-          only.legacyId !== globalLegacyId(group.aliasKey))) {
+          only.legacyId !== globalLegacyId(aliasKey))) {
         try {
           await prisma.$transaction(async tx => {
             await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_HISTORICAL_IDENTITY_DEDUP'))::text`;
@@ -112,7 +113,7 @@ export async function consolidateApprovedHistoricalIdentities(
               throw new Error('Архивный профиль изменился до исправления написания');
             await tx.participant.update({
               where: { id: only.id },
-              data: { lastName: group.label, historicalAlias: group.label, legacyId: globalLegacyId(group.aliasKey) },
+              data: { lastName: group.label, historicalAlias: group.label, legacyId: globalLegacyId(aliasKey) },
             });
           }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000, maxWait: 15000 });
           summary.namesCorrected++;
