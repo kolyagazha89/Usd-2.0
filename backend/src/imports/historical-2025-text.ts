@@ -20,7 +20,7 @@ const headings: Record<string, string> = {
   sedan: 'Sedan', coffin: 'Coffin', wall: 'Wall', 'wall+': 'Wall+',
   'mad-x': 'Mad-X', 'gate 1-6': 'Gate 1-6',
   'wicket 6-10': 'Wicket 6-10', 'wicket 10+': 'Wicket 10+',
-  bdw: 'BDW SPL', 'bdw ex': 'BDW Ex',
+  bdw: 'BDW', 'bdw spl': 'BDW', bdwspl: 'BDW', 'bdw ex': 'BDW Ex', 'bdw spl ex': 'BDW Ex',
 };
 
 const scoredLine = /^(\d+)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3})\s+(.+)$/;
@@ -57,7 +57,7 @@ export function parseHistorical2025Text(source: string, file: string): ArchiveRo
     const classHeading = headings[raw.toLocaleLowerCase('ru-RU')];
     if (classHeading) {
       className = classHeading;
-      mode = ['Gate 1-6', 'Wicket 6-10', 'Wicket 10+', 'BDW SPL', 'BDW Ex'].includes(className) ? 'BFSPL' : 'SPL';
+      mode = ['Gate 1-6', 'Wicket 6-10', 'Wicket 10+', 'BDW', 'BDW Ex'].includes(className) ? 'BFSPL' : 'SPL';
       continue;
     }
     const raceClass = raw.match(/^(?:BassRace\s+)?(?:120(?:[.,]0)?\s+To\s+)?(129[.,]9|139[.,]9|149[.,]9|159[.,]9)$/i)

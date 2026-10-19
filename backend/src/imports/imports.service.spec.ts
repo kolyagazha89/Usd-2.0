@@ -903,3 +903,17 @@ describe('ImportsService preview concurrency', () => {
     expect(peak).toBeGreaterThan(0);
   });
 });
+
+
+describe('canonical BDW archive names', () => {
+  it('matches old and current names to the same stage class and keeps Ex separate', () => {
+    const service = createService() as unknown as {findStageClass:(name:string,classes:unknown[])=>unknown};
+    const bdw = {class:{id:'bdw',name:'BDW',code:'BDW'}};
+    const ex = {class:{id:'ex',name:'BDW Ex',code:'BDW_EX'}};
+    for (const name of ['BDW','BDW SPL','BDWSPL','BDW-SPL','  bdw  spl  ']) {
+      expect(service.findStageClass(name,[bdw,ex])).toBe(bdw);
+    }
+    expect(service.findStageClass('BDW SPL Ex',[bdw,ex])).toBe(ex);
+    expect(service.findStageClass('BDW',[{class:{id:'legacy',name:'BDW SPL',code:'BDW'}}])).toEqual({class:{id:'legacy',name:'BDW SPL',code:'BDW'}});
+  });
+});

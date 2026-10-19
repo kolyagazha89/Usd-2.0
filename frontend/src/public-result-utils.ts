@@ -16,7 +16,7 @@ export function publicResultValue(value:any){
 export function recordDirectionKind(row:any){
  const direction=String(row.class?.direction?.name??row.result?.registrationClass?.class?.direction?.name??row.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
  if(direction.includes('BFSPL'))return 'BFSPL';
- if(direction.includes('BDWSPL')||(direction.includes('BDW')&&direction.includes('SPL')))return 'BDWSPL';
+ if(direction.includes('BDW'))return 'BDWSPL';
  if(direction.includes('SPL'))return 'SPL';
  return 'OTHER';
 }
@@ -55,7 +55,7 @@ export function selectHomepageResults(rows:any[]){
   const cls=classItem(row);
   const direction=String(cls.direction?.name??row.registrationClass?.direction?.name??row.direction?.name??row.result?.registrationClass?.class?.direction?.name??'').toLocaleUpperCase('ru-RU').replace(/\s/g,'').replace(/[_-]/g,'');
   if(direction.includes('BFSPL'))return 'BFSPL';
-  if(direction.includes('BDWSPL')||direction.includes('DBWSPL')||((direction.includes('BDW')||direction.includes('DBW'))&&direction.includes('SPL')))return 'BDWSPL';
+  if(direction.includes('BDW')||direction.includes('DBW'))return 'BDWSPL';
   if(direction.includes('SPL'))return 'SPL';
   return 'OTHER';
  };
