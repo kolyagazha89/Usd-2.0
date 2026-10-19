@@ -18,6 +18,28 @@ describe('HistoricalResultsService', () => {
     jest.clearAllMocks();
   });
 
+  it('loads only a bounded projection and counts pending rows across the selected season',async()=>{
+    prisma.result.findMany.mockResolvedValue([{id:'r1'}]);prisma.result.count=jest.fn().mockResolvedValueOnce(151).mockResolvedValueOnce(101);
+    prisma.season={findMany:jest.fn().mockResolvedValue([{year:2026},{year:2025}])};
+    const response=await new HistoricalResultsService(prisma,records,ranking).findAllAdmin({season:'2025',page:'2',limit:'50',status:'PENDING'});
+    expect(response).toEqual({items:[{id:'r1'}],total:151,pending:101,seasons:['2026','2025'],page:2,limit:50});
+    const query=prisma.result.findMany.mock.calls[0][0];expect(query.take).toBe(50);expect(query.skip).toBe(50);
+    expect(query.where).toEqual({isHistorical:true,verificationStatus:'PENDING',registration:{stage:{season:{year:2025}}}});
+    expect(query.include).toBeUndefined();expect(query.select.registration.select.configurationSnapshot).toBeUndefined();expect(query.select.registration.select.stage.select.rulesSnapshot).toBeUndefined();
+    expect(query.select.registration.select.participant.select.phone).toBeUndefined();
+  });
+  it.each([{limit:'101'},{limit:'0'},{page:'-1'},{page:'no'},{season:'bad'},{status:'BAD'}])('rejects invalid list scope before querying: %j',async query=>{
+    await expect(new HistoricalResultsService(prisma,records,ranking).findAllAdmin(query)).rejects.toThrow();expect(prisma.result.findMany).not.toHaveBeenCalled();
+  });
+  it('verifies a bounded chunk and returns the number left for the next request',async()=>{
+    prisma.result.findMany.mockResolvedValue([{id:'r1',createdByUserId:'admin-1',registration:{stageId:'s1'},registrationClass:{classId:'c1'}}]);
+    prisma.result.count=jest.fn().mockResolvedValue(77);
+    const tx:any={result:{updateMany:jest.fn().mockResolvedValue({count:1})},auditLog:{createMany:jest.fn().mockResolvedValue({count:1})}};
+    prisma.$transaction.mockImplementation(async(fn:any)=>fn(tx));records.recalculateCurrentRecord=jest.fn().mockResolvedValue([]);ranking.recalculateByStageClass.mockResolvedValue([]);
+    const result=await new HistoricalResultsService(prisma,records,ranking).verifyAll(admin1,'2025');
+    expect(result.processed).toBe(1);expect(result.remaining).toBe(77);expect(prisma.result.findMany).toHaveBeenCalledWith(expect.objectContaining({take:100}));
+    expect(prisma.result.count).toHaveBeenCalledWith({where:{isHistorical:true,verificationStatus:'PENDING',registration:{stage:{season:{year:2025}}}}});
+  });
   it('scopes bulk verification to the selected season', async () => {
     prisma.result.findMany.mockResolvedValue([]);
     await new HistoricalResultsService(prisma, records, ranking).verifyAll(admin1, '2025');

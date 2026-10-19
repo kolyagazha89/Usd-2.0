@@ -29,14 +29,14 @@ export class HistoricalResultsController {
 
   @Roles('ADMIN')
   @Get('pending')
-  findPending() {
-    return this.service.findPending();
+  findPending(@Query('season') season?:string,@Query('page') page?:string,@Query('limit') limit?:string) {
+    return this.service.findPending({season,page,limit});
   }
 
   @Roles('ADMIN')
   @Get()
-  findAll() {
-    return this.service.findAllAdmin();
+  findAll(@Query('season') season?:string,@Query('page') page?:string,@Query('limit') limit?:string,@Query('status') status?:string) {
+    return this.service.findAllAdmin({season,page,limit,status});
   }
 
   @Roles('ADMIN')
