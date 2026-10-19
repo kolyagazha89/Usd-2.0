@@ -140,7 +140,7 @@ describe('historical identity consolidation', () => {
     expect(ids[0]).toBe(hash('GLOBAL:34sound'));
   });
 
-  it('does not merge Bassmarket labels globally because the archive has conflicting identities', async () => {
+  it('reuses Bassmarket across stages now that source numbers no longer conflict', async () => {
     const service = new ImportsService({} as never, names) as unknown as {
       createHistoricalAliasParticipant: (tx: unknown, stage: string, alias: string) => Promise<unknown>;
     };
@@ -151,6 +151,6 @@ describe('historical identity consolidation', () => {
     }) } };
     await service.createHistoricalAliasParticipant(tx, 'stage-1', 'Bass Market');
     await service.createHistoricalAliasParticipant(tx, 'stage-2', 'Bassmarket');
-    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids[0]).toBe(ids[1]);
   });
 });
