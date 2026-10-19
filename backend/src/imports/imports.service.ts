@@ -1,4 +1,5 @@
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
+import { archivalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -3348,6 +3349,7 @@ export class ImportsService {
     tx: Prisma.TransactionClient,
     stageId: string,
     rawAlias: string,
+    conflictingSticker?: string,
   ) {
     // Archive labels are identities, not personal names. Never run Latin-to-Cyrillic
     // name normalization here: preserve the spelling supplied in Results.
@@ -3355,13 +3357,8 @@ export class ImportsService {
     if (!alias || alias.length > 160 || !this.nameNormalizer.inspect(alias).needsReview) {
       throw new BadRequestException('Укажите корректное архивное название для неизвестного участника');
     }
-    const literalKey = alias.toLocaleLowerCase('ru');
-    // Only verified formatting variants of *the same archival label* may
-    // share a stage-scoped identity. Never strip separators for arbitrary
-    // people or merge stage-scoped aliases across different events.
-    const compactKey = literalKey.replace(/[\s._-]+/g, '');
-    const verifiedLabelVariants = new Set(['34sound', 'bassmarket', 'caraudiobryansk']);
-    const identityKey = verifiedLabelVariants.has(compactKey) ? compactKey : literalKey;
+    const identityKey = archivalAliasKey(alias) +
+      (conflictingSticker ? ':conflicting-sticker:' + conflictingSticker : '');
     const legacyId = 'HISTORICAL_ALIAS:' + createHash('sha256')
       .update(stageId + ':' + identityKey).digest('hex');
     return tx.participant.upsert({
@@ -4934,6 +4931,9 @@ export class ImportsService {
 
         const historicalResults =
           (importJob.metadata as any)?.historicalResults === true;
+        const archivalStickerConflicts = historicalResults
+          ? historicalAliasStickerDiscriminators(importJob.rows, this.nameNormalizer)
+          : new Map<string, string>();
 
         if ((importJob.metadata as any)?.source === 'HISTORICAL_XLSX' && !historicalResults) {
           throw new BadRequestException('Устаревший режим исторического импорта: подготовьте архив заново');
@@ -5965,6 +5965,7 @@ export class ImportsService {
               tx,
               importJob.stageId,
               this.stringValue(resolution.participant.fullName),
+              archivalStickerConflicts.get(row.id),
             );
             participantId = person.id;
             importedParticipants.set(
