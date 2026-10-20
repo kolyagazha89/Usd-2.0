@@ -5,6 +5,7 @@ on:
     paths:
       - "frontend/**"
       - "scripts/public-browser-qa.mjs"
+      - "scripts/candidate-browser-qa.mjs"
       - ".github/workflows/public-browser-qa.yml"
   workflow_dispatch:
 
@@ -30,12 +31,21 @@ jobs:
         run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@latest
       - name: Install Chromium
         run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Build candidate frontend
+        working-directory: frontend
+        run: |
+          npm install --ignore-scripts
+          npm run build
+      - name: Check candidate public, participant and admin interfaces
+        run: node scripts/candidate-browser-qa.mjs
       - name: Check deployed anonymous pages at desktop and mobile widths
         run: node scripts/public-browser-qa.mjs
       - name: Save screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: public-browser-qa
-          path: public-browser-qa/
+          name: public-browser-qa-${{ github.run_attempt }}
+          path: |
+            public-browser-qa/
+            candidate-browser-qa/
           retention-days: 7

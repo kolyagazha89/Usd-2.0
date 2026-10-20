@@ -10,11 +10,18 @@ const output=path.resolve('public-browser-qa');
 await mkdir(output,{recursive:true});
 const report={base,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
 const candidateResultCss=await readFile('frontend/src/participant-ui-polish.css','utf8');
+const candidatePremiumCss=await readFile('frontend/src/premium-ui.css','utf8');
+async function navigatePublic(page,label){
+ const toggle=page.locator('.public-nav-toggle');
+ if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
+ const link=page.getByRole('link',{name:label,exact:true});
+ if(await link.count())await link.click();else await page.getByRole('button',{name:label,exact:true}).click();
+}
 async function inspectResultText(page){
   return page.locator('.public-result-card').evaluateAll(cards=>cards.flatMap((card,index)=>
     [...card.querySelectorAll('.public-result-card-top,.public-result-card-bottom,.public-result-place,.public-result-place small,.public-result-class,.public-result-measure,.public-result-measure strong,.public-result-measure span,.public-result-person,.public-result-person strong,.public-result-person span,.public-result-arrow')].map(element=>{
       const style=getComputedStyle(element);
-      return {card:index,element:element.className||element.tagName,text:(element.textContent??'').trim().slice(0,80),background:style.backgroundColor,backgroundImage:style.backgroundImage,shadow:style.boxShadow,borderWidth:style.borderWidth};
+      return {card:index,element:element.className||element.tagName,textLength:(element.textContent??'').trim().length,background:style.backgroundColor,backgroundImage:style.backgroundImage,shadow:style.boxShadow,borderWidth:style.borderWidth};
     })
   ));
 }
@@ -43,13 +50,16 @@ try{
         await page.locator('.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
+        const originalResultText=await inspectResultText(page);
+        await page.addStyleTag({content:candidateResultCss+'\n'+candidatePremiumCss});
+        row.visualSource='live DOM with candidate branch CSS; candidate JavaScript is tested separately';
         Object.assign(row,await page.evaluate(()=>{
           const width=innerWidth;
           const textControls=[...document.querySelectorAll('input,select,textarea')].filter(element=>!['hidden','checkbox','radio','file','submit','button'].includes(element.type)&&element.getBoundingClientRect().width>0);
           return {
             title:document.title,heading:document.querySelector('h1')?.textContent??'',
             documentWidth:document.documentElement.scrollWidth,viewportWidth:width,
-            overflowingElements:[...document.body.querySelectorAll('*')].map(element=>({element,rect:element.getBoundingClientRect()})).filter(({element,rect})=>rect.width>0&&(rect.right>width+1||rect.left< -1)&&getComputedStyle(element).position!=='fixed').slice(0,12).map(({element,rect})=>({tag:element.tagName,className:element.className,text:(element.textContent??'').trim().slice(0,90),left:Math.round(rect.left),right:Math.round(rect.right)})),
+            overflowingElements:[...document.body.querySelectorAll('*')].map(element=>({element,rect:element.getBoundingClientRect()})).filter(({element,rect})=>rect.width>0&&(rect.right>width+1||rect.left< -1)&&getComputedStyle(element).position!=='fixed').slice(0,12).map(({element,rect})=>({tag:element.tagName,className:element.className,left:Math.round(rect.left),right:Math.round(rect.right)})),
             smallEditableControls:textControls.filter(element=>parseFloat(getComputedStyle(element).fontSize)<16).map(element=>({tag:element.tagName,type:element.type,font:getComputedStyle(element).fontSize})),
             assets:[...document.scripts].map(script=>script.src).filter(Boolean),
           };
@@ -66,17 +76,17 @@ try{
           if(!await page.getByRole('alert').filter({hasText:'Ссылка недействительна'}).count())throw new Error('Missing invalid-link page');
         }
         if(route==='/privacy'){
-          await page.getByRole('button',{name:'Главная',exact:true}).click();
+          await navigatePublic(page,'Главная');
           await page.waitForURL(base+'/');
           await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
-          await page.getByRole('button',{name:'Этапы',exact:true}).click();
+          await navigatePublic(page,'Этапы');
           await page.waitForURL(/\/stages(?:\?|$)/);
           row.privacyNavigation='Home and Stages clicks passed';
           await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
           await page.locator('.public-site').waitFor();
         }
         if(route==='/'||route==='/results'){
-          const before=await inspectResultText(page);
+          const before=originalResultText;
           row.resultTextSurfaceBefore=before.filter(hasSurface);
           if(route==='/results'&&!before.length)throw new Error('No public result cards available for text-style validation');
           if(before.length){
@@ -84,7 +94,7 @@ try{
             // Preview this branch's CSS over the live public DOM. No site or data is changed.
             await page.addStyleTag({content:candidateResultCss});
             const after=await inspectResultText(page);
-            row.resultTextStyleSource='candidate participant-ui-polish.css injected only in this QA browser';
+            row.resultTextStyleSource='candidate participant-ui-polish.css and premium-ui.css injected only in this QA browser';
             row.resultTextElementsChecked=after.length;
             row.resultTextSurfaceAfter=after.filter(hasSurface);
             row.resultClassBordersAfter=after.filter(element=>element.element==='public-result-class'&&element.borderWidth!=='0px');

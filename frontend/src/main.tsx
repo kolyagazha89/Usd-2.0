@@ -5,6 +5,7 @@ import CookieNotice from './CookieNotice';
 import './styles.css';
 import './participant-ui-polish.css';
 import './ui-consistency.css';
+import './premium-ui.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
