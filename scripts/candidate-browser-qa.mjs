@@ -42,6 +42,7 @@ function dataFor(url,role){
  if(p==='/auth/legal-consent')return {legalReady:false};
  if(p==='/auth/newsletter-consent')return {consent:false};
  if(p==='/auth/sessions')return {sessions:[]};
+ if(p==='/cars'&&role==='ADMIN')return Array.from({length:63},(_,index)=>({...car,id:'car'+(index+1),model:'Vesta '+String(index+1).padStart(2,'0')}));
  if(p==='/participants/me/cars'||p==='/cars'||p==='/participants/p1/cars')return [car];
  if(p==='/registrations/me'||p==='/registrations')return [registration];
  if(p==='/cars/car1/configurations')return [configuration];
@@ -127,6 +128,14 @@ try{
        row.mobileAdminNavigation='passed';
        await page.goto(base+route,{waitUntil:'networkidle'});
       }
+     }
+     if(route==='/admin/cars'&&role==='ADMIN'){
+      assert.equal(await page.locator('.data-table tbody tr').count(),25);
+      await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
+      assert.equal(await page.locator('.data-table tbody tr').count(),25);
+      assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 26/);
+      await page.getByRole('button',{name:'Предыдущая страница автомобилей',exact:true}).click();
+      row.carPagination='25 rows per page; next and previous passed';
      }
      if(route==='/participant'&&role==='PARTICIPANT'){
       await page.getByRole('link',{name:'Мои автомобили',exact:true}).click();await page.waitForURL(/tab=cars/);
