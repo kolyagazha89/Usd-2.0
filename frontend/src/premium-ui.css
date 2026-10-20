@@ -432,3 +432,13 @@ body .participant-tabs a[aria-current="page"],body .participant-tabs a:hover { c
 @media(min-width:801px){
  body .app-shell .sidebar .mobile-close,body .app-shell .topbar .menu-button { display:none !important; }
 }
+
+/* Disclosures must escape the legacy horizontally scrolling navigation container. */
+body .public-site > header,body .public-header-inner,body .public-header-inner > .public-nav { overflow:visible !important; }
+body .public-header-inner > .public-nav { padding:0 !important; min-width:44px; }
+body .public-nav-toggle { flex:0 0 44px !important; width:44px !important; height:44px !important; align-items:center; justify-content:center; }
+body .public-nav-toggle svg { display:block !important; width:21px !important; height:21px !important; flex:0 0 21px; }
+body .public-brand-logo { width:auto !important; height:auto !important; max-width:180px !important; max-height:48px !important; object-fit:contain; border-radius:0; }
+@media(max-width:760px){
+ body .public-brand-logo { max-width:138px !important; max-height:40px !important; }
+}
