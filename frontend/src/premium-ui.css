@@ -403,3 +403,15 @@ body .public-nav-links { display:flex; align-items:center; gap:5px; }
   }
   body :is(.public-site,.participant-portal,.login-page,.app-shell .main) :is(article,button,a):hover { transform:none !important; }
 }
+
+/* Real links keep the same tone as the rest of the header. */
+body .public-nav { display:flex; align-items:center; }
+body .public-nav a { color:#bfc8d8; border:1px solid transparent; }
+@media(max-width:1100px){
+ body .public-nav { position:relative; margin-left:auto; }
+ body .public-nav-toggle { display:inline-flex !important; min-height:44px; width:44px; padding:10px !important; border:1px solid #3a4353 !important; color:#e8edf5 !important; background:#171c26 !important; border-radius:11px !important; }
+ body .public-nav-links { display:none; position:absolute; top:calc(100% + 12px); right:0; z-index:50; width:250px; max-width:calc(100vw - 36px); padding:8px; background:#171c26; border:1px solid #394355; border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+ body .public-nav-links[data-open="true"] { display:grid; gap:4px; }
+ body .public-nav-links a { justify-content:flex-start; width:100%; min-height:46px; padding:12px 14px !important; }
+ body .public-nav .public-nav-login { margin:6px 0 0; }
+}
