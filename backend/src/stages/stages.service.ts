@@ -353,6 +353,12 @@ export class StagesService {
       include: { season: true },
     });
 
+    // The dedicated cancellation action must notify participants just like a
+    // status change in the stage editor. Skip an already-cancelled stage.
+    if (stage.status !== 'CANCELLED' && typeof this.emailNotifications?.stageChanged === 'function') {
+      void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
+    }
+
     await this.audit.log({
       userId: request.user.sub,
       action: 'STAGE_CANCELLED',
