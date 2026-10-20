@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { QRCodeSVG } from 'qrcode.react';
 import PublicRulesPage from './PublicRulesPage';
+import AccountActionPage from './AccountActionPage';
 import PublicStageRulesSnapshot from './PublicStageRulesSnapshot';
 import ConfigurationsPage from './admin/ConfigurationsPage';
 import HistoricalFinalConfiguration from './HistoricalFinalConfiguration';
@@ -16,7 +17,7 @@ import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageR
 import './catalog.css';
 import { formatPlateInput, formatRussianPhoneInput, isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
-import {apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,getPublicEntityPhotoUrl,type Dashboard,type Role,type User} from './api';
+import {clearAuthSession,apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,getPublicEntityPhotoUrl,type Dashboard,type Role,type User} from './api';
 
 const roleName:Record<Role,string>={ADMIN:'Администратор',PARTICIPANT:'Участник'};
 
@@ -43,7 +44,7 @@ function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;con
 function App(){
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname+location.search),[mobileOpen,setMobileOpen]=useState(false);
  useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
- useEffect(()=>{const route=path.split('?')[0];document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
+ useEffect(()=>{const route=path.split('?')[0];document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  // Reset after the old screen has detached its scroll listener. Resetting inside
  // go() overwrites the saved list position before React can close the list.
@@ -60,6 +61,8 @@ function App(){
  }},[user,path]);
  useEffect(()=>{if(user?.role==='PARTICIPANT'&&path.startsWith('/login?')){const next=new URLSearchParams(path.split('?')[1]??'').get('next');if(next&&next.startsWith('/participant/register')){history.replaceState({},'',next);setPath(next)}}},[user,path]);
  if(booting)return <Splash/>;
+ const accountAction=path.split('?')[0];
+ if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
  if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
  if(!user){if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);if(loggedInUser.role!=='PARTICIPANT'||loggedInUser.customRoleId){const next=new URLSearchParams(path.split('?')[1]??'').get('next');const requested=path.startsWith('/admin/')?path:(next&&next.startsWith('/admin/')?next:'/admin');go(requested)}else{const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(next&&next.startsWith('/participant/register')?next:'/participant')}}}/>;return <PublicSite path={path} go={go}/>;}
  if(user.role==='PARTICIPANT'&&!user.customRoleId&&(path==='/login'||path.startsWith('/admin')||path.startsWith('/participant')))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
