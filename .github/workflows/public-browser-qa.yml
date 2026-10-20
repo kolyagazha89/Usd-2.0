@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      USD_BROWSER_TOOLING: ${{ runner.temp }}/usd-browser-tooling
+      USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
