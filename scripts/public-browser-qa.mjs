@@ -21,7 +21,7 @@ async function inspectResultText(page){
   return page.locator('.public-result-card').evaluateAll(cards=>cards.flatMap((card,index)=>
     [...card.querySelectorAll('.public-result-card-top,.public-result-card-bottom,.public-result-place,.public-result-place small,.public-result-class,.public-result-measure,.public-result-measure strong,.public-result-measure span,.public-result-person,.public-result-person strong,.public-result-person span,.public-result-arrow')].map(element=>{
       const style=getComputedStyle(element);
-      return {card:index,element:element.className||element.tagName,text:(element.textContent??'').trim().slice(0,80),background:style.backgroundColor,backgroundImage:style.backgroundImage,shadow:style.boxShadow,borderWidth:style.borderWidth};
+      return {card:index,element:element.className||element.tagName,textLength:(element.textContent??'').trim().length,background:style.backgroundColor,backgroundImage:style.backgroundImage,shadow:style.boxShadow,borderWidth:style.borderWidth};
     })
   ));
 }
@@ -59,7 +59,7 @@ try{
           return {
             title:document.title,heading:document.querySelector('h1')?.textContent??'',
             documentWidth:document.documentElement.scrollWidth,viewportWidth:width,
-            overflowingElements:[...document.body.querySelectorAll('*')].map(element=>({element,rect:element.getBoundingClientRect()})).filter(({element,rect})=>rect.width>0&&(rect.right>width+1||rect.left< -1)&&getComputedStyle(element).position!=='fixed').slice(0,12).map(({element,rect})=>({tag:element.tagName,className:element.className,text:(element.textContent??'').trim().slice(0,90),left:Math.round(rect.left),right:Math.round(rect.right)})),
+            overflowingElements:[...document.body.querySelectorAll('*')].map(element=>({element,rect:element.getBoundingClientRect()})).filter(({element,rect})=>rect.width>0&&(rect.right>width+1||rect.left< -1)&&getComputedStyle(element).position!=='fixed').slice(0,12).map(({element,rect})=>({tag:element.tagName,className:element.className,left:Math.round(rect.left),right:Math.round(rect.right)})),
             smallEditableControls:textControls.filter(element=>parseFloat(getComputedStyle(element).fontSize)<16).map(element=>({tag:element.tagName,type:element.type,font:getComputedStyle(element).fontSize})),
             assets:[...document.scripts].map(script=>script.src).filter(Boolean),
           };

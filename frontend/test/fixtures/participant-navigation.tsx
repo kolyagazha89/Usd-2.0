@@ -9,8 +9,13 @@ const link=(label:string)=>[...nav().querySelectorAll<HTMLAnchorElement>('a')].f
 const click=async(element:HTMLElement)=>{assert.ok(element);await act(async()=>element.click());await flush()};
 function active(label:string){assert.equal(nav().querySelector('[aria-current="page"]')?.textContent,label)}
 export async function runParticipantNavigation(){
+ const stage={id:'stage1',name:'Этап USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
+ const car={id:'car1',brand:'Lada',model:'Vesta',isActive:true,configurations:[]};
  state.__getPublic=async(path:string)=>{
   if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',lastName:'Тестовый',city:'Тюмень',phone:'+79000000000'}};
+  if(path==='/stages/public')return [stage];
+  if(path==='/participants/me/cars')return [car];
+  if(path==='/registrations/me')return [{id:'reg1',stageId:stage.id,stage,carId:car.id,car,status:'ACTIVE',classes:[],results:[]}];
   if(path==='/auth/legal-consent')return {legalReady:false};
   if(path==='/auth/newsletter-consent')return {consent:false};
   return [];
@@ -28,6 +33,8 @@ export async function runParticipantNavigation(){
   root=createRoot(document.getElementById('root')!);
   await act(async()=>root.render(<App/>));await flush();active('Регистрации');
   await act(async()=>{history.pushState({},'','/participant');window.dispatchEvent(new window.PopStateEvent('popstate'))});await flush();active('Обзор');
+  assert.match(document.querySelector('.participant-welcome button')?.textContent??'',/Мои регистрации/);
+  assert.match(document.body.textContent??'',/На все доступные этапы ваши автомобили уже зарегистрированы/);
   const previous=location.href;
   const modified=new window.MouseEvent('click',{bubbles:true,cancelable:true,ctrlKey:true});
   link('Профиль').dispatchEvent(modified);

@@ -23,7 +23,7 @@ const participant={id:'p1',firstName:'Иван',lastName:'Тестовый',city
 const season={id:'s1',name:'Сезон 2026',year:2026,status:'ACTIVE'};
 const stage={id:'stage1',stageNumber:1,name:'Кубок USD',date:'2026-11-21T12:00:00Z',city:'Тюмень',venue:'Арена',address:'Тестовая улица, 1',status:'PUBLISHED',registrationOpen:true,seasonId:'s1',season,classes:[]};
 const klass={id:'class1',name:'Limited 2.0',unit:'DB',isActive:true,directionId:'dir1',direction:{id:'dir1',name:'SPL',code:'SPL'}};
-const version={id:'v1',version:1,name:'Соревновательная сборка',createdAt:'2026-10-01T10:00:00Z',vibrationLayers:[],audioComponents:[],amplifiers:[],batteries:[],generators:[]};
+const version={id:'v1',version:1,name:'Соревновательная сборка',createdAt:'2026-10-01T10:00:00Z',vibrationIsolation:'STP',headUnits:[{id:'hu1',brand:'Pioneer',model:'MVH-S520BT',quantity:1}],audioComponents:[{id:'ac1',type:'SUBWOOFER',direction:'SUB',brand:'Alphard',model:'Machete',size:12,quantity:2}],amplifiers:[{id:'amp1',brand:'Deaf Bonce',model:'AAB-2900.1D',quantity:1,power:2900,componentLinks:[{componentId:'ac1',quantity:2}]}],batteries:[{id:'battery1',brand:'LTO',model:'100',quantity:2}],generators:[{id:'generator1',model:'200',quantity:1}]};
 const configuration={id:'config1',name:'Соревновательная сборка',carId:'car1',currentVersionId:'v1',currentVersion:1,versions:[version]};
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
@@ -72,12 +72,14 @@ const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspe
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
 const browser=await chromium.launch({headless:true});
 try{
- for(const width of [1440,390]){
-  for(const [role,routes]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
+ for(const width of [1440,1024,390,320]){
+  for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
+   const routes=[1440,390].includes(width)?routeSet:(role===null?['/','/stages','/results?stageId=stage1','/login']:role==='PARTICIPANT'?['/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
    const context=await browser.newContext({viewport:{width,height:960}});
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
+    if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(url.hostname==='usd-api-production.up.railway.app'){
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'){
       blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
@@ -86,7 +88,7 @@ try{
      return route.fulfill({status:data===null?401:200,contentType:'application/json',body:JSON.stringify(data??{message:'Anonymous fixture'})});
     }
     // Images, fonts and third-party embeds must never contact a live service.
-    if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
+    
     return route.abort('blockedbyclient');
    });
    const page=await context.newPage();page.setDefaultTimeout(10000);
@@ -111,6 +113,7 @@ try{
      if(role==='ADMIN'){
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');
+      assert.equal(await page.locator('.menu-button').isVisible(),width<=800,'responsive admin menu control');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
        await page.locator('.sidebar').waitFor({state:'visible'});
@@ -123,10 +126,10 @@ try{
      if(route==='/participant'&&role==='PARTICIPANT'){
       await page.getByRole('link',{name:'Мои автомобили',exact:true}).click();await page.waitForURL(/tab=cars/);
       await page.goBack();assert.equal(await page.locator('.participant-tabs [aria-current="page"]').innerText(),'Обзор');
-      if(width===390){const box=await page.locator('.participant-tabs').boundingBox();assert.ok(box.y+box.height>=958,'bottom navigation must stay at the viewport edge')}
+      if(width<=760){const box=await page.locator('.participant-tabs').boundingBox();assert.ok(box.y+box.height>=958,'bottom navigation must stay at the viewport edge')}
       row.participantHistory='passed';
      }
-     if(role===null&&route==='/'&&width===390){
+     if(role===null&&route==='/'&&width<=1100){
       const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
@@ -139,7 +142,7 @@ try{
     }catch(error){row.status='failed';row.error=error.message;row.runtimeErrors=errors;report.failures.push({role:row.role,width,route,error:error.message})}
     const name=row.role+'-'+width+'-'+route.replace(/[^a-zA-Z0-9]/g,'_');
     await page.screenshot({path:path.join(output,name+'.png'),fullPage:true}).catch(()=>{});
-    if(route==='/'||route==='/participant'||route==='/admin'){
+    if([1440,390].includes(width)&&(route==='/'||route==='/participant'||route==='/admin')){
      const preview=await page.screenshot({type:'jpeg',quality:38,fullPage:false});
      console.log('USD_VISUAL '+JSON.stringify({role:row.role,width,route,image:'data:image/jpeg;base64,'+preview.toString('base64')}));
     }

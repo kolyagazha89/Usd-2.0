@@ -422,3 +422,13 @@ body .public-nav a { color:#bfc8d8; border:1px solid transparent; }
 
 body .app-shell .main .settings-save-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; max-width:100%; min-width:0; }
 body .app-shell .main .page-heading-actions > * { min-width:0; max-width:100%; }
+
+/* Navigation stays quiet until active; mobile controls appear only where needed. */
+body .public-header-inner > .public-nav { margin-left:auto !important; flex:0 0 auto !important; width:auto !important; }
+body .public-nav a { color:#bfc8d8 !important; }
+body .public-nav a[aria-current="page"],body .public-nav .public-nav-login { color:#fff !important; }
+body .participant-tabs a { color:var(--ui-muted) !important; }
+body .participant-tabs a[aria-current="page"],body .participant-tabs a:hover { color:var(--ui-text) !important; }
+@media(min-width:801px){
+ body .app-shell .sidebar .mobile-close,body .app-shell .topbar .menu-button { display:none !important; }
+}
