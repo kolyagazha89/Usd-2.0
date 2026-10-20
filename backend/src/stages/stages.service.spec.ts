@@ -62,7 +62,7 @@ describe('StagesService rules snapshots', () => {
   };
   const audit: any = { log: jest.fn() };
   const siteSettings: any = { getPublishedRulesSnapshot: jest.fn() };
-  const emailNotifications: any = { registrationOpened: jest.fn().mockResolvedValue(undefined) };
+  const emailNotifications: any = { registrationOpened: jest.fn().mockResolvedValue(undefined), stageChanged: jest.fn().mockResolvedValue(undefined) };
   const request: any = { user: { sub: 'admin-1', role: 'ADMIN' }, ip: '127.0.0.1' };
   let service: StagesService;
 
@@ -129,6 +129,29 @@ describe('StagesService rules snapshots', () => {
     await service.setResultsPublication('stage-1', true, true, request);
     expect(prisma.stage.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'stage-1' }, data: expect.objectContaining({ resultsPublishedAt: expect.any(Date) }) }));
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAGE_RESULTS_PUBLISHED', entityId: 'stage-1' }));
+  });
+
+  it('notifies participants once when the direct remove action cancels an active stage', async () => {
+    const stage = {
+      id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED', registrationOpen: true,
+      isDeleted: false, name: 'Этап 1', date: new Date('2026-11-10T10:00:00Z'),
+    };
+    const updated = { ...stage, status: 'CANCELLED', registrationOpen: false };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.stage.update.mockResolvedValue(updated);
+
+    await service.remove('stage-1', request);
+    expect(emailNotifications.stageChanged).toHaveBeenCalledWith(stage, updated);
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAGE_CANCELLED', entityId: 'stage-1' }));
+  });
+
+  it('does not send duplicate cancellation notices for an already cancelled stage', async () => {
+    const stage = { id: 'stage-1', status: 'CANCELLED', isDeleted: false, registrationOpen: false };
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    prisma.stage.update.mockResolvedValue(stage);
+
+    await service.remove('stage-1', request);
+    expect(emailNotifications.stageChanged).not.toHaveBeenCalled();
   });
 
   it('captures published rules when a stage is created as published', async () => {
