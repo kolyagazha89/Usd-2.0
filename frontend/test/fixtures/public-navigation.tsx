@@ -30,7 +30,7 @@ export async function runPublicNavigation(){
   try{
     await act(async()=>root.render(<App/>));await flush();
     assertStage('alpha');
-    await click([...document.querySelectorAll<HTMLButtonElement>('.public-nav button')].find(button=>button.textContent==='Этапы')!);
+    await click([...document.querySelectorAll<HTMLAnchorElement>('.public-nav a')].find(button=>button.textContent==='Этапы')!);
     const cards=[...document.querySelectorAll<HTMLElement>('.public-stage-card')];
     assert.equal(cards.length,2);
     assert.ok(cards[0].textContent?.includes('Этап Альфа'));
