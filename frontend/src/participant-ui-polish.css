@@ -863,8 +863,11 @@
 /* Keep result-card children quiet: the parent card is the visual surface, not every nested element. */
 .public-site .public-result-card .public-result-class {
   color: #ff7b87 !important;
-  background: rgba(255,255,255,.035) !important;
-  border-color: rgba(255,255,255,.10) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 .public-site .public-result-card .public-result-arrow {
   background: transparent !important;
@@ -884,15 +887,6 @@
   border-color: rgba(255,255,255,.085) !important;
 }
 
-
-/* Homepage result class labels should read as plain text, not highlighted chips. */
-.public-site .public-result-class {
-  background: transparent !important;
-  border-color: transparent !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  box-shadow: none !important;
-}
 
 /* Inspection class editor: keep class labels readable in the light admin UI. */
 .inspection-class-editor { display: grid; gap: 10px; margin-top: 10px; }

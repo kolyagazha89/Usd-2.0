@@ -1,5 +1,5 @@
 import {createRequire} from 'node:module';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 
 const tooling=process.env.USD_BROWSER_TOOLING;
@@ -9,6 +9,16 @@ const base='https://usd-2-0.ultimatesounddestruction.workers.dev';
 const output=path.resolve('public-browser-qa');
 await mkdir(output,{recursive:true});
 const report={base,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
+const candidateResultCss=await readFile('frontend/src/participant-ui-polish.css','utf8');
+async function inspectResultText(page){
+  return page.locator('.public-result-card').evaluateAll(cards=>cards.flatMap((card,index)=>
+    [...card.querySelectorAll('.public-result-card-top,.public-result-card-bottom,.public-result-place,.public-result-place small,.public-result-class,.public-result-measure,.public-result-measure strong,.public-result-measure span,.public-result-person,.public-result-person strong,.public-result-person span,.public-result-arrow')].map(element=>{
+      const style=getComputedStyle(element);
+      return {card:index,element:element.className||element.tagName,text:(element.textContent??'').trim().slice(0,80),background:style.backgroundColor,backgroundImage:style.backgroundImage,shadow:style.boxShadow,borderWidth:style.borderWidth};
+    })
+  ));
+}
+const hasSurface=element=>!['transparent','rgba(0, 0, 0, 0)'].includes(element.background)||element.backgroundImage!=='none'||element.shadow!=='none';
 const browser=await chromium.launch({headless:true});
 const routes=['/','/stages?season=ALL','/stages?season=2025','/results','/records','/rules','/privacy','/terms','/consent','/login','/reset-password','/confirm-email-change'];
 try{
@@ -64,6 +74,22 @@ try{
           row.privacyNavigation='Home and Stages clicks passed';
           await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
           await page.locator('.public-site').waitFor();
+        }
+        if(route==='/'||route==='/results'){
+          const before=await inspectResultText(page);
+          row.resultTextSurfaceBefore=before.filter(hasSurface);
+          if(route==='/results'&&!before.length)throw new Error('No public result cards available for text-style validation');
+          if(before.length){
+            await page.screenshot({path:path.join(output,width+'-'+(route==='/'?'home':'results')+'-live-before.png'),fullPage:false});
+            // Preview this branch's CSS over the live public DOM. No site or data is changed.
+            await page.addStyleTag({content:candidateResultCss});
+            const after=await inspectResultText(page);
+            row.resultTextStyleSource='candidate participant-ui-polish.css injected only in this QA browser';
+            row.resultTextElementsChecked=after.length;
+            row.resultTextSurfaceAfter=after.filter(hasSurface);
+            row.resultClassBordersAfter=after.filter(element=>element.element==='public-result-class'&&element.borderWidth!=='0px');
+            if(row.resultTextSurfaceAfter.length||row.resultClassBordersAfter.length)throw new Error('Result text must be unboxed: '+JSON.stringify({surfaces:row.resultTextSurfaceAfter,borders:row.resultClassBordersAfter}));
+          }
         }
         row.status='passed';
       }catch(error){
