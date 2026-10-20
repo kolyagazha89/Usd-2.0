@@ -415,3 +415,10 @@ body .public-nav a { color:#bfc8d8; border:1px solid transparent; }
  body .public-nav-links a { justify-content:flex-start; width:100%; min-height:46px; padding:12px 14px !important; }
  body .public-nav .public-nav-login { margin:6px 0 0; }
 }
+
+@media(max-width:760px){
+ body .participant-tabs a span { white-space:normal; text-align:center; line-height:1.25; }
+}
+
+body .app-shell .main .settings-save-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; max-width:100%; min-width:0; }
+body .app-shell .main .page-heading-actions > * { min-width:0; max-width:100%; }

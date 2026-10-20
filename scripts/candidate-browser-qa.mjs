@@ -52,7 +52,7 @@ function dataFor(url,role){
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stats:{registrations:1,participants:1,cars:1,inspections:{total:0,pending:1,passed:0,failed:0}}};
  if(p==='/statistics/overview')return {stats:dashboard.overview};
- if(p.startsWith('/statistics/seasons/'))return {stats:{},classes:[],directions:[],stages:[],participants:[],teams:[]};
+ if(p.startsWith('/statistics/seasons/'))return {registrations:{total:1,withTeam:1,withoutTeam:0,withoutTeamPercent:0},teams:[{name:'USD Team',registrations:1,percent:100,participants:1}],vibrationIsolation:[],configurationBrands:[]};
  if(p.startsWith('/statistics/audit'))return {items:[],total:0,page:1,totalPages:1};
  if(p==='/stages'||p==='/stages/public')return [stage];
  if(p.endsWith('/classes'))return p.startsWith('/stages/')?[{id:'sc1',classId:'class1',class:klass}]:[klass];
@@ -89,7 +89,7 @@ try{
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     return route.abort('blockedbyclient');
    });
-   const page=await context.newPage();
+   const page=await context.newPage();page.setDefaultTimeout(10000);
    for(const route of routes){
     const errors=[],onError=error=>errors.push(error.message);page.on('pageerror',onError);
     const row={role:role??'PUBLIC',width,route};
@@ -102,7 +102,7 @@ try{
      Object.assign(row,await page.evaluate(()=>{
       const controls=[...document.querySelectorAll('input,select,textarea')].filter(e=>!['hidden','checkbox','radio','file'].includes(e.type)&&e.getBoundingClientRect().width>0);
       const heading=document.querySelector('main h1,.content h1,h1');
-      return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
+      return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&!e.closest('.sidebar')&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
      }));
      assert.ok(row.documentWidth<=width+1,'document overflow '+JSON.stringify(row.overflowing));
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
@@ -117,6 +117,7 @@ try{
        await page.getByRole('button',{name:'Автомобили',exact:true}).click();
        await page.waitForURL(/\/admin\/cars$/);
        row.mobileAdminNavigation='passed';
+       await page.goto(base+route,{waitUntil:'networkidle'});
       }
      }
      if(route==='/participant'&&role==='PARTICIPANT'){
@@ -126,17 +127,22 @@ try{
       row.participantHistory='passed';
      }
      if(role===null&&route==='/'&&width===390){
-      const toggle=page.getByRole('button',{name:'Открыть меню',exact:true});await toggle.click();
+      const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
       await toggle.click();await page.getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';
+      await page.goto(base+route,{waitUntil:'networkidle'});
      }
      row.status='passed';
-    }catch(error){row.status='failed';row.error=error.message;report.failures.push({role:row.role,width,route,error:error.message})}
+    }catch(error){row.status='failed';row.error=error.message;row.runtimeErrors=errors;report.failures.push({role:row.role,width,route,error:error.message})}
     const name=row.role+'-'+width+'-'+route.replace(/[^a-zA-Z0-9]/g,'_');
     await page.screenshot({path:path.join(output,name+'.png'),fullPage:true}).catch(()=>{});
+    if(route==='/'||route==='/participant'||route==='/admin'){
+     const preview=await page.screenshot({type:'jpeg',quality:38,fullPage:false});
+     console.log('USD_VISUAL '+JSON.stringify({role:row.role,width,route,image:'data:image/jpeg;base64,'+preview.toString('base64')}));
+    }
     page.off('pageerror',onError);report.pages.push(row);console.log(JSON.stringify(row));
    }
    await context.close();
