@@ -454,3 +454,14 @@ body .app-shell .main .list-pagination { display:flex; align-items:center; justi
 body .app-shell .main .list-pagination nav { display:flex; align-items:center; gap:12px; }
 body .app-shell .main .car-name-button { display:inline-flex; align-items:center; min-height:44px; max-width:100%; padding:0; border:0; background:transparent; color:var(--ui-text); font:inherit; font-weight:650; text-align:left; cursor:pointer; }
 body .app-shell .main .car-name-button:hover { color:var(--ui-accent-text); }
+
+/* Fixed notices must not cover the final action in a scrollable page. */
+body:has(.cookie-notice) .app-shell .main .content,
+body:has(.cookie-notice) .participant-portal-main { padding-bottom:200px !important; }
+body:has(.cookie-notice) .public-site footer { padding-bottom:180px !important; }
+@media(max-width:760px){
+ body:has(.cookie-notice) .app-shell .main .content,
+ body:has(.cookie-notice) .participant-portal-main { padding-bottom:320px !important; }
+ body:has(.cookie-notice) .participant-portal:has(.participant-tabs) .participant-portal-main { padding-bottom:400px !important; }
+ body:has(.cookie-notice) .public-site footer { padding-bottom:320px !important; }
+}
