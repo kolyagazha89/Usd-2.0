@@ -24,7 +24,7 @@ const season={id:'s1',name:'Сезон 2026',year:2026,status:'ACTIVE'};
 const stage={id:'stage1',stageNumber:1,name:'Кубок USD',date:'2026-11-21T12:00:00Z',city:'Тюмень',venue:'Арена',address:'Тестовая улица, 1',status:'PUBLISHED',registrationOpen:true,seasonId:'s1',season,classes:[]};
 const klass={id:'class1',name:'Limited 2.0',unit:'DB',isActive:true,directionId:'dir1',direction:{id:'dir1',name:'SPL',code:'SPL'}};
 const version={id:'v1',version:1,name:'Соревновательная сборка',createdAt:'2026-10-01T10:00:00Z',vibrationLayers:[],audioComponents:[],amplifiers:[],batteries:[],generators:[]};
-const configuration={id:'config1',name:'Соревновательная сборка',carId:'car1',currentVersionId:'v1',currentVersion:version,versions:[version]};
+const configuration={id:'config1',name:'Соревновательная сборка',carId:'car1',currentVersionId:'v1',currentVersion:1,versions:[version]};
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
 const result={id:'r1',value:150.25,unit:'DB',place:1,classId:'class1',class:klass,participant,registrationClassId:'rc1',registration:{...registration}};
@@ -97,6 +97,8 @@ try{
      await page.goto(base+route,{waitUntil:'networkidle'});
      await page.locator('.public-site,.login-page,.participant-portal,.app-shell').first().waitFor();
      await page.waitForTimeout(100);
+     if(route.includes('/configurations')&&route.includes('&view=')){await page.getByRole('button',{name:'Подробнее',exact:true}).click();await page.locator('.configuration-details-page').waitFor();row.configurationView='opened through UI'}
+     if(route.includes('/configurations')&&route.includes('&edit=')){await page.getByRole('button',{name:'Редактировать',exact:true}).click();await page.locator('.configuration-editor-page').waitFor();row.configurationEditor='opened through UI; no saving'}
      Object.assign(row,await page.evaluate(()=>{
       const controls=[...document.querySelectorAll('input,select,textarea')].filter(e=>!['hidden','checkbox','radio','file'].includes(e.type)&&e.getBoundingClientRect().width>0);
       const heading=document.querySelector('main h1,.content h1,h1');
@@ -110,7 +112,7 @@ try{
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');
       if(route==='/admin'&&width===390){
-       await page.getByRole('button',{name:/Открыть меню/}).click();
+       await page.getByRole('button',{name:'Меню',exact:true}).click();
        await page.locator('.sidebar').waitFor({state:'visible'});
        await page.getByRole('button',{name:'Автомобили',exact:true}).click();
        await page.waitForURL(/\/admin\/cars$/);
