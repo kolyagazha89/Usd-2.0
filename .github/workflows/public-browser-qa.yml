@@ -1,0 +1,41 @@
+name: Public browser QA
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "scripts/public-browser-qa.mjs"
+      - ".github/workflows/public-browser-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-browser-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-public-layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated browser tooling
+        run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@latest
+      - name: Install Chromium
+        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Check deployed anonymous pages at desktop and mobile widths
+        run: node scripts/public-browser-qa.mjs
+      - name: Save screenshots and structured report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-browser-qa
+          path: public-browser-qa/
+          retention-days: 7
