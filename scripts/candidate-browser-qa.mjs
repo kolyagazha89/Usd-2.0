@@ -110,6 +110,11 @@ try{
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
      assert.ok((await page.locator('body').innerText()).length>100,'page must contain actual UI');
+     const notice=page.locator('.cookie-notice');
+     if(await notice.isVisible()){
+      const overflow=await notice.locator('.cookie-notice__copy').evaluate(element=>({scroll:element.scrollWidth,width:element.clientWidth,whiteSpace:getComputedStyle(element.querySelector('p')).whiteSpace}));
+      assert.ok(overflow.scroll<=overflow.width+1,'cookie notice copy must wrap '+JSON.stringify(overflow));
+     }
      if(role==='ADMIN'){
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');

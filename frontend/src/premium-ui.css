@@ -442,3 +442,10 @@ body .public-brand-logo { width:auto !important; height:auto !important; max-wid
 @media(max-width:760px){
  body .public-brand-logo { max-width:138px !important; max-height:40px !important; }
 }
+
+body .cookie-notice__copy { min-width:0; max-width:100%; }
+body .cookie-notice__copy :is(strong,p,a) { white-space:normal; overflow-wrap:anywhere; }
+@media(max-width:560px){
+ body .cookie-notice { width:calc(100vw - 24px); max-width:calc(100vw - 24px); }
+ body .cookie-notice__copy { width:100%; }
+}
