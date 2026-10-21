@@ -5,7 +5,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 
-test('participant links preserve tabs across reload, history and return navigation',async()=>{
+test('participant navigation and three-step registration preserve choices and submit the selected configuration',async()=>{
   const base=path.dirname(fileURLToPath(import.meta.url));
   const scratch=await mkdtemp(path.join(base,'.participant-navigation-'));
   const dom=new JSDOM('<div id="root"></div>',{url:'https://usd.test/participant'});
@@ -40,6 +40,8 @@ test('participant links preserve tabs across reload, history and return navigati
     });
     const workflow=await import(pathToFileURL(outfile).href);
     await workflow.runParticipantNavigation();
+    await workflow.runRegistrationJourney();
+    await workflow.runDashboardAvailability();
   }finally{
     dom.window.close();
     for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key]}

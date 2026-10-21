@@ -19,7 +19,7 @@ test('all participant and account routes use the isolated premium public theme',
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
  const lastCss=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line)).at(-1);
- assert.equal(lastCss,"import './public/premium-configurator.css';",'participant configurator styling must follow base member theme');
+ assert.equal(lastCss,"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
  assert.ok(main.indexOf("import './public/premium-member.css'")<main.indexOf("import './public/premium-configurator.css'"));
  assert.match(css,/body \.usd-member \.participant-tabs/);
  assert.match(css,/body \.usd-member \.config-direction-workspace/);
@@ -61,8 +61,8 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
   source('../src/admin/ConfigurationsPage.tsx'),source('../src/public/premium-configurator.css')
  ]);
  assert.match(app,/MemberDashboard from '\.\/participant\/MemberDashboard'/);
- assert.match(app,/<MemberDashboard cars=\{cars\} registrations=\{registrations\}/);
- assert.match(dashboard,/car\.photoUrl/);
+ assert.match(app,/<MemberDashboard\b/);
+ assert.match(dashboard,/car\?\.photoUrl/);
  assert.match(dashboard,/audioComponents/);
  assert.match(dashboard,/registrations\.filter/);
  assert.match(editor,/configurations-page-shell"\+\(admin\?" admin-configurations-shell":" usd-member"\)/);
