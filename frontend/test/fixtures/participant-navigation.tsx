@@ -35,6 +35,11 @@ export async function runParticipantNavigation(){
   await act(async()=>{history.pushState({},'','/participant');window.dispatchEvent(new window.PopStateEvent('popstate'))});await flush();active('Обзор');
   assert.match(document.querySelector('.participant-welcome button')?.textContent??'',/Мои регистрации/);
   assert.match(document.body.textContent??'',/На все доступные этапы ваши автомобили уже зарегистрированы/);
+  for(const url of ['/participant/car?carId=car1','/participant/configurations?carId=car1']){
+   await act(async()=>{history.pushState({},'',url);window.dispatchEvent(new window.PopStateEvent('popstate'))});await flush();
+   assert.ok(document.querySelector('.participant-tabs'),'garage subpages must keep participant navigation');active('Мои автомобили');
+  }
+  await click(link('Профиль'));active('Профиль');
   const previous=location.href;
   const modified=new window.MouseEvent('click',{bubbles:true,cancelable:true,ctrlKey:true});
   link('Профиль').dispatchEvent(modified);

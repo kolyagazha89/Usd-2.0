@@ -311,7 +311,7 @@ body .usd-member .configuration-editor-page[data-member-view] .catalog-request-f
  body .usd-member .member-config-picker-foot .primary-button{font-size:12px!important}
  body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid{grid-template-columns:minmax(0,1fr)!important}
  body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid label:nth-child(1){grid-column:auto}
- body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{bottom:calc(75px + env(safe-area-inset-bottom))}
+ body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{bottom:calc(var(--usd-dock-height,0px) + 8px)}
 }
 
 /* Unified participant dashboard: design language shared with the configurator. */
@@ -458,4 +458,46 @@ body .usd-member .member-config-box-fields :is(input,select){min-height:49px!imp
 @media(max-width:720px){
  body .usd-member .configuration-editor-page[data-member-view="BOX"] .config-editor>.member-config-box{padding:17px!important}
  body .usd-member .member-config-box-fields{grid-template-columns:minmax(0,1fr);gap:14px}
+}
+
+/* Shared shell: embedded builders use the page background and spacing. */
+body .usd-member .configurations-page-shell.usd-member{min-height:0!important;background:transparent!important;overflow:visible}
+body .usd-member .configuration-editor-page[data-member-view] .configuration-subpage-header h1{font-size:clamp(25px,3vw,32px)!important;line-height:1.18!important}
+body .usd-member .configuration-editor-page[data-member-view] .configuration-subpage-header .registration-back-link{margin-bottom:12px!important}
+body .usd-member .configuration-editor-page[data-member-view] .member-config-vehicle{min-height:152px;padding:20px}
+body .usd-member .member-config-vehicle-visual{min-height:110px}
+body .usd-member .member-config-vehicle-chips{margin-top:16px}
+body .usd-member .member-config-vehicle-info h2{font-size:clamp(24px,3vw,32px)!important}
+body .usd-member .configuration-editor-page[data-member-view] .config-direction-workspace-head{display:none!important}
+body .usd-member .configuration-editor-page[data-member-view] .config-row{background:transparent!important;border-radius:0!important}
+body .usd-member .participant-tabs{margin-bottom:24px!important}
+@media(max-width:760px){
+ body .usd-member .participant-tabs{margin-bottom:0!important}
+ body .usd-member .participant-portal-header .public-brand small{display:none}
+ body .usd-member .participant-header-actions .participant-logout{width:42px;min-width:42px;font-size:0!important;gap:0!important;padding:9px!important}
+ body .usd-member .participant-header-actions .participant-logout svg{width:18px;height:18px}
+ body .usd-member .configuration-editor-page[data-member-view] .member-config-vehicle{min-height:144px;padding:16px}
+ body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{bottom:calc(var(--usd-dock-height,0px) + 8px)}
+}
+
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-inline>.secondary-button{white-space:normal!important;text-align:left;justify-content:flex-start;max-width:100%;height:auto;overflow-wrap:anywhere}
+body .usd-member .configuration-editor-page[data-member-view] .config-section-head{flex-wrap:wrap;gap:12px}
+@media(max-width:760px){
+ body .usd-member .configuration-editor-page[data-member-view] .config-section-title{flex:1 1 180px;min-width:0}
+ body .usd-member .configuration-editor-page[data-member-view] .config-section-head>.secondary-button{flex:0 0 auto;min-height:44px!important}
+}
+body .usd-member .configurations-page{background:transparent!important}
+body .usd-member .configuration-editor-page[data-member-view] .config-editor{align-items:stretch!important}
+body .usd-member .configuration-editor-page[data-member-view] .config-direction-workspace{width:100%}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-inline{grid-template-columns:minmax(0,1fr)}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-inline>.secondary-button{width:100%;min-width:0}
+
+/* The catalog content scrolls; its title and add action stay reachable with the keyboard open. */
+body .usd-member .member-config-picker-body{display:flex;flex-direction:column;gap:14px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px}
+body .usd-member .member-config-picker-body>.member-config-picker-list{flex:0 0 auto;overflow:visible;min-height:90px}
+body .usd-member .member-config-picker-title,body .usd-member .member-config-picker-foot{flex-shrink:0}
+@media(max-height:650px){
+ body .usd-member .member-config-picker-title p{display:none}
+ body .usd-member .member-config-picker-title h2{font-size:23px!important}
+ body .usd-member .member-config-picker-screen{padding-top:16px;gap:10px}
 }

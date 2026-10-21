@@ -28,7 +28,7 @@ const configuration={id:'config1',name:'Соревновательная сбо�
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
 const result={id:'r1',value:150.25,unit:'DB',place:1,classId:'class1',class:klass,participant,registrationClassId:'rc1',registration:{...registration}};
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[],vibrationBrands:[]},contacts:{}};
+const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[{category:'AUDIO_COMPONENT',brand:'Alphard',model:'Machete',isActive:true}],vibrationBrands:[]},contacts:{}};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role,participantId:role==='PARTICIPANT'?'p1':null});
 const requests=new Set(),blocked=[];
@@ -67,7 +67,7 @@ function dataFor(url,role){
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
  return [];
 }
-const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/login','/reset-password','/confirm-email-change'];
+const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/login','/reset-password','/confirm-email-change','/participants','/teams','/cars','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=['/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
@@ -116,6 +116,30 @@ try{
       const overflow=await notice.locator('.cookie-notice__copy').evaluate(element=>({scroll:element.scrollWidth,width:element.clientWidth,whiteSpace:getComputedStyle(element.querySelector('p')).whiteSpace}));
       assert.ok(overflow.scroll<=overflow.width+1,'cookie notice copy must wrap '+JSON.stringify(overflow));
      }
+     if(width<=760&&role==='PARTICIPANT'&&route.includes('/participant/configurations')){
+      const nav=page.locator('.participant-tabs');
+      assert.equal(await nav.locator('[aria-current="page"]').innerText(),'Мои автомобили','configuration pages keep garage navigation');
+      const header=await page.locator('.participant-portal-header').boundingBox();
+      assert.ok(header.height<=80,'mobile account header stays one row');
+      const actions=await page.locator('.participant-header-actions').boundingBox();assert.ok(actions.x+actions.width<=width,'account actions fit the mobile viewport');
+      assert.ok(await page.getByRole('button',{name:'Выйти из аккаунта',exact:true}).isVisible(),'logout remains accessible');
+     }
+     if(width<=740&&role===null&&['/','/stages','/results?stageId=stage1'].includes(route)){
+      assert.equal(await page.locator('.u-mobile-dock [aria-current="page"]').count(),1,'public dock marks one current section');
+     }
+     if(width<=760&&await notice.isVisible()){
+      const chrome=await page.evaluate(()=>{
+       const rect=selector=>{const e=document.querySelector(selector);if(!e||!e.getClientRects().length)return null;return e.getBoundingClientRect().toJSON()};
+       return {notice:rect('.cookie-notice'),dock:rect('.participant-tabs,.u-mobile-dock'),save:rect('.config-editor-actions')};
+      });
+      if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top,'cookie notice leaves bottom navigation reachable');
+      await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
+      if(role==='PARTICIPANT'&&route.includes('&edit=')){
+       const save=await page.locator('.config-editor-actions').boundingBox(),cookie=await notice.boundingBox();
+       assert.ok(save.y+save.height<=cookie.y,'save button remains above the cookie notice');
+      }
+      await page.evaluate(()=>scrollTo(0,0));
+     }
      if(role==='ADMIN'){
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');
@@ -151,6 +175,40 @@ try{
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';
       await page.goto(base+route,{waitUntil:'networkidle'});
+     }
+     if(role==='PARTICIPANT'&&route.includes('&edit=')){
+      const requestCopy=await page.locator('.catalog-request-inline>.secondary-button').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));
+      assert.ok(requestCopy.scroll<=requestCopy.width+1,'the model-request button text must fit on mobile');
+      const nav=page.getByRole('navigation',{name:'Разделы конфигуратора'});
+      for(const name of ['FRONT','REAR','ПИТАНИЕ','КОРОБ','ОПИСАНИЕ','ПАРАМЕТРЫ','SUB']){
+       const tab=nav.getByRole('button',{name:new RegExp('^'+name+'(?: Заполнено)?$')});await tab.click();
+       assert.equal(await tab.getAttribute('aria-pressed'),'true');
+      }
+      const workspace=page.locator('.config-direction-workspace[data-direction="SUB"]');
+      const before=await workspace.locator('.config-row').count();
+      await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
+      const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
+      await picker.getByRole('combobox',{name:/^Бренд/}).selectOption('Alphard');
+      await picker.getByLabel('Поиск модели').fill('missing-fixture');
+      assert.equal(await picker.getByRole('button',{name:'Добавить в SUB',exact:true}).isEnabled(),false,'unlisted models cannot be added');
+      await picker.getByLabel('Поиск модели').fill('Machete');
+      await picker.getByRole('button',{name:/Alphard Machete/}).click();
+      const pickerBox=await picker.boundingBox(),footBox=await picker.locator('.member-config-picker-foot').boundingBox();
+      assert.ok(footBox.y+footBox.height<=pickerBox.y+pickerBox.height+1,'catalog actions stay inside the dialog');
+      await picker.getByRole('button',{name:'Добавить в SUB',exact:true}).click();
+      assert.equal(await workspace.locator('.config-row').count(),before+1,'catalog equipment appears in the chosen direction');
+      if(width<=390){
+       await page.setViewportSize({width,height:568});
+       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
+       const shortDialog=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
+       const frame=await shortDialog.boundingBox(),footer=await shortDialog.locator('.member-config-picker-foot').boundingBox();
+       assert.ok(footer.y+footer.height<=frame.y+frame.height+1,'catalog actions fit a 568px mobile viewport');
+       await shortDialog.getByRole('button',{name:'Закрыть выбор оборудования',exact:true}).click();
+       await page.setViewportSize({width,height:960});
+       row.shortMobileCatalog='568px height; add action stays inside dialog';
+      }
+      row.configuratorInteraction='all seven sections; catalog search; absent-model rejection; add to SUB without saving';
+      await page.evaluate(()=>scrollTo(0,0));
      }
      row.status='passed';
     }catch(error){row.status='failed';row.error=error.message;row.runtimeErrors=errors;report.failures.push({role:row.role,width,route,error:error.message})}

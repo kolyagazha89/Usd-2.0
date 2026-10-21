@@ -25,14 +25,14 @@ export default function MemberDashboard({cars,registrations,stages,onGo,onAddCar
  const filled=(code:string)=>Array.isArray(components)?components.filter((c:any)=>c.direction===code&&c.brand&&c.model&&(code!=='SUB'||c.type==='SUBWOOFER')).length:0;
  return <section className="member-release-dashboard" aria-label="Быстрый доступ к системе и соревнованиям">
   <div className="member-release-heading"><div><span className="eyebrow">USD / МОЯ СИСТЕМА</span><h2>Подготовься к следующему этапу</h2><p>Автомобиль, оборудование и регистрации — в одном месте.</p></div>
-   <span className="member-release-edition">PARTICIPANT EXPERIENCE</span></div>
+   </div>
   <div className="member-release-grid">
    <article className="member-release-car">
     <div className="member-release-car-copy"><span className="eyebrow">МОЙ ГАРАЖ</span><h3>{car?[car.brand,car.model].filter(Boolean).join(' '):'Начни со своего автомобиля'}</h3>
      <p>{car?.registrationNumber||'Добавьте автомобиль, чтобы сохранять конфигурации и участвовать в этапах USD.'}</p>
      {car&&<div className="member-release-car-data"><span>{configs.length} конфигураций</span><span>{components?.length??'—'} компонентов</span></div>}
      <div className="member-release-car-actions">
-      <button type="button" className="primary-button" onClick={()=>car?onGo('/participant/car?carId='+encodeURIComponent(car.id)):onAddCar()}>
+      <button type="button" className="primary-button" onClick={()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()}>
        {car?<><Gauge size={16}/>Открыть конфигуратор</>:<><Plus size={16}/>Добавить автомобиль</>}
        <ArrowUpRight size={15}/></button>
       <button className="secondary-button" type="button" onClick={()=>onGo('/participant?tab=cars')}>Мой гараж</button>

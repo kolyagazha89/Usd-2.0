@@ -1,10 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const COOKIE_NOTICE_VERSION = '2026-10-v1';
 const COOKIE_NOTICE_KEY = 'usd_cookie_notice_dismissed';
 
 export default function CookieNotice() {
   const [visible, setVisible] = useState(false);
+  const noticeRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (!visible || !noticeRef.current) return;
+    const notice = noticeRef.current;
+    const measure = () => document.documentElement.style.setProperty('--usd-cookie-height', `${Math.ceil(notice.getBoundingClientRect().height)}px`);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(notice);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      document.documentElement.style.removeProperty('--usd-cookie-height');
+    };
+  }, [visible]);
 
   useEffect(() => {
     try {
@@ -27,7 +43,7 @@ export default function CookieNotice() {
   if (!visible) return null;
 
   return (
-    <aside className="cookie-notice" role="dialog" aria-label="Уведомление об использовании cookie">
+    <aside ref={noticeRef} className="cookie-notice" role="dialog" aria-label="Уведомление об использовании cookie">
       <div className="cookie-notice__copy">
         <strong>Мы используем cookie</strong>
         <p>
@@ -44,7 +60,7 @@ export default function CookieNotice() {
           z-index: 1000;
           left: max(20px, env(safe-area-inset-left));
           right: max(20px, env(safe-area-inset-right));
-          bottom: max(20px, env(safe-area-inset-bottom));
+          bottom: calc(var(--usd-dock-height, 0px) + max(12px, env(safe-area-inset-bottom)));
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -60,6 +76,8 @@ export default function CookieNotice() {
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
         }
+        body:has(.cookie-notice) .cookie-notice { bottom: calc(var(--usd-dock-height, 0px) + 12px) !important; }
+        body:has(.member-config-actions-overlay,.member-config-picker-overlay,.catalog-request-form[role="dialog"]) .cookie-notice { visibility: hidden; }
         .cookie-notice__copy { min-width: 0; }
         .cookie-notice__copy strong { display: block; font-size: 14px; font-weight: 800; }
         .cookie-notice__copy p { margin: 5px 0 0; color: #c4c7cc; font-size: 12px; line-height: 1.55; }
@@ -80,7 +98,7 @@ export default function CookieNotice() {
         .cookie-notice__button:hover { background: #b91425; }
         .cookie-notice__button:focus-visible { outline: 3px solid rgba(226, 29, 47, .5); outline-offset: 3px; }
         @media (max-width: 560px) {
-          .cookie-notice { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); align-items: stretch; flex-direction: column; gap: 12px; padding: 16px; }
+          .cookie-notice { left: 12px; right: 12px; bottom: calc(var(--usd-dock-height, 0px) + max(12px, env(safe-area-inset-bottom))); align-items: stretch; flex-direction: column; gap: 12px; padding: 16px; }
           .cookie-notice__button { width: 100%; }
         }
       `}</style>
