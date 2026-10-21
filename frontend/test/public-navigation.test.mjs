@@ -24,7 +24,7 @@ test('public stage links, selector URLs and browser history show the requested r
     const apiSource=await readFile(path.join(base,'../src/api.ts'),'utf8');
     const names=[...apiSource.matchAll(/export (?:async )?function (\w+)/g)].map(match=>match[1]);
     const implementations={
-      refresh:'async()=>({user:null})',
+      refresh:'async()=>globalThis.__publicRefresh?globalThis.__publicRefresh():({user:null})',
       apiGet:'async path=>globalThis.__getPublic(path)',
       getPublicSiteAsset:'async()=>({})',
       apiPost:'async(path,body)=>globalThis.__postAction(path,body)',
@@ -39,6 +39,7 @@ test('public stage links, selector URLs and browser history show the requested r
       plugins:[{name:'mock-account-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:mockApi}))}}],
     });
     const workflow=await import(pathToFileURL(outfile).href);
+    await workflow.runPublicBootstrap();
     await workflow.runPublicNavigation();
   }finally{
     dom.window.close();

@@ -6,6 +6,8 @@ import './styles.css';
 import './participant-ui-polish.css';
 import './ui-consistency.css';
 import './premium-ui.css';
+import './public/premium-base.css';
+import './public/premium-public.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
