@@ -45,7 +45,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [activeView,setActiveView]=useState<'SUB'|'FRONT'|'REAR'|'POWER'|'BOX'|'NOTES'|'SETUP'>(isNew?'SETUP':'SUB');
  const [actionsOpen,setActionsOpen]=useState(false);
  const [saveAsNew,setSaveAsNew]=useState(false);
- const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
+ const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number;replaceIndex?:number}>(null);
  const [modelQuery,setModelQuery]=useState('');
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
@@ -58,8 +58,10 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  {key:'SETUP',label:'Параметры',short:'ПАРАМЕТРЫ',icon:Settings2,desc:'Название и виброизоляция'}] as const;
  const selectedView=editorViews.find(item=>item.key===activeView)!;
  const viewIsReady=(key:string)=>key==='SUB'||key==='FRONT'||key==='REAR'?configuredIn(key as 'SUB'|'FRONT'|'REAR')>0:key==='POWER'?(v.batteries.length+v.generators.length)>0:key==='BOX'?Boolean(box.volume&&box.tuning):key==='NOTES'?Boolean(v.additionalDescription.trim()):Boolean(v.name.trim());
- const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR')=>{
-  setModelQuery('');setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
+ const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR',replaceIndex?:number)=>{
+  const existing=replaceIndex===undefined?null:v[kind][replaceIndex];
+  setModelQuery(existing?.model??'');
+  setPicker({kind,direction,type:existing?.type||(direction==='SUB'?'SUBWOOFER':'MIDBASS'),brand:existing?.brand??'',model:existing?.model??'',quantity:Math.max(1,Number(existing?.quantity)||1),replaceIndex});setActionsOpen(false);
  };
  const addEquipmentForView=()=>{if(activeView==='SUB'||activeView==='FRONT'||activeView==='REAR')openPicker('audioComponents',activeView);else if(activeView==='POWER')add('batteries',{brand:'AGM',model:'100',quantity:1});else setActiveView('SUB');setActionsOpen(false)};
 
@@ -73,7 +75,9 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const pickerModels=picker?activeModels(picker.kind).filter((x:any)=>x.brand===picker.brand&&String(x.model).toLowerCase().includes(modelQuery.trim().toLowerCase())):[];
  const savePicker=()=>{if(!picker)return;const approved=activeModels(picker.kind).some((x:any)=>x.brand===picker.brand&&x.model===picker.model);
   if(!approved){setError('Сначала выберите модель из каталога USD. Если её нет, отправьте запрос администратору.');return}
-  add(picker.kind,{brand:picker.brand,model:picker.model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
+  const item={brand:picker.brand,model:picker.model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})};
+  if(picker.replaceIndex===undefined)add(picker.kind,item);
+  else patch(picker.kind,picker.replaceIndex,item);
   setPicker(null);setError('');
  };
  const brandOptions=(cat:string,current:string)=>{const values=catalogs.componentBrands.filter((x:any)=>(x.category===cat||(cat==='AUDIO_COMPONENT'&&x.category==='SUBWOOFER'))&&x.isActive!==false).map((x:any)=>String(x.name));return [...new Set<string>(current&&!values.includes(current)?[current,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
@@ -113,7 +117,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   setSaving(true);try{
    const boxLine=box.volume&&box.tuning?'Короб: '+box.type+' · '+box.volume+' л · '+box.tuning+' Гц\n\n':'';
    const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription});if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else {if(saveAsNew)await apiPost('/configurations/'+configuration.id+'/versions',{});await apiPut('/configurations/'+configuration.id,body)}await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
- return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':'Новая версия · '+configuration.name}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.'}</p></header>
+ return <div className={admin?'configuration-editor-page':'configuration-editor-page usd-config-v3'} data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':'Новая версия · '+configuration.name}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.'}</p></header>
   {!admin&&<section className="member-config-experience" aria-label="Конфигурация оборудования">
     <div className="member-config-vehicle">
       <div className="member-config-vehicle-info"><span className="eyebrow">USD / МОЙ ГАРАЖ / КОНФИГУРАТОР</span><h2>{[car?.brand,car?.model].filter(Boolean).join(' ')||configuration.name||'Мой автомобиль'}</h2><p>{car?.registrationNumber||'Соревновательная конфигурация'}{car?.color?' · '+car.color:''}</p>
@@ -122,7 +126,10 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
       <div className="member-config-vehicle-visual">{car?.photoUrl?<img src={car.photoUrl} alt={[car.brand,car.model].filter(Boolean).join(' ')}/>:<CarFront size={92} strokeWidth={.85} aria-hidden="true"/>}<span><CheckCircle2 size={14}/> Актуальная сборка</span></div>
     </div>
     <div className="member-config-view-intro"><div><span className="eyebrow">КОНСТРУКТОР СИСТЕМЫ</span><h2>{selectedView.label}</h2><p>{selectedView.desc}</p></div><button type="button" className="member-config-actions-button" aria-haspopup="dialog" aria-expanded={actionsOpen} onClick={()=>setActionsOpen(true)}><MoreHorizontal size={19}/> Действия</button></div>
-    <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
+    <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.filter(item=>['SUB','FRONT','REAR'].includes(item.key)).map(({key,short,icon:Icon})=><button key={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
+    <nav className="member-config-tools" aria-label="Дополнительные разделы">
+      {editorViews.filter(item=>!['SUB','FRONT','REAR'].includes(item.key)).map(({key,short,icon:Icon})=><button key={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={16}/>{short}</button>)}
+    </nav>
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Данные заполнены':'Требуется заполнение'}</strong></div>
     {picker&&!admin&&<div className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
       <section className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
