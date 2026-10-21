@@ -13,7 +13,7 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
  },[open]);
  return <nav ref={nav} className="public-nav" aria-label="Основная навигация">
   <button ref={toggle} type="button" className="public-nav-toggle" aria-label={open?'Закрыть меню':'Открыть меню'} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(value=>!value)}>{open?<X size={21}/>:<Menu size={21}/>}</button>
-  <div id={id} className="public-nav-links" data-open={open}>{items.map(([href,label])=><InternalLink key={href} href={href} go={go} onNavigate={()=>setOpen(false)} aria-current={route===href?'page':undefined}>{label}</InternalLink>)}
+  <div id={id} className="public-nav-links" data-open={open}>{items.map(([href,label])=><InternalLink key={href} href={href} go={go} onNavigate={()=>setOpen(false)} aria-current={(route===href||(href!=='/'&&route.startsWith(href+'/')))?'page':undefined}>{label}</InternalLink>)}
    <InternalLink className="public-nav-login" href={accountPath} go={go} onNavigate={()=>setOpen(false)}>{accountLabel}<ArrowUpRight size={16} aria-hidden="true"/></InternalLink>
   </div>
  </nav>;

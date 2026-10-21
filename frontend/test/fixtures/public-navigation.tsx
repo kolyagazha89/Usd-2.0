@@ -30,6 +30,7 @@ export async function runPublicNavigation(){
   try{
     await act(async()=>root.render(<App/>));await flush();
     assertStage('alpha');
+    assert.equal(document.querySelector('.u-mobile-dock [aria-current="page"]')?.textContent,'Результаты','public dock marks the current section');
     await click([...document.querySelectorAll<HTMLAnchorElement>('.public-nav a')].find(button=>button.textContent==='Этапы')!);
     const cards=[...document.querySelectorAll<HTMLElement>('.public-stage-card')];
     assert.equal(cards.length,2);

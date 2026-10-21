@@ -30,7 +30,7 @@ body .usd-member :is(p,small,dt),body .usd-auth :is(p,small){line-height:1.6}
 body .usd-member .participant-portal-header{
  position:sticky;top:0;z-index:90;width:100%;min-height:76px!important;
  padding:11px max(24px,calc((100vw - 1308px)/2))!important;
- display:flex;justify-content:space-between;align-items:center;gap:22px!important;flex-wrap:nowrap;
+ display:flex;flex-direction:row!important;justify-content:space-between;align-items:center!important;gap:22px!important;flex-wrap:nowrap!important;
  background:rgba(4,9,12,.96)!important;border-bottom:1px solid #2c3b43!important;
  box-shadow:0 10px 34px rgba(0,0,0,.22)!important;backdrop-filter:blur(18px);
 }
@@ -68,7 +68,7 @@ body .usd-member :is(.participant-welcome,.registration-hero){
  padding:26px 0 34px!important;min-width:0}
 body .usd-member .participant-welcome{border-bottom:1px solid #29363e!important;margin-bottom:27px!important}
 body .usd-member .participant-welcome h1,body .usd-member .registration-hero h1{
- font-size:clamp(37px,5vw,68px)!important;line-height:1.01!important;max-width:1100px}
+ font-size:clamp(32px,4vw,48px)!important;line-height:1.01!important;max-width:1100px}
 body .usd-member .participant-welcome p,body .usd-member .registration-hero p{color:#aebdc5!important;font-size:15px!important;max-width:66ch}
 body .usd-member .participant-welcome .primary-button{flex:0 0 auto}
 body .usd-member .participant-tabs{display:flex!important;flex-wrap:wrap;gap:8px!important;padding:0!important;
@@ -280,8 +280,8 @@ body .usd-auth-simple .login-card{justify-self:center}
  body .usd-member .participant-portal-header .public-brand small{font-size:7px!important;letter-spacing:.035em!important}
  body .usd-member .participant-header-actions{gap:5px!important}
  body .usd-member .participant-header-actions .secondary-button{min-height:42px!important;padding:9px 10px!important;font-size:11px!important}
- body .usd-member .usd-member-header .participant-header-actions .secondary-button:not(.participant-site-return):first-of-type{font-size:0!important;min-width:44px;width:44px;gap:0!important;padding:9px!important}
- body .usd-member .usd-member-header .participant-header-actions .secondary-button:not(.participant-site-return):first-of-type svg{width:18px;height:18px}
+ body .usd-member .usd-member-header .participant-header-actions .participant-refresh{font-size:0!important;min-width:44px;width:44px;gap:0!important;padding:9px!important}
+ body .usd-member .usd-member-header .participant-header-actions .participant-refresh svg{width:18px;height:18px}
  body .usd-member .participant-header-actions .participant-site-return{display:inline-flex}
  body .usd-member .participant-portal-main{padding:24px 15px calc(110px + env(safe-area-inset-bottom))!important}
  body .usd-member .participant-welcome{padding:16px 0 27px!important;display:grid;gap:20px}
@@ -332,4 +332,11 @@ body .usd-auth-simple .login-card{justify-self:center}
 }
 @media(prefers-reduced-motion:reduce){
  body .usd-member *,body .usd-auth *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+@media(max-width:760px){
+ body .usd-member .participant-header-actions{flex:0 0 auto;flex-wrap:nowrap}
+ body .usd-member .participant-portal-header .public-brand{flex:1 1 0!important}
+ body .usd-member .participant-portal-header .public-brand>span:last-child{overflow:hidden}
+ body .usd-member .participant-portal-header .public-brand strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }

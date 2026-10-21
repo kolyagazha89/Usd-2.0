@@ -455,13 +455,23 @@ body .app-shell .main .list-pagination nav { display:flex; align-items:center; g
 body .app-shell .main .car-name-button { display:inline-flex; align-items:center; min-height:44px; max-width:100%; padding:0; border:0; background:transparent; color:var(--ui-text); font:inherit; font-weight:650; text-align:left; cursor:pointer; }
 body .app-shell .main .car-name-button:hover { color:var(--ui-accent-text); }
 
-/* Fixed notices must not cover the final action in a scrollable page. */
-body:has(.cookie-notice) .app-shell .main .content,
-body:has(.cookie-notice) .participant-portal-main { padding-bottom:200px !important; }
-body:has(.cookie-notice) .public-site footer { padding-bottom:180px !important; }
+/* Shared mobile chrome sizes; reserve the notice's actual wrapped height. */
+body { --usd-dock-height:env(safe-area-inset-bottom,0px); }
 @media(max-width:760px){
- body:has(.cookie-notice) .app-shell .main .content,
- body:has(.cookie-notice) .participant-portal-main { padding-bottom:320px !important; }
- body:has(.cookie-notice) .participant-portal:has(.participant-tabs) .participant-portal-main { padding-bottom:400px !important; }
- body:has(.cookie-notice) .public-site footer { padding-bottom:320px !important; }
+ body:has(.usd-member .participant-tabs) { --usd-dock-height:calc(79px + env(safe-area-inset-bottom)); }
+}
+@media(max-width:740px){
+ body:has(.usd-live .u-mobile-dock) { --usd-dock-height:calc(63px + env(safe-area-inset-bottom)); }
+}
+html:has(.cookie-notice) { scroll-padding-bottom:calc(var(--usd-cookie-height,180px) + 110px); }
+body:has(.cookie-notice) .app-shell .main .content,
+body:has(.cookie-notice) .participant-portal-main,
+body:has(.cookie-notice) .participant-portal:has(.participant-tabs) .participant-portal-main {
+ padding-bottom:calc(var(--usd-cookie-height,180px) + var(--usd-dock-height,0px) + 110px)!important;
+}
+body:has(.cookie-notice) :is(.public-site footer,.usd-live .u-footer) {
+ padding-bottom:calc(var(--usd-cookie-height,180px) + var(--usd-dock-height,0px) + 40px)!important;
+}
+body:has(.cookie-notice) .usd-member .configuration-editor-page[data-member-view] .config-editor-actions {
+ bottom:calc(var(--usd-cookie-height,180px) + var(--usd-dock-height,0px) + 24px)!important;
 }
