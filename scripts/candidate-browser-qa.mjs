@@ -147,7 +147,7 @@ try{
       const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
-      await toggle.click();await page.getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
+      await toggle.click();await page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';
       await page.goto(base+route,{waitUntil:'networkidle'});
