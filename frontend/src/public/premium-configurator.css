@@ -438,3 +438,24 @@ body .usd-member .configuration-details-page .config-detail-grid .detail-block s
  body .usd-member .member-config-timeline-list :is(.timeline-live,.timeline-archive){grid-column:2;grid-row:2;width:max-content}
  body .usd-member .member-config-timeline-list>button>svg{grid-column:3;grid-row:1}
 }
+
+/* Box volume/tuning panel belongs to the same saved configuration version. */
+body .usd-member .member-config-directions{grid-template-columns:repeat(7,minmax(0,1fr))}
+body .usd-member .configuration-editor-page[data-member-view] .config-editor>.member-config-box{display:none!important}
+body .usd-member .configuration-editor-page[data-member-view="BOX"] .config-editor>.member-config-box{
+ display:block!important;background:linear-gradient(140deg,#111a21,#0c1116)!important;
+ border:1px solid #37454d!important;border-radius:10px;padding:24px}
+body .usd-member .member-config-box-intro h3{font:850 clamp(23px,3vw,30px)/1.15 'Exo 2',sans-serif!important;
+ margin:9px 0 7px;color:#f5f8fa}
+body .usd-member .member-config-box-intro p{color:#9cb0bc;font-size:12px!important;line-height:1.55!important;
+ margin:0 0 22px}
+body .usd-member .member-config-box-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+body .usd-member .member-config-box-fields label{display:grid;gap:10px;min-width:0;
+ color:#bbc9d0!important;font-size:12px!important;font-weight:750}
+body .usd-member .member-config-box-fields :is(input,select){min-height:49px!important;
+ width:100%;min-width:0;background:#0b1318!important;color:#f3f7f8!important;
+ border:1px solid #43515d!important;border-radius:8px;padding:10px 12px;font-size:16px!important}
+@media(max-width:720px){
+ body .usd-member .configuration-editor-page[data-member-view="BOX"] .config-editor>.member-config-box{padding:17px!important}
+ body .usd-member .member-config-box-fields{grid-template-columns:minmax(0,1fr);gap:14px}
+}
