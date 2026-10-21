@@ -228,3 +228,88 @@ body .admin-configurations-shell .member-config-power{display:contents}
  body .usd-member .member-config-experience *,
  body .usd-member .member-config-actions-overlay *{transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
+
+/* Interactive catalog selector and new-model request, matching the Figma mobile states. */
+body .usd-member .member-config-picker-overlay{
+ position:fixed;z-index:850;inset:0;padding:20px;display:flex;align-items:center;justify-content:center;
+ background:rgba(0,0,0,.81);backdrop-filter:blur(6px)}
+body .usd-member .member-config-picker-screen{
+ width:min(620px,100%);max-height:92dvh;display:flex;flex-direction:column;min-height:0;
+ overflow:hidden;border:1px solid #65303d;border-radius:15px;
+ background:linear-gradient(145deg,#151c23,#0b0f13 78%)!important;color:#f6f8fa;
+ box-shadow:0 30px 100px #000b;padding:24px;gap:14px}
+body .usd-member .member-config-picker-title{display:flex;justify-content:space-between;gap:15px}
+body .usd-member .member-config-picker-title h2{font-size:clamp(23px,3vw,30px)!important;
+ font-weight:850!important;margin:7px 0!important;color:#fff!important}
+body .usd-member .member-config-picker-title p{font-size:12px!important;line-height:1.5;color:#a7b5c1!important;margin:0}
+body .usd-member .member-config-picker-title>button{flex:0 0 42px;width:42px;height:42px;
+ display:grid;place-items:center;background:#242a31!important;border:1px solid #38464e!important;
+ border-radius:8px;color:#fff;cursor:pointer}
+body .usd-member .member-config-picker-fields{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+body .usd-member .member-config-picker-fields label{display:grid;gap:7px;
+ font-size:11px;font-weight:780;color:#a7b9c3;min-width:0}
+body .usd-member .member-config-picker-fields label:last-child{grid-column:1/-1}
+body .usd-member .member-config-picker-fields :is(input,select),
+body .usd-member .member-config-picker-foot input{min-height:46px;width:100%;max-width:100%;background:#10171d!important;
+ color:#f1f6f9!important;border:1px solid #43515d!important;border-radius:8px;padding:0 12px;font-size:16px!important}
+body .usd-member .member-config-picker-list{flex:1;min-height:115px;overflow:auto;display:grid;
+ grid-auto-rows:max-content;gap:8px;scrollbar-width:thin;padding:3px}
+body .usd-member .member-config-picker-list>p{padding:20px 12px;margin:0;
+ color:#a7b4bf;font-size:13px}
+body .usd-member .member-config-picker-list>button{display:grid;
+ grid-template-columns:42px minmax(0,1fr) 24px;gap:12px;align-items:center;padding:12px;
+ text-align:left;border:1px solid #36424b!important;border-radius:9px;background:#141c23!important;
+ color:#f1f6f9!important;cursor:pointer}
+body .usd-member .member-config-picker-list>button:hover,
+body .usd-member .member-config-picker-list>button.selected{border-color:#fa3152!important;
+ background:linear-gradient(120deg,#311923,#11171c)!important}
+body .usd-member .member-config-picker-list>button>svg:first-child{padding:9px;
+ background:#28202a;box-sizing:content-box;border-radius:8px;color:#ff395e}
+body .usd-member .member-config-picker-list>button>svg:last-child{color:#65757d}
+body .usd-member .member-config-picker-list>button.selected>svg:last-child{color:#ff3b5b}
+body .usd-member .member-config-picker-list>button span{min-width:0;display:grid;gap:4px}
+body .usd-member .member-config-picker-list>button strong{font-size:14px!important;overflow-wrap:anywhere}
+body .usd-member .member-config-picker-list>button small{color:#a7b7c0!important;font-size:11px!important}
+body .usd-member .member-config-picker-request{display:flex;gap:9px;align-items:center;
+ border:0!important;background:transparent!important;color:#ff5671!important;
+ font-size:12px;font-weight:800;align-self:start;padding:7px 0;cursor:pointer}
+body .usd-member .member-config-picker-foot{display:flex;align-items:end;gap:15px;
+ border-top:1px solid #3a434c;padding-top:14px}
+body .usd-member .member-config-picker-foot label{display:grid;gap:6px;flex:0 0 120px;
+ font-size:11px;color:#a8b5bd;font-weight:750}
+body .usd-member .member-config-picker-foot .primary-button{flex:1;min-height:49px!important;
+ justify-content:center;font-size:14px!important}
+body .usd-member .config-editor>.catalog-request-inline:has(.catalog-request-form){z-index:900}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form[role="dialog"]{
+ position:fixed!important;z-index:900!important;inset:auto;
+ top:50%;left:50%;transform:translate(-50%,-50%);
+ width:min(540px,calc(100vw - 30px));max-height:85dvh;overflow-y:auto;
+ padding:23px!important;background:#131b22!important;color:#eef4f6!important;
+ border:1px solid #9a354a!important;box-shadow:0 0 0 120vmax rgba(0,0,0,.8),0 30px 100px #000a!important;
+ border-radius:13px!important}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>strong{
+ display:block;color:#fff!important;font-size:23px!important;margin-bottom:10px}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.field-help{color:#abb8c3!important;font-size:12px!important}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:0!important;
+ background:transparent!important;border:0!important;margin:14px 0!important}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid label:nth-child(1){
+ grid-column:1/-1}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form :is(label,textarea){
+ color:#edf2f6!important}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form :is(input,select,textarea){
+ min-width:0;max-width:100%}
+body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form .page-actions{
+ display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+@media(max-width:600px){
+ body .usd-member .member-config-picker-overlay{padding:0;align-items:flex-end}
+ body .usd-member .member-config-picker-screen{max-height:calc(100dvh - 25px);height:min(760px,97dvh);
+  border-radius:22px 22px 0 0;padding:25px 15px calc(16px + env(safe-area-inset-bottom))}
+ body .usd-member .member-config-picker-fields{grid-template-columns:minmax(0,1fr)}
+ body .usd-member .member-config-picker-fields label:last-child{grid-column:auto}
+ body .usd-member .member-config-picker-foot label{flex-basis:90px}
+ body .usd-member .member-config-picker-foot .primary-button{font-size:12px!important}
+ body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid{grid-template-columns:minmax(0,1fr)!important}
+ body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid label:nth-child(1){grid-column:auto}
+ body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{bottom:calc(75px + env(safe-area-inset-bottom))}
+}
