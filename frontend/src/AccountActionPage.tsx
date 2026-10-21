@@ -44,8 +44,8 @@ export default function AccountActionPage({action,path,onGoLogin,onSessionReset}
     }
   }
 
-  return <div className="login-page"><div className="login-grid"/><div className="login-card">
-    <div className="brand-lockup"><div className="brand-mark">USD</div></div>
+  return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card">
+    <div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div>
     <h1>{success?(resetting?'Пароль изменён':'Email изменён'):(resetting?'Новый пароль':'Подтверждение нового email')}</h1>
     {success?<div className="notice" role="status"><CheckCircle2 size={18}/><span>{resetting?'Пароль успешно изменён. Войдите с новым паролем.':'Email успешно изменён. Войдите с новым адресом.'}</span></div>
       :!validToken?<div className="form-error" role="alert"><AlertTriangle size={18}/><span>Ссылка недействительна. {resetting?'Вернитесь ко входу, нажмите «Забыли пароль?» и запросите новое письмо.':'Запросите новое письмо в настройках аккаунта и откройте ссылку из него.'}</span></div>
