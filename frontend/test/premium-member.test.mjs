@@ -54,3 +54,24 @@ test('participant configurations implement separate released layout without chan
  assert.match(css,/\.admin-configurations-shell \.member-config-description/);
  assert.doesNotMatch(css,/\bUSD 2\.0\b/);
 });
+
+test('release member dashboard and catalog-locked add equipment screen remain wired',async()=>{
+ const [app,dashboard,editor,css]=await Promise.all([
+  source('../src/App.tsx'),source('../src/participant/MemberDashboard.tsx'),
+  source('../src/admin/ConfigurationsPage.tsx'),source('../src/public/premium-configurator.css')
+ ]);
+ assert.match(app,/MemberDashboard from '\.\/participant\/MemberDashboard'/);
+ assert.match(app,/<MemberDashboard cars=\{cars\} registrations=\{registrations\}/);
+ assert.match(dashboard,/car\.photoUrl/);
+ assert.match(dashboard,/audioComponents/);
+ assert.match(dashboard,/registrations\.filter/);
+ assert.match(editor,/className="participant-portal configurations-page-shell"/);
+ assert.match(editor,/usd-member/);
+ assert.match(editor,/aria-label="Добавить оборудование"/);
+ assert.match(editor,/activeModels\(picker\.kind\)/);
+ assert.match(editor,/const validateCatalog=/);
+ assert.match(editor,/if\(!validateCatalog\(\)\)return/);
+ assert.match(editor,/setRequestOpen\(true\)/);
+ assert.match(css,/member-config-picker-overlay/);
+ assert.match(css,/member-release-dashboard/);
+});
