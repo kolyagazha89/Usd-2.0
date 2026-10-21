@@ -45,7 +45,7 @@ export default function MemberDashboard({cars,registrations,stages,onGo,onAddCar
     <h3>{Array.isArray(components)?directions.filter(d=>filled(d.code)>0).length+' из 3 направлений':'Конфигурация оборудования'}</h3>
     <p>{Array.isArray(components)?'Проверка заполнения основных направлений':'Выберите автомобиль и заполните систему для допуска к соревнованиям.'}</p>
     <div className="member-release-progress" aria-hidden="true"><span style={{width:Array.isArray(components)?directions.filter(d=>filled(d.code)>0).length/3*100+'%':'0%'}}/></div>
-    <div className="member-release-directions">{directions.map(d=><div key={d.code}><span className={'member-release-status-dot '+(filled(d.code)?'ready':'')}/><div><strong>{d.code} <small>{d.name}</small></strong><span>{d.event}</span></div><span className={filled(d.code)?'ready-label':'pending-label'}>{filled(d.code)?'Заполнено': 'Не указано'}</span></div>)}</div>
+    <div className="member-release-directions">{directions.map(d=><div key={d.code}><span className={'member-release-status-dot '+(filled(d.code)?'ready':'')}/><div><strong>{d.code} <small>{d.name}</small></strong><span>{d.event}</span></div><span className={filled(d.code)?'ready-label':'pending-label'}>{!Array.isArray(components)?'Проверить':filled(d.code)?'Заполнено':'Не указано'}</span></div>)}</div>
     <div className="member-release-stage-actions"><button type="button" onClick={onRegistration}><ClipboardCheck size={16}/> Мои регистрации ({enrolled}) <ArrowUpRight size={16}/></button><small>{openStages?openStages+' открытых этапов':'Нет открытых регистраций'}</small></div>
    </article>
   </div>
