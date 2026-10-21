@@ -6,7 +6,7 @@ import {Empty,LoadingPage} from './AdminPrimitives';
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
 // Box parameters use a human-readable line in the existing versioned description.
 // The database schema stays unchanged; every previous description and version is preserved.
-const BOX_LINE=/^Короб: ([^\\n·]+) · (\\d+) л · (\\d+) Гц\\n?\\n?/;
+const BOX_LINE=/^Короб: ([^\n·]+) · (\d+) л · (\d+) Гц\n?\n?/;
 const boxFromDescription=(description:string)=>{const match=description.match(BOX_LINE);return {type:match?.[1]?.trim()||'ФИ',volume:match?.[2]||'',tuning:match?.[3]||''}};
 const withoutBoxLine=(description:string)=>description.replace(BOX_LINE,'');
 
@@ -110,7 +110,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const submit=async()=>{setError('');if(!validateCatalog())return;
   if((box.volume||box.tuning)&&(!box.volume||!box.tuning||Number(box.volume)<=0||Number(box.tuning)<=0)){setActiveView('BOX');setError('Для параметров короба укажите и объём в литрах, и настройку в герцах.');return}
   setSaving(true);try{
-   const boxLine=box.volume&&box.tuning?'Короб: '+box.type+' · '+box.volume+' л · '+box.tuning+' Гц\\n\\n':'';
+   const boxLine=box.volume&&box.tuning?'Короб: '+box.type+' · '+box.volume+' л · '+box.tuning+' Гц\n\n':'';
    const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription});if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
  return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':'Новая версия · '+configuration.name}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.'}</p></header>
   {!admin&&<section className="member-config-experience" aria-label="Конфигурация оборудования">
