@@ -8,6 +8,7 @@ import './ui-consistency.css';
 import './premium-ui.css';
 import './public/premium-base.css';
 import './public/premium-public.css';
+import './public/premium-member.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
