@@ -10,6 +10,7 @@ import './public/premium-base.css';
 import './public/premium-public.css';
 import './public/premium-member.css';
 import './public/premium-configurator.css';
+import './participant/member-experience.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

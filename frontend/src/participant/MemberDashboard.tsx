@@ -1,53 +1,39 @@
-import {ArrowUpRight,CarFront,ClipboardCheck,Gauge,Plus,ShieldCheck} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,CalendarDays,CarFront,CheckCircle2,ClipboardCheck,MapPin,Plus,Trophy,Volume2} from 'lucide-react';
+import ParticipantJourney from './ParticipantJourney';
 
-type Props={
- cars:any[];
- registrations:any[];
- stages:any[];
- onGo:(path:string)=>void;
- onAddCar:()=>void;
- onRegistration:()=>void;
-};
-const directions=[
- {code:'SUB',name:'Бас',event:'SPL · BassRace · Storm Wall'},
- {code:'FRONT',name:'Фронт',event:'BFSPL'},
- {code:'REAR',name:'Тыл',event:'BDW SPL'}
-] as const;
-
-export default function MemberDashboard({cars,registrations,stages,onGo,onAddCar,onRegistration}:Props){
- const car=cars[0];
- const configs=car?.configurations??[];
- const current=configs[0];
- const version=current?.versions?.find((v:any)=>v.version===current.currentVersion)??current?.versions?.[0];
+type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void};
+const name=(car:any)=>[car?.brand,car?.model].filter(Boolean).join(' ');
+const date=(value:any)=>value?new Date(value).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}):'Дата уточняется';
+export default function MemberDashboard({participant,cars,registrations,stages,onGo,onAddCar,onRegistration,onStageRegistration}:Props){
+ const active=cars.filter(c=>c.isActive!==false),car=active[0];
+ const configs=car?.configurations??[],config=configs[0];
+ const version=config?.versions?.find((v:any)=>v.version===config.currentVersion)??config?.versions?.[0];
  const components=version?.audioComponents;
- const enrolled=registrations.filter(r=>r.status!=='CANCELLED').length;
- const openStages=stages.filter(s=>s.registrationOpen).length;
- const filled=(code:string)=>Array.isArray(components)?components.filter((c:any)=>c.direction===code&&c.brand&&c.model&&(code!=='SUB'||c.type==='SUBWOOFER')).length:0;
- return <section className="member-release-dashboard" aria-label="Быстрый доступ к системе и соревнованиям">
-  <div className="member-release-heading"><div><span className="eyebrow">USD / МОЯ СИСТЕМА</span><h2>Подготовься к следующему этапу</h2><p>Автомобиль, оборудование и регистрации — в одном месте.</p></div>
-   </div>
-  <div className="member-release-grid">
-   <article className="member-release-car">
-    <div className="member-release-car-copy"><span className="eyebrow">МОЙ ГАРАЖ</span><h3>{car?[car.brand,car.model].filter(Boolean).join(' '):'Начни со своего автомобиля'}</h3>
-     <p>{car?.registrationNumber||'Добавьте автомобиль, чтобы сохранять конфигурации и участвовать в этапах USD.'}</p>
-     {car&&<div className="member-release-car-data"><span>{configs.length} конфигураций</span><span>{components?.length??'—'} компонентов</span></div>}
-     <div className="member-release-car-actions">
-      <button type="button" className="primary-button" onClick={()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()}>
-       {car?<><Gauge size={16}/>Открыть конфигуратор</>:<><Plus size={16}/>Добавить автомобиль</>}
-       <ArrowUpRight size={15}/></button>
-      <button className="secondary-button" type="button" onClick={()=>onGo('/participant?tab=cars')}>Мой гараж</button>
-     </div>
-    </div>
-    <div className="member-release-car-art">{car?.photoUrl?<img src={car.photoUrl} alt={[car.brand,car.model].filter(Boolean).join(' ')}/>:<CarFront size={132} strokeWidth={.75} aria-hidden="true"/>}</div>
+ const upcoming=stages.filter(s=>s.registrationOpen||new Date(s.date??0).getTime()>=Date.now()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
+ const stage=upcoming[0];
+ const entryFor=(s:any)=>registrations.find(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id);
+ const allCarsRegistered=(s:any)=>active.length>0&&active.every(c=>registrations.some(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&r.carId===c.id));
+ const entry=stage&&entryFor(stage);
+ const allRegistered=stage&&allCarsRegistered(stage);
+ const results=registrations.flatMap(r=>(r.results??[]).map((result:any)=>({...result,stage:r.stage,className:(r.classes??[]).find((c:any)=>c.id===result.registrationClassId)?.class?.name}))).sort((a,b)=>new Date(b.stage?.date??0).getTime()-new Date(a.stage?.date??0).getTime());
+ const directions=[['SUB','Бас'],['FRONT','Фронт'],['REAR','Тыл']];
+ const filled=(code:string)=>Array.isArray(components)&&components.some((c:any)=>c.direction===code&&c.brand&&c.model&&(code!=='SUB'||c.type==='SUBWOOFER'));
+ return <div className="member-home">
+  <div className="member-home-lead">
+   <article className="member-race-card"><div className="member-card-top"><span className="eyebrow">{entry?'ВАШ БЛИЖАЙШИЙ СТАРТ':'СЛЕДУЮЩИЙ ЭТАП'}</span><span className={'member-state '+(entry?'is-positive':'')}>{entry?'Заявка подана':stage?.registrationOpen?'Регистрация открыта':'Календарь USD'}</span></div>
+    <h2>{stage?.name||'Новый старт впереди'}</h2><div className="member-race-meta"><span><CalendarDays size={16}/>{stage?date(stage.date):'Следите за календарём'}</span><span><MapPin size={16}/>{[stage?.city,stage?.venue].filter(Boolean).join(' · ')||'Место уточняется'}</span></div>
+    {entry?<div className="member-race-ticket"><div><small>НОМЕР УЧАСТНИКА</small><strong>{String(entry.numbers?.[0]?.number??entry.participantNumber??'—').padStart(3,'0')}</strong></div><p>{(entry.stageInspection??entry.inspection)?.status==='PASSED'?'Инспекция пройдена. Удачного выступления!':'На этапе откройте заявку и покажите QR-код судье для инспекции.'}</p></div>:<p className="member-race-copy">{stage?.registrationOpen?'Выберите автомобиль и классы. Заявка займёт три простых шага.':'Здесь появится ваш следующий этап, номер участника и быстрый доступ к инспекции.'}</p>}
+    <button className="primary-button" onClick={()=>entry?onGo('/participant/registration?registrationId='+encodeURIComponent(entry.id)):stage?.registrationOpen?onStageRegistration(stage):onGo('/stages')}>{entry?'Открыть заявку и QR-код':stage?.registrationOpen?'Подать заявку':'Смотреть этапы'}<ArrowRight size={17}/></button>
+    {entry&&stage?.registrationOpen&&!allRegistered&&<button className="text-button member-race-add" onClick={()=>onStageRegistration(stage)}>Заявить ещё автомобиль<ArrowUpRight size={15}/></button>}
+    {allRegistered&&<small className="member-race-footnote">Все ваши автомобили уже заявлены на этот этап.</small>}
    </article>
-   <article className="member-release-status">
-    <div className="member-release-status-head"><span className="eyebrow">ГОТОВНОСТЬ СИСТЕМЫ</span><ShieldCheck size={19}/></div>
-    <h3>{Array.isArray(components)?directions.filter(d=>filled(d.code)>0).length+' из 3 направлений':'Конфигурация оборудования'}</h3>
-    <p>{Array.isArray(components)?'Проверка заполнения основных направлений':'Выберите автомобиль и заполните систему для допуска к соревнованиям.'}</p>
-    <div className="member-release-progress" aria-hidden="true"><span style={{width:Array.isArray(components)?directions.filter(d=>filled(d.code)>0).length/3*100+'%':'0%'}}/></div>
-    <div className="member-release-directions">{directions.map(d=><div key={d.code}><span className={'member-release-status-dot '+(filled(d.code)?'ready':'')}/><div><strong>{d.code} <small>{d.name}</small></strong><span>{d.event}</span></div><span className={filled(d.code)?'ready-label':'pending-label'}>{!Array.isArray(components)?'Проверить':filled(d.code)?'Заполнено':'Не указано'}</span></div>)}</div>
-    <div className="member-release-stage-actions"><button type="button" onClick={onRegistration}><ClipboardCheck size={16}/> Мои регистрации ({enrolled}) <ArrowUpRight size={16}/></button><small>{openStages?openStages+' открытых этапов':'Нет открытых регистраций'}</small></div>
-   </article>
+   <article className="member-pass-card"><div className="member-card-top"><span className="eyebrow">ПРОФИЛЬ УЧАСТНИКА</span><button type="button" className="text-button" onClick={()=>onGo('/participant?tab=profile')} aria-label="Открыть профиль"><ArrowUpRight size={18}/></button></div><div className="member-pass-identity">{participant?.photoUrl?<img src={participant.photoUrl} alt="Фото профиля"/>:<span>{String(participant?.firstName||'U').slice(0,1)}</span>}<div><h2>{[participant?.firstName,participant?.lastName].filter(Boolean).join(' ')||'Участник USD'}</h2><p>{[participant?.city,participant?.team].filter(Boolean).join(' · ')||'Добро пожаловать в USD'}</p></div></div><dl className="member-pass-stats"><div><dt>Автомобили</dt><dd>{active.length}</dd></div><div><dt>Участие в этапах</dt><dd>{new Set(registrations.filter(r=>r.status!=='CANCELLED').map(r=>r.stageId??r.stage?.id)).size}</dd></div><div><dt>Результаты</dt><dd>{results.length}</dd></div></dl><button className="secondary-button" type="button" onClick={onRegistration}><ClipboardCheck size={16}/>Мои регистрации<ArrowRight size={16}/></button></article>
   </div>
- </section>;
+  {(!car||!configs.length)&&<ParticipantJourney cars={active} registrations={registrations} go={onGo}/>}
+  <div className="member-home-secondary">
+   <section className="member-garage-panel"><div className="member-section-title"><div><span className="eyebrow">ГАРАЖ USD</span><h2>Моя система</h2></div><button className="text-button" onClick={()=>onGo('/participant?tab=cars')}>Все автомобили<ArrowUpRight size={15}/></button></div><div className="member-vehicle-surface"><div className="member-vehicle-copy"><span className="member-state">{car?'Текущий автомобиль':'Начните здесь'}</span><h3>{car?name(car):'Добавьте автомобиль'}</h3><p>{car?.registrationNumber||'Ваш автомобиль и оборудование для участия в USD'}</p></div><div className="member-vehicle-image">{car?.photoUrl?<img src={car.photoUrl} alt={name(car)}/>:<CarFront size={96} strokeWidth={1} aria-hidden="true"/>}</div></div><div className="member-system-directions">{directions.map(([code,label])=><div key={code}><span>{code}<small>{label}</small></span><strong data-ready={filled(code)}>{!components?'Не проверено':filled(code)?<><CheckCircle2 size={14}/>Заполнено</>:'Не указано'}</strong></div>)}</div><div className="member-panel-actions"><button className="secondary-button" onClick={()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()}>{car?<Volume2 size={16}/>:<Plus size={16}/>} {car?'Настроить оборудование':'Добавить автомобиль'}<ArrowRight size={16}/></button></div></section>
+   <section className="member-results-panel"><div className="member-section-title"><div><span className="eyebrow">ВАША ИСТОРИЯ</span><h2>Последние результаты</h2></div><Trophy size={20}/></div>{results.length?<div className="member-result-feed">{results.slice(0,3).map((r:any)=><article key={r.id}><div><small>{r.stage?.name||'Этап USD'}</small><h3>{r.className||'Результат'}</h3><p>{r.place!=null?String(r.place)+' место · ':''}{date(r.stage?.date)}</p></div><strong>{r.value}<small>{r.unit||''}</small></strong></article>)}</div>:<div className="member-results-empty"><Trophy size={32} strokeWidth={1}/><h3>Первый результат ещё впереди</h3><p>После публикации результатов этапа здесь появятся ваши замеры и места.</p></div>}<button className="text-button member-history-link" onClick={onRegistration}>Открыть историю участия<ArrowUpRight size={15}/></button></section>
+  </div>
+  {upcoming.length>1&&<section className="member-more-stages"><div className="member-section-title"><h2>Ещё в календаре</h2><button className="text-button" onClick={()=>onGo('/stages')}>Все этапы<ArrowUpRight size={15}/></button></div>{upcoming.slice(1,4).map(s=>{const existing=entryFor(s),canEnter=s.registrationOpen&&!allCarsRegistered(s);return <article key={s.id}><span>{date(s.date)}</span><div><strong>{s.name}</strong><small>{s.city||'Место уточняется'}</small></div><button className="secondary-button" onClick={()=>canEnter?onStageRegistration(s):existing?onGo('/participant/registration?registrationId='+encodeURIComponent(existing.id)):onGo('/stages/'+s.id)}>{canEnter?'Подать заявку':existing?'Открыть заявку':'Подробнее'}<ArrowRight size={15}/></button></article>})}</section>}
+ </div>;
 }

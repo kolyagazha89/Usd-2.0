@@ -85,7 +85,8 @@ try{
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'){
       blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
      }
-     const data=dataFor(url,role);
+     const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
+     const data=registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
      return route.fulfill({status:data===null?401:200,contentType:'application/json',body:JSON.stringify(data??{message:'Anonymous fixture'})});
     }
     // Images, fonts and third-party embeds must never contact a live service.
@@ -116,6 +117,14 @@ try{
       const overflow=await notice.locator('.cookie-notice__copy').evaluate(element=>({scroll:element.scrollWidth,width:element.clientWidth,whiteSpace:getComputedStyle(element.querySelector('p')).whiteSpace}));
       assert.ok(overflow.scroll<=overflow.width+1,'cookie notice copy must wrap '+JSON.stringify(overflow));
      }
+     if(width<=760&&role==='PARTICIPANT'){
+      for(const selector of ['.participant-refresh','.participant-logout']){
+       const control=page.locator(selector);if(await control.count()){
+        const size=await control.evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));assert.ok(size.scroll<=size.width+1,'account control content fits its button');
+        assert.ok(await control.locator('svg').isVisible(),'account icon remains visible');
+       }
+      }
+     }
      if(width<=760&&role==='PARTICIPANT'&&route.includes('/participant/configurations')){
       const nav=page.locator('.participant-tabs');
       assert.equal(await nav.locator('[aria-current="page"]').innerText(),'Мои автомобили','configuration pages keep garage navigation');
@@ -134,7 +143,14 @@ try{
       });
       if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top,'cookie notice leaves bottom navigation reachable');
       await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
-      if(role==='PARTICIPANT'&&route.includes('&edit=')){
+      if(role==='PARTICIPANT'&&route==='/participant?tab=registrations'){
+      const card=await page.locator('.participant-registration-list>article').first().boundingBox();
+      const main=await page.locator('.participant-registration-main').first().boundingBox();
+      assert.ok(main.width>=card.width-50,'registration content uses the card width instead of squeezing beside cancel');
+      assert.ok(await page.getByRole('button',{name:/Открыть карточку регистрации/}).isVisible());
+     }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
+     if(role==='PARTICIPANT'&&route.includes('&edit=')){
        const save=await page.locator('.config-editor-actions').boundingBox(),cookie=await notice.boundingBox();
        assert.ok(save.y+save.height<=cookie.y,'save button remains above the cookie notice');
       }
@@ -176,12 +192,48 @@ try{
       row.mobilePublicNavigation='passed';
       await page.goto(base+route,{waitUntil:'networkidle'});
      }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=registrations'){
+      const card=await page.locator('.participant-registration-list>article').first().boundingBox();
+      const main=await page.locator('.participant-registration-main').first().boundingBox();
+      assert.ok(main.width>=card.width-50,'registration content uses the card width instead of squeezing beside cancel');
+      assert.ok(await page.getByRole('button',{name:/Открыть карточку регистрации/}).isVisible());
+     }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
+     if(role==='PARTICIPANT'&&route.startsWith('/participant/register?')){
+      const next=page.getByRole('button',{name:'Перейти к классам',exact:true});
+      assert.equal(await next.isEnabled(),false,'cannot skip vehicle selection');
+      assert.equal(await page.getByRole('button',{name:'03 Подтверждение',exact:true}).isEnabled(),false);
+      await page.getByLabel('Ваш автомобиль',{exact:true}).selectOption('car1');
+      await page.getByLabel('Сохранённое оборудование',{exact:true}).selectOption('v1');
+      assert.equal(await next.isEnabled(),true);
+      await page.screenshot({path:path.join(output,'registration-step1-'+width+'.png'),fullPage:true});
+      await next.click();
+      await page.getByRole('heading',{name:'В каких классах участвуете?',exact:true}).waitFor();
+      assert.equal(await page.getByRole('button',{name:'Проверить заявку',exact:true}).isEnabled(),false,'requires a class');
+      await page.locator('.registration-class-option').filter({hasText:'Limited 2.0'}).click();
+      await page.screenshot({path:path.join(output,'registration-step2-'+width+'.png'),fullPage:true});
+      await page.getByRole('button',{name:'Проверить заявку',exact:true}).click();
+      await page.getByRole('heading',{name:'Проверьте вашу заявку',exact:true}).waitFor();
+      assert.equal(await page.locator('.registration-submit').isEnabled(),false,'requires rule consent');
+      await page.locator('.registration-rules-consent input').check();
+      assert.equal(await page.locator('.registration-submit').isEnabled(),true);
+      await page.getByRole('button',{name:'Изменить классы',exact:true}).click();
+      assert.equal(await page.locator('.registration-class-option input').first().isChecked(),true,'back preserves class selection');
+      await page.getByRole('button',{name:'Назад',exact:true}).click();
+      assert.equal(await page.getByLabel('Ваш автомобиль',{exact:true}).inputValue(),'car1');
+      assert.equal(await page.getByLabel('Сохранённое оборудование',{exact:true}).inputValue(),'v1');
+      await page.getByRole('button',{name:'Перейти к классам',exact:true}).click();
+      await page.getByRole('button',{name:'Проверить заявку',exact:true}).click();
+      row.registrationFlow='three steps; selection gates; back preserves choices; rule consent gate; no submission';
+      const end=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(end.scroll<=end.width+1,'confirmation fits viewport');
+      assert.equal(errors.length,0,'flow has no runtime errors');
+     }
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
       const requestCopy=await page.locator('.catalog-request-inline>.secondary-button').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));
       assert.ok(requestCopy.scroll<=requestCopy.width+1,'the model-request button text must fit on mobile');
       const nav=page.getByRole('navigation',{name:'Разделы конфигуратора'});
-      for(const name of ['FRONT','REAR','ПИТАНИЕ','КОРОБ','ОПИСАНИЕ','ПАРАМЕТРЫ','SUB']){
-       const tab=nav.getByRole('button',{name:new RegExp('^'+name+'(?: Заполнено)?$')});await tab.click();
+      for(const key of ['FRONT','REAR','POWER','BOX','NOTES','SETUP','SUB']){
+       const tab=nav.locator('[data-section="'+key+'"]');await tab.click();
        assert.equal(await tab.getAttribute('aria-pressed'),'true');
       }
       const workspace=page.locator('.config-direction-workspace[data-direction="SUB"]');
@@ -190,13 +242,16 @@ try{
       const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
       await picker.getByRole('combobox',{name:/^Бренд/}).selectOption('Alphard');
       await picker.getByLabel('Поиск модели').fill('missing-fixture');
-      assert.equal(await picker.getByRole('button',{name:'Добавить в SUB',exact:true}).isEnabled(),false,'unlisted models cannot be added');
+      assert.equal(await picker.getByRole('button',{name:'Добавить в бас',exact:true}).isEnabled(),false,'unlisted models cannot be added');
       await picker.getByLabel('Поиск модели').fill('Machete');
       await picker.getByRole('button',{name:/Alphard Machete/}).click();
       const pickerBox=await picker.boundingBox(),footBox=await picker.locator('.member-config-picker-foot').boundingBox();
       assert.ok(footBox.y+footBox.height<=pickerBox.y+pickerBox.height+1,'catalog actions stay inside the dialog');
-      await picker.getByRole('button',{name:'Добавить в SUB',exact:true}).click();
+      await picker.getByRole('button',{name:'Добавить в бас',exact:true}).click();
       assert.equal(await workspace.locator('.config-row').count(),before+1,'catalog equipment appears in the chosen direction');
+      const equipment=workspace.locator('.member-equipment-item').last();await equipment.locator('summary').click();
+      await equipment.getByLabel('Общее количество сабвуферов в системе',{exact:true}).fill('3');assert.equal(await equipment.locator('.member-equipment-quantity').innerText(),'3 шт.');await equipment.locator('summary').click();
+      assert.equal(await equipment.locator('input').first().isVisible(),false,'equipment parameters collapse into a readable card');
       if(width<=390){
        await page.setViewportSize({width,height:568});
        await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
