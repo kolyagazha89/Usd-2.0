@@ -11,10 +11,14 @@ await mkdir(output,{recursive:true});
 const report={base,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
 const candidateResultCss=await readFile('frontend/src/participant-ui-polish.css','utf8');
 const candidatePremiumCss=await readFile('frontend/src/premium-ui.css','utf8');
+const candidatePublicCss=await readFile('frontend/src/public/premium-public.css','utf8');
+const candidateBaseCss=await readFile('frontend/src/public/premium-base.css','utf8');
+const candidateMemberCss=await readFile('frontend/src/public/premium-member.css','utf8');
+const candidateCss=[candidateResultCss,candidatePremiumCss,candidateBaseCss,candidatePublicCss,candidateMemberCss].join('\n');
 async function navigatePublic(page,label){
  const toggle=page.locator('.public-nav-toggle');
  if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
- const link=page.getByRole('link',{name:label,exact:true});
+ const link=page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:label,exact:true});
  if(await link.count())await link.click();else await page.getByRole('button',{name:label,exact:true}).click();
 }
 async function inspectResultText(page){
@@ -51,7 +55,7 @@ try{
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
         const originalResultText=await inspectResultText(page);
-        await page.addStyleTag({content:candidateResultCss+'\n'+candidatePremiumCss});
+        await page.addStyleTag({content:candidateCss});
         row.visualSource='live DOM with candidate branch CSS; candidate JavaScript is tested separately';
         Object.assign(row,await page.evaluate(()=>{
           const width=innerWidth;
@@ -92,9 +96,9 @@ try{
           if(before.length){
             await page.screenshot({path:path.join(output,width+'-'+(route==='/'?'home':'results')+'-live-before.png'),fullPage:false});
             // Preview this branch's CSS over the live public DOM. No site or data is changed.
-            await page.addStyleTag({content:candidateResultCss});
+            // Candidate CSS was already applied in production import order above.
             const after=await inspectResultText(page);
-            row.resultTextStyleSource='candidate participant-ui-polish.css and premium-ui.css injected only in this QA browser';
+            row.resultTextStyleSource='all candidate CSS layers injected in production order (read-only QA browser)';
             row.resultTextElementsChecked=after.length;
             row.resultTextSurfaceAfter=after.filter(hasSurface);
             row.resultClassBordersAfter=after.filter(element=>element.element==='public-result-class'&&element.borderWidth!=='0px');
