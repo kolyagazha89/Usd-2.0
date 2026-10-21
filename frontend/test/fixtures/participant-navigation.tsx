@@ -118,3 +118,22 @@ export async function runDashboardAvailability(){
   await click(document.querySelector<HTMLButtonElement>('.member-more-stages article button')!);assert.equal(actions.at(-1),'second');
  }finally{await act(async()=>root.unmount())}
 }
+
+export async function runFullyRegisteredStage(){
+ const stage={id:'full-stage',name:'Этап USD',date:'2026-11-21',registrationOpen:true,status:'PUBLISHED'};
+ const car={id:'full-car',brand:'Lada',model:'Vesta'};
+ state.__getPublic=async(path:string)=>{
+  if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван'}};
+  if(path==='/stages/public')return [stage];
+  if(path==='/participants/me/cars')return [car];
+  if(path==='/registrations/me')return [{id:'full-registration',stage,stageId:stage.id,car,carId:car.id,status:'ACTIVE'}];
+  return [];
+ };
+ history.replaceState({},'','/participant/register?stageId=full-stage');const root=createRoot(document.getElementById('root')!);
+ try{
+  await act(async()=>root.render(<App/>));await flush();await flush();
+  assert.match(document.querySelector('main')?.textContent??'',/Все ваши автомобили уже зарегистрированы/,'repeat registration explains why there are no available cars');
+  const open=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.includes('Открыть мои заявки'));
+  assert.ok(open,'provide a way to review existing entries instead of a disabled wizard');await click(open);active('Регистрации');
+ }finally{await act(async()=>root.unmount())}
+}

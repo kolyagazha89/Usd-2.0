@@ -60,22 +60,25 @@ function dataFor(url,role){
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
  if(p==='/seasons'||p==='/seasons/public')return [season];
  if(p==='/directions')return [klass.direction];
- if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [participant];
+ if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
+ if(p==='/participants/p1')return {...participant,cars:[car],registrations:[registration]};
+ if(p==='/cars/car1')return car;
+ if(p==='/results/registration/reg1')return [result];
  if(p==='/participants/teams')return [{name:'USD Team'}];
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
  return [];
 }
-const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/login','/reset-password','/confirm-email-change','/participants','/teams','/cars','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=['/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1'];
+const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/login','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route)),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
 const browser=await chromium.launch({headless:true});
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?routeSet:(role===null?['/','/stages','/results?stageId=stage1','/login']:role==='PARTICIPANT'?['/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?routeSet:(role===null?['/','/stages','/results?stageId=stage1','/login']:role==='PARTICIPANT'?['/participants','/participants/p1','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
    const context=await browser.newContext({viewport:{width,height:960}});
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -112,6 +115,22 @@ try{
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
      assert.ok((await page.locator('body').innerText()).length>100,'page must contain actual UI');
+     const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change'].includes(route);
+     if(isPublicContent){
+      assert.equal(await page.locator('.participant-portal').count(),0,'public content stays public in a member session');
+      assert.equal(await page.locator('.p-error').count(),0,'public requests must not fail silently');
+     }
+     if(route==='/participants/p1'){
+      assert.match(await page.locator('.p-profile-banner').innerText(),/Тестовый Иван/);
+      await page.getByRole('button',{name:'Показать результаты',exact:true}).click();
+      await page.locator('.p-entry-results strong').waitFor();
+      assert.match(await page.locator('.p-entry-results').innerText(),/150,25/);
+      assert.match(await page.locator('.p-entry-results').innerText(),/1 место/);
+      row.publicAchievements='published results expanded; stage protocol link available';
+     }
+     if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
+     if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
+
      const notice=page.locator('.cookie-notice');
      if(await notice.isVisible()){
       const overflow=await notice.locator('.cookie-notice__copy').evaluate(element=>({scroll:element.scrollWidth,width:element.clientWidth,whiteSpace:getComputedStyle(element.querySelector('p')).whiteSpace}));

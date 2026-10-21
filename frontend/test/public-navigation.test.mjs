@@ -24,7 +24,7 @@ test('public stage links, selector URLs and browser history show the requested r
     const apiSource=await readFile(path.join(base,'../src/api.ts'),'utf8');
     const names=[...apiSource.matchAll(/export (?:async )?function (\w+)/g)].map(match=>match[1]);
     const implementations={
-      refresh:'async()=>globalThis.__publicRefresh?globalThis.__publicRefresh():({user:null})',
+      refresh:'async()=>globalThis.__publicRefresh?globalThis.__publicRefresh():({user:globalThis.__accountUser})',
       apiGet:'async path=>globalThis.__getPublic(path)',
       getPublicSiteAsset:'async()=>({})',
       apiPost:'async(path,body)=>globalThis.__postAction(path,body)',
@@ -41,6 +41,8 @@ test('public stage links, selector URLs and browser history show the requested r
     const workflow=await import(pathToFileURL(outfile).href);
     await workflow.runPublicBootstrap();
     await workflow.runPublicNavigation();
+    await workflow.runSignedInPublicAccess();
+    await workflow.runRulesSearch();
   }finally{
     dom.window.close();
     for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key]}
