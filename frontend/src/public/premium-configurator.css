@@ -313,3 +313,82 @@ body .usd-member .configuration-editor-page[data-member-view] .catalog-request-f
  body .usd-member .configuration-editor-page[data-member-view] .catalog-request-form>.config-basic-grid label:nth-child(1){grid-column:auto}
  body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{bottom:calc(75px + env(safe-area-inset-bottom))}
 }
+
+/* Unified participant dashboard: design language shared with the configurator. */
+body .usd-member .member-release-dashboard{margin:7px 0 25px}
+body .usd-member .member-release-heading{display:flex;justify-content:space-between;align-items:end;
+ gap:16px;margin-bottom:19px}
+body .usd-member .member-release-heading h2{margin:8px 0 6px!important;
+ font:850 clamp(24px,3vw,34px)/1.15 'Exo 2',sans-serif!important;color:#f4f7f8}
+body .usd-member .member-release-heading p{color:#a9bac4;font-size:13px;margin:0}
+body .usd-member .member-release-edition{font-size:10px;color:#8298a6;
+ font-weight:750;letter-spacing:.18em}
+body .usd-member .member-release-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);
+ gap:18px;align-items:stretch}
+body .usd-member .member-release-grid>article{min-width:0;border-radius:12px;
+ border:1px solid #39434b;box-shadow:inset 0 1px rgba(255,255,255,.035)}
+body .usd-member .member-release-car{position:relative;isolation:isolate;min-height:305px;
+ overflow:hidden;display:flex;align-items:center;padding:clamp(22px,3vw,32px)!important;
+ background:radial-gradient(ellipse at 83% 50%,rgba(220,10,42,.22),transparent 48%),
+ linear-gradient(130deg,#121a20,#090d11)!important}
+body .usd-member .member-release-car:before{content:'';position:absolute;z-index:-1;
+ left:40%;right:-15%;bottom:-25%;height:70%;background:radial-gradient(ellipse,#f11c3927,transparent 68%);
+ pointer-events:none}
+body .usd-member .member-release-car-copy{position:relative;z-index:1;width:65%;min-width:0}
+body .usd-member .member-release-car h3{font:850 clamp(24px,3vw,36px)/1.11 'Exo 2',sans-serif!important;
+ margin:14px 0 9px;color:#fff!important}
+body .usd-member .member-release-car p{color:#b9c8ce!important;font-size:13px;line-height:1.55;max-width:340px}
+body .usd-member .member-release-car-data{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}
+body .usd-member .member-release-car-data span{background:#172029cc;border:1px solid #36434a;
+ padding:7px 10px;border-radius:7px;font-weight:650;color:#c6d4db;font-size:11px}
+body .usd-member .member-release-car-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:24px}
+body .usd-member .member-release-car-actions button{min-height:44px!important;
+ padding:9px 14px!important;font-size:12px!important;gap:8px!important;white-space:normal}
+body .usd-member .member-release-car-art{position:absolute;right:3%;top:12%;bottom:5%;width:39%;
+ display:flex;align-items:center;justify-content:center;z-index:0;color:#718997;
+ filter:drop-shadow(0 0 28px #e529441c)}
+body .usd-member .member-release-car-art img{max-width:100%;max-height:92%;object-fit:contain}
+body .usd-member .member-release-car-art>svg{width:100%;height:auto;max-height:100%}
+body .usd-member .member-release-status{padding:23px!important;background:linear-gradient(150deg,#141b23,#0c1014)!important}
+body .usd-member .member-release-status-head{display:flex;align-items:center;justify-content:space-between;color:#ff3a58}
+body .usd-member .member-release-status h3{font:850 23px/1.18 'Exo 2',sans-serif!important;
+ margin:17px 0 7px;color:#fff!important}
+body .usd-member .member-release-status p{font-size:12px!important;color:#a6b7c0!important;line-height:1.55}
+body .usd-member .member-release-progress{margin:18px 0 9px;height:5px;border-radius:6px;background:#2a353f;overflow:hidden}
+body .usd-member .member-release-progress>span{display:block;height:100%;
+ background:linear-gradient(90deg,#b60725,#ff3858);border-radius:5px;transition:width .2s}
+body .usd-member .member-release-directions>div{display:grid;grid-template-columns:9px minmax(0,1fr) auto;
+ gap:9px;align-items:center;min-height:41px;border-bottom:1px solid #27343c}
+body .usd-member .member-release-status-dot{height:7px;width:7px;background:#50636b;border-radius:50%}
+body .usd-member .member-release-status-dot.ready{background:#31cb72;box-shadow:0 0 7px #31cb7233}
+body .usd-member .member-release-directions>div>div{display:grid;gap:3px;min-width:0}
+body .usd-member .member-release-directions strong{font-size:12px!important;color:#edf4f5!important}
+body .usd-member .member-release-directions strong small{font-size:10px!important;color:#9baeb7!important;margin-left:7px}
+body .usd-member .member-release-directions>div>div>span{font-size:10px!important;color:#8c9faa!important}
+body .usd-member .member-release-directions .ready-label,
+body .usd-member .member-release-directions .pending-label{font-size:10px!important;color:#52e391!important;font-weight:760}
+body .usd-member .member-release-directions .pending-label{color:#a1b0ba!important}
+body .usd-member .member-release-stage-actions{display:flex;align-items:center;justify-content:space-between;
+ gap:12px;margin-top:18px}
+body .usd-member .member-release-stage-actions button{border:0;background:none;color:#ff526e;
+ font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer;padding:0}
+body .usd-member .member-release-stage-actions small{font-size:10px;color:#92a6b1;text-align:right}
+@media(max-width:1050px){
+ body .usd-member .member-release-grid{grid-template-columns:minmax(0,1fr)}
+ body .usd-member .member-release-car{min-height:250px}
+ body .usd-member .member-release-car-copy{width:62%}
+}
+@media(max-width:600px){
+ body .usd-member .member-release-edition{display:none}
+ body .usd-member .member-release-dashboard{margin-top:0}
+ body .usd-member .member-release-heading h2{font-size:25px!important}
+ body .usd-member .member-release-grid{gap:12px}
+ body .usd-member .member-release-car{padding:19px!important;min-height:270px;align-items:start}
+ body .usd-member .member-release-car-copy{width:100%}
+ body .usd-member .member-release-car h3{font-size:28px!important;max-width:74%}
+ body .usd-member .member-release-car p{max-width:65%;font-size:11px}
+ body .usd-member .member-release-car-art{top:6%;right:1%;width:35%;bottom:33%}
+ body .usd-member .member-release-car-actions{margin-top:38px}
+ body .usd-member .member-release-status{padding:17px!important}
+}
+@media(prefers-reduced-motion:reduce){body .usd-member .member-release-progress>span{transition:none}}
