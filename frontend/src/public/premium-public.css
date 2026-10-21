@@ -67,3 +67,28 @@
  .usd-live .p-public-header .public-nav{overflow:visible!important;z-index:2}
  .usd-live .p-public-header .public-nav-links[data-open='true']{z-index:3}
 }
+
+/* USD Premium alignment: class names are text, never a second badge surface. */
+body .usd-live .public-result-card .public-result-class,
+body .usd-live .public-record-card .public-record-class{
+ background:transparent!important;background-image:none!important;border:0!important;
+ box-shadow:none!important;border-radius:0!important;padding:0!important;
+ color:#c5d3dc!important;overflow-wrap:anywhere;white-space:normal;
+}
+/* User-authored legal titles and document filenames must wrap on narrow screens. */
+body .usd-live .public-legal-document,
+body .usd-live .public-legal-document-files,
+body .usd-live .public-legal-document-files li,
+body .usd-live .p-legal-links,
+body .usd-live .u-footer-bottom{min-width:0;max-width:100%;overflow-wrap:anywhere}
+body .usd-live .public-legal-document-files a,
+body .usd-live .p-legal-links a,
+body .usd-live .u-footer a{
+ max-width:100%;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word;
+}
+body .usd-live .public-legal-document-files a{display:inline-block}
+@media(max-width:740px){
+ body .usd-live .public-legal-document-files ul{padding-inline-start:20px;max-width:100%}
+ body .usd-live .public-legal-document-files li{padding-right:0}
+ body .usd-live .public-legal-text{min-width:0;max-width:100%;overflow-wrap:anywhere}
+}
