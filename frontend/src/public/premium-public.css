@@ -60,3 +60,10 @@
 
 /* Keep every interactive public input readable and prevent iOS Safari focus zoom. */
 .usd-live input:not([type='checkbox']):not([type='radio']):not([type='hidden']),.usd-live select,.usd-live textarea{font-size:16px!important}
+
+/* Dropdowns must stack above the sticky header row at tablet widths (1024px). */
+@media (max-width:1100px){
+ .usd-live .p-public-header .u-header-inner{overflow:visible!important}
+ .usd-live .p-public-header .public-nav{overflow:visible!important;z-index:2}
+ .usd-live .p-public-header .public-nav-links[data-open='true']{z-index:3}
+}
