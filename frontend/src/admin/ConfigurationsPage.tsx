@@ -48,7 +48,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
  const [modelQuery,setModelQuery]=useState('');
 
- const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction).length;
+ const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
  const editorViews=[{key:'SUB',label:'Басовая система',short:'SUB',icon:Volume2,desc:'SPL · BassRace · Storm Wall'},
  {key:'FRONT',label:'Фронтальная система',short:'FRONT',icon:Gauge,desc:'BFSPL'},
  {key:'REAR',label:'Тыловая система',short:'REAR',icon:Volume2,desc:'BDW SPL'},
