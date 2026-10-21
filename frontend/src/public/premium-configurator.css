@@ -392,3 +392,49 @@ body .usd-member .member-release-stage-actions small{font-size:10px;color:#92a6b
  body .usd-member .member-release-status{padding:17px!important}
 }
 @media(prefers-reduced-motion:reduce){body .usd-member .member-release-progress>span{transition:none}}
+
+/* Revision history mirrors the dedicated Figma history screen and preserves real data. */
+body .usd-member .configuration-details-page>.configuration-subpage-header{
+ background:transparent!important;border:none!important;padding:0 0 18px!important}
+body .usd-member .configuration-details-page .config-details{
+ padding:18px!important;background:#0b1116!important;border:1px solid #38434a!important;
+ border-radius:12px!important;min-width:0}
+body .usd-member .configuration-details-page .config-details-hero{
+ background:linear-gradient(110deg,#1c121b,#111a20)!important;border-radius:9px!important;
+ border:1px solid #533441!important;padding:18px!important}
+body .usd-member .member-config-timeline{margin-top:20px;border:1px solid #39434b;
+ border-radius:10px;padding:20px;background:linear-gradient(150deg,#121a21,#0d1319)!important}
+body .usd-member .member-config-timeline-heading h2{margin:7px 0!important;color:#f9fbfc!important;
+ font:850 clamp(22px,3vw,28px)/1.15 'Exo 2',sans-serif!important}
+body .usd-member .member-config-timeline-heading p{font-size:12px!important;
+ line-height:1.6;color:#a9b9c1!important;margin:0 0 20px}
+body .usd-member .member-config-timeline-list{display:grid;gap:10px}
+body .usd-member .member-config-timeline-list>button{width:100%;min-width:0;display:grid;
+ grid-template-columns:45px minmax(0,1fr) auto 20px;align-items:center;gap:12px;
+ padding:15px!important;text-align:left!important;color:#f4f8f9!important;background:#121922!important;
+ border:1px solid #36424c!important;border-radius:9px!important;cursor:pointer}
+body .usd-member .member-config-timeline-list>button:hover,
+body .usd-member .member-config-timeline-list>button.selected{border-color:#df3051!important;
+ background:linear-gradient(110deg,#251a23,#111923)!important}
+body .usd-member .member-config-timeline-number{display:grid;place-items:center;
+ width:42px;height:42px;border-radius:50%;background:#202c34;color:#dce7ed;font-weight:850}
+body .usd-member .member-config-timeline-content{display:grid;gap:5px;min-width:0}
+body .usd-member .member-config-timeline-content strong{font-size:14px!important;color:#f7f9fa!important}
+body .usd-member .member-config-timeline-content small{font-size:11px!important;color:#a9b7c2!important}
+body .usd-member .member-config-timeline-list .timeline-live,
+body .usd-member .member-config-timeline-list .timeline-archive{font-size:10px;font-weight:800;color:#44d27b;
+ padding:6px 10px;border:1px solid #27543c;background:#10261b;border-radius:7px;white-space:nowrap}
+body .usd-member .member-config-timeline-list .timeline-archive{color:#a0b0bc;border-color:#354149;background:#192027}
+body .usd-member .configuration-details-page .config-detail-grid .detail-block,
+body .usd-member .configuration-details-page .config-stat-grid>div{
+ background:#121b22!important;border-color:#36444c!important;border-radius:8px!important}
+body .usd-member .configuration-details-page .config-detail-grid .detail-block strong{
+ overflow-wrap:anywhere}
+@media(max-width:600px){
+ body .usd-member .configuration-details-page .config-details{padding:12px!important}
+ body .usd-member .member-config-timeline{padding:14px!important}
+ body .usd-member .member-config-timeline-list>button{grid-template-columns:34px minmax(0,1fr) 17px;gap:9px;padding:11px!important}
+ body .usd-member .member-config-timeline-number{width:32px;height:32px;font-size:11px}
+ body .usd-member .member-config-timeline-list :is(.timeline-live,.timeline-archive){grid-column:2;grid-row:2;width:max-content}
+ body .usd-member .member-config-timeline-list>button>svg{grid-column:3;grid-row:1}
+}
