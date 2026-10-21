@@ -84,35 +84,33 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   }, [source]);
 
   const needle = query.trim().toLocaleLowerCase('ru');
-  const documentHeadings: { id: string; title: string; index: number }[] = documentBlocks
-    .map((block: any, index: number) => ({ block, index }))
-    .filter(({ block }: { block: any }) => isStructuredHeading(block))
-    .map(({ block, index }: { block: any; index: number }): { id: string; title: string; index: number } => ({ id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }))
-    .filter((heading: { title: string }) => !needle || heading.title.toLocaleLowerCase('ru').includes(needle));
-  const visibleDocumentBlocks = documentBlocks
-    .map((block: any) => {
-      if (!needle) return block;
-      if (block.type === 'table') {
-        const allRows = (block.rows ?? []) as string[][];
-        const matches = (row: string[]) => row.some(cell => cell.toLocaleLowerCase('ru').includes(needle));
-        const indexedRows = allRows.map((row, index) => ({ row, index }));
-        const header = indexedRows[0];
-        const bodyMatches = indexedRows.slice(1).filter(({ row }) => matches(row));
-        const selected = header && matches(header.row) ? indexedRows : bodyMatches.length ? [header, ...bodyMatches] : [];
-        return selected.length ? {
-          ...block,
-          rows: selected.map(({ row }) => row),
-          ...(Array.isArray(block.cellRuns) ? { cellRuns: selected.map(({ index }) => block.cellRuns[index]) } : {}),
-        } : null;
-      }
-      return String(block.text ?? '').toLocaleLowerCase('ru').includes(needle) ? block : null;
-    })
-    .filter(Boolean) as any[];
-
-  const filtered = sections.map(section => {
-    const titleMatches = !needle || section.title.toLocaleLowerCase('ru').includes(needle);
-    return { ...section, body: titleMatches ? section.body : section.body.filter(line => line.toLocaleLowerCase('ru').includes(needle)) };
-  }).filter(section => !needle || section.title.toLocaleLowerCase('ru').includes(needle) || section.body.length > 0);
+  // Keep the whole section around a match: class limits must not disappear during search.
+  type DocumentSection = {start:number;end:number;level:number;parent?:DocumentSection};
+  const documentSections:DocumentSection[] = [], stack:DocumentSection[] = [];
+  documentBlocks.forEach((block:any,index:number) => {
+    if (!isStructuredHeading(block)) return;
+    const level = block.type === 'heading' ? Math.max(1,Number(block.level)||2) : 2;
+    while(stack.length && stack[stack.length-1].level >= level) stack.pop()!.end = index;
+    const section:DocumentSection = {start:index,end:documentBlocks.length,level,parent:stack[stack.length-1]};
+    documentSections.push(section);stack.push(section);
+  });
+  const selected = new Set<number>();
+  if(needle) documentBlocks.forEach((block:any,index:number) => {
+    if(!String(block.text ?? (block.rows ?? []).flat().join(' ')).toLocaleLowerCase('ru').includes(needle)) return;
+    const section = documentSections.filter(section=>section.start<=index).at(-1);
+    const start = section?.start ?? 0, end = section?.end ?? documentSections[0]?.start ?? documentBlocks.length;
+    for(let i=start;i<end;i++) selected.add(i);
+    for(let parent=section?.parent;parent;parent=parent.parent) selected.add(parent.start);
+  });
+  const visibleDocumentBlocks = documentBlocks.filter((_:any,index:number)=>!needle||selected.has(index));
+  const documentHeadings: { id: string; title: string; index: number }[] = visibleDocumentBlocks
+    .filter((block:any) => isStructuredHeading(block))
+    .map((block:any) => { const index = documentBlocks.indexOf(block); return { id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }; });
+  const filtered = sections.filter(section => !needle ||
+    [section.title, ...section.body].join(' ').toLocaleLowerCase('ru').includes(needle));
+  const sectionCount = documentBlocks.length ? documentHeadings.length : filtered.length;
+  const sectionWord = sectionCount % 10 === 1 && sectionCount % 100 !== 11 ? 'РАЗДЕЛ' :
+    sectionCount % 10 >= 2 && sectionCount % 10 <= 4 && ![12,13,14].includes(sectionCount % 100) ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ';
 
   return (
     <div className="public-rules-page">
@@ -133,13 +131,14 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
               <Search size={16} aria-hidden="true" />
               <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Найти пункт…" aria-label="Поиск по регламенту" />
             </label>
+            {needle && <button className="u-btn u-quiet" onClick={() => setQuery('')}>Сбросить поиск</button>}
             <nav aria-label="Оглавление регламента">
               {documentBlocks.length ? documentHeadings.map(heading => <a key={heading.id} href={'#' + heading.id}>{heading.title}</a>) : filtered.map(section => <a key={section.id} href={'#' + section.id}>{section.title}</a>)}
             </nav>
             <div className="public-rules-sidebar-note">Показан текст, опубликованный организаторами USD в настройках сайта.</div>
           </aside>
           <div className="public-rules-document">
-            <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{(documentBlocks.length ? documentHeadings.length : sections.length)} {(documentBlocks.length ? documentHeadings.length : sections.length) === 1 ? 'РАЗДЕЛ' : (documentBlocks.length ? documentHeadings.length : sections.length) < 5 ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ'}</span></div>
+            <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{sectionCount} {sectionWord}</span></div>
             {documentBlocks.length ? (visibleDocumentBlocks.length ? <div className="public-rules-rich-document">
               {visibleDocumentBlocks.map((block: any, index: number) => {
                 if (isStructuredHeading(block)) {

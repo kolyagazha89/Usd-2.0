@@ -37,6 +37,9 @@ export async function runPublicNavigation(){
     assert.ok(cards[0].textContent?.includes('Этап Альфа'));
     assert.ok(cards[1].textContent?.includes('Этап Бета'));
     const beta=cards.find(card=>card.textContent?.includes('Этап Бета'))!;
+    const nestedResults=[...beta.querySelectorAll<HTMLButtonElement>('button')].find(button=>button.textContent?.includes('Результаты этапа'))!;
+    await act(async()=>nestedResults.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true})));
+    assert.equal(location.pathname,'/stages','a nested action must not trigger the parent card keyboard navigation');
     await click([...beta.querySelectorAll<HTMLButtonElement>('button')].find(button=>button.textContent?.includes('Подробнее об этапе'))!);
     assert.equal(location.pathname,'/stages/beta');
     await click([...document.querySelectorAll<HTMLButtonElement>('button')].find(button=>button.textContent?.includes('Результаты этапа'))!);
@@ -70,4 +73,69 @@ export async function runPublicBootstrap(){
  let finish:(value:any)=>void=()=>{};state.__publicRefresh=()=>new Promise(resolve=>{finish=resolve});state.__getPublic=async()=>[];history.replaceState({},'','/');const root=createRoot(document.getElementById('root')!);
  try{await act(async()=>root.render(<App/>));await flush();assert.ok(document.querySelector('header'),'public navigation must render while session refresh is pending');assert.ok(document.querySelector('main'),'public content must not wait on authentication');}
  finally{await act(async()=>{finish({user:null})});await act(async()=>root.unmount());delete state.__publicRefresh;}
+}
+
+export async function runSignedInPublicAccess(){
+ const requested:string[]=[];
+ const person={id:'other-person',lastName:'Петров',firstName:'Пётр',team:'Команда Тест',isPublic:true,cars:[{id:'other-car',brand:'Lada',model:'Vesta'}],registrations:[{id:'other-entry',stage:stages[0],car:{brand:'Lada',model:'Vesta'},classes:[{class:{name:'Limited 2.0'}}]}]};
+ state.__accountUser={id:'my-account',email:'member@example.test',role:'PARTICIPANT',participantId:'my-person'};
+ state.__getPublic=async(path:string)=>{
+  requested.push(path);
+  if(path==='/results/registration/other-entry')return result(stages[0]);
+  if(path==='/cars/other-car')return {...person.cars[0],participant:person};
+  if(path==='/participants')return [person];
+  if(path==='/participants/other-person')return person;
+  if(path==='/participants/me')return {participant:{id:'my-person',firstName:'Мой профиль'}};
+  if(path==='/stages/public')return stages;
+  if(path==='/site-settings/public')return {settings:{}};
+  return [];
+ };
+ history.replaceState({},'','/participants');
+ const root=createRoot(document.getElementById('root')!);
+ try{
+  await act(async()=>root.render(<App/>));await flush();await flush();
+  assert.equal(document.querySelectorAll('[aria-label="Поиск участника"]').length,1,'a participant session must open the public participant directory');
+  assert.equal(document.querySelector('.participant-portal'),null,'public profiles never render the viewer own cabinet');
+  await click(document.querySelector<HTMLAnchorElement>('.p-person-card')!);
+  assert.equal(location.pathname,'/participants/other-person');assert.match(document.querySelector('.p-profile-banner')?.textContent??'',/Петров Пётр/);
+  assert.match(document.body.textContent??'',/история участия/i);
+  assert.ok(!requested.includes('/results/registration/other-entry'),'results load only when the visitor requests them');
+  const resultsButton=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.includes('Показать результаты'));
+  assert.ok(resultsButton,'public profiles offer published achievements for each entry');
+  await click(resultsButton);
+  assert.match(document.querySelector('.p-entry-results')?.textContent??'',/150/);
+  assert.match(document.querySelector('.p-entry-results')?.textContent??'',/1 место/);
+  assert.ok(document.querySelector('a[href="/results?stageId=alpha"]'));
+  assert.ok(!requested.some(p=>p.startsWith('/statistics')),'public achievements never use administrator APIs');
+  await act(async()=>history.back());await flush();assert.ok(document.querySelector('[aria-label="Поиск участника"]'));
+  for(const path of ['/teams','/cars','/news','/partners','/documents','/contacts','/about','/rules','/privacy','/terms','/consent','/stages','/records','/results']){
+   await act(async()=>{history.pushState({},'',path);window.dispatchEvent(new window.PopStateEvent('popstate'))});await flush();
+   assert.ok(document.querySelector('.usd-live'),path+' remains public for signed-in members');
+   assert.equal(document.querySelector('.participant-portal'),null,path+' does not switch to the cabinet');
+   if(path==='/cars'){
+    assert.equal(requested.includes('/cars/'),false,'the public car directory must not call the private car list');
+    assert.ok(document.querySelector('a[href="/cars/other-car"]'),'public cars are discoverable');
+    await click(document.querySelector<HTMLAnchorElement>('a[href="/cars/other-car"]')!);
+    assert.match(document.querySelector('.p-car-banner')?.textContent??'',/Lada Vesta/);
+   }
+  }
+ }finally{await act(async()=>root.unmount());state.__accountUser=null}
+}
+
+export async function runRulesSearch(){
+ const blocks=[{type:'heading',level:1,text:'1. Классы SPL'},{type:'heading',level:2,text:'Limited 2.0'},{type:'paragraph',text:'SPL Limited 2.0'},{type:'paragraph',text:'Бюджет не более 45000 рублей.'},{type:'table',rows:[['Оборудование','Лимит'],['Усилитель','4000 Вт']]},{type:'heading',level:1,text:'2. Судейство'},{type:'paragraph',text:'Решение принимает судья.'}];
+ state.__getPublic=async(path:string)=>path==='/site-settings/public'?{settings:{registration:{rulesDocument:{published:{blocks}}}}}:[];
+ history.replaceState({},'','/rules');const root=createRoot(document.getElementById('root')!);
+ const type=async(value:string)=>{await act(async()=>{const input=document.querySelector<HTMLInputElement>('[aria-label="Поиск по регламенту"]')!;Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}))});await flush()};
+ try{
+  await act(async()=>root.render(<App/>));await flush();
+  await type('Limited');
+  assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/45000/,'a class search keeps the restrictions following its name');
+  assert.match(document.querySelector('nav[aria-label="Оглавление регламента"]')?.textContent??'',/Классы SPL/,'search retains the matching section title');
+  assert.doesNotMatch(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/);
+  await type('Классы SPL');assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/45000/,'parent heading search includes nested classes and limits');
+  await type('Усилитель');assert.match(document.querySelector('nav[aria-label="Оглавление регламента"]')?.textContent??'',/Классы SPL/,'a nested match keeps its parent heading');assert.equal(document.querySelectorAll('.public-rules-rich-document table tr').length,2,'table context and headers are preserved');
+  await type('небывалыйпоиск');assert.match(document.querySelector('.public-rules-document')?.textContent??'',/ничего не найдено/);
+  await type('');assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/);
+ }finally{await act(async()=>root.unmount())}
 }
