@@ -64,3 +64,9 @@ export async function runPublicNavigation(){
     assertStage('beta');
   }finally{await act(async()=>root.unmount())}
 }
+
+export async function runPublicBootstrap(){
+ let finish:(value:any)=>void=()=>{};state.__publicRefresh=()=>new Promise(resolve=>{finish=resolve});state.__getPublic=async()=>[];history.replaceState({},'','/');const root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();assert.ok(document.querySelector('header'),'public navigation must render while session refresh is pending');assert.ok(document.querySelector('main'),'public content must not wait on authentication');}
+ finally{await act(async()=>{finish({user:null})});await act(async()=>root.unmount());delete state.__publicRefresh;}
+}

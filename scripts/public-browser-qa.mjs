@@ -47,7 +47,7 @@ try{
       const row={width,route};
       try{
         await page.goto(base+route,{waitUntil:'domcontentloaded',timeout:60000});
-        await page.locator('.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
+        await page.locator('.usd-live,.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
         const originalResultText=await inspectResultText(page);
@@ -83,7 +83,7 @@ try{
           await page.waitForURL(/\/stages(?:\?|$)/);
           row.privacyNavigation='Home and Stages clicks passed';
           await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
-          await page.locator('.public-site').waitFor();
+          await page.locator('.usd-live,.public-site').waitFor();
         }
         if(route==='/'||route==='/results'){
           const before=originalResultText;

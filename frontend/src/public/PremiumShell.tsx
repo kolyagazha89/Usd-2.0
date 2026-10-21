@@ -1,0 +1,24 @@
+import {useEffect,type ReactNode} from 'react';
+import {Home,CalendarDays,BarChart3,UserRound} from 'lucide-react';
+import PublicNavigation from '../navigation/PublicNavigation';
+import {Link,PremiumNavigation} from './PremiumUI';
+import type {User} from '../api';
+const sections=[['/stages','Этапы'],['/results','Результаты'],['/records','Рекорды'],['/participants','Участники'],['/teams','Команды'],['/news','Новости'],['/rules','Правила'],['/documents','Документы']];
+export function PremiumHeader({route,go,user,items}:{route:string;go:(p:string)=>void;user?:User|null;items:string[][]}){
+ const account=user?(user.role==='ADMIN'||user.customRoleId?'/admin':'/participant'):'/login';
+ return <><a className="u-skip" href="#public-content" onClick={e=>{e.preventDefault();document.getElementById('public-content')?.focus();document.getElementById('public-content')?.scrollIntoView()}}>Перейти к содержимому</a><header className="u-header p-public-header"><div className="u-container u-header-inner"><Link className="u-brand" to="/" aria-label="USD — главная"><img className="u-logo" src="/usd/usd-original.png" alt="USD — Ultimate Sound Destruction" width="529" height="474"/></Link><PublicNavigation items={items} route={route} go={go} accountPath={account} accountLabel="Личный кабинет"/></div></header></>;
+}
+export function PremiumFooter({settings,user}:{settings:any;user?:User|null}){
+ const year=new Date().getFullYear(),account=user?(user.role==='ADMIN'||user.customRoleId?'/admin':'/participant'):'/login';
+ return <><footer className="u-footer"><div className="u-container"><div className="u-footer-top"><div><img className="u-logo" src="/usd/usd-original.png" alt="USD" width="529" height="474"/><h3>У каждого звука<br/>есть своя история.</h3><p>{settings.footer?.description||'Начни свою на следующем этапе USD.'}</p></div><div><small>СОРЕВНОВАНИЯ</small>{sections.slice(0,4).map(([r,n])=><Link to={r} key={r}>{n}</Link>)}</div><div><small>СООБЩЕСТВО</small>{[['/teams','Команды'],['/news','Журнал'],['/partners','Партнёры'],['/contacts','Контакты']].map(([r,n])=><Link to={r} key={r}>{n}</Link>)}</div><div><small>ИНФОРМАЦИЯ</small>{[['/about','О чемпионате'],['/rules','Регламент'],['/documents','Документы'],['/privacy','Конфиденциальность'],['/terms','Условия использования'],['/consent','Обработка данных']].map(([r,n])=><Link to={r} key={r}>{n}</Link>)}</div></div><div className="u-footer-bottom"><span>© {year} {settings.legal?.copyrightHolder||'USD · Ultimate Sound Destruction'}</span>{settings.legal?.ipName&&<span>{settings.legal.ipName}{settings.legal.inn?' · ИНН '+settings.legal.inn:''}{settings.legal.ogrnip?' · ОГРНИП '+settings.legal.ogrnip:''}</span>}<Link to={account}>Личный кабинет ↗</Link></div></div></footer><nav className="u-mobile-dock" aria-label="Быстрые переходы">{[[Home,'/','Главная'],[CalendarDays,'/stages','Этапы'],[BarChart3,'/results','Результаты'],[UserRound,account,'Кабинет']].map(([Icon,path,label]:any)=><Link to={path} key={path}><Icon size={22} strokeWidth={1.5}/><span>{label}</span></Link>)}</nav></>;
+}
+export function PremiumProvider({go,children}:{go:(p:string)=>void;children:ReactNode}){return <PremiumNavigation.Provider value={go}>{children}</PremiumNavigation.Provider>}
+export function PublicMetadata({path,settings,title}:{path:string;settings:any;title:string}){
+ useEffect(()=>{
+  const text=path==='/'?(settings.seo?.title||'USD — Ultimate Sound Destruction'):title+' — USD';document.title=text;
+  const description=settings.seo?.description||'Чемпионат USD по автозвуку: этапы, результаты, рекорды и сообщество участников.';
+  const set=(name:string,content:string,property=false)=>{let el=document.querySelector<HTMLMetaElement>(`meta[${property?'property':'name'}="${name}"]`);if(!el){el=document.createElement('meta');el.setAttribute(property?'property':'name',name);document.head.append(el)}el.content=content};
+  set('description',description);set('og:title',text,true);set('og:description',description,true);set('og:type','website',true);set('og:image',location.origin+'/usd/usd-show-hero.webp',true);
+  let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.append(canonical)}canonical.href=location.origin+path;set('og:url',canonical.href,true);
+ },[path,settings.seo?.title,settings.seo?.description,title]);return null;
+}

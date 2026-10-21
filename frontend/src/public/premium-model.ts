@@ -1,0 +1,28 @@
+export function publishedNews(rows:any[]=[],now=Date.now()){
+ return rows.filter(row=>row.isPublished!==false&&(!row.publishedAt||new Date(row.publishedAt).getTime()<=now)).slice().sort((a,b)=>new Date(b.publishedAt||b.createdAt||0).getTime()-new Date(a.publishedAt||a.createdAt||0).getTime());
+}
+export function teamGroups(people:any[]=[]){
+ const groups=new Map<string,{name:string;members:any[]}>();
+ for(const person of people){
+  const name=String(person.team??'').trim(),key=name.replace(/\s+/g,' ').toLocaleLowerCase('ru');
+  if(person.isPublic===false||!key||['без команды','нет','—','-'].includes(key))continue;
+  const team=groups.get(key)??{name,members:[]};team.members.push(person);groups.set(key,team);
+ }
+ return [...groups.values()].sort((a,b)=>b.members.length-a.members.length||a.name.localeCompare(b.name,'ru'));
+}
+export function safeHref(value:unknown){
+ const text=String(value??'').trim();if(!text||/[\u0000-\u001f\u007f]/.test(text)||text.startsWith('//')||text.includes('\\'))return '';
+ if(text.startsWith('/'))return text;
+ try{const url=new URL(text);return ['https:','http:','mailto:','tel:'].includes(url.protocol)?url.href:''}catch{return ''}
+}
+export function stageRegistrationPath(id:string){return '/login?next='+encodeURIComponent('/participant/register?stageId='+encodeURIComponent(id))}
+export function highestDbRecord(rows:any[]){
+ return rows.filter(row=>{
+  const cls=row.class??row.result?.registrationClass?.class??{};
+  return row.value!=null&&Number.isFinite(Number(row.value))&&!/MPS|M\/S|М\/С/i.test(String(cls.unit??row.unit??''))&&!/storm wall|hurrican/i.test(String(cls.name??'')+' '+String(cls.direction?.name??''));
+ }).sort((a,b)=>Number(b.value)-Number(a.value))[0];
+}
+export function personName(person:any){return [person?.lastName,person?.firstName,person?.middleName].filter(Boolean).join(' ')||'Участник USD'}
+export function carName(car:any){return [car?.brand,car?.model].filter(Boolean).join(' ')||'Автомобиль USD'}
+export function initials(name:string){return name.trim().split(/\s+/).slice(0,2).map(x=>Array.from(x)[0]??'').join('').toLocaleUpperCase('ru')}
+export function stageDate(value:unknown){const d=new Date(String(value??''));return Number.isNaN(d.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d)}
