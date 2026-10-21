@@ -275,7 +275,7 @@ body .usd-auth-simple .login-card{justify-self:center}
  body .usd-member .participant-portal-header .public-brand small{font-size:7px!important;letter-spacing:.035em!important}
  body .usd-member .participant-header-actions{gap:5px!important}
  body .usd-member .participant-header-actions .secondary-button{min-height:42px!important;padding:9px 10px!important;font-size:11px!important}
- body .usd-member .participant-header-actions .secondary-button:not(.participant-site-return):first-of-type{display:none}
+ body .usd-member-header .participant-header-actions .secondary-button:not(.participant-site-return):first-of-type{display:none}
  body .usd-member .participant-header-actions .participant-site-return{display:inline-flex}
  body .usd-member .participant-portal-main{padding:24px 15px calc(110px + env(safe-area-inset-bottom))!important}
  body .usd-member .participant-welcome{padding:16px 0 27px!important;display:grid;gap:20px}
