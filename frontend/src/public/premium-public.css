@@ -226,3 +226,14 @@ body .usd-live .usd-broadcast-score-head{padding:15px 12px}
 .homepage-live-editor-grid input{flex:none;min-width:18px;width:18px;height:18px;accent-color:#dc2846}
 .homepage-live-editor .page-actions{display:flex;flex-wrap:wrap;gap:10px}
 @media(max-width:700px){.homepage-live-editor{padding:16px}.homepage-live-editor-grid{grid-template-columns:1fr}}
+
+/* Final typography: avoid visually merged words in uppercase hero and section labels. */
+body .usd-live .u-wordmark-title{letter-spacing:.008em!important;word-spacing:.09em!important;line-height:1.08!important}
+body .usd-live .u-cinema-hero :is(.eyebrow,.u-stage-label,.u-cinema-right,.u-tag),
+body .usd-live .usd-broadcast-center :is(.eyebrow,.usd-broadcast-panel-header strong){
+ letter-spacing:.055em!important;word-spacing:.14em!important;line-height:1.45!important;
+}
+body .usd-live :is(.u-panel-heading,.u-next-info,.u-community-call) :is(h2,h3,strong,b,.eyebrow){
+ word-spacing:.09em!important;line-height:1.2;
+}
+body .usd-live .u-logo-playback{display:none!important}
