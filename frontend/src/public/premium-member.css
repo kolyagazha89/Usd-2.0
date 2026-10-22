@@ -262,6 +262,11 @@ body .usd-auth .login-mode-toggle{color:#ff9eb0!important;border-radius:0!import
 body .usd-auth .login-footer{border-top:1px solid #31434f!important;color:#abbac4!important;margin-top:28px!important}
 body .usd-auth .notice{color:#d7e8df!important;background:#142a24!important;border-color:#41675a!important}
 body .usd-auth .form-error{color:#ffc1cd!important;background:#301923!important;border-color:#82465a!important}
+body .usd-auth-context{display:grid;gap:8px;margin:18px 0;padding:16px;border:1px solid #475961;border-radius:6px;background:#101f27;overflow-wrap:anywhere}
+body .usd-auth-context small{color:#ff9eb0;font-size:10px;letter-spacing:.08em}
+body .usd-auth-context strong{color:#eef4f7;font-size:17px}
+body .usd-auth-context p{margin:0;color:#b6c8d1;font-size:13px;line-height:1.6}
+body .usd-auth #signup-password-hint{color:#b6c8d1;font-size:12px;line-height:1.5}
 body .usd-auth-simple{grid-template-columns:minmax(0,500px)!important}
 body .usd-auth-simple .login-card{justify-self:center}
 @media(max-width:1100px){

@@ -15,7 +15,7 @@ export class RecordsService {
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
-    const hideCar = Boolean(car && car.isPublic === false);
+    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
     const hideParticipant = Boolean(participant && participant.isPublic === false);
     if (!hideCar && !hideParticipant) return record;
     return {
@@ -108,6 +108,7 @@ export class RecordsService {
                 color: true,
                 photoUrl: true,
                 isPublic: true,
+                isActive: true,
               },
             },
             stage: {

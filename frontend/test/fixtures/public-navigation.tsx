@@ -139,3 +139,47 @@ export async function runRulesSearch(){
   await type('');assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/);
  }finally{await act(async()=>root.unmount())}
 }
+
+export async function runPrereleaseErrors(){
+ state.__accountUser=null;
+ state.__getPublic=async(path:string)=>path==='/site-settings/public'?{settings:{}}:[];
+ history.replaceState({},'','/stages/%E0%A4%A');let root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();assert.ok(document.querySelector('header'),'malformed links retain site navigation');assert.match(document.querySelector('main')?.textContent??'',/не найден/i)}finally{await act(async()=>root.unmount())}
+ let attempts=0;
+ state.__getPublic=async(path:string)=>{
+  if(path==='/participants/missing')throw Object.assign(new Error('not found'),{status:404});
+  if(path==='/participants/retry'){if(++attempts===1)throw new Error('network failure');return {id:'retry',firstName:'Успех',cars:[],registrations:[]}}
+  if(path==='/stages/public/offline')throw new Error('network failure');
+  if(path==='/site-settings/public')return {settings:{}};return [];
+ };
+ for(const path of ['/participants/missing','/participants/retry','/stages/offline']){
+  history.replaceState({},'',path);root=createRoot(document.getElementById('root')!);
+  try{
+   await act(async()=>root.render(<App/>));await flush();
+   const main=document.querySelector('main')!;
+   if(path.endsWith('missing')){assert.match(main.textContent??'',/Участник не найден/);assert.ok(main.querySelector('a[href="/participants"]'),'closed or missing profiles offer the public directory');assert.equal(main.querySelector('[role="alert"]'),null)}
+   else {assert.match(main.textContent??'',/Не удалось/,'network failure must not be described as a missing entity');assert.doesNotMatch(main.textContent??'',/Этап не найден/);const retry=[...main.querySelectorAll<HTMLButtonElement>('button')].find(b=>/Попробовать ещё раз/.test(b.textContent??''));assert.ok(retry);if(path.includes('/participants/')){await click(retry);assert.match(main.textContent??'',/Успех/)}}
+  }finally{await act(async()=>root.unmount())}
+ }
+}
+export async function runResultProfileLinks(){
+ state.__accountUser=null;
+ const rows=[{...result(stages[0])[0],id:'public',registration:{stage:stages[0],participant:{id:'public-person',firstName:'Открытый',isPublic:true},car:{brand:'Lada',model:'Vesta'}}},{...result(stages[0])[0],id:'private',participant:null,registration:{stage:stages[0],participant:{id:'private-person',lastName:'Участник скрыт',isPublic:false}}}];
+ // Prefer the public API participant identity, not a fixture-level fallback.
+ delete (rows[0] as any).participant;
+ state.__getPublic=async(path:string)=>path==='/stages/public'?stages:path.startsWith('/results/stage/')?rows:path==='/site-settings/public'?{settings:{}}:[];
+ history.replaceState({},'','/results?stageId=alpha');const root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();assert.ok(document.querySelector('.public-result-card a[href="/participants/public-person"]'),'published result links to the public competitor profile');assert.equal(document.querySelector('a[href="/participants/private-person"]'),null,'hidden competitor identities never link to a profile')}finally{await act(async()=>root.unmount())}
+}
+export async function runRegistrationContext(){
+ state.__accountUser=null;state.__getPublic=async(path:string)=>path==='/stages/public/alpha'?{...stages[0],name:'Выбранный кубок'}:path==='/site-settings/public'?{settings:{legal:{legalApproved:true,ipName:'USD',privacyText:'policy',consentText:'consent',termsText:'terms'}}}:[];
+ history.replaceState({},'','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dalpha');const root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();assert.match(document.querySelector('.login-card')?.textContent??'',/Выбранный кубок/,'login retains visible event context');await click([...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>/Нет аккаунта/.test(b.textContent??''))!);const password=document.querySelector<HTMLInputElement>('input[autocomplete="new-password"]')!;const hint=password.getAttribute('aria-describedby');assert.ok(hint&&document.getElementById(hint)?.textContent?.includes('8'),'password constraints are visible and associated with the field')}finally{await act(async()=>root.unmount())}
+}
+
+export async function runCommunityNavigationRace(){
+ state.__accountUser=null;let finish:(v:any)=>void=()=>{};
+ state.__getPublic=async(path:string)=>path==='/participants'?new Promise(resolve=>{finish=resolve}):path==='/site-settings/public'?{settings:{}}:[];
+ history.replaceState({},'','/participants');const root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();await click([...document.querySelectorAll<HTMLAnchorElement>('.public-nav a')].find(a=>a.textContent==='Новости')!);assert.equal(location.pathname,'/news');assert.equal(document.querySelector('[aria-label="Загружаем страницу"]'),null,'leaving an unfinished directory request must not leave news loading forever');assert.match(document.querySelector('main')?.textContent??'',/Новые истории/)}finally{await act(async()=>finish([]));await act(async()=>root.unmount())}
+}

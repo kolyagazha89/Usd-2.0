@@ -35,7 +35,7 @@ export class ResultsService {
     if (!result) return result;
     const car = result.registration?.car;
     const participant = result.registration?.participant;
-    const hideCar = Boolean(car && car.isPublic === false);
+    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
     const hideParticipant = Boolean(participant && participant.isPublic === false);
     if (!hideCar && !hideParticipant) return result;
     return {
@@ -85,6 +85,7 @@ export class ResultsService {
             color: true,
             photoUrl: true,
             isPublic: true,
+                isActive: true,
           },
         },
         stage: {

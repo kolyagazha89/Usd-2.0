@@ -37,6 +37,8 @@ jobs:
         run: npm install
       - name: Test frontend response handling
         run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Build frontend
         run: npm run build
       - name: Validate Wrangler Worker assets without publishing

@@ -43,6 +43,10 @@ test('public stage links, selector URLs and browser history show the requested r
     await workflow.runPublicNavigation();
     await workflow.runSignedInPublicAccess();
     await workflow.runRulesSearch();
+    await workflow.runPrereleaseErrors();
+    await workflow.runResultProfileLinks();
+    await workflow.runRegistrationContext();
+    await workflow.runCommunityNavigationRace();
   }finally{
     dom.window.close();
     for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key]}

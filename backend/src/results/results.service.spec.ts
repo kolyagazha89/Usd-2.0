@@ -129,6 +129,15 @@ describe('ResultsService', () => {
     });
   });
 
+  it('keeps scores and places but hides inactive car details from public results', async () => {
+    prisma.stage.findUnique.mockResolvedValue({ id: 'stage', status: 'PUBLISHED', isDeleted: false, resultsPublishedAt: new Date() });
+    prisma.result.findMany.mockResolvedValue([{ id: 'result', value: 150, place: 1, registration: { id: 'entry', car: { id: 'car', brand: 'Secret', model: 'Retired', photoUrl: '/secret', isPublic: true, isActive: false } } }]);
+    const rows = await service.findByStage('stage');
+    expect(rows[0]).toMatchObject({ value: 150, place: 1, registration: { car: { brand: 'Автомобиль скрыт', model: '', photoUrl: null } } });
+    const query = prisma.result.findMany.mock.calls[0][0];
+    expect(query.include.registration.select.car.select.isActive).toBe(true);
+  });
+
   it('rejects result creation from a participant at the service boundary', async () => {
     const participantRequest = {
       user: { sub: 'participant-user', role: 'PARTICIPANT' },
