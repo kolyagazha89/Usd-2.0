@@ -255,3 +255,39 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
 @media(max-width:420px){
  body .usd-live .usd-header-admin-shortcut{font-size:10px;padding-inline:9px}
 }
+
+/* iOS Safari: the navigation dock is portalled to <body>, not a page content
+ * layer. Fixed children of animated/transformed ancestors drift while scrolling. */
+@media(max-width:740px){
+ body>.u-mobile-dock{
+  position:fixed!important;inset:auto 0 0!important;top:auto!important;bottom:0!important;
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  width:100%!important;width:100vw!important;max-width:none!important;
+  min-height:66px;padding:0 0 env(safe-area-inset-bottom,0px)!important;
+  margin:0!important;transform:none!important;will-change:auto!important;
+  background:#060d13f7!important;border-top:1px solid #30414e!important;
+  color:#a0b1bd!important;z-index:9999!important;
+  box-shadow:0 -9px 27px #03060aa0;backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);isolation:isolate;
+ }
+ body>.u-mobile-dock>a{
+  min-width:0;min-height:66px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px!important;
+  padding:8px 2px!important;color:#91a4b2!important;
+  font:500 11px/1.2 'Exo 2','Segoe UI',sans-serif;text-align:center;text-decoration:none;
+ }
+ body>.u-mobile-dock>a svg{width:23px;height:23px;flex-shrink:0}
+ body>.u-mobile-dock>a span{white-space:nowrap}
+ body>.u-mobile-dock>a.active,body>.u-mobile-dock>a[aria-current=page]{
+  color:#ff4061!important;background:linear-gradient(#e60d3014,transparent);
+ }
+ body .usd-live .u-footer{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))!important}
+}
+
+/* Coordinate portalled public dock with the global cookie notice. Its inline
+ * style reads --usd-dock-height from <html>; without this, it overlaps tabs. */
+@media(max-width:740px){
+ html:has(body>.u-mobile-dock){
+  --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px));
+ }
+}

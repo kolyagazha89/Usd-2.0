@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { MailService } from './mail.service';
 import { EmailNotificationsService } from './email-notifications.service';
@@ -17,6 +17,12 @@ export class MailController {
     }
   }
   constructor(private readonly mailService: MailService, private readonly emailNotifications: EmailNotificationsService) {}
+
+  @Roles('ADMIN')
+  @Get('status')
+  mailChannelStatus() {
+    return this.mailService.getDeliveryStatus();
+  }
 
   @Roles('ADMIN')
   @Post('test-trigger')

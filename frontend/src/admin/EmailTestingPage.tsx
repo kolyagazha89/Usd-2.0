@@ -25,8 +25,11 @@ function isPlausibleEmail(value:string){
 }
 
 export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>}){
+ const[mailStatus,setMailStatus]=useState<{provider:string;ready:boolean;missing:string[];note:string}|null>(null),[mailStatusError,setMailStatusError]=useState(false),[mailStatusLoading,setMailStatusLoading]=useState(false);
  const[email,setEmail]=useState(''),[type,setType]=useState(triggerTypes[0].value),[stageId,setStageId]=useState(''),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[lastResult,setLastResult]=useState<any>(null);
  useEffect(()=>{let active=true;apiGet<any>('/stages').then(r=>{if(active)setStages(listData(r).filter((s:any)=>!s.isDeleted))}).catch(()=>{if(active)setStages([])}).finally(()=>{if(active)setLoadingStages(false)});return()=>{active=false}},[]);
+ const checkMailChannel=async()=>{setMailStatusLoading(true);setMailStatusError(false);try{const info=await apiGet<{provider:string;ready:boolean;missing:string[];note:string}>('/mail/status');if(!info||typeof info.provider!=='string'||!Array.isArray(info.missing)||typeof info.note!=='string')throw new Error('Некорректный ответ диагностики почты');setMailStatus(info)}catch{setMailStatus(null);setMailStatusError(true)}finally{setMailStatusLoading(false)}};
+ useEffect(()=>{void checkMailChannel()},[]);
  const selected=triggerTypes.find(t=>t.value===type)??triggerTypes[0];
  const normalizedEmail=normalizeEmail(email);
  const emailValid=isPlausibleEmail(normalizedEmail);
@@ -39,11 +42,17 @@ export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React
   }catch(e){
    const message=e instanceof Error?e.message:'Не удалось отправить тестовый шаблон';
    setError(message.includes('корректный email')?'Сервер отклонил адрес. Проверьте, нет ли скрытых символов или пробелов, и попробуйте ввести email вручную.':message);
-  }finally{setSending(false);}
+  }finally{setSending(false);void checkMailChannel();}
  };
  return <PageFrame title="Тестирование писем" subtitle="Отдельная рабочая страница для проверки почтового провайдера и шаблонов уведомлений USD">
   <div className="settings-section">
    <PanelTitle title="Отправка тестового шаблона" icon={Mail}/>
+   <div className={'mail-channel-status '+(mailStatus?.ready?'ready':mailStatus?'needs-setup':'unknown')} role="status">
+    <div><strong>Почтовый канал: {mailStatus?.provider??'проверяем'}</strong><button className="secondary-button compact" type="button" disabled={mailStatusLoading} onClick={()=>void checkMailChannel()}>{mailStatusLoading?'Проверяем…':'Проверить настройки'}</button></div>
+    {mailStatus&&<><p>{mailStatus.note}</p>{mailStatus.missing.length>0&&<p><b>Нужно настроить на сервере:</b> {mailStatus.missing.join(', ')}</p>}</>}
+    {mailStatusError&&<p>Диагностика почтового канала сейчас недоступна. Возможно, новая версия API ещё не опубликована.</p>}
+    {mailStatus?.ready&&<small>Готовность означает только наличие параметров, а не успешную доставку. Запустите тест ниже.</small>}
+   </div>
    <p className="settings-help">Письмо отправляется только на указанный адрес. Эта проверка не регистрирует участников и не запускает массовую рассылку. Ответ провайдера подтверждает принятие запроса, но не фактическую доставку.</p>
    <div className="settings-form-grid">
     <label><span className="field-label">Тестовый email</span><input type="email" autoComplete="email" maxLength={300} required aria-invalid={Boolean(email)&&!emailValid} value={email} onChange={e=>{setEmail(e.target.value);setError('');setNotice('')}} placeholder="Укажите свой почтовый ящик"/><small className="field-help">{email&&!emailValid?'Введите адрес в формате name@example.com без пробелов.':'После отправки проверьте «Входящие», «Спам» и журнал почтового провайдера.'}</small></label>
