@@ -66,6 +66,38 @@ function hasPermission(permissions: PermissionMap, module: string, action: Permi
   return false;
 }
 
+/**
+ * Personal-account routes are accessible to any logged-in USD team member.
+ * This exception does not cover administrative paths and never gives permission
+ * to edit another participant. Services still verify resource ownership.
+ */
+function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionContext): boolean {
+ const path=request.path;
+ const method=request.method.toUpperCase();
+ const name=context.getClass().name;
+ if(name==='AuthController')return !path.startsWith('/auth/admin/');
+ if(name==='ParticipantsController') {
+  if(path==='/participants/teams')return method==='GET';
+  if(path==='/participants/me')return ['GET','POST','PATCH'].includes(method);
+  if(path==='/participants/me/cars')return ['GET','POST'].includes(method);
+  return false;
+ }
+ if(name==='RegistrationsController') {
+  if(path==='/registrations/me')return method==='GET'||method==='POST';
+  if(/^\/registrations\/me\/[^/]+$/.test(path))return method==='DELETE';
+  if(/^\/registrations\/[^/]+$/.test(path))return method==='GET';
+  return false;
+ }
+ if(name==='MediaController') {
+  if(path==='/media/prepare'&&method==='POST')return ['PARTICIPANT_PHOTO','CAR_PHOTO'].includes(String(request.body?.targetType??''));
+  if(path==='/media/complete'&&method==='POST')return true;
+  if(path==='/media/upload'&&method==='PUT')return true;
+  if(/^\/media\/view\/(PARTICIPANT_PHOTO|CAR_PHOTO)\/[^/]+$/.test(path)&&method==='GET')return true;
+  return false;
+ }
+ return false;
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(
@@ -95,6 +127,7 @@ export class RolesGuard implements CanActivate {
       if (context.getClass().name === 'AuthController' && request.path.startsWith('/auth/admin/')) {
         throw new ForbiddenException('Управление пользователями и ролями доступно только ADMIN');
       }
+      if(isSelfServiceAction(request,context))return true;
       const module = controllerModule(context);
       const action = actionFor(request);
       // Result entry is delegated work; corrections and deletion remain ADMIN-only
@@ -107,6 +140,10 @@ export class RolesGuard implements CanActivate {
         select: { permissions: true },
       });
       if (!role || !hasPermission(role.permissions as PermissionMap, module, action)) {
+        if(role&&context.getClass().name==='ConfigurationsController'){
+          request.personalAccountAccess=true;
+          return true;
+        }
         throw new ForbiddenException('Недостаточно прав для выполнения операции');
       }
       return true;
