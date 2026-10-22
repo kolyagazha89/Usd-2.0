@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X} from 'lucide-react';
+import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight} from 'lucide-react';
 import {getPublicSiteAsset,type Role,type User} from '../api';
 
 const nav=[
@@ -106,7 +106,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
    <header className="topbar">
     <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
     <div className="breadcrumb"><strong>USD</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
-    <div className="topbar-actions"><span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
+    <div className="topbar-actions"><button type="button" className="admin-site-switch" onClick={()=>go('/')} title="Вернуться на сайт"><ArrowUpRight size={16}/><span>Вернуться на сайт</span></button><button type="button" className="admin-member-switch" onClick={()=>go('/participant')} title="Личный кабинет участника"><UserRound size={16}/><span>Мой кабинет</span></button><span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
    <main className="content"><PageContent path={path} go={go} user={user}/></main>
   </div>

@@ -1,6 +1,8 @@
 import type { Request } from 'express';
 
 export interface AuthenticatedRequest extends Request {
+  /** Guard grants self-service fallback without conferring operational RBAC rights. */
+  personalAccountAccess?: boolean;
   user: {
     sub: string;
     email?: string;

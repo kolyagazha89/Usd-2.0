@@ -71,7 +71,7 @@ export async function runRegistrationJourney(){
   if(path==='/auth/legal-consent')return {legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true};
   return [];
  };
- state.__postAction=async(path:string,body:any)=>{assert.equal(path,'/registrations');submitted=body;return {id:'flow-registration'}};
+ state.__postAction=async(path:string,body:any)=>{assert.equal(path,'/registrations/me');submitted=body;return {id:'flow-registration'}};
  history.replaceState({},'','/participant/register?stageId=flow-stage');
  const root=createRoot(document.getElementById('root')!);
  const button=(label:string)=>[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label)!;

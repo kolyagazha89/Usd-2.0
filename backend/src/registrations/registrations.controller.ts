@@ -46,6 +46,45 @@ export class RegistrationsController {
     );
   }
 
+  // Personal registration works for PARTICIPANT, ADMIN and custom staff roles.
+  // Passing a participant-scoped request ensures staff cannot use their broad
+  // operational permissions to register or cancel on behalf of someone else.
+  private asParticipant(request: AuthenticatedRequest): AuthenticatedRequest {
+    return Object.assign(Object.create(request), {
+      user: { ...request.user, role: 'PARTICIPANT', customRoleId: undefined },
+    }) as AuthenticatedRequest;
+  }
+
+  @Roles('ADMIN', 'PARTICIPANT')
+  @Post('me')
+  async createMyRegistration(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateRegistrationDto,
+  ) {
+    if (!request.user.participantId) {
+      throw new ForbiddenException('Сначала создайте профиль участника');
+    }
+    return this.registrationsService.create(this.asParticipant(request), {
+      ...body, participantId: request.user.participantId, source: 'PRE_REGISTRATION',
+    });
+  }
+
+  @Roles('ADMIN', 'PARTICIPANT')
+  @Delete('me/:id')
+  async cancelMyRegistration(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    if (!request.user.participantId) {
+      throw new ForbiddenException('Профиль участника ещё не создан');
+    }
+    const registration = await this.registrationsService.findOne(id);
+    if (registration.participantId !== request.user.participantId) {
+      throw new ForbiddenException('Нет доступа к этой регистрации');
+    }
+    return this.registrationsService.cancel(id, this.asParticipant(request));
+  }
+
   @Get(':id')
   async findOne(
     @Req() request: AuthenticatedRequest,

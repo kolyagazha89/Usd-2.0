@@ -237,3 +237,21 @@ body .usd-live :is(.u-panel-heading,.u-next-info,.u-community-call) :is(h2,h3,st
  word-spacing:.09em!important;line-height:1.2;
 }
 body .usd-live .u-logo-playback{display:none!important}
+
+/* Two independent account destinations for staff who also compete. */
+body .usd-live .p-public-header .public-nav-links>.public-nav-admin{display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;
+ color:#f4f7f9!important;font-weight:750!important;border:1px solid #4a5b65!important;background:#1b252d!important;
+ padding:12px 14px!important;min-height:44px;margin-left:0;border-radius:6px;text-decoration:none}
+body .usd-live .p-public-header .public-nav-links>.public-nav-admin:hover{border-color:#ed3856!important;background:#291b23!important}
+body .usd-live .usd-header-admin-shortcut{display:none;align-items:center;justify-content:center;min-height:39px;
+ white-space:nowrap;color:#fff;text-decoration:none;border:1px solid #c92949;border-radius:7px;padding:8px 12px;
+ font-weight:800;font-size:11px;background:#2b141c}
+body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:wrap;align-items:center}
+@media(max-width:1100px){
+ body .usd-live .usd-header-admin-shortcut{display:inline-flex;margin-left:auto}
+ body .usd-live .p-public-header .public-nav-links>.public-nav-admin{width:100%;justify-content:space-between;margin-top:10px}
+ body .usd-live .p-public-header .public-nav{flex:0 0 auto}
+}
+@media(max-width:420px){
+ body .usd-live .usd-header-admin-shortcut{font-size:10px;padding-inline:9px}
+}
