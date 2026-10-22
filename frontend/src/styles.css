@@ -4210,3 +4210,30 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .main .content .resource-season-filter{display:flex;align-items:center;gap:9px;color:#414751;font-size:12px;font-weight:750}
 .main .content .resource-season-filter select{min-width:154px;min-height:42px;padding:8px 12px;border:1px solid #ccd1d7;border-radius:10px;background:#fff;color:#191c21}
 @media(max-width:640px){.public-stage-season-filter{align-items:stretch;gap:8px}.public-stage-season-filter label{width:100%}.public-stage-season-filter select{flex:1;min-width:0}.public-stage-season-filter span{align-self:center}.main .content .resource-season-filter{width:100%;justify-content:space-between}.main .content .resource-season-filter select{flex:1}}
+
+/* USD release: operational screens use the whole available workspace.
+   Keep desktop sidebar and responsive padding; do not force viewport widths. */
+body .app .content,body .field-mode .content{min-width:0;max-width:none;width:100%}
+body .app .content>.page,body .field-mode .content>.page{
+ max-width:none!important;width:100%!important;min-width:0!important;margin-inline:0!important;
+}
+body .app .content>.page :is(.panel,.data-table-wrap,.inspection-toolbar,.inspection-summary),
+body .field-mode .content>.page :is(.panel,.data-table-wrap,.inspection-toolbar,.inspection-summary){min-width:0;max-width:100%}
+body .participant-portal.usd-member.registration-page>.registration-page-main,
+body .participant-portal.usd-member.registration-page>.participant-portal-main,
+body .participant-portal.usd-member.configurations-page-shell>.participant-portal-main{
+ width:100%!important;max-width:none!important;min-width:0!important;
+ box-sizing:border-box!important;margin-inline:0!important;
+}
+body .participant-portal.usd-member.registration-page .registration-layout,
+body .participant-portal.usd-member.registration-page .registration-hero,
+body .participant-portal.usd-member.configurations-page-shell .participant-section{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+}
+@media (max-width:800px){
+ body .app .content,body .field-mode .content{padding-inline:clamp(10px,2.5vw,18px)!important}
+ body .participant-portal.usd-member.registration-page>.registration-page-main,
+ body .participant-portal.usd-member.configurations-page-shell>.participant-portal-main{
+ padding-inline:clamp(12px,3vw,22px)!important
+ }
+}
