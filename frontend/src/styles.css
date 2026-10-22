@@ -4237,3 +4237,16 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
  padding-inline:clamp(12px,3vw,22px)!important
  }
 }
+
+/* Staff/admin global switch: accessible on desktop, compact on a phone. */
+.app-shell .admin-site-switch,.app-shell .admin-member-switch{display:inline-flex;align-items:center;justify-content:center;
+ gap:7px;min-height:40px;padding:8px 13px;font-size:12px;font-weight:750;white-space:nowrap;
+ color:#283440;background:#fff;border:1px solid #cdd6df;border-radius:9px}
+.app-shell .admin-site-switch:hover,.app-shell .admin-member-switch:hover{border-color:#cd2848;color:#b51d38}
+.app-shell .admin-site-switch svg{color:#d62d4b}
+@media(max-width:720px){
+ .app-shell .admin-site-switch,.app-shell .admin-member-switch{padding:10px;min-width:42px;height:42px}
+ .app-shell .admin-site-switch span,.app-shell .admin-member-switch span{display:none}
+ .app-shell .topbar .topbar-actions{gap:6px}
+ .app-shell .topbar .topbar-actions .role-pill{display:none}
+}
