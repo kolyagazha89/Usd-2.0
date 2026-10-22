@@ -8,11 +8,11 @@ export function Eyebrow({children}:{children:ReactNode}){return <div className="
 export function EmptyState({title='Пока нет публикаций',children}:{title?:string;children?:ReactNode}){return <div className="p-empty"><span aria-hidden>USD / NEXT</span><h3>{title}</h3><p>{children||'Новые материалы появятся после публикации организаторами.'}</p></div>}
 export type PhotoPlaceholders={participant?:string|null;car?:string|null;stage?:string|null};
 export const PremiumPlaceholders=createContext<PhotoPlaceholders>({});
-export function Photo({src,alt,className='',fallback,kind}:{src?:string;alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders}){
+export function Photo({src,alt,className='',fallback,kind,placeholderSrc}:{src?:string;alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders;placeholderSrc?:string|null}){
  const placeholders=useContext(PremiumPlaceholders);
  const [failed,F]=useState<string[]>([]);
  const original=safeHref(src);
- const substitute=kind?safeHref(placeholders[kind]??undefined):'';
+ const substitute=safeHref(placeholderSrc??(kind?placeholders[kind]??undefined:undefined));
  const url=[original,substitute].find(candidate=>candidate&&!failed.includes(candidate));
  return url?<img className={className} src={url} alt={alt} loading="lazy" decoding="async" onError={()=>F(previous=>previous.includes(url)?previous:[...previous,url])}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
 }
