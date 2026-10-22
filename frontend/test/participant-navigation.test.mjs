@@ -43,6 +43,7 @@ test('participant navigation and three-step registration preserve choices and su
     await workflow.runRegistrationJourney();
     await workflow.runDashboardAvailability();
     await workflow.runFullyRegisteredStage();
+    await workflow.runUnavailableStageRegistration();
   }finally{
     dom.window.close();
     for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key]}

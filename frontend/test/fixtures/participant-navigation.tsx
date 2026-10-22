@@ -137,3 +137,22 @@ export async function runFullyRegisteredStage(){
   assert.ok(open,'provide a way to review existing entries instead of a disabled wizard');await click(open);active('Регистрации');
  }finally{await act(async()=>root.unmount())}
 }
+
+export async function runUnavailableStageRegistration(){
+ const stages=[{id:'one',name:'Первый кубок',date:'2027-01-01',registrationOpen:true,status:'PUBLISHED'},{id:'two',name:'Второй кубок',date:'2027-02-01',registrationOpen:true,status:'PUBLISHED'}];
+ let stageRows:any[]=stages,fail=false;
+ state.__getPublic=async(path:string)=>{
+  if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван'}};
+  if(path==='/stages/public'){if(fail)throw new Error('Network failure');return stageRows}
+  if(path==='/participants/me/cars')return [{id:'car1',brand:'Lada',model:'Vesta'}];
+  return [];
+ };
+ for(const [url,rows] of [['/participant/register?stageId=missing',stages],['/participant/register',[]]] as const){
+  stageRows=[...rows];history.replaceState({},'',url);const root=createRoot(document.getElementById('root')!);
+  try{await act(async()=>root.render(<App/>));await flush();await flush();assert.equal(Boolean(document.querySelector('.participant-loading')),false,'invalid or empty stage links must not spin forever');assert.match(document.querySelector('main')?.textContent??'',/Этап не найден|Выберите этап/);assert.ok([...document.querySelectorAll('button')].some(b=>b.textContent?.includes('Выбрать этап')))}finally{await act(async()=>root.unmount())}
+ }
+ stageRows=stages;fail=true;history.replaceState({},'','/participant/register?stageId=one');let root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();await flush();assert.equal(Boolean(document.querySelector('.participant-loading')),false);assert.match(document.querySelector('main')?.textContent??'',/Не удалось загрузить этапы/);fail=false;await click([...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.includes('Повторить загрузку'))!);assert.match(document.querySelector('.registration-hero')?.textContent??'',/Первый кубок/)}finally{await act(async()=>root.unmount())}
+ history.replaceState({},'','/participant/register?stageId=one');root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();await flush();await act(async()=>{history.pushState({},'','/participant/register?stageId=two');window.dispatchEvent(new window.PopStateEvent('popstate'))});await flush();assert.match(document.querySelector('.registration-hero')?.textContent??'',/Второй кубок/,'history navigation changes the actual registration event')}finally{await act(async()=>root.unmount())}
+}

@@ -49,6 +49,7 @@ function dataFor(url,role){
  if(p==='/configurations/config1')return configuration;
  if(p==='/site-settings'||p==='/site-settings/public')return {settings};
  if(p.startsWith('/media/'))return {url:''};
+ if(p==='/records/current')return [{id:'record1',value:150.25,unit:'DB',class:klass,result,stage,isCurrent:true}];
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stats:{registrations:1,participants:1,cars:1,inspections:{total:0,pending:1,passed:0,failed:0}}};
@@ -71,7 +72,7 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
 const browser=await chromium.launch({headless:true});
@@ -93,6 +94,10 @@ try{
      if(['/participants/offline','/stages/public/offline'].includes(url.pathname)){
       if(!failuresSeen.has(url.pathname)){failuresSeen.add(url.pathname);return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic outage'})})}
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(url.pathname.startsWith('/participants/')?{...participant,id:'offline',cars:[],registrations:[]}:{...stage,id:'offline'})});
+     }
+     if(role==='PARTICIPANT'&&request.frame().url().includes('stageId=outage')&&url.pathname==='/stages/public'){
+      if(!failuresSeen.has('registration-calendar')){failuresSeen.add('registration-calendar');return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic calendar outage'})})}
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{...stage,id:'outage'}])});
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
      const data=registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
@@ -143,6 +148,16 @@ try{
       assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
      }
      if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/);
+     if(role==='PARTICIPANT'&&['/participant/register?stageId=missing','/participant/register'].includes(route)){
+      assert.equal(await page.locator('.participant-loading').count(),0,'missing registration stage never spins forever');
+      assert.ok(await page.getByRole('button',{name:'Выбрать этап',exact:true}).isVisible());row.registrationMissing='calendar recovery available';
+     }
+     if(role==='PARTICIPANT'&&route==='/participant/register?stageId=outage'){
+      assert.match(await page.locator('main').innerText(),/Не удалось загрузить этапы/);
+      assert.equal(await page.locator('.participant-loading').count(),0);
+      await page.getByRole('button',{name:'Повторить загрузку',exact:true}).click();
+      await page.getByRole('button',{name:'Перейти к классам',exact:true}).waitFor();row.registrationRecovery='503 calendar retry restores registration';
+     }
      if(route==='/participants/p1'){
       assert.match(await page.locator('.p-profile-banner').innerText(),/Тестовый Иван/);
       await page.getByRole('button',{name:'Показать результаты',exact:true}).click();
@@ -152,6 +167,7 @@ try{
       row.publicAchievements='published results expanded; stage protocol link available';
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded achievements fit viewport');
      }
+     if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
 
@@ -243,7 +259,7 @@ try{
       assert.ok(await page.getByRole('button',{name:/Открыть карточку регистрации/}).isVisible());
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
-     if(role==='PARTICIPANT'&&route.startsWith('/participant/register?')){
+     if(role==='PARTICIPANT'&&route==='/participant/register?stageId=stage1'){
       const next=page.getByRole('button',{name:'Перейти к классам',exact:true});
       assert.equal(await next.isEnabled(),false,'cannot skip vehicle selection');
       assert.equal(await page.getByRole('button',{name:'03 Подтверждение',exact:true}).isEnabled(),false);
