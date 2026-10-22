@@ -42,7 +42,7 @@ test('public staff, member and admin navigation coexist, with independent button
 test('participant registration uses self-scoped routes even for custom staff roles',async()=>{
  const [app,controller]=await Promise.all([source('../src/App.tsx'),source('../../backend/src/registrations/registrations.controller.ts')]);
  assert.match(app,/apiPost\('\/registrations\/me'/);
- assert.match(app,/apiDelete\('\/registrations\/me\/');
+ assert.ok(app.includes("apiDelete('/registrations/me/'+encodeURIComponent(r.id))"));
  assert.match(controller,/@Post\('me'\)/);
  assert.match(controller,/@Delete\('me\/:id'\)/);
  assert.match(controller,/participantId: request\.user\.participantId/);
