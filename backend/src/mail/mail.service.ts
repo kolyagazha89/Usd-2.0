@@ -246,18 +246,23 @@ export class MailService {
       process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET
       || process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL,
     );
-    if (gmailConfigured || gmailPartiallyConfigured) {
+    const smtpConfigured=Boolean(process.env.SMTP_HOST?.trim()&&process.env.SMTP_USER?.trim()
+      &&process.env.SMTP_PASSWORD?.trim()&&this.from?.trim());
+    if (gmailConfigured) {
       await this.sendViaGmailApi(message);
       return;
     }
-
-    // Railway deployments may block SMTP egress. HTTPS providers (Resend/Gmail API)
-    // are preferred; SMTP is an explicit opt-in only for a plan/network that supports it.
-    if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
-      throw new Error('SMTP is disabled for this deployment. Configure RESEND_API_KEY/RESEND_FROM_EMAIL or all Gmail API OAuth settings; enable SMTP only on a plan that supports it.');
+    // An incomplete Gmail API setup must not hijack a previously configured
+    // and working SMTP transport. Never fall back after an actual send error:
+    // retrying can create duplicates at the recipient.
+    if(gmailPartiallyConfigured&&!smtpConfigured) {
+      throw new Error('Gmail API email configuration is incomplete. Set GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL or configure a complete SMTP/Resend provider.');
     }
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !this.from) {
-      throw new Error('SMTP is enabled but not fully configured: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.');
+    if (process.env.SMTP_EGRESS_ALLOWED === 'false') {
+      throw new Error('SMTP is explicitly disabled (SMTP_EGRESS_ALLOWED=false); configure Resend or Gmail API over HTTPS.');
+    }
+    if (!smtpConfigured) {
+      throw new Error('No complete email transport: configure Resend, Gmail API OAuth or SMTP_HOST/SMTP_USER/SMTP_PASSWORD.');
     }
 
     const result = await this.transporter.sendMail({
@@ -311,7 +316,14 @@ export class MailService {
       process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET ||
       process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL
     );
-    if(gmailRequested) {
+    const gmailReady=Boolean(
+      (process.env.GMAIL_CLIENT_ID??process.env.GOOGLE_CLIENT_ID)?.trim() &&
+      (process.env.GMAIL_CLIENT_SECRET??process.env.GOOGLE_CLIENT_SECRET)?.trim() &&
+      process.env.GMAIL_REFRESH_TOKEN?.trim() && process.env.GMAIL_SENDER_EMAIL?.trim()
+    );
+    const smtpReady=Boolean(process.env.SMTP_HOST?.trim()&&process.env.SMTP_USER?.trim()
+      &&process.env.SMTP_PASSWORD?.trim()&&this.from?.trim());
+    if(gmailRequested&&(gmailReady||!smtpReady)) {
       const missing=[
         !((process.env.GMAIL_CLIENT_ID??process.env.GOOGLE_CLIENT_ID)?.trim())&&'GMAIL_CLIENT_ID (или GOOGLE_CLIENT_ID)',
         !((process.env.GMAIL_CLIENT_SECRET??process.env.GOOGLE_CLIENT_SECRET)?.trim())&&'GMAIL_CLIENT_SECRET (или GOOGLE_CLIENT_SECRET)',
@@ -325,9 +337,9 @@ export class MailService {
       !process.env.SMTP_USER?.trim()&&'SMTP_USER',
       !process.env.SMTP_PASSWORD?.trim()&&'SMTP_PASSWORD',
       !this.from?.trim()&&'SMTP_FROM',
-      process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
+      process.env.SMTP_EGRESS_ALLOWED==='false'&&'SMTP_EGRESS_ALLOWED=false (отключено)',
     ].filter((v):v is string=>Boolean(v));
-    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Не выбрано работающее HTTPS-подключение либо SMTP отключён. Укажите Resend или Gmail API либо разрешённый SMTP.':'SMTP-настройки присутствуют; доступность сети подтвердит только тест.'};
+    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно явно отключено. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на Railway подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
