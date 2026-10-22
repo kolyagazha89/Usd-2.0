@@ -13,7 +13,7 @@ describe('USD mail provider selection and safe diagnostics',()=>{
  });
  it('does not mistake Google login OAuth client for Gmail mail transport',async()=>{
   process.env.GOOGLE_CLIENT_ID='web-login-client';process.env.GOOGLE_CLIENT_SECRET='web-login-secret';
-  process.env.SMTP_HOST='smtp.test.invalid';
+  process.env.SMTP_EGRESS_ALLOWED='true';process.env.SMTP_HOST='smtp.test.invalid';
   process.env.SMTP_USER='sender@test.invalid';process.env.SMTP_PASSWORD='fake_password';
   const mail=new MailService();
   const smtp=jest.spyOn((mail as any).transporter,'sendMail').mockResolvedValue({accepted:['recipient@test.invalid'],rejected:[],messageId:'fixture'} as never);
@@ -30,7 +30,7 @@ describe('USD mail provider selection and safe diagnostics',()=>{
    const mail=new MailService();
    const smtp=jest.spyOn((mail as any).transporter,'sendMail');
    expect(mail.getDeliveryStatus().ready).toBe(false);
-   await expect((mail as any).sendMessage({to:'r@test.invalid',subject:'test',text:'test',html:'test'})).rejects.toThrow('SMTP is explicitly disabled');
+   await expect((mail as any).sendMessage({to:'r@test.invalid',subject:'test',text:'test',html:'test'})).rejects.toThrow('SMTP delivery requires SMTP_EGRESS_ALLOWED=true');
    expect(smtp).not.toHaveBeenCalled();
  });
  it('identifies incomplete Gmail mail configuration without exposing secret values',()=>{
