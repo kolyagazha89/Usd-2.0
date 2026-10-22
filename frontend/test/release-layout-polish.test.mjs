@@ -10,7 +10,7 @@ test('release hero removes distracting English kicker and pause control',async()
 });
 test('inspection and registration fill available viewport width',async()=>{
  const styles=await source('../src/styles.css');
- assert.match(styles,/body \.app \.content>\.page/);
+ assert.match(styles,/body \.app-shell \.main \.content>\.page/);
  assert.match(styles,/body \.field-mode \.content>\.page/);
  assert.match(styles,/max-width:none!important;width:100%!important/);
  assert.match(styles,/registration-page-main/);
