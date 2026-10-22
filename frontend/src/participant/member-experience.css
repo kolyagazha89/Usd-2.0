@@ -377,3 +377,41 @@ body .participant-portal.usd-member .member-config-vehicle:before{display:none!i
  body .participant-portal.usd-member .member-config-vehicle-visual>span{display:none!important}
  body .participant-portal.usd-member .member-config-vehicle-chips>span:nth-child(n+2){display:none!important}
 }
+
+
+/* Uploaded defaults are photographs, not the initials/legacy SVG placeholders. */
+body .participant-portal.usd-member .member-pass-identity>.member-pass-portrait{
+ width:54px;height:54px;flex:0 0 54px;object-fit:cover;border-radius:50%;overflow:hidden;
+ background:#242c37;display:grid;place-items:center;color:#cdd4df;
+}
+body .participant-portal.usd-member .member-pass-identity>.p-photo-fallback.member-pass-portrait>span{
+ display:grid;place-items:center;font-weight:850;font-size:22px;width:100%;height:100%;
+}
+body .participant-portal.usd-member .member-vehicle-image>.member-garage-cover{
+ display:grid;place-items:center;width:100%;height:108px;max-width:200px;
+ border-radius:8px;object-fit:cover;overflow:hidden;background:#111b22;
+}
+body .participant-portal.usd-member .member-vehicle-image>.p-photo-fallback.member-garage-cover svg{color:#596577}
+body .participant-portal.usd-member .participant-car-icon>.member-list-car-photo{
+ width:100%;height:100%;min-height:0;object-fit:cover;border:0;display:grid;
+ place-items:center;background:#10151c;
+}
+body .participant-portal.usd-member .participant-car-icon>.p-photo-fallback.member-list-car-photo svg{width:90px;height:90px}
+body .participant-portal.usd-member .participant-profile-photo-preview>.member-profile-photo,
+body .participant-portal.usd-member .participant-car-detail-photo>.member-car-detail-photo{
+ width:100%;height:100%;min-height:86px;object-fit:cover;
+ display:grid;place-items:center;background:#121f27;
+}
+body .participant-portal.usd-member .participant-profile-photo-preview>.p-photo-fallback.member-profile-photo>span{
+ font-size:24px;font-weight:800;
+}
+body .participant-portal.usd-member .member-config-vehicle-visual>.member-config-auto-art{
+ width:min(100%,320px);height:145px;object-fit:contain;
+ display:grid;place-items:center;overflow:hidden;background:transparent;
+}
+body .participant-portal.usd-member .member-config-vehicle-visual>.p-photo-fallback.member-config-auto-art svg{
+ color:#7d8c97;width:min(100%,190px);height:110px;
+}
+@media(max-width:760px){
+ body .participant-portal.usd-member .member-config-vehicle-visual>.member-config-auto-art{height:115px}
+}

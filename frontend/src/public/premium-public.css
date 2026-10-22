@@ -98,3 +98,68 @@ body .usd-live .public-legal-document-files a{display:inline-block}
 body .usd-live .public-result-profile-link{color:inherit;text-decoration:underline;text-decoration-color:#a7656f;text-underline-offset:4px;overflow-wrap:anywhere}
 /* Long public system names must leave room for the version badge on phones. */
 .usd-live .p-system .u-panel-heading{flex-wrap:wrap;align-items:flex-start}.usd-live .p-system .u-panel-heading h3{min-width:0;flex:1 1 180px;overflow-wrap:anywhere}.usd-live .p-system .u-panel-heading .u-tag{max-width:100%;white-space:normal}
+
+/* Release: a 9:16 event poster must follow its real intrinsic height, not a
+   forced black 9:16 canvas. These selectors intentionally outrank legacy
+   .public-stage-* declarations in styles.css and earlier premium CSS. */
+body .usd-live .public-stage-detail-poster {
+  display:block !important;
+  min-height:0 !important;
+  height:auto !important;
+  align-self:start !important;
+  padding:0 !important;
+  margin:0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+body .usd-live .public-stage-card img.public-stage-list-poster,
+body .usd-live .public-stage-detail img.public-stage-poster {
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:auto !important;
+  max-height:none !important;
+  min-height:0 !important;
+  object-fit:initial !important;
+  border:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  position:static !important;
+}
+body .usd-live .public-stage-card .public-stage-list-poster {
+  border-radius:8px !important;
+  overflow:hidden;
+}
+body .usd-live .public-stage-detail .public-stage-poster {
+  border-radius:10px !important;
+  overflow:hidden;
+}
+body .usd-live .public-stage-detail .public-stage-poster-placeholder,
+body .usd-live .public-stage-card .public-stage-list-poster-placeholder {
+  height:auto;
+  aspect-ratio:9/16;
+  max-height:none;
+}
+body .usd-live .public-stage-detail .p-photo-fallback.public-stage-poster,
+body .usd-live .public-stage-card .p-photo-fallback.public-stage-list-poster {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:150px;
+  background:linear-gradient(155deg,#181e25,#080c10) !important;
+  color:#e9eef0;
+}
+@media (max-width:760px){
+  body .usd-live .public-stage-detail-poster {
+    order:-1;
+    width:100% !important;
+    max-width:min(100%,400px) !important;
+    margin-inline:auto !important;
+  }
+}
+/* Admin asset cards display exact uploaded artwork without cropping. */
+.usd-placeholder-preview img{width:100%;height:auto;max-height:230px;object-fit:contain}
