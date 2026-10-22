@@ -239,9 +239,11 @@ export class MailService {
       && process.env.GMAIL_REFRESH_TOKEN?.trim()
       && process.env.GMAIL_SENDER_EMAIL?.trim(),
     );
+    // GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET may be configured for website
+    // OAuth login only. Never select Gmail delivery on those credentials alone.
+    // Gmail delivery is opt-in via GMAIL_* parameters.
     const gmailPartiallyConfigured = Boolean(
       process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET
-      || process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_SECRET
       || process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL,
     );
     if (gmailConfigured || gmailPartiallyConfigured) {
@@ -296,6 +298,36 @@ export class MailService {
     });
     await this.sendMessage({ to: email, ...message });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
+  }
+
+  /** Administrative, credential-safe mail channel report; never exposes secrets. */
+  getDeliveryStatus(): { provider: string; ready: boolean; missing: string[]; note: string } {
+    const resend=Boolean(process.env.RESEND_API_KEY?.trim());
+    if(resend) {
+      const missing=process.env.RESEND_FROM_EMAIL?.trim()?[]:['RESEND_FROM_EMAIL'];
+      return {provider:'Resend HTTPS',ready:missing.length===0,missing,note:missing.length?'Нужно указать подтверждённый адрес отправителя Resend.':'Настройки заданы. Для подтверждения доставки отправьте тестовое письмо.'};
+    }
+    const gmailRequested=Boolean(
+      process.env.GMAIL_CLIENT_ID || process.env.GMAIL_CLIENT_SECRET ||
+      process.env.GMAIL_REFRESH_TOKEN || process.env.GMAIL_SENDER_EMAIL
+    );
+    if(gmailRequested) {
+      const missing=[
+        !((process.env.GMAIL_CLIENT_ID??process.env.GOOGLE_CLIENT_ID)?.trim())&&'GMAIL_CLIENT_ID (или GOOGLE_CLIENT_ID)',
+        !((process.env.GMAIL_CLIENT_SECRET??process.env.GOOGLE_CLIENT_SECRET)?.trim())&&'GMAIL_CLIENT_SECRET (или GOOGLE_CLIENT_SECRET)',
+        !process.env.GMAIL_REFRESH_TOKEN?.trim()&&'GMAIL_REFRESH_TOKEN',
+        !process.env.GMAIL_SENDER_EMAIL?.trim()&&'GMAIL_SENDER_EMAIL',
+      ].filter((v):v is string=>Boolean(v));
+      return {provider:'Gmail API HTTPS',ready:!missing.length,missing,note:missing.length?'Gmail API настроен частично. Заполните отсутствующие параметры в окружении Railway.':'OAuth-настройки присутствуют; фактическую авторизацию проверит тестовое письмо.'};
+    }
+    const missing=[
+      !process.env.SMTP_HOST?.trim()&&'SMTP_HOST',
+      !process.env.SMTP_USER?.trim()&&'SMTP_USER',
+      !process.env.SMTP_PASSWORD?.trim()&&'SMTP_PASSWORD',
+      !this.from?.trim()&&'SMTP_FROM',
+      process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
+    ].filter((v):v is string=>Boolean(v));
+    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Не выбрано работающее HTTPS-подключение либо SMTP отключён. Укажите Resend или Gmail API либо разрешённый SMTP.':'SMTP-настройки присутствуют; доступность сети подтвердит только тест.'};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
