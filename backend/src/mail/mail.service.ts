@@ -258,8 +258,10 @@ export class MailService {
     if(gmailPartiallyConfigured&&!smtpConfigured) {
       throw new Error('Gmail API email configuration is incomplete. Set GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL or configure a complete SMTP/Resend provider.');
     }
-    if (process.env.SMTP_EGRESS_ALLOWED === 'false') {
-      throw new Error('SMTP is explicitly disabled (SMTP_EGRESS_ALLOWED=false); configure Resend or Gmail API over HTTPS.');
+    // Railway may block outbound SMTP. Keep the explicit opt-in, even when
+    // SMTP credentials are present: avoid hanging real registration requests.
+    if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
+      throw new Error('SMTP delivery requires SMTP_EGRESS_ALLOWED=true on a network that supports it; otherwise configure Gmail API or Resend HTTPS.');
     }
     if (!smtpConfigured) {
       throw new Error('No complete email transport: configure Resend, Gmail API OAuth or SMTP_HOST/SMTP_USER/SMTP_PASSWORD.');
@@ -337,9 +339,9 @@ export class MailService {
       !process.env.SMTP_USER?.trim()&&'SMTP_USER',
       !process.env.SMTP_PASSWORD?.trim()&&'SMTP_PASSWORD',
       !this.from?.trim()&&'SMTP_FROM',
-      process.env.SMTP_EGRESS_ALLOWED==='false'&&'SMTP_EGRESS_ALLOWED=false (отключено)',
+      process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
     ].filter((v):v is string=>Boolean(v));
-    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно явно отключено. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на Railway подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
+    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно не включено для отправки с сервера. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на Railway подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
