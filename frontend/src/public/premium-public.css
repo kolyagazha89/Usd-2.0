@@ -214,3 +214,15 @@ body .usd-live .usd-broadcast-standby{min-height:190px;padding:20px}
 body .usd-live .usd-broadcast-panel-footer{padding:13px 12px;font-size:10px}
 body .usd-live .usd-broadcast-score-head{padding:15px 12px}
 }
+
+/* Editor lives in the light admin theme; do not restyle the dark sidebar. */
+.homepage-live-editor{display:grid;gap:14px;margin:22px 0;padding:22px;border:1px solid #cfd9e3;background:linear-gradient(135deg,#f8fbff,#eef5fa);border-radius:12px;color:#23303c}
+.homepage-live-editor-head{display:flex;align-items:flex-start;gap:12px}
+.homepage-live-editor-head>svg{flex:none;color:#d72a49}
+.homepage-live-editor-head strong{font-size:17px;font-weight:850}
+.homepage-live-editor-head p{font-size:12px;line-height:1.65;margin:9px 0 0}
+.homepage-live-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.homepage-live-editor-grid>label{display:flex;align-items:center;gap:12px;min-height:52px;padding:12px;background:white;border:1px solid #d5dfe7;border-radius:8px;font-size:13px;font-weight:700}
+.homepage-live-editor-grid input{flex:none;min-width:18px;width:18px;height:18px;accent-color:#dc2846}
+.homepage-live-editor .page-actions{display:flex;flex-wrap:wrap;gap:10px}
+@media(max-width:700px){.homepage-live-editor{padding:16px}.homepage-live-editor-grid{grid-template-columns:1fr}}
