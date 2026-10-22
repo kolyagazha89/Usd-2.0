@@ -4250,3 +4250,51 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
  .app-shell .topbar .topbar-actions{gap:6px}
  .app-shell .topbar .topbar-actions .role-pill{display:none}
 }
+
+/* Release: admin fields must never draw a nested input border or overlap icons.
+ * The search-box owns the border/focus ring; its inner input is visually flat. */
+.app-shell .main .search-box{
+ display:flex!important;align-items:center!important;gap:10px!important;
+ min-width:0!important;max-width:100%;width:100%;min-height:46px;height:auto;
+ padding:0 12px!important;overflow:hidden;box-sizing:border-box;
+}
+.app-shell .main .search-box>svg,
+.app-shell .main .search-box>button,
+.app-shell .main .search-box>.search-icon{flex:0 0 auto!important;position:static;max-width:24px}
+.app-shell .main .search-box input,
+.app-shell .main .search-box input:focus{
+ flex:1 1 auto!important;display:block!important;position:static!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ min-height:44px!important;height:44px!important;margin:0!important;padding:0!important;
+ border:0!important;border-radius:0!important;outline:0!important;
+ background:transparent!important;box-shadow:none!important;transform:none!important;
+ -webkit-appearance:none;appearance:none;text-overflow:ellipsis;
+}
+.app-shell .main .search-box input:focus{outline:0!important;box-shadow:none!important}
+.app-shell .main .search-box:focus-within{outline:2px solid rgba(225,36,69,.17);outline-offset:1px}
+.app-shell .main :is(.settings-form-grid,.entity-fields,.form-grid,.inspection-toolbar,.resource-toolbar,.toolbar) > *,
+.app-shell .main :is(.settings-form-grid,.entity-fields,.form-grid) label{min-width:0;max-width:100%}
+.app-shell .main :is(.settings-form-grid,.entity-fields,.form-grid) :is(input:not([type=checkbox]):not([type=radio]),select,textarea),
+.app-shell .main :is(.toolbar,.resource-toolbar,.inspection-toolbar) select{
+ box-sizing:border-box;min-width:0;max-width:100%;width:100%;
+}
+.app-shell .main :is(select,.filter-select){padding-right:clamp(26px,4vw,40px)!important;text-overflow:ellipsis}
+.app-shell .main :is(.field-label,.field-help){overflow-wrap:anywhere;line-height:1.45}
+@media(max-width:760px){
+ .app-shell .main .search-box{width:100%!important;min-height:48px;padding:0 12px!important}
+ .app-shell .main .search-box input{font-size:16px!important;min-height:46px!important;height:46px!important}
+ .app-shell .main :is(input:not([type=checkbox]):not([type=radio]),select,textarea){font-size:16px!important}
+ .app-shell .main .resource-toolbar,.app-shell .main .toolbar{min-width:0;flex-wrap:wrap}
+ .app-shell .main .data-table:not(.disqualification-table) tbody td{
+   grid-template-columns:minmax(112px,40%) minmax(0,1fr)!important;gap:9px!important;
+ }
+ .app-shell .main .data-table:not(.disqualification-table) tbody td::before{
+   font-size:11px!important;white-space:normal;overflow-wrap:normal;word-break:keep-all;
+ }
+ .app-shell .main .data-table:not(.disqualification-table) tbody td>*{min-width:0;max-width:100%;overflow-wrap:anywhere}
+}
+@media(max-width:360px){
+ .app-shell .main .data-table:not(.disqualification-table) tbody td{
+   grid-template-columns:minmax(98px,40%) minmax(0,1fr)!important;
+ }
+}
