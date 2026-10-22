@@ -283,3 +283,11 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
  }
  body .usd-live .u-footer{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))!important}
 }
+
+/* Coordinate portalled public dock with the global cookie notice. Its inline
+ * style reads --usd-dock-height from <html>; without this, it overlaps tabs. */
+@media(max-width:740px){
+ html:has(body>.u-mobile-dock){
+  --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px));
+ }
+}
