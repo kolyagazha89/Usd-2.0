@@ -4298,3 +4298,16 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
    grid-template-columns:minmax(98px,40%) minmax(0,1fr)!important;
  }
 }
+
+/* Mail test: actionable provider diagnosis; intentionally never renders tokens. */
+.app-shell .mail-channel-status{display:grid;gap:9px;margin:16px 0 18px;padding:18px;
+ border:1px solid #d8dee7;border-radius:13px;background:#f7f9fb;color:#263443;min-width:0}
+.app-shell .mail-channel-status.ready{border-color:#a8dec1;background:#f2fbf6}
+.app-shell .mail-channel-status.needs-setup{border-color:#e8bf9c;background:#fff8ef}
+.app-shell .mail-channel-status>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.app-shell .mail-channel-status strong{font-size:14px}
+.app-shell .mail-channel-status p{font-size:12px;line-height:1.55;overflow-wrap:anywhere;margin:0}
+.app-shell .mail-channel-status small{font-size:11px;line-height:1.55;color:#536875}
+@media(max-width:600px){.app-shell .mail-channel-status{padding:13px}
+ .app-shell .mail-channel-status>div:first-child{align-items:flex-start}
+}
