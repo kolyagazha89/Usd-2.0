@@ -12,7 +12,7 @@ test('all three image defaults are editable through admin and persisted in publi
  }
  assert.match(admin,/uploadSiteAsset\('placeholder-'\+key\+'-'\+crypto\.randomUUID\(\),file\)/);
  assert.match(admin,/updateSiteSettings\(\{branding:\{placeholders\}\}\)/);
- assert.match(admin,/saved\?\.settings\?\.branding\?\.placeholders\?\.\[key\]/);
+ assert.match(admin,/result\?\.settings\?\.branding\?\.placeholders\?\.\[key\]/);
  assert.match(settings,/branding: s\.branding/);
 });
 
