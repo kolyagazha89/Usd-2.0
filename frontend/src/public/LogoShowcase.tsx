@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {Pause,Play} from 'lucide-react';
 import {logoHaptic} from './logo-haptics';
 const logoUrl='/usd/usd-original.png';
 import './logo-showcase.css';
@@ -315,5 +314,5 @@ export default function LogoShowcase() {
   <span key={'pressure-'+boost} className={boost?'u-logo-pressure is-triggered':'u-logo-pressure'} aria-hidden="true"/>
   <span className="u-logo-aura" aria-hidden="true"/>
   {strike>0&&<span key={'strike-'+strike} className="u-logo-impact" aria-hidden="true"><svg viewBox="0 0 400 500" fill="none"><path className="u-lightning-main" d="M267 0L216 90L249 80L195 175L225 162L183 265L212 246L194 330"/><path className="u-lightning-branch" d="M225 162L298 132L281 177L334 161M216 90L141 108L163 150L114 170"/></svg><span className="u-logo-bloom"/><span className="u-logo-arrival-ring"/></span>}
- </button><button className="u-logo-playback" type="button" aria-label={motion==='running'?'Остановить анимацию':'Включить анимацию'} title={motion==='running'?'Остановить анимацию':'Включить анимацию'} aria-pressed={motion==='paused'} disabled={motion==='loading'||motion==='fallback'||motion==='reduced'} onClick={()=>playback.current()}>{motion==='running'?<Pause size={13}/>:<Play size={13}/>}</button></>;
+ </button></>;
 }
