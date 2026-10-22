@@ -16,6 +16,7 @@ test('iPhone dock is portalled to document.body with fixed safe-area anchoring',
  assert.match(css,/body>\.u-mobile-dock\{/);
  assert.match(css,/bottom:0!important/);
  assert.match(css,/env\(safe-area-inset-bottom/);
+ assert.match(css,/--usd-dock-height:calc\(66px/);
 });
 test('admin forms use flat search input and accessible mobile selector layout',async()=>{
  const styles=await source('../src/styles.css');
