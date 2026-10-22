@@ -2,6 +2,8 @@ import {useEffect,useState} from 'react';
 import {Activity,AlertTriangle,BatteryCharging,CarFront,Check,CheckCircle2,ChevronLeft,ChevronRight,Database,FileText,Gauge,Info,Layers3,Loader2,MoreHorizontal,Pencil,Plus,RefreshCw,Settings2,Volume2,X} from 'lucide-react';
 import {apiGet,apiPost,apiPut,getSiteSettings,getPublicSiteSettings,listData} from '../api';
 import {Empty,LoadingPage} from './AdminPrimitives';
+import {Photo} from '../public/PremiumUI';
+import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
@@ -38,6 +40,7 @@ function ConfigurationsWorkspace({car,canEdit,admin,onBack,displayCarName}:{car:
 }
 
 export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSaved,saveOverride,historicalFinal=false}:{carId:string;configuration:any;car?:any;admin:boolean;onClose:()=>void;onSaved:()=>Promise<void>;saveOverride?:(body:any)=>Promise<void>;historicalFinal?:boolean}){
+ const photoPlaceholders=usePhotoPlaceholders();
  const isNew=!configuration.id,initial=configuration.versions?.find((x:any)=>x.version===configuration.currentVersion)||configuration.versions?.[0]||{};
  const [v,setV]=useState<any>({name:configuration.name??'',vibrationIsolation:initial.vibrationIsolation??'',additionalDescription:withoutBoxLine(initial.additionalDescription??''),headUnits:(initial.headUnits??[]).map((x:any)=>({...x})),audioComponents:(initial.audioComponents??[]).map((x:any)=>({...x})),amplifiers:(initial.amplifiers??[]).map((x:any)=>({...x,componentLinks:(x.componentLinks??[]).map((l:any)=>({...l,componentId:String((initial.audioComponents??[]).findIndex((ac:any)=>ac.id===l.componentId))}))})),batteries:(initial.batteries??[]).map((x:any)=>({...x})),generators:(initial.generators??[]).map((x:any)=>({...x}))});
  const [saving,setSaving]=useState(false),[error,setError]=useState('');
@@ -120,7 +123,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
       <div className="member-config-vehicle-info"><span className="eyebrow">МОЙ АВТОМОБИЛЬ</span><h2>{[car?.brand,car?.model].filter(Boolean).join(' ')||configuration.name||'Мой автомобиль'}</h2><p>{car?.registrationNumber||'Соревновательная конфигурация'}{car?.color?' · '+car.color:''}</p>
         <div className="member-config-vehicle-chips"><span>Версия {configuration.currentVersion||1}</span><span>Компоненты: {v.audioComponents.length}</span><span>Усилители: {v.amplifiers.length}</span></div>
       </div>
-      <button type="button" className="member-config-actions-button" aria-label="Действия с оборудованием" aria-haspopup="dialog" aria-expanded={actionsOpen} onClick={()=>setActionsOpen(true)}><MoreHorizontal size={19}/><span>Действия</span></button><div className="member-config-vehicle-visual">{car?.photoUrl?<img src={car.photoUrl} alt={[car.brand,car.model].filter(Boolean).join(' ')}/>:<CarFront size={92} strokeWidth={.85} aria-hidden="true"/>}<span><CheckCircle2 size={14}/> Актуальная сборка</span></div>
+      <button type="button" className="member-config-actions-button" aria-label="Действия с оборудованием" aria-haspopup="dialog" aria-expanded={actionsOpen} onClick={()=>setActionsOpen(true)}><MoreHorizontal size={19}/><span>Действия</span></button><div className="member-config-vehicle-visual"><Photo src={car?.photoUrl} placeholderSrc={photoPlaceholders.car} alt={[car?.brand,car?.model].filter(Boolean).join(' ')||'Автомобиль USD'} className="member-config-auto-art" fallback={<CarFront size={92} strokeWidth={.85} aria-hidden="true"/>}/><span><CheckCircle2 size={14}/> Актуальная сборка</span></div>
     </div>
 
     <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} data-section={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
