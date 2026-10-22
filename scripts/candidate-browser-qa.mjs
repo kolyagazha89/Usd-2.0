@@ -79,7 +79,7 @@ const browser=await chromium.launch({headless:true});
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?routeSet:(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
    const context=await browser.newContext({viewport:{width,height:960}});
    const failuresSeen=new Set();
    await context.route('**/*',async route=>{
@@ -128,8 +128,13 @@ try{
      assert.ok((await page.locator('body').innerText()).length>100,'page must contain actual UI');
      const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0]);
      if(isPublicContent){
+      if(route!=='/')assert.equal(await page.title(),row.heading+' — USD','public title identifies the current section');
       assert.equal(await page.locator('.participant-portal').count(),0,'public content stays public in a member session');
       if(!route.endsWith('/offline'))assert.equal(await page.locator('.p-error').count(),0,'public requests must not fail silently');
+     }
+     if(role===null&&route==='/participant/register?stageId=stage1'){
+      const current=new URL(page.url());assert.equal(current.pathname,'/login');assert.equal(current.searchParams.get('next'),route);
+      assert.match(await page.locator('.usd-auth-context').innerText(),/Кубок USD/);row.guestRegistration='login preserves chosen stage';
      }
      if(role===null&&route==='/login'){
       await page.getByRole('button',{name:'Нет аккаунта? Зарегистрироваться',exact:true}).click();

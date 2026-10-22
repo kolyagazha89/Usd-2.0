@@ -30,6 +30,7 @@ export async function runPublicNavigation(){
   try{
     await act(async()=>root.render(<App/>));await flush();
     assertStage('alpha');
+    assert.match(document.title,/Результаты/,'public page title describes the current section');
     assert.equal(document.querySelector('.u-mobile-dock [aria-current="page"]')?.textContent,'Результаты','public dock marks the current section');
     await click([...document.querySelectorAll<HTMLAnchorElement>('.public-nav a')].find(button=>button.textContent==='Этапы')!);
     const cards=[...document.querySelectorAll<HTMLElement>('.public-stage-card')];
@@ -182,4 +183,10 @@ export async function runCommunityNavigationRace(){
  state.__getPublic=async(path:string)=>path==='/participants'?new Promise(resolve=>{finish=resolve}):path==='/site-settings/public'?{settings:{}}:[];
  history.replaceState({},'','/participants');const root=createRoot(document.getElementById('root')!);
  try{await act(async()=>root.render(<App/>));await flush();await click([...document.querySelectorAll<HTMLAnchorElement>('.public-nav a')].find(a=>a.textContent==='Новости')!);assert.equal(location.pathname,'/news');assert.equal(document.querySelector('[aria-label="Загружаем страницу"]'),null,'leaving an unfinished directory request must not leave news loading forever');assert.match(document.querySelector('main')?.textContent??'',/Новые истории/)}finally{await act(async()=>finish([]));await act(async()=>root.unmount())}
+}
+
+export async function runGuestPrivateEntry(){
+ state.__accountUser=null;state.__getPublic=async(path:string)=>path==='/stages/public/alpha'?{id:'alpha',name:'Выбранный кубок'}:path==='/site-settings/public'?{settings:{}}:[];
+ history.replaceState({},'','/participant/register?stageId=alpha');const root=createRoot(document.getElementById('root')!);
+ try{await act(async()=>root.render(<App/>));await flush();await flush();assert.equal(location.pathname,'/login','expired/anonymous participant registration links lead to login');assert.equal(new URLSearchParams(location.search).get('next'),'/participant/register?stageId=alpha');assert.match(document.querySelector('.login-card')?.textContent??'',/Выбранный кубок/)}finally{await act(async()=>root.unmount())}
 }
