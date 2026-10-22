@@ -85,4 +85,40 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow('Управление пользователями и ролями доступно только ADMIN');
     expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
+  it('allows staff self-service without granting unrelated admin permissions', async () => {
+    prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
+    for (const [name,path,method] of [
+      ['ParticipantsController','/participants/me','GET'],
+      ['ParticipantsController','/participants/me','POST'],
+      ['ParticipantsController','/participants/me/cars','POST'],
+      ['ParticipantsController','/cars/my-car','PATCH'],
+      ['RegistrationsController','/registrations/me','GET'],
+      ['RegistrationsController','/registrations/me','POST'],
+      ['RegistrationsController','/registrations/me/reg-1','DELETE'],
+      ['AuthController','/auth/legal-consent','PATCH'],
+      ['MediaController','/media/prepare','POST'],
+    ] as const) {
+      const request:any={method,path,body:path==='/media/prepare'?{targetType:'CAR_PHOTO'}:{},user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}};
+      await expect(guard.canActivate(context(request,name))).resolves.toBe(true);
+    }
+  });
+
+  it('checks owner-only configuration access when staff has no configurations permission', async () => {
+    prisma.role.findUnique.mockResolvedValue({ permissions:{results:['view','create']} });
+    const request:any={method:'GET',path:'/cars/private/configurations',user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}};
+    await expect(guard.canActivate(context(request,'ConfigurationsController'))).resolves.toBe(true);
+    expect(request.personalAccountAccess).toBe(true);
+  });
+
+  it('does not grant custom staff blanket access to the media library or site assets', async () => {
+    prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
+    for(const request of [
+      {method:'POST',path:'/media/prepare',body:{targetType:'SITE_ASSET'}},
+      {method:'DELETE',path:'/media/library/SITE_ASSET/test'},
+      {method:'PATCH',path:'/stages/other-stage'},
+    ]) {
+      await expect(guard.canActivate(context({...request,user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}},request.path.startsWith('/media')?'MediaController':'StagesController'))).rejects.toBeInstanceOf(ForbiddenException);
+    }
+  });
+
 });
