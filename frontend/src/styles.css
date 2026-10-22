@@ -4213,11 +4213,11 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 /* USD release: operational screens use the whole available workspace.
    Keep desktop sidebar and responsive padding; do not force viewport widths. */
-body .app .content,body .field-mode .content{min-width:0;max-width:none;width:100%}
-body .app .content>.page,body .field-mode .content>.page{
+body .app-shell .main>.content,body .field-mode .content{min-width:0;max-width:none;width:100%}
+body .app-shell .main .content>.page,body .field-mode .content>.page{
  max-width:none!important;width:100%!important;min-width:0!important;margin-inline:0!important;
 }
-body .app .content>.page :is(.panel,.data-table-wrap,.inspection-toolbar,.inspection-summary),
+body .app-shell .main .content>.page :is(.panel,.data-table-wrap,.inspection-toolbar,.inspection-summary),
 body .field-mode .content>.page :is(.panel,.data-table-wrap,.inspection-toolbar,.inspection-summary){min-width:0;max-width:100%}
 body .participant-portal.usd-member.registration-page>.registration-page-main,
 body .participant-portal.usd-member.registration-page>.participant-portal-main,
@@ -4231,7 +4231,7 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
 }
 @media (max-width:800px){
- body .app .content,body .field-mode .content{padding-inline:clamp(10px,2.5vw,18px)!important}
+ body .app-shell .main .content,body .field-mode .content{padding-inline:clamp(10px,2.5vw,18px)!important}
  body .participant-portal.usd-member.registration-page>.registration-page-main,
  body .participant-portal.usd-member.configurations-page-shell>.participant-portal-main{
  padding-inline:clamp(12px,3vw,22px)!important
