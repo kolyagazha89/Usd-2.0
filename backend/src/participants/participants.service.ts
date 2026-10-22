@@ -1518,12 +1518,6 @@ export class ParticipantsService {
     const user =
       await this.getAuthenticatedUser(request);
 
-    if (Boolean(user.customRoleId)) {
-      throw new ForbiddenException(
-        'Судья может только просматривать автомобили',
-      );
-    }
-
     const car =
       await this.ensureCarExists(id);
 
@@ -1701,12 +1695,6 @@ export class ParticipantsService {
   ) {
     const user =
       await this.getAuthenticatedUser(request);
-
-    if (Boolean(user.customRoleId)) {
-      throw new ForbiddenException(
-        'Судья может только просматривать автомобили',
-      );
-    }
 
     const car =
       await this.ensureCarExists(id);
