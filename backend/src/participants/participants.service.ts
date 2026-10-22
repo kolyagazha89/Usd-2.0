@@ -426,6 +426,7 @@ export class ParticipantsService {
           registrations: {
             where: {
               status: 'ACTIVE',
+              stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
             },
             orderBy: {
               registeredAt: 'desc',
@@ -455,6 +456,8 @@ export class ParticipantsService {
 
               car: {
                 select: {
+                  isPublic: true,
+                  isActive: true,
                   id: true,
                   brand: true,
                   model: true,
@@ -493,7 +496,13 @@ export class ParticipantsService {
       );
     }
 
-    return participant;
+    return {
+      ...participant,
+      registrations: participant.registrations?.map((registration) => ({
+        ...registration,
+        car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
+      })) ?? [],
+    };
   }
 
   // =========================================================

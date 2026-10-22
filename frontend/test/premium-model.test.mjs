@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord} from '../src/public/premium-model.ts';
+import {carName,countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord} from '../src/public/premium-model.ts';
 
 test('news excludes drafts and future posts, while preserving published content',()=>{
   const rows=[{id:'draft',isPublished:false},{id:'future',publishedAt:'2099-01-01'},{id:'old',publishedAt:'2025-01-01'},{id:'new',publishedAt:'2026-01-01'}];
@@ -22,3 +22,5 @@ test('record spotlight never compares speed in m/s with sound pressure',()=>{
 });
 
 test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,21,22,25].map(n=>countLabel(n,'участник','участника','участников')),['0 участников','1 участник','2 участника','5 участников','11 участников','21 участник','22 участника','25 участников']);});
+
+test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});

@@ -269,4 +269,13 @@ describe('RecordsService', () => {
     const includeText = JSON.stringify(service['publicInclude']);
     expect(includeText).not.toContain('registrationNumber');
   });
+
+  it('hides an inactive car in official records without removing the record value', async () => {
+    prisma.siteSettings.findUnique.mockResolvedValue({ catalogs: {} });
+    prisma.record.findMany.mockResolvedValue([{ id: 'record', value: 155, class: { id: 'spl', name: 'SPL' }, result: { registration: { car: { brand: 'Secret', model: 'Retired', photoUrl: '/secret', isPublic: true, isActive: false } } } }]);
+    const rows = await service.findCurrent();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ value: 155, result: { registration: { car: { brand: 'Автомобиль скрыт', model: '', photoUrl: null } } } });
+    expect(prisma.record.findMany.mock.calls[0][0].include.result.include.registration.select.car.select.isActive).toBe(true);
+  });
 });

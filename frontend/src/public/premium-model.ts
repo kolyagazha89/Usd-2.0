@@ -23,7 +23,7 @@ export function highestDbRecord(rows:any[]){
  }).sort((a,b)=>Number(b.value)-Number(a.value))[0];
 }
 export function personName(person:any){return [person?.lastName,person?.firstName,person?.middleName].filter(Boolean).join(' ')||'Участник USD'}
-export function carName(car:any){return [car?.brand,car?.model].filter(Boolean).join(' ')||'Автомобиль USD'}
+export function carName(car:any){return [car?.brand,car?.model].map(value=>String(value??'').trim()).filter(value=>value&&!/^(не указано|не указан|нет|—|-)$/i.test(value)).join(' ')||'Автомобиль USD'}
 export function initials(name:string){return name.trim().split(/\s+/).slice(0,2).map(x=>Array.from(x)[0]??'').join('').toLocaleUpperCase('ru')}
 export function stageDate(value:unknown){const d=new Date(String(value??''));return Number.isNaN(d.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d)}
 export function countLabel(count:number,one:string,few:string,many:string){const form=new Intl.PluralRules('ru').select(count);return count+' '+(form==='one'?one:form==='few'?few:many)}

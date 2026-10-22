@@ -10,7 +10,7 @@ const dist=path.resolve('frontend/dist');
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{
  try{
-  const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
+  const rawPath=new URL(req.url,'http://localhost').pathname;let pathname=rawPath;try{pathname=decodeURIComponent(rawPath)}catch{/* Serve the SPA so it can explain malformed deep links. */}
   const file=path.resolve(dist,'.'+pathname);if(!file.startsWith(dist+path.sep)&&file!==dist){res.writeHead(403).end();return}
   let body,ext=path.extname(file);
   try{body=await readFile(file)}catch{body=await readFile(path.join(dist,'index.html'));ext='.html'}
@@ -49,6 +49,7 @@ function dataFor(url,role){
  if(p==='/configurations/config1')return configuration;
  if(p==='/site-settings'||p==='/site-settings/public')return {settings};
  if(p.startsWith('/media/'))return {url:''};
+ if(p==='/records/current')return [{id:'record1',value:150.25,unit:'DB',class:klass,result,stage,isCurrent:true}];
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stats:{registrations:1,participants:1,cars:1,inspections:{total:0,pending:1,passed:0,failed:0}}};
@@ -70,16 +71,17 @@ function dataFor(url,role){
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
  return [];
 }
-const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/login','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route)),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1'];
+const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
 const browser=await chromium.launch({headless:true});
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?routeSet:(role===null?['/','/stages','/results?stageId=stage1','/login']:role==='PARTICIPANT'?['/participants','/participants/p1','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
    const context=await browser.newContext({viewport:{width,height:960}});
+   const failuresSeen=new Set();
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
@@ -87,6 +89,15 @@ try{
     if(url.hostname==='usd-api-production.up.railway.app'){
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'){
       blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
+     }
+     if(['/participants/missing','/cars/missing','/stages/public/missing'].includes(url.pathname))return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Не найдено'})});
+     if(['/participants/offline','/stages/public/offline'].includes(url.pathname)){
+      if(!failuresSeen.has(url.pathname)){failuresSeen.add(url.pathname);return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic outage'})})}
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(url.pathname.startsWith('/participants/')?{...participant,id:'offline',cars:[],registrations:[]}:{...stage,id:'offline'})});
+     }
+     if(role==='PARTICIPANT'&&request.frame().url().includes('stageId=outage')&&url.pathname==='/stages/public'){
+      if(!failuresSeen.has('registration-calendar')){failuresSeen.add('registration-calendar');return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic calendar outage'})})}
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{...stage,id:'outage'}])});
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
      const data=registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
@@ -115,10 +126,42 @@ try{
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
      assert.ok((await page.locator('body').innerText()).length>100,'page must contain actual UI');
-     const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change'].includes(route);
+     const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0]);
      if(isPublicContent){
+      if(route!=='/')assert.equal(await page.title(),row.heading+' — USD','public title identifies the current section');
       assert.equal(await page.locator('.participant-portal').count(),0,'public content stays public in a member session');
-      assert.equal(await page.locator('.p-error').count(),0,'public requests must not fail silently');
+      if(!route.endsWith('/offline'))assert.equal(await page.locator('.p-error').count(),0,'public requests must not fail silently');
+     }
+     if(role===null&&route==='/participant/register?stageId=stage1'){
+      const current=new URL(page.url());assert.equal(current.pathname,'/login');assert.equal(current.searchParams.get('next'),route);
+      assert.match(await page.locator('.usd-auth-context').innerText(),/Кубок USD/);row.guestRegistration='login preserves chosen stage';
+     }
+     if(role===null&&route==='/login'){
+      await page.getByRole('button',{name:'Нет аккаунта? Зарегистрироваться',exact:true}).click();
+      assert.equal(await page.locator('input[autocomplete="new-password"]').count(),2);
+      assert.match(await page.locator('#signup-password-hint').innerText(),/8/);
+      assert.equal(await page.getByRole('button',{name:'Зарегистрироваться',exact:true}).isEnabled(),false,'legal documents not ready: account creation remains blocked');
+      row.accountCreation='form inspected; no consent accepted or account submitted';
+     }
+     if(role===null&&route.startsWith('/login?'))assert.match(await page.locator('.usd-auth-context').innerText(),/Кубок USD/);
+     if(route.endsWith('/missing')){assert.match(await page.locator('main').innerText(),/не найден/);assert.equal(await page.locator('.p-error').count(),0)}
+     if(route.endsWith('/offline')){
+      assert.match(await page.locator('main [role="alert"]').innerText(),/Не удалось/);
+      await page.screenshot({path:path.join(output,`${role??'PUBLIC'}-${width}-${route.replaceAll('/','_')}-error.png`)});
+      await page.getByRole('button',{name:'Попробовать ещё раз',exact:true}).click();
+      await page.locator(route.startsWith('/participants/')?'.p-profile-banner':'.public-stage-detail').waitFor();
+      assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
+     }
+     if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/);
+     if(role==='PARTICIPANT'&&['/participant/register?stageId=missing','/participant/register'].includes(route)){
+      assert.equal(await page.locator('.participant-loading').count(),0,'missing registration stage never spins forever');
+      assert.ok(await page.getByRole('button',{name:'Выбрать этап',exact:true}).isVisible());row.registrationMissing='calendar recovery available';
+     }
+     if(role==='PARTICIPANT'&&route==='/participant/register?stageId=outage'){
+      assert.match(await page.locator('main').innerText(),/Не удалось загрузить этапы/);
+      assert.equal(await page.locator('.participant-loading').count(),0);
+      await page.getByRole('button',{name:'Повторить загрузку',exact:true}).click();
+      await page.getByRole('button',{name:'Перейти к классам',exact:true}).waitFor();row.registrationRecovery='503 calendar retry restores registration';
      }
      if(route==='/participants/p1'){
       assert.match(await page.locator('.p-profile-banner').innerText(),/Тестовый Иван/);
@@ -127,10 +170,13 @@ try{
       assert.match(await page.locator('.p-entry-results').innerText(),/150,25/);
       assert.match(await page.locator('.p-entry-results').innerText(),/1 место/);
       row.publicAchievements='published results expanded; stage protocol link available';
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded achievements fit viewport');
      }
+     if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
 
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'interactive state fits viewport');
      const notice=page.locator('.cookie-notice');
      if(await notice.isVisible()){
       const overflow=await notice.locator('.cookie-notice__copy').evaluate(element=>({scroll:element.scrollWidth,width:element.clientWidth,whiteSpace:getComputedStyle(element.querySelector('p')).whiteSpace}));
@@ -218,7 +264,7 @@ try{
       assert.ok(await page.getByRole('button',{name:/Открыть карточку регистрации/}).isVisible());
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
-     if(role==='PARTICIPANT'&&route.startsWith('/participant/register?')){
+     if(role==='PARTICIPANT'&&route==='/participant/register?stageId=stage1'){
       const next=page.getByRole('button',{name:'Перейти к классам',exact:true});
       assert.equal(await next.isEnabled(),false,'cannot skip vehicle selection');
       assert.equal(await page.getByRole('button',{name:'03 Подтверждение',exact:true}).isEnabled(),false);
