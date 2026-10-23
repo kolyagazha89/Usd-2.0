@@ -15,6 +15,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
+import type { AuthenticatedRequest } from './authenticated-request';
 
 @Injectable()
 export class AuthService {
@@ -629,15 +630,16 @@ export class AuthService {
     };
   }
 
-  async findHistoricalProfileCandidates(userId: string, fullName: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
-    });
-    if (!user) {
-      throw new UnauthorizedException('Недействительная учётная запись');
+  async findHistoricalProfileCandidates(
+    actor: Pick<AuthenticatedRequest['user'], 'sub' | 'email' | 'participantId'>,
+    fullName: string,
+  ) {
+    // JwtAuthGuard already validates this account against the database before
+    // the controller runs. Use its trusted principal for this read-only search.
+    if (!actor?.sub || !actor.email) {
+      throw new UnauthorizedException('Требуется авторизация');
     }
-    if (user.participantId) {
+    if (actor.participantId) {
       throw new ConflictException('Профиль участника уже привязан к аккаунту');
     }
 
@@ -702,7 +704,7 @@ export class AuthService {
      * legacy email участника должен совпадать с подтверждённым email аккаунта.
      * Профили без сохранённого legacy email привязываются только администратором.
      */
-    const userEmail = user.email.trim().toLowerCase();
+    const userEmail = actor.email.trim().toLowerCase();
     const candidatesWithOwnership = await Promise.all(candidates.map(async (candidate) => {
       const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
         where: { participantId: candidate.id },
