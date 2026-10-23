@@ -260,8 +260,10 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
  * layer. Fixed children of animated/transformed ancestors drift while scrolling. */
 @media(max-width:740px){
  body>.u-mobile-dock{
-  position:fixed!important;inset:auto 0 auto!important;
-  top:var(--usd-dock-visual-top,calc(100dvh - 66px - env(safe-area-inset-bottom,0px)))!important;
+  /* Anchor the dock with CSS dynamic viewport units, not JS scroll offsets.
+     iOS Safari's visualViewport offsets can accumulate while page-scrolling. */
+  position:fixed!important;left:0!important;right:0!important;
+  top:calc(100dvh - 66px - env(safe-area-inset-bottom,0px))!important;
   bottom:auto!important;
   display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
   width:100%!important;width:100vw!important;max-width:none!important;
