@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const source=p=>readFile(new URL(p,import.meta.url),'utf8');
 
-test('iPhone dock is portalled to document.body with fixed safe-area anchoring',async()=>{
+test('iPhone dock anchors to the live VisualViewport rather than fixed bottom',async()=>{
  const [shell,base,css]=await Promise.all([
   source('../src/public/PremiumShell.tsx'),
   source('../src/public/premium-base.css'),
@@ -14,7 +14,11 @@ test('iPhone dock is portalled to document.body with fixed safe-area anchoring',
  assert.match(shell,/<\/nav>,document\.body\)/);
  assert.match(base,/\.u-mobile-dock\{position:fixed/);
  assert.match(css,/body>\.u-mobile-dock\{/);
- assert.match(css,/bottom:0!important/);
+ assert.match(css,/top:var\(--usd-dock-visual-top/);
+ assert.match(css,/bottom:auto!important/);
+ assert.match(shell,/visualViewport/);
+ assert.match(shell,/viewport\?\.addEventListener\('resize',sync\)/);
+ assert.match(shell,/viewport\?\.addEventListener\('scroll',sync\)/);
  assert.match(css,/env\(safe-area-inset-bottom/);
  assert.match(css,/--usd-dock-height:calc\(66px/);
 });

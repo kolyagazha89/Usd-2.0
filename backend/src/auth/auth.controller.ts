@@ -15,6 +15,7 @@ import {
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
+import type { AuthenticatedRequest } from './authenticated-request';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
 import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
@@ -261,8 +262,8 @@ export class AuthController {
     @Req() request: Request,
     @Body() body: { fullName?: string },
   ) {
-    const userId = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.findHistoricalProfileCandidates(userId, body.fullName ?? '');
+    const actor = (request as AuthenticatedRequest).user;
+    return this.authService.findHistoricalProfileCandidates(actor, body.fullName ?? '');
   }
 
   @Post('profile/link-historical')

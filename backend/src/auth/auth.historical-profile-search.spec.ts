@@ -38,7 +38,7 @@ describe('AuthService.findHistoricalProfileCandidates', () => {
   it('searches by a partial Cyrillic first name such as «Иван»', async () => {
     const { service, prisma, participant } = makeService();
 
-    const result = await service.findHistoricalProfileCandidates('user-1', 'Иван');
+    const result = await service.findHistoricalProfileCandidates({sub:'user-1',email:'ivan@example.com'}, 'Иван');
 
     expect(prisma.participant.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -60,12 +60,13 @@ describe('AuthService.findHistoricalProfileCandidates', () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].id).toBe(participant.id);
     expect(result.candidates[0].canSelfLink).toBe(true);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled(); // Already validated by JwtAuthGuard
   });
 
   it('requires every word in a partial full-name query to match a name field', async () => {
     const { service, prisma } = makeService();
 
-    await service.findHistoricalProfileCandidates('user-1', 'Иванов Иван');
+    await service.findHistoricalProfileCandidates({sub:'user-1',email:'ivan@example.com'}, 'Иванов Иван');
 
     const call = (prisma.participant.findMany as jest.Mock).mock.calls[0][0];
     expect(call.where.AND).toHaveLength(2);
