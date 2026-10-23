@@ -19,6 +19,8 @@ test('judge and admin can use personal cabinet and their distinct staff navigati
  assert.equal(accountLanding(participant,'/admin/results'),'/participant');
  assert.equal(accountLanding(judge,'//example.com'),'/participant');
  assert.equal(accountLanding(admin,null,true),'/admin');
+ assert.equal(accountLanding(admin,null),'/admin');
+ assert.equal(accountLanding(admin,'/participant'),'/participant');
  assert.equal(accountLanding(judge,null),'/participant');
 });
 
@@ -34,6 +36,7 @@ test('public staff, member and admin navigation coexist, with independent button
  assert.match(premium,/usd-header-admin-shortcut/);
  assert.match(app,/path\)\|\|\(path\.startsWith\('\/admin'\)&&!hasAdminPanelAccess\(user\)\)/);
  assert.match(app,/onGoAdmin=\{\(\)=>go\('\/admin'\)\}/);
+ assert.match(app,/className="profile-match-staff-entry"/);
  assert.match(adminShell,/Вернуться на сайт/);
  assert.match(adminShell,/Мой кабинет/);
  assert.match(styles,/public-nav-admin/);
