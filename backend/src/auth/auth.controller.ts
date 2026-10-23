@@ -257,6 +257,17 @@ export class AuthController {
     };
   }
 
+  // Public, secret-free deployment fingerprint for diagnosing a stale API.
+  // The profile search code at this revision consumes the validated JWT principal.
+  @Public()
+  @Get('build-info')
+  buildInfo() {
+    return {
+      profileSearchVersion: 'principal-v2',
+      gitCommitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
+    };
+  }
+
   @Post('profile/historical-candidates')
   async historicalProfileCandidates(
     @Req() request: Request,
