@@ -3059,6 +3059,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .profile-match-brand i{font-style:normal;color:#c2c5c9;margin:0 5px}
 .profile-match-brand .text-button{margin-left:auto}
 .profile-match-hero{margin:44px auto 0;max-width:720px;text-align:center}
+.profile-match-staff-entry{display:flex;justify-content:center;margin:18px auto 0}
+.profile-match-staff-entry .secondary-button{max-width:100%;white-space:normal;text-align:center}
 .profile-match-kicker{font-size:10px;font-weight:900;letter-spacing:.18em;color:#d31e30}
 .profile-match-hero h1{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.055em;margin:12px 0 13px;font-weight:900}
 .profile-match-hero>p{max-width:600px;margin:0 auto;color:#62676e;font-size:14px;line-height:1.7}
