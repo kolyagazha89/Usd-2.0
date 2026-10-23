@@ -24,6 +24,9 @@ export type Dashboard = {
 };
 
 const REQUEST_TIMEOUT_MS = 30_000;
+// Only anonymous auth endpoints should bypass refresh. Historical-profile
+// search/link and authenticated account settings also live under /auth.
+const PUBLIC_AUTH_ENDPOINT = /^\/auth\/(?:login|register|refresh|logout|forgot-password|reset-password|verify-email|resend-verification|confirm-email-change)(?:[/?]|$)/;
 
 async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<T>{
   const headers=new Headers(init.headers);
@@ -41,7 +44,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
       signal:init.signal ?? controller.signal,
     });
 
-    if(response.status===401 && retry && !path.startsWith('/auth/')){
+    if(response.status===401 && retry && !PUBLIC_AUTH_ENDPOINT.test(path)){
       const refreshed=await refresh();
       if(refreshed) return request<T>(path,init,false);
     }
@@ -73,9 +76,9 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
 export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
-export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch(()=>{accessToken=null;return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
+export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch((error:ApiError)=>{accessToken=null;if(error.status===401){clearAuthSession();window.dispatchEvent(new Event('usd:session-expired'));}return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
 export function clearAuthSession(){accessToken=null;try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}}
-export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}finally{clearAuthSession();}}
+export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}catch{/* Expired sessions or network errors must not block local sign-out. */}finally{clearAuthSession();}}
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
