@@ -14,5 +14,5 @@ export function accountLanding(user:User,requested:string|null,enteredAdmin=fals
  const safe=requested?.startsWith('/')&&!requested.startsWith('//')&&!requested.includes('\\')?requested:null;
  if(safe&&/^\/participant(?:\/|\?|$)/.test(safe))return safe;
  if(safe&&/^\/admin(?:\/|\?|$)/.test(safe)&&hasAdminPanelAccess(user))return safe;
- return enteredAdmin&&hasAdminPanelAccess(user)?'/admin':'/participant';
+ return (enteredAdmin||user.role==='ADMIN')&&hasAdminPanelAccess(user)?'/admin':'/participant';
 }
