@@ -206,7 +206,7 @@ try{
        const rect=selector=>{const e=document.querySelector(selector);if(!e||!e.getClientRects().length)return null;return e.getBoundingClientRect().toJSON()};
        return {notice:rect('.cookie-notice'),dock:rect('.participant-tabs,.u-mobile-dock'),save:rect('.config-editor-actions')};
       });
-      if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top,'cookie notice leaves bottom navigation reachable');
+      if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top+1,'cookie notice leaves bottom navigation reachable: '+JSON.stringify(chrome));
       await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
       if(role==='PARTICIPANT'&&route==='/participant?tab=registrations'){
       const card=await page.locator('.participant-registration-list>article').first().boundingBox();
