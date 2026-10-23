@@ -290,7 +290,11 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
 /* Coordinate portalled public dock with the global cookie notice. Its inline
  * style reads --usd-dock-height from <html>; without this, it overlaps tabs. */
 @media(max-width:740px){
- html:has(body>.u-mobile-dock){
+ /* The body already defines --usd-dock-height:0px in premium-ui.css.
+    Override it here, not only on html, so the cookie notice inherits
+    the actual portalled dock height. */
+ html:has(body>.u-mobile-dock),
+ body:has(>.u-mobile-dock){
   --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px));
  }
 }
