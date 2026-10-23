@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const source=p=>readFile(new URL(p,import.meta.url),'utf8');
 
-test('iPhone dock anchors to the live VisualViewport rather than fixed bottom',async()=>{
+test('iPhone public dock is CSS-anchored to 100dvh without JS scroll offsets',async()=>{
  const [shell,base,css]=await Promise.all([
   source('../src/public/PremiumShell.tsx'),
   source('../src/public/premium-base.css'),
@@ -14,11 +14,10 @@ test('iPhone dock anchors to the live VisualViewport rather than fixed bottom',a
  assert.match(shell,/<\/nav>,document\.body\)/);
  assert.match(base,/\.u-mobile-dock\{position:fixed/);
  assert.match(css,/body>\.u-mobile-dock\{/);
- assert.match(css,/top:var\(--usd-dock-visual-top/);
+ assert.match(css,/top:calc\(100dvh - 66px - env\(safe-area-inset-bottom/);
  assert.match(css,/bottom:auto!important/);
- assert.match(shell,/visualViewport/);
- assert.match(shell,/viewport\?\.addEventListener\('resize',sync\)/);
- assert.match(shell,/viewport\?\.addEventListener\('scroll',sync\)/);
+ assert.doesNotMatch(shell,/visualViewport/);
+ assert.doesNotMatch(shell,/usd-dock-visual-top/);
  assert.match(css,/env\(safe-area-inset-bottom/);
  assert.match(css,/--usd-dock-height:calc\(66px/);
 });
