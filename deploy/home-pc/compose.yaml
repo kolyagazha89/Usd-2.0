@@ -1,0 +1,87 @@
+name: usd-home
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: 128mb
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  api:
+    image: ghcr.io/kolyagazha89/usd-2.0-api:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
+    restart: unless-stopped
+    # Bypass npm run start:prod which can trigger historical import bootstrap.
+    # Apply migrations explicitly after restoring/validating the production DB.
+    command: ["node", "dist/main.js"]
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      AUTH_COOKIE_SECURE: "true"
+      CORS_ORIGINS: https://${APP_DOMAIN:?set APP_DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      TRUST_PROXY_HOPS: "1"
+      FRONTEND_URL: https://${APP_DOMAIN}
+      API_PUBLIC_URL: https://${API_DOMAIN:?set API_DOMAIN}
+      PUBLIC_API_URL: https://${API_DOMAIN}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose: ["3000"]
+    mem_limit: 896m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  frontend:
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
+    restart: unless-stopped
+    expose: ["80"]
+    mem_limit: 128m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  usd-internal:
+    driver: bridge
