@@ -2,14 +2,14 @@ name: usd-home
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres18_data:/var/lib/postgresql
     shm_size: 128mb
     mem_limit: 640m
     healthcheck:
@@ -78,7 +78,7 @@ services:
     networks: [usd-internal]
 
 volumes:
-  postgres_data:
+  postgres18_data:
   caddy_data:
   caddy_config:
 
