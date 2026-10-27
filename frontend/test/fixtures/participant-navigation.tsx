@@ -131,6 +131,7 @@ export async function runDashboardAvailability(){
   await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[emptyConfig]}]}/>));
   assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','an empty saved version must not be marked as configured');
   assert.match(document.querySelector('.member-readiness')?.textContent??'',/Добавьте акустику или сабвуфер/);
+  assert.match(document.querySelector('.participant-journey')?.textContent??'',/Настроить оборудование/,'empty saved configuration still offers setup guidance');
   const zeroQuantity={currentVersion:1,versions:[{version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'Test',quantity:0}]}]};
   await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[zeroQuantity]}]}/>));
   assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','zero-quantity equipment cannot complete the checklist');
