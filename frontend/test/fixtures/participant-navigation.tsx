@@ -129,11 +129,11 @@ export async function runDashboardAvailability(){
   await click(document.querySelector<HTMLButtonElement>('.member-race-card .primary-button')!);assert.equal(actions.at(-1),'first');
   const emptyConfig={currentVersion:1,versions:[{version:1,audioComponents:[]}]};
   await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[emptyConfig]}]}/>));
-  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\\s/g,''),'3/4','an empty saved version must not be marked as configured');
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','an empty saved version must not be marked as configured');
   assert.match(document.querySelector('.member-readiness')?.textContent??'',/Добавьте акустику или сабвуфер/);
   const zeroQuantity={currentVersion:1,versions:[{version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'Test',quantity:0}]}]};
   await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[zeroQuantity]}]}/>));
-  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\\s/g,''),'3/4','zero-quantity equipment cannot complete the checklist');
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','zero-quantity equipment cannot complete the checklist');
  }finally{await act(async()=>root.unmount())}
 }
 
