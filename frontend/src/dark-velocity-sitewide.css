@@ -526,7 +526,15 @@ body:not(:has(.usd-live,.usd-member)) .usd-scroll-progress{display:none}
     min-height:0!important;padding-top:clamp(30px,7vw,55px);padding-bottom:32px;
   }
   body .usd-live .u-cinema-copy{
+    position:relative!important;inset:auto!important;bottom:auto!important;
+    display:block!important;grid-template-columns:none!important;
     align-self:stretch;width:100%;padding:0!important;order:0;
+  }
+  body .usd-live .u-cinema-copy::after{display:none!important}
+  body .usd-live .u-cinema-copy .u-actions{
+    display:flex!important;flex-wrap:wrap!important;
+    grid-column:auto!important;grid-template-columns:none!important;
+    width:auto!important;align-items:center;
   }
   body .usd-live .u-cinema-copy h1.u-wordmark-title{
     font-size:clamp(47px,10.5vw,78px)!important;
@@ -537,6 +545,7 @@ body:not(:has(.usd-live,.usd-member)) .usd-scroll-progress{display:none}
   body .usd-live .u-cinema-copy .u-actions{margin-top:22px}
   body .usd-live .u-cinema-copy .u-btn{min-height:49px}
   body .usd-live .u-cinema-stage{
+    position:relative!important;inset:auto!important;
     order:1;min-height:clamp(330px,94vw,500px);height:clamp(330px,94vw,500px);
     width:100%;margin:0!important;
   }
