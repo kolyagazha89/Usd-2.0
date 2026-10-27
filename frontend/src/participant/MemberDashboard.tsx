@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {ArrowRight,ArrowUpRight,CalendarDays,CarFront,CheckCircle2,ClipboardCheck,MapPin,Plus,Trophy,Volume2} from 'lucide-react';
 import ParticipantJourney from './ParticipantJourney';
+import {currentCarAudioComponents,isDirectionConfigured} from './member-readiness';
 import {Photo,type PhotoPlaceholders} from '../public/PremiumUI';
 
 type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void;placeholders?:PhotoPlaceholders};
@@ -9,9 +10,7 @@ const date=(value:any)=>value?new Date(value).toLocaleDateString('ru-RU',{day:'n
 export default function MemberDashboard({participant,cars,registrations,stages,onGo,onAddCar,onRegistration,onStageRegistration,placeholders}:Props){
  const [selectedCarId,setSelectedCarId]=useState('');
  const active=cars.filter(c=>c.isActive!==false),car=active.find(c=>c.id===selectedCarId)??active[0];
- const configs=car?.configurations??[],config=configs[0];
- const version=config?.versions?.find((v:any)=>v.version===config.currentVersion)??config?.versions?.[0];
- const components=version?.audioComponents;
+ const components=currentCarAudioComponents(car);
  const upcoming=stages.filter(s=>s.registrationOpen||new Date(s.date??0).getTime()>=Date.now()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
  const stage=upcoming[0];
  const entryFor=(s:any,carId?:string)=>registrations.find(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(!carId||(r.carId??r.car?.id)===carId));
@@ -19,10 +18,10 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const entry=stage&&entryFor(stage,car?.id);
  const allRegistered=stage&&allCarsRegistered(stage);
  const results=registrations.flatMap(r=>(r.results??[]).map((result:any)=>({...result,stage:r.stage,className:(r.classes??[]).find((c:any)=>c.id===result.registrationClassId)?.class?.name}))).sort((a,b)=>new Date(b.stage?.date??0).getTime()-new Date(a.stage?.date??0).getTime());
- const directions=[['SUB','Бас'],['FRONT','Фронт'],['REAR','Тыл']];
- const filled=(code:string)=>Array.isArray(components)&&components.some((c:any)=>c.direction===code&&String(c.brand??'').trim()&&String(c.model??'').trim()&&Number(c.quantity)>0&&(code!=='SUB'||c.type==='SUBWOOFER'));
- const hasUsableEquipment=['SUB','FRONT','REAR'].some(filled);
- const equipmentDescription=!configs.length?'Сохраните конфигурацию':!Array.isArray(components)?'Проверьте сохранённую конфигурацию':hasUsableEquipment?'Оборудование указано':'Добавьте акустику или сабвуфер';
+ const directions=[['SUB','Бас'],['FRONT','Фронт'],['REAR','Тыл']] as const;
+ const filled=(code:'SUB'|'FRONT'|'REAR')=>isDirectionConfigured(components,code);
+ const hasUsableEquipment=(['SUB','FRONT','REAR'] as const).some(filled);
+ const equipmentDescription=!car?.configurations?.length?'Сохраните конфигурацию':!Array.isArray(components)?'Проверьте сохранённую конфигурацию':hasUsableEquipment?'Оборудование указано':'Добавьте акустику или сабвуфер';
  const participantNumber=entry?.numbers?.[0]?.number??entry?.participantNumber;
  const inspectionStatus=(entry?.stageInspection??entry?.inspection)?.status;
  // The checklist is a navigation aid, not a substitute for server-side admission checks.
@@ -51,7 +50,7 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
    <ol>{readinessSteps.map(step=><li key={step.id} data-complete={step.done}><button type="button" onClick={step.onClick}><span className="member-readiness-status">{step.done?<CheckCircle2 size={19} aria-hidden="true"/>:<span aria-hidden="true"/>}</span><span className="member-readiness-copy"><strong>{step.label}</strong><small>{step.description}</small></span><ArrowUpRight size={16} aria-hidden="true"/></button></li>)}</ol>
    <p className="member-readiness-footnote">Итоговый допуск к замерам подтверждает судья после инспекции.</p>
   </section>
-  {(!car||!hasUsableEquipment)&&<ParticipantJourney cars={active} registrations={registrations} go={onGo}/>}
+  {(!car||!hasUsableEquipment)&&<ParticipantJourney car={car} stage={stage} registrations={registrations} go={onGo}/>}
   <div className="member-home-secondary">
    <section className="member-garage-panel"><div className="member-section-title"><div><span className="eyebrow">ГАРАЖ USD</span><h2>Моя система</h2></div><button className="text-button" onClick={()=>onGo('/participant?tab=cars')}>Все автомобили<ArrowUpRight size={15}/></button></div>{active.length>1&&<div className="member-vehicle-selector" role="group" aria-label="Выберите автомобиль">{active.map(item=><button key={item.id} type="button" aria-pressed={item.id===car?.id} onClick={()=>setSelectedCarId(item.id)}>{name(item)||'Автомобиль'}</button>)}</div>}<div className="member-vehicle-surface"><div className="member-vehicle-copy"><span className="member-state">{car?'Текущий автомобиль':'Начните здесь'}</span><h3>{car?name(car):'Добавьте автомобиль'}</h3><p>{car?.registrationNumber||'Ваш автомобиль и оборудование для участия в USD'}</p></div><div className="member-vehicle-image"><Photo src={car?.photoUrl} placeholderSrc={placeholders?.car} alt={car?name(car):'Автомобиль USD'} className="member-garage-cover" fallback={<CarFront size={96} strokeWidth={1} aria-hidden="true"/>}/></div></div><div className="member-system-directions">{directions.map(([code,label])=><div key={code}><span>{code}<small>{label}</small></span><strong data-ready={filled(code)}>{!components?'Не проверено':filled(code)?<><CheckCircle2 size={14}/>Заполнено</>:'Не указано'}</strong></div>)}</div><div className="member-panel-actions"><button className="secondary-button" onClick={()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()}>{car?<Volume2 size={16}/>:<Plus size={16}/>} {car?'Настроить оборудование':'Добавить автомобиль'}<ArrowRight size={16}/></button></div></section>
    <section className="member-results-panel"><div className="member-section-title"><div><span className="eyebrow">ВАША ИСТОРИЯ</span><h2>Последние результаты</h2></div><Trophy size={20}/></div>{results.length?<div className="member-result-feed">{results.slice(0,3).map((r:any)=><article key={r.id}><div><small>{r.stage?.name||'Этап USD'}</small><h3>{r.className||'Результат'}</h3><p>{r.place!=null?String(r.place)+' место · ':''}{date(r.stage?.date)}</p></div><strong>{r.value}<small>{r.unit||''}</small></strong></article>)}</div>:<div className="member-results-empty"><Trophy size={32} strokeWidth={1}/><h3>Первый результат ещё впереди</h3><p>После публикации результатов этапа здесь появятся ваши замеры и места.</p></div>}<button className="text-button member-history-link" onClick={onRegistration}>Открыть историю участия<ArrowUpRight size={15}/></button></section>
