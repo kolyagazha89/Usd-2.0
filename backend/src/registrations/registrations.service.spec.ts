@@ -207,6 +207,59 @@ describe('RegistrationsService', () => {
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
 
+  const validSub = { brand: 'Deaf Bonce', model: 'DB-3012R', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 };
+  const validFront = { brand: 'Deaf Bonce', model: 'AP-M61SE', direction: 'FRONT', type: 'MIDBASS', quantity: 2 };
+  const validRear = { brand: 'Deaf Bonce', model: 'AP-M61SE', direction: 'REAR', type: 'MIDBASS', quantity: 2 };
+
+  const equipmentTransaction = (className: string, directionName: string, audioComponents: any[]) =>
+    baseTx({
+      stageClass: {
+        findMany: jest.fn().mockResolvedValue([{
+          classId: 'class-1',
+          class: { directionId: 'direction-1', name: className, code: className, direction: { name: directionName } },
+        }]),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'configuration-version-1',
+          configurationId: 'configuration-1',
+          version: 3,
+          vibrationIsolation: 'STP',
+          additionalDescription: 'Test',
+          configuration: { id: 'configuration-1', name: 'Основная' },
+          headUnits: [],
+          audioComponents,
+          amplifiers: [],
+          batteries: [],
+          generators: [],
+        }),
+      },
+    });
+
+  it.each([
+    ['нулевое количество сабвуферов', 'Limited 2.0', 'SPL', [{ ...validSub, quantity: 0 }], 'сабвуфер'],
+    ['отрицательное количество сабвуферов', 'BassRace 129.9', 'BassRace', [{ ...validSub, quantity: -1 }], 'сабвуфер'],
+    ['пустая модель сабвуфера', 'Storm Wall', 'Storm Wall', [{ ...validSub, model: '  ' }], 'сабвуфер'],
+    ['пустой бренд фронта', 'Gate 1-6', 'BFSPL', [{ ...validFront, brand: '' }], 'фронтальную акустику'],
+    ['нулевое количество тыла', 'BDW', 'BDWSPL', [{ ...validRear, quantity: 0 }], 'тыловую акустику'],
+    ['чужое направление', 'BDW', 'BDWSPL', [validFront], 'тыловую акустику'],
+  ])('rejects %s instead of allowing an empty equipment registration', async (_case, className, directionName, audioComponents, message) => {
+    const tx = equipmentTransaction(className, directionName, audioComponents);
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody)).rejects.toThrow(message);
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Limited 2.0', 'SPL', validSub],
+    ['Gate 1-6', 'BFSPL', validFront],
+    ['BDW', 'BDWSPL', validRear],
+  ])('accepts valid positive-quantity equipment for %s', async (className, directionName, component) => {
+    const tx = equipmentTransaction(className, directionName, [component]);
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-1' });
+  });
+
   it('creates a registration with an immutable configuration snapshot', async () => {
     const tx = baseTx();
     setupTransaction(tx);
