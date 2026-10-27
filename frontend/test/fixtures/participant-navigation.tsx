@@ -103,7 +103,7 @@ export async function runRegistrationJourney(){
 export async function runDashboardAvailability(){
  const stages=[{id:'first',name:'Первый этап',date:'2027-01-01',registrationOpen:true},{id:'second',name:'Второй этап',date:'2027-02-01',registrationOpen:true}];
  const cars=[{id:'one',brand:'Lada',model:'Vesta',configurations:[{}]}];
- const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,carId:'one',status:'ACTIVE'}));
+ const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,carId:'one',status:'ACTIVE',stageInspection:stage.id==='first'?{status:'PASSED'}:undefined}));
  const actions:string[]=[];
  const props={participant:{firstName:'Иван'},cars,stages,registrations,onGo:(path:string)=>actions.push(path),onAddCar:()=>{},onRegistration:()=>{},onStageRegistration:(stage:any)=>actions.push(stage.id)};
  const root=createRoot(document.getElementById('root')!);
@@ -116,6 +116,15 @@ export async function runDashboardAvailability(){
   await click(document.querySelector<HTMLButtonElement>('.member-race-add')!);assert.equal(actions.at(-1),'first');
   assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Подать заявку');
   await click(document.querySelector<HTMLButtonElement>('.member-more-stages article button')!);assert.equal(actions.at(-1),'second');
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'4/4','first car is registered and has passed inspection');
+  const second=[...document.querySelectorAll<HTMLButtonElement>('.member-vehicle-selector button')].find(button=>button.textContent==='Lada Granta');
+  assert.ok(second,'multiple cars have a switcher');await click(second!);
+  assert.equal(second?.getAttribute('aria-pressed'),'true');
+  assert.match(document.querySelector('.member-vehicle-copy h3')?.textContent??'',/Granta/);
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'2/4','unregistered second car must not inherit first car admission');
+  assert.match(document.querySelector('.member-race-card .primary-button')?.textContent??'',/Подать заявку/);
+  assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Подать заявку');
+  await click(document.querySelector<HTMLButtonElement>('.member-race-card .primary-button')!);assert.equal(actions.at(-1),'first');
  }finally{await act(async()=>root.unmount())}
 }
 
