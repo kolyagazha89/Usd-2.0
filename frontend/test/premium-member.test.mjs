@@ -18,8 +18,9 @@ test('all participant and account routes use the isolated premium public theme',
  assert.match(app,/className="login-page usd-auth"/);
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
- const lastCss=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line)).at(-1);
- assert.equal(lastCss,"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
+ const cssImports=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line));
+ assert.equal(cssImports.at(-2),"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
+ assert.equal(cssImports.at(-1),"import './dark-velocity-sitewide.css';",'Dark Velocity must be the final visual layer');
  assert.ok(main.indexOf("import './public/premium-member.css'")<main.indexOf("import './public/premium-configurator.css'"));
  assert.match(css,/body \.usd-member \.participant-tabs/);
  assert.match(css,/body \.usd-member \.config-direction-workspace/);
