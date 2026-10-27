@@ -34,3 +34,25 @@ test('CMS headlines wrap on mobile without clipping',async()=>{
  assert.match(css,/\.u-community-call h2\s*\{[\s\S]*?white-space:pre-line/);
  assert.match(css,/overflow-wrap:anywhere/);
 });
+
+test('homepage value cards are CMS-driven with safe internal links',async()=>{
+ const home=await source('../src/public/PremiumHome.tsx');
+ assert.match(home,/settings\.homepage\?\.valuesCards/);
+ assert.match(home,/homeText\('valuesTitle'/);
+ assert.match(home,/homeText\('valuesSubtitle'/);
+ assert.match(home,/stages\|records\|participants\|news\|about/);
+ assert.doesNotMatch(home,/\[\[Trophy,'ОФИЦИАЛЬНЫЕ'/);
+});
+
+test('CMS controls value cards and optional homepage sections',async()=>{
+ const admin=await source('../src/admin/SiteSettingsPage.tsx');
+ const home=await source('../src/public/PremiumHome.tsx');
+ const backend=await source('../../backend/src/site-settings/site-settings.service.ts');
+ for(const key of ['heading','subtitle','description','path','enabled']) assert.match(admin,new RegExp("updateValueCard\\(card.id,'"+key+"'"));
+ for(const id of ['values','community','documents']) {
+  assert.match(home,new RegExp("enabled\\('"+id+"'\\)"));
+  assert.match(backend,new RegExp("id:'"+id+"'"));
+ }
+ assert.match(backend,/homepageWithBlocks/);
+ assert.match(backend,/valuesCards:\[/);
+});
