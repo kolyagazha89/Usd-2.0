@@ -1,4 +1,5 @@
 import {lazy,Suspense,useEffect,useState} from 'react';
+import './dark-velocity.css';
 import {Trophy,ChartNoAxesCombined,Users,Settings,Gem,Play,MapPin,ArrowUpRight} from 'lucide-react';
 import {publicResultUnit,publicResultValue,selectHomepageRecords} from '../public-result-utils';
 import {Link,Button,Eyebrow,EmptyState,Photo,NewsCard} from './PremiumUI';
