@@ -28,7 +28,7 @@ const configuration={id:'config1',name:'Соревновательная сбо�
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
 const result={id:'r1',value:150.25,unit:'DB',place:1,classId:'class1',class:klass,participant,registrationClassId:'rc1',registration:{...registration}};
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[{category:'AUDIO_COMPONENT',brand:'Alphard',model:'Machete',isActive:true}],vibrationBrands:[]},contacts:{}};
+const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[{category:'AUDIO_COMPONENT',brand:'Alphard',model:'Machete',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role,participantId:role==='PARTICIPANT'?'p1':null});
 const requests=new Set(),blocked=[];
@@ -153,6 +153,16 @@ try{
       assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
      }
      if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/i);
+     if(route==='/partners'){
+      for(const tier of ['general','premium','regular'])assert.equal(await page.locator('.usd-partner-tier--'+tier+' .usd-partner-card').count(),1,'partner tier '+tier);
+      assert.equal(await page.getByText('Скрытый тестовый').count(),0,'hidden partner must not appear');
+      row.partnerHierarchy='all three CMS tiers rendered; hidden partner excluded';
+     }
+     if(route==='/'&&role===null){
+      assert.equal(await page.locator('.u-home-partners .usd-partner-tier').count(),3,'homepage partner tiers');
+      row.homePartnerHierarchy='all three sponsor levels present';
+     }
+
      if(role==='PARTICIPANT'&&['/participant/register?stageId=missing','/participant/register'].includes(route)){
       assert.equal(await page.locator('.participant-loading').count(),0,'missing registration stage never spins forever');
       assert.ok(await page.getByRole('button',{name:'Выбрать этап',exact:true}).isVisible());row.registrationMissing='calendar recovery available';
