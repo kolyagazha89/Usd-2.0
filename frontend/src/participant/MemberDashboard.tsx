@@ -20,13 +20,15 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const allRegistered=stage&&allCarsRegistered(stage);
  const results=registrations.flatMap(r=>(r.results??[]).map((result:any)=>({...result,stage:r.stage,className:(r.classes??[]).find((c:any)=>c.id===result.registrationClassId)?.class?.name}))).sort((a,b)=>new Date(b.stage?.date??0).getTime()-new Date(a.stage?.date??0).getTime());
  const directions=[['SUB','Бас'],['FRONT','Фронт'],['REAR','Тыл']];
- const filled=(code:string)=>Array.isArray(components)&&components.some((c:any)=>c.direction===code&&c.brand&&c.model&&(code!=='SUB'||c.type==='SUBWOOFER'));
+ const filled=(code:string)=>Array.isArray(components)&&components.some((c:any)=>c.direction===code&&String(c.brand??'').trim()&&String(c.model??'').trim()&&Number(c.quantity)>0&&(code!=='SUB'||c.type==='SUBWOOFER'));
+ const hasUsableEquipment=['SUB','FRONT','REAR'].some(filled);
+ const equipmentDescription=!configs.length?'Сохраните конфигурацию':!Array.isArray(components)?'Проверьте сохранённую конфигурацию':hasUsableEquipment?'Оборудование указано':'Добавьте акустику или сабвуфер';
  const participantNumber=entry?.numbers?.[0]?.number??entry?.participantNumber;
  const inspectionStatus=(entry?.stageInspection??entry?.inspection)?.status;
  // The checklist is a navigation aid, not a substitute for server-side admission checks.
  const readinessSteps=[
   {id:'car',label:'Автомобиль',description:car?name(car):'Добавьте автомобиль',done:Boolean(car),onClick:()=>car?onGo('/participant?tab=cars'):onAddCar()},
-  {id:'config',label:'Оборудование',description:configs.length?'Конфигурация сохранена':'Сохраните конфигурацию',done:configs.length>0,onClick:()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()},
+  {id:'config',label:'Оборудование',description:equipmentDescription,done:hasUsableEquipment,onClick:()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()},
   ...(stage?[
    {id:'registration',label:'Заявка',description:entry?'Заявка подана':stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта',done:Boolean(entry),onClick:()=>entry?onGo('/participant/registration?registrationId='+encodeURIComponent(entry.id)):stage.registrationOpen?onStageRegistration(stage):onGo('/stages')},
    {id:'inspection',label:'Инспекция',description:inspectionStatus==='PASSED'?'Допуск подтверждён':inspectionStatus==='FAILED'?'Не пройдена':entry?'Ожидает проверки':'После регистрации',done:inspectionStatus==='PASSED',onClick:()=>entry?onGo('/participant/registration?registrationId='+encodeURIComponent(entry.id)):onGo('/stages')}
