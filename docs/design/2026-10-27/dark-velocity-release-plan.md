@@ -1,6 +1,6 @@
 # USD — Dark Velocity pre-release delivery ledger
 
-Updated: 2026-10-27. Work branch: `design/dark-velocity-sitewide-20261027`, draft PR #305.
+Updated: 2026-10-28. Work branch: `design/dark-velocity-sitewide-20261027`, draft PR #305.
 
 ## Non-negotiable release contract
 
@@ -42,6 +42,14 @@ There are at least two unmerged infrastructure PRs:
 The owner has said the PC is running and may use a non-main branch. **Repository contents alone do not prove the live PC's checkout, running image tag, compose files or update mechanism.** Before deploy, read `git branch --show-current`, `git rev-parse HEAD`, `docker compose ps`, current frontend image digest, `USD_IMAGE_TAG` (without printing secrets), and the effective compose configuration from the actual host. Verify database backup and frontend-only rollback path. Do not touch the database for a design deployment.
 
 If no authenticated PC access exists, leave PR and build artifacts ready and record deployment as blocked. Never claim the app is updated until a fresh public smoke test proves it.
+
+## Continuation checkpoint — 2026-10-28
+
+- Confirmed PR #305 remains the design workstream and the host deployment is unverified.
+- Do not infer current CI status from earlier passing runs; inspect the latest head checks before release.
+- Priority implementation order: member garage and configuration usability, strict normalized catalog IDs and moderation, registration, light admin CMS and partner tiers, then live/offline features.
+- Offline judging is not release-ready without authenticated end-to-end conflict and reconnect testing.
+- No server changes without verified host state, rollback tag, and backup readiness.
 
 ## Next actions
 
