@@ -318,9 +318,10 @@ body .usd-live .public-stage-card h2{font-size:clamp(24px,2.3vw,34px)!important;
 body .usd-live .public-stage-date{color:#ff7d90!important}
 body .usd-live .public-result-measure strong{color:#fff!important;font-size:clamp(39px,4vw,56px)!important}
 body .usd-live .public-result-class{
-  background:rgba(255,255,255,.055)!important;
-  border:1px solid var(--dv-line)!important;
-  border-radius:9px!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
 }
 body .usd-live .public-record-value{color:#f6d5a5!important}
 body .usd-live .public-record-card::after{opacity:.6}
