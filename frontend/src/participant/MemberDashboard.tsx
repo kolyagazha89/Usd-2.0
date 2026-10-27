@@ -14,8 +14,8 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const components=version?.audioComponents;
  const upcoming=stages.filter(s=>s.registrationOpen||new Date(s.date??0).getTime()>=Date.now()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
  const stage=upcoming[0];
- const entryFor=(s:any,carId?:string)=>registrations.find(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(!carId||r.carId===carId));
- const allCarsRegistered=(s:any)=>active.length>0&&active.every(c=>registrations.some(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&r.carId===c.id));
+ const entryFor=(s:any,carId?:string)=>registrations.find(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(!carId||(r.carId??r.car?.id)===carId));
+ const allCarsRegistered=(s:any)=>active.length>0&&active.every(c=>registrations.some(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(r.carId??r.car?.id)===c.id));
  const entry=stage&&entryFor(stage,car?.id);
  const allRegistered=stage&&allCarsRegistered(stage);
  const results=registrations.flatMap(r=>(r.results??[]).map((result:any)=>({...result,stage:r.stage,className:(r.classes??[]).find((c:any)=>c.id===result.registrationClassId)?.class?.name}))).sort((a,b)=>new Date(b.stage?.date??0).getTime()-new Date(a.stage?.date??0).getTime());
