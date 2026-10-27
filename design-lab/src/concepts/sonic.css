@@ -37,6 +37,7 @@
 .concept-c.experience .sonic-stage-space { position: absolute; width: 76%; right: -9%; top: 4px; height: 650px; isolation: isolate; }
 .concept-c.experience .sonic-stage-space::before { content: ''; position: absolute; inset: 5% 3%; border: 1px solid #1f1f1f; border-radius: 50%; pointer-events: none; z-index: 0; }
 .concept-c.experience .sonic-three-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+.concept-c.experience .sonic-three-stage .stage-pulse { right: 14%; bottom: 65px; }
 
 .concept-c.experience .sonic-field-axis { position: absolute; display: block; pointer-events: none; z-index: 0; opacity: .65; }
 .concept-c.experience .sonic-field-axis--x { left: 0; right: 0; top: 50%; height: 1px; background: repeating-linear-gradient(90deg, #333 0 3px, transparent 3px 10px); }
@@ -61,7 +62,7 @@
 .concept-c.experience .sonic-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 19px; }
 .concept-c.experience .sonic-calendar-link { display: flex; gap: 8px; align-items: center; min-height: 44px; font-size: 11px; color: #c4c4c0; text-decoration: none; }
 .concept-c.experience .sonic-calendar-link:hover { color: #fff; }
-.concept-c.experience .sonic-scene-aside { position: absolute; bottom: 85px; right: 4px; display: grid; gap: 5px; font: 8px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .16em; color: #6c6c68; z-index: 2; text-align: right; }
+.concept-c.experience .sonic-scene-aside { position: absolute; bottom: 85px; right: 4px; display: none; gap: 5px; font: 8px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .16em; color: #6c6c68; z-index: 2; text-align: right; }
 
 .concept-c.experience .sonic-direction-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #30302e; position: relative; z-index: 3; }
 .concept-c.experience .sonic-direction { appearance: none; text-align: left; background: #0d0d0d; color: #f1f1ed; min-height: 111px; border: 0; border-right: 1px solid #30302e; padding: 20px 23px 17px; position: relative; cursor: pointer; transition: background .2s, color .2s; }
@@ -347,11 +348,15 @@
 }
 
 /* Keep the primary action above the acoustic exhibit on a phone. */
+@media (max-width: 430px) {
+  .concept-c.experience .result-grid { grid-template-columns: 1fr; }
+  .concept-c.experience .result-grid .result-value { font-size: 48px; gap: 8px; }
+}
 @media (max-width: 600px) {
   .concept-c.experience .sonic-hero-copy { position: static; padding-top: 370px; }
   .concept-c.experience .sonic-hero-actions { position: absolute; top: 192px; left: 0; z-index: 5; }
   .concept-c.experience .sonic-stage-space { top: 253px; height: 300px; }
-  .concept-c.experience .sonic-three-stage .stage-pulse { right: 58px; }
+  .concept-c.experience .sonic-three-stage .stage-pulse { right: 58px; bottom: 12px; }
   .concept-c.experience .sonic-three-stage .stage-mode-note { left: 58px; }
   .concept-c.experience .result-value { font-size: clamp(27px, 8vw, 34px); gap: 5px; }
 }

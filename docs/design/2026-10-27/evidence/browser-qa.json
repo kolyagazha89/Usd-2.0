@@ -1,0 +1,147 @@
+{
+  "browser": "Work Chromium",
+  "webgl": "disabled by environment",
+  "safari": "not available",
+  "rows": [
+    {
+      "concept": "A",
+      "buttonsOutside": [],
+      "dockBottom": 800,
+      "document": 345,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflow": [],
+      "resultOverflows": [],
+      "stage": "running",
+      "viewport": 360
+    },
+    {
+      "concept": "A",
+      "buttonsOutside": [],
+      "dockBottom": 800,
+      "document": 375,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflow": [],
+      "resultOverflows": [],
+      "stage": "running",
+      "viewport": 390
+    },
+    {
+      "concept": "A",
+      "buttonsOutside": [],
+      "dockBottom": 800,
+      "document": 415,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflow": [],
+      "resultOverflows": [],
+      "stage": "running",
+      "viewport": 430
+    },
+    {
+      "concept": "A-confirmed",
+      "dockBottom": 800,
+      "document": 345,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 360
+    },
+    {
+      "concept": "A-confirmed",
+      "dockBottom": 800,
+      "document": 375,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 390
+    },
+    {
+      "concept": "A-confirmed",
+      "dockBottom": 800,
+      "document": 415,
+      "heading": "РОЖДЁНЗВУЧАТЬГРОМЧЕ.",
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 430
+    },
+    {
+      "concept": "B",
+      "dockBottom": 800,
+      "document": 345,
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 360
+    },
+    {
+      "concept": "B",
+      "dockBottom": 800,
+      "document": 375,
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 390
+    },
+    {
+      "concept": "B",
+      "dockBottom": 800,
+      "document": 415,
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 430
+    },
+    {
+      "concept": "C",
+      "dockBottom": 800,
+      "document": 345,
+      "emphasis": "rgb(5, 5, 5)",
+      "record": "138,34 дБ",
+      "recordOverflows": [],
+      "resultOverflows": [
+        "138,34 дБ"
+      ],
+      "viewport": 360
+    },
+    {
+      "concept": "C",
+      "dockBottom": 800,
+      "document": 375,
+      "emphasis": "rgb(5, 5, 5)",
+      "record": "138,34 дБ",
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 390
+    },
+    {
+      "concept": "C",
+      "dockBottom": 800,
+      "document": 415,
+      "emphasis": "rgb(5, 5, 5)",
+      "record": "138,34 дБ",
+      "recordOverflows": [],
+      "resultOverflows": [],
+      "viewport": 430
+    },
+    {
+      "concept": "C-fixed",
+      "dockBottom": 800,
+      "document": 345,
+      "grid": "302px",
+      "resultOverflows": [],
+      "viewport": 360
+    },
+    {
+      "concept": "C-fixed",
+      "dockBottom": 800,
+      "document": 375,
+      "grid": "332px",
+      "resultOverflows": [],
+      "viewport": 390
+    },
+    {
+      "concept": "C-fixed",
+      "dockBottom": 800,
+      "document": 415,
+      "grid": "372px",
+      "resultOverflows": [],
+      "viewport": 430
+    }
+  ]
+}
