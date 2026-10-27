@@ -26,7 +26,7 @@ test('server defaults provide CMS copy for fresh sites and keep old data compati
  assert.match(backend,/heroKicker:'USD \/ ЧЕМПИОНАТ ПО АВТОЗВУКУ'/);
  assert.match(backend,/communityTitle:/);
  assert.match(backend,/documentsButtonLabel:/);
- assert.match(backend,/homepage:this\.merge\(DEFAULTS\.homepage,row\?\.homepage\)/);
+ assert.match(backend,/homepage:this\.homepageWithBlocks\(row\?\.homepage\)/);
 });
 
 test('CMS headlines wrap on mobile without clipping',async()=>{
