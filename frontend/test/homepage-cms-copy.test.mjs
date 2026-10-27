@@ -56,3 +56,11 @@ test('CMS controls value cards and optional homepage sections',async()=>{
  assert.match(backend,/homepageWithBlocks/);
  assert.match(backend,/valuesCards:\[/);
 });
+
+test('server rejects malformed homepage value cards and unsafe destinations',async()=>{
+ const backend=await source('../../backend/src/site-settings/site-settings.service.ts');
+ assert.match(backend,/validateHomepage\(input\.homepage\)/);
+ assert.match(backend,/seen\.has\(item\.id\)/);
+ assert.match(backend,/paths\.has\(item\.path\)/);
+ assert.match(backend,/item\[field\]\.length>240/);
+});
