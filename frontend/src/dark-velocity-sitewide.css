@@ -720,3 +720,30 @@ body .usd-live .usd-partner-showcase--home .usd-partner-tier--premium .usd-partn
 @media(prefers-reduced-motion:reduce){
  body .usd-live .usd-partner-card{transition:none!important}
 }
+
+
+/* Light admin: make partner levels scannable without compromising readability. */
+body .app-shell .admin-partner-identity{
+ display:flex;align-items:center;gap:12px;min-width:0;
+}
+body .app-shell .admin-partner-identity img{
+ width:56px;height:44px;flex:none;object-fit:contain;padding:5px;
+ border:1px solid #e5e9f0;border-radius:9px;background:#f8fafc;
+}
+body .app-shell .admin-partner-identity strong{min-width:0;overflow-wrap:anywhere}
+body .app-shell .admin-partner-tier{
+ display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+ font-size:11px;font-weight:800;border-radius:9px;padding:7px 10px;
+}
+body .app-shell .admin-partner-tier::before{
+ content:'';width:6px;height:6px;border-radius:50%;background:currentColor;
+}
+body .app-shell .admin-partner-tier--general{
+ color:#b90c32!important;background:#fff0f3!important;border:1px solid #ffc4cf!important;
+}
+body .app-shell .admin-partner-tier--premium{
+ color:#8b5921!important;background:#fff6e8!important;border:1px solid #f3d8a9!important;
+}
+body .app-shell .admin-partner-tier--regular{
+ color:#536276!important;background:#f0f3f8!important;border:1px solid #e0e6ee!important;
+}
