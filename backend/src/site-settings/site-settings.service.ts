@@ -67,9 +67,18 @@ export class SiteSettingsService{
   }
   private homepageWithBlocks(value:unknown):SiteSettingsShape['homepage']{
     const homepage=this.merge(DEFAULTS.homepage,value);
-    const blocks=Array.isArray(homepage.blocks)?homepage.blocks:[];
+    const blocks=Array.isArray(homepage.blocks)?[...homepage.blocks]:[];
     const known=new Set(blocks.map(block=>block?.id));
-    return {...homepage,blocks:[...blocks,...DEFAULTS.homepage.blocks.filter(block=>!known.has(block.id))]};
+    // The values section existed before it was editable. Keep its old position
+    // on sites whose saved block list predates the CMS editor.
+    if(!known.has('values')){
+      const index=blocks.findIndex(block=>block?.id==='next-stage');
+      const valueBlock=DEFAULTS.homepage.blocks.find(block=>block.id==='values');
+      if(valueBlock) blocks.splice(index<0?Math.min(2,blocks.length):index+1,0,valueBlock);
+      known.add('values');
+    }
+    for(const block of DEFAULTS.homepage.blocks) if(!known.has(block.id)) blocks.push(block);
+    return {...homepage,blocks};
   }
   private shape(row:any):SiteSettingsShape{
     return {
