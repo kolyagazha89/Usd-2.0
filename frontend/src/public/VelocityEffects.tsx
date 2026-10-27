@@ -42,10 +42,11 @@ export default function VelocityEffects(){
    '.usd-member .participant-journey li',
    '.app-shell .content > .page > .panel'
   ].join(',');
-  const observer=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{
+  let observer:IntersectionObserver|null=null;
+  if(typeof IntersectionObserver==='function')observer=new IntersectionObserver(entries=>{
    for(const entry of entries){
     if(!entry.isIntersecting)continue;
-    observer.unobserve(entry.target);
+    observer?.unobserve(entry.target);
     const element=entry.target as HTMLElement;
     if(reduce?.matches||!element.animate)continue;
     element.animate([
@@ -53,7 +54,7 @@ export default function VelocityEffects(){
      {opacity:1,transform:'translate3d(0,0,0)'}
     ],{duration:520,easing:'cubic-bezier(.2,.7,.2,1)',iterations:1});
    }
-  },{threshold:.07,rootMargin:'0px 0px -16px 0px'}):null;
+  },{threshold:.07,rootMargin:'0px 0px -16px 0px'});
 
   const scan=()=>{
    for(const element of document.querySelectorAll<HTMLElement>(selectors)){
