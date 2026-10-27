@@ -13,10 +13,10 @@ export type SiteSettingsShape = {
 const DEFAULTS:SiteSettingsShape={
   branding:{siteName:'USD',logoUrl:null,splashLogoUrl:null,mobileLogoUrl:null,faviconUrl:null,organizationName:'USD Russia',placeholders:{participant:null,car:null,stage:null}},
   homepage:{blocks:[
-    {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},
+    {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},{id:'values',enabled:true,title:'Почему USD'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
     {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
-    {id:'participants',enabled:false,title:'Участники'},{id:'values',enabled:true,title:'Почему USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
+    {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'}],
     heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
     heroKicker:'USD / ЧЕМПИОНАТ ПО АВТОЗВУКУ',
     communityTitle:'СТАНЬ ЧАСТЬЮ\nСООБЩЕСТВА USD',
@@ -65,9 +65,15 @@ export class SiteSettingsService{
     if(!value||typeof value!=='object'||Array.isArray(value)) return base;
     return {...base,...value} as T;
   }
+  private homepageWithBlocks(value:unknown):SiteSettingsShape['homepage']{
+    const homepage=this.merge(DEFAULTS.homepage,value);
+    const blocks=Array.isArray(homepage.blocks)?homepage.blocks:[];
+    const known=new Set(blocks.map(block=>block?.id));
+    return {...homepage,blocks:[...blocks,...DEFAULTS.homepage.blocks.filter(block=>!known.has(block.id))]};
+  }
   private shape(row:any):SiteSettingsShape{
     return {
-      branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.merge(DEFAULTS.homepage,row?.homepage),
+      branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.homepageWithBlocks(row?.homepage),
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
