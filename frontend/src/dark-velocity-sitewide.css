@@ -342,14 +342,15 @@ body .usd-live :is(.u-footer,.p-footer){
 }
 body .usd-live .u-footer-top{gap:clamp(20px,3vw,55px)}
 body .usd-live .u-footer-top>div:first-child h3{font-size:clamp(27px,2.8vw,41px)}
-body .usd-live .u-mobile-dock{
-  background:rgba(12,17,24,.94)!important;
+/* The public dock is portaled directly into body, outside .usd-live. */
+body:has(.usd-live) > .u-mobile-dock{
+  background:rgba(12,17,24,.96)!important;
   border-top:1px solid rgba(220,234,249,.16)!important;
   backdrop-filter:blur(22px);
   -webkit-backdrop-filter:blur(22px);
 }
-body .usd-live .u-mobile-dock>a{border-radius:10px}
-body .usd-live .u-mobile-dock>a.active{color:#ff5975!important}
+body:has(.usd-live) > .u-mobile-dock>a{border-radius:10px}
+body:has(.usd-live) > .u-mobile-dock>a.active{color:#ff5975!important}
 /* Participant experience: dark material surfaces, readable fields, generous rhythm. */
 body .usd-member,body .usd-auth{
   --ui-bg:var(--dv-ink)!important;
@@ -515,6 +516,8 @@ body:not(:has(.usd-live,.usd-member)) .usd-scroll-progress{display:none}
   body .usd-live .u-cinema-stage{min-height:570px}
 }
 @media(max-width:740px){
+  /* Reserve the real 66px portaled dock height for cookie notices. */
+  body:has(.usd-live):has(> .u-mobile-dock){--usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px))}
   body .usd-live .u-container{width:min(100% - 32px,1380px)}
   body .usd-live .p-public-header .u-header-inner{height:62px;min-height:62px}
   body .usd-live .u-cinema-hero{min-height:0!important}
