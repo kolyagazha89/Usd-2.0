@@ -214,11 +214,15 @@ body .usd-live .usd-hero-frequency{
   pointer-events:none;opacity:.42;
 }
 body .usd-live .usd-hero-frequency i{
-  display:block;width:3px;height:calc(9px + var(--i)*2px);
+  display:block;width:3px;height:18px;
   border-radius:99px;background:linear-gradient(0deg,#6d1328,#ff3655);
   transform-origin:center;animation:dv-equalize 1.8s ease-in-out infinite alternate;
-  animation-delay:calc(var(--i)*-.13s);
+  animation-delay:-.4s;
 }
+body .usd-live .usd-hero-frequency i:nth-child(3n+1){height:34px;animation-delay:-1.2s}
+body .usd-live .usd-hero-frequency i:nth-child(4n+2){height:26px;animation-delay:-.75s}
+body .usd-live .usd-hero-frequency i:nth-child(5n+3){height:12px;animation-delay:-1.55s}
+body .usd-live .usd-hero-frequency i:nth-child(7n+4){height:40px;animation-delay:-.25s}
 body .usd-live .usd-hero-pulse-hint{
   position:absolute;bottom:38px;left:50%;transform:translateX(-50%);
   z-index:8;white-space:nowrap;max-width:90%;
