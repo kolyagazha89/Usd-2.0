@@ -93,3 +93,19 @@ test('box configuration is versioned and explicit save-as-new keeps older revisi
  assert.match(css,/data-member-view="BOX"/);
  assert.match(css,/member-config-timeline-list/);
 });
+
+
+test('member garage receives equipment summary from the authenticated cars endpoint',async()=>{
+ const [service,dashboard]=await Promise.all([
+  source('../../backend/src/participants/participants.service.ts'),
+  source('../src/participant/MemberDashboard.tsx')
+ ]);
+ const start=service.indexOf('private async findCarsInternal(');
+ const end=service.indexOf('// =========================================================',start);
+ assert.ok(start>=0&&end>start,'authenticated car listing must exist');
+ const carsQuery=service.slice(start,end);
+ assert.match(carsQuery,/audioComponents:\s*\{\s*select:\s*\{/,'cars endpoint must include current audio summary');
+ for(const key of ['brand','model','quantity','type','direction'])assert.match(carsQuery,new RegExp(key+': true'),'missing '+key+' in car equipment summary');
+ assert.match(dashboard,/Number\(c\.quantity\)>0/,'zero-quantity equipment must not count as ready');
+ assert.match(dashboard,/done:hasUsableEquipment/,'saved empty versions must not complete the equipment step');
+});
