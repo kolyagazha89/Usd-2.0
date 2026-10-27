@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import CookieNotice from './CookieNotice';
+import VelocityEffects from './public/VelocityEffects';
 import './styles.css';
 import './participant-ui-polish.css';
 import './ui-consistency.css';
@@ -11,12 +12,14 @@ import './public/premium-public.css';
 import './public/premium-member.css';
 import './public/premium-configurator.css';
 import './participant/member-experience.css';
+import './dark-velocity-sitewide.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <>
       <App />
       <CookieNotice />
+      <VelocityEffects />
     </>
   </StrictMode>,
 );
