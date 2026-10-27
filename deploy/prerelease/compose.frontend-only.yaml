@@ -1,0 +1,5 @@
+# Layer this on top of the running home-pc Compose files.
+# This changes ONLY the frontend image; API and PostgreSQL stay untouched.
+services:
+  frontend:
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${USD_DESIGN_IMAGE_TAG:?set USD_DESIGN_IMAGE_TAG}
