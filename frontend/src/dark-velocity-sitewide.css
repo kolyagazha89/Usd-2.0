@@ -747,3 +747,17 @@ body .app-shell .admin-partner-tier--premium{
 body .app-shell .admin-partner-tier--regular{
  color:#536276!important;background:#f0f3f8!important;border:1px solid #e0e6ee!important;
 }
+
+/* CMS-managed headline and CTA copy: preserve intentional line breaks without overflow. */
+body .usd-live .u-cinema-copy .u-wordmark-title,
+body .usd-live .u-community-call h2 {
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+body .usd-live .u-cinema-copy .u-wordmark-title {
+  hyphens:auto;
+}
+body .usd-live .u-community-call p,
+body .usd-live .u-doc-call p {
+  overflow-wrap:anywhere;
+}
