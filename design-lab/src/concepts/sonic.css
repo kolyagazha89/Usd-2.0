@@ -1,0 +1,357 @@
+.concept-c.experience {
+  --accent: #e50914;
+  --bg: #050505;
+  --surface: #151515;
+  --ink: #f5f4f1;
+  --muted: #8a8a88;
+  --line: #2a2a29;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: 'Manrope Variable', sans-serif;
+  overflow: clip;
+}
+
+.concept-c.experience ::selection { background: #e50914; color: #fff; }
+.concept-c.experience :focus-visible { outline: 2px solid #fff; outline-offset: 5px; }
+.concept-c.experience .button { border-radius: 0; font-weight: 750; font-size: 13px; min-height: 50px; padding: 0 24px; gap: 25px; }
+.concept-c.experience .button:not(.button--quiet) { background: #e50914; border-color: #e50914; color: #fff; }
+.concept-c.experience .button:not(.button--quiet):hover { background: #bd0711; border-color: #bd0711; }
+.concept-c.experience .button--quiet { color: #f5f4f1; border: 1px solid #444; background: transparent; }
+.concept-c.experience .eyebrow { font: 10px/1.5 'JetBrains Mono Variable', monospace; letter-spacing: .12em; color: #8b8b89; text-transform: uppercase; }
+.concept-c.experience .section-heading { align-items: flex-end; border-top: 1px solid #333; padding-top: 25px; margin-bottom: 38px; }
+.concept-c.experience .section-heading h2 { font-family: 'Unbounded Variable', sans-serif; font-size: clamp(27px, 3.8vw, 57px); font-weight: 600; line-height: 1.12; letter-spacing: -.055em; text-transform: uppercase; }
+.concept-c.experience .section-heading > a { font: 10px/1.5 'JetBrains Mono Variable', monospace; text-transform: uppercase; letter-spacing: .04em; }
+.concept-c.experience header { background: #050505; border-bottom-color: #282828; }
+.concept-c.experience .site-header { background: #050505; }
+.concept-c.experience .site-header nav a { font-size: 11px; letter-spacing: .03em; }
+
+/* The hero is a spatial composition, with the interface sitting on its perimeter. */
+.concept-c.experience .sonic-hero { padding-top: 25px; }
+.concept-c.experience .sonic-hero-meta { display: flex; align-items: center; justify-content: space-between; gap: 22px; position: relative; z-index: 3; font: 9px/1.4 'JetBrains Mono Variable', monospace; color: #8a8a88; letter-spacing: .09em; }
+.concept-c.experience .sonic-hero-meta > span { display: flex; align-items: center; gap: 9px; }
+.concept-c.experience .sonic-hero-meta > span:first-child { color: #d4d4d1; }
+.concept-c.experience .sonic-hero-meta i { height: 7px; width: 7px; background: #e50914; display: inline-block; }
+.concept-c.experience .sonic-visual-badge { text-transform: uppercase; }
+.concept-c.experience .sonic-visual-badge > span { display: inline-block; width: 5px; height: 5px; background: #8d8d8b; border-radius: 50%; }
+.concept-c.experience .sonic-theatre { position: relative; min-height: 670px; padding-top: 58px; }
+.concept-c.experience .sonic-stage-space { position: absolute; width: 76%; right: -9%; top: 4px; height: 650px; isolation: isolate; }
+.concept-c.experience .sonic-stage-space::before { content: ''; position: absolute; inset: 5% 3%; border: 1px solid #1f1f1f; border-radius: 50%; pointer-events: none; z-index: 0; }
+.concept-c.experience .sonic-three-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.concept-c.experience .sonic-field-axis { position: absolute; display: block; pointer-events: none; z-index: 0; opacity: .65; }
+.concept-c.experience .sonic-field-axis--x { left: 0; right: 0; top: 50%; height: 1px; background: repeating-linear-gradient(90deg, #333 0 3px, transparent 3px 10px); }
+.concept-c.experience .sonic-field-axis--y { top: 3%; bottom: 3%; width: 1px; left: 50%; background: repeating-linear-gradient(0deg, #333 0 3px, transparent 3px 10px); }
+.concept-c.experience .sonic-field-caption { position: absolute; right: 13%; top: 24px; display: flex; gap: 18px; align-items: center; color: #62625f; font: 8px/1.5 'JetBrains Mono Variable', monospace; letter-spacing: .06em; z-index: 2; }
+.concept-c.experience .sonic-field-caption b { color: #aaa; font-weight: 400; }
+.concept-c.experience .sonic-field-coordinate { position: absolute; color: #6f6f6a; font: 8px/1.2 'JetBrains Mono Variable', monospace; pointer-events: none; z-index: 2; }
+.concept-c.experience .sonic-field-coordinate--one { left: 12px; top: calc(50% + 11px); }
+.concept-c.experience .sonic-field-coordinate--two { top: 7%; left: calc(50% + 10px); }
+.concept-c.experience .sonic-field-bottom { position: absolute; bottom: 29px; left: 31%; right: 11%; display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: #7f7f7b; font: 8px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .02em; z-index: 2; white-space: nowrap; }
+.concept-c.experience .sonic-field-bottom i { width: 15px; border-top: 1px solid #494946; margin: 0 4px; }
+.concept-c.experience .sonic-hero-heading { position: relative; z-index: 2; pointer-events: none; }
+.concept-c.experience .sonic-kicker { font: 9px/1.5 'JetBrains Mono Variable', monospace; color: #9a9a96; text-transform: uppercase; letter-spacing: .16em; margin: 0 0 23px; }
+.concept-c.experience .sonic-hero-heading h1 { font-family: 'Unbounded Variable', sans-serif; font-weight: 700; font-size: clamp(94px, 12.4vw, 188px); letter-spacing: -.075em; line-height: .94; margin: 0; text-transform: uppercase; }
+.concept-c.experience .sonic-hero-heading h1 > span { display: block; }
+.concept-c.experience .sonic-hero-heading h1 > span:first-child { position: relative; left: -.06em; }
+.concept-c.experience .sonic-hero-heading h1 > span:nth-child(2) { font-size: .43em; letter-spacing: -.065em; margin-top: 16px; }
+.concept-c.experience .sonic-red-period { color: #e50914; }
+.concept-c.experience .sonic-hero-copy { position: relative; z-index: 3; margin-top: 42px; max-width: 340px; }
+.concept-c.experience .sonic-selected-label { display: flex; align-items: center; justify-content: space-between; color: #e50914; font: 10px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .08em; width: 100%; max-width: 300px; }
+.concept-c.experience .sonic-direction-description { font-size: 13px; line-height: 1.9; color: #b1b1ae; margin: 12px 0 23px; min-height: 100px; }
+.concept-c.experience .sonic-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 19px; }
+.concept-c.experience .sonic-calendar-link { display: flex; gap: 8px; align-items: center; min-height: 44px; font-size: 11px; color: #c4c4c0; text-decoration: none; }
+.concept-c.experience .sonic-calendar-link:hover { color: #fff; }
+.concept-c.experience .sonic-scene-aside { position: absolute; bottom: 85px; right: 4px; display: grid; gap: 5px; font: 8px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .16em; color: #6c6c68; z-index: 2; text-align: right; }
+
+.concept-c.experience .sonic-direction-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #30302e; position: relative; z-index: 3; }
+.concept-c.experience .sonic-direction { appearance: none; text-align: left; background: #0d0d0d; color: #f1f1ed; min-height: 111px; border: 0; border-right: 1px solid #30302e; padding: 20px 23px 17px; position: relative; cursor: pointer; transition: background .2s, color .2s; }
+.concept-c.experience .sonic-direction:last-child { border-right: 0; }
+.concept-c.experience .sonic-direction:hover { background: #1b1b1a; }
+.concept-c.experience .sonic-direction.is-active { background: #e50914; color: #fff; }
+.concept-c.experience .sonic-direction-index { display: block; font: 8px/1.2 'JetBrains Mono Variable', monospace; color: #757571; margin-bottom: 11px; }
+.concept-c.experience .sonic-direction-name { font-family: 'Unbounded Variable', sans-serif; font-size: clamp(15px, 1.75vw, 24px); letter-spacing: -.045em; font-weight: 600; line-height: 1; }
+.concept-c.experience .sonic-direction-caption { display: block; font: 9px/1.5 'JetBrains Mono Variable', monospace; color: #777773; margin-top: 8px; }
+.concept-c.experience .sonic-direction.is-active .sonic-direction-index, .concept-c.experience .sonic-direction.is-active .sonic-direction-caption { color: #ffc5c7; }
+.concept-c.experience .sonic-direction-arrow { position: absolute; top: 18px; right: 17px; color: #636360; transition: transform .2s; }
+.concept-c.experience .sonic-direction.is-active .sonic-direction-arrow { color: #fff; }
+.concept-c.experience .sonic-direction:hover .sonic-direction-arrow { transform: translate(2px, -2px); }
+.concept-c.experience .sonic-control-strip { display: grid; grid-template-columns: 1fr 1.3fr .8fr; gap: 50px; padding: 26px 0 30px; align-items: center; border-bottom: 1px solid #30302e; }
+.concept-c.experience .sonic-control-intro { display: flex; align-items: center; gap: 13px; }
+.concept-c.experience .sonic-control-intro > svg { flex: 0 0 auto; color: #e50914; }
+.concept-c.experience .sonic-control-intro strong { display: block; font-size: 11px; font-weight: 650; }
+.concept-c.experience .sonic-control-intro span { display: block; font: 8px/1.5 'JetBrains Mono Variable', monospace; color: #73736f; margin-top: 6px; }
+.concept-c.experience .sonic-control-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.concept-c.experience .sonic-control-label label { color: #a3a39f; font-size: 10px; }
+.concept-c.experience .sonic-control-label output { font: 20px/1 'JetBrains Mono Variable', monospace; color: #e50914; }
+.concept-c.experience .sonic-control-label output > span { font-size: 10px; color: #757571; margin-left: 5px; }
+.concept-c.experience .sonic-intensity-control input { display: block; appearance: none; -webkit-appearance: none; cursor: pointer; width: 100%; min-height: 44px; margin: 0; padding: 0; background: transparent; border: 0; }
+.concept-c.experience .sonic-intensity-control input::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(90deg, #e50914 var(--sonic-level), #383836 var(--sonic-level)); }
+.concept-c.experience .sonic-intensity-control input::-moz-range-track { height: 3px; background: #383836; }
+.concept-c.experience .sonic-intensity-control input::-moz-range-progress { height: 3px; background: #e50914; }
+.concept-c.experience .sonic-intensity-control input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 18px; border: 3px solid #050505; border-radius: 0; background: #f5f4f1; margin-top: -7.5px; box-shadow: 0 0 0 1px #777; }
+.concept-c.experience .sonic-intensity-control input::-moz-range-thumb { width: 9px; height: 14px; border: 3px solid #050505; border-radius: 0; background: #f5f4f1; box-shadow: 0 0 0 1px #777; }
+.concept-c.experience .sonic-range-scale { display: flex; justify-content: space-between; font: 7px/1.4 'JetBrains Mono Variable', monospace; letter-spacing: .12em; color: #73736e; }
+.concept-c.experience .sonic-measurement-info { border-left: 1px solid #30302e; padding-left: 27px; }
+.concept-c.experience .sonic-measurement-info > span { display: block; color: #777773; font: 8px/1.5 'JetBrains Mono Variable', monospace; }
+.concept-c.experience .sonic-measurement-info strong { display: block; font: 24px/1.25 'JetBrains Mono Variable', monospace; margin: 3px 0 4px; color: #d2d2cd; }
+.concept-c.experience .sonic-measurement-info strong small { font-size: 10px; color: #898983; }
+.concept-c.experience .sonic-word-strip { display: flex; align-items: center; gap: 42px; width: max-content; min-width: 100%; margin: 51px 0 18px; padding: 15px 0; border-block: 1px solid #242423; color: #252524; transform: rotate(-2deg) scale(1.02); transform-origin: center; font: 600 clamp(25px, 4.5vw, 64px)/1 'Unbounded Variable', sans-serif; letter-spacing: -.065em; white-space: nowrap; }
+.concept-c.experience .sonic-word-strip i { display: inline-block; height: 12px; width: 12px; background: #e50914; border-radius: 50%; flex-shrink: 0; }
+
+/* The shared content becomes an acoustic field log: long tracks, hard rules, large type. */
+.concept-c.experience .sonic-section-wrap > section { padding-top: 90px; padding-bottom: 0; }
+.concept-c.experience .event-filters, .concept-c.experience .result-filters { gap: 5px; margin-bottom: 29px; }
+.concept-c.experience .event-filters button, .concept-c.experience .result-filters button { border-radius: 0; background: transparent; color: #8e8e89; border: 1px solid #363633; min-height: 44px; padding: 10px 19px; font: 10px/1.4 'JetBrains Mono Variable', monospace; }
+.concept-c.experience .event-filters button[aria-pressed='true'], .concept-c.experience .result-filters button[aria-pressed='true'], .concept-c.experience .event-filters button.active, .concept-c.experience .result-filters button.active { background: #f1f1ec; color: #080808; border-color: #f1f1ec; }
+.concept-c.experience .event-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.concept-c.experience .event-card { border: 1px solid #333330; background: #111110; border-radius: 0; overflow: hidden; transition: border-color .2s; }
+.concept-c.experience .event-card:hover { border-color: #e50914; }
+.concept-c.experience .event-art { min-height: 182px; border-radius: 0; background-color: #181817; border-bottom: 1px solid #333330; }
+.concept-c.experience .event-art::after { border-radius: 0; }
+.concept-c.experience .event-content { padding: 22px; }
+.concept-c.experience .event-meta { color: #91918b; font: 9px/1.5 'JetBrains Mono Variable', monospace; text-transform: uppercase; letter-spacing: .06em; }
+.concept-c.experience .event-date { font-family: 'Unbounded Variable', sans-serif; letter-spacing: -.045em; }
+.concept-c.experience .event-card h3 { font-family: 'Unbounded Variable', sans-serif; font-size: 21px; letter-spacing: -.045em; line-height: 1.3; text-transform: uppercase; }
+.concept-c.experience .event-card p { color: #999992; font-size: 11px; line-height: 1.8; }
+.concept-c.experience .event-link { color: #f5f4f1; border-top: 1px solid #343430; padding-top: 17px; margin-top: 23px; min-height: 44px; font-size: 11px; }
+.concept-c.experience .sonic-performance-zone { margin-top: 90px; background: #141413; padding-bottom: 78px; border-block: 1px solid #292928; }
+.concept-c.experience .sonic-performance-zone .sonic-section-wrap > section { padding-top: 65px; }
+.concept-c.experience .result-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid #3b3b36; border-left: 1px solid #3b3b36; }
+.concept-c.experience .result-card { border: 0; border-right: 1px solid #3b3b36; border-bottom: 1px solid #3b3b36; border-radius: 0; padding: 24px 25px; background: transparent; min-height: 190px; }
+.concept-c.experience .result-top { color: #96968e; font: 9px/1.5 'JetBrains Mono Variable', monospace; text-transform: uppercase; }
+.concept-c.experience .result-value { font: 600 clamp(38px, 4.2vw, 65px)/1.2 'Unbounded Variable', sans-serif; letter-spacing: -.07em; margin: 18px 0 16px; color: #f5f4f1; }
+.concept-c.experience .result-value strong { font: inherit; letter-spacing: inherit; }
+.concept-c.experience .result-value small, .concept-c.experience .result-value span { color: #e50914; font-size: .32em; letter-spacing: -.03em; }
+.concept-c.experience .result-person { color: #a1a19a; font-size: 11px; }
+.concept-c.experience .record-layout { gap: 32px; align-items: stretch; }
+.concept-c.experience .record-tabs { border-top: 1px solid #3b3b36; gap: 0; }
+.concept-c.experience .record-tab { border: 0; border-bottom: 1px solid #3b3b36; border-radius: 0; color: #a2a29b; background: transparent; padding: 20px 0; min-height: 68px; text-align: left; }
+.concept-c.experience .record-tab[aria-selected='true'], .concept-c.experience .record-tab[aria-pressed='true'], .concept-c.experience .record-tab.active { background: transparent; color: #fff; border-bottom-color: #e50914; box-shadow: inset 3px 0 #e50914; padding-left: 16px; }
+.concept-c.experience .record-feature { border: 1px solid #42423b; border-radius: 0; background: #0a0a0a; padding: 36px 38px; position: relative; overflow: hidden; }
+.concept-c.experience .record-feature::after { content: '+'; position: absolute; right: 20px; top: 16px; color: #e50914; font: 20px/1 'JetBrains Mono Variable', monospace; }
+.concept-c.experience .record-number { font-family: 'Unbounded Variable', sans-serif; font-size: clamp(50px, 7vw, 105px); letter-spacing: -.075em; line-height: 1.15; color: #e50914; }
+.concept-c.experience .record-number strong { font: inherit; letter-spacing: inherit; }
+.concept-c.experience .record-number > span { font: 12px/1.3 'JetBrains Mono Variable', monospace; color: #8e8e86; letter-spacing: 0; margin-left: 10px; }
+.concept-c.experience .record-feature h3 { font-family: 'Unbounded Variable', sans-serif; font-size: 20px; letter-spacing: -.04em; }
+.concept-c.experience .record-feature p { font-size: 12px; color: #9d9d95; }
+
+.concept-c.experience .sonic-engineering { display: grid; grid-template-columns: 1.05fr 1fr; gap: 8%; padding-top: 112px; padding-bottom: 16px; align-items: center; }
+.concept-c.experience .sonic-engineering-image { position: relative; aspect-ratio: .92; background: #151515; overflow: hidden; }
+.concept-c.experience .sonic-engineering-image img { display: block; height: 100%; width: 100%; object-fit: cover; filter: grayscale(1) contrast(1.1); opacity: .76; }
+.concept-c.experience .sonic-image-grid { position: absolute; inset: 0; pointer-events: none; opacity: .19; background-image: linear-gradient(#8c8c7d 1px, transparent 1px), linear-gradient(90deg, #8c8c7d 1px, transparent 1px); background-size: 25% 25%; }
+.concept-c.experience .sonic-photo-index, .concept-c.experience .sonic-photo-note { position: absolute; font: 8px/1.5 'JetBrains Mono Variable', monospace; letter-spacing: .08em; color: #d3d3cb; }
+.concept-c.experience .sonic-photo-index { left: 22px; top: 21px; background: #050505; padding: 7px 10px; }
+.concept-c.experience .sonic-photo-note { left: 22px; bottom: 22px; }
+.concept-c.experience .sonic-image-corner { position: absolute; width: 25px; height: 25px; border-color: #e50914; border-style: solid; }
+.concept-c.experience .sonic-image-corner--tl { left: 10px; top: 10px; border-width: 2px 0 0 2px; }
+.concept-c.experience .sonic-image-corner--br { right: 10px; bottom: 10px; border-width: 0 2px 2px 0; }
+.concept-c.experience .sonic-engineering-copy { padding-top: 12px; }
+.concept-c.experience .sonic-engineering-copy .sonic-kicker { display: flex; align-items: center; gap: 11px; margin-bottom: 27px; }
+.concept-c.experience .sonic-red-tick { width: 6px; height: 6px; display: inline-block; background: #e50914; }
+.concept-c.experience .sonic-engineering-copy h2 { font-family: 'Unbounded Variable', sans-serif; font-size: clamp(28px, 3.9vw, 56px); line-height: 1.13; font-weight: 600; letter-spacing: -.065em; margin: 0 0 30px; }
+.concept-c.experience .sonic-engineering-copy h2 > span { color: #e50914; }
+.concept-c.experience .sonic-engineering-copy > p:not(.sonic-kicker) { color: #96968e; font-size: 12px; line-height: 1.95; max-width: 360px; margin: 0 0 15px; }
+.concept-c.experience .sonic-editorial-link { display: flex; align-items: center; gap: 23px; width: fit-content; color: #f5f4f1; border-bottom: 1px solid #55554e; text-decoration: none; min-height: 48px; font-size: 11px; margin-top: 18px; }
+.concept-c.experience .sonic-editorial-link:hover { border-bottom-color: #e50914; }
+.concept-c.experience .sonic-engineering-spec { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 40px; padding-top: 18px; border-top: 1px solid #33332e; color: #71716b; font: 7px/1.5 'JetBrains Mono Variable', monospace; letter-spacing: .02em; }
+.concept-c.experience .news-grid { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 22px; }
+.concept-c.experience .news-card { background: transparent; border-radius: 0; border: 0; border-bottom: 1px solid #393932; padding-bottom: 25px; }
+.concept-c.experience .news-image { border-radius: 0; aspect-ratio: 1.42; background: #191918; overflow: hidden; }
+.concept-c.experience .news-image img { filter: grayscale(.65); transition: filter .3s, transform .4s; }
+.concept-c.experience .news-card:hover .news-image img { filter: grayscale(0); transform: scale(1.035); }
+.concept-c.experience .news-card h3 { font-size: 18px; line-height: 1.45; font-weight: 650; letter-spacing: -.04em; }
+.concept-c.experience .news-card:first-child h3 { font-size: 24px; }
+.concept-c.experience .news-card p, .concept-c.experience .news-card time { color: #92928b; font-size: 10px; }
+.concept-c.experience .sonic-partners-wrap > section { padding-top: 76px; }
+.concept-c.experience .partner-rail { background: transparent; border-block: 1px solid #33332e; border-radius: 0; padding: 28px 0; color: #aaa9a1; }
+.concept-c.experience .partner-rail > * { border-radius: 0; }
+.concept-c.experience .sonic-live-wrap { margin-top: 84px; background: #151514; border-block: 1px solid #30302c; padding-bottom: 73px; }
+.concept-c.experience .sonic-live-wrap > section { padding-top: 58px; }
+.concept-c.experience .live-layout { gap: 32px; }
+.concept-c.experience .live-visual { border-radius: 0; border: 1px solid #45453d; background-color: #070707; overflow: hidden; }
+.concept-c.experience .live-scores { border-radius: 0; background: transparent; border-top: 1px solid #45453d; }
+.concept-c.experience .live-scores > * { border-radius: 0; border-bottom: 1px solid #3a3a34; }
+.concept-c.experience .live-section h3 { font-family: 'Unbounded Variable', sans-serif; font-size: 23px; letter-spacing: -.04em; }
+.concept-c.experience .live-section p { color: #a2a297; }
+.concept-c.experience .sonic-join-wrap { padding: 90px 0 96px; }
+.concept-c.experience .sonic-join-wrap > section { position: relative; background: #e50914; border: 0; border-radius: 0; color: #fff; padding-top: 48px; padding-bottom: 48px; }
+.concept-c.experience .join-section h2 { font-family: 'Unbounded Variable', sans-serif; text-transform: uppercase; font-weight: 600; letter-spacing: -.065em; font-size: clamp(34px, 4.7vw, 68px); line-height: 1.13; }
+.concept-c.experience .join-section h2 em { color: #050505; }
+.concept-c.experience .join-section p { color: #ffd6d7; font-size: 12px; line-height: 1.8; }
+.concept-c.experience .join-section .button:not(.button--quiet) { background: #050505; border-color: #050505; color: #fff; }
+.concept-c.experience .join-section .button:not(.button--quiet):hover { background: #252525; }
+.concept-c.experience footer { border-top-color: #30302b; background: #050505; padding-bottom: max(30px, env(safe-area-inset-bottom)); }
+
+@media (min-width: 1650px) {
+  .concept-c.experience .sonic-theatre { min-height: 710px; }
+  .concept-c.experience .sonic-stage-space { right: -7%; height: 700px; }
+  .concept-c.experience .sonic-hero-copy { margin-top: 55px; }
+}
+
+@media (max-width: 1100px) {
+  .concept-c.experience .sonic-theatre { min-height: 635px; }
+  .concept-c.experience .sonic-stage-space { right: -16%; width: 86%; top: 28px; height: 580px; }
+  .concept-c.experience .sonic-hero-heading h1 { font-size: 15vw; }
+  .concept-c.experience .sonic-hero-copy { max-width: 300px; margin-top: 38px; }
+  .concept-c.experience .sonic-control-strip { gap: 25px; grid-template-columns: .95fr 1.15fr .8fr; }
+  .concept-c.experience .sonic-control-intro { gap: 10px; }
+  .concept-c.experience .sonic-control-intro strong { font-size: 10px; }
+  .concept-c.experience .sonic-measurement-info { padding-left: 19px; }
+  .concept-c.experience .sonic-field-bottom { right: 16%; }
+  .concept-c.experience .sonic-engineering { gap: 6%; }
+  .concept-c.experience .sonic-engineering-copy > p:not(.sonic-kicker) { font-size: 11px; }
+  .concept-c.experience .sonic-engineering-spec { gap: 8px; }
+}
+
+@media (max-width: 800px) {
+  .concept-c.experience .sonic-hero-meta { font-size: 8px; gap: 12px; }
+  .concept-c.experience .sonic-concept-name { display: none; }
+  .concept-c.experience .sonic-theatre { padding-top: 43px; min-height: 700px; }
+  .concept-c.experience .sonic-hero-heading h1 { font-size: 17vw; }
+  .concept-c.experience .sonic-stage-space { top: 126px; right: -17%; width: 95%; height: 500px; }
+  .concept-c.experience .sonic-hero-copy { padding-top: 185px; max-width: 360px; margin-top: 26px; }
+  .concept-c.experience .sonic-direction-description { min-height: 0; font-size: 12px; }
+  .concept-c.experience .sonic-field-caption { right: 24%; }
+  .concept-c.experience .sonic-field-bottom { right: 19%; bottom: 15px; font-size: 7px; }
+  .concept-c.experience .sonic-scene-aside { display: none; }
+  .concept-c.experience .sonic-direction { padding: 16px 13px; min-height: 102px; }
+  .concept-c.experience .sonic-direction-name { font-size: 16px; }
+  .concept-c.experience .sonic-direction-caption { font-size: 8px; }
+  .concept-c.experience .sonic-direction-arrow { top: 13px; right: 11px; width: 15px; }
+  .concept-c.experience .sonic-control-strip { grid-template-columns: 1.3fr 1fr; gap: 18px 30px; }
+  .concept-c.experience .sonic-control-intro { grid-column: 1 / -1; padding-bottom: 8px; }
+  .concept-c.experience .sonic-control-intro > div { display: flex; align-items: center; gap: 13px; }
+  .concept-c.experience .sonic-control-intro span { margin: 0; }
+  .concept-c.experience .sonic-measurement-info > span:last-child { font-size: 7px; }
+  .concept-c.experience .event-grid { gap: 11px; }
+  .concept-c.experience .event-art { min-height: 140px; }
+  .concept-c.experience .event-content { padding: 15px; }
+  .concept-c.experience .event-card h3 { font-size: 16px; }
+  .concept-c.experience .result-card { padding: 20px; }
+  .concept-c.experience .sonic-engineering { align-items: start; gap: 5%; }
+  .concept-c.experience .sonic-engineering-image { aspect-ratio: .73; }
+  .concept-c.experience .sonic-engineering-copy h2 { font-size: 31px; }
+  .concept-c.experience .sonic-engineering-copy .sonic-kicker { font-size: 8px; letter-spacing: .06em; }
+  .concept-c.experience .news-grid { gap: 16px; grid-template-columns: 1fr 1fr; }
+  .concept-c.experience .news-card:first-child { grid-column: 1 / -1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 0 23px; }
+  .concept-c.experience .news-card:first-child .news-image { grid-row: 1 / 5; }
+}
+
+@media (max-width: 600px) {
+  .concept-c.experience .shell { width: 100%; padding-left: 21px; padding-right: 21px; }
+  .concept-c.experience .sonic-hero { padding-top: 19px; }
+  .concept-c.experience .sonic-hero-meta { font-size: 6.5px; letter-spacing: .035em; gap: 6px; }
+  .concept-c.experience .sonic-hero-meta > span { gap: 6px; }
+  .concept-c.experience .sonic-hero-meta i { width: 5px; height: 5px; }
+  .concept-c.experience .sonic-theatre { padding-top: 35px; min-height: 690px; }
+  .concept-c.experience .sonic-kicker { font-size: 7px; margin-bottom: 18px; letter-spacing: .11em; }
+  .concept-c.experience .sonic-hero-heading h1 { font-size: 21.5vw; line-height: .96; letter-spacing: -.08em; }
+  .concept-c.experience .sonic-hero-heading h1 > span:nth-child(2) { font-size: .45em; margin-top: 12px; }
+  .concept-c.experience .sonic-stage-space { width: calc(100% + 82px); right: -41px; top: 176px; height: 330px; }
+  .concept-c.experience .sonic-stage-space::before { inset: 0 8%; }
+  .concept-c.experience .sonic-field-caption { top: 1px; right: 13%; left: 12%; justify-content: space-between; font-size: 6px; gap: 8px; }
+  .concept-c.experience .sonic-field-coordinate--one { left: 15%; }
+  .concept-c.experience .sonic-field-coordinate--two { top: 8%; font-size: 6px; }
+  .concept-c.experience .sonic-field-bottom { bottom: 8px; left: 12%; right: 13%; justify-content: flex-end; font-size: 6px; gap: 5px; }
+  .concept-c.experience .sonic-field-bottom > svg { width: 10px; }
+  .concept-c.experience .sonic-field-bottom i { width: 10px; margin: 0 2px; }
+  .concept-c.experience .sonic-hero-copy { padding-top: 348px; margin-top: 21px; max-width: none; }
+  .concept-c.experience .sonic-selected-label { max-width: none; font-size: 9px; }
+  .concept-c.experience .sonic-direction-description { margin: 10px 0 17px; font-size: 11px; line-height: 1.85; min-height: 61px; }
+  .concept-c.experience .sonic-hero-actions { gap: 10px 19px; }
+  .concept-c.experience .sonic-hero-actions .button { min-height: 46px; padding: 0 16px; font-size: 10px; gap: 15px; }
+  .concept-c.experience .sonic-calendar-link { font-size: 9px; gap: 5px; }
+  .concept-c.experience .sonic-direction-selector { grid-template-columns: 1fr 1fr; margin-top: 27px; }
+  .concept-c.experience .sonic-direction { min-height: 95px; padding: 14px 17px; }
+  .concept-c.experience .sonic-direction:nth-child(2) { border-right: 0; }
+  .concept-c.experience .sonic-direction:nth-child(-n+2) { border-bottom: 1px solid #30302e; }
+  .concept-c.experience .sonic-direction-index { font-size: 7px; margin-bottom: 9px; }
+  .concept-c.experience .sonic-direction-name { font-size: 19px; }
+  .concept-c.experience .sonic-direction-caption { font-size: 8px; margin-top: 7px; }
+  .concept-c.experience .sonic-direction-arrow { top: 13px; right: 13px; width: 16px; }
+  .concept-c.experience .sonic-control-strip { grid-template-columns: 1fr; gap: 22px; padding: 24px 0; }
+  .concept-c.experience .sonic-control-intro { padding-bottom: 0; }
+  .concept-c.experience .sonic-control-intro > div { display: block; }
+  .concept-c.experience .sonic-control-intro strong { font-size: 11px; }
+  .concept-c.experience .sonic-control-intro span { margin-top: 5px; font-size: 8px; }
+  .concept-c.experience .sonic-control-label label { font-size: 11px; }
+  .concept-c.experience .sonic-control-label output { font-size: 24px; }
+  .concept-c.experience .sonic-intensity-control input { min-height: 44px; }
+  .concept-c.experience .sonic-range-scale { font-size: 7px; margin-top: -5px; }
+  .concept-c.experience .sonic-measurement-info { padding: 17px 0 0; border-left: 0; border-top: 1px solid #292927; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 14px; }
+  .concept-c.experience .sonic-measurement-info > span { font-size: 8px; }
+  .concept-c.experience .sonic-measurement-info > strong { grid-column: 2; grid-row: 1 / 3; font-size: 23px; margin: 0; }
+  .concept-c.experience .sonic-measurement-info > strong small { font-size: 8px; }
+  .concept-c.experience .sonic-word-strip { margin: 34px 0 0; padding-block: 14px; gap: 25px; font-size: 29px; }
+  .concept-c.experience .sonic-word-strip i { width: 7px; height: 7px; }
+  .concept-c.experience .sonic-section-wrap > section { padding-top: 58px; }
+  .concept-c.experience .section-heading { padding-top: 19px; margin-bottom: 25px; align-items: flex-start; gap: 18px; }
+  .concept-c.experience .section-heading h2 { font-size: 29px; letter-spacing: -.06em; }
+  .concept-c.experience .section-heading > a { font-size: 8px; }
+  .concept-c.experience .eyebrow { font-size: 8px; }
+  .concept-c.experience .event-filters, .concept-c.experience .result-filters { flex-wrap: wrap; gap: 5px; margin-bottom: 21px; }
+  .concept-c.experience .event-filters button, .concept-c.experience .result-filters button { font-size: 9px; padding: 9px 13px; min-height: 44px; }
+  .concept-c.experience .event-grid { grid-template-columns: 1fr; gap: 15px; }
+  .concept-c.experience .event-art { min-height: 175px; }
+  .concept-c.experience .event-content { padding: 21px; }
+  .concept-c.experience .event-card h3 { font-size: 22px; }
+  .concept-c.experience .event-meta { font-size: 8px; }
+  .concept-c.experience .event-card p { font-size: 11px; }
+  .concept-c.experience .event-link { margin-top: 20px; }
+  .concept-c.experience .sonic-performance-zone { margin-top: 58px; padding-bottom: 48px; }
+  .concept-c.experience .sonic-performance-zone .sonic-section-wrap > section { padding-top: 46px; }
+  .concept-c.experience .result-grid { grid-template-columns: 1fr 1fr; }
+  .concept-c.experience .result-card { min-height: 166px; padding: 18px 14px; }
+  .concept-c.experience .result-top { font-size: 7px; }
+  .concept-c.experience .result-value { font-size: 35px; letter-spacing: -.08em; margin: 19px 0 13px; }
+  .concept-c.experience .result-person { font-size: 9px; line-height: 1.7; }
+  .concept-c.experience .record-layout { grid-template-columns: 1fr; gap: 21px; }
+  .concept-c.experience .record-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .concept-c.experience .record-tab { padding: 13px 10px; min-height: 59px; border-right: 1px solid #3b3b36; font-size: 10px; }
+  .concept-c.experience .record-tab:nth-child(even) { border-right: 0; }
+  .concept-c.experience .record-tab[aria-selected='true'], .concept-c.experience .record-tab[aria-pressed='true'], .concept-c.experience .record-tab.active { padding-left: 14px; }
+  .concept-c.experience .record-feature { padding: 31px 23px; min-height: 230px; }
+  .concept-c.experience .record-number { font-size: 56px; }
+  .concept-c.experience .record-feature h3 { font-size: 17px; }
+  .concept-c.experience .record-feature p { font-size: 11px; }
+  .concept-c.experience .sonic-engineering { grid-template-columns: 1fr; gap: 29px; padding-top: 59px; padding-bottom: 0; }
+  .concept-c.experience .sonic-engineering-image { aspect-ratio: 1.08; }
+  .concept-c.experience .sonic-engineering-copy { padding-top: 0; }
+  .concept-c.experience .sonic-engineering-copy .sonic-kicker { margin-bottom: 20px; font-size: 8px; }
+  .concept-c.experience .sonic-engineering-copy h2 { font-size: clamp(30px, 9.2vw, 50px); margin-bottom: 23px; }
+  .concept-c.experience .sonic-engineering-copy > p:not(.sonic-kicker) { font-size: 12px; max-width: none; }
+  .concept-c.experience .sonic-engineering-spec { justify-content: space-between; gap: 8px; margin-top: 27px; font-size: 6px; }
+  .concept-c.experience .news-grid { grid-template-columns: 1fr; gap: 28px; }
+  .concept-c.experience .news-card:first-child { grid-column: auto; display: block; }
+  .concept-c.experience .news-image { aspect-ratio: 1.55; }
+  .concept-c.experience .news-card h3, .concept-c.experience .news-card:first-child h3 { font-size: 22px; }
+  .concept-c.experience .news-card p, .concept-c.experience .news-card time { font-size: 10px; }
+  .concept-c.experience .sonic-partners-wrap > section { padding-top: 49px; }
+  .concept-c.experience .partner-rail { padding-block: 20px; gap: 20px; }
+  .concept-c.experience .sonic-live-wrap { margin-top: 55px; padding-bottom: 42px; }
+  .concept-c.experience .sonic-live-wrap > section { padding-top: 42px; }
+  .concept-c.experience .live-layout { grid-template-columns: 1fr; gap: 25px; }
+  .concept-c.experience .live-visual { min-height: 250px; }
+  .concept-c.experience .live-section h3 { font-size: 20px; }
+  .concept-c.experience .live-section p { font-size: 11px; line-height: 1.8; }
+  .concept-c.experience .sonic-join-wrap { padding: 52px 21px 58px; }
+  .concept-c.experience .sonic-join-wrap > section { padding: 33px 24px; }
+  .concept-c.experience .join-section h2 { font-size: clamp(27px, 8.4vw, 45px); letter-spacing: -.065em; }
+  .concept-c.experience .join-section p { font-size: 11px; }
+  .concept-c.experience .join-section .button { width: 100%; justify-content: space-between; margin-top: 12px; }
+  .concept-c.experience footer { padding-bottom: max(28px, env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concept-c.experience *, .concept-c.experience *::before, .concept-c.experience *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* Keep the primary action above the acoustic exhibit on a phone. */
+@media (max-width: 600px) {
+  .concept-c.experience .sonic-hero-copy { position: static; padding-top: 370px; }
+  .concept-c.experience .sonic-hero-actions { position: absolute; top: 192px; left: 0; z-index: 5; }
+  .concept-c.experience .sonic-stage-space { top: 253px; height: 300px; }
+  .concept-c.experience .sonic-three-stage .stage-pulse { right: 58px; }
+  .concept-c.experience .sonic-three-stage .stage-mode-note { left: 58px; }
+  .concept-c.experience .result-value { font-size: clamp(27px, 8vw, 34px); gap: 5px; }
+}
