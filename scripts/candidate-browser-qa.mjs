@@ -152,7 +152,7 @@ try{
       await page.locator(route.startsWith('/participants/')?'.p-profile-banner':'.public-stage-detail').waitFor();
       assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
      }
-     if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/);
+     if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/i);
      if(role==='PARTICIPANT'&&['/participant/register?stageId=missing','/participant/register'].includes(route)){
       assert.equal(await page.locator('.participant-loading').count(),0,'missing registration stage never spins forever');
       assert.ok(await page.getByRole('button',{name:'Выбрать этап',exact:true}).isVisible());row.registrationMissing='calendar recovery available';
