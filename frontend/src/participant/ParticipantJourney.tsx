@@ -1,7 +1,11 @@
 import {ArrowUpRight,CarFront,CheckCircle2,ClipboardCheck,Volume2} from 'lucide-react';
 export default function ParticipantJourney({cars,registrations,go}:{cars:any[];registrations:any[];go:(path:string)=>void}){
  const car=cars.find(c=>c.isActive!==false);
- const configured=Boolean(car?.configurations?.length);
+ const configuration=car?.configurations?.[0];
+ const version=configuration?.versions?.find((v:any)=>v.version===configuration.currentVersion)??configuration?.versions?.[0];
+ const configured=Array.isArray(version?.audioComponents)&&version.audioComponents.some((item:any)=>
+  ['SUB','FRONT','REAR'].includes(item.direction)&&String(item.brand??'').trim()&&String(item.model??'').trim()&&Number(item.quantity)>0&&(item.direction!=='SUB'||item.type==='SUBWOOFER')
+ );
  const registered=registrations.some(r=>r.status!=='CANCELLED'&&(r.stage?.registrationOpen||new Date(r.stage?.date??0).getTime()>=Date.now()));
  const steps=[
   {title:'Автомобиль',description:car?[car.brand,car.model].filter(Boolean).join(' '):'Укажите марку, модель и госномер.',done:Boolean(car),label:car?'Мои автомобили':'Добавить автомобиль',path:car?'/participant?tab=cars':'/participant/car/new',Icon:CarFront},
