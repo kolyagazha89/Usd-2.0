@@ -103,7 +103,7 @@ export async function runRegistrationJourney(){
 export async function runDashboardAvailability(){
  const stages=[{id:'first',name:'Первый этап',date:'2027-01-01',registrationOpen:true},{id:'second',name:'Второй этап',date:'2027-02-01',registrationOpen:true}];
  const cars=[{id:'one',brand:'Lada',model:'Vesta',configurations:[{}]}];
- const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,carId:'one',status:'ACTIVE',stageInspection:stage.id==='first'?{status:'PASSED'}:undefined}));
+ const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,car:{id:'one'},status:'ACTIVE',stageInspection:stage.id==='first'?{status:'PASSED'}:undefined}));
  const actions:string[]=[];
  const props={participant:{firstName:'Иван'},cars,stages,registrations,onGo:(path:string)=>actions.push(path),onAddCar:()=>{},onRegistration:()=>{},onStageRegistration:(stage:any)=>actions.push(stage.id)};
  const root=createRoot(document.getElementById('root')!);
