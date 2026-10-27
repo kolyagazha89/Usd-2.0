@@ -17,7 +17,7 @@ const displayName=(partner:Partner)=>String(partner.name??'').trim()||'Парт�
 function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:boolean}){
  const name=displayName(partner),href=safeHref(partner.website);
  const external=/^https?:\/\//i.test(href);
- const photo=<Photo src={partner.photoUrl} alt={name} className="p-partner-logo" fallback={name}/>;
+ const photo=<Photo src={partner.photoUrl??undefined} alt={name} className="p-partner-logo" fallback={name}/>;
  return <article className={'usd-partner-card usd-partner-card--'+tier.toLowerCase()+' u-panel'}>
   <span className="usd-partner-badge">{TIERS.find(t=>t.id===tier)?.badge}</span>
   {external?<a className="usd-partner-visual" href={href} target="_blank" rel="noopener noreferrer" aria-label={'Сайт партнёра '+name}>{photo}</a>:<Link className="usd-partner-visual" to="/partners" aria-label={'Подробнее о партнёре '+name}>{photo}</Link>}
