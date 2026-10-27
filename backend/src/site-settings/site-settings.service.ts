@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
-  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
+  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
@@ -16,7 +16,7 @@ const DEFAULTS:SiteSettingsShape={
     {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
     {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
-    {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
+    {id:'participants',enabled:false,title:'Участники'},{id:'values',enabled:true,title:'Почему USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
     heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
     heroKicker:'USD / ЧЕМПИОНАТ ПО АВТОЗВУКУ',
     communityTitle:'СТАНЬ ЧАСТЬЮ\nСООБЩЕСТВА USD',
@@ -24,6 +24,14 @@ const DEFAULTS:SiteSettingsShape={
     communityButtonLabel:'Присоединиться',
     documentsDescription:'Правила, регламенты и технические требования.',
     documentsButtonLabel:'Перейти к документам',
+    valuesTitle:'ПОЧЕМУ USD',valuesSubtitle:'БОЛЬШЕ, ЧЕМ СОРЕВНОВАНИЯ — ЭТО КУЛЬТУРА',
+    valuesCards:[
+      {id:'competitions',heading:'ОФИЦИАЛЬНЫЕ',subtitle:'СОРЕВНОВАНИЯ',description:'Продуманный путь до старта',path:'/stages',enabled:true},
+      {id:'records',heading:'НОВЫЕ',subtitle:'РЕКОРДЫ',description:'Измерения и личная история',path:'/records',enabled:true},
+      {id:'people',heading:'СИЛЬНОЕ',subtitle:'СООБЩЕСТВО',description:'Участники из разных городов',path:'/participants',enabled:true},
+      {id:'culture',heading:'РАЗВИТИЕ',subtitle:'АВТОЗВУК-КУЛЬТУРЫ',description:'События, знания, поддержка',path:'/news',enabled:true},
+      {id:'organization',heading:'ПРЕМИАЛЬНАЯ',subtitle:'ОРГАНИЗАЦИЯ',description:'Внимание к каждой детали',path:'/about',enabled:true},
+    ],
     showNextStage:true,showLatestResults:true,showRecords:true,showParticipants:true,showLiveStream:true,showLiveResults:true},
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
