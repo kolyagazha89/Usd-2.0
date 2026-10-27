@@ -1,0 +1,28 @@
+# Optional private, local S3-compatible storage for USD on the Ubuntu VM.
+# Activate with: docker compose -f compose.yaml -f compose.storage.yaml up -d storage
+# The S3 API, filer and admin ports are NEVER published to the host or CloudPub.
+# Set S3_ENDPOINT=http://storage:8333, S3_REGION=us-east-1,
+# S3_FORCE_PATH_STYLE=true, S3_BUCKET=usd-media,
+# S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in .env before enabling.
+# Back up usd_storage_data separately from PostgreSQL; a Docker volume is not a backup.
+services:
+  storage:
+    image: chrislusf/seaweedfs:4.51
+    restart: unless-stopped
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
+    volumes:
+      - usd_storage_data:/data
+    networks: [usd-internal]
+    mem_limit: 512m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+  api:
+    depends_on:
+      storage:
+        condition: service_started
+
+volumes:
+  usd_storage_data:
