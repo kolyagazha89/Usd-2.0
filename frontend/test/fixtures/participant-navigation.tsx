@@ -109,6 +109,7 @@ export async function runDashboardAvailability(){
  const root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<MemberDashboard {...props}/>));
+  assert.equal(document.querySelector('.member-race-ticket strong')?.textContent,'—','missing participant number must not render as 00—');
   assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Открыть заявку');
   await click(document.querySelector<HTMLButtonElement>('.member-more-stages article button')!);assert.equal(actions.at(-1),'/participant/registration?registrationId=entry-second');
   assert.equal(document.querySelector('.member-race-add'),null);
