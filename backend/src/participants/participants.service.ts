@@ -1239,6 +1239,18 @@ export class ParticipantsService {
                 version: true,
                 vibrationIsolation: true,
                 additionalDescription: true,
+                // The member garage needs the latest equipment summary to show
+                // direction readiness. Only return the minimal public fields.
+                audioComponents: {
+                  select: {
+                    id: true,
+                    brand: true,
+                    model: true,
+                    quantity: true,
+                    type: true,
+                    direction: true,
+                  },
+                },
               },
             },
           },
