@@ -237,13 +237,13 @@ describe('RegistrationsService', () => {
     });
 
   it.each([
-    ['нулевое количество сабвуферов', 'Limited 2.0', 'SPL', [{ ...validSub, quantity: 0 }], 'сабвуфер'],
-    ['отрицательное количество сабвуферов', 'BassRace 129.9', 'BassRace', [{ ...validSub, quantity: -1 }], 'сабвуфер'],
-    ['пустая модель сабвуфера', 'Storm Wall', 'Storm Wall', [{ ...validSub, model: '  ' }], 'сабвуфер'],
-    ['пустой бренд фронта', 'Gate 1-6', 'BFSPL', [{ ...validFront, brand: '' }], 'фронтальную акустику'],
-    ['нулевое количество тыла', 'BDW', 'BDWSPL', [{ ...validRear, quantity: 0 }], 'тыловую акустику'],
-    ['чужое направление', 'BDW', 'BDWSPL', [validFront], 'тыловую акустику'],
-  ])('rejects %s instead of allowing an empty equipment registration', async (_case, className, directionName, audioComponents, message) => {
+    { caseName: 'нулевое количество сабвуферов', className: 'Limited 2.0', directionName: 'SPL', audioComponents: [{ ...validSub, quantity: 0 }], message: 'сабвуфер' },
+    { caseName: 'отрицательное количество сабвуферов', className: 'BassRace 129.9', directionName: 'BassRace', audioComponents: [{ ...validSub, quantity: -1 }], message: 'сабвуфер' },
+    { caseName: 'пустая модель сабвуфера', className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [{ ...validSub, model: '  ' }], message: 'сабвуфер' },
+    { caseName: 'пустой бренд фронта', className: 'Gate 1-6', directionName: 'BFSPL', audioComponents: [{ ...validFront, brand: '' }], message: 'фронтальную акустику' },
+    { caseName: 'нулевое количество тыла', className: 'BDW', directionName: 'BDWSPL', audioComponents: [{ ...validRear, quantity: 0 }], message: 'тыловую акустику' },
+    { caseName: 'чужое направление', className: 'BDW', directionName: 'BDWSPL', audioComponents: [validFront], message: 'тыловую акустику' },
+  ])('rejects $caseName instead of allowing an empty equipment registration', async ({ className, directionName, audioComponents, message }) => {
     const tx = equipmentTransaction(className, directionName, audioComponents);
     setupTransaction(tx);
     await expect(service.create(participantRequest, requestBody)).rejects.toThrow(message);
@@ -251,10 +251,10 @@ describe('RegistrationsService', () => {
   });
 
   it.each([
-    ['Limited 2.0', 'SPL', validSub],
-    ['Gate 1-6', 'BFSPL', validFront],
-    ['BDW', 'BDWSPL', validRear],
-  ])('accepts valid positive-quantity equipment for %s', async (className, directionName, component) => {
+    { className: 'Limited 2.0', directionName: 'SPL', component: validSub },
+    { className: 'Gate 1-6', directionName: 'BFSPL', component: validFront },
+    { className: 'BDW', directionName: 'BDWSPL', component: validRear },
+  ])('accepts valid positive-quantity equipment for $className', async ({ className, directionName, component }) => {
     const tx = equipmentTransaction(className, directionName, [component]);
     setupTransaction(tx);
     await expect(service.create(participantRequest, requestBody)).resolves.toEqual({ id: 'registration-1' });
