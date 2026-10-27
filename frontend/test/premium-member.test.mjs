@@ -64,7 +64,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(app,/MemberDashboard from '\.\/participant\/MemberDashboard'/);
  assert.match(app,/<MemberDashboard\b/);
  assert.match(dashboard,/car\?\.photoUrl/);
- assert.match(dashboard,/audioComponents/);
+ assert.match(dashboard,/currentCarAudioComponents\(car\)/,'member garage must use current version audio summary');
  assert.match(dashboard,/registrations\.filter/);
  assert.match(editor,/configurations-page-shell"\+\(admin\?" admin-configurations-shell":" usd-member"\)/);
  assert.match(editor,/usd-member/);
