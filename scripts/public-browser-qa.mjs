@@ -14,7 +14,8 @@ const candidatePremiumCss=await readFile('frontend/src/premium-ui.css','utf8');
 const candidatePublicCss=await readFile('frontend/src/public/premium-public.css','utf8');
 const candidateBaseCss=await readFile('frontend/src/public/premium-base.css','utf8');
 const candidateMemberCss=await readFile('frontend/src/public/premium-member.css','utf8');
-const candidateCss=[candidateResultCss,candidatePremiumCss,candidateBaseCss,candidatePublicCss,candidateMemberCss].join('\n');
+const candidateVelocityCss=await readFile('frontend/src/dark-velocity-sitewide.css','utf8');
+const candidateCss=[candidateResultCss,candidatePremiumCss,candidateBaseCss,candidatePublicCss,candidateMemberCss,candidateVelocityCss].join('\n');
 async function navigatePublic(page,label){
  const toggle=page.locator('.public-nav-toggle');
  if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
