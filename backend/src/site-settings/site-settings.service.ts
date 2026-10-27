@@ -65,6 +65,27 @@ export class SiteSettingsService{
     if(!value||typeof value!=='object'||Array.isArray(value)) return base;
     return {...base,...value} as T;
   }
+  private validateHomepage(value:unknown){
+    if(!value||typeof value!=='object'||Array.isArray(value)) return;
+    const homepage=value as Record<string,unknown>;
+    if(!Object.prototype.hasOwnProperty.call(homepage,'valuesCards')) return;
+    const cards=homepage.valuesCards;
+    if(!Array.isArray(cards)||cards.length>5) throw new BadRequestException('Неверный список карточек главной страницы.');
+    const ids=new Set(['competitions','records','people','culture','organization']);
+    const paths=new Set(['/stages','/records','/participants','/news','/about']);
+    const seen=new Set<string>();
+    for(const card of cards){
+      if(!card||typeof card!=='object'||Array.isArray(card)) throw new BadRequestException('Неверная карточка главной страницы.');
+      const item=card as Record<string,unknown>;
+      if(typeof item.id!=='string'||!ids.has(item.id)||seen.has(item.id)) throw new BadRequestException('Неверный или повторяющийся идентификатор карточки.');
+      seen.add(item.id);
+      if(typeof item.path!=='string'||!paths.has(item.path)) throw new BadRequestException('Ссылка карточки должна вести на раздел USD.');
+      if(typeof item.enabled!=='boolean') throw new BadRequestException('Неверная настройка видимости карточки.');
+      for(const field of ['heading','subtitle','description']){
+        if(typeof item[field]!=='string'||item[field].length>240) throw new BadRequestException('Текст карточки не должен превышать 240 символов.');
+      }
+    }
+  }
   private homepageWithBlocks(value:unknown):SiteSettingsShape['homepage']{
     const homepage=this.merge(DEFAULTS.homepage,value);
     const blocks=Array.isArray(homepage.blocks)?[...homepage.blocks]:[];
@@ -211,6 +232,7 @@ export class SiteSettingsService{
     try {
       const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
       phase = 'merge';
+      this.validateHomepage(input.homepage);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
