@@ -27,7 +27,7 @@ export default function UsdIdCard({participantId}:{participantId?:string}){
     <div className="member-usd-id-qr"><QRCodeSVG value={url} size={180} marginSize={2} bgColor="#ffffff" fgColor="#15171b" level="M" title="Постоянный USD ID"/></div>
     <p><ShieldCheck size={15}/> Покажите код судье при въезде. Судья выберет текущий этап и увидит вашу регистрацию.</p>
     <p className="member-usd-id-note">Этот код не подтверждает допуск и не заменяет QR отдельной регистрации. Личные контакты в QR не записываются.</p>
-    <button type="button" className="secondary-button compact" onClick={()=>{void navigator.clipboard.writeText(url).then(()=>setNotice('Ссылка скопирована')).catch(()=>setError('Не удалось скопировать ссылку'))}}><Copy size={15}/>Скопировать ссылку</button>
+    <button type="button" className="secondary-button compact" onClick={()=>{if(!navigator.clipboard?.writeText){setError('Копирование недоступно в этом браузере');return}void navigator.clipboard.writeText(url).then(()=>{setError('');setNotice('Ссылка скопирована')}).catch(()=>setError('Не удалось скопировать ссылку'))}}><Copy size={15}/>Скопировать ссылку</button>
     <div className="member-usd-id-rotate">{confirmRotate&&<p>После перевыпуска все сохранённые и распечатанные старые QR перестанут работать.</p>}<button type="button" className="text-button" disabled={rotating} onClick={()=>void rotate()}><RotateCcw size={15}/>{rotating?'Перевыпускаем…':confirmRotate?'Подтвердить перевыпуск':'Перевыпустить USD ID'}</button>{confirmRotate&&<button type="button" className="text-button" onClick={()=>setConfirmRotate(false)}>Отмена</button>}</div>
    </>:null}
    {notice&&<p role="status" className="member-usd-id-notice">{notice}</p>}
