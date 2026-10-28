@@ -74,6 +74,7 @@ if [[ "${1:-}" == inspect ]]; then
     [[ "$*" != *mock-frontend* ]] || service=frontend
     tag="$(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)"
     [[ "${USD_TEST_IMAGE_MISMATCH:-0}" != 1 ]] || tag=unverified
+    if [[ "${USD_TEST_IMAGE_MISMATCH_AFTER:-0}" == 1 && "$tag" == "$USD_TEST_NEW" ]]; then tag=unverified; fi
     echo "ghcr.io/kolyagazha89/usd-2.0-$service:$tag"
     exit 0
   fi
@@ -196,6 +197,14 @@ grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.release.*' -print -quit)" ]] ||
   { echo "Sensitive staged .env was left behind after failed validation" >&2; exit 1; }
 export USD_TEST_FAIL_CONFIG=0
+# A healthy HTTP endpoint on the wrong container image must not count as a
+# successful release. Confirm the original tag and readiness after rollback.
+export USD_TEST_IMAGE_MISMATCH_AFTER=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/stale-image.log" 2>&1; then exit 1; fi
+grep -q 'New API/frontend image tags do not match approved release SHA' "$WORK/stale-image.log"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/stale-image.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_IMAGE_MISMATCH_AFTER=0
 export USD_TEST_INTERRUPT_RELEASE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/interrupted.log" 2>&1; then exit 1; fi
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
