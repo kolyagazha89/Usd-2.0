@@ -117,6 +117,12 @@ if bash "$WORK/builder" > "$WORK/schema.log" 2>&1; then exit 1; fi
 grep -q 'Schema changed' "$WORK/schema.log"
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
 printf '%s\n' "$SCHEMA" > "$WORK/policy"
+# An overly permissive production environment must never reach the release helper.
+chmod 644 "$WORK/deploy.env"
+if bash "$WORK/builder" > "$WORK/env-permissions.log" 2>&1; then exit 1; fi
+grep -q "must not be readable by group or other users" "$WORK/env-permissions.log"
+[[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
+chmod 600 "$WORK/deploy.env"
 chmod 666 "$WORK/policy"
 if bash "$WORK/builder" > "$WORK/policy.log" 2>&1; then exit 1; fi
 grep -q 'group/world writable' "$WORK/policy.log"
