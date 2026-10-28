@@ -24,7 +24,9 @@ export function currentCarAudioComponents(car:any):unknown{
  const config=configs.find((item:any)=>item?.isActive!==false);
  if(!config)return undefined;
  const versions=Array.isArray(config.versions)?config.versions:[];
- const version=versions.find((item:any)=>item.version===config.currentVersion)??versions[0];
+ // Never treat a stale historical version as the active build when the
+ // currentVersion pointer is present but its referenced version is missing.
+ const version=config.currentVersion==null?versions[0]:versions.find((item:any)=>item.version===config.currentVersion);
  return version?.audioComponents;
 }
 
@@ -32,7 +34,7 @@ export function currentCarAudioComponents(car:any):unknown{
  * registrationOpen flag left enabled on a past event. A stage's ISO date is
  * the organizer's event day; comparing its UTC timestamp to Date.now() can
  * hide today's event in time zones west of UTC. */
-export function upcomingStages<T extends {date?:unknown;isDeleted?:boolean}>(stages:T[],now=new Date()):T[]{
+export function upcomingStages<T extends {date?:unknown;isDeleted?:boolean;status?:unknown}>(stages:T[],now=new Date()):T[]{
  const localDay=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
  const today=localDay(now);
  const eventDay=(value:unknown):string|null=>{
@@ -41,7 +43,7 @@ export function upcomingStages<T extends {date?:unknown;isDeleted?:boolean}>(sta
   const iso=typeof value==='string'?value.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/):null;
   return iso?iso[1]:localDay(date);
  };
- return stages.filter(stage=>{const day=eventDay(stage.date);return !stage.isDeleted&&day!==null&&day>=today;})
+ return stages.filter(stage=>{const day=eventDay(stage.date);return !stage.isDeleted&&(stage.status==null||stage.status==='PUBLISHED')&&day!==null&&day>=today;})
   .sort((a,b)=>(eventDay(a.date)??'').localeCompare(eventDay(b.date)??''));
 }
 
