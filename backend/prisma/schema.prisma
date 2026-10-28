@@ -73,6 +73,7 @@ model User {
 
 model Participant {
   id                String             @id @default(uuid())
+  usdIdToken        String?            @unique @db.VarChar(64)
   team              String?
   phone             String?
   photoUrl          String?
