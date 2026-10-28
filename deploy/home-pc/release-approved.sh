@@ -97,7 +97,7 @@ verify_running_images() {
   local expected="$1" service ids running_image
   for service in api frontend; do
     ids="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$service")"
-    [[ -n "$ids" && "$(printf '%s\\n' "$ids" | wc -l)" -eq 1 ]] || return 1
+    [[ -n "$ids" && "$(echo "$ids" | wc -l)" -eq 1 ]] || return 1
     running_image="$(docker inspect -f '{{.Config.Image}}' "$ids")" || return 1
     [[ "$running_image" == "ghcr.io/kolyagazha89/usd-2.0-$service:$expected" ]] || return 1
   done
