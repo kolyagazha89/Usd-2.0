@@ -9,7 +9,8 @@ const LogoShowcase=lazy(()=>import('./LogoShowcase'));
 function Countdown({date}:{date:string}){
  const [now,N]=useState(Date.now());useEffect(()=>{const t=setInterval(()=>N(Date.now()),1000);return()=>clearInterval(t)},[]);
  const target=new Date(date).getTime(),seconds=Math.max(0,Math.floor((target-now)/1000));
- if(!Number.isFinite(seconds))return null;
+ if(!Number.isFinite(target))return null;
+ if(target<=now)return <div className="u-countdown" role="status" aria-label="Время начала этапа наступило"><strong>ЭТАП СЕГОДНЯ</strong></div>;
  return <div className="u-countdown" aria-label="До начала этапа">{[Math.floor(seconds/86400),Math.floor(seconds/3600)%24,Math.floor(seconds/60)%60,seconds%60].map((v,i)=><div key={i}><b>{String(v).padStart(2,'0')}</b><span>{['ДНЕЙ','ЧАСОВ','МИНУТ','СЕКУНД'][i]}</span></div>)}</div>;
 }
 function ResultRow({row:r}:{row:any}){
