@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
 
 test('participant can choose at most five classes while preserving primary class order',()=>{
@@ -24,4 +25,15 @@ test('returning competitor must review configuration before moving to classes',(
  assert.equal(canContinueVehicleRegistration(true,true,'unchanged',false),true);
  assert.equal(canContinueVehicleRegistration(true,true,'updated',false),false);
  assert.equal(canContinueVehicleRegistration(true,true,'updated',true),true);
+});
+
+test('registration screen wires the class cap and returning-vehicle question',async()=>{
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ const flow=await readFile(new URL('../src/participant/RegistrationFlow.tsx',import.meta.url),'utf8');
+ assert.match(app,/nextRegistrationClassIds\(ids,id,e\.target\.checked\)/);
+ assert.match(app,/registerClassIds\.length>=MAX_REGISTRATION_CLASSES/);
+ assert.match(app,/repeatVehicle=\{Boolean\(registerCarId/);
+ assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
+ assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
+ assert.match(flow,/step===0\?canContinueVehicle:classesReady/);
 });
