@@ -36,6 +36,7 @@ test('registration screen wires the class cap and returning-vehicle question',as
  assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
  assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
  assert.match(flow,/step===0\?canContinueVehicle:classesReady/);
+ assert.match(flow,/\[stage\?\.id,carId,configurationId\]/, 'switching stage must reset the registration wizard and review answer');
  assert.match(flow,/setConfigurationAnswer\(''\);setUpdatedReviewed\(false\);setStep\(0\)/,
   'switching car or configuration must return to the vehicle step and require fresh confirmation');
  assert.match(flow,/if\(step>0&&!canContinueVehicle\)setStep\(0\)/,
