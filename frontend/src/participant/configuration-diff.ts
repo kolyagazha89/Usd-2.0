@@ -1,4 +1,4 @@
-import {boxFromDescription,withoutBoxLine} from './box-parameters';
+import {boxFromDescription,withoutBoxLine} from './box-parameters.ts';
 
 type Row={direction?:unknown;type?:unknown;brand?:unknown;model?:unknown;quantity?:unknown};
 export type ConfigurationVersionLike={
