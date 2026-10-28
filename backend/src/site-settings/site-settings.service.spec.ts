@@ -265,6 +265,7 @@ describe('SiteSettingsService homepage hero CMS', () => {
     expect(response.settings.homepage.heroTopics).toEqual(['РЕКОРДЫ', 'СПОРТСМЕНЫ']);
     expect((prisma as any).siteSettings.upsert).toHaveBeenCalledTimes(1);
     expect((prisma as any).auditLog.create).toHaveBeenCalledTimes(1);
+    (prisma as any).siteSettings.findUnique.mockResolvedValueOnce({ homepage: response.settings.homepage });
     const publicSettings = await service.getPublic();
     expect(publicSettings.settings.homepage.heroTopics).toEqual(['РЕКОРДЫ', 'СПОРТСМЕНЫ']);
   });
