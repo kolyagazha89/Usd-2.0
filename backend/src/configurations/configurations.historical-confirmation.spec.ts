@@ -7,7 +7,7 @@ describe('participant confirmation of final 2026 configuration',()=>{
  const dto={name:'Финал 2026',vibrationIsolation:'ComfortMat',additionalDescription:'Сборка на финале',headUnits:[],audioComponents:[],amplifiers:[],batteries:[],generators:[]};
  let db:any;let service:ConfigurationsService;
  beforeEach(()=>{
-  db={registration:{findMany:jest.fn<any>().mockResolvedValue([]),findFirst:jest.fn<any>().mockResolvedValue({id:'reg',configurationVersion:{id:'original',configurationId:'config'},configurationConfirmation:null}),count:jest.fn<any>().mockResolvedValue(1)},
+  db={siteSettings:{findUnique:jest.fn<any>().mockResolvedValue({catalogs:{componentModels:[]}})},registration:{findMany:jest.fn<any>().mockResolvedValue([]),findFirst:jest.fn<any>().mockResolvedValue({id:'reg',configurationVersion:{id:'original',configurationId:'config'},configurationConfirmation:null}),count:jest.fn<any>().mockResolvedValue(1)},
    carConfiguration:{findUnique:jest.fn<any>().mockResolvedValue({id:'config',carId:'car',currentVersion:3}),findUniqueOrThrow:jest.fn<any>().mockResolvedValue({id:'config',currentVersion:3}),findFirst:jest.fn<any>().mockResolvedValue(null),update:jest.fn<any>().mockResolvedValue({})},
    carConfigurationVersion:{create:jest.fn<any>().mockResolvedValue({id:'confirmed',version:4}),findUnique:jest.fn<any>().mockResolvedValue({id:'original'}),update:jest.fn()},
    historicalConfigurationConfirmation:{create:jest.fn<any>().mockResolvedValue({versionId:'confirmed',registrationId:'reg'}),count:jest.fn<any>().mockResolvedValue(0)},
