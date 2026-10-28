@@ -208,9 +208,13 @@ wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refu
 
 # Keep a private custom-format database archive before replacing either service.
 # This does not migrate, restore, restart or recreate PostgreSQL.
-BACKUP_DIR=/home/usd/backups
+BACKUP_DIR="$STATE_DIR/backups"
 [[ ! -L "$BACKUP_DIR" ]] || { echo "Refusing symlinked backup directory" >&2; false; }
-install -d -m 0700 "$BACKUP_DIR"
+install -d -o root -g root -m 0700 "$BACKUP_DIR"
+[[ -d "$BACKUP_DIR" && ! -L "$BACKUP_DIR" && "$(stat -c %u "$BACKUP_DIR")" == 0 ]] ||
+  { echo "Release backup directory must be root-owned" >&2; false; }
+(( (8#$(stat -c %a "$BACKUP_DIR") & 077) == 0 )) ||
+  { echo "Release backup directory must be private" >&2; false; }
 db_snapshot_tmp="$(mktemp "$BACKUP_DIR/release-$NEW_TAG.XXXXXXXX.partial")"
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db sh -c \
   'pg_dump -Fc --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$db_snapshot_tmp"
