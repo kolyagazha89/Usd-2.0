@@ -21,6 +21,8 @@ jobs:
           set -euo pipefail
           bash -n deploy/home-pc/auto-deploy.sh
           bash -n deploy/home-pc/release-approved.sh
+          bash -n deploy/home-pc/install-local-deployer.sh
+          bash -n deploy/home-pc/test-release.sh
       - name: Validate local and tunnel Compose overlays without touching a server
         run: |
           set -euo pipefail
