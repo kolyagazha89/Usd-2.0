@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,upcomingStages} from '../src/participant/member-readiness.ts';
+import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,preferredUpcomingStage,upcomingStages} from '../src/participant/member-readiness.ts';
 
 const row=(direction,type='MIDBASS',quantity=1)=>({direction,type,brand:' USD ',model:'Model 1',quantity});
 
@@ -64,4 +64,27 @@ test('garage selects its upcoming stage through the shared calendar-day filter',
  const dashboard=await readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8');
  assert.match(dashboard,/const upcoming=upcomingStages\(stages\)/);
  assert.doesNotMatch(dashboard,/registrationOpen\|\|new Date\(s\.date/);
+});
+
+
+test('the garage features the selected car\'s next registered event without hiding earlier events',()=>{
+ const stages=[{id:'early'},{id:'registered'},{id:'later'}];
+ const registrations=[
+  {carId:'car-a',stageId:'early',status:'CANCELLED'},
+  {carId:'car-a',stageId:'registered',status:'ACTIVE'},
+  {carId:'car-b',stageId:'early',status:'ACTIVE'},
+ ];
+ assert.equal(preferredUpcomingStage(stages,registrations,'car-a')?.id,'registered');
+ assert.equal(preferredUpcomingStage(stages,registrations,'car-b')?.id,'early');
+ assert.equal(preferredUpcomingStage(stages,registrations,'car-c')?.id,'early');
+ assert.equal(preferredUpcomingStage(stages,registrations,undefined)?.id,'early');
+ assert.equal(preferredUpcomingStage([],registrations,'car-a'),undefined);
+ assert.deepEqual(stages.map(stage=>stage.id),['early','registered','later'],'the input calendar must stay intact');
+});
+
+test('garage renders all other upcoming events when a registered event is featured',async()=>{
+ const dashboard=await readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8');
+ assert.match(dashboard,/preferredUpcomingStage\(upcoming,registrations,car\?\.id\)/);
+ assert.match(dashboard,/otherStages=upcoming\.filter\(item=>item\.id!==stage\?\.id\)/);
+ assert.match(dashboard,/otherStages\.slice\(0,3\)/);
 });
