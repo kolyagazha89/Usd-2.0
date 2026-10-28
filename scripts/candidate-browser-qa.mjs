@@ -185,6 +185,11 @@ try{
      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
+     if(route==='/stages/stage1'){
+      const labels=await page.locator('.public-stage-poster-placeholder').evaluateAll(posters=>posters.flatMap(poster=>[...poster.children].map(child=>{const r=child.getBoundingClientRect();return {top:r.top,bottom:r.bottom}})));
+      assert.equal(labels.length,5,'stage fixture must render all five fallback poster labels');
+      for(let i=1;i<labels.length;i++)assert.ok(labels[i].top>=labels[i-1].bottom,'fallback poster labels must not overlap');
+     }
 
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'interactive state fits viewport');
      const notice=page.locator('.cookie-notice');

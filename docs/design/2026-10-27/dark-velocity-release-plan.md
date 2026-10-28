@@ -19,19 +19,19 @@ Updated: 2026-10-28. Work branch: `design/dark-velocity-sitewide-20261027`, draf
 - `frontend/src/main.tsx`: imports the final visual layer and mounts motion enhancement.
 - `frontend/src/public/PremiumHome.tsx`: cinematic editorial kicker, equalizer and 3D interaction hint. The existing `LogoShowcase.tsx` is already a real Three.js mechanical 3D USD mark with smoke, dynamic woofer and touch-triggered pulse; do not replace it with a static mockup.
 - Mobile cookie banner fix: the dock is rendered through a React portal into `body`, **not inside** `.usd-live`. Reserve 66px plus safe-area via `body:has(.usd-live):has(> .u-mobile-dock)` so the banner sits above it.
-- `scripts/public-browser-qa.mjs`: includes final candidate CSS in read-only live-site style injection.
+- `scripts/public-browser-qa.mjs`: checks app.usd-russia.ru without modifying deployed styles; candidate CSS preview is explicit opt-in.
 - `frontend/test/premium-member.test.mjs`: asserts the new final CSS import follows the existing member styles.
 
 ## Verification
 
 GitHub Actions for this branch: Frontend CI, Public browser QA, Backend CI, Archive replay. Run the latest HEAD, not an earlier cancelled run.
 
-- Frontend CI executes 52+ tests, dependency audit, TypeScript/Vite build, Wrangler dry run.
+- Frontend CI executes 91 tests, dependency audit, TypeScript/Vite build, Wrangler dry run.
 - Candidate browser QA exercises ~264 synthetic public, participant and admin routes at desktop/mobile widths and checks no overflow, accessibility of controls, and flows without live mutations.
-- Live public browser QA currently targets the old workers.dev hostname and injects candidate CSS. **This is not proof that `app.usd-russia.ru` is deployed.**
+- Live public browser QA targets app.usd-russia.ru with its actual deployed styles. A passing public check does not identify the running image SHA.
 - Initial PR #305 browser QA at commit `0b1329d` found 72 mobile cookie/dock overlap cases; addressed by the portal-aware dock variable above. Verify latest run before marking resolved.
 - Initial frontend CI failure after adding sitewide CSS was a stale test expecting `member-experience.css` to be the last import. Updated the test to check both member ordering and the new final layer.
-- Backend CI has pre-existing npm audit failures (body-parser and multer high, nodemailer and qs moderate). This is a release/security gate, not a visual regression. Upgrade and verify dependencies separately; never suppress the audit just to get a green badge.
+- Backend dependencies are patched, including Prisma 7.10.1. Full production audit includes optional peers and reports zero vulnerabilities; backend CI passes 716 unit tests and 5 active E2E tests (13 skipped).
 
 ## PC deployment discovery — do not guess
 
@@ -58,3 +58,11 @@ If no authenticated PC access exists, leave PR and build artifacts ready and rec
 3. Address backend dependency audit as a separate security hardening change with full backend tests.
 4. Determine actual PC image deployment and publish a validated frontend artifact for its workflow.
 5. Deploy **only** to `app.usd-russia.ru`, verify from outside the host, record the SHA and rollback tag, then notify the owner.
+
+## Visual correctness fixes — 2026-10-28
+
+- Hide the CMS values panel and its hero shortcut together when all value cards are hidden or missing. A real React render regression test covers missing, empty, disabled and visible card sets.
+- Explicitly retain a vertical flex layout for the generated stage poster. The legacy image display rule was placing the text fallback labels on one line. Uploaded poster images retain their intrinsic dimensions. Candidate browser QA checks fallback labels for overlaps.
+- Preserve the established hero behavior: original trademark logo, WebGL fallback, system reduced-motion preference and offscreen rendering suspension. The previously removed manual pause control is not reintroduced.
+- Administration remains light; public/member surfaces remain dark. No API contracts, historical results, CMS data or deployed resources are changed by these visual fixes.
+- Actual authenticated role acceptance and deployment/image verification still require the owner's host and test-account access. Do not represent candidate screenshots or synthetic fixtures as live authenticated acceptance.

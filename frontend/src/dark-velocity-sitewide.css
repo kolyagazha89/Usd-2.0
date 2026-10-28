@@ -314,6 +314,15 @@ body .usd-live :is(.public-stage-list-poster,.public-stage-poster,.public-stage-
   border-radius:12px!important;overflow:hidden;
 }
 body .usd-live .public-stage-list-poster img,body .usd-live .public-stage-poster img{object-fit:contain!important}
+/* A text fallback is a column, unlike an uploaded poster image. The legacy
+   detail-poster display:block rule otherwise collapses its labels into a row. */
+body .usd-live .public-stage-detail .public-stage-poster-placeholder{
+  display:flex;flex-direction:column;align-items:flex-start;
+  justify-content:space-between;gap:16px;
+}
+body .usd-live .public-stage-detail .public-stage-poster-placeholder>*{
+  max-width:100%;white-space:normal;overflow-wrap:anywhere;
+}
 body .usd-live .public-stage-card h2{font-size:clamp(24px,2.3vw,34px)!important;line-height:1.08}
 body .usd-live .public-stage-date{color:#ff7d90!important}
 body .usd-live .public-result-measure strong{color:#fff!important;font-size:clamp(39px,4vw,56px)!important}
