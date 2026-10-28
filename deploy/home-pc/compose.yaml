@@ -24,8 +24,8 @@ services:
   api:
     image: ghcr.io/kolyagazha89/usd-2.0-api:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
     restart: unless-stopped
-    # Bypass npm run start:prod which can trigger historical import bootstrap.
-    # Apply migrations explicitly after restoring/validating the production DB.
+    # API startup never executes schema or historical data migrations.
+    # Apply reviewed schema migrations explicitly after backing up the database.
     command: ["node", "dist/main.js"]
     env_file: .env
     environment:
