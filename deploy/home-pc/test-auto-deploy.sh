@@ -64,6 +64,11 @@ SH
 cat > "$WORK/release" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+# The builder must not release its exclusive lock before invoking the helper.
+[[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]
+[[ "$(readlink /proc/self/fd/9)" == "$USD_TEST_WORK/lock" ]]
+exec 10>"$USD_TEST_WORK/lock"
+if flock -n 10; then echo 'Builder released its lock before handoff' >&2; exit 1; fi
 [[ "$(cat "$USD_TEST_WORK/state/schema-approved-sha")" == "$1" ]]
 [[ "$(cat "$USD_TEST_WORK/state/release-approved-sha")" == "$1" ]]
 [[ "${USD_TEST_BUSY_RELEASE:-0}" != 1 ]] || exit 75
