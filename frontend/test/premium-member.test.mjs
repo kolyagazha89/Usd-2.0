@@ -77,7 +77,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(css,/member-release-dashboard/);
 });
 
-test('box configuration is versioned and explicit save-as-new keeps older revisions',async()=>{
+test('box configuration is versioned and saves preserve earlier revisions',async()=>{
  const [editor,css,boxParameters]=await Promise.all([
   source('../src/admin/ConfigurationsPage.tsx'),
   source('../src/public/premium-configurator.css'),
@@ -90,7 +90,8 @@ test('box configuration is versioned and explicit save-as-new keeps older revisi
  assert.match(editor,/data-member-view=\{admin\?undefined:activeView\}/);
  assert.match(editor,/className="member-config-box"/);
  assert.match(editor,/Сохранить новую версию/);
- assert.match(editor,/if\(saveAsNew\)await apiPost/);
+ assert.match(editor,/else await apiPut\('\/configurations\/'\+configuration\.id,body\)/);
+ assert.doesNotMatch(editor,/if\(saveAsNew\)await apiPost/);
  assert.match(editor,/member-config-timeline/);
  assert.match(css,/data-member-view="BOX"/);
  assert.match(css,/member-config-timeline-list/);
