@@ -1,0 +1,41 @@
+name: Home PC deployment safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/home-pc/**'
+      - '.github/workflows/home-pc-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: |
+          set -euo pipefail
+          bash -n deploy/home-pc/auto-deploy.sh
+          bash -n deploy/home-pc/release-approved.sh
+      - name: Validate local and tunnel Compose overlays without touching a server
+        run: |
+          set -euo pipefail
+          cd deploy/home-pc
+          cp .env.example .env
+          chmod 600 .env
+          docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
+          CLOUDFLARE_TUNNEL_TOKEN=ci-placeholder docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
+          CLOUDFLARE_TUNNEL_TOKEN=ci-placeholder docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
+      - name: Check invalid release SHA is rejected before Docker access
+        run: |
+          set -euo pipefail
+          set +e
+          sudo bash deploy/home-pc/release-approved.sh invalid >/tmp/release-refusal.log 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -q 'full Git SHA' /tmp/release-refusal.log
