@@ -840,3 +840,16 @@ body .usd-member .configuration-compare-values ins{color:#7ce4b0}
 .member-config-version-note{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #dce2eb;border-radius:12px;background:#f7f9fc;color:#3a485a;font-size:12px;line-height:1.5}
 .member-config-version-note svg{flex:none;color:#db2c47}
 body .usd-member .member-config-version-note{background:#141b23;border-color:#394451;color:#d1d9e4}
+
+/* CMS homepage sections must remain independently movable. The former shared
+   dashboard/bottom grids pinned several independently editable blocks together. */
+body .usd-live .u-home-dashboard--single{
+  grid-template-columns:minmax(0,1fr)!important;
+  min-width:0;
+}
+body .usd-live .u-home-dashboard--single>.u-panel{width:100%;min-width:0}
+body .usd-live .u-home-bottom--single{
+  display:block!important;
+  min-width:0;
+}
+body .usd-live .u-home-bottom--single>.u-panel{width:100%;min-width:0}
