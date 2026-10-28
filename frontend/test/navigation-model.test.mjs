@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {DEFAULT_PUBLIC_NAVIGATION,editablePublicNavigationItems,visiblePublicNavigationItems} from '../src/public/navigation-model.ts';
 
 test('legacy navigation defaults to all USD public sections',()=>{
- assert.equal(visiblePublicNavigationItems({items:[]}).length,DEFAULT_PUBLIC_NAVIGATION.length);
+ assert.equal(visiblePublicNavigationItems({items:[]}).length,DEFAULT_PUBLIC_NAVIGATION.filter(item=>item.enabled).length);
+ assert.equal(visiblePublicNavigationItems({items:[]}).some(([path])=>path==='/partners'),false);
  assert.deepEqual(visiblePublicNavigationItems(undefined)[0],['/','Главная']);
 });
 test('CMS can hide all menu links without silently restoring defaults',()=>{
