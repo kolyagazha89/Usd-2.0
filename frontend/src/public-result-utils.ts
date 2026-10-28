@@ -87,7 +87,7 @@ export function selectHomepageResults(rows:any[]){
  const winnersFor=(kind:string,limit:number)=>{
   const grouped=new Map<string,any[]>();
   for(const row of rows){
-   if(directionKind(row)!==kind||placeOf(row)!==1)continue;
+   if(directionKind(row)!==kind||placeOf(row)!==1||!Number.isFinite(resultNumericValue(row)))continue;
    const key=classKey(row);
    if(!key)continue;
    const bucket=grouped.get(key)??[];
