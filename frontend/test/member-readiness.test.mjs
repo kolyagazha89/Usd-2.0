@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
+import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,missingConfigurationRequirementForClass,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
 
 const row=(direction,type='MIDBASS',quantity=1)=>({direction,type,brand:' USD ',model:'Model 1',quantity});
 
@@ -18,6 +18,27 @@ test('direction readiness requires a real, positive-quantity component',()=>{
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',2)],'SUB'),true);
  assert.equal(isDirectionConfigured([row('FRONT')],'FRONT'),true);
  assert.equal(isDirectionConfigured([row('REAR')],'FRONT'),false);
+});
+
+test('registration hints prioritize BFSPL and BDW even with an imported SPL parent',()=>{
+ const cls=(name)=>({class:{name,direction:{name:'SPL'}}});
+ const front={audioComponents:[row('FRONT')]};
+ const rear={audioComponents:[row('REAR')]};
+ const sub={audioComponents:[row('SUB','SUBWOOFER')]};
+ assert.equal(missingConfigurationRequirementForClass(cls('BFSPL Gate 1-6'),front),'');
+ assert.match(missingConfigurationRequirementForClass(cls('BFSPL Gate 1-6'),sub),/фронтальную акустику/);
+ assert.equal(missingConfigurationRequirementForClass(cls('BDW SPL'),rear),'');
+ assert.match(missingConfigurationRequirementForClass(cls('BDW SPL'),sub),/тыловую акустику/);
+ assert.equal(missingConfigurationRequirementForClass(cls('Limited 2.0'),sub),'');
+ assert.match(missingConfigurationRequirementForClass(cls('Limited 2.0'),front),/сабвуфер/);
+ assert.match(missingConfigurationRequirementForClass(cls('Storm Wall'),front),/сабвуфер/);
+ assert.match(missingConfigurationRequirementForClass(cls('Limited 2.0'),{audioComponents:[row('SUB','SUBWOOFER',0.5)]}),/сабвуфер/);
+ assert.equal(missingConfigurationRequirementForClass(cls('Unknown class'),front),'');
+});
+
+test('participant registration consumes the shared equipment rules',async()=>{
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.match(app,/getMissingConfigurationRequirement=missingConfigurationRequirementForClass/);
 });
 
 test('garage uses the active configuration current version, not another version or car',()=>{
