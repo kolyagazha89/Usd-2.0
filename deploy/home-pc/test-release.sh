@@ -164,6 +164,11 @@ export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
 export USD_TEST_ROLLBACK_MARKER="$WORK/rollback-phase"
 export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
+# A caller cannot bypass the release lock by claiming an inherited lock
+# without actually passing the trusted open file descriptor.
+if USD_DEPLOY_LOCK_HELD=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/forged-lock.log" 2>&1; then exit 1; fi
+grep -q 'Missing trusted inherited deploy lock descriptor' "$WORK/forged-lock.log"
+[[ ! -s "$USD_TEST_LOG" ]]
 # Root-run Docker Compose must reject mutable/unreviewed YAML.
 printf '\n# unreviewed local change\n' >> "$ROOT/compose.yaml"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unreviewed-compose.log" 2>&1; then exit 1; fi
