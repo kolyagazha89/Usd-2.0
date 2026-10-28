@@ -506,6 +506,16 @@ export class ParticipantsService {
     };
   }
 
+  /** Public QR lookup respects the same privacy boundary as /participants/:id. */
+  async findPublicByUsdId(token: string) {
+    if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('Профиль не найден');
+    const participant = await this.prisma.participant.findUnique({
+      where: { usdIdToken: token }, select: { id: true, isPublic: true },
+    });
+    if (!participant?.isPublic) throw new NotFoundException('Профиль не найден');
+    return this.findOne(participant.id);
+  }
+
   /** A USD ID is an opaque public locator, never a login credential.
    * Provision lazily for historical participants without rewriting their data.
    * updateMany's null predicate makes simultaneous first reads idempotent.
