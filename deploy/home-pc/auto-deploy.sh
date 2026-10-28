@@ -30,7 +30,14 @@ fi
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
   git clone --no-checkout --filter=blob:none "$REPO" "$SOURCE_DIR"
 fi
-[[ "$(stat -c %u "$SOURCE_DIR")" == 0 ]] || { echo "Build source must be root-owned" >&2; exit 1; }
+# A root-owned but group-writable checkout is still unsafe: another local
+# account could inject files into the Docker build context or rewrite Git refs.
+for protected_dir in "$SOURCE_DIR" "$SOURCE_DIR/.git" "$STATE_DIR"; do
+  [[ -d "$protected_dir" && ! -L "$protected_dir" && "$(stat -c %u "$protected_dir")" == 0 ]] ||
+    { echo "Unsafe ownership or symlink in deploy directory: $protected_dir" >&2; exit 1; }
+  (( (8#$(stat -c %a "$protected_dir") & 022) == 0 )) ||
+    { echo "Deploy directory must not be group/world writable: $protected_dir" >&2; exit 1; }
+done
 [[ "$(git -C "$SOURCE_DIR" remote get-url origin)" == "$REPO" ]] || { echo "Unexpected Git remote" >&2; exit 1; }
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main
 SHA="$(git -C "$SOURCE_DIR" rev-parse FETCH_HEAD)"
