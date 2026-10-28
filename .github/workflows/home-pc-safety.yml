@@ -43,3 +43,8 @@ jobs:
           grep -q 'full Git SHA' /tmp/release-refusal.log
       - name: Rehearse approved release and rollback with isolated Docker mocks
         run: sudo bash deploy/home-pc/test-release.sh
+      - name: Diagnose remaining development dependency advisories
+        run: |
+          cd backend
+          npm audit --json > /tmp/usd-npm-audit.json || true
+          node -e 'const a=require("/tmp/usd-npm-audit.json"); for (const [name,v] of Object.entries(a.vulnerabilities||{})) console.log(name, v.severity, JSON.stringify(v.fixAvailable))'
