@@ -83,3 +83,21 @@ test('cinematic hero labels and CTAs are editable, rendered and validated throug
  assert.match(backend,/topic\.length>40/);
  assert.doesNotMatch(home,/<span>СОРЕВНОВАНИЯ<\/span>/);
 });
+
+
+test('teams panel visibility and empty-state content are managed through CMS',async()=>{
+ const [home,admin,backend]=await Promise.all([
+  source('../src/public/PremiumHome.tsx'),
+  source('../src/admin/SiteSettingsPage.tsx'),
+  source('../../backend/src/site-settings/site-settings.service.ts'),
+ ]);
+ assert.match(home,/enabled\('teams'\)/);
+ assert.match(home,/title\('teams','СООБЩЕСТВО USD'\)/);
+ for(const key of ['teamsEmptyTitle','teamsEmptyDescription']){
+  assert.match(home,new RegExp("homeText\\('"+key+"'"));
+  assert.match(admin,new RegExp("homepage\\."+key));
+  assert.match(backend,new RegExp(key+":"));
+ }
+ assert.match(backend,/id:'teams',enabled:true/);
+ assert.match(backend,/homepageWithBlocks/);
+});
