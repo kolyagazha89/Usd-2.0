@@ -405,3 +405,10 @@
   .catalog-add-panel+.panel .catalog-chip .inline-confirm-actions { grid-column:1/-1;justify-content:flex-start; }
   .catalog-add-panel+.panel .catalog-chip .inline-confirm-actions button { flex:1;justify-content:center; }
 }
+
+/* Battery catalog stays a light admin surface and never overflows narrow screens. */
+.battery-catalog-row{display:grid;grid-template-columns:minmax(130px,1.2fr) minmax(170px,2fr) minmax(130px,1fr) minmax(100px,1fr) auto auto;align-items:center;gap:10px}
+.battery-catalog-row input,.battery-catalog-row select{min-width:0;width:100%;max-width:100%;box-sizing:border-box}
+.battery-catalog-row .catalog-model-label{min-width:0;overflow-wrap:anywhere}
+@media(max-width:1100px){.battery-catalog-row{grid-template-columns:repeat(2,minmax(0,1fr))}.battery-catalog-row .catalog-model-label{grid-column:1/-1}}
+@media(max-width:540px){.battery-catalog-row{grid-template-columns:minmax(0,1fr)}.battery-catalog-row .catalog-model-label{grid-column:auto}.battery-catalog-row .secondary-button{width:100%;justify-content:center}}
