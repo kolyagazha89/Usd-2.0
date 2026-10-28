@@ -99,6 +99,10 @@ test('battery types must be active CMS codes; historical exceptions are bounded'
 test('configuration editor does not silently add an unknown AGM fallback and serializes all counts',async()=>{
  const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
  assert.match(editor,/const defaultBatteryCode=batteryTypes\[0\]\?\.code\?\?''/);
+ assert.match(editor,/catalogStatus!=='ready'/);
+ assert.match(editor,/setCatalogReload\(n=>n\+1\)/);
+ assert.match(editor,/Справочники USD не загрузились/);
+
  assert.match(editor,/batteries:\(v\.batteries\?\?\[\]\)\.map\(\(battery:any\)=>\(\{\.\.\.battery,quantity:Number\(battery\.quantity\)\}\)\)/);
  assert.match(editor,/generators:\(v\.generators\?\?\[\]\)\.map\(\(generator:any\)=>\(\{\.\.\.generator,quantity:Number\(generator\.quantity\)\}\)\)/);
 });
