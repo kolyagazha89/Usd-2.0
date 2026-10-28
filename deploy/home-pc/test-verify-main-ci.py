@@ -42,6 +42,18 @@ class CIGateTests(unittest.TestCase):
                                      run("Backend CI", attempt=2, ident=2, conclusion="failure")]}
         self.assertEqual(gate.evaluate(payload, SHA, False)[0], 1)
 
+    def test_newer_run_wins_even_if_older_run_was_rerun_more_times(self):
+        # Attempts are scoped to a run ID, not globally ordered. An old
+        # successful rerun cannot approve a newer failed or pending run.
+        older_success = run("Backend CI", attempt=4, ident=10)
+        newer_failed = run("Backend CI", attempt=1, ident=11, conclusion="failure")
+        newer_pending = run("Backend CI", attempt=1, ident=11, status="in_progress", conclusion=None)
+        self.assertEqual(gate.evaluate({"workflow_runs": [older_success, newer_failed]}, SHA, False)[0], 1)
+        self.assertEqual(gate.evaluate({"workflow_runs": [older_success, newer_pending]}, SHA, False)[0], 75)
+        # For attempts of the same run ID, the latest attempt still wins.
+        newer_successful_attempt = run("Backend CI", attempt=2, ident=11)
+        self.assertEqual(gate.evaluate({"workflow_runs": [newer_failed, newer_successful_attempt]}, SHA, False)[0], 0)
+
     def test_malformed_response_is_fail_closed(self):
         for payload in (None, [], {}, {"workflow_runs": "success"}, {"workflow_runs": []}):
             self.assertNotEqual(gate.evaluate(payload, SHA, False)[0], 0)
