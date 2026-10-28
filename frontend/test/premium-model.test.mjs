@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {carName,countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord,nextPublishedStage} from '../src/public/premium-model.ts';
+import {carName,countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord,nextPublishedStage,stageDate} from '../src/public/premium-model.ts';
 
 test('news excludes drafts and future posts, while preserving published content',()=>{
   const rows=[{id:'draft',isPublished:false},{id:'future',publishedAt:'2099-01-01'},{id:'old',publishedAt:'2025-01-01'},{id:'new',publishedAt:'2026-01-01'}];
@@ -63,4 +63,10 @@ test('homepage stage selection handles timezone-offset dates without shifting th
     {id:'local-day',status:'PUBLISHED',date:'2026-10-28T00:00:00+05:00'},
   ];
   assert.equal(nextPublishedStage(stages,now)?.id,'local-day');
+});
+
+test('stage date labels preserve the advertised day across UTC and offset timestamps',()=>{
+ assert.equal(stageDate('2026-10-28T00:00:00.000Z'),'28 октября 2026 г.');
+ assert.equal(stageDate('2026-10-28T00:00:00+05:00'),'28 октября 2026 г.');
+ assert.equal(stageDate('not-a-date'),'Дата уточняется');
 });
