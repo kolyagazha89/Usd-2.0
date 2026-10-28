@@ -29,6 +29,10 @@ cd "$DEPLOY_DIR"
 [[ -f .env && ! -L .env ]] || { echo "Missing or symlinked production .env" >&2; exit 1; }
 (( (8#$(stat -c %a .env) & 077) == 0 )) ||
   { echo "Production .env must not be accessible to group or other users" >&2; exit 1; }
+if grep -Eq '^(TUNNEL_TOKEN|CLOUDFLARE_TUNNEL_TOKEN)=' .env; then
+  echo "Tunnel credential must be isolated in .env.cloudflared, not shared with API" >&2
+  exit 1
+fi
 OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' .env)"
 [[ "$OLD_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid or duplicated USD_IMAGE_TAG" >&2; exit 1; }
 [[ "$OLD_TAG" != "$NEW_TAG" ]] || { echo "Already at requested SHA"; exit 0; }
