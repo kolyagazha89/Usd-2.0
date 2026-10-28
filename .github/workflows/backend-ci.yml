@@ -58,6 +58,7 @@ jobs:
         run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Check historical XLSX snapshot matches GitHub workbooks
@@ -71,9 +72,6 @@ jobs:
       - name: Apply database migrations
         run: npx prisma migrate deploy
 
-      - name: Dependency audit
-        run: npm audit --omit=dev --audit-level=high
-
       - name: Build
         run: npm run build
 
@@ -85,3 +83,10 @@ jobs:
 
       - name: E2E tests
         run: npm run test:e2e -- --runInBand
+
+      # Keep dependency vulnerabilities as a blocking CI gate, but run the
+      # functional suite first so an existing audit failure cannot conceal
+      # unrelated TypeScript, unit-test, or E2E regressions.
+      - name: Dependency audit
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: npm audit --omit=dev --audit-level=high
