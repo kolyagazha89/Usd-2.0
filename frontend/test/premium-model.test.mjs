@@ -48,6 +48,18 @@ test('record cards exclude BassRace even when historical parent direction is SPL
  assert.equal(resultNumericValue({result:{value:null}}),Number.NEGATIVE_INFINITY);
 });
 
+test('homepage first-place results require a real measurement',async()=>{
+ const {selectHomepageResults}=await import('../src/public-result-utils.ts');
+ const cls={id:'limited',name:'Limited 2.0',direction:{name:'SPL'}};
+ const rows=[
+  {id:'draft',place:1,value:null,registrationClass:{classId:'limited',class:cls}},
+  {id:'measured',place:1,value:157.5,registrationClass:{classId:'limited',class:cls}},
+  {id:'missing',place:1,value:'',registrationClass:{classId:'empty',class:{id:'empty',name:'1x2',direction:{name:'SPL'}}}},
+  {id:'second',place:2,value:162,registrationClass:{classId:'second',class:{id:'second',name:'2x2',direction:{name:'SPL'}}}},
+ ];
+ assert.deepEqual(selectHomepageResults(rows).map(row=>row.id),['measured']);
+});
+
 test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,21,22,25].map(n=>countLabel(n,'участник','участника','участников')),['0 участников','1 участник','2 участника','5 участников','11 участников','21 участник','22 участника','25 участников']);});
 
 test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});
