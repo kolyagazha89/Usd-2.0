@@ -34,7 +34,10 @@ def evaluate(payload: object, sha: str, require_frontend: bool) -> tuple[int, st
         if not candidates:
             return 75, f"Waiting for {name} push run for {sha}"
         # GitHub can return reruns/attempts; require the latest attempt.
-        latest = max(candidates, key=lambda run: (int(run.get("run_attempt") or 0), int(run.get("id") or 0)))
+        # A rerun increments run_attempt only *within* its run ID. An older
+        # rerun must never override a newer run for the same commit/workflow.
+        # GitHub run IDs increase across newly created workflow runs.
+        latest = max(candidates, key=lambda run: (int(run.get("id") or 0), int(run.get("run_attempt") or 0)))
         if latest.get("status") != "completed":
             return 75, f"Waiting for {name}: {latest.get('status')}"
         if latest.get("conclusion") != "success":
