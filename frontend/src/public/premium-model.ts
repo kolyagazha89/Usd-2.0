@@ -8,7 +8,15 @@ export function nextPublishedStage(stages:any[]=[],now=Date.now()){
 }
 
 export function publishedNews(rows:any[]=[],now=Date.now()){
- return rows.filter(row=>row.isPublished!==false&&(!row.publishedAt||new Date(row.publishedAt).getTime()<=now)).slice().sort((a,b)=>new Date(b.publishedAt||b.createdAt||0).getTime()-new Date(a.publishedAt||a.createdAt||0).getTime());
+ return rows.filter(row=>{
+  if(!row||row.isPublished===false)return false;
+  if(!row.publishedAt)return true;
+  const publishedAt=new Date(row.publishedAt).getTime();
+  return Number.isFinite(publishedAt)&&publishedAt<=now;
+ }).slice().sort((a,b)=>{
+  const date=(row:any)=>{const value=new Date(row.publishedAt||row.createdAt||0).getTime();return Number.isFinite(value)?value:0};
+  return date(b)-date(a);
+ });
 }
 export function teamGroups(people:any[]=[]){
  const groups=new Map<string,{name:string;members:any[]}>();
