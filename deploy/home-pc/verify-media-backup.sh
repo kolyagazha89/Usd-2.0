@@ -8,7 +8,8 @@ source="$1"
 backup="$2"
 src_norm="${source%/}"
 backup_norm="${backup%/}"
-[[ -n "$src_norm" && -n "$backup_norm" && "$src_norm" != "$backup_norm" && "$backup_norm" != "$src_norm/"* ]] ||
+[[ -n "$src_norm" && -n "$backup_norm" && "$src_norm" != "$backup_norm" &&
+   "$backup_norm" != "$src_norm/"* && "$src_norm" != "$backup_norm/"* ]] ||
   { echo 'Source and backup must be distinct, non-nested paths' >&2; exit 1; }
 for tool in rclone python3 mktemp df awk; do command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }; done
 # Require an empty backup prefix: never overwrite or mix snapshots.
