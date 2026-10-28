@@ -55,3 +55,14 @@ test('both member and admin editor validate models against the same catalog rule
  assert.match(editor,/Number\.isSafeInteger\(Number\(x\.quantity\)\)/);
  assert.match(editor,/catalogEntryId:entry\?String\(entry\.id\):row\.catalogEntryId/);
 });
+
+test('catalog admin preserves stable IDs by deactivating rather than deleting models',async()=>{
+ const admin=await readFile(new URL('../src/admin/CatalogPage.tsx',import.meta.url),'utf8');
+ assert.match(admin,/const toggleComponentModel=async/);
+ assert.match(admin,/const toggleComponentBrand=async/);
+ assert.match(admin,/Включить модель/);
+ assert.match(admin,/Отключить модель/);
+ assert.match(admin,/Включить марку/);
+ assert.doesNotMatch(admin,/componentModels:catalogs\.componentModels\.filter\(\(x:any\)=>x\.id!==item\.id\)/);
+ assert.doesNotMatch(admin,/Удалить марку и модели\?/);
+});
