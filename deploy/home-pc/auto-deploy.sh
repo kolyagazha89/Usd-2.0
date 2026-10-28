@@ -115,7 +115,7 @@ remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main
   echo "Cannot recheck main branch after CI; deferring release" >&2
   exit 0
 }
-latest_main="$(printf '%s\\n' "$remote_main" | awk '$2 == "refs/heads/main" {print $1}')"
+latest_main="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
 [[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || {
   echo "Invalid main branch tip response; deferring release" >&2
   exit 0
