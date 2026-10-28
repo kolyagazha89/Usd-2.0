@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 umask 077
 exec 9>/run/lock/usd-home-deploy.lock
-flock -n 9 || { echo "Another USD build/release is running" >&2; exit 1; }
+flock -n 9 || { echo "Another USD build/release is running; retry later" >&2; exit 75; }
 
 DEPLOY_DIR=/home/usd/usd-deploy/deploy/home-pc
 STATE_DIR=/var/lib/usd-deployer
