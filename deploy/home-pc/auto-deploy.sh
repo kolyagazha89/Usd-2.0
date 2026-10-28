@@ -89,6 +89,23 @@ OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"
 old_schema="$(git -C "$SOURCE_DIR" rev-parse "$OLD_TAG:backend/prisma")"
 [[ "$old_schema" == "$approved_schema" ]] || { echo "Current deployment schema differs from approved policy" >&2; exit 1; }
+# Do not auto-release an untested main commit. Backend CI runs on every main
+# push; frontend CI is path-filtered, so require it only when frontend changed.
+frontend_changes="$(git -C "$SOURCE_DIR" diff --name-only "$OLD_TAG" "$SHA" -- frontend)" ||
+  { echo "Cannot compare frontend trees for CI policy" >&2; exit 1; }
+frontend_changed=0
+[[ -z "$frontend_changes" ]] || frontend_changed=1
+if /usr/local/libexec/usd-verify-main-ci "$SHA" "$frontend_changed"; then
+  :
+else
+  ci_status=$?
+  if [[ "$ci_status" == 75 ]]; then
+    echo "Main CI not verified yet; leaving current deployment untouched" >&2
+    exit 0
+  fi
+  echo "Main CI gate refused automatic release" >&2
+  exit "$ci_status"
+fi
 if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sha")" == "$SHA" ]]; then
   echo "This SHA already failed release; inspect logs before explicitly clearing failed-release-sha" >&2
   exit 1
