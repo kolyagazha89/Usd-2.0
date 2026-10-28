@@ -66,7 +66,10 @@ for file in "${active_files[@]}"; do
 done
 [[ "$has_base" == 1 ]] || { echo "Base Compose file absent" >&2; exit 1; }
 db_before="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")"
-[[ -n "$db_before" && "$db_before" != *
+[[ -n "$db_before" && "$db_before" != *$'\n'* ]] ||
+  { echo "Expected exactly one running production DB" >&2; exit 1; }
+[[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before")" == healthy ]] ||
+  { echo "Production DB is not healthy; refusing release" >&2; exit 1; }
 
 # Use a private, unique rollback snapshot. Preserve original ownership and mode.
 mkdir -p "$STATE_DIR"
