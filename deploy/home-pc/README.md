@@ -10,6 +10,7 @@ Use the existing Hyper-V Default Switch **only for initial staging**. Its intern
 
 ## Image builds and data boundaries
 
+- Before an automatic release, the builder checks the live GitHub main tip again **after** CI verification; if a new commit arrived during the long local build, it defers the stale candidate and rebuilds the newer main SHA on the next poll. A malformed or unreachable remote ref also blocks release without quarantining a healthy image.
 - The local timer builds API/frontend with immutable full Git SHA tags. GHCR publication is a manual fallback. Local builds require at least 3 GB available RAM and 8 GB free Docker storage; insufficient capacity blocks the build. The build cache is valid only when both SHA-tagged images remain present; if Docker prunes either one, the next poll rebuilds both. The dedicated root-owned checkout is forcibly cleaned of untracked files before every rebuild.
 - Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env.
 - Database remains private on the Compose bridge (no published PostgreSQL port).
@@ -64,9 +65,11 @@ sudo /usr/local/libexec/usd-rehearse-schema-on-backup \
 
 The helper creates a fresh Docker-internal network, PostgreSQL 18 container
 and disposable volume; it restores the **entire** archive with
-`pg_restore --exit-on-error`, runs `prisma migrate deploy` and
-`prisma migrate status` from the candidate image, then destroys those
-temporary resources. It publishes no ports, receives no production
+`pg_restore --exit-on-error`, records row counts for every pre-existing
+application table, runs `prisma migrate deploy` and `prisma migrate status`
+from the candidate image, and checks that those tables and row counts are
+still present before destroying temporary resources. A destructive or
+row-moving migration is deliberately blocked for separate manual review. It publishes no ports, receives no production
 environment file, and cannot reach the public internet through its internal
 network. A failed restore or migration blocks approval. PostgreSQL 18 data
 volumes on the live Compose project are never mounted.
