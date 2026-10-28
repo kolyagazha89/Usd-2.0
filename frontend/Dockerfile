@@ -6,7 +6,7 @@ ENV VITE_API_URL=${VITE_API_URL}
 
 # package.json runs a build in postinstall, so source and tsconfig must exist first.
 COPY . .
-RUN npm install
+RUN npm ci
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
