@@ -1,4 +1,4 @@
-import {isDbRecordEligible,resultNumericValue} from '../public-result-utils';
+import {isDbRecordEligible,resultNumericValue} from '../public-result-utils.ts';
 /**
  * Stages are scheduled by calendar day, not by their UTC instant.
  * An ISO date stored at midnight UTC must still be shown on that date for
