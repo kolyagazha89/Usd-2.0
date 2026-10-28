@@ -34,12 +34,14 @@ export function requiredDirectionsForRegistration(registration:unknown):AudioDir
   const cls=item.class??item.stageClass?.class??item.stageClass??item;
   const direction=normalize(cls?.direction?.name);
   const identity=[cls?.name,cls?.direction?.name,cls?.code].map(normalize).join(' ');
-  if(['spl','bassrace','hurrican'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
-   required.add('SUB');
-  }else if(identity.includes('bfspl')){
+  // Class-specific directions take precedence over a generic SPL label.
+  // Imported BDW/BFSPL classes may carry a legacy SPL parent direction.
+  if(identity.includes('bfspl')||direction==='bfspl'){
    required.add('FRONT');
-  }else if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'){
+  }else if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'||direction==='bdwspl'){
    required.add('REAR');
+  }else if(['spl','bassrace','hurrican'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
+   required.add('SUB');
   }
  }
  return (['SUB','FRONT','REAR'] as const).filter(direction=>required.has(direction));
