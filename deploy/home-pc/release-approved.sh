@@ -60,7 +60,13 @@ has_base=0
 for file in "${active_files[@]}"; do
   case "$file" in
     "$DEPLOY_DIR/compose.yaml") has_base=1 ;;
-    "$DEPLOY_DIR/compose.local.yaml"|"$DEPLOY_DIR/compose.tunnel.yaml") ;;
+    "$DEPLOY_DIR/compose.local.yaml") ;;
+    "$DEPLOY_DIR/compose.tunnel.yaml")
+      tunnel_env="$DEPLOY_DIR/.env.cloudflared"
+      [[ -f "$tunnel_env" && ! -L "$tunnel_env" && "$(stat -c %u "$tunnel_env")" == 0 ]] ||
+        { echo "Missing, symlinked or non-root-owned tunnel credential file" >&2; exit 1; }
+      (( (8#$(stat -c %a "$tunnel_env") & 077) == 0 )) ||
+        { echo "Tunnel credential file must not be accessible to group or others" >&2; exit 1; } ;;
     *) echo "Unknown active Compose file: $file" >&2; exit 1 ;;
   esac
   [[ -f "$file" ]] || { echo "Compose file missing: $file" >&2; exit 1; }
