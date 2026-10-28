@@ -3,12 +3,12 @@
 set -Eeuo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true && "$(id -u)" == 0 ]] ||
   { echo 'Run only as root on a disposable GitHub Actions runner' >&2; exit 1; }
-[[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
 [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] ||
   { echo 'Refusing to touch an existing usd-home stack' >&2; exit 1; }
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
 TRUSTED_DIR=/etc/usd-deployer/compose
+[[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
 WORK="$(mktemp -d)"
 OLD=1111111111111111111111111111111111111111
 BAD=2222222222222222222222222222222222222222
