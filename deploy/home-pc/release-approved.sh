@@ -94,10 +94,16 @@ tmp=''
 # actually switch images. Require exactly one running container per service and
 # verify its immutable image tag before declaring release or rollback healthy.
 verify_running_images() {
-  local expected="$1" service ids image
+  local expected="$1" service ids running_image
   for service in api frontend; do
     ids="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$service")"
-    [[ -n "$ids" && "$ids" != *  local attempt api_ok frontend_ok
+    [[ -n "$ids" && "$(printf '%s\\n' "$ids" | wc -l)" -eq 1 ]] || return 1
+    running_image="$(docker inspect -f '{{.Config.Image}}' "$ids")" || return 1
+    [[ "$running_image" == "ghcr.io/kolyagazha89/usd-2.0-$service:$expected" ]] || return 1
+  done
+}
+wait_ready() {
+  local attempt api_ok frontend_ok
   for attempt in $(seq 1 30); do
     api_ok=0
     frontend_ok=0
