@@ -21,7 +21,7 @@ jobs:
       - run: docker compose --project-directory deploy/home-pc -f deploy/home-pc/compose.yaml config --quiet
 
   publish:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/infra/self-hosted-hyperv-usd-20261025')
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
