@@ -81,6 +81,13 @@ flock -u 9
 if /usr/local/sbin/usd-release-approved "$SHA"; then
   rm -f "$STATE_DIR/failed-release-sha"
 else
+  status=$?
+  # The helper acquires its own lock after we release ours. A competing
+  # builder/release can win that hand-off; do not quarantine a healthy SHA.
+  if [[ "$status" == 75 ]]; then
+    echo "Another USD deployment acquired the lock; retrying on next poll" >&2
+    exit 0
+  fi
   printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
-  exit 1
+  exit "$status"
 fi
