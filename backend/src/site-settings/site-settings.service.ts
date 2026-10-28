@@ -74,7 +74,7 @@ export class SiteSettingsService{
     const homepage=value as Record<string,unknown>;
     for(const field of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel','teamsEmptyTitle','teamsEmptyDescription']){
       if(homepage[field]!==undefined&&(typeof homepage[field]!=='string'||(homepage[field] as string).length>160))
-        throw new BadRequestException('Неверный текст первого экрана.');
+        throw new BadRequestException('Неверный текст главной страницы.');
     }
     if(homepage.heroTopics!==undefined){
       if(!Array.isArray(homepage.heroTopics)||homepage.heroTopics.length>8||homepage.heroTopics.some((topic:unknown)=>typeof topic!=='string'||topic.length>40))
