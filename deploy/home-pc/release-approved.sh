@@ -102,6 +102,8 @@ rollback() {
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
+    elif [[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" != healthy ]]; then
+      echo "CRITICAL: production DB is unhealthy after application rollback; manual intervention required" >&2
     else
       echo "Previous API/frontend passed readiness after rollback" >&2
     fi
