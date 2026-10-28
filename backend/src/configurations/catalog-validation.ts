@@ -5,7 +5,7 @@ import { BadRequestException } from '@nestjs/common';
  * brand/model text, switch a subwoofer into a different category, or reuse a stale ID.
  */
 export type CatalogEquipmentRow = {
-  catalogEntryId?: string;
+  catalogEntryId?: string | null;
   brand: string;
   model: string;
   type?: string;
