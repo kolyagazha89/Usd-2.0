@@ -13,7 +13,7 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
  const [configurationAnswer,setConfigurationAnswer]=useState<''|'unchanged'|'updated'>('');
  const [updatedReviewed,setUpdatedReviewed]=useState(false);
  const canContinueVehicle=canContinueVehicleRegistration(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed);
- useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false);setStep(0)},[carId,configurationId]);
+ useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false);setStep(0)},[stage?.id,carId,configurationId]);
  const title=useRef<HTMLHeadingElement>(null);
  const move=(next:number)=>{setStep(next);requestAnimationFrame(()=>{title.current?.focus();title.current?.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})})};
  useEffect(()=>{if(step>0&&!canContinueVehicle)setStep(0);else if(step>1&&!classesReady)setStep(1)},[canContinueVehicle,classesReady,step]);
