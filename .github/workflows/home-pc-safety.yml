@@ -31,6 +31,9 @@ jobs:
           cd deploy/home-pc
           cp .env.example .env
           chmod 600 .env
+          # Tunnel-only hosts must not expose the direct Caddy ingress by default.
+          ! docker compose --env-file .env -f compose.yaml config --services | grep -qx caddy
+          docker compose --profile direct-edge --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
           CLOUDFLARE_TUNNEL_TOKEN=ci-placeholder docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
           CLOUDFLARE_TUNNEL_TOKEN=ci-placeholder docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
