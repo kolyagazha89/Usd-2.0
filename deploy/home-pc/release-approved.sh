@@ -157,6 +157,9 @@ wait_ready() {
 rollback() {
   local status="${1:-$?}"
   trap - ERR TERM INT
+  # Never destroy the only saved original configuration if rollback cannot
+  # restore it. The snapshot is private (mktemp under root-owned STATE_DIR).
+  local env_restored=1
   if [[ "$changed" == 1 ]]; then
     echo "Release failed (exit $status); restoring previous images" >&2
     # Restore via a private file on the SAME filesystem as .env. A direct
@@ -167,6 +170,7 @@ rollback() {
        ! cp -p "$backup" "$restore_tmp" ||
        ! mv -f "$restore_tmp" .env; then
       [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
+      env_restored=0
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
     elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
@@ -182,7 +186,11 @@ rollback() {
       echo "Previous API/frontend passed readiness after rollback" >&2
     fi
   fi
-  rm -f -- "$backup"
+  if [[ "$env_restored" == 1 ]]; then
+    rm -f -- "$backup"
+  else
+    echo "CRITICAL: original .env retained at $backup (private root-only file); restore it manually before any further release" >&2
+  fi
   [[ -z "$db_snapshot_tmp" ]] || rm -f -- "$db_snapshot_tmp"
   # A failed Compose validation must not leave a private .env copy behind.
   [[ -z "$tmp" ]] || rm -f -- "$tmp"
