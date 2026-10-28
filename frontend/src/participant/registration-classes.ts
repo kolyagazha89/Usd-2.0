@@ -7,3 +7,12 @@ export function nextRegistrationClassIds(ids:string[],id:string,checked:boolean)
  if(ids.includes(id)||ids.length>=MAX_REGISTRATION_CLASSES)return ids;
  return [...ids,id];
 }
+
+export type ConfigurationReviewAnswer=''|'unchanged'|'updated';
+
+/** Returning competitors must explicitly confirm the version they are entering with. */
+export function canContinueVehicleRegistration(vehicleReady:boolean,repeatVehicle:boolean,answer:ConfigurationReviewAnswer,updatedReviewed:boolean):boolean{
+ if(!vehicleReady)return false;
+ if(!repeatVehicle)return true;
+ return answer==='unchanged'||(answer==='updated'&&updatedReviewed);
+}
