@@ -62,6 +62,24 @@ describe('server-side equipment catalog authorization', () => {
       { audioComponents: [legacy] })).toThrow(BadRequestException);
   });
 
+  it('requires an active CMS battery code while preserving unchanged legacy batteries', () => {
+    const settings = { ...catalogs, batteryTypes: [
+      { code: 'LTO', name: 'Литий-титанат', chemistry: 'LTO', construction: 'CELLS', isActive: true },
+      { code: 'AGM', name: 'AGM', chemistry: 'LEAD_ACID', construction: 'AGM', isActive: false },
+    ] };
+    expect(() => assertCatalogEquipment(settings, { batteries: [
+      { brand: 'LTO', model: '80', quantity: 2 },
+    ] })).not.toThrow();
+    expect(() => assertCatalogEquipment(settings, { batteries: [
+      { brand: 'AGM', model: '80', quantity: 2 },
+    ] })).toThrow(BadRequestException);
+    const legacy = { brand: 'Old chemistry', model: '80', quantity: 2 };
+    expect(() => assertCatalogEquipment(settings, { batteries: [legacy] },
+      { batteries: [legacy] })).not.toThrow();
+    expect(() => assertCatalogEquipment(settings, { batteries: [legacy, legacy] },
+      { batteries: [legacy] })).toThrow(BadRequestException);
+  });
+
   it('does not allow new arbitrary text when the catalog is empty', () => {
     expect(() => assertCatalogEquipment({}, { audioComponents: [sub] })).toThrow(BadRequestException);
     expect(() => assertCatalogEquipment({}, { audioComponents: [] })).not.toThrow();
