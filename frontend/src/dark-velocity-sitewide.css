@@ -835,3 +835,8 @@ body .usd-member .configuration-compare-values del{color:#f2a4ae}
 body .usd-member .configuration-compare-values ins{color:#7ce4b0}
 .configuration-compare-head select:focus-visible{outline:3px solid #f45168;outline-offset:2px}
 @media(max-width:760px){.configuration-compare-sections{grid-template-columns:minmax(0,1fr)}.configuration-compare-section li{flex-wrap:wrap}.configuration-compare-values{justify-content:flex-start;text-align:left}}
+
+
+.member-config-version-note{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #dce2eb;border-radius:12px;background:#f7f9fc;color:#3a485a;font-size:12px;line-height:1.5}
+.member-config-version-note svg{flex:none;color:#db2c47}
+body .usd-member .member-config-version-note{background:#141b23;border-color:#394451;color:#d1d9e4}
