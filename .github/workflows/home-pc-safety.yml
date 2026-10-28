@@ -103,7 +103,7 @@ jobs:
           # First initialize the disposable source DB with the candidate's
           # actual migration history, then add a user-data fixture and dump it.
           db_url="postgresql://usd:disposable-ci-only@$db:5432/usd?schema=public"
-          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \\
+          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \
             --entrypoint npx usd-api-candidate:${{ github.sha }} prisma migrate deploy
           docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE schema_rehearsal_fixture (id integer PRIMARY KEY); INSERT INTO schema_rehearsal_fixture VALUES (42);'
           docker exec "$db" pg_dump -Fc --no-owner --no-acl -U usd -d usd > "$dump"
