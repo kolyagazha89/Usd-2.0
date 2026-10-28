@@ -10,8 +10,9 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
  return rows.some((value:unknown)=>{
   if(!value||typeof value!=='object')return false;
   const item=value as AudioComponent;
+  const validQuantity=typeof item.quantity==='number'||(typeof item.quantity==='string'&&/^[0-9]+$/.test(item.quantity.trim()));
   const quantity=Number(item.quantity);
-  return item.direction===direction
+  return validQuantity&&item.direction===direction
    &&String(item.brand??'').trim().length>0
    &&String(item.model??'').trim().length>0
    &&Number.isSafeInteger(quantity)&&quantity>0
@@ -23,51 +24,40 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
  * This is advisory only: registration eligibility is still checked by the API.
  * Unknown legacy class names do not introduce invented requirements.
  */
+/** Keep registration, garage and onboarding hints on the same class mapping.
+ * Historic imports sometimes nest the class inside stageClass and attach a
+ * generic SPL parent to BFSPL/BDW. Specific classes must win. */
+function requiredDirectionForClass(row:unknown):AudioDirection|null{
+ if(!row||typeof row!=='object')return null;
+ const item=row as {class?:any;stageClass?:any;directionName?:unknown;direction?:any};
+ const cls=item.class??item.stageClass?.class??item.stageClass??item;
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const direction=normalize(cls?.direction?.name??cls?.directionName??item.directionName??item.direction?.name);
+ const identity=[cls?.name,cls?.code,direction].map(normalize).join(' ');
+ if(identity.includes('bfspl'))return 'FRONT';
+ if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'||direction==='bdwspl')return 'REAR';
+ if(['spl','bassrace','hurrican','hurricane','stormwall'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall'))return 'SUB';
+ return null;
+}
 export function requiredDirectionsForRegistration(registration:unknown):AudioDirection[]{
  const classes=(registration as {classes?:unknown}|null)?.classes;
  if(!Array.isArray(classes))return [];
  const required=new Set<AudioDirection>();
- const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');
  for(const row of classes){
-  if(!row||typeof row!=='object')continue;
-  const item=row as {class?:any;stageClass?:any};
-  const cls=item.class??item.stageClass?.class??item.stageClass??item;
-  const direction=normalize(cls?.direction?.name);
-  const identity=[cls?.name,cls?.direction?.name,cls?.code].map(normalize).join(' ');
-  // Class-specific directions take precedence over a generic SPL label.
-  // Imported BDW/BFSPL classes may carry a legacy SPL parent direction.
-  if(identity.includes('bfspl')||direction==='bfspl'){
-   required.add('FRONT');
-  }else if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'||direction==='bdwspl'){
-   required.add('REAR');
-  }else if(['spl','bassrace','hurrican','hurricane'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
-   required.add('SUB');
-  }
+  const direction=requiredDirectionForClass(row);
+  if(direction)required.add(direction);
  }
  return (['SUB','FRONT','REAR'] as const).filter(direction=>required.has(direction));
 }
 
-/** Explain the server-side registration requirement for a single stage class.
- * A legacy generic SPL parent must not override a BFSPL or BDW class.
- * Advisory only: the API validates the immutable configuration snapshot.
- */
+/** Advisory only: the API validates the immutable configuration snapshot. */
 export function missingConfigurationRequirementForClass(item:any,config:any):string{
  if(!config)return '';
- const cls=item?.class??item;
- const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');
- const direction=normalize(cls?.direction?.name??item?.directionName??item?.direction?.name);
- const identity=[cls?.name,direction,cls?.code].map(normalize).join(' ');
- const components=config.audioComponents;
- if(identity.includes('bfspl')){
-  return isDirectionConfigured(components,'FRONT')?'':'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
- }
- if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'){
-  return isDirectionConfigured(components,'REAR')?'':'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';
- }
- if(['spl','bassrace','hurrican','hurricane'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
-  return isDirectionConfigured(components,'SUB')?'':'Для направлений SPL, BassRace и Storm Wall необходимо добавить сабвуфер в конфигурацию автомобиля.';
- }
- return '';
+ const direction=requiredDirectionForClass(item);
+ if(!direction||isDirectionConfigured(config.audioComponents,direction))return '';
+ if(direction==='FRONT')return 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
+ if(direction==='REAR')return 'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+ return 'Для направлений SPL, BassRace и Storm Wall необходимо добавить сабвуфер в конфигурацию автомобиля.';
 }
 
 export function currentCarAudioComponents(car:any):unknown{
