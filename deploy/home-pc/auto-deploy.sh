@@ -112,9 +112,11 @@ if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sh
 fi
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
-# The release helper takes the same lock and verifies built-sha again.
-flock -u 9
-if /usr/local/sbin/usd-release-approved "$SHA"; then
+# Keep the SAME lock continuously across build, CI approval and release.
+# Unlocking here allowed a second builder to replace built-sha between
+# approval and release, spuriously quarantining an otherwise healthy commit.
+# The helper verifies the inherited descriptor before reusing it.
+if USD_DEPLOY_LOCK_HELD=1 /usr/local/sbin/usd-release-approved "$SHA"; then
   rm -f "$STATE_DIR/failed-release-sha"
 else
   status=$?
