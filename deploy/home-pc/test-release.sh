@@ -109,6 +109,14 @@ chmod +x "$WORK/bin/docker" "$WORK/bin/sleep"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
+chmod 640 "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-env.log" 2>&1; then
+  echo "Expected insecure production environment to block release" >&2
+  exit 1
+fi
+grep -q "must not be accessible to group" "$WORK/insecure-env.log"
+[[ ! -s "$USD_TEST_LOG" ]]
+chmod 600 "$ROOT/.env"
 export USD_TEST_IMAGE_MISMATCH=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
