@@ -58,7 +58,7 @@ export async function runRegistrationJourney(){
  const stage={id:'flow-stage',name:'Финал USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'flow-car',brand:'Lada',model:'Vesta',isActive:true};
  const cls={id:'flow-class',name:'Limited 2.0',direction:{name:'SPL'}};
- const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12'}]};
+ const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12',quantity:1}]};
  let submitted:any=null;let releaseOld:((value:any)=>void)|null=null;let firstConfigurationRequest=true;
  state.__getPublic=async(path:string)=>{
   if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',phone:'+79001111008'}};
