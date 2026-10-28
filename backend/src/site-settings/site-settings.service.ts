@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
-  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
+  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;teamsEmptyTitle?:string;teamsEmptyDescription?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
@@ -15,7 +15,7 @@ const DEFAULTS:SiteSettingsShape={
   homepage:{blocks:[
     {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},{id:'values',enabled:true,title:'Почему USD'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
-    {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
+    {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},{id:'teams',enabled:true,title:'Сообщество USD'},
     {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'}],
     heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
     heroKicker:'USD / ЧЕМПИОНАТ ПО АВТОЗВУКУ',
@@ -27,7 +27,8 @@ const DEFAULTS:SiteSettingsShape={
     communityButtonLabel:'Присоединиться',
     documentsDescription:'Правила, регламенты и технические требования.',
     documentsButtonLabel:'Перейти к документам',
-    valuesTitle:'ПОЧЕМУ USD',valuesSubtitle:'БОЛЬШЕ, ЧЕМ СОРЕВНОВАНИЯ — ЭТО КУЛЬТУРА',
+    teamsEmptyTitle:'Твоя команда. Твой звук.',teamsEmptyDescription:'Публичные команды участников появятся здесь.',
+     valuesTitle:'ПОЧЕМУ USD',valuesSubtitle:'БОЛЬШЕ, ЧЕМ СОРЕВНОВАНИЯ — ЭТО КУЛЬТУРА',
     valuesCards:[
       {id:'competitions',heading:'ОФИЦИАЛЬНЫЕ',subtitle:'СОРЕВНОВАНИЯ',description:'Продуманный путь до старта',path:'/stages',enabled:true},
       {id:'records',heading:'НОВЫЕ',subtitle:'РЕКОРДЫ',description:'Измерения и личная история',path:'/records',enabled:true},
@@ -71,7 +72,7 @@ export class SiteSettingsService{
   private validateHomepage(value:unknown){
     if(!value||typeof value!=='object'||Array.isArray(value)) return;
     const homepage=value as Record<string,unknown>;
-    for(const field of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel']){
+    for(const field of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel','teamsEmptyTitle','teamsEmptyDescription']){
       if(homepage[field]!==undefined&&(typeof homepage[field]!=='string'||(homepage[field] as string).length>160))
         throw new BadRequestException('Неверный текст первого экрана.');
     }
