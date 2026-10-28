@@ -28,6 +28,23 @@ export function currentCarAudioComponents(car:any):unknown{
  return version?.audioComponents;
 }
 
+/** Keep the member's next stage tied to its calendar date, not to a stale
+ * registrationOpen flag left enabled on a past event. A stage's ISO date is
+ * the organizer's event day; comparing its UTC timestamp to Date.now() can
+ * hide today's event in time zones west of UTC. */
+export function upcomingStages<T extends {date?:unknown;isDeleted?:boolean}>(stages:T[],now=new Date()):T[]{
+ const localDay=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+ const today=localDay(now);
+ const eventDay=(value:unknown):string|null=>{
+  const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
+  if(!date||!Number.isFinite(date.getTime()))return null;
+  const iso=typeof value==='string'?value.match(/^(\\d{4}-\\d{2}-\\d{2})(?:T|$)/):null;
+  return iso?iso[1]:localDay(date);
+ };
+ return stages.filter(stage=>!stage.isDeleted&&((day)=>day!==null&&day>=today)(eventDay(stage.date)))
+  .sort((a,b)=>(eventDay(a.date)??'').localeCompare(eventDay(b.date)??''));
+}
+
 export function isCarRegisteredForStage(registrations:unknown,carId:unknown,stageId:unknown):boolean{
  if(!carId||!stageId||!Array.isArray(registrations))return false;
  return registrations.some((registration:any)=>registration?.status!=='CANCELLED'
