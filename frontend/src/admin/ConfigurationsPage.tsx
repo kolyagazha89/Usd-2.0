@@ -7,7 +7,7 @@ import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
 import {diffConfigurationVersions} from '../participant/configuration-diff';
-import {availableCatalogModels,isApprovedCatalogModel,isUnchangedLegacyCatalogRow} from '../participant/component-catalog-rules';
+import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow} from '../participant/component-catalog-rules';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
@@ -71,9 +71,10 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand)))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
  const pickerModels=picker?activeModels(picker.kind,picker.type).filter((x:any)=>x.brand===picker.brand&&String(x.model).toLowerCase().includes(modelQuery.trim().toLowerCase())):[];
  const savePicker=()=>{if(!picker)return;const approved=isApprovedCatalogModel(catalogs.componentModels,picker.kind,picker);
-  if(!approved){setError('Сначала выберите модель нужной категории из каталога USD. Если её нет, отправьте запрос администратору.');return}
+   const entry=activeModels(picker.kind,picker.type).find((model:any)=>model.brand===picker.brand&&model.model===picker.model&&model.id);
+  if(!approved||!entry){setError('Выберите модель с ID из каталога USD. Если её нет, отправьте запрос администратору.');return}
   if(!Number.isSafeInteger(picker.quantity)||picker.quantity<1||picker.quantity>99){setError('Укажите целое количество оборудования от 1 до 99.');return}
-  add(picker.kind,{brand:picker.brand,model:picker.model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
+  add(picker.kind,{catalogEntryId:String(entry.id),brand:picker.brand,model:picker.model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
   setPicker(null);setError('');
  };
  const brandOptions=(cat:string,current:string,type?:string)=>{const wanted=cat==='AUDIO_COMPONENT'&&type==='SUBWOOFER'?'SUBWOOFER':cat;const values=catalogs.componentBrands.filter((x:any)=>x.category===wanted&&x.isActive!==false).map((x:any)=>String(x.name));return [...new Set<string>(current&&!values.includes(current)?[current,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
@@ -97,7 +98,6 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const add=(key:string,item:any)=>setV((s:any)=>({...s,[key]:[...s[key],item]}));
 
  const validateCatalog=()=>{
-  if(historicalFinal)return true;
   for(const [key,category] of [['headUnits','HEAD_UNIT'],['audioComponents','AUDIO_COMPONENT'],['amplifiers','AMPLIFIER']] as const){
    for(const row of v[key]){
     const brand=String(row.brand??'').trim(),model=String(row.model??'').trim();
@@ -112,7 +112,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   const boxError=validateBoxParameters(box);if(boxError){setActiveView('BOX');setError(boxError);return}
   setSaving(true);try{
    const boxLine=formatBoxLine(box);
-   const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription});if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
+   const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription},catalogs.componentModels);if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
  return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':admin?'Новая версия · '+configuration.name:selectedView.label}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':admin?'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.':selectedView.desc}</p></header>
   {!admin&&<section className="member-config-experience" aria-label="Конфигурация оборудования">
     <div className="member-config-vehicle">
@@ -130,12 +130,12 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
        <div className="member-config-picker-body"><div className="member-config-picker-fields">
         <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPicker({...picker,kind,brand:'',model:''});setModelQuery('')}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
         <label>Бренд<select value={picker.brand} onChange={e=>{setPicker({...picker,brand:e.target.value,model:''});setModelQuery('')}}><option value="">Выберите бренд</option>{pickerBrands.map(name=><option key={name} value={name}>{name}</option>)}</select></label>
-        <label>Поиск модели<input value={modelQuery} type="search" placeholder="Название модели" onChange={e=>setModelQuery(e.target.value)}/></label>
+        <label>Поиск модели<input value={modelQuery} type="search" placeholder="Название модели" onChange={e=>{setModelQuery(e.target.value);setPicker({...picker,model:''})}}/></label>
        </div>
        <div className="member-config-picker-list" aria-label="Модели из каталога">
         {!picker.brand?<p>Сначала выберите бренд.</p>:pickerModels.length?pickerModels.map((item:any)=><button className={picker.model===item.model?'selected':''} key={item.id??item.model} onClick={()=>setPicker({...picker,model:String(item.model)})} type="button"><Database size={23}/><span><strong>{item.brand} {item.model}</strong><small>{item.lifecycle==='DISCONTINUED'?'Снята с производства':'Модель каталога USD'}</small></span><CheckCircle2 size={18}/></button>):<p>Модели не найдены. Можно запросить добавление в каталог.</p>}
        </div>
-       <button type="button" className="member-config-picker-request" onClick={()=>{setRequestCategory(catalogCategory(picker.kind));setRequestBrand(picker.brand);setRequestModel(modelQuery);setRequestOpen(true);setPicker(null)}}>Нет нужной модели? Отправить запрос <ChevronRight size={16}/></button></div>
+       <button type="button" className="member-config-picker-request" onClick={()=>{setRequestCategory(catalogCategoryForEquipment(picker.kind,picker.type));setRequestBrand(picker.brand);setRequestModel(modelQuery);setRequestOpen(true);setPicker(null)}}>Нет нужной модели? Отправить запрос <ChevronRight size={16}/></button></div>
        <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.model} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
       </section></div>}
     {actionsOpen&&<div className="member-config-actions-overlay" role="presentation" onClick={()=>setActionsOpen(false)}><section role="dialog" aria-modal="true" aria-label="Действия с конфигурацией" className="member-config-actions-sheet" onClick={e=>e.stopPropagation()}><div className="member-config-sheet-top"><h2>Действия</h2><button type="button" aria-label="Закрыть меню действий" onClick={()=>setActionsOpen(false)}><X size={20}/></button></div>
@@ -180,7 +180,7 @@ function ConfigDirectionListEditor({title,subtitle,icon:Icon,items,direction,onA
  return <section className="config-section config-direction-section" data-direction={direction}><div className="config-section-head"><div className="config-section-title"><span className="config-section-icon"><Icon size={16}/></span><div><strong>{title}</strong><small>{rows.length?rows.length+' поз.':'Пока пусто'} · {subtitle}</small></div></div><button type="button" className="secondary-button compact" onClick={onAdd}><Plus size={13}/>Добавить</button></div>{rows.map(({item,index})=><EquipmentRow key={item.id??index} member={member} item={item} index={index} Icon={Icon} onRemove={()=>onRemove(index)}>{children(item,index)}</EquipmentRow>)}{!rows.length&&<div className="config-section-empty">В этом направлении пока нет оборудования. Нажмите «Добавить», чтобы внести первую позицию.</div>}</section>
 }
 
-function cleanConfig(v:any){
+function cleanConfig(v:any,catalogModels:any[]=[]){
  const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Math.max(1,Number(component.quantity)||1)}));
  const amplifierLinks=allocateAmplifierLinks(audioComponents,v.amplifiers??[]);
  const normalized={
@@ -192,6 +192,17 @@ function cleanConfig(v:any){
    componentLinks:amplifierLinks[index]
   }))
  };
+ // Resolve stable IDs against the current published catalog. Never trust a stale
+ // ID left on an edited row, and never synthesize IDs for unknown models.
+ for(const kind of ['headUnits','audioComponents','amplifiers'] as const){
+  normalized[kind]=(normalized[kind]??[]).map((row:any)=>{
+   const category=catalogCategoryForEquipment(kind,row.type);
+   const entry=catalogModels.find((item:any)=>item?.id&&item.isActive!==false&&item.category===category
+    &&String(item.brand??'').trim().toLocaleLowerCase('ru')===String(row.brand??'').trim().toLocaleLowerCase('ru')
+    &&String(item.model??'').trim().toLocaleLowerCase('ru')===String(row.model??'').trim().toLocaleLowerCase('ru'));
+   return {...row,catalogEntryId:entry?String(entry.id):undefined};
+  });
+ }
  const strip=(x:any):any=>{
   if(Array.isArray(x))return x.map(strip);
   if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x)
