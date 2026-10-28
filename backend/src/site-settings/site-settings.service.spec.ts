@@ -26,6 +26,8 @@ describe('SiteSettingsService.getPublic', () => {
           partners: [
             { id: 'hidden', name: 'Скрытый', isActive: false },
             { id: 'active', name: 'Активный', isActive: true },
+            { id: 'draft', name: 'Неопубликованный', isActive: true, isPublished: false },
+            { id: 'published', name: 'Опубликованный', isActive: true, isPublished: true },
           ],
         }),
       },
@@ -55,7 +57,10 @@ describe('SiteSettingsService.getPublic', () => {
     });
     expect(response.settings.legal).not.toHaveProperty('internalNote');
     expect(response.settings.news).toEqual([{ id: 'public', title: 'Опубликовано', isPublished: true }]);
-    expect(response.settings.partners).toEqual([{ id: 'active', name: 'Активный', isActive: true }]);
+    expect(response.settings.partners).toEqual([
+      { id: 'active', name: 'Активный', isActive: true },
+      { id: 'published', name: 'Опубликованный', isActive: true, isPublished: true },
+    ]);
     expect(response.settings.registration).toMatchObject({
       rulesText: 'Официальные правила',
       price: 2000,
