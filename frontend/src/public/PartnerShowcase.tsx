@@ -27,7 +27,7 @@ function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:b
 }
 
 export default function PartnerShowcase({partners,variant='full'}:{partners:Partner[];variant?:'home'|'full'}){
- const visible=(Array.isArray(partners)?partners:[]).filter(p=>p&&p.isActive!==false).slice().sort((a,b)=>
+ const visible=(Array.isArray(partners)?partners:[]).filter(p=>p&&p.isActive!==false&&(p as Partner & {isPublished?:boolean}).isPublished!==false).slice().sort((a,b)=>
   (Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||displayName(a).localeCompare(displayName(b),'ru'));
  const compact=variant==='home';
  return <div className={'usd-partner-showcase usd-partner-showcase--'+variant}>
