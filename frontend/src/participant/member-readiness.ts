@@ -47,6 +47,29 @@ export function requiredDirectionsForRegistration(registration:unknown):AudioDir
  return (['SUB','FRONT','REAR'] as const).filter(direction=>required.has(direction));
 }
 
+/** Explain the server-side registration requirement for a single stage class.
+ * A legacy generic SPL parent must not override a BFSPL or BDW class.
+ * Advisory only: the API validates the immutable configuration snapshot.
+ */
+export function missingConfigurationRequirementForClass(item:any,config:any):string{
+ if(!config)return '';
+ const cls=item?.class??item;
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const direction=normalize(cls?.direction?.name??item?.directionName??item?.direction?.name);
+ const identity=[cls?.name,direction,cls?.code].map(normalize).join(' ');
+ const components=config.audioComponents;
+ if(identity.includes('bfspl')){
+  return isDirectionConfigured(components,'FRONT')?'':'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
+ }
+ if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'){
+  return isDirectionConfigured(components,'REAR')?'':'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+ }
+ if(['spl','bassrace','hurrican','hurricane'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
+  return isDirectionConfigured(components,'SUB')?'':'Для направлений SPL, BassRace и Storm Wall необходимо добавить сабвуфер в конфигурацию автомобиля.';
+ }
+ return '';
+}
+
 export function currentCarAudioComponents(car:any):unknown{
  const configs=Array.isArray(car?.configurations)?car.configurations:[];
  const config=configs.find((item:any)=>item?.isActive!==false);
