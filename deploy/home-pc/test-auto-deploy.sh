@@ -156,4 +156,15 @@ chmod 600 "$WORK/deploy.env"
 chmod 666 "$WORK/policy"
 if bash "$WORK/builder" > "$WORK/policy.log" 2>&1; then exit 1; fi
 grep -q 'group/world writable' "$WORK/policy.log"
+# A frontend change must require BOTH main CI workflows, not backend only.
+chmod 600 "$WORK/policy"
+mkdir -p "$WORK/source/frontend"
+printf 'frontend-v3\n' > "$WORK/source/frontend/app.txt"
+"$REAL_GIT" -C "$WORK/source" add frontend/app.txt
+"$REAL_GIT" -C "$WORK/source" -c user.name=QA -c user.email=qa@example.org commit -qm frontend
+NEWER="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD)"
+printf '%s\n' "$NEWER" > "$WORK/source/.git/FETCH_HEAD"
+bash "$WORK/builder" > "$WORK/frontend-change.log"
+grep -q "^$NEWER 1$" "$WORK/ci.log"
+grep -q "^$NEWER$" "$WORK/releases.log"
 echo 'Automatic release policy, cached builds, schema gate and failed-SHA quarantine tests passed'
