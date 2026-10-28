@@ -14,7 +14,7 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
   return item.direction===direction
    &&String(item.brand??'').trim().length>0
    &&String(item.model??'').trim().length>0
-   &&Number.isFinite(quantity)&&quantity>0
+   &&Number.isSafeInteger(quantity)&&quantity>0
    &&(direction!=='SUB'||item.type==='SUBWOOFER');
  });
 }
