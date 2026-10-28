@@ -28,6 +28,17 @@ jobs:
         run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
       - name: Verify production frontend assets exist
         run: docker run --rm --entrypoint sh usd-frontend-candidate:${{ github.sha }} -c 'test -s /usr/share/nginx/html/index.html'
+      - name: Smoke-test real Nginx frontend readiness without publishing ports
+        run: |
+          set -euo pipefail
+          docker run -d --name usd-frontend-ci-readiness usd-frontend-candidate:${{ github.sha }}
+          trap 'docker rm -f usd-frontend-ci-readiness >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then exit 0; fi
+            sleep 1
+          done
+          docker logs usd-frontend-ci-readiness
+          exit 1
 
   validate:
     runs-on: ubuntu-latest
