@@ -11,6 +11,12 @@ for script in auto-deploy.sh release-approved.sh test-release.sh test-auto-deplo
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read_text())'
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
+# Docker Compose runs as root through the release helper. Never execute a
+# Compose YAML directly from the usd-owned checkout during an automatic release.
+install -d -o root -g root -m 0755 /etc/usd-deployer/compose
+for config in compose.yaml compose.local.yaml compose.tunnel.yaml; do
+  install -o root -g root -m 0644 "$config" "/etc/usd-deployer/compose/$config"
+done
 install -d -o root -g root -m 0700 /var/lib/usd-deployer
 install -o root -g root -m 0750 auto-deploy.sh /usr/local/sbin/usd-auto-deploy
 install -o root -g root -m 0750 release-approved.sh /usr/local/sbin/usd-release-approved
