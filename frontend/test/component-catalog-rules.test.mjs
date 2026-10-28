@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow} from '../src/participant/component-catalog-rules.ts';
+import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findUnapprovedEquipmentRow,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
 
 const models=[
  {id:'sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15',isActive:true},
@@ -47,8 +47,8 @@ test('retired catalog entries remain editable only with an unchanged ID, quantit
 
 test('both member and admin editor validate models against the same catalog rules',async()=>{
  const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
- assert.match(editor,/isApprovedCatalogModel\(catalogs\.componentModels,key,row\)/);
- assert.match(editor,/isUnchangedLegacyCatalogRow\(initial\[key\],key,row\)/);
+ assert.match(editor,/findUnapprovedEquipmentRow\(catalogs\.componentModels,key,v\[key\],initial\[key\]\)/);
+ assert.match(editor,/findUnapprovedBatteryRow\(catalogs\.batteryTypes,v\.batteries,initial\.batteries\)/);
  assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/modelOptions\('AUDIO_COMPONENT',x\.brand,x\.model,x\.type\)/);
  assert.doesNotMatch(editor,/if\(admin\|\|historicalFinal\)return true/);
@@ -65,4 +65,40 @@ test('catalog admin preserves stable IDs by deactivating rather than deleting mo
  assert.match(admin,/Включить марку/);
  assert.doesNotMatch(admin,/componentModels:catalogs\.componentModels\.filter\(\(x:any\)=>x\.id!==item\.id\)/);
  assert.doesNotMatch(admin,/Удалить марку и модели\?/);
+});
+
+
+test('editor consumes retired equipment only once and rejects altered historical rows',()=>{
+ const old={id:'saved-1',catalogEntryId:'retired-id',type:'SUBWOOFER',direction:'SUB',quantity:2,brand:'Pride',model:'Retired 15'};
+ assert.equal(findUnapprovedEquipmentRow(models,'audioComponents',[old],[old]),null);
+ assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[old,{...old}],[old]),old);
+ assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,quantity:3}],[old]),{...old,quantity:3});
+ assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,type:'MIDBASS'}],[old]),{...old,type:'MIDBASS'});
+ assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,catalogEntryId:''}],[old]),{...old,catalogEntryId:''});
+ assert.equal(findUnapprovedEquipmentRow(models,'audioComponents',[
+  {type:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15'}
+ ],[]),null,'a published model is resolved to its stable ID before the API call');
+ assert.deepEqual(findUnapprovedEquipmentRow([{category:'SUBWOOFER',brand:'Pride',model:'No ID'}],
+  'audioComponents',[{type:'SUBWOOFER',brand:'Pride',model:'No ID'}],[]),
+  {type:'SUBWOOFER',brand:'Pride',model:'No ID'});
+});
+
+test('battery types must be active CMS codes; historical exceptions are bounded',()=>{
+ const types=[{code:'LTO',isActive:true},{code:'AGM',isActive:false}];
+ const active={brand:'LTO',model:'80',quantity:2};
+ const retired={brand:'AGM',model:'100',quantity:1};
+ assert.equal(findUnapprovedBatteryRow(types,[active],[]),null);
+ assert.deepEqual(findUnapprovedBatteryRow(types,[retired],[]),retired);
+ assert.equal(findUnapprovedBatteryRow(types,[retired],[retired]),null);
+ assert.deepEqual(findUnapprovedBatteryRow(types,[retired,{...retired}],[retired]),retired);
+ assert.deepEqual(findUnapprovedBatteryRow(types,[{...retired,quantity:2}],[retired]),{...retired,quantity:2});
+ assert.deepEqual(findUnapprovedBatteryRow(types,[{...retired,brand:'UNKNOWN'}],[retired]),{...retired,brand:'UNKNOWN'});
+ assert.deepEqual(findUnapprovedBatteryRow([], [active],[]),active,'a missing catalog cannot silently authorize new battery types');
+});
+
+test('configuration editor does not silently add an unknown AGM fallback and serializes all counts',async()=>{
+ const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
+ assert.match(editor,/const defaultBatteryCode=batteryTypes\[0\]\?\.code\?\?''/);
+ assert.match(editor,/batteries:\(v\.batteries\?\?\[\]\)\.map\(\(battery:any\)=>\(\{\.\.\.battery,quantity:Number\(battery\.quantity\)\}\)\)/);
+ assert.match(editor,/generators:\(v\.generators\?\?\[\]\)\.map\(\(generator:any\)=>\(\{\.\.\.generator,quantity:Number\(generator\.quantity\)\}\)\)/);
 });
