@@ -13,7 +13,7 @@ export function validateConfigurationQuantities(value:Record<string,unknown>):st
   if(!Array.isArray(rows))return 'Не удалось проверить список '+labels[group]+'. Обновите страницу.';
   for(const [index,row] of rows.entries()){
    const raw=row?.quantity;
-   const validType=typeof raw==='number'||(typeof raw==='string'&&/^\d+$/.test(raw.trim()));
+   const validType=typeof raw==='number'||(typeof raw==='string'&&/^[0-9]+$/.test(raw.trim()));
    const count=Number(raw);
    if(!validType||!Number.isSafeInteger(count)||count<1){
     return 'Укажите целое количество '+labels[group]+' больше нуля (позиция '+(index+1)+').';
