@@ -266,6 +266,9 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/interrupted.log" 2>&1
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/interrupted.log"
 export USD_TEST_INTERRUPT_RELEASE=0
+# Reset the mock rollback phase left by the previous interrupted release:
+# the next invocation begins in baseline-preflight mode, not rollback mode.
+rm -f "$USD_TEST_ROLLBACK_MARKER"
 export USD_TEST_FAIL_READINESS=1
 export USD_TEST_FAIL_ROLLBACK_READINESS=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/failed-release.log" 2>&1; then
