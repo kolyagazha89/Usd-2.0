@@ -20,12 +20,12 @@ function PartnersPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame:React
 function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:(v:any)=>Promise<void>}){
  const[v,setV]=useState<any>({...value});
  return <form className="form modal-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
-  <div className="form-grid-2"><label>Название<input value={v.name??''} onChange={e=>setV({...v,name:e.target.value})} required/></label><label>Уровень<select value={v.tier??'REGULAR'} onChange={e=>setV({...v,tier:e.target.value})}><option value="GENERAL">Генеральный</option><option value="PREMIUM">Премиальный</option><option value="REGULAR">Обычный</option></select></label></div>
-  <label>Описание<textarea value={v.description??''} onChange={e=>setV({...v,description:e.target.value})}/></label>
-  <label>Сайт<input value={v.website??''} onChange={e=>setV({...v,website:e.target.value})} placeholder="https://"/></label>
-  <div className="form-grid-2"><label>Порядок<input type="number" value={v.sortOrder??0} onChange={e=>setV({...v,sortOrder:Number(e.target.value)})}/></label><label className="checkbox-row"><input type="checkbox" checked={v.isActive!==false} onChange={e=>setV({...v,isActive:e.target.checked})}/>Активен</label></div>
+  <div className="form-grid-2"><label>Название<input maxLength={160} value={v.name??''} onChange={e=>setV({...v,name:e.target.value})} required/></label><label>Уровень<select value={v.tier??'REGULAR'} onChange={e=>setV({...v,tier:e.target.value})}><option value="GENERAL">Генеральный</option><option value="PREMIUM">Премиальный</option><option value="REGULAR">Обычный</option></select></label></div>
+  <label>Описание<textarea maxLength={3000} value={v.description??''} onChange={e=>setV({...v,description:e.target.value})}/></label>
+  <label>Сайт<input type="url" maxLength={2048} value={v.website??''} onChange={e=>setV({...v,website:e.target.value})} placeholder="https://"/></label>
+  <div className="form-grid-2"><label>Порядок<input type="number" min={0} max={100000} step={1} value={v.sortOrder??0} onChange={e=>setV({...v,sortOrder:Number(e.target.value)})}/></label><label className="checkbox-row"><input type="checkbox" checked={v.isActive!==false} onChange={e=>setV({...v,isActive:e.target.checked})}/>Активен</label></div>
   <label className="checkbox-row"><input type="checkbox" checked={v.isPublished!==false} onChange={e=>setV({...v,isPublished:e.target.checked})}/>Опубликован на сайте</label>
-  <p className="form-hint">Новый партнёр сохраняется как черновик. Для появления на сайте включите публикацию и активность.</p>
+  <p className="form-hint">Новый партнёр сохраняется как черновик. Для появления на сайте включите публикацию и активность. Ссылка должна начинаться с https:// или http://; изменения категории сразу меняют размещение на публичном сайте.</p>
   <label>Фото / логотип<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setV({...v,file:e.target.files?.[0]??null})}/></label>
   {v.photoUrl&&<img className="partner-photo-preview" src={v.photoUrl} alt=""/>}
   <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
