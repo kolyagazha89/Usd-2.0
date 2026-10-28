@@ -92,3 +92,17 @@ After an approved cutover, change DNS ONLY for `app.usd-russia.ru` and `api.usd-
 - New images are immutable Git SHA tags. Updating images does not revert DB migrations.
 - Keep Railway and existing public service until the target site and source-to-destination checks have been signed off.
 - Production DNS cutover is a separate action; preparing this PR does not imply publication.
+
+## Self-hosted GitHub Actions runner — security boundary
+
+The `usd-ubuntu-deploy` runner is registered on the same Ubuntu host as the USD PostgreSQL database. **Registration or an Idle status is not permission to deploy.** A repository-scoped self-hosted runner on a public repository is not an appropriate trust boundary for production secrets or Docker access: labels and a workflow-level `if` condition alone do not provide isolation against untrusted workflow code.
+
+Before enabling deployment jobs:
+
+1. Keep the runner account unprivileged: no `sudo`, no `docker` group, no read access to `deploy/home-pc/.env`, database volumes, or backup directories.
+2. Prefer moving deployment execution to a **private, access-controlled repository** with a dedicated runner and protected environment; public PR workflows must never target it. A private repo must also restrict who can modify deployment workflows and approve releases.
+3. Build and test images on GitHub-hosted runners. Publish only SHA-pinned API and frontend images from a trusted release commit. Verify that both images exist before deployment.
+4. Make the deployment job require an explicitly approved release; use a narrowly scoped root-owned deployment helper rather than giving the runner unrestricted Docker socket access. Validate the requested image SHA and keep the existing Compose project, env file and database volume unchanged.
+5. Back up and verify the database before schema migrations. Migration approval, compatibility checks, health checks and rollback are separate gates. Image rollback does not undo database migrations.
+
+**Until these controls are in place, do not add `runs-on: self-hosted` jobs in this public repository or grant the runner privileged access.**
