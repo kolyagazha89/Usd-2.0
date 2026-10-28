@@ -28,5 +28,8 @@ test('homepage hides empty CMS values and their hero shortcut, but renders visib
   assert.match(visible,/Люди чемпионата/);
   assert.match(visible,/href="\/participants"/);
   assert.doesNotMatch(render({valuesCards,blocks:[{id:'values',enabled:false}]}),/id="usd-values"|Что такое USD/);
+  const customTitle=render({heroTitle:'USD',valuesCards:[]});
+  assert.match(customTitle,/<h1 class="u-wordmark-title">USD<\/h1>/,'CMS must allow the organizer to set the exact USD brand headline');
+  assert.doesNotMatch(customTitle,/Ultimate<br/,'custom hero title must replace the default cinematic heading');
  }finally{await rm(scratch,{recursive:true,force:true})}
 });
