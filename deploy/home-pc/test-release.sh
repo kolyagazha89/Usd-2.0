@@ -8,16 +8,35 @@ NEW=2222222222222222222222222222222222222222
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
 TRUSTED_DIR=/etc/usd-deployer/compose
-# The mock writes to fixed paths. Refuse any existing real deployment state,
-# even if the CI environment variables were accidentally propagated on a host.
-[[ ! -e "$ROOT/.env" && ! -e "$STATE/built-sha" && ! -e "$TRUSTED_DIR" ]] ||
-  { echo "Existing deployment state found; refusing destructive mock rehearsal" >&2; exit 1; }
+# The mock writes to fixed paths. Refuse ANY existing fixture destination,
+# including files from a previous aborted run, before installing a mock.
+# The real-Docker rehearsal runs later in this SAME CI job and requires a clean
+# host; the mock must therefore remove only files it created on exit.
+TEST_BACKUP_DIR=/home/usd/backups
+for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
+  "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+  "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
+  "$STATE/deployed-sha" "$STATE/failed-release-sha" \
+  /etc/usd-release-approved "$TRUSTED_DIR"; do
+  [[ ! -e "$protected" && ! -L "$protected" ]] ||
+    { echo "Existing deployment state at $protected; refusing destructive mock rehearsal" >&2; exit 1; }
+done
+if compgen -G "$TEST_BACKUP_DIR/release-$NEW.*.dump" >/dev/null; then
+  echo "Existing backup with mock SHA; refusing to overwrite or delete it" >&2
+  exit 1
+fi
 [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] ||
   { echo "Existing usd-home containers found; refusing mock rehearsal" >&2; exit 1; }
 WORK="$(mktemp -d)"
 cleanup() {
-  rm -f /etc/usd-release-approved
-  rm -rf "$TRUSTED_DIR" "$WORK"
+  # Do not leak fixture credentials/approvals into the following real-Docker
+  # rehearsal, or leave a misleading deployed SHA in the runner filesystem.
+  rm -f -- "$ROOT/.env" "$ROOT/.env.cloudflared" \
+    "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+    "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
+    "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
+  rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
+  rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
 # Keep failure diagnostics inside the disposable CI rehearsal. The release
