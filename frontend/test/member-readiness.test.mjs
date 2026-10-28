@@ -33,7 +33,8 @@ test('registration hints prioritize BFSPL and BDW even with an imported SPL pare
  assert.match(missingConfigurationRequirementForClass(cls('Limited 2.0'),front),/сабвуфер/);
  assert.match(missingConfigurationRequirementForClass(cls('Storm Wall'),front),/сабвуфер/);
  assert.match(missingConfigurationRequirementForClass(cls('Limited 2.0'),{audioComponents:[row('SUB','SUBWOOFER',0.5)]}),/сабвуфер/);
- assert.equal(missingConfigurationRequirementForClass(cls('Unknown class'),front),'');
+ assert.match(missingConfigurationRequirementForClass(cls('Unknown class'),front),/сабвуфер/,'a class under SPL requires a subwoofer even if its name is unfamiliar');
+ assert.equal(missingConfigurationRequirementForClass({class:{name:'Unknown class'}},front),'','classes with no recognized direction have no invented requirements');
 });
 
 test('participant registration consumes the shared equipment rules',async()=>{
