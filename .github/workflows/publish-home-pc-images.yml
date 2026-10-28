@@ -1,21 +1,8 @@
 name: Publish self-hosted USD images
 
+# Manual fallback only; normal deployment builds locally on Ubuntu.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "deploy/home-pc/**"
-      - ".github/workflows/publish-home-pc-images.yml"
-  push:
-    branches: [main, infra/self-hosted-hyperv-usd-20261025]
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "deploy/home-pc/**"
-      - ".github/workflows/publish-home-pc-images.yml"
 
 permissions:
   contents: read
