@@ -8,6 +8,7 @@ describe('configuration equipment revision history',()=>{
  let service:ConfigurationsService;
  beforeEach(()=>{
   db={
+   siteSettings:{findUnique:jest.fn<any>().mockResolvedValue({catalogs:{componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Test',isActive:true}]}})},
    car:{findUnique:jest.fn<any>().mockResolvedValue({id:'car',participantId:'person'})},
    carConfiguration:{
     findUnique:jest.fn<any>().mockResolvedValue({id:'config',carId:'car',currentVersion:1}),
@@ -45,7 +46,7 @@ describe('configuration equipment revision history',()=>{
  });
  it('does not advance the pointer if saving the new equipment fails',async()=>{
   db.carAudioComponent.create.mockRejectedValue(new Error('Failed to save component'));
-  const changed={...dto,audioComponents:[{brand:'Deaf Bonce',model:'Test',quantity:1,type:'SUBWOOFER',direction:'SUB'}]};
+  const changed={...dto,audioComponents:[{catalogEntryId:'00000000-0000-4000-8000-000000000001',brand:'Deaf Bonce',model:'Test',quantity:1,type:'SUBWOOFER',direction:'SUB'}]};
   await expect(service.update(request,'config',changed as any)).rejects.toThrow('Failed to save component');
   expect(db.carConfiguration.update).not.toHaveBeenCalled();
   expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();
