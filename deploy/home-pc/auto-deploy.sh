@@ -10,6 +10,8 @@ DEPLOY_DIR=/home/usd/usd-deploy/deploy/home-pc
 STATE_DIR=/var/lib/usd-deployer
 REPO=https://github.com/kolyagazha89/Usd-2.0.git
 mkdir -p "$STATE_DIR"
+# Explicit operator gate: no production changes until migration and backup review.
+[[ -f /etc/usd-deploy-enabled ]] || { echo "Deployment not enabled; exiting safely"; exit 0; }
 
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
   git clone --no-checkout --filter=blob:none "$REPO" "$SOURCE_DIR"
@@ -21,6 +23,7 @@ if [[ -f "$STATE_DIR/deployed-sha" && "$(cat "$STATE_DIR/deployed-sha")" == "$SH
   exit 0
 fi
 git -C "$SOURCE_DIR" checkout --force --detach "$SHA"
+# Do not run schema migrations automatically. Deploy only when the DB schema is compatible.
 
 [[ -r "$DEPLOY_DIR/.env" ]] || { echo "Missing deploy env"; exit 1; }
 cd "$DEPLOY_DIR"
