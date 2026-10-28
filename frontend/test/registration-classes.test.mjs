@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds} from '../src/participant/registration-classes.ts';
+import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
 
 test('participant can choose at most five classes while preserving primary class order',()=>{
  assert.equal(MAX_REGISTRATION_CLASSES,5);
@@ -15,4 +15,13 @@ test('unchecking a class removes it and duplicate clicks do not add it twice',()
  assert.deepEqual(nextRegistrationClassIds(['a','b'],'b',false),['a']);
  assert.deepEqual(nextRegistrationClassIds(['a'],'a',true),['a']);
  assert.deepEqual(nextRegistrationClassIds([],'a',true),['a']);
+});
+
+test('returning competitor must review configuration before moving to classes',()=>{
+ assert.equal(canContinueVehicleRegistration(false,false,'',false),false);
+ assert.equal(canContinueVehicleRegistration(true,false,'',false),true);
+ assert.equal(canContinueVehicleRegistration(true,true,'',false),false);
+ assert.equal(canContinueVehicleRegistration(true,true,'unchanged',false),true);
+ assert.equal(canContinueVehicleRegistration(true,true,'updated',false),false);
+ assert.equal(canContinueVehicleRegistration(true,true,'updated',true),true);
 });
