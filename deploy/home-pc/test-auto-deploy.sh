@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Exercise production builder logic against a disposable Git repo and Docker mocks.
 set -Eeuo pipefail
-[[ "$(id -u)" == 0 ]] || { echo 'Run only in isolated CI as root' >&2; exit 1; }
+[[ "${GITHUB_ACTIONS:-}" == true && -n "${GITHUB_RUN_ID:-}" && "$(id -u)" == 0 ]] ||
+  { echo 'Run only in isolated GitHub Actions CI as root' >&2; exit 1; }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/source/backend/prisma" "$WORK/state" "$WORK/bin"
