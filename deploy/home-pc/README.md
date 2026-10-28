@@ -13,7 +13,7 @@ Use the existing Hyper-V Default Switch **only for initial staging**. Its intern
 - Backend and frontend images built by GitHub Actions and published to GHCR with an immutable full Git SHA as tag. This avoids compiling the project on a 2–3 GB RAM/HDD VM.
 - Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env.
 - Database remains private on the Compose bridge (no published PostgreSQL port).
-- Backend startup overrides the Dockerfile's `npm run start:prod` behavior using `node dist/main.js`. The legacy start script may run historical-import bootstrap and is **unsafe on a fresh DB**.
+- Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
 
 ## Initial Ubuntu staging
