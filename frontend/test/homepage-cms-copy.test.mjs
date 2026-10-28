@@ -64,3 +64,22 @@ test('server rejects malformed homepage value cards and unsafe destinations',asy
  assert.match(backend,/paths\.has\(item\.path\)/);
  assert.match(backend,/item\[field\]\.length>240/);
 });
+
+
+test('cinematic hero labels and CTAs are editable, rendered and validated through CMS',async()=>{
+ const [home,admin,backend]=await Promise.all([
+  source('../src/public/PremiumHome.tsx'),
+  source('../src/admin/SiteSettingsPage.tsx'),
+  source('../../backend/src/site-settings/site-settings.service.ts'),
+ ]);
+ for(const key of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel']){
+  assert.match(home,new RegExp("homeText\\('"+key+"'"),key+' must be rendered from CMS');
+  assert.match(admin,new RegExp("'"+key+"'"),key+' must have an admin editor');
+  assert.match(backend,new RegExp(key+":"),key+' must have a server default');
+ }
+ assert.match(home,/settings\.homepage\?\.heroTopics/);
+ assert.match(admin,/homepage\.heroTopics/);
+ assert.match(backend,/homepage\.heroTopics\.length>8/);
+ assert.match(backend,/topic\.length>40/);
+ assert.doesNotMatch(home,/<span>СОРЕВНОВАНИЯ<\/span>/);
+});
