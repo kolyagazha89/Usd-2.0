@@ -8,7 +8,7 @@ for tool in git docker flock systemctl install bash awk df python3; do
 done
 docker compose version >/dev/null
 for script in auto-deploy.sh release-approved.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
-python3 -m py_compile verify-main-ci.py
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read_text())'
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -d -o root -g root -m 0700 /var/lib/usd-deployer
