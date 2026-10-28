@@ -77,6 +77,7 @@ backup="$(mktemp "$STATE_DIR/release-env.XXXXXXXX")"
 cp -p .env "$backup"
 changed=0
 db_snapshot_tmp=''
+tmp=''
 wait_ready() {
   local attempt api_ok frontend_ok
   for attempt in $(seq 1 30); do
@@ -108,8 +109,10 @@ rollback() {
       echo "Previous API/frontend passed readiness after rollback" >&2
     fi
   fi
-  rm -f "$backup"
-  [[ -z "$db_snapshot_tmp" ]] || rm -f "$db_snapshot_tmp"
+  rm -f -- "$backup"
+  [[ -z "$db_snapshot_tmp" ]] || rm -f -- "$db_snapshot_tmp"
+  # A failed Compose validation must not leave a private .env copy behind.
+  [[ -z "$tmp" ]] || rm -f -- "$tmp"
   exit "$status"
 }
 trap rollback ERR
