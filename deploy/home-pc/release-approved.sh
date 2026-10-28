@@ -15,9 +15,12 @@ NEW_TAG="${1:-}"
 approved_sha() {
   local file="$1"
   [[ -f "$file" && ! -L "$file" && "$(stat -c %u "$file")" == 0 ]] &&
+    (( (8#$(stat -c %a "$file") & 022) == 0 )) &&
     [[ "$(cat "$file")" == "$NEW_TAG" ]]
 }
-approved_sha /etc/usd-release-approved || { echo "Root-owned release approval for this SHA missing" >&2; exit 1; }
+approval_file="$STATE_DIR/release-approved-sha"
+if ! approved_sha "$approval_file"; then approval_file=/etc/usd-release-approved; fi
+approved_sha "$approval_file" || { echo "Root-owned release approval for this SHA missing" >&2; exit 1; }
 approved_sha "$STATE_DIR/schema-approved-sha" || { echo "Schema compatibility not approved for this SHA" >&2; exit 1; }
 [[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$NEW_TAG" ]] ||
   { echo "Requested SHA was not built locally" >&2; exit 1; }
@@ -42,6 +45,9 @@ api_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --fi
 front_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=frontend")"
 [[ -n "$api_id" && -n "$front_id" && "$api_id" != *$'\n'* && "$front_id" != *$'\n'* ]] ||
   { echo "Expected exactly one running API and frontend" >&2; exit 1; }
+[[ "$(docker inspect -f '{{.Config.Image}}' "$api_id")" == "ghcr.io/kolyagazha89/usd-2.0-api:$OLD_TAG" &&
+   "$(docker inspect -f '{{.Config.Image}}' "$front_id")" == "ghcr.io/kolyagazha89/usd-2.0-frontend:$OLD_TAG" ]] ||
+  { echo "Running images do not match the deployment environment; refusing an unverified rollback target" >&2; exit 1; }
 api_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$api_id")"
 front_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$front_id")"
 [[ -n "$api_files" && "$api_files" == "$front_files" ]] ||
@@ -60,13 +66,14 @@ for file in "${active_files[@]}"; do
 done
 [[ "$has_base" == 1 ]] || { echo "Base Compose file absent" >&2; exit 1; }
 db_before="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")"
-[[ -n "$db_before" ]] || { echo "Production DB is not running" >&2; exit 1; }
+[[ -n "$db_before" && "$db_before" != *$'\n'* ]] || { echo "Expected exactly one running production DB" >&2; exit 1; }
 
 # Use a private, unique rollback snapshot. Preserve original ownership and mode.
 mkdir -p "$STATE_DIR"
 backup="$(mktemp "$STATE_DIR/release-env.XXXXXXXX")"
 cp -p .env "$backup"
 changed=0
+db_snapshot_tmp=''
 wait_ready() {
   local attempt api_ok frontend_ok
   for attempt in $(seq 1 30); do
@@ -83,8 +90,8 @@ wait_ready() {
   return 1
 }
 rollback() {
-  local status=$?
-  trap - ERR
+  local status="${1:-$?}"
+  trap - ERR TERM INT
   if [[ "$changed" == 1 ]]; then
     echo "Release failed (exit $status); restoring previous images" >&2
     cp -p "$backup" .env
@@ -97,9 +104,25 @@ rollback() {
     fi
   fi
   rm -f "$backup"
+  [[ -z "$db_snapshot_tmp" ]] || rm -f "$db_snapshot_tmp"
   exit "$status"
 }
 trap rollback ERR
+trap 'rollback 143' TERM
+trap 'rollback 130' INT
+
+# Keep a private custom-format database archive before replacing either service.
+# This does not migrate, restore, restart or recreate PostgreSQL.
+BACKUP_DIR=/home/usd/backups
+[[ ! -L "$BACKUP_DIR" ]] || { echo "Refusing symlinked backup directory" >&2; false; }
+install -d -m 0700 "$BACKUP_DIR"
+db_snapshot_tmp="$(mktemp "$BACKUP_DIR/release-$NEW_TAG.XXXXXXXX.partial")"
+docker compose --env-file .env "${compose_args[@]}" exec -T db sh -c \
+  'pg_dump -Fc --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$db_snapshot_tmp"
+[[ -s "$db_snapshot_tmp" ]] || { echo "Database backup is empty" >&2; false; }
+docker compose --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
+mv "$db_snapshot_tmp" "${db_snapshot_tmp%.partial}.dump"
+db_snapshot_tmp=''
 
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
@@ -117,6 +140,6 @@ db_after="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --
 [[ "$db_before" == "$db_after" ]] || { echo "Database container changed unexpectedly" >&2; false; }
 
 printf '%s\n' "$NEW_TAG" > "$STATE_DIR/deployed-sha"
-rm -f "$backup" /etc/usd-release-approved
-trap - ERR
+rm -f "$backup" "$approval_file"
+trap - ERR TERM INT
 echo "USD release successful: $OLD_TAG -> $NEW_TAG"

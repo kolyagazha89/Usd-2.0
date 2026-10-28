@@ -1,5 +1,5 @@
 [Unit]
-Description=USD staged main branch local image builder (no production deployment)
+Description=USD main image builder and optional schema-pinned release
 Wants=network-online.target
 After=network-online.target docker.service
 Requires=docker.service
@@ -12,12 +12,14 @@ UMask=0077
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=read-only
+ReadWritePaths=-/home/usd/usd-deploy/deploy/home-pc -/home/usd/backups
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 PrivateTmp=true
 ExecStart=/usr/local/sbin/usd-auto-deploy
 TimeoutStartSec=40min
+TimeoutStopSec=10min
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

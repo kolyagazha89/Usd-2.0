@@ -2,21 +2,21 @@
 
 This is a deployment scaffold, **not evidence that the live site or database has been migrated**. Do not expose an empty USD database to public traffic. Do not switch production DNS until the restored database, S3 objects, WAN routing, HTTPS and all role flows have been verified.
 
-## Current host and limitations
+## Historical host notes — current host inspection still required
 
 Host: Windows 10 Pro 1903, Hyper-V, Ubuntu 24.04 LTS VM named USD-SERVER, Docker Engine + Compose. Host currently has Core i5-8400, 8 GB total RAM and Toshiba HDD. The unsupported Windows host OS and HDD/limited RAM are blockers to secure, resilient long-term production with participant personal data. Upgrade OS security, SSD and RAM before final cutover.
 
 Use the existing Hyper-V Default Switch **only for initial staging**. Its internal guest IP (previously 172.17.251.201) may change after reboot. Guest Docker published ports are NOT automatically reachable on the public internet. Do not create an External VMSwitch remotely without a verified fallback, because it can interrupt RDP and AnyDesk.
 
-## Why new compose and GitHub-built images
+## Image builds and data boundaries
 
-- Backend and frontend images built by GitHub Actions and published to GHCR with an immutable full Git SHA as tag. This avoids compiling the project on a 2–3 GB RAM/HDD VM.
+- The local timer builds API/frontend with immutable full Git SHA tags. GHCR publication is a manual fallback. Local builds require at least 3 GB available RAM and 8 GB free Docker storage; insufficient capacity blocks the build.
 - Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env.
 - Database remains private on the Compose bridge (no published PostgreSQL port).
 - Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
 
-## Initial Ubuntu staging
+## Historical initial migration procedure (not an update procedure for a running host)
 
 Wait until the PR lands in main and the GitHub Actions image publication run succeeds. Make sure both images have the SAME successful commit tag.
 
@@ -107,10 +107,26 @@ Before enabling deployment jobs:
 
 **Until these controls are in place, do not add `runs-on: self-hosted` jobs in this public repository or grant the runner privileged access.**
 
-## Local build timer and release safety (not yet validated on the live VM)
+## Local build timer and optional automatic release (host validation pending)
 
-`auto-deploy.sh` is a build-only job: it fetches the latest `main` commit and builds two local Docker images tagged by the full commit SHA. It requires an operator-created `/etc/usd-deploy-enabled` switch. It does not deploy, migrate or restart containers.
+`auto-deploy.sh` polls trusted `main`, builds API and frontend images sequentially with full Git SHA tags, and caches the built SHA. It requires the root-owned `/etc/usd-deploy-enabled` switch. With no automatic release policy it remains build-only, preserving existing installations.
 
-`release-approved.sh SHA` is a separate manual release. Before running it, the operator must review DB schema compatibility and create two root-owned files containing that exact SHA: `/var/lib/usd-deployer/schema-approved-sha` and `/etc/usd-release-approved`. The SHA must also match `/var/lib/usd-deployer/built-sha`. The release checks that both old and new API/frontend images are present, discovers the exact Compose files used by the running containers, updates only API/frontend, checks both services from inside their containers, and attempts to restore the previous images if a step fails. PostgreSQL is never targeted for recreation. The release does not apply Prisma migrations or undo a DB migration.
+Automatic switching additionally requires `/etc/usd-auto-release-schema`: a root-owned, non-symlinked file, not writable by group or others, containing the exact Git tree SHA of `backend/prisma` verified against the actual deployed database. Both the running version and the new main commit must have that identical tree. Any schema, migration or Prisma seed change stops automatic release for supervised review. **No schema or historical migrations run automatically.** A failed release SHA is quarantined in `/var/lib/usd-deployer/failed-release-sha`; the timer will not repeatedly retry it. Review the failure and restore health before explicitly clearing that marker.
 
-**Do not enable the timer or run a release yet.** The code needs shell and integration tests, verification of the actual Compose labels on Ubuntu, a proven database backup/restore, and a supervised rollback rehearsal. This PR does not change the live server, and the public domain `usd-russia.ru` is outside its scope.
+`release-approved.sh SHA` checks exact SHA approvals, local old/new images, running image tags and active Compose overlays. Before changing the environment or application containers, it creates a private custom-format dump under `/home/usd/backups` and verifies its archive table of contents with PostgreSQL's `pg_restore --list`. Empty, failed or unreadable backups prevent release. This is an on-host safeguard, **not** proof of off-host backup or a tested restore. Backups are retained; no automatic database cleanup or restoration occurs.
+
+Only API/frontend are recreated with `--no-deps`. Both services must pass bounded HTTP readiness checks. SIGTERM/SIGINT also trigger rollback; systemd allows ten minutes for shutdown recovery. On failure, the previous images are restored and checked again; a broken rollback emits a CRITICAL error and returns failure to systemd. An unchanged DB container ID is checked after a successful release. No Docker socket is exposed to a GitHub runner.
+
+The installer remains inert: it neither enables the timer nor creates a release policy. The systemd service permits writes only to the existing deployment and backup directories within the otherwise read-only home tree. Create the backup directory with private permissions before supervised service testing.
+
+### Supervised host activation — only after acceptance
+
+1. Inspect the live host's Compose labels, image tags, data volumes, environment ownership and available RAM/disk. Confirm the fixed deployment path `/home/usd/usd-deploy/deploy/home-pc` matches the actual host; do not copy an empty environment over an existing one.
+2. Verify an independent encrypted off-host backup, restore into a disposable PostgreSQL 18 database, compare application counts/history, and preserve media backups. The archive listing check alone does not establish recoverability.
+3. Run both rehearsal scripts **only on a disposable runner**: they contain isolated Docker mocks and test-only host fixtures. Then rehearse real Docker update and rollback on a disposable stack, never the live DB.
+4. Install the helpers from the reviewed commit using `sudo bash deploy/home-pc/install-local-deployer.sh`. It does not start any service.
+5. Verify the actual deployed commit exists in the trusted source checkout, compare its Prisma schema/migration state to the live DB, then obtain its schema tree with `git -C /opt/usd-release-source rev-parse '<verified-deployed-sha>:backend/prisma'`. Store exactly that output in `/etc/usd-auto-release-schema` as root, mode 0600. Do not approve a tree from an unverified candidate.
+6. After a supervised build, backup, release and rollback rehearsal, create the root-owned build switch and enable the timer. Future reviewed main changes with the same approved Prisma tree can then release automatically. Changed schema requires a separately reviewed migration, successful backup/restore checks and renewed policy.
+7. Verify externally at `app.usd-russia.ru` and `api.usd-russia.ru`; inspect `journalctl -u usd-auto-deploy.service`. Leave `usd-russia.ru` unchanged.
+
+**Current evidence:** shell tests cover build-only default, cached-image release, schema refusal, untrusted policy rejection, failed-SHA quarantine, failed/invalid backup refusal, running-image mismatch refusal, successful release, interrupted release, healthy rollback and unhealthy rollback. These mocks do not prove the real Ubuntu host, Docker images, tunnel, database restore or live deployment. Do not enable production automation until those host gates pass.

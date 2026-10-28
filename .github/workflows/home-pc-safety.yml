@@ -23,6 +23,7 @@ jobs:
           bash -n deploy/home-pc/release-approved.sh
           bash -n deploy/home-pc/install-local-deployer.sh
           bash -n deploy/home-pc/test-release.sh
+          bash -n deploy/home-pc/test-auto-deploy.sh
       - name: Validate local and tunnel Compose overlays without touching a server
         run: |
           set -euo pipefail
@@ -43,6 +44,8 @@ jobs:
           grep -q 'full Git SHA' /tmp/release-refusal.log
       - name: Rehearse approved release and rollback with isolated Docker mocks
         run: sudo bash deploy/home-pc/test-release.sh
+      - name: Rehearse optional automatic releases and schema-change refusal
+        run: sudo bash deploy/home-pc/test-auto-deploy.sh
       - name: Diagnose remaining development dependency advisories
         run: |
           cd backend

@@ -43,6 +43,14 @@ if [[ "${1:-}" == ps ]]; then
   exit 0
 fi
 if [[ "${1:-}" == inspect ]]; then
+  if [[ "$*" == *'.Config.Image'* ]]; then
+    service=api
+    [[ "$*" != *mock-frontend* ]] || service=frontend
+    tag="$(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)"
+    [[ "${USD_TEST_IMAGE_MISMATCH:-0}" != 1 ]] || tag=unverified
+    echo "ghcr.io/kolyagazha89/usd-2.0-$service:$tag"
+    exit 0
+  fi
   echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
   exit 0
 fi
@@ -51,8 +59,22 @@ if [[ "${1:-}" == compose ]]; then
     *" config --quiet"*) exit 0 ;;
     *" up -d --no-deps api frontend"*)
       echo "up $(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)" >> "$USD_TEST_LOG"
+      if [[ "${USD_TEST_INTERRUPT_RELEASE:-0}" == 1 ]] &&
+         grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
+        kill -TERM "$PPID"
+      fi
       exit 0 ;;
     *" exec -T "*)
+      if [[ "$*" == *" exec -T db "* ]]; then
+        if [[ "$*" == *pg_dump* ]]; then
+          [[ "${USD_TEST_FAIL_BACKUP:-0}" != 1 ]] || exit 1
+          printf 'mock-custom-format-dump'
+        else
+          cat >/dev/null
+          [[ "${USD_TEST_FAIL_ARCHIVE_CHECK:-0}" != 1 ]] || exit 1
+        fi
+        exit 0
+      fi
       if [[ "${USD_TEST_FAIL_ROLLBACK_READINESS:-0}" == 1 ]] &&
          ! grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
         exit 1
@@ -75,6 +97,29 @@ chmod +x "$WORK/bin/docker" "$WORK/bin/sleep"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
+export USD_TEST_IMAGE_MISMATCH=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2>&1; then exit 1; fi
+grep -q 'Running images do not match' "$WORK/image-mismatch.log"
+[[ ! -s "$USD_TEST_LOG" ]]
+export USD_TEST_IMAGE_MISMATCH=0
+export USD_TEST_FAIL_BACKUP=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/backup-failure.log" 2>&1; then
+  echo "Expected backup failure to block release" >&2
+  exit 1
+fi
+[[ ! -s "$USD_TEST_LOG" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_FAIL_BACKUP=0
+export USD_TEST_FAIL_ARCHIVE_CHECK=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/invalid-archive.log" 2>&1; then exit 1; fi
+[[ ! -s "$USD_TEST_LOG" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_FAIL_ARCHIVE_CHECK=0
+export USD_TEST_INTERRUPT_RELEASE=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/interrupted.log" 2>&1; then exit 1; fi
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/interrupted.log"
+export USD_TEST_INTERRUPT_RELEASE=0
 export USD_TEST_FAIL_READINESS=1
 export USD_TEST_FAIL_ROLLBACK_READINESS=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/failed-release.log" 2>&1; then
