@@ -3,8 +3,8 @@
  * Discontinued but published models remain selectable; inactive entries do not.
  */
 export type EquipmentKind='audioComponents'|'amplifiers'|'headUnits';
-export type CatalogModel={category?:unknown;brand?:unknown;model?:unknown;isActive?:unknown};
-export type EquipmentRow={id?:unknown;type?:unknown;brand?:unknown;model?:unknown};
+export type CatalogModel={id?:unknown;category?:unknown;brand?:unknown;model?:unknown;isActive?:unknown};
+export type EquipmentRow={id?:unknown;type?:unknown;direction?:unknown;quantity?:unknown;brand?:unknown;model?:unknown};
 
 const normalized=(value:unknown)=>String(value??'').trim().toLocaleLowerCase('ru');
 
