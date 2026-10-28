@@ -19,6 +19,32 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
  });
 }
 
+/** Match the server's per-direction equipment rules for the garage checklist.
+ * This is advisory only: registration eligibility is still checked by the API.
+ * Unknown legacy class names do not introduce invented requirements.
+ */
+export function requiredDirectionsForRegistration(registration:unknown):AudioDirection[]{
+ const classes=(registration as {classes?:unknown}|null)?.classes;
+ if(!Array.isArray(classes))return [];
+ const required=new Set<AudioDirection>();
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ for(const row of classes){
+  if(!row||typeof row!=='object')continue;
+  const item=row as {class?:any;stageClass?:any};
+  const cls=item.class??item.stageClass?.class??item.stageClass??item;
+  const direction=normalize(cls?.direction?.name);
+  const identity=[cls?.name,cls?.direction?.name,cls?.code].map(normalize).join(' ');
+  if(['spl','bassrace','hurrican'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
+   required.add('SUB');
+  }else if(identity.includes('bfspl')){
+   required.add('FRONT');
+  }else if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'){
+   required.add('REAR');
+  }
+ }
+ return (['SUB','FRONT','REAR'] as const).filter(direction=>required.has(direction));
+}
+
 export function currentCarAudioComponents(car:any):unknown{
  const configs=Array.isArray(car?.configurations)?car.configurations:[];
  const config=configs.find((item:any)=>item?.isActive!==false);
