@@ -18,7 +18,9 @@ API = "https://api.github.com/repos/kolyagazha89/Usd-2.0/actions/runs"
 def evaluate(payload: object, sha: str, require_frontend: bool) -> tuple[int, str]:
     if not isinstance(payload, dict) or not isinstance(payload.get("workflow_runs"), list):
         return 75, "Invalid GitHub Actions response"
-    required = {"Backend CI"}
+    # PR-only safety checks cannot authorize a main release: require the
+    # disposable real-Docker/PG18 rehearsal from this exact main push SHA.
+    required = {"Backend CI", "Home PC deployment safety checks"}
     if require_frontend:
         required.add("Frontend CI")
     runs = payload["workflow_runs"]
