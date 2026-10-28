@@ -31,3 +31,16 @@ test('general, premium and regular sponsors have distinct responsive visual prio
  assert.match(css,/@media\(max-width:560px\)/);
  assert.match(css,/prefers-reduced-motion:reduce/);
 });
+
+
+test('partner CMS supports draft publication independently from active visibility',async()=>{
+ const [admin,backend]=await Promise.all([
+  source('../src/admin/PartnersPage.tsx'),
+  source('../../backend/src/site-settings/site-settings.service.ts'),
+ ]);
+ assert.match(admin,/isPublished:false/);
+ assert.match(admin,/isPublished:v\.isPublished!==false/);
+ assert.match(admin,/Опубликован на сайте/);
+ assert.match(admin,/Черновик/);
+ assert.match(backend,/partner\.isActive !== false && partner\.isPublished !== false/);
+});
