@@ -150,6 +150,12 @@ bash deploy/home-pc/release-approved.sh "$GOOD"
 # Verify a real archive restores into a separate disposable database.
 archives=(/var/lib/usd-deployer/backups/release-"$GOOD".*.dump)
 [[ "${#archives[@]}" == 1 && -s "${archives[0]}" ]]
+[[ "$(stat -c %u /var/lib/usd-deployer/backups)" == 0 ]] ||
+  { echo "Release backup directory is not root-owned" >&2; exit 1; }
+[[ "$(stat -c %a /var/lib/usd-deployer/backups)" == 700 ]] ||
+  { echo "Release backup directory is not private" >&2; exit 1; }
+[[ "$(stat -c %u "${archives[0]}")" == 0 && "$(stat -c %a "${archives[0]}")" == 600 ]] ||
+  { echo "Release database archive is not root-only" >&2; exit 1; }
 "${compose[@]}" exec -T db createdb -U usd restore_check
 "${compose[@]}" exec -T db pg_restore -U usd -d restore_check --no-owner --no-acl --exit-on-error --single-transaction < "${archives[0]}"
 [[ "$("${compose[@]}" exec -T db psql -At -U usd -d restore_check -c 'SELECT id FROM release_marker')" == 42 ]]
