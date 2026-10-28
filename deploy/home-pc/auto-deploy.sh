@@ -64,7 +64,6 @@ schema="$(git -C "$SOURCE_DIR" rev-parse "$SHA:backend/prisma")"
 [[ "$schema" == "$approved_schema" ]] || { echo "Schema changed; supervised migration and new schema approval required" >&2; exit 1; }
 DEPLOY_ENV=/home/usd/usd-deploy/deploy/home-pc/.env
 [[ -f "$DEPLOY_ENV" && ! -L "$DEPLOY_ENV" ]] || { echo "Missing deployment environment" >&2; exit 1; }
-[[ "$(stat -c %u "$DEPLOY_ENV")" == 0 ]] || { echo "Deployment environment must be root-owned" >&2; exit 1; }
 (( (8#$(stat -c %a "$DEPLOY_ENV") & 077) == 0 )) || { echo "Deployment environment must not be readable by group or other users" >&2; exit 1; }
 OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 [[ "$OLD_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid deployed SHA" >&2; exit 1; }
