@@ -88,7 +88,7 @@ export class SiteSettingsService{
         throw new BadRequestException('Недопустимая или повторяющаяся ссылка меню.');
       if(typeof item.id!=='string'||!(/^[a-z][a-z0-9-]{0,31}$/).test(item.id)||ids.has(item.id))
         throw new BadRequestException('Недопустимый идентификатор пункта меню.');
-      if(typeof item.label!=='string'||item.label.trim().length===0||item.label.length>48||/[\\u0000-\\u001f\\u007f]/.test(item.label))
+      if(typeof item.label!=='string'||item.label.trim().length===0||item.label.length>48||[...item.label].some(char=>char.charCodeAt(0)<32||char.charCodeAt(0)===127))
         throw new BadRequestException('Название пункта меню должно содержать от 1 до 48 символов.');
       if(typeof item.enabled!=='boolean'||!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>1000)
         throw new BadRequestException('Некорректный порядок или видимость пункта меню.');
