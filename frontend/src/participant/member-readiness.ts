@@ -38,10 +38,10 @@ export function upcomingStages<T extends {date?:unknown;isDeleted?:boolean}>(sta
  const eventDay=(value:unknown):string|null=>{
   const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
   if(!date||!Number.isFinite(date.getTime()))return null;
-  const iso=typeof value==='string'?value.match(/^(\\d{4}-\\d{2}-\\d{2})(?:T|$)/):null;
+  const iso=typeof value==='string'?value.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/):null;
   return iso?iso[1]:localDay(date);
  };
- return stages.filter(stage=>!stage.isDeleted&&((day)=>day!==null&&day>=today)(eventDay(stage.date)))
+ return stages.filter(stage=>{const day=eventDay(stage.date);return !stage.isDeleted&&day!==null&&day>=today;})
   .sort((a,b)=>(eventDay(a.date)??'').localeCompare(eventDay(b.date)??''));
 }
 
