@@ -62,6 +62,24 @@ describe('server-side equipment catalog authorization', () => {
       { audioComponents: [legacy] })).toThrow(BadRequestException);
   });
 
+  it('retains an exact retired catalog reference without allowing ID stripping or retagging', () => {
+    const retired = { ...sub, catalogEntryId: '00000000-0000-4000-8000-000000000004',
+      brand: 'Deaf Bonce', model: 'Hidden' };
+    const previous = { audioComponents: [retired] };
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired }] }, previous))
+      .not.toThrow();
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, catalogEntryId: undefined }] }, previous))
+      .toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, quantity: 3 }] }, previous))
+      .toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, direction: 'FRONT' }] }, previous))
+      .toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [retired, retired] }, previous))
+      .toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, catalogEntryId: ampId }] }, previous))
+      .toThrow(BadRequestException);
+  });
+
   it('requires an active CMS battery code while preserving unchanged legacy batteries', () => {
     const settings = { ...catalogs, batteryTypes: [
       { code: 'LTO', name: 'Литий-титанат', chemistry: 'LTO', construction: 'CELLS', isActive: true },
