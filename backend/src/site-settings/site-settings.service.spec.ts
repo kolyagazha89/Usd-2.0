@@ -236,3 +236,52 @@ describe('SiteSettingsService default USD branding', () => {
     expect(builtInTemplates).not.toContain('юсд');
   });
 });
+
+
+describe('SiteSettingsService homepage hero CMS', () => {
+  const makeService = () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockImplementation(async (args: any) => ({ id: 'default', ...args.create })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return { service: new SiteSettingsService(prisma), prisma };
+  };
+
+  it('publishes edited hero scene labels and topics without requiring a schema migration', async () => {
+    const { service, prisma } = makeService();
+    const response = await service.update({ homepage: {
+      heroStageLabel: 'USD WORLD',
+      heroStageTagline: 'ГРОМЧЕ',
+      heroPulseHint: 'Нажмите на эмблему',
+      heroWatchLabel: 'О нас',
+      heroPrimaryButtonLabel: 'Открыть этап',
+      heroCalendarButtonLabel: 'Календарь',
+      heroTopics: ['РЕКОРДЫ', 'СПОРТСМЕНЫ'],
+    } } as any, 'admin-1');
+    expect(response.settings.homepage.heroStageLabel).toBe('USD WORLD');
+    expect(response.settings.homepage.heroTopics).toEqual(['РЕКОРДЫ', 'СПОРТСМЕНЫ']);
+    expect((prisma as any).siteSettings.upsert).toHaveBeenCalledTimes(1);
+    expect((prisma as any).auditLog.create).toHaveBeenCalledTimes(1);
+    const publicSettings = await service.getPublic();
+    expect(publicSettings.settings.homepage.heroTopics).toEqual(['РЕКОРДЫ', 'СПОРТСМЕНЫ']);
+  });
+
+  it('rejects malformed hero fields before writing any settings or audit log', async () => {
+    const { service, prisma } = makeService();
+    for (const homepage of [
+      { heroTopics: 'not an array' },
+      { heroTopics: Array(9).fill('USD') },
+      { heroTopics: ['x'.repeat(41)] },
+      { heroTopics: [123] },
+      { heroStageLabel: 'x'.repeat(161) },
+      { heroWatchLabel: 42 },
+    ]) {
+      await expect(service.update({ homepage } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
+    expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
+  });
+});
