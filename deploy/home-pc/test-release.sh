@@ -39,6 +39,7 @@ EOF
 chmod 600 "$ROOT/.env"
 cp deploy/home-pc/compose.yaml "$ROOT/compose.yaml"
 cp deploy/home-pc/compose.local.yaml "$ROOT/compose.local.yaml"
+cp deploy/home-pc/compose.tunnel.yaml "$ROOT/compose.tunnel.yaml"
 printf '%s\n' "$NEW" > "$STATE/built-sha"
 printf '%s\n' "$NEW" > "$STATE/schema-approved-sha"
 printf '%s\n' "$NEW" > /etc/usd-release-approved
@@ -76,7 +77,11 @@ if [[ "${1:-}" == inspect ]]; then
     echo "ghcr.io/kolyagazha89/usd-2.0-$service:$tag"
     exit 0
   fi
-  echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
+  if [[ "${USD_TEST_TUNNEL_OVERLAY:-0}" == 1 ]]; then
+    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.tunnel.yaml"
+  else
+    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
+  fi
   exit 0
 fi
 if [[ "${1:-}" == compose ]]; then
@@ -147,6 +152,16 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=0
+export USD_TEST_TUNNEL_OVERLAY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/missing-tunnel-env.log" 2>&1; then exit 1; fi
+grep -q 'Missing, symlinked or non-root-owned tunnel credential file' "$WORK/missing-tunnel-env.log"
+printf 'TUNNEL_TOKEN=ci-only\\n' > "$ROOT/.env.cloudflared"
+chmod 644 "$ROOT/.env.cloudflared"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-tunnel-env.log" 2>&1; then exit 1; fi
+grep -q 'Tunnel credential file must not be accessible' "$WORK/insecure-tunnel-env.log"
+chmod 600 "$ROOT/.env.cloudflared"
+export USD_TEST_TUNNEL_OVERLAY=0
+[[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_DB_UNHEALTHY_BEFORE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-before.log" 2>&1; then exit 1; fi
 grep -q "Production DB is not healthy" "$WORK/db-unhealthy-before.log"
