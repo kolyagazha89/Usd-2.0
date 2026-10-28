@@ -114,7 +114,7 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  ]);
  assert.match(editor,/catalogStatus==='loading'.*Загружаем справочник оборудования USD/);
  assert.match(editor,/catalogStatus==='error'.*Не удалось загрузить справочник/);
- assert.match(editor,/setCatalogReload\(n=>n\+1\)>Повторить загрузку/);
+ assert.match(editor,/setCatalogReload\(n=>n\+1\)\}>Повторить загрузку/);
  assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
  assert.match(editor,/disabled=\{catalogStatus!=='ready'\}/);
  assert.match(editor,/disabled=\{catalogStatus!=='ready'\|\|!picker\.model\}/);
