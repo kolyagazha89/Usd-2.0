@@ -73,6 +73,33 @@ jobs:
           if [[ "$api_ready" != 1 ]]; then docker logs --tail=150 usd-api-ci-app; exit 1; fi
           docker exec usd-api-ci-app node -e \
             'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000});(async()=>{try{await c.connect();const r=await c.query("SELECT 1 AS ok");if(r.rows[0].ok!==1)process.exitCode=1;}finally{await c.end();}})().catch(()=>{process.exitCode=1;})'
+      - name: Rehearse schema migration on a restored PostgreSQL 18 archive
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # This fixture is disposable and never contains production data.
+          network="usd-schema-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          db="usd-schema-fixture-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          dump="$(mktemp)"
+          cleanup() {
+            docker rm -f "$db" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+            rm -f "$dump"
+          }
+          trap cleanup EXIT
+          docker network create --internal "$network"
+          docker run -d --name "$db" --network "$network" \
+            -e POSTGRES_USER=usd -e POSTGRES_PASSWORD=disposable-ci-only -e POSTGRES_DB=usd \
+            postgres:18-alpine
+          ready=0
+          for attempt in $(seq 1 60); do
+            if docker exec "$db" pg_isready -h 127.0.0.1 -U usd -d usd >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          [[ "$ready" == 1 ]]
+          docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE schema_rehearsal_fixture (id integer PRIMARY KEY); INSERT INTO schema_rehearsal_fixture VALUES (42);'
+          docker exec "$db" pg_dump -Fc --no-owner --no-acl -U usd -d usd > "$dump"
+          bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}"
       - name: Build candidate frontend image with production API URL
         run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
       - name: Verify production frontend assets exist
@@ -99,6 +126,7 @@ jobs:
           set -euo pipefail
           bash -n deploy/home-pc/auto-deploy.sh
           bash -n deploy/home-pc/release-approved.sh
+          bash -n deploy/home-pc/rehearse-schema-on-backup.sh
           bash -n deploy/home-pc/install-local-deployer.sh
           bash -n deploy/home-pc/test-release.sh
           bash -n deploy/home-pc/test-auto-deploy.sh
