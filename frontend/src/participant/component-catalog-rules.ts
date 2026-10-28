@@ -50,3 +50,60 @@ export function isUnchangedLegacyCatalogRow(initialRows:unknown,kind:EquipmentKi
    &&(kind!=='audioComponents'||previous.type===row.type);
  });
 }
+
+
+/** Return the first invalid equipment row before save. A published catalog
+ * selection is matched by category, brand and model and must have a stable ID;
+ * the serializer then resolves that ID. Historical rows are consumed once
+ * each, so copying a retired model cannot bypass the catalog.
+ */
+export function findUnapprovedEquipmentRow(
+ models:unknown,kind:EquipmentKind,rows:unknown,previousRows:unknown,
+):EquipmentRow|null{
+ if(!Array.isArray(rows))return {brand:'',model:''};
+ const previous=Array.isArray(previousRows)?previousRows:[];
+ const consumed=new Set<number>();
+ for(const candidate of rows){
+  if(!candidate||typeof candidate!=='object')return {brand:'',model:''};
+  const row=candidate as EquipmentRow;
+  const approved=availableCatalogModels(models,kind,row.type).some(entry=>
+   Boolean(String(entry.id??'').trim())&&normalized(entry.brand)===normalized(row.brand)
+   &&normalized(entry.model)===normalized(row.model));
+  if(approved)continue;
+  const index=previous.findIndex((old,i)=>!consumed.has(i)&&isUnchangedLegacyCatalogRow([old],kind,row));
+  if(index>=0){consumed.add(index);continue;}
+  return row;
+ }
+ return null;
+}
+
+/** A battery type is a CMS code, not free-form manufacturer text. Retired
+ * types may be retained unchanged in old configurations, never added anew.
+ * This mirrors the server-side multiset exception for imported batteries.
+ */
+export function findUnapprovedBatteryRow(
+ batteryTypes:unknown,rows:unknown,previousRows:unknown,
+):EquipmentRow|null{
+ if(!Array.isArray(rows))return {brand:'',model:''};
+ const active=Array.isArray(batteryTypes)?batteryTypes:[];
+ const previous=Array.isArray(previousRows)?previousRows:[];
+ const consumed=new Set<number>();
+ for(const candidate of rows){
+  if(!candidate||typeof candidate!=='object')return {brand:'',model:''};
+  const row=candidate as EquipmentRow;
+  const code=String(row.brand??'');
+  if(code&&active.some(entry=>entry&&typeof entry==='object'
+   &&(entry as {code?:unknown}).code===code
+   &&(entry as {isActive?:unknown}).isActive!==false))continue;
+  const index=previous.findIndex((old,i)=>{
+   if(consumed.has(i)||!old||typeof old!=='object')return false;
+   const saved=old as EquipmentRow;
+   return normalized(saved.brand)===normalized(row.brand)
+    &&normalized(saved.model)===normalized(row.model)
+    &&String(saved.quantity??'')===String(row.quantity??'');
+  });
+  if(index>=0){consumed.add(index);continue;}
+  return row;
+ }
+ return null;
+}
