@@ -3,10 +3,11 @@ import {ArrowRight,ArrowUpRight,CalendarDays,CarFront,CheckCircle2,ClipboardChec
 import ParticipantJourney from './ParticipantJourney';
 import {currentCarAudioComponents,isDirectionConfigured,preferredUpcomingStage,upcomingStages} from './member-readiness';
 import {Photo,type PhotoPlaceholders} from '../public/PremiumUI';
+import {stageDate} from '../public/premium-model';
 
 type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void;placeholders?:PhotoPlaceholders};
 const name=(car:any)=>[car?.brand,car?.model].filter(Boolean).join(' ');
-const date=(value:any)=>value?new Date(value).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}):'Дата уточняется';
+const date=(value:any)=>stageDate(value,false);
 export default function MemberDashboard({participant,cars,registrations,stages,onGo,onAddCar,onRegistration,onStageRegistration,placeholders}:Props){
  const [selectedCarId,setSelectedCarId]=useState('');
  const active=cars.filter(c=>c.isActive!==false),car=active.find(c=>c.id===selectedCarId)??active[0];
