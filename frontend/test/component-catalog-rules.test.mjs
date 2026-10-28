@@ -116,6 +116,8 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/catalogStatus==='error'.*Не удалось загрузить справочник/);
  assert.match(editor,/setCatalogReload\(n=>n\+1\)\}>Повторить загрузку/);
  assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
+ assert.doesNotMatch(editor,/DEFAULT_VIBRATION_BRANDS|\['STP','ComfortMat','Audior','Global'\]/,'editable vibration brand choices must not be hardcoded in React');
+ assert.match(editor,/vibrationBrands:Array\.isArray\(c\.vibrationBrands\)\?c\.vibrationBrands:\[\]/);
  assert.match(editor,/disabled=\{catalogStatus!=='ready'\}/);
  assert.match(editor,/disabled=\{catalogStatus!=='ready'\|\|!picker\.model\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
