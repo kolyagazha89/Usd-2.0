@@ -148,7 +148,7 @@ bash deploy/home-pc/release-approved.sh "$GOOD"
 [[ "$("${compose[@]}" ps -q db)" == "$db_before" ]]
 [[ "$("${compose[@]}" exec -T db psql -At -U usd -d usd -c 'SELECT id FROM release_marker')" == 42 ]]
 # Verify a real archive restores into a separate disposable database.
-archives=(/home/usd/backups/release-"$GOOD".*.dump)
+archives=(/var/lib/usd-deployer/backups/release-"$GOOD".*.dump)
 [[ "${#archives[@]}" == 1 && -s "${archives[0]}" ]]
 "${compose[@]}" exec -T db createdb -U usd restore_check
 "${compose[@]}" exec -T db pg_restore -U usd -d restore_check --no-owner --no-acl --exit-on-error --single-transaction < "${archives[0]}"
