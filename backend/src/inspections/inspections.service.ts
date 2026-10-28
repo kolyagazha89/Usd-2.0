@@ -122,6 +122,8 @@ export class InspectionsService {
           take: 30,
           select: {
             id: true, stageId: true, participantNumber: true,
+            inspection: { select: { status: true } },
+            stageInspection: { select: { status: true } },
             stage: { select: { id: true, name: true, date: true } },
             car: { select: { brand: true, model: true, registrationNumber: true } },
           },
