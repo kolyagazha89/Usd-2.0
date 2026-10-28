@@ -16,10 +16,26 @@ import {
 } from './dto/create-configuration.dto';
 
 import { UpdateConfigurationDto } from './dto/update-configuration.dto';
+import { assertCatalogEquipment } from './catalog-validation';
 
 @Injectable()
 export class ConfigurationsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async validateCatalogVersion(tx: Prisma.TransactionClient, dto: CreateConfigurationDto, previousVersionId?: string) {
+    const [settings, previous] = await Promise.all([
+      tx.siteSettings.findUnique({ where: { id: 'default' }, select: { catalogs: true } }),
+      previousVersionId ? tx.carConfigurationVersion.findUnique({
+        where: { id: previousVersionId },
+        include: { headUnits: true, audioComponents: true, amplifiers: true },
+      }) : Promise.resolve(null),
+    ]);
+    assertCatalogEquipment(settings?.catalogs, dto, {
+      headUnits: previous?.headUnits ?? [],
+      audioComponents: previous?.audioComponents ?? [],
+      amplifiers: previous?.amplifiers ?? [],
+    });
+  }
 
   // A final correction is separate from the original registration snapshot.
   private final2026Where(userId: string): Prisma.RegistrationWhereInput {
@@ -63,6 +79,7 @@ export class ConfigurationsService {
       // Repeated submissions (including network retries) never create a duplicate.
       if (registration.configurationConfirmation) return registration.configurationConfirmation;
       const configurationId = registration.configurationVersion.configurationId;
+      await this.validateCatalogVersion(tx, dto, registration.configurationVersion.id);
       const current = await tx.carConfiguration.findUniqueOrThrow({ where: { id: configurationId } });
       const version = await tx.carConfigurationVersion.create({ data: {
         configurationId, version: current.currentVersion + 1,
@@ -463,6 +480,7 @@ export class ConfigurationsService {
 
     return this.prisma.$transaction(
       async (tx) => {
+        await this.validateCatalogVersion(tx, dto);
         const configuration =
           await tx.carConfiguration.create({
             data: {
@@ -569,6 +587,7 @@ export class ConfigurationsService {
           select: { id: true },
         });
         if (!currentVersion) throw new NotFoundException('Current configuration version not found');
+        await this.validateCatalogVersion(tx, dto, currentVersion.id);
 
         // Every successful edit is an immutable new version, even if the
         // previous build was never registered at a stage. Do not delete or
