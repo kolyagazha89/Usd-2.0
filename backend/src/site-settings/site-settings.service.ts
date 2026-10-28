@@ -103,6 +103,56 @@ export class SiteSettingsService{
       paths.add(item.path);ids.add(item.id);
     }
   }
+  /**
+   * The public partner directory is CMS-controlled, but its content must be
+   * validated on the server. Existing legacy rows are preserved unchanged so
+   * an unrelated settings edit never breaks because of historical data.
+   */
+  private validatePartners(value:unknown,previous:Record<string,unknown>[]){
+    if(value===undefined)return;
+    if(!Array.isArray(value)||value.length>200)
+      throw new BadRequestException('Некорректный список партнёров (максимум 200).');
+    const ids=new Set<string>();
+    for(const [index,raw] of value.entries()){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))
+        throw new BadRequestException('Некорректная запись партнёра.');
+      const item=raw as Record<string,unknown>;
+      const id=item.id;
+      if(typeof id!=='string'||!id.trim()||id.length>100||/[\\u0000-\\u001f\\u007f]/.test(id)||ids.has(id))
+        throw new BadRequestException('У партнёра отсутствует уникальный идентификатор.');
+      ids.add(id);
+      const old=previous.find(row=>row?.id===id);
+      if(old&&JSON.stringify(old)===JSON.stringify(item))continue;
+      const text=(field:string,max:number,required=false)=>{
+        const v=item[field];
+        if(v===undefined||v===null)return !required;
+        return typeof v==='string'&&v.length<=max&&(!required||v.trim().length>0)
+          &&!/[\\u0000-\\u001f\\u007f]/.test(v);
+      };
+      if(!text('name',160,true)||!text('description',3000))
+        throw new BadRequestException('Проверьте название и описание партнёра.');
+      if(!['GENERAL','PREMIUM','REGULAR'].includes(String(item.tier)))
+        throw new BadRequestException('Выберите уровень партнёра: генеральный, премиальный или обычный.');
+      if(item.isActive!==undefined&&typeof item.isActive!=='boolean'
+        ||item.isPublished!==undefined&&typeof item.isPublished!=='boolean'
+        ||!old&&typeof item.isPublished!=='boolean')
+        throw new BadRequestException('Укажите статус публикации и видимости партнёра.');
+      if(item.sortOrder!==undefined&&(!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>100000))
+        throw new BadRequestException('Некорректный порядок партнёра.');
+      if(!text('website',2048))throw new BadRequestException('Некорректная ссылка партнёра.');
+      if(item.website){
+        try{
+          const rawUrl=String(item.website);
+          if(/\\s|\\\\/.test(rawUrl))throw new Error('unsafe');
+          const url=new URL(rawUrl);
+          if(!['https:','http:'].includes(url.protocol)||!url.hostname||url.username||url.password)
+            throw new Error('unsafe');
+        }catch{throw new BadRequestException('Сайт партнёра должен быть корректной ссылкой https:// или http:// без логина и пароля.');}
+      }
+      if(item.photoUrl!==undefined&&item.photoUrl!==null&&!text('photoUrl',2048))
+        throw new BadRequestException('Некорректная ссылка на логотип партнёра.');
+    }
+  }
   private validateCatalogs(value:unknown){
     if(value===undefined)return;
     if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
@@ -326,6 +376,7 @@ export class SiteSettingsService{
       this.validateHomepage(input.homepage);
       this.validateNavigation(input.navigation);
       this.validateCatalogs(input.catalogs);
+      this.validatePartners(input.partners,current.partners);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
