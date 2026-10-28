@@ -106,3 +106,11 @@ Before enabling deployment jobs:
 5. Back up and verify the database before schema migrations. Migration approval, compatibility checks, health checks and rollback are separate gates. Image rollback does not undo database migrations.
 
 **Until these controls are in place, do not add `runs-on: self-hosted` jobs in this public repository or grant the runner privileged access.**
+
+## Local build timer and release safety (not yet validated on the live VM)
+
+`auto-deploy.sh` is a build-only job: it fetches the latest `main` commit and builds two local Docker images tagged by the full commit SHA. It requires an operator-created `/etc/usd-deploy-enabled` switch. It does not deploy, migrate or restart containers.
+
+`release-approved.sh SHA` is a separate manual release. Before running it, the operator must review DB schema compatibility and create two root-owned files containing that exact SHA: `/var/lib/usd-deployer/schema-approved-sha` and `/etc/usd-release-approved`. The SHA must also match `/var/lib/usd-deployer/built-sha`. The release checks that both old and new API/frontend images are present, discovers the exact Compose files used by the running containers, updates only API/frontend, checks both services from inside their containers, and attempts to restore the previous images if a step fails. PostgreSQL is never targeted for recreation. The release does not apply Prisma migrations or undo a DB migration.
+
+**Do not enable the timer or run a release yet.** The code needs shell and integration tests, verification of the actual Compose labels on Ubuntu, a proven database backup/restore, and a supervised rollback rehearsal. This PR does not change the live server, and the public domain `usd-russia.ru` is outside its scope.
