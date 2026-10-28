@@ -9,6 +9,13 @@ ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
 TRUSTED_DIR=/etc/usd-deployer/compose
 [[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
+# This rehearsal deliberately creates fixture credentials and state at fixed
+# paths. Never overwrite an existing installation even if CI environment
+# variables were accidentally present on a non-disposable machine.
+for protected in "$ROOT/.env" "$ROOT/compose.yaml" "$STATE/built-sha" "$STATE/deployed-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha"; do
+  [[ ! -e "$protected" && ! -L "$protected" ]] ||
+    { echo "Existing deployment state at $protected; refusing disposable rehearsal" >&2; exit 1; }
+done
 WORK="$(mktemp -d)"
 OLD=1111111111111111111111111111111111111111
 BAD=2222222222222222222222222222222222222222
