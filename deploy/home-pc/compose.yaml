@@ -13,7 +13,9 @@ services:
     shm_size: 128mb
     mem_limit: 640m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # During first init the official image starts a temporary socket-only server.
+      # TCP readiness prevents a false healthy state before its final restart.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 12
