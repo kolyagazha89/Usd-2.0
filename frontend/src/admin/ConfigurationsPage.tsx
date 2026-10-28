@@ -66,14 +66,22 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
 
  const [requestOpen,setRequestOpen]=useState(false),[requestCategory,setRequestCategory]=useState('AUDIO_COMPONENT'),[requestBrand,setRequestBrand]=useState(''),[requestModel,setRequestModel]=useState(''),[requestDetails,setRequestDetails]=useState(''),[requestBusy,setRequestBusy]=useState(false),[requestNotice,setRequestNotice]=useState('');
  const [catalogs,setCatalogs]=useState<any>({vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:[],componentModels:[],batteryTypes:[]});
- useEffect(()=>{(admin?getSiteSettings():getPublicSiteSettings()).then(r=>{const c=r?.settings?.catalogs;if(c)setCatalogs({vibrationBrands:Array.isArray(c.vibrationBrands)?c.vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:Array.isArray(c.componentBrands)?c.componentBrands:[],componentModels:Array.isArray(c.componentModels)?c.componentModels:[],batteryTypes:Array.isArray(c.batteryTypes)?c.batteryTypes:[]})}).catch(()=>{})},[admin]);
+ const [catalogStatus,setCatalogStatus]=useState<'loading'|'ready'|'error'>('loading'),[catalogReload,setCatalogReload]=useState(0);
+ useEffect(()=>{let cancelled=false;setCatalogStatus('loading');
+  (admin?getSiteSettings():getPublicSiteSettings()).then(r=>{
+   const c=r?.settings?.catalogs;
+   if(!c||!Array.isArray(c.componentModels)||!Array.isArray(c.batteryTypes))throw new Error('Каталоги отсутствуют в ответе API');
+   if(!cancelled){setCatalogs({vibrationBrands:Array.isArray(c.vibrationBrands)?c.vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:Array.isArray(c.componentBrands)?c.componentBrands:[],componentModels:c.componentModels,batteryTypes:c.batteryTypes});setCatalogStatus('ready')}
+  }).catch(()=>{if(!cancelled)setCatalogStatus('error')});
+  return()=>{cancelled=true};
+ },[admin,catalogReload]);
 
  const batteryTypes=(catalogs.batteryTypes??[]).filter((x:any)=>x.isActive!==false);
  const defaultBatteryCode=batteryTypes[0]?.code??'';
  const activeModels=(kind:'audioComponents'|'amplifiers'|'headUnits',type?:string)=>availableCatalogModels(catalogs.componentModels,kind,type);
  const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand)))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
  const pickerModels=picker?activeModels(picker.kind,picker.type).filter((x:any)=>x.brand===picker.brand&&String(x.model).toLowerCase().includes(modelQuery.trim().toLowerCase())):[];
- const savePicker=()=>{if(!picker)return;const approved=isApprovedCatalogModel(catalogs.componentModels,picker.kind,picker);
+ const savePicker=()=>{if(!picker)return;if(catalogStatus!=='ready'){setError('Сначала загрузите справочник моделей оборудования.');return}const approved=isApprovedCatalogModel(catalogs.componentModels,picker.kind,picker);
    const entry=activeModels(picker.kind,picker.type).find((model:any)=>model.brand===picker.brand&&model.model===picker.model&&model.id);
   if(!approved||!entry){setError('Выберите модель с ID из каталога USD. Если её нет, отправьте запрос администратору.');return}
   if(!Number.isSafeInteger(picker.quantity)||picker.quantity<1||picker.quantity>99){setError('Укажите целое количество оборудования от 1 до 99.');return}
@@ -101,6 +109,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const add=(key:string,item:any)=>setV((s:any)=>({...s,[key]:[...s[key],item]}));
 
  const validateCatalog=()=>{
+  if(catalogStatus!=='ready'){setError('Справочники оборудования не загружены. Проверьте соединение и повторите загрузку каталога.');return false}
   for(const [key,category] of [['headUnits','HEAD_UNIT'],['audioComponents','AUDIO_COMPONENT'],['amplifiers','AMPLIFIER']] as const){
    const invalid=findUnapprovedEquipmentRow(catalogs.componentModels,key,v[key],initial[key]);
    if(invalid){
@@ -122,7 +131,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   setSaving(true);try{
    const boxLine=formatBoxLine(box);
    const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription},catalogs.componentModels);if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
- return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':admin?'Новая версия · '+configuration.name:selectedView.label}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':admin?'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.':selectedView.desc}</p></header>
+ return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':admin?'Новая версия · '+configuration.name:selectedView.label}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':admin?'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.':selectedView.desc}</p></header>{catalogStatus==='error'&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>Справочники USD не загрузились. Сохранение временно недоступно, введённые данные остаются в форме.</span><button type="button" className="secondary-button compact" onClick={()=>setCatalogReload(n=>n+1)}>Повторить загрузку</button></div>}
   {!admin&&<section className="member-config-experience" aria-label="Конфигурация оборудования">
     <div className="member-config-vehicle">
       <div className="member-config-vehicle-info"><span className="eyebrow">МОЙ АВТОМОБИЛЬ</span><h2>{[car?.brand,car?.model].filter(Boolean).join(' ')||configuration.name||'Мой автомобиль'}</h2><p>{car?.registrationNumber||'Соревновательная конфигурация'}{car?.color?' · '+car.color:''}</p>
