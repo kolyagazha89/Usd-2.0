@@ -28,7 +28,7 @@ git -C "$SOURCE_DIR" checkout --force --detach "$SHA"
 [[ -r "$DEPLOY_DIR/.env" ]] || { echo "Missing deploy env"; exit 1; }
 cd "$DEPLOY_DIR"
 # Parse only the non-secret image tag; never execute .env as shell code.
-OLD_TAG="$(sed -nE 's/^USD_IMAGE_TAG=([0-9a-f]{40})$/\\1/p' .env | head -n 1)"
+OLD_TAG="$(sed -nE 's/^USD_IMAGE_TAG=([0-9a-f]{40})$/\1/p' .env | head -n 1)"
 [[ "$OLD_TAG" =~ ^[0-9a-f]{40}$ ]] || { echo "Existing USD_IMAGE_TAG must be full SHA"; exit 1; }
 
 # Build sequentially to reduce peak RAM. Database is never rebuilt or restarted.
