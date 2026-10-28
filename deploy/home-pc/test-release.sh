@@ -12,7 +12,7 @@ TRUSTED_DIR=/etc/usd-deployer/compose
 # including files from a previous aborted run, before installing a mock.
 # The real-Docker rehearsal runs later in this SAME CI job and requires a clean
 # host; the mock must therefore remove only files it created on exit.
-TEST_BACKUP_DIR=/home/usd/backups
+TEST_BACKUP_DIR=/var/lib/usd-deployer/backups
 for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
   "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
