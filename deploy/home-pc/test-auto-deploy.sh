@@ -34,6 +34,7 @@ for old,new in {
  '/etc/usd-auto-release-schema':work+'/policy',
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
+ '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
  '/var/lib/docker':work,
 }.items():s=s.replace(old,new)
 pathlib.Path(work+'/builder').write_text(s)
@@ -70,7 +71,12 @@ echo "$1" >> "$USD_TEST_WORK/releases.log"
 [[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
 SH
-chmod +x "$WORK/bin/"* "$WORK/release"
+cat > "$WORK/verify-ci" <<'SH'
+#!/usr/bin/env bash
+echo "$*" >> "$USD_TEST_WORK/ci.log"
+exit "${USD_TEST_CI_STATUS:-0}"
+SH
+chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci"
 export PATH="$WORK/bin:$PATH"
 # A missing operator switch must not build or release anything.
 mv "$WORK/enabled" "$WORK/disabled"
@@ -89,6 +95,17 @@ bash "$WORK/builder" > "$WORK/build-only.log"
 [[ "$(cat "$WORK/state/built-sha")" == "$NEW" ]]
 printf '%s\n' "$SCHEMA" > "$WORK/policy"
 chmod 600 "$WORK/policy"
+# A pending or failed main push CI must not release even a locally built SHA.
+export USD_TEST_CI_STATUS=75
+bash "$WORK/builder" > "$WORK/pending-ci.log" 2>&1
+grep -q 'Main CI not verified yet' "$WORK/pending-ci.log"
+[[ ! -f "$WORK/releases.log" ]]
+export USD_TEST_CI_STATUS=1
+if bash "$WORK/builder" > "$WORK/failed-ci.log" 2>&1; then exit 1; fi
+grep -q 'Main CI gate refused' "$WORK/failed-ci.log"
+[[ ! -f "$WORK/releases.log" ]]
+unset USD_TEST_CI_STATUS
+grep -q "^$NEW 0$" "$WORK/ci.log"
 # A failed image build cannot mark this version ready or invoke release.
 printf '%040d\n' 0 > "$WORK/state/built-sha"
 export USD_TEST_FAIL_BUILD=1
