@@ -2,7 +2,15 @@
 # Manual, explicitly approved release of prebuilt images. No migrations or DB restart.
 set -Eeuo pipefail
 umask 077
-exec 9>/run/lock/usd-home-deploy.lock
+# The automatic builder passes its already-locked FD 9. Reuse that exact
+# descriptor so no second deployer can slip in during the handoff. Direct
+# supervised invocations still acquire the lock independently.
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
+  [[ "$(readlink /proc/self/fd/9 2>/dev/null)" == /run/lock/usd-home-deploy.lock ]] ||
+    { echo "Missing trusted inherited deploy lock descriptor" >&2; exit 75; }
+else
+  exec 9>/run/lock/usd-home-deploy.lock
+fi
 flock -n 9 || { echo "Another USD build/release is running; retry later" >&2; exit 75; }
 
 DEPLOY_DIR=/home/usd/usd-deploy/deploy/home-pc
