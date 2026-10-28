@@ -11,6 +11,8 @@ test('direction readiness requires a real, positive-quantity component',()=>{
  assert.equal(isDirectionConfigured([row('SUB','MIDBASS')],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',0)],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',-2)],'SUB'),false);
+ assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',0.5)],'SUB'),false);
+ assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER','1.5')],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',Number.NaN)],'SUB'),false);
  assert.equal(isDirectionConfigured([{...row('SUB','SUBWOOFER'),model:' '}],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',2)],'SUB'),true);
