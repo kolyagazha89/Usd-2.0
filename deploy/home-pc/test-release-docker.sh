@@ -56,10 +56,14 @@ require('node:http').createServer((req,res)=>{res.statusCode=Number(process.env.
 JS
 cat > "$WORK/api/Dockerfile" <<'DOCKER'
 FROM node:24-alpine
+WORKDIR /app
+# Match production readiness: the disposable API must have the pg client
+# so the helper can prove its actual PostgreSQL credentials work.
+RUN npm install --no-audit --no-fund --no-save pg@8.16.3
 ARG QA_STATUS=200
 ENV QA_STATUS=$QA_STATUS
-COPY server.js /server.js
-CMD ["node","/server.js"]
+COPY server.js /app/server.js
+CMD ["node","/app/server.js"]
 DOCKER
 docker build --build-arg QA_STATUS=200 -t "ghcr.io/kolyagazha89/usd-2.0-api:$OLD" "$WORK/api"
 docker tag "ghcr.io/kolyagazha89/usd-2.0-api:$OLD" "ghcr.io/kolyagazha89/usd-2.0-api:$GOOD"
@@ -93,6 +97,11 @@ services:
       retries: 30
   api:
     image: ghcr.io/kolyagazha89/usd-2.0-api:${USD_IMAGE_TAG}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
   frontend:
     image: ghcr.io/kolyagazha89/usd-2.0-frontend:${USD_IMAGE_TAG}
 volumes:
