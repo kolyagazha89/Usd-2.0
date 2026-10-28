@@ -112,7 +112,8 @@ test('member garage receives equipment summary from the authenticated cars endpo
  for(const key of ['brand','model','quantity','type','direction'])assert.match(carsQuery,new RegExp(key+': true'),'missing '+key+' in car equipment summary');
  assert.match(readiness,/Number\(item\.quantity\)/,'zero-quantity equipment must not count as ready');
  assert.match(readiness,/quantity>0/,'only positive quantities count as ready');
- assert.match(dashboard,/done:hasUsableEquipment/,'saved empty versions must not complete the equipment step');
+ assert.match(dashboard,/equipmentReady=hasUsableEquipment&&missingRequiredDirections\.length===0/,'equipment readiness must require a non-empty build and every direction required by registered classes');
+ assert.match(dashboard,/done:equipmentReady/,'saved empty versions must not complete the equipment step');
  assert.match(dashboard,/<ParticipantJourney car=\{car\} stage=\{stage\}/,'onboarding must use the selected car and stage');
  assert.match(journey,/isCarRegisteredForStage\(registrations,car\?\.id,stage\?\.id\)/,'other cars must not complete onboarding');
 });
