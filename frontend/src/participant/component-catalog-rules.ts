@@ -4,7 +4,7 @@
  */
 export type EquipmentKind='audioComponents'|'amplifiers'|'headUnits';
 export type CatalogModel={id?:unknown;category?:unknown;brand?:unknown;model?:unknown;isActive?:unknown};
-export type EquipmentRow={id?:unknown;type?:unknown;direction?:unknown;quantity?:unknown;brand?:unknown;model?:unknown};
+export type EquipmentRow={id?:unknown;catalogEntryId?:unknown;type?:unknown;direction?:unknown;quantity?:unknown;brand?:unknown;model?:unknown};
 
 const normalized=(value:unknown)=>String(value??'').trim().toLocaleLowerCase('ru');
 
@@ -44,6 +44,9 @@ export function isUnchangedLegacyCatalogRow(initialRows:unknown,kind:EquipmentKi
   }
   return normalized(previous.brand)===normalized(row.brand)
    &&normalized(previous.model)===normalized(row.model)
+   &&String(previous.catalogEntryId??'').trim()===String(row.catalogEntryId??'').trim()
+   &&String(previous.direction??'')===String(row.direction??'')
+   &&Number(previous.quantity??1)===Number(row.quantity??1)
    &&(kind!=='audioComponents'||previous.type===row.type);
  });
 }
