@@ -16,6 +16,37 @@ Use the existing Hyper-V Default Switch **only for initial staging**. Its intern
 - Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
 
+## Supervised off-host media backup and restore check
+
+The installer also provides `/usr/local/libexec/usd-verify-media-backup`.
+It requires `rclone` and operator-configured, separately authenticated
+source and **off-host** backup remotes. Neither media credentials nor rclone
+configuration belong in the repository. Choose a fresh, empty destination
+prefix for every snapshot; the verifier deliberately refuses to overwrite
+an existing snapshot. Example (replace both paths with real verified remotes):
+
+```bash
+sudo /usr/local/libexec/usd-verify-media-backup \
+  usd-media:current-bucket \
+  usd-offsite:backups/usd/media-<SNAPSHOT_DATE>
+```
+
+The helper copies without deleting source objects, downloads and compares
+every object against the backup, then restores the **entire** backup into a
+new private temporary local directory and verifies content and object counts
+again. It requires enough free local disk for the full restored dataset;
+failure leaves the off-host backup in place for investigation. Do not assume
+the backup is off-host merely because the destination has a different name:
+verify its physical provider, account, access controls, retention and
+independent recovery credentials. Do not use a prefix nested inside the
+source. A successful fixture test in CI does **not** verify production S3,
+media credentials, actual objects, or retention.
+
+Media verification and PostgreSQL restoration are **separate gates**.
+Neither helper modifies the live USD database, deploys a candidate, changes
+Cloudflare routes, or enables the timer. Both must be exercised with actual
+host data before any supervised release that depends on them.
+
 ## Supervised Prisma migration rehearsal (no production writes)
 
 The installer provides `/usr/local/libexec/usd-rehearse-schema-on-backup`. Before
