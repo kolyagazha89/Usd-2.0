@@ -416,3 +416,45 @@ describe('SiteSettingsService public navigation CMS', () => {
     expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
   });
 });
+
+
+describe('SiteSettingsService editable homepage section copy', () => {
+  const makeService = () => {
+    let stored: any = null;
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockImplementation(async () => stored),
+        upsert: jest.fn().mockImplementation(async (args: any) => {
+          stored = { id: 'default', ...(stored ? args.update : args.create) };
+          return stored;
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return { service: new SiteSettingsService(prisma), prisma };
+  };
+
+  it('publishes updated copy and preserves intentionally empty CMS text', async () => {
+    const { service } = makeService();
+    await service.update({ homepage: { copy: {
+      nextStageEmptyTitle: 'Скоро новые этапы',
+      liveEmptyDescription: '',
+    } } } as any, 'admin-1');
+    const publicSettings = await service.getPublic();
+    expect(publicSettings.settings.homepage.copy?.nextStageEmptyTitle).toBe('Скоро новые этапы');
+    expect(publicSettings.settings.homepage.copy?.liveEmptyDescription).toBe('');
+  });
+
+  it('rejects unsupported keys, non-string text and oversized values', async () => {
+    const { service, prisma } = makeService();
+    for (const copy of [
+      { unknown: 'Hidden injection' },
+      { nextStageEmptyTitle: 42 },
+      { nextStageEmptyTitle: 'a'.repeat(241) },
+      { nextStageEmptyTitle: 'Bad\nline' },
+    ]) {
+      await expect(service.update({ homepage: { copy } } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
+  });
+});
