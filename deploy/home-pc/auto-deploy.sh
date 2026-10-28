@@ -24,11 +24,8 @@ git -C "$SOURCE_DIR" checkout --force --detach "$SHA"
 
 [[ -r "$DEPLOY_DIR/.env" ]] || { echo "Missing deploy env"; exit 1; }
 cd "$DEPLOY_DIR"
-# Read only the existing deployment environment. Never print its contents.
-set -a
-source ./.env
-set +a
-OLD_TAG="${USD_IMAGE_TAG:-}"
+# Parse only the non-secret image tag; never execute .env as shell code.
+OLD_TAG="$(sed -nE 's/^USD_IMAGE_TAG=([0-9a-f]{40})$/\\1/p' .env | head -n 1)"
 [[ "$OLD_TAG" =~ ^[0-9a-f]{40}$ ]] || { echo "Existing USD_IMAGE_TAG must be full SHA"; exit 1; }
 
 # Build sequentially to reduce peak RAM. Database is never rebuilt or restarted.
@@ -39,12 +36,12 @@ docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t "ghcr.io/koly
 printf '%s\n' "$OLD_TAG" > "$STATE_DIR/previous-sha"
 cp -p .env "$STATE_DIR/previous.env"
 sed -i -E "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$SHA/" .env
-export USD_IMAGE_TAG="$SHA"
+
 
 rollback() {
   echo "Deploy failed; restoring previous images"
   cp -p "$STATE_DIR/previous.env" .env
-  export USD_IMAGE_TAG="$OLD_TAG"
+
   docker compose --env-file .env -f compose.yaml -f compose.local.yaml up -d --no-deps api frontend || true
 }
 trap rollback ERR
