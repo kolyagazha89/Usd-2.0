@@ -106,3 +106,18 @@ test('configuration editor does not silently add an unknown AGM fallback and ser
  assert.match(editor,/batteries:\(v\.batteries\?\?\[\]\)\.map\(\(battery:any\)=>\(\{\.\.\.battery,quantity:Number\(battery\.quantity\)\}\)\)/);
  assert.match(editor,/generators:\(v\.generators\?\?\[\]\)\.map\(\(generator:any\)=>\(\{\.\.\.generator,quantity:Number\(generator\.quantity\)\}\)\)/);
 });
+
+test('equipment picker clearly handles unavailable, loading and empty catalogs',async()=>{
+ const [editor,qa]=await Promise.all([
+  readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../../scripts/candidate-browser-qa.mjs',import.meta.url),'utf8'),
+ ]);
+ assert.match(editor,/catalogStatus==='loading'.*Загружаем справочник оборудования USD/);
+ assert.match(editor,/catalogStatus==='error'.*Не удалось загрузить справочник/);
+ assert.match(editor,/setCatalogReload\(n=>n\+1\)>Повторить загрузку/);
+ assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
+ assert.match(editor,/disabled=\{catalogStatus!=='ready'\}/);
+ assert.match(editor,/disabled=\{catalogStatus!=='ready'\|\|!picker\.model\}/);
+ assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
+ assert.match(qa,/option\[value=\\"Alphard\\"\]/,'browser QA waits for catalog hydration');
+});
