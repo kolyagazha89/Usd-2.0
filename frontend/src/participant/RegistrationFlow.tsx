@@ -1,3 +1,4 @@
+import {canContinueVehicleRegistration} from './registration-classes';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,CalendarDays,Check,MapPin,ShieldCheck} from 'lucide-react';
 
@@ -11,7 +12,7 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
  const [step,setStep]=useState(0);
  const [configurationAnswer,setConfigurationAnswer]=useState<''|'unchanged'|'updated'>('');
  const [updatedReviewed,setUpdatedReviewed]=useState(false);
- const canContinueVehicle=vehicleReady&&(!repeatVehicle||configurationAnswer==='unchanged'||(configurationAnswer==='updated'&&updatedReviewed));
+ const canContinueVehicle=canContinueVehicleRegistration(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed);
  useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false)},[carId,configurationId]);
  const title=useRef<HTMLHeadingElement>(null);
  const move=(next:number)=>{setStep(next);requestAnimationFrame(()=>{title.current?.focus();title.current?.scrollIntoView?.({block:'start',behavior:'smooth'})})};
