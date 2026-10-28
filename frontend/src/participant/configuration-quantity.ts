@@ -12,8 +12,10 @@ export function validateConfigurationQuantities(value:Record<string,unknown>):st
   const rows=value[group];
   if(!Array.isArray(rows))return 'Не удалось проверить список '+labels[group]+'. Обновите страницу.';
   for(const [index,row] of rows.entries()){
-   const count=Number(row?.quantity);
-   if(!Number.isSafeInteger(count)||count<1){
+   const raw=row?.quantity;
+   const validType=typeof raw==='number'||(typeof raw==='string'&&/^\\d+$/.test(raw.trim()));
+   const count=Number(raw);
+   if(!validType||!Number.isSafeInteger(count)||count<1){
     return 'Укажите целое количество '+labels[group]+' больше нуля (позиция '+(index+1)+').';
    }
   }
