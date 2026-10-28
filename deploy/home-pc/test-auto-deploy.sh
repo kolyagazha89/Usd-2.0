@@ -63,6 +63,7 @@ cat > "$WORK/release" <<'SH'
 set -euo pipefail
 [[ "$(cat "$USD_TEST_WORK/state/schema-approved-sha")" == "$1" ]]
 [[ "$(cat "$USD_TEST_WORK/state/release-approved-sha")" == "$1" ]]
+[[ "${USD_TEST_BUSY_RELEASE:-0}" != 1 ]] || exit 75
 echo "$1" >> "$USD_TEST_WORK/releases.log"
 [[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
@@ -92,6 +93,15 @@ build_lines="$(wc -l < "$WORK/docker.log")"
 bash "$WORK/builder" > "$WORK/release.log"
 [[ "$(cat "$WORK/releases.log")" == "$NEW" ]]
 [[ "$(wc -l < "$WORK/docker.log")" == "$build_lines" ]]
+# Lock contention is transient and must never quarantine a good build.
+printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
+export USD_TEST_BUSY_RELEASE=1
+lines="$(wc -l < "$WORK/releases.log")"
+bash "$WORK/builder" > "$WORK/lock-contention.log"
+grep -q "retrying on next poll" "$WORK/lock-contention.log"
+[[ ! -f "$WORK/state/failed-release-sha" ]]
+[[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
+unset USD_TEST_BUSY_RELEASE
 # Failed releases are quarantined instead of retrying the same broken SHA forever.
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
 export USD_TEST_FAIL_RELEASE=1
