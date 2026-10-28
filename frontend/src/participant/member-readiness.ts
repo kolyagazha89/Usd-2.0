@@ -40,7 +40,7 @@ export function requiredDirectionsForRegistration(registration:unknown):AudioDir
    required.add('FRONT');
   }else if(identity.includes('bdw')||identity.includes('dbwspl')||direction==='dbw'||direction==='bdwspl'){
    required.add('REAR');
-  }else if(['spl','bassrace','hurrican'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
+  }else if(['spl','bassrace','hurrican','hurricane'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall')){
    required.add('SUB');
   }
  }
