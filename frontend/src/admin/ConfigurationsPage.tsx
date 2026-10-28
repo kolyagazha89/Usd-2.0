@@ -5,6 +5,7 @@ import {Empty,LoadingPage} from './AdminPrimitives';
 import {Photo} from '../public/PremiumUI';
 import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
+import {allocateAmplifierLinks} from '../participant/amplifier-links';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
@@ -179,13 +180,15 @@ function ConfigDirectionListEditor({title,subtitle,icon:Icon,items,direction,onA
 }
 
 function cleanConfig(v:any){
+ const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Math.max(1,Number(component.quantity)||1)}));
+ const amplifierLinks=allocateAmplifierLinks(audioComponents,v.amplifiers??[]);
  const normalized={
   ...v,
-  audioComponents:(v.audioComponents??[]).map((component:any)=>({...component,quantity:Math.max(1,Number(component.quantity)||1)})),
-  amplifiers:(v.amplifiers??[]).map((amplifier:any)=>({
+  audioComponents,
+  amplifiers:(v.amplifiers??[]).map((amplifier:any,index:number)=>({
    ...amplifier,
    quantity:Math.max(1,Number(amplifier.quantity)||1),
-   componentLinks:(v.audioComponents??[]).map((component:any,index:number)=>({componentId:String(index),quantity:Math.max(1,Number(component.quantity)||1)})).filter((_:any,index:number)=>v.audioComponents[index]?.direction===amplifier.direction)
+   componentLinks:amplifierLinks[index]
   }))
  };
  const strip=(x:any):any=>{
