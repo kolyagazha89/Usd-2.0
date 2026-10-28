@@ -88,6 +88,12 @@ mv "$WORK/enabled" "$WORK/disabled"
 bash "$WORK/builder" > "$WORK/disabled.log"
 [[ ! -f "$WORK/docker.log" && ! -f "$WORK/releases.log" ]]
 mv "$WORK/disabled" "$WORK/enabled"
+# A writable operator switch must not authorize privileged local builds.
+chmod 666 "$WORK/enabled"
+bash "$WORK/builder" > "$WORK/insecure-switch.log"
+grep -q 'USD deploy disabled' "$WORK/insecure-switch.log"
+[[ ! -f "$WORK/docker.log" ]]
+chmod 600 "$WORK/enabled"
 # Even a root-owned checkout is unsafe if other local users can write to it.
 chmod 777 "$WORK/source"
 if bash "$WORK/builder" > "$WORK/insecure-source.log" 2>&1; then exit 1; fi
