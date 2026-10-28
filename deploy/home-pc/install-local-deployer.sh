@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 [[ "$(id -u)" == 0 ]] || { echo "Run as root" >&2; exit 1; }
 cd "$(dirname "$(realpath "$0")")"
-for tool in git docker flock systemctl install bash awk df python3; do
+for tool in git docker flock systemctl install bash awk df python3 cmp; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 docker compose version >/dev/null
