@@ -67,6 +67,21 @@ mkdir -p "$STATE_DIR"
 backup="$(mktemp "$STATE_DIR/release-env.XXXXXXXX")"
 cp -p .env "$backup"
 changed=0
+wait_ready() {
+  local attempt api_ok frontend_ok
+  for attempt in $(seq 1 30); do
+    api_ok=0
+    frontend_ok=0
+    docker compose --env-file .env "${compose_args[@]}" exec -T api node -e \
+      "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
+      >/dev/null 2>&1 && api_ok=1
+    docker compose --env-file .env "${compose_args[@]}" exec -T frontend \
+      wget -T 5 -q -O /dev/null http://127.0.0.1/index.html >/dev/null 2>&1 && frontend_ok=1
+    if [[ "$api_ok" == 1 && "$frontend_ok" == 1 ]]; then return 0; fi
+    sleep 4
+  done
+  return 1
+}
 rollback() {
   local status=$?
   trap - ERR
@@ -75,6 +90,10 @@ rollback() {
     cp -p "$backup" .env
     if ! docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
+    elif ! wait_ready; then
+      echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
+    else
+      echo "Previous API/frontend passed readiness after rollback" >&2
     fi
   fi
   rm -f "$backup"
@@ -93,16 +112,7 @@ docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
 
 # In-container checks work even when no localhost ports are published.
 # Both services must return HTTP 200; checking 404 on the API is not sufficient.
-ready=0
-for attempt in $(seq 1 30); do
-  api_ok=0
-  frontend_ok=0
-  docker compose --env-file .env "${compose_args[@]}" exec -T api node -e     "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"     >/dev/null 2>&1 && api_ok=1
-  docker compose --env-file .env "${compose_args[@]}" exec -T frontend     wget -q -O /dev/null http://127.0.0.1/index.html >/dev/null 2>&1 && frontend_ok=1
-  if [[ "$api_ok" == 1 && "$frontend_ok" == 1 ]]; then ready=1; break; fi
-  sleep 4
-done
-[[ "$ready" == 1 ]] || { echo "New API/frontend failed readiness checks" >&2; false; }
+wait_ready || { echo "New API/frontend failed readiness checks" >&2; false; }
 db_after="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")"
 [[ "$db_before" == "$db_after" ]] || { echo "Database container changed unexpectedly" >&2; false; }
 

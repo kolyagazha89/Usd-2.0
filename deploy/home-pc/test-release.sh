@@ -53,6 +53,10 @@ if [[ "${1:-}" == compose ]]; then
       echo "up $(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)" >> "$USD_TEST_LOG"
       exit 0 ;;
     *" exec -T "*)
+      if [[ "${USD_TEST_FAIL_ROLLBACK_READINESS:-0}" == 1 ]] &&
+         ! grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
+        exit 1
+      fi
       if [[ "${USD_TEST_FAIL_READINESS:-0}" == 1 ]] &&
          grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
         exit 1
@@ -72,17 +76,26 @@ export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
 export USD_TEST_FAIL_READINESS=1
-if bash deploy/home-pc/release-approved.sh "$NEW"; then
+export USD_TEST_FAIL_ROLLBACK_READINESS=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/failed-release.log" 2>&1; then
   echo "Expected readiness failure but release succeeded" >&2
   exit 1
 fi
+grep -q 'CRITICAL: previous API/frontend failed readiness after rollback' "$WORK/failed-release.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 grep -q "up $NEW" "$USD_TEST_LOG"
 grep -q "up $OLD" "$USD_TEST_LOG"
 [[ -f /etc/usd-release-approved ]]
+export USD_TEST_FAIL_ROLLBACK_READINESS=0
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/healthy-rollback.log" 2>&1; then
+  echo "Expected new-version readiness failure but release succeeded" >&2
+  exit 1
+fi
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/healthy-rollback.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_FAIL_READINESS=0
 bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
 [[ ! -f /etc/usd-release-approved ]]
-echo "Mocked release success and rollback rehearsal passed"
+echo "Mocked release, healthy rollback and unhealthy rollback rehearsals passed"
