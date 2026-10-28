@@ -103,6 +103,17 @@ jobs:
           bash -n deploy/home-pc/test-release.sh
           bash -n deploy/home-pc/test-auto-deploy.sh
           bash -n deploy/home-pc/test-release-docker.sh
+      - name: Installer refuses to overwrite trusted scripts during a running release
+        run: |
+          set -euo pipefail
+          sudo flock /run/lock/usd-home-deploy.lock bash -c '
+            set +e
+            bash deploy/home-pc/install-local-deployer.sh > /tmp/usd-installer-lock-test.log 2>&1
+            status=$?
+            set -e
+            test "$status" -eq 75
+            grep -q "deployment is active" /tmp/usd-installer-lock-test.log
+          '
       - name: Validate local and tunnel Compose overlays without touching a server
         run: |
           set -euo pipefail
