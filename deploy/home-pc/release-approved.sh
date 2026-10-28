@@ -100,8 +100,9 @@ rollback() {
   trap - ERR TERM INT
   if [[ "$changed" == 1 ]]; then
     echo "Release failed (exit $status); restoring previous images" >&2
-    cp -p "$backup" .env
-    if ! docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
+    if ! cp -p "$backup" .env; then
+      echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
+    elif ! docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
