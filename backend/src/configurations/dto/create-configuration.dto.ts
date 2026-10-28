@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -25,6 +26,10 @@ enum AudioComponentType {
 }
 
 export class CreateHeadUnitDto {
+  @IsOptional()
+  @IsUUID()
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 
@@ -36,6 +41,10 @@ export class CreateHeadUnitDto {
 }
 
 export class CreateAudioComponentDto {
+  @IsOptional()
+  @IsUUID()
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 
@@ -63,6 +72,10 @@ export class CreateAmplifierComponentLinkDto {
 }
 
 export class CreateAmplifierDto {
+  @IsOptional()
+  @IsUUID()
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 
