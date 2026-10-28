@@ -43,6 +43,16 @@ if [[ "${1:-}" == ps ]]; then
   exit 0
 fi
 if [[ "${1:-}" == inspect ]]; then
+  if [[ "$*" == *'.State.Health.Status'* ]]; then
+    if [[ "${USD_TEST_DB_UNHEALTHY_BEFORE:-0}" == 1 ]] ||
+       { [[ "${USD_TEST_DB_UNHEALTHY_AFTER:-0}" == 1 ]] &&
+         grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; }; then
+      echo unhealthy
+    else
+      echo healthy
+    fi
+    exit 0
+  fi
   if [[ "$*" == *'.Config.Image'* ]]; then
     service=api
     [[ "$*" != *mock-frontend* ]] || service=frontend
@@ -102,6 +112,12 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=0
+export USD_TEST_DB_UNHEALTHY_BEFORE=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-before.log" 2>&1; then exit 1; fi
+grep -q "Production DB is not healthy" "$WORK/db-unhealthy-before.log"
+[[ ! -s "$USD_TEST_LOG" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_DB_UNHEALTHY_BEFORE=0
 export USD_TEST_FAIL_BACKUP=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/backup-failure.log" 2>&1; then
   echo "Expected backup failure to block release" >&2
@@ -139,6 +155,12 @@ fi
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/healthy-rollback.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_FAIL_READINESS=0
+export USD_TEST_DB_UNHEALTHY_AFTER=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-after.log" 2>&1; then exit 1; fi
+grep -q "Production DB became unhealthy during release" "$WORK/db-unhealthy-after.log"
+grep -q "Previous API/frontend passed readiness after rollback" "$WORK/db-unhealthy-after.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_DB_UNHEALTHY_AFTER=0
 bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
