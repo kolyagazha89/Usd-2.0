@@ -69,6 +69,32 @@ export class SiteSettingsService{
     if(!value||typeof value!=='object'||Array.isArray(value)) return base;
     return {...base,...value} as T;
   }
+  private validateNavigation(value:unknown){
+    if(value===undefined)return;
+    if(!value||typeof value!=='object'||Array.isArray(value))
+      throw new BadRequestException('Некорректные настройки меню.');
+    const navigation=value as Record<string,unknown>;
+    if(navigation.items===undefined)return;
+    if(!Array.isArray(navigation.items)||navigation.items.length>9)
+      throw new BadRequestException('Меню содержит недопустимое количество пунктов.');
+    const allowed=new Set(['/','/stages','/results','/records','/participants','/teams','/news','/rules','/documents']);
+    const paths=new Set<string>();
+    const ids=new Set<string>();
+    for(const value of navigation.items){
+      if(!value||typeof value!=='object'||Array.isArray(value))
+        throw new BadRequestException('Некорректный пункт меню.');
+      const item=value as Record<string,unknown>;
+      if(typeof item.path!=='string'||!allowed.has(item.path)||paths.has(item.path))
+        throw new BadRequestException('Недопустимая или повторяющаяся ссылка меню.');
+      if(typeof item.id!=='string'||!(/^[a-z][a-z0-9-]{0,31}$/).test(item.id)||ids.has(item.id))
+        throw new BadRequestException('Недопустимый идентификатор пункта меню.');
+      if(typeof item.label!=='string'||item.label.trim().length===0||item.label.length>48||/[\\u0000-\\u001f\\u007f]/.test(item.label))
+        throw new BadRequestException('Название пункта меню должно содержать от 1 до 48 символов.');
+      if(typeof item.enabled!=='boolean'||!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>1000)
+        throw new BadRequestException('Некорректный порядок или видимость пункта меню.');
+      paths.add(item.path);ids.add(item.id);
+    }
+  }
   private validateHomepage(value:unknown){
     if(!value||typeof value!=='object'||Array.isArray(value)) return;
     const homepage=value as Record<string,unknown>;
@@ -247,6 +273,7 @@ export class SiteSettingsService{
       const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
       phase = 'merge';
       this.validateHomepage(input.homepage);
+      this.validateNavigation(input.navigation);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
