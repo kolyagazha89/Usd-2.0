@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -100,12 +101,14 @@ export class ParticipantsController {
 
   /** Personal USD ID is separate from the stage-specific registration QR. */
   @Roles('PARTICIPANT')
+  @Header('Cache-Control', 'no-store')
   @Get('participants/me/usd-id')
   myUsdId(@Req() request: AuthenticatedRequest) {
     return this.participantsService.getMyUsdId(request);
   }
 
   @Roles('PARTICIPANT')
+  @Header('Cache-Control', 'no-store')
   @Post('participants/me/usd-id/rotate')
   rotateMyUsdId(@Req() request: AuthenticatedRequest) {
     return this.participantsService.rotateMyUsdId(request);
@@ -152,6 +155,7 @@ export class ParticipantsController {
   // =========================================================
 
   @Public()
+  @Header('Cache-Control', 'no-store')
   @Get('participants/usd-id/:token')
   findPublicByUsdId(@Param('token') token: string) {
     return this.participantsService.findPublicByUsdId(token);
