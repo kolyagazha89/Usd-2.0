@@ -34,6 +34,6 @@ test('does not link a component to a different direction or create zero-quantity
 
 test('configuration save uses the shared non-duplicating amplifier allocator',async()=>{
  const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
- assert.match(editor,/allocateAmplifierLinks\\(audioComponents,v\\.amplifiers\\?\\?\\[\\]\\)/);
- assert.match(editor,/componentLinks:amplifierLinks\\[index\\]/);
+ assert.match(editor,/allocateAmplifierLinks\(audioComponents,v\.amplifiers\?\?\[\]\)/);
+ assert.match(editor,/componentLinks:amplifierLinks\[index\]/);
 });
