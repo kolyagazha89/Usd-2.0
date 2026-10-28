@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
-  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;teamsEmptyTitle?:string;teamsEmptyDescription?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
+  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];copy?:Record<string,string>;communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;teamsEmptyTitle?:string;teamsEmptyDescription?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
@@ -105,6 +105,26 @@ export class SiteSettingsService{
     if(homepage.heroTopics!==undefined){
       if(!Array.isArray(homepage.heroTopics)||homepage.heroTopics.length>8||homepage.heroTopics.some((topic:unknown)=>typeof topic!=='string'||topic.length>40))
         throw new BadRequestException('Неверные подписи первого экрана.');
+    }
+    if(homepage.copy!==undefined){
+      if(!homepage.copy||typeof homepage.copy!=='object'||Array.isArray(homepage.copy))
+        throw new BadRequestException('Неверные тексты блоков главной.');
+      const allowed=new Set([
+        'nextStageEyebrow','nextStageDetailsButton','nextStageRegistrationButton',
+        'nextStageEmptyEyebrow','nextStageEmptyTitle','nextStageEmptyDescription','nextStageAllButton',
+        'latestResultsAllButton','latestResultsEmptyTitle','latestResultsEmptyDescription',
+        'recordsAllButton','recordsEmptyTitle','recordsEmptyDescription','teamsAllButton',
+        'broadcastEyebrow','broadcastDescription','liveEmptyTitle','liveEmptyDescription',
+        'newsAllButton','newsEmptyTitle','newsEmptyDescription','partnersAllButton',
+        'participantsAllButton','documentsEyebrow',
+      ]);
+      const copy=homepage.copy as Record<string,unknown>;
+      if(Object.keys(copy).length>allowed.size)
+        throw new BadRequestException('Слишком много текстов блоков главной.');
+      for(const [key,value] of Object.entries(copy)){
+        if(!allowed.has(key)||typeof value!=='string'||value.length>240||[...value].some(char=>char.charCodeAt(0)<32||char.charCodeAt(0)===127))
+          throw new BadRequestException('Неверный текст блока главной: '+key);
+      }
     }
     if(!Object.prototype.hasOwnProperty.call(homepage,'valuesCards')) return;
     const cards=homepage.valuesCards;
