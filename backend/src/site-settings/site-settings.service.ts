@@ -118,7 +118,9 @@ export class SiteSettingsService{
         throw new BadRequestException('Некорректная запись партнёра.');
       const item=raw as Record<string,unknown>;
       const id=item.id;
-      if(typeof id!=='string'||!id.trim()||id.length>100||/[\\u0000-\\u001f\\u007f]/.test(id)||ids.has(id))
+      const oldLegacy=previous[index];
+      if((id===undefined||id===null)&&oldLegacy&&JSON.stringify(oldLegacy)===JSON.stringify(item))continue;
+      if(typeof id!=='string'||!id.trim()||id.length>100||/[\u0000-\u001f\u007f]/.test(id)||ids.has(id))
         throw new BadRequestException('У партнёра отсутствует уникальный идентификатор.');
       ids.add(id);
       const old=previous.find(row=>row?.id===id);
@@ -127,7 +129,7 @@ export class SiteSettingsService{
         const v=item[field];
         if(v===undefined||v===null)return !required;
         return typeof v==='string'&&v.length<=max&&(!required||v.trim().length>0)
-          &&!/[\\u0000-\\u001f\\u007f]/.test(v);
+          &&!(field==='description'?/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/:/[\u0000-\u001f\u007f]/).test(v);
       };
       if(!text('name',160,true)||!text('description',3000))
         throw new BadRequestException('Проверьте название и описание партнёра.');
@@ -143,7 +145,7 @@ export class SiteSettingsService{
       if(item.website){
         try{
           const rawUrl=String(item.website);
-          if(/\\s|\\\\/.test(rawUrl))throw new Error('unsafe');
+          if(/\s|\\/.test(rawUrl))throw new Error('unsafe');
           const url=new URL(rawUrl);
           if(!['https:','http:'].includes(url.protocol)||!url.hostname||url.username||url.password)
             throw new Error('unsafe');
@@ -297,7 +299,9 @@ export class SiteSettingsService{
         },
         // A draft partner must never be exposed by the public settings API.
         // Missing isPublished remains public for legacy CMS records.
-        partners: s.partners.filter((partner: any) => partner.isActive !== false && partner.isPublished !== false),
+        partners: s.partners.filter((partner: any) => partner && typeof partner === 'object' && !Array.isArray(partner) && partner.isActive !== false && partner.isPublished !== false)
+          .map((partner: any) => Object.fromEntries(Object.entries(partner).filter(([key]) =>
+            ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key)))),
         news: s.news.filter((item: any) => item.isPublished !== false),
         legal: {
           legalApproved: publicLegalApproved,
