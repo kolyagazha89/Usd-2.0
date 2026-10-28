@@ -23,9 +23,11 @@ export function recordDirectionKind(row:any){
 export function resultNumericValue(row:any){
  const raw=row?.value??row?.result?.value??row?.score??row?.result;
  // An unpublished/empty measurement must never become a valid zero dB record.
- if(raw===null||raw===undefined||raw===''||typeof raw==='boolean')return Number.NEGATIVE_INFINITY;
+ if(raw===null||raw===undefined||raw===''||typeof raw==='boolean'||typeof raw==='object')return Number.NEGATIVE_INFINITY;
  if(typeof raw==='number')return Number.isFinite(raw)?raw:Number.NEGATIVE_INFINITY;
- const parsed=Number(String(raw??'').replace(/,/g,'.').replace(/[^0-9.+-]/g,''));
+ const cleaned=String(raw).replace(/,/g,'.').replace(/[^0-9.+-]/g,'');
+ if(!cleaned||cleaned==='+'||cleaned==='-'||cleaned==='.')return Number.NEGATIVE_INFINITY;
+ const parsed=Number(cleaned);
  return Number.isFinite(parsed)?parsed:Number.NEGATIVE_INFINITY;
 }
 /** Records compare sound-pressure readings only. BassRace is a separate
