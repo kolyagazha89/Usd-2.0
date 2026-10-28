@@ -21,6 +21,18 @@ test('record spotlight never compares speed in m/s with sound pressure',()=>{
   assert.equal(highestDbRecord(rows)?.id,'sound');assert.equal(highestDbRecord([]),undefined);
 });
 
+test('record spotlight excludes BassRace, Storm Wall and unpublished measurements',()=>{
+ const rows=[
+  {id:'bass',value:180,class:{name:'Bass Race 159.9',direction:{name:'SPL'},unit:'DB'}},
+  {id:'bass-code',value:190,class:{code:'BASSRACE_1599',direction:{name:'SPL'},unit:'DB'}},
+  {id:'storm',value:200,class:{name:'Storm Wall',direction:{name:'SPL'},unit:'MPS'}},
+  {id:'empty',value:'',class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+  {id:'valid',value:162,class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+ ];
+ assert.equal(highestDbRecord(rows)?.id,'valid');
+ assert.equal(highestDbRecord(rows.filter(row=>row.id!=='valid')),undefined);
+});
+
 test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,21,22,25].map(n=>countLabel(n,'участник','участника','участников')),['0 участников','1 участник','2 участника','5 участников','11 участников','21 участник','22 участника','25 участников']);});
 
 test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});
