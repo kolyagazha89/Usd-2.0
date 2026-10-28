@@ -336,3 +336,34 @@ describe('SiteSettingsService community teams CMS', () => {
     expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
   });
 });
+
+
+describe('SiteSettingsService partner publication lifecycle', () => {
+  it('keeps new drafts private, publishes them explicitly and hides inactive partners', async () => {
+    let stored: any = null;
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockImplementation(async () => stored),
+        upsert: jest.fn().mockImplementation(async (args: any) => {
+          stored = { id: 'default', ...(stored ? args.update : args.create) };
+          return stored;
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    const service = new SiteSettingsService(prisma);
+    const draft = { id: 'partner-1', name: 'Тестовый партнёр', tier: 'GENERAL', isActive: true, isPublished: false, sortOrder: 0 };
+
+    await service.update({ partners: [draft] }, 'admin-1');
+    expect((await service.getAdmin()).settings.partners).toEqual([draft]);
+    expect((await service.getPublic()).settings.partners).toEqual([]);
+
+    const published = { ...draft, isPublished: true };
+    await service.update({ partners: [published] }, 'admin-1');
+    expect((await service.getPublic()).settings.partners).toEqual([published]);
+
+    await service.update({ partners: [{ ...published, isActive: false }] }, 'admin-1');
+    expect((await service.getPublic()).settings.partners).toEqual([]);
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(3);
+  });
+});
