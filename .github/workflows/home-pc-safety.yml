@@ -1,9 +1,17 @@
 name: Home PC deployment safety checks
 
 on:
+  # A successful PR check is not proof that the merged main SHA passed.
+  # Run the real Docker/PG18 rehearsal for every main commit so the local
+  # auto-release verifier can gate the exact deployed SHA on this workflow.
+  push:
+    branches:
+      - main
   pull_request:
     paths:
       - 'deploy/home-pc/**'
+      - 'backend/**'
+      - 'frontend/**'
       - '.github/workflows/home-pc-safety.yml'
   workflow_dispatch:
 
