@@ -35,10 +35,21 @@ fi
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main
 SHA="$(git -C "$SOURCE_DIR" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-if [[ -f "$STATE_DIR/built-sha" ]] && [[ "$(cat "$STATE_DIR/built-sha")" == "$SHA" ]]; then
+# A cached SHA is valid only while BOTH locally built images still exist.
+# Docker pruning can remove either tag without changing the Git commit.
+images_cached=0
+if [[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$SHA" ]] &&
+   docker image inspect "ghcr.io/kolyagazha89/usd-2.0-api:$SHA" >/dev/null 2>&1 &&
+   docker image inspect "ghcr.io/kolyagazha89/usd-2.0-frontend:$SHA" >/dev/null 2>&1; then
+  images_cached=1
+fi
+if [[ "$images_cached" == 1 ]]; then
   echo "Images already built for $SHA"
 else
+# Dedicated root-owned source checkout: discard all untracked build artifacts
+# before Docker receives the build context, even after an interrupted build.
 git -C "$SOURCE_DIR" checkout --force --detach "$SHA"
+git -C "$SOURCE_DIR" clean -ffdx
 
 # Sequential local builds; do not run migrations or restart any service.
 docker build -t "ghcr.io/kolyagazha89/usd-2.0-api:$SHA" "$SOURCE_DIR/backend"
