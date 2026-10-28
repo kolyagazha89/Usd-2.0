@@ -3,10 +3,12 @@
 set -Eeuo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true && "$(id -u)" == 0 ]] ||
   { echo 'Run only as root on a disposable GitHub Actions runner' >&2; exit 1; }
+[[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
 [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] ||
   { echo 'Refusing to touch an existing usd-home stack' >&2; exit 1; }
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
+TRUSTED_DIR=/etc/usd-deployer/compose
 WORK="$(mktemp -d)"
 OLD=1111111111111111111111111111111111111111
 BAD=2222222222222222222222222222222222222222
@@ -22,7 +24,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
-  rm -rf "$WORK"
+  rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
 trap cleanup EXIT
@@ -76,6 +78,8 @@ volumes:
     external: true
     name: ${QA_VOLUME}
 YAML
+mkdir -p "$TRUSTED_DIR"
+cp "$ROOT/compose.yaml" "$TRUSTED_DIR/compose.yaml"
 compose=(docker compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml")
 "${compose[@]}" up -d --wait --wait-timeout 120
 "${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE release_marker (id integer PRIMARY KEY); INSERT INTO release_marker VALUES (42);'
