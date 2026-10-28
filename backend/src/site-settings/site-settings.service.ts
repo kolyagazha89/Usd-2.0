@@ -49,7 +49,15 @@ const DEFAULTS:SiteSettingsShape={
     {id:'auth-password-reset',name:'Восстановление пароля',trigger:'AUTH_PASSWORD_RESET',enabled:true,subject:'Восстановление пароля — USD',body:'{{intro}}',footer:'Если вы не запрашивали восстановление пароля, проигнорируйте письмо. Никому не сообщайте ссылку и токен.',buttonLabel:'Восстановить пароль'},
     {id:'auth-email-change',name:'Подтверждение нового email',trigger:'AUTH_EMAIL_CHANGE',enabled:true,subject:'Подтверждение нового email — USD',body:'{{intro}}',footer:'Ссылка действует 30 минут. Если вы не меняли email, не переходите по ссылке и обратитесь к администратору аккаунта.',buttonLabel:'Подтвердить новый email'}
   ]},
-  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],news:[],
+  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[],batteryTypes:[
+    {code:'LTO',name:'LTO · литий-титанат',chemistry:'LTO',construction:'CELLS',isActive:true},
+    {code:'LIFEPO4',name:'LiFePO₄ · литий-железо-фосфат',chemistry:'LFP',construction:'CELLS',isActive:true},
+    {code:'NMC',name:'NMC · литий-никель-марганец-кобальт',chemistry:'NMC',construction:'CELLS',isActive:true},
+    {code:'AGM',name:'AGM · свинцово-кислотный',chemistry:'LEAD_ACID',construction:'AGM',isActive:true},
+    {code:'GEL',name:'GEL · свинцово-кислотный',chemistry:'LEAD_ACID',construction:'GEL',isActive:true},
+    {code:'FLOODED',name:'Обычный свинцово-кислотный',chemistry:'LEAD_ACID',construction:'FLOODED',isActive:true},
+    {code:'EFB',name:'EFB · улучшенный жидкостный',chemistry:'LEAD_ACID',construction:'EFB',isActive:true},
+  ]},partners:[],news:[],
 };
 
 @Injectable()
@@ -93,6 +101,29 @@ export class SiteSettingsService{
       if(typeof item.enabled!=='boolean'||!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>1000)
         throw new BadRequestException('Некорректный порядок или видимость пункта меню.');
       paths.add(item.path);ids.add(item.id);
+    }
+  }
+  private validateCatalogs(value:unknown){
+    if(value===undefined)return;
+    if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
+    const types=(value as Record<string,unknown>).batteryTypes;
+    if(types===undefined)return;
+    if(!Array.isArray(types)||types.length>40)throw new BadRequestException('Некорректный справочник аккумуляторов.');
+    const seen=new Set<string>();
+    const chemistry=new Set(['LTO','LFP','NMC','LEAD_ACID']);
+    const construction=new Set(['CELLS','AGM','GEL','FLOODED','EFB']);
+    for(const raw of types){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('Некорректный тип аккумулятора.');
+      const item=raw as Record<string,unknown>;
+      if(typeof item.code!=='string'||!/^[A-Z0-9_]{2,32}$/.test(item.code)||seen.has(item.code)
+        ||typeof item.name!=='string'||!item.name.trim()||item.name.length>100
+        ||typeof item.chemistry!=='string'||!chemistry.has(item.chemistry)
+        ||typeof item.construction!=='string'||!construction.has(item.construction)
+        ||typeof item.isActive!=='boolean')
+        throw new BadRequestException('Некорректный тип аккумулятора или повтор кода.');
+      if((item.chemistry==='LEAD_ACID')===(item.construction==='CELLS'))
+        throw new BadRequestException('Для свинцово-кислотного аккумулятора укажите AGM, GEL, FLOODED или EFB; для литиевого — CELLS.');
+      seen.add(item.code);
     }
   }
   private validateHomepage(value:unknown){
@@ -294,6 +325,7 @@ export class SiteSettingsService{
       phase = 'merge';
       this.validateHomepage(input.homepage);
       this.validateNavigation(input.navigation);
+      this.validateCatalogs(input.catalogs);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
