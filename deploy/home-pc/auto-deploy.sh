@@ -11,7 +11,8 @@ REPO=https://github.com/kolyagazha89/Usd-2.0.git
 mkdir -p "$STATE_DIR"
 
 # A deliberate root-owned switch is required before any build.
-if [[ ! -f /etc/usd-deploy-enabled || -L /etc/usd-deploy-enabled || "$(stat -c %u /etc/usd-deploy-enabled 2>/dev/null)" != 0 ]]; then
+if [[ ! -f /etc/usd-deploy-enabled || -L /etc/usd-deploy-enabled || "$(stat -c %u /etc/usd-deploy-enabled 2>/dev/null)" != 0 ]] ||
+   (( (8#$(stat -c %a /etc/usd-deploy-enabled 2>/dev/null || echo 777) & 022) != 0 )); then
   echo "USD deploy disabled; no changes made"
   exit 0
 fi
