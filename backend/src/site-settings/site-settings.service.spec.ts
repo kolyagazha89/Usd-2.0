@@ -413,6 +413,9 @@ describe('SiteSettingsService partner CMS safety', () => {
     const invalid = [
       [{ ...valid, tier: 'VIP' }],
       [{ ...valid, website: 'javascript:alert(1)' }],
+      [{ ...valid, photoUrl: 'javascript:alert(1)' }],
+      [{ ...valid, photoUrl: '//evil.example/logo.png' }],
+      [{ ...valid, photoUrl: 'data:image/svg+xml,<svg onload=alert(1)>' }],
       [{ ...valid, website: '//example.org' }],
       [{ ...valid, website: 'https://user:password@example.org' }],
       [{ ...valid, website: 'https://example.org\\\\bad' }],
