@@ -11,7 +11,6 @@ import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogMode
 import {validateConfigurationQuantities} from '../participant/configuration-quantity';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
-const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
 export function ConfigurationsPage({carId,go,admin=false,LoadingPage,displayCarName}:{carId:string;go:(path:string)=>void;admin?:boolean;LoadingPage:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string}){
  const[car,setCar]=useState<any|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const backPath=admin?'/admin/cars':'/participant?tab=cars';
@@ -65,13 +64,13 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const addEquipmentForView=()=>{if(activeView==='SUB'||activeView==='FRONT'||activeView==='REAR')openPicker('audioComponents',activeView);else if(activeView==='POWER'){if(defaultBatteryCode)add('batteries',{brand:defaultBatteryCode,model:'100',quantity:1});else setError('Справочник аккумуляторов недоступен. Повторите попытку после загрузки каталога.');}else setActiveView('SUB');setActionsOpen(false)};
 
  const [requestOpen,setRequestOpen]=useState(false),[requestCategory,setRequestCategory]=useState('AUDIO_COMPONENT'),[requestBrand,setRequestBrand]=useState(''),[requestModel,setRequestModel]=useState(''),[requestDetails,setRequestDetails]=useState(''),[requestBusy,setRequestBusy]=useState(false),[requestNotice,setRequestNotice]=useState('');
- const [catalogs,setCatalogs]=useState<any>({vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:[],componentModels:[],batteryTypes:[]});
+ const [catalogs,setCatalogs]=useState<any>({vibrationBrands:[],componentBrands:[],componentModels:[],batteryTypes:[]});
  const [catalogStatus,setCatalogStatus]=useState<'loading'|'ready'|'error'>('loading'),[catalogReload,setCatalogReload]=useState(0);
  useEffect(()=>{let cancelled=false;setCatalogStatus('loading');
   (admin?getSiteSettings():getPublicSiteSettings()).then(r=>{
    const c=r?.settings?.catalogs;
    if(!c||!Array.isArray(c.componentModels)||!Array.isArray(c.batteryTypes))throw new Error('Каталоги отсутствуют в ответе API');
-   if(!cancelled){setCatalogs({vibrationBrands:Array.isArray(c.vibrationBrands)?c.vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:Array.isArray(c.componentBrands)?c.componentBrands:[],componentModels:c.componentModels,batteryTypes:c.batteryTypes});setCatalogStatus('ready')}
+   if(!cancelled){setCatalogs({vibrationBrands:Array.isArray(c.vibrationBrands)?c.vibrationBrands:[],componentBrands:Array.isArray(c.componentBrands)?c.componentBrands:[],componentModels:c.componentModels,batteryTypes:c.batteryTypes});setCatalogStatus('ready')}
   }).catch(()=>{if(!cancelled)setCatalogStatus('error')});
   return()=>{cancelled=true};
  },[admin,catalogReload]);
