@@ -39,3 +39,5 @@ jobs:
           set -e
           test "$status" -eq 2
           grep -q 'full Git SHA' /tmp/release-refusal.log
+      - name: Rehearse approved release and rollback with isolated Docker mocks
+        run: sudo bash deploy/home-pc/test-release.sh
