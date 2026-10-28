@@ -36,4 +36,10 @@ test('registration screen wires the class cap and returning-vehicle question',as
  assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
  assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
  assert.match(flow,/step===0\?canContinueVehicle:classesReady/);
+ assert.match(flow,/setConfigurationAnswer\(''\);setUpdatedReviewed\(false\);setStep\(0\)/,
+  'switching car or configuration must return to the vehicle step and require fresh confirmation');
+ assert.match(flow,/if\(step>0&&!canContinueVehicle\)setStep\(0\)/,
+  'a stale configuration review must not allow staying on class selection or confirmation');
+ assert.match(flow,/\[canContinueVehicle,classesReady,step\]/,
+  'step guard must react when review eligibility changes');
 });
