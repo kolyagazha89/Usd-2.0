@@ -34,12 +34,13 @@ export function resultNumericValue(row:any){
  */
 export function isDbRecordEligible(row:any):boolean{
  const cls=row?.class??row?.result?.registrationClass?.class??{};
- const identity=[cls.name,cls.code,cls.direction?.name,row?.direction?.name].map(value=>String(value??'')).join(' ');
- const unit=String(cls.unit??row?.unit??'');
+ const identity=[cls.name,cls.code,cls.direction?.name,row?.direction?.name]
+  .map(value=>String(value??'')).join(' ').toLowerCase().replace(/[^a-zа-я0-9]+/g,'');
+ const unit=String(cls.unit??row?.unit??'').trim().toLowerCase();
  const value=resultNumericValue(row);
  return Number.isFinite(value)&&value>=0
-  &&!/bass[\\s_-]*race|storm[\\s_-]*wall|hurrican/i.test(identity)
-  &&!/^(mps|m\\/s|м\\/с)$/i.test(unit.trim());
+  &&!['bassrace','stormwall','hurrican'].some(kind=>identity.includes(kind))
+  &&!['mps','m/s','м/с'].includes(unit);
 }
 
 export function sortRecordRows(rows:any[]){
