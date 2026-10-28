@@ -462,3 +462,38 @@ body .participant-portal.usd-member .registration-class-count{
  body .participant-portal.usd-member .entry-configuration-review legend{font-size:16px}
  body .participant-portal.usd-member .entry-configuration-changed button{width:100%;justify-content:center}
 }
+
+/* USD ID is a permanent profile card, visually separate from a stage ticket. */
+body .participant-portal.usd-member .member-usd-id{
+ margin-top:18px;border:1px solid #454b57;border-radius:16px;
+ background:linear-gradient(145deg,#222831,#161b22);min-width:0;overflow:hidden;
+}
+body .participant-portal.usd-member .member-usd-id-toggle{
+ display:flex;align-items:center;gap:12px;width:100%;padding:15px 17px;
+ background:transparent;border:0;color:#fff;text-align:left;cursor:pointer;
+}
+body .participant-portal.usd-member .member-usd-id-toggle>span:nth-child(2){flex:1;display:grid;gap:3px;min-width:0}
+body .participant-portal.usd-member .member-usd-id-toggle strong{font-size:15px;letter-spacing:.01em}
+body .participant-portal.usd-member .member-usd-id-toggle small{font-size:12px;color:#b8c0ca}
+body .participant-portal.usd-member .member-usd-id-toggle>svg{color:#f04b61;flex:none}
+body .participant-portal.usd-member .member-usd-id-body{
+ border-top:1px solid #3a404c;padding:18px;display:grid;gap:12px;
+ color:#e5e9ee;font-size:14px;line-height:1.55;min-width:0;
+}
+body .participant-portal.usd-member .member-usd-id-body p{margin:0;max-width:100%}
+body .participant-portal.usd-member .member-usd-id-body p>svg{vertical-align:middle;color:#ee455c}
+body .participant-portal.usd-member .member-usd-id-qr{
+ display:grid;place-items:center;background:#fff;border-radius:14px;
+ width:max-content;max-width:100%;padding:10px;margin:auto;
+}
+body .participant-portal.usd-member .member-usd-id-qr svg{display:block;max-width:100%;height:auto}
+body .participant-portal.usd-member .member-usd-id-note{font-size:12px;color:#b8c0ca}
+body .participant-portal.usd-member .member-usd-id-rotate{
+ display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-top:1px solid #353c46;padding-top:10px;
+}
+body .participant-portal.usd-member .member-usd-id-rotate p{flex-basis:100%;color:#ff9fa9}
+body .participant-portal.usd-member .member-usd-id-notice{color:#8ee3b2}
+@media(max-width:560px){
+ body .participant-portal.usd-member .member-usd-id-body{padding:14px}
+ body .participant-portal.usd-member .member-usd-id-body>.secondary-button{width:100%;justify-content:center}
+}
