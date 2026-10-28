@@ -35,6 +35,18 @@ describe('server-side equipment catalog authorization', () => {
       .toThrow(BadRequestException);
   });
 
+  it('accepts curated slug IDs used by existing SPL catalog migrations', () => {
+    const slug = 'verified-subwoofer-deaf-bonce-apocalypse-db-sa412-d1-d2';
+    const curated = { componentModels: [
+      { id: slug, category: 'SUBWOOFER', brand: 'Deaf Bonce',
+        model: 'Apocalypse DB-SA412 D1/D2', isActive: true },
+    ] };
+    expect(() => assertCatalogEquipment(curated, { audioComponents: [
+      { catalogEntryId: slug, brand: 'Deaf Bonce', model: 'Apocalypse DB-SA412 D1/D2',
+        type: 'SUBWOOFER', direction: 'SUB', quantity: 2 },
+    ] })).not.toThrow();
+  });
+
   it('preserves only unchanged historical rows, not duplicates or altered quantities', () => {
     const legacy = { brand: 'Legacy SPL', model: 'Old sub', type: 'SUBWOOFER',
       direction: 'SUB', quantity: 2 };
