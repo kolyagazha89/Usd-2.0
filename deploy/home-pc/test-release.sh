@@ -147,6 +147,11 @@ fi
 grep -q "must not be accessible to group" "$WORK/insecure-env.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 chmod 600 "$ROOT/.env"
+printf 'CLOUDFLARE_TUNNEL_TOKEN=ci-only\n' >> "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/leaked-tunnel-env.log" 2>&1; then exit 1; fi
+grep -q 'Tunnel credential must be isolated' "$WORK/leaked-tunnel-env.log"
+sed -i '/^CLOUDFLARE_TUNNEL_TOKEN=/d' "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
