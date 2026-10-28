@@ -4,7 +4,7 @@ import {Trophy,ChartNoAxesCombined,Users,Settings,Gem,Play,MapPin,ArrowUpRight} 
 import {publicResultUnit,publicResultValue,selectHomepageRecords} from '../public-result-utils';
 import {Link,Button,Eyebrow,EmptyState,Photo,NewsCard} from './PremiumUI';
 import PartnerShowcase from './PartnerShowcase';
-import {carName,countLabel,highestDbRecord,initials,personName,publishedNews,safeHref,stageDate,stageRegistrationPath,teamGroups} from './premium-model';
+import {carName,countLabel,highestDbRecord,initials,nextPublishedStage,personName,publishedNews,safeHref,stageDate,stageRegistrationPath,teamGroups} from './premium-model';
 const LogoShowcase=lazy(()=>import('./LogoShowcase'));
 function Countdown({date}:{date:string}){
  const [now,N]=useState(Date.now());useEffect(()=>{const t=setInterval(()=>N(Date.now()),1000);return()=>clearInterval(t)},[]);
@@ -23,8 +23,7 @@ export default function PremiumHome({settings,stages,results,records,participant
  const enabled=(id:string,fallback=true)=>{const block=settings.homepage?.blocks?.find((b:any)=>b.id===id);return block?block.enabled!==false:fallback};
  const order=(id:string,fallback:number)=>{const i=settings.homepage?.blocks?.findIndex((b:any)=>b.id===id)??-1;return i<0?fallback:i};
  const title=(id:string,fallback:string)=>settings.homepage?.blocks?.find((b:any)=>b.id===id)?.title||fallback;
- const today=new Date();today.setHours(0,0,0,0);
- const next=stages.filter(s=>{const date=new Date(s.date);return s.status==='PUBLISHED'&&Number.isFinite(date.getTime())&&date.getTime()>=today.getTime()}).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime())[0];
+ const next=nextPublishedStage(stages);
  const nextUrl=next?'/stages/'+encodeURIComponent(next.id):'/stages';
  const best=highestDbRecord(records),topRecords=selectHomepageRecords(records),teams=teamGroups(participants),news=publishedNews(settings.news);
  const partners=(settings.partners??[]).filter((p:any)=>p.isActive!==false).slice().sort((a:any,b:any)=>(a.sortOrder??0)-(b.sortOrder??0));
