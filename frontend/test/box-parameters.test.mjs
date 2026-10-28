@@ -45,6 +45,7 @@ test('configuration editor uses validated decimal inputs and the shared serializ
  assert.match(editor,/const boxError=validateBoxParameters\(box\)/);
  assert.match(editor,/key==='BOX'\?isBoxConfigured\(box\)/);
  assert.match(editor,/const boxLine=formatBoxLine\(box\)/);
+ assert.match(editor,/c\.versions\?\.find\(\(version:any\)=>version\.version===c\.currentVersion\)/);
  assert.match(editor,/Объём, л<input type="text" inputMode="decimal"/);
  assert.match(editor,/Настройка, Гц<input type="text" inputMode="decimal"/);
  assert.doesNotMatch(editor,/box\.volume.*replace\(\/\[\^0-9\]\//);
