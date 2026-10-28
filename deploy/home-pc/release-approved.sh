@@ -116,7 +116,7 @@ verify_running_images() {
 }
 wait_ready() {
   local attempt api_ok frontend_ok
-  for attempt in $(seq 1 30); do
+  for attempt in $(seq 1 "${1:-30}"); do
     api_ok=0
     frontend_ok=0
     docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
@@ -167,6 +167,12 @@ trap rollback ERR
 trap 'rollback 143' TERM
 trap 'rollback 130' INT
 
+# Refuse an automatic upgrade from an already broken application. Otherwise a
+# failed candidate would roll back to a version that was never healthy.
+# Use a short preflight window; the full 2-minute readiness budget is reserved
+# for a newly started candidate and for rollback recovery.
+wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refusing automatic replacement" >&2; false; }
+
 # Keep a private custom-format database archive before replacing either service.
 # This does not migrate, restore, restart or recreate PostgreSQL.
 BACKUP_DIR=/home/usd/backups
@@ -179,6 +185,13 @@ docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args
 docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
 mv "$db_snapshot_tmp" "${db_snapshot_tmp%.partial}.dump"
 db_snapshot_tmp=''
+# PostgreSQL must remain the SAME healthy container throughout the backup.
+# A DB restart or degraded database during pg_dump is not a safe release base.
+[[ "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")" == "$db_before" ]] ||
+  { echo "Production DB container changed during backup; refusing release" >&2; false; }
+[[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
+  { echo "Production DB became unhealthy during backup; refusing release" >&2; false; }
+
 
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
