@@ -21,6 +21,10 @@ for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
   [[ ! -e "$protected" && ! -L "$protected" ]] ||
     { echo "Existing deployment state at $protected; refusing destructive mock rehearsal" >&2; exit 1; }
 done
+if compgen -G "$STATE/release-env.*" >/dev/null; then
+  echo "Existing recovery environment snapshot; refusing destructive mock rehearsal" >&2
+  exit 1
+fi
 if compgen -G "$TEST_BACKUP_DIR/release-$NEW.*.dump" >/dev/null; then
   echo "Existing backup with mock SHA; refusing to overwrite or delete it" >&2
   exit 1
@@ -360,6 +364,29 @@ export USD_TEST_FAIL_READINESS=1
 export USD_TEST_FAIL_ROLLBACK_COPY=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/restore-env-failure.log" 2>&1; then exit 1; fi
 grep -q 'CRITICAL: could not restore previous production .env' "$WORK/restore-env-failure.log"
+# The original environment is the only reliable recovery artifact when
+# restoring .env fails. Never silently delete it after reporting CRITICAL.
+grep -q 'CRITICAL: original .env retained at ' "$WORK/restore-env-failure.log"
+saved_backup="$(find "$STATE" -maxdepth 1 -name 'release-env.*' -type f -print)"
+[[ -n "$saved_backup" && "$saved_backup" != *[[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.rollback.*' -print -quit)" ]] ||
+  { echo 'Rollback left a staged environment file' >&2; exit 1; }
+# Deliberately failed restoration leaves the new tag in place. Repair the
+# disposable test fixture explicitly before the next healthy release.
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+export USD_TEST_FAIL_ROLLBACK_COPY=0
+export USD_TEST_FAIL_READINESS=0
+bash deploy/home-pc/release-approved.sh "$NEW"
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+[[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
+[[ ! -f /etc/usd-release-approved ]]
+echo "Mocked release, healthy rollback and unhealthy rollback rehearsals passed"
+\n'* && -f "$saved_backup" ]] ||
+  { echo 'Original .env snapshot was not retained after rollback failure' >&2; exit 1; }
+grep -q "^USD_IMAGE_TAG=$OLD$" "$saved_backup"
+[[ "$(stat -c %a "$saved_backup")" == 600 ]] ||
+  { echo 'Recovery environment snapshot must remain private' >&2; exit 1; }
+rm -f -- "$saved_backup"
 [[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.rollback.*' -print -quit)" ]] ||
   { echo 'Rollback left a staged environment file' >&2; exit 1; }
 # Deliberately failed restoration leaves the new tag in place. Repair the
