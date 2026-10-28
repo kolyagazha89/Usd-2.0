@@ -7,7 +7,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# Prisma CLI is used by the guarded startup migration; keep the locked dependency tree.
+# Keep the locked dependency tree for reproducible builds. Database migrations are
+# an explicit deployment step, never a side effect of starting the API.
 COPY package.json package-lock.json ./
 RUN npm ci
 
