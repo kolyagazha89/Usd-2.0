@@ -126,6 +126,7 @@ test('garage checks all required audio directions for registered competition cla
  assert.deepEqual(requiredDirectionsForRegistration(registration),['SUB','FRONT','REAR']);
  assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'BassRace 139.9'}}]}),['SUB']);
  assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Storm Wall'}}]}),['SUB']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Custom Wall',direction:{name:'Hurricane'}}}]}),['SUB']);
  assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Gate 1-6',direction:{name:'BFSPL'}}}]}),['FRONT']);
  assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'NoLim',direction:{name:'SPL'}}}]}),['SUB']);
  assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Wicket 6-10',direction:{name:'BFSPL'}}}]}),['FRONT']);
