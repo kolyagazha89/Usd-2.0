@@ -1,3 +1,12 @@
+/** The calendar keeps an event visible until its local calendar day has ended. */
+export function nextPublishedStage(stages:any[]=[],now=Date.now()){
+ const startOfToday=new Date(now);startOfToday.setHours(0,0,0,0);
+ return stages.filter(stage=>{
+  const date=new Date(stage?.date).getTime();
+  return stage?.status==='PUBLISHED'&&Number.isFinite(date)&&date>=startOfToday.getTime();
+ }).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime())[0];
+}
+
 export function publishedNews(rows:any[]=[],now=Date.now()){
  return rows.filter(row=>row.isPublished!==false&&(!row.publishedAt||new Date(row.publishedAt).getTime()<=now)).slice().sort((a,b)=>new Date(b.publishedAt||b.createdAt||0).getTime()-new Date(a.publishedAt||a.createdAt||0).getTime());
 }
