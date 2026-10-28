@@ -12,6 +12,19 @@ cleanup() {
   rm -rf "$WORK"
 }
 trap cleanup EXIT
+# Keep failure diagnostics inside the disposable CI rehearsal. The release
+# helper intentionally redirects expected refusal output, so without this trap
+# a failed assertion is otherwise invisible in GitHub Actions logs.
+diagnose_failure() {
+  local code="$1" line="$2" file
+  echo "Mock release rehearsal failed at line $line (exit $code)" >&2
+  for file in "$WORK"/*.log; do
+    [[ -f "$file" ]] || continue
+    echo "--- $(basename "$file") (last 12 lines) ---" >&2
+    tail -n 12 "$file" >&2
+  done
+}
+trap 'diagnose_failure "$?" "$LINENO"' ERR
 mkdir -p "$ROOT" "$STATE" "$WORK/bin"
 cat > "$ROOT/.env" <<EOF
 USD_IMAGE_TAG=$OLD
