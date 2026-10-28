@@ -15,9 +15,9 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   const outfile=path.join(scratch,'home.mjs');
   await build({stdin:{contents:"export {default} from './src/public/PremiumHome'",resolveDir:path.join(base,'..'),loader:'tsx'},bundle:true,platform:'node',format:'esm',jsx:'automatic',packages:'external',loader:{'.css':'empty'},outfile});
   const {default:Home}=await import(pathToFileURL(outfile).href);
-  const render=blocks=>renderToString(React.createElement(MemoryRouter,null,React.createElement(Home,{
+  const render=(blocks,results=[])=>renderToString(React.createElement(MemoryRouter,null,React.createElement(Home,{
    settings:{homepage:{blocks,valuesCards:[]},partners:[],news:[]},
-   stages:[],results:[],records:[],participants:[],liveResults:[],loading:false,
+   stages:[],results,records:[],participants:[],liveResults:[],loading:false,
   })));
   const ids=['documents','records','teams','community','latest-results','live-results','live-stream'];
   const blocks=ids.map(id=>({id,enabled:true}));
@@ -29,6 +29,9 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   const hidden=render(blocks.map(item=>item.id==='records'?{...item,enabled:false}:item));
   assert.doesNotMatch(hidden,/data-home-block="records"/,'CMS hidden records must not leave a blank card');
   assert.match(hidden,/data-home-block="teams" style="order:2"/,'hiding records must not remove the team block');
+  const winners=Array.from({length:6},(_,index)=>({id:'winner-'+index,place:1,value:150+index,participant:{id:'p'+index,firstName:'Тест',lastName:'Участник'},registrationClass:{class:{name:'SPL '+index,direction:{name:'SPL'},unit:'DB'}},car:{brand:'Lada',model:'Vesta'}}));
+  const winnersHtml=render(blocks,winners);
+  assert.equal((winnersHtml.match(/class="u-medal"/g)??[]).length,6,'all six selected winners must appear on the homepage');
   const swapped=render([...blocks].reverse());
   assert.match(swapped,/data-home-block="latest-results" style="order:0"/);
   assert.match(swapped,/data-home-block="documents" style="order:6"/);
