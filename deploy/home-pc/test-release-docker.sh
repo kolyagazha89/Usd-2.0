@@ -72,7 +72,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes: [qa_data:/var/lib/postgresql]
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      # Require TCP: the official image's temporary init server accepts sockets only.
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"']
       interval: 2s
       timeout: 2s
       retries: 30
