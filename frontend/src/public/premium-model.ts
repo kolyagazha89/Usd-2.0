@@ -1,10 +1,22 @@
-/** The calendar keeps an event visible until its local calendar day has ended. */
+/**
+ * Stages are scheduled by calendar day, not by their UTC instant.
+ * An ISO date stored at midnight UTC must still be shown on that date for
+ * visitors west of UTC (otherwise it disappears the previous evening).
+ */
+function stageCalendarDay(value:unknown):string|null{
+ const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
+ if(!date||!Number.isFinite(date.getTime()))return null;
+ const iso=typeof value==='string'?value.match(/^(\\d{4}-\\d{2}-\\d{2})(?:T|$)/):null;
+ if(iso)return iso[1];
+ return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+}
 export function nextPublishedStage(stages:any[]=[],now=Date.now()){
- const startOfToday=new Date(now);startOfToday.setHours(0,0,0,0);
+ const today=stageCalendarDay(new Date(now));
+ if(!today)return undefined;
  return stages.filter(stage=>{
-  const date=new Date(stage?.date).getTime();
-  return stage?.status==='PUBLISHED'&&Number.isFinite(date)&&date>=startOfToday.getTime();
- }).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime())[0];
+  const day=stageCalendarDay(stage?.date);
+  return stage?.status==='PUBLISHED'&&stage?.isDeleted!==true&&day!==null&&day>=today;
+ }).sort((a,b)=>(stageCalendarDay(a.date)??'').localeCompare(stageCalendarDay(b.date)??''))[0];
 }
 
 export function publishedNews(rows:any[]=[],now=Date.now()){
