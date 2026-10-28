@@ -1,3 +1,4 @@
+import {isDbRecordEligible,resultNumericValue} from '../public-result-utils';
 /**
  * Stages are scheduled by calendar day, not by their UTC instant.
  * An ISO date stored at midnight UTC must still be shown on that date for
@@ -46,10 +47,8 @@ export function safeHref(value:unknown){
 }
 export function stageRegistrationPath(id:string){return '/login?next='+encodeURIComponent('/participant/register?stageId='+encodeURIComponent(id))}
 export function highestDbRecord(rows:any[]){
- return rows.filter(row=>{
-  const cls=row.class??row.result?.registrationClass?.class??{};
-  return row.value!=null&&Number.isFinite(Number(row.value))&&!/MPS|M\/S|М\/С/i.test(String(cls.unit??row.unit??''))&&!/storm wall|hurrican/i.test(String(cls.name??'')+' '+String(cls.direction?.name??''));
- }).sort((a,b)=>Number(b.value)-Number(a.value))[0];
+ return rows.filter(isDbRecordEligible)
+  .sort((a,b)=>resultNumericValue(b)-resultNumericValue(a))[0];
 }
 export function personName(person:any){return [person?.lastName,person?.firstName,person?.middleName].filter(Boolean).join(' ')||'Участник USD'}
 export function carName(car:any){return [car?.brand,car?.model].map(value=>String(value??'').trim()).filter(value=>value&&!/^(не указано|не указан|нет|—|-)$/i.test(value)).join(' ')||'Автомобиль USD'}
