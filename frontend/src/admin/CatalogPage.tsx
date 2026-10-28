@@ -62,7 +62,7 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
   </form>
   <div className="catalog-list">{(catalogs.batteryTypes??[]).map((item:any)=>{
    const draft=batteryDrafts[item.code]??{name:item.name,chemistry:item.chemistry,construction:item.construction};
-   return <div className="catalog-list-row" key={item.code}>
+   return <div className="catalog-list-row battery-catalog-row" key={item.code}>
     <div className="catalog-model-label"><strong>{item.code}</strong><small>{item.isActive===false?'Отключён':'Доступен'} · {draft.chemistry} / {draft.construction}</small></div>
     <input aria-label={'Название '+item.code} value={draft.name} maxLength={100} onChange={e=>setBatteryDrafts(s=>({...s,[item.code]:{...draft,name:e.target.value}}))}/>
     <select aria-label={'Химия '+item.code} value={draft.chemistry} onChange={e=>{const chemistry=e.target.value;setBatteryDrafts(s=>({...s,[item.code]:{...draft,chemistry,construction:chemistry==='LEAD_ACID'?'AGM':'CELLS'}}))}}><option value="LTO">LTO</option><option value="LFP">LFP</option><option value="NMC">NMC</option><option value="LEAD_ACID">Свинцово-кислотный</option></select>
