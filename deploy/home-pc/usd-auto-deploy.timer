@@ -1,5 +1,5 @@
 [Unit]
-Description=Check USD main branch for deploy every 10 minutes
+Description=Check USD main branch for local image builds every 10 minutes
 
 [Timer]
 OnBootSec=5min
