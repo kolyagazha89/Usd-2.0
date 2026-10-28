@@ -81,6 +81,8 @@ Run public smoke tests of login/refresh/logout, historical-profile search, admin
 
 ## Connecting app and API domains
 
+`caddy` is in the opt-in `direct-edge` Compose profile. A plain `docker compose up -d` does **not** publish ports 80/443. Only explicitly start `caddy` after approving direct public ingress (as shown above); Cloudflare Tunnel installations should start `cloudflared` with the tunnel overlay instead and leave `caddy` stopped. Never enable both ingress paths by accident.
+
 Set up a stable public route from WAN to Caddy first. With Windows Hyper-V Default Switch one possible path is router TCP 80/443 -> Windows LAN IP -> controlled Windows TCP portproxy to Ubuntu guest 80/443. This needs a public ISP IPv4 (no CGNAT), tested Windows firewall rules, nonconflicting ports and reconfiguration when VM IP changes. No network forwarding is included automatically because topology is unknown and remotely modifying the NIC risks loss of access. Only open public web ports, NEVER port 3389, 5432 or Docker API. UDP443 is optional.
 
 After an approved cutover, change DNS ONLY for `app.usd-russia.ru` and `api.usd-russia.ru`; leave apex `usd-russia.ru`, Tilda and nameservers untouched. Caddy ACME HTTPS needs correct DNS and externally reachable ports. Check from an independent mobile data connection. Google OAuth must allow callback `https://api.usd-russia.ru/google/callback`.
