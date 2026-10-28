@@ -14,6 +14,10 @@ test('direction readiness requires a real, positive-quantity component',()=>{
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',0.5)],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER','1.5')],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',Number.NaN)],'SUB'),false);
+ for(const quantity of [true,false,null,'1e2','1.0','',[],{},'  ']){
+  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',quantity)],'SUB'),false,'quantity '+String(quantity));
+ }
+ assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER','08')],'SUB'),true,'leading-zero integer strings are allowed');
  assert.equal(isDirectionConfigured([{...row('SUB','SUBWOOFER'),model:' '}],'SUB'),false);
  assert.equal(isDirectionConfigured([row('SUB','SUBWOOFER',2)],'SUB'),true);
  assert.equal(isDirectionConfigured([row('FRONT')],'FRONT'),true);
@@ -142,4 +146,32 @@ test('garage readiness requires the equipment for registered classes, not any un
  assert.match(dashboard,/requiredDirectionsForRegistration\(entry\)\.filter\(direction=>!filled\(direction\)\)/);
  assert.match(dashboard,/done:equipmentReady/);
  assert.match(dashboard,/missingRequiredDirections\.length\?'Для ваших классов заполните:/);
+});
+
+test('nested stage-class registration and direct class hints use identical equipment rules',()=>{
+ const sub={audioComponents:[row('SUB','SUBWOOFER')]};
+ const front={audioComponents:[row('FRONT')]};
+ const rear={audioComponents:[row('REAR')]};
+ const classes=[
+  {stageClass:{class:{name:'BFSPL Gate 1-6',direction:{name:'SPL'}}}},
+  {stageClass:{class:{name:'BDW SPL',direction:{name:'SPL'}}}},
+  {stageClass:{class:{name:'Limited 2.0',direction:{name:'SPL'}}}},
+ ];
+ assert.deepEqual(requiredDirectionsForRegistration({classes}),['SUB','FRONT','REAR']);
+ assert.match(missingConfigurationRequirementForClass(classes[0],sub),/фронтальную акустику/);
+ assert.equal(missingConfigurationRequirementForClass(classes[0],front),'');
+ assert.match(missingConfigurationRequirementForClass(classes[1],sub),/тыловую акустику/);
+ assert.equal(missingConfigurationRequirementForClass(classes[1],rear),'');
+ assert.match(missingConfigurationRequirementForClass(classes[2],front),/сабвуфер/);
+ assert.equal(missingConfigurationRequirementForClass(classes[2],sub),'');
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:' Wicket 6-10 ',direction:{name:' BFSPL '}}}]}),['FRONT']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{directionName:'Storm Wall',name:'Custom'}]}),['SUB']);
+});
+
+test('onboarding uses the selected registration requirements instead of any unrelated speaker',async()=>{
+ const journey=await readFile(new URL('../src/participant/ParticipantJourney.tsx',import.meta.url),'utf8');
+ assert.match(journey,/requiredDirectionsForRegistration\(registration\)/);
+ assert.match(journey,/missing=required\.filter\(direction=>!isDirectionConfigured\(components,direction\)\)/);
+ assert.match(journey,/const configured=hasEquipment&&missing\.length===0/);
+ assert.match(journey,/Для выбранных классов заполните:/);
 });
