@@ -369,6 +369,78 @@ describe('SiteSettingsService partner publication lifecycle', () => {
 });
 
 
+describe('SiteSettingsService partner CMS safety', () => {
+  const makeService = (initial: any = null) => {
+    let stored = initial;
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockImplementation(async () => stored),
+        upsert: jest.fn().mockImplementation(async (args: any) => {
+          stored = { id: 'default', ...(stored ? args.update : args.create) };
+          return stored;
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return { service: new SiteSettingsService(prisma), prisma };
+  };
+
+  it('publishes all three tiers but never leaks internal CMS metadata', async () => {
+    const { service } = makeService();
+    const partners = (['GENERAL', 'PREMIUM', 'REGULAR'] as const).map((tier, index) => ({
+      id: 'partner-' + index, name: 'Партнёр ' + index, tier,
+      description: 'Первая строка\\nВторая строка',
+      website: 'https://example.org/partner/' + index,
+      photoUrl: '/media/partner-' + index + '.webp',
+      sortOrder: index, isActive: true, isPublished: true,
+      internalNote: 'Внутренняя информация — не для публичного API',
+    }));
+    await service.update({ partners } as any, 'admin-1');
+    expect((await service.getAdmin()).settings.partners[0]).toHaveProperty('internalNote');
+    const publicPartners = (await service.getPublic()).settings.partners;
+    expect(publicPartners.map(partner => partner.tier)).toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
+    expect(publicPartners[0]).not.toHaveProperty('internalNote');
+    expect(publicPartners[0]).toMatchObject({
+      id: 'partner-0', name: 'Партнёр 0', website: 'https://example.org/partner/0',
+      description: 'Первая строка\\nВторая строка',
+    });
+  });
+
+  it('rejects invalid tiers, unsafe links, duplicates and accidental publication before persistence', async () => {
+    const { service, prisma } = makeService();
+    const valid = { id: 'partner-1', name: 'USD Partner', tier: 'GENERAL', isActive: true,
+      isPublished: false, sortOrder: 0, website: 'https://example.org' };
+    const invalid = [
+      [{ ...valid, tier: 'VIP' }],
+      [{ ...valid, website: 'javascript:alert(1)' }],
+      [{ ...valid, website: '//example.org' }],
+      [{ ...valid, website: 'https://user:password@example.org' }],
+      [{ ...valid, website: 'https://example.org\\\\bad' }],
+      [{ ...valid, website: 'https://example.org/path\\nunsafe' }],
+      [{ ...valid, name: ' ' }],
+      [{ ...valid, name: 'X'.repeat(161) }],
+      [{ ...valid, sortOrder: -1 }],
+      [{ ...valid, isPublished: 'true' }],
+      [{ ...valid, isPublished: undefined }],
+      [valid, { ...valid, name: 'Duplicate' }],
+      Array.from({ length: 201 }, (_, index) => ({ ...valid, id: 'partner-' + index })),
+    ];
+    for (const partners of invalid) {
+      await expect(service.update({ partners } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('preserves unchanged legacy partners when editing another CMS section', async () => {
+    const legacy = { name: 'Старый партнёр', website: 'old.example.org', tier: 'OLD' };
+    const { service } = makeService({ partners: [legacy] });
+    await service.update({ partners: [legacy], homepage: { heroTitle: 'Новый USD' } } as any, 'admin-1');
+    expect((await service.getAdmin()).settings.partners).toEqual([legacy]);
+    expect((await service.getPublic()).settings.partners).toEqual([legacy]);
+  });
+});
+
 describe('SiteSettingsService public navigation CMS', () => {
   const makeService = () => {
     let stored: any = null;
