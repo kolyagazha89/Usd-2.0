@@ -30,7 +30,8 @@ function categoryFor(group: keyof CatalogEquipment, row: CatalogEquipmentRow): s
 
 function legacyKey(group: keyof CatalogEquipment, row: CatalogEquipmentRow): string {
   return [group, categoryFor(group, row), normalize(row.brand), normalize(row.model),
-    String(row.type ?? ''), String(row.direction ?? ''), String(row.quantity ?? '')].join('|');
+    String(row.type ?? ''), String(row.direction ?? ''), String(row.quantity ?? ''),
+    String(row.catalogEntryId ?? '').trim()].join('|');
 }
 
 /** Legacy imported equipment can be copied unchanged, but not duplicated, retagged
@@ -63,14 +64,14 @@ export function assertCatalogEquipment(
         && normalize(entry.model) === normalize(row.model),
       );
       if (approved) continue;
-      // A supplied but invalid ID is always rejected; never fall back to legacy.
-      if (!id) {
-        const key = legacyKey(group, row);
-        const remaining = legacy.get(key) ?? 0;
-        if (remaining > 0) {
-          legacy.set(key, remaining - 1);
-          continue;
-        }
+      // A retired or removed catalog entry may survive unchanged in an existing
+      // version. Its exact ID, category, direction and quantity must match a
+      // trusted previous row. A missing/replaced ID is never a legacy bypass.
+      const key = legacyKey(group, row);
+      const remaining = legacy.get(key) ?? 0;
+      if (remaining > 0) {
+        legacy.set(key, remaining - 1);
+        continue;
       }
       throw new BadRequestException(
         'Модель «' + String(row.model ?? '').slice(0, 100)
