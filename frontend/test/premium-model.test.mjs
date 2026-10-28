@@ -42,3 +42,25 @@ test('homepage keeps a published event visible for its entire local day',()=>{
   assert.equal(nextPublishedStage(stages.filter(s=>s.id!=='today'),today)?.id,'tomorrow');
   assert.equal(nextPublishedStage([{id:'invalid',status:'PUBLISHED',date:'n/a'}],today),undefined);
 });
+
+
+test('homepage stage selection compares calendar days rather than midnight UTC instants',()=>{
+  const now=new Date(2026,9,28,20,30).getTime();
+  const stages=[
+    {id:'tomorrow',status:'PUBLISHED',date:'2026-10-29T00:00:00.000Z'},
+    {id:'today',status:'PUBLISHED',date:'2026-10-28T00:00:00.000Z'},
+    {id:'yesterday',status:'PUBLISHED',date:'2026-10-27T00:00:00.000Z'},
+    {id:'deleted',status:'PUBLISHED',isDeleted:true,date:'2026-10-28T00:00:00.000Z'},
+  ];
+  assert.equal(nextPublishedStage(stages,now)?.id,'today');
+  assert.equal(nextPublishedStage(stages.filter(s=>s.id!=='today'),now)?.id,'tomorrow');
+});
+
+test('homepage stage selection handles timezone-offset dates without shifting the advertised day',()=>{
+  const now=new Date(2026,9,28,23,45).getTime();
+  const stages=[
+    {id:'later',status:'PUBLISHED',date:'2026-10-29T00:00:00+05:00'},
+    {id:'local-day',status:'PUBLISHED',date:'2026-10-28T00:00:00+05:00'},
+  ];
+  assert.equal(nextPublishedStage(stages,now)?.id,'local-day');
+});
