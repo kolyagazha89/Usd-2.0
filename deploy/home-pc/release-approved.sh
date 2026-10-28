@@ -128,7 +128,7 @@ verify_running_images() {
 # DATABASE_URL. This does not mutate data or run migrations.
 api_database_ready() {
   docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
-    'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000,query_timeout:3000});c.query("SELECT 1").then(()=>c.end()).then(()=>process.exit(0)).catch(()=>{c.end().catch(()=>{}).finally(()=>process.exit(1));})' \
+    'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000,query_timeout:3000});(async()=>{try{await c.connect();await c.query("SELECT 1");}finally{await c.end().catch(()=>{});}})().catch(()=>{process.exitCode=1;})' \
     >/dev/null 2>&1
 }
 wait_ready() {
