@@ -168,7 +168,9 @@ export class SiteSettingsService{
           ...publicRegistration,
           ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
         },
-        partners: s.partners.filter((partner: any) => partner.isActive !== false),
+        // A draft partner must never be exposed by the public settings API.
+        // Missing isPublished remains public for legacy CMS records.
+        partners: s.partners.filter((partner: any) => partner.isActive !== false && partner.isPublished !== false),
         news: s.news.filter((item: any) => item.isPublished !== false),
         legal: {
           legalApproved: publicLegalApproved,
