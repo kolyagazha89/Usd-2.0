@@ -1,5 +1,5 @@
 [Unit]
-Description=USD approved main branch local build and deployment
+Description=USD staged main branch local image builder (no production deployment)
 Wants=network-online.target
 After=network-online.target docker.service
 Requires=docker.service
