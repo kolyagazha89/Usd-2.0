@@ -570,29 +570,18 @@ export class ConfigurationsService {
         });
         if (!currentVersion) throw new NotFoundException('Current configuration version not found');
 
-        // Versions used by an event or confirmed by a participant are immutable.
-        const references = await tx.registration.count({ where: { configurationVersionId: currentVersion.id } });
-        const confirmations = await tx.historicalConfigurationConfirmation.count({ where: { versionId: currentVersion.id } });
-        let targetVersionId = currentVersion.id;
-        if (references || confirmations) {
-          const next = await tx.carConfigurationVersion.create({ data: {
-            configurationId, version: current.currentVersion + 1,
-            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
-          } });
-          targetVersionId = next.id;
-          await tx.carConfiguration.update({ where: { id: configurationId }, data: { currentVersion: next.version } });
-        } else {
-          await tx.carAmplifierComponent.deleteMany({ where: { amplifier: { versionId: currentVersion.id } } });
-          await tx.carHeadUnit.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carAudioComponent.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carAmplifier.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carBattery.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carGenerator.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carConfigurationVersion.update({ where: { id: currentVersion.id }, data: {
-            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
-          } });
-        }
-        await this.createVersionChildren(tx, targetVersionId, dto);
+        // Every successful edit is an immutable new version, even if the
+        // previous build was never registered at a stage. Do not delete or
+        // overwrite earlier equipment rows: they form the member's audit trail.
+        const next = await tx.carConfigurationVersion.create({ data: {
+          configurationId, version: current.currentVersion + 1,
+          vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
+        } });
+        await this.createVersionChildren(tx, next.id, dto);
+        await tx.carConfiguration.update({
+          where: { id: configurationId },
+          data: { name: dto.name, currentVersion: next.version },
+        });
 
         return tx.carConfiguration.findUnique({
           where: { id: configurationId },
