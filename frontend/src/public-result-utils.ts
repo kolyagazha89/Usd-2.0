@@ -22,10 +22,26 @@ export function recordDirectionKind(row:any){
 }
 export function resultNumericValue(row:any){
  const raw=row?.value??row?.result?.value??row?.score??row?.result;
+ // An unpublished/empty measurement must never become a valid zero dB record.
+ if(raw===null||raw===undefined||raw===''||typeof raw==='boolean')return Number.NEGATIVE_INFINITY;
  if(typeof raw==='number')return Number.isFinite(raw)?raw:Number.NEGATIVE_INFINITY;
  const parsed=Number(String(raw??'').replace(/,/g,'.').replace(/[^0-9.+-]/g,''));
  return Number.isFinite(parsed)?parsed:Number.NEGATIVE_INFINITY;
 }
+/** Records compare sound-pressure readings only. BassRace is a separate
+ * competition format, while Storm Wall uses speed rather than dB.
+ * Keep this check on public surfaces even when legacy rows have SPL parents.
+ */
+export function isDbRecordEligible(row:any):boolean{
+ const cls=row?.class??row?.result?.registrationClass?.class??{};
+ const identity=[cls.name,cls.code,cls.direction?.name,row?.direction?.name].map(value=>String(value??'')).join(' ');
+ const unit=String(cls.unit??row?.unit??'');
+ const value=resultNumericValue(row);
+ return Number.isFinite(value)&&value>=0
+  &&!/bass[\\s_-]*race|storm[\\s_-]*wall|hurrican/i.test(identity)
+  &&!/^(mps|m\\/s|м\\/с)$/i.test(unit.trim());
+}
+
 export function sortRecordRows(rows:any[]){
  return rows.slice().sort((a:any,b:any)=>{
   const directionA=Number(a.class?.direction?.sortOrder??a.result?.registrationClass?.class?.direction?.sortOrder??0);
@@ -42,7 +58,7 @@ export function sortRecordRows(rows:any[]){
  });
 }
 export function selectHomepageRecords(rows:any[]){
- const sorted=sortRecordRows(rows);
+ const sorted=sortRecordRows(rows.filter(isDbRecordEligible));
  return [
   ...sorted.filter((row:any)=>recordDirectionKind(row)==='SPL').slice(0,3),
   ...sorted.filter((row:any)=>recordDirectionKind(row)==='BFSPL').slice(0,2),
