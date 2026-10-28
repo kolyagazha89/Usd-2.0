@@ -3,8 +3,7 @@ import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,
 
 export default function ParticipantJourney({car,stage,registrations,go}:{car?:any;stage?:any;registrations:any[];go:(path:string)=>void}){
  const components=currentCarAudioComponents(car);
- const registration=registrations.find(r=>r?.status!=='CANCELLED'&&r?.carId===car?.id&&(r?.stageId??r?.stage?.id)===stage?.id)
-  ??registrations.find(r=>r?.status!=='CANCELLED'&&r?.car?.id===car?.id&&(r?.stageId??r?.stage?.id)===stage?.id);
+ const registration=car?.id&&stage?.id?registrations.find(r=>r?.status!=='CANCELLED'&&(r?.carId??r?.car?.id)===car.id&&(r?.stageId??r?.stage?.id)===stage.id):undefined;
  const required=requiredDirectionsForRegistration(registration);
  const missing=required.filter(direction=>!isDirectionConfigured(components,direction));
  const hasEquipment=(['SUB','FRONT','REAR'] as const).some(direction=>isDirectionConfigured(components,direction));
