@@ -16,6 +16,7 @@ export type CatalogEquipment = {
   headUnits?: CatalogEquipmentRow[];
   audioComponents?: CatalogEquipmentRow[];
   amplifiers?: CatalogEquipmentRow[];
+  batteries?: CatalogEquipmentRow[];
 };
 
 type CatalogEntry = { id?: unknown; category?: unknown; brand?: unknown; model?: unknown; isActive?: unknown };
@@ -44,6 +45,9 @@ export function assertCatalogEquipment(
   const raw = catalogs && typeof catalogs === 'object' && !Array.isArray(catalogs)
     ? (catalogs as { componentModels?: unknown }).componentModels : undefined;
   const models: CatalogEntry[] = Array.isArray(raw) ? raw : [];
+  const batteryTypes = catalogs && typeof catalogs === 'object' && !Array.isArray(catalogs)
+    ? (catalogs as { batteryTypes?: unknown }).batteryTypes : undefined;
+  const approvedBatteries: Array<{code?:unknown;isActive?:unknown}> = Array.isArray(batteryTypes) ? batteryTypes : [];
   for (const group of ['headUnits', 'audioComponents', 'amplifiers'] as const) {
     const legacy = new Map<string, number>();
     for (const row of previous[group] ?? []) {
@@ -74,5 +78,23 @@ export function assertCatalogEquipment(
         + '. Выберите модель из справочника или отправьте заявку администратору.',
       );
     }
+  }
+  // Battery chemistry/construction is CMS-controlled too. A previously imported
+  // battery can be retained verbatim, but a new battery must use an active code.
+  const legacyBatteries = new Map<string, number>();
+  const batteryKey = (row: CatalogEquipmentRow) =>
+    [normalize(row.brand), normalize(row.model), String(row.quantity ?? '')].join('|');
+  for (const row of previous.batteries ?? []) {
+    const key = batteryKey(row);
+    legacyBatteries.set(key, (legacyBatteries.get(key) ?? 0) + 1);
+  }
+  for (const row of submitted.batteries ?? []) {
+    if (approvedBatteries.some(entry => entry.code === row.brand && entry.isActive !== false)) continue;
+    const key = batteryKey(row), remaining = legacyBatteries.get(key) ?? 0;
+    if (remaining > 0) {
+      legacyBatteries.set(key, remaining - 1);
+      continue;
+    }
+    throw new BadRequestException('Тип аккумулятора отсутствует в активном справочнике USD. Выберите доступный тип.');
   }
 }
