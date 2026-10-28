@@ -97,7 +97,7 @@ bash "$WORK/builder" > "$WORK/release.log"
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
 export USD_TEST_BUSY_RELEASE=1
 lines="$(wc -l < "$WORK/releases.log")"
-bash "$WORK/builder" > "$WORK/lock-contention.log"
+bash "$WORK/builder" > "$WORK/lock-contention.log" 2>&1
 grep -q "retrying on next poll" "$WORK/lock-contention.log"
 [[ ! -f "$WORK/state/failed-release-sha" ]]
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
