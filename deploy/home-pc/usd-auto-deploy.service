@@ -1,0 +1,15 @@
+[Unit]
+Description=USD approved main branch local build and deployment
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/usd-auto-deploy
+TimeoutStartSec=40min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
