@@ -16,7 +16,7 @@ test('configuration quantity validation accepts positive integer counts',()=>{
 
 test('configuration quantity validation rejects invalid or silently coerced values',()=>{
  for(const group of ['audioComponents','amplifiers','batteries','generators']){
-  for(const quantity of [0,-1,1.5,'1.5','',null,Number.NaN,Number.POSITIVE_INFINITY,Number.MAX_SAFE_INTEGER+1]){
+  for(const quantity of [0,-1,1.5,'1.5','1e2','1.0','',null,true,Number.NaN,Number.POSITIVE_INFINITY,Number.MAX_SAFE_INTEGER+1]){
    const config={...valid(),[group]:[{quantity}]};
    assert.match(validateConfigurationQuantities(config),/целое количество/,
     group+' should reject '+String(quantity));
