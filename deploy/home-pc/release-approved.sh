@@ -20,6 +20,14 @@ PROJECT=usd-home
 NEW_TAG="${1:-}"
 [[ "$NEW_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Usage: release-approved.sh <full Git SHA>" >&2; exit 2; }
 
+# Approval state is a privileged trust boundary, not merely a cache. A
+# group-writable state directory or built-SHA file could authorize an image
+# which the root-owned local builder never produced.
+[[ -d "$STATE_DIR" && ! -L "$STATE_DIR" && "$(stat -c %u "$STATE_DIR")" == 0 ]] ||
+  { echo "Untrusted release state directory" >&2; exit 1; }
+(( (8#$(stat -c %a "$STATE_DIR") & 022) == 0 )) ||
+  { echo "Release state directory must not be group/world writable" >&2; exit 1; }
+
 # Approval files must be root-owned and contain the exact SHA, not just exist.
 approved_sha() {
   local file="$1"
@@ -31,8 +39,8 @@ approval_file="$STATE_DIR/release-approved-sha"
 if ! approved_sha "$approval_file"; then approval_file=/etc/usd-release-approved; fi
 approved_sha "$approval_file" || { echo "Root-owned release approval for this SHA missing" >&2; exit 1; }
 approved_sha "$STATE_DIR/schema-approved-sha" || { echo "Schema compatibility not approved for this SHA" >&2; exit 1; }
-[[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$NEW_TAG" ]] ||
-  { echo "Requested SHA was not built locally" >&2; exit 1; }
+approved_sha "$STATE_DIR/built-sha" ||
+  { echo "Requested SHA was not built locally or its build marker is untrusted" >&2; exit 1; }
 
 cd "$DEPLOY_DIR"
 [[ -f .env && ! -L .env ]] || { echo "Missing or symlinked production .env" >&2; exit 1; }
@@ -127,7 +135,7 @@ verify_running_images() {
 # Probe PostgreSQL from INSIDE the running API image using its actual
 # DATABASE_URL. This does not mutate data or run migrations.
 api_database_ready() {
-  docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
+  docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
     'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000,query_timeout:3000});(async()=>{try{await c.connect();await c.query("SELECT 1");}finally{await c.end().catch(()=>{});}})().catch(()=>{process.exitCode=1;})' \
     >/dev/null 2>&1
 }
@@ -136,10 +144,10 @@ wait_ready() {
   for attempt in $(seq 1 "${1:-30}"); do
     api_ok=0
     frontend_ok=0
-    docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
+    docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
       "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
       >/dev/null 2>&1 && api_ok=1
-    docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T frontend \
+    docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T frontend \
       wget -T 5 -q -O /dev/null http://127.0.0.1/index.html >/dev/null 2>&1 && frontend_ok=1
     if [[ "$api_ok" == 1 && "$frontend_ok" == 1 ]] && api_database_ready; then return 0; fi
     sleep 4
@@ -160,7 +168,7 @@ rollback() {
        ! mv -f "$restore_tmp" .env; then
       [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
-    elif ! docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
+    elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
@@ -196,10 +204,10 @@ BACKUP_DIR=/home/usd/backups
 [[ ! -L "$BACKUP_DIR" ]] || { echo "Refusing symlinked backup directory" >&2; false; }
 install -d -m 0700 "$BACKUP_DIR"
 db_snapshot_tmp="$(mktemp "$BACKUP_DIR/release-$NEW_TAG.XXXXXXXX.partial")"
-docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db sh -c \
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db sh -c \
   'pg_dump -Fc --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$db_snapshot_tmp"
 [[ -s "$db_snapshot_tmp" ]] || { echo "Database backup is empty" >&2; false; }
-docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
 mv "$db_snapshot_tmp" "${db_snapshot_tmp%.partial}.dump"
 db_snapshot_tmp=''
 # PostgreSQL must remain the SAME healthy container throughout the backup.
@@ -214,10 +222,10 @@ db_snapshot_tmp=''
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
 cp -p .env "$tmp"
 sed -i -E "s/^USD_IMAGE_TAG=[a-f0-9]{40}$/USD_IMAGE_TAG=$NEW_TAG/" "$tmp"
-docker compose --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
 changed=1
 mv -f "$tmp" .env
-docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
 
 # In-container checks work even when no localhost ports are published.
 # Both services must return HTTP 200; checking 404 on the API is not sufficient.
