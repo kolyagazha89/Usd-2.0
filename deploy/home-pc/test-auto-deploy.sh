@@ -17,6 +17,7 @@ printf 'application-v2\n' > "$WORK/source/application.txt"
 "$REAL_GIT" -C "$WORK/source" add .
 "$REAL_GIT" -C "$WORK/source" -c user.name=QA -c user.email=qa@example.org commit -qm application
 NEW="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD)"
+export USD_TEST_MAIN_SHA="$NEW"
 SCHEMA="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD:backend/prisma)"
 printf '%s\n' "$NEW" > "$WORK/source/.git/FETCH_HEAD"
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
@@ -44,6 +45,7 @@ cat > "$WORK/bin/git" <<'SH'
 case "$*" in
  *'remote get-url origin') echo https://github.com/kolyagazha89/Usd-2.0.git ;;
  *'fetch --no-tags --depth=1 origin '*) exit 0 ;;
+ *'ls-remote --exit-code origin refs/heads/main') printf '%s\\trefs/heads/main\\n' "${USD_TEST_REMOTE_SHA:-$USD_TEST_MAIN_SHA}" ;;
  *) exec "$REAL_GIT" "$@" ;;
 esac
 SH
@@ -117,6 +119,18 @@ grep -q 'Main CI gate refused' "$WORK/failed-ci.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_CI_STATUS
 grep -q "^$NEW 0$" "$WORK/ci.log"
+# A main push arriving during the build must not release the stale SHA.
+export USD_TEST_REMOTE_SHA="$OLD"
+bash "$WORK/builder" > "$WORK/stale-main.log" 2>&1
+grep -q 'deferring stale release' "$WORK/stale-main.log"
+[[ ! -f "$WORK/releases.log" ]]
+unset USD_TEST_REMOTE_SHA
+# Malformed remote responses also defer without quarantining the commit.
+export USD_TEST_REMOTE_SHA=not-a-git-sha
+bash "$WORK/builder" > "$WORK/invalid-main.log" 2>&1
+grep -q 'Invalid main branch tip response' "$WORK/invalid-main.log"
+[[ ! -f "$WORK/releases.log" ]]
+unset USD_TEST_REMOTE_SHA
 # A failed image build cannot mark this version ready or invoke release.
 printf '%040d\n' 0 > "$WORK/state/built-sha"
 export USD_TEST_FAIL_BUILD=1
@@ -175,6 +189,7 @@ printf 'frontend-v3\n' > "$WORK/source/frontend/app.txt"
 "$REAL_GIT" -C "$WORK/source" -c user.name=QA -c user.email=qa@example.org commit -qm frontend
 NEWER="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD)"
 printf '%s\n' "$NEWER" > "$WORK/source/.git/FETCH_HEAD"
+export USD_TEST_MAIN_SHA="$NEWER"
 bash "$WORK/builder" > "$WORK/frontend-change.log"
 grep -q "^$NEWER 1$" "$WORK/ci.log"
 grep -q "^$NEWER$" "$WORK/releases.log"
