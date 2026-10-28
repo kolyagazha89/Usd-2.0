@@ -54,7 +54,7 @@ export function requiredDirectionsForRegistration(registration:unknown):AudioDir
 export function missingConfigurationRequirementForClass(item:any,config:any):string{
  if(!config)return '';
  const cls=item?.class??item;
- const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');
  const direction=normalize(cls?.direction?.name??item?.directionName??item?.direction?.name);
  const identity=[cls?.name,direction,cls?.code].map(normalize).join(' ');
  const components=config.audioComponents;
