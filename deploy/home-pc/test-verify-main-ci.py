@@ -11,8 +11,16 @@ spec.loader.exec_module(gate)
 SHA = "a" * 40
 
 
-def run(name, *, sha=SHA, branch="main", event="push", status="completed", conclusion="success", attempt=1, ident=1):
-    return {"name": name, "head_sha": sha, "head_branch": branch, "event": event,
+WORKFLOW_PATHS = {
+    "Backend CI": ".github/workflows/backend-ci.yml",
+    "Home PC deployment safety checks": ".github/workflows/home-pc-safety.yml",
+    "Frontend CI": ".github/workflows/frontend.yml",
+}
+
+
+def run(name, *, sha=SHA, branch="main", event="push", status="completed", conclusion="success", attempt=1, ident=1, path=None):
+    return {"name": name, "path": path if path is not None else WORKFLOW_PATHS.get(name),
+            "head_sha": sha, "head_branch": branch, "event": event,
             "status": status, "conclusion": conclusion, "run_attempt": attempt, "id": ident}
 
 
@@ -36,6 +44,17 @@ class CIGateTests(unittest.TestCase):
         for fake in (run("Backend CI", event="pull_request"), run("Backend CI", branch="feature"),
                      run("Backend CI", sha="b" * 40)):
             self.assertEqual(gate.evaluate({"workflow_runs": [run("Home PC deployment safety checks"), fake]}, SHA, False)[0], 75)
+
+    def test_workflow_name_impersonation_cannot_authorize_release(self):
+        # GitHub Actions workflow names are editable display strings, not
+        # identities. A green same-named workflow at another path is invalid.
+        for name in WORKFLOW_PATHS:
+            with self.subTest(name=name):
+                required = [run("Backend CI"), run("Home PC deployment safety checks"), run("Frontend CI")]
+                impostor = run(name, path=".github/workflows/pretend-green.yml", ident=999)
+                missing_real = [item for item in required if item["name"] != name]
+                self.assertEqual(gate.evaluate({"workflow_runs": missing_real + [impostor]}, SHA, True)[0], 75)
+                self.assertEqual(gate.evaluate({"workflow_runs": required + [impostor]}, SHA, True)[0], 0)
 
     def test_latest_attempt_must_pass(self):
         payload = {"workflow_runs": [run("Home PC deployment safety checks"), run("Backend CI", attempt=1, ident=1),
