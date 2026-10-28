@@ -367,3 +367,52 @@ describe('SiteSettingsService partner publication lifecycle', () => {
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(3);
   });
 });
+
+
+describe('SiteSettingsService public navigation CMS', () => {
+  const makeService = () => {
+    let stored: any = null;
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockImplementation(async () => stored),
+        upsert: jest.fn().mockImplementation(async (args: any) => {
+          stored = { id: 'default', ...(stored ? args.update : args.create) };
+          return stored;
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return { service: new SiteSettingsService(prisma), prisma };
+  };
+
+  it('persists renamed, reordered and hidden menu items in the public settings', async () => {
+    const { service } = makeService();
+    const items = [
+      { id: 'news', path: '/news', label: 'Журнал USD', enabled: true, sortOrder: 0 },
+      { id: 'stages', path: '/stages', label: 'Афиша', enabled: false, sortOrder: 1 },
+    ];
+    await service.update({ navigation: { items } }, 'admin-1');
+    expect((await service.getPublic()).settings.navigation.items).toEqual(items);
+    await service.update({ navigation: { items: items.map(item => ({ ...item, enabled: false })) } }, 'admin-1');
+    expect((await service.getPublic()).settings.navigation.items.every(item => !item.enabled)).toBe(true);
+  });
+
+  it('rejects unsafe, duplicated or malformed navigation before database writes', async () => {
+    const { service, prisma } = makeService();
+    const good = { id: 'news', path: '/news', label: 'Новости', enabled: true, sortOrder: 0 };
+    for (const navigation of [
+      { items: 'not an array' },
+      { items: [good, { ...good, id: 'news-copy' }] },
+      { items: [{ ...good, path: 'javascript:alert(1)' }] },
+      { items: [{ ...good, label: '  ' }] },
+      { items: [{ ...good, label: 'a'.repeat(49) }] },
+      { items: [{ ...good, label: 'Bad\nlabel' }] },
+      { items: [{ ...good, sortOrder: -1 }] },
+      { items: [{ ...good, enabled: 'true' }] },
+    ]) {
+      await expect(service.update({ navigation } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
+    expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
+  });
+});
