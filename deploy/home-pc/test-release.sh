@@ -138,7 +138,7 @@ cat > "$WORK/bin/cp" <<'EOF'
 # Simulate a failure restoring the original environment, never the initial snapshot.
 if [[ "${USD_TEST_FAIL_ROLLBACK_COPY:-0}" == 1 &&
       "${1:-}" == -p && "${2:-}" == /var/lib/usd-deployer/release-env.* &&
-      "${3:-}" == .env ]]; then
+      "${3:-}" == /home/usd/usd-deploy/deploy/home-pc/.env.rollback.* ]]; then
   exit 1
 fi
 exec /usr/bin/cp "$@"
@@ -253,6 +253,8 @@ export USD_TEST_FAIL_READINESS=1
 export USD_TEST_FAIL_ROLLBACK_COPY=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/restore-env-failure.log" 2>&1; then exit 1; fi
 grep -q 'CRITICAL: could not restore previous production .env' "$WORK/restore-env-failure.log"
+[[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.rollback.*' -print -quit)" ]] ||
+  { echo 'Rollback left a staged environment file' >&2; exit 1; }
 # Deliberately failed restoration leaves the new tag in place. Repair the
 # disposable test fixture explicitly before the next healthy release.
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
