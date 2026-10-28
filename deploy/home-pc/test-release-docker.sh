@@ -115,6 +115,7 @@ compose=(docker compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml")
 "${compose[@]}" up -d --wait --wait-timeout 120
 "${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE release_marker (id integer PRIMARY KEY); INSERT INTO release_marker VALUES (42);'
 db_before="$("${compose[@]}" ps -q db)"
+api_before="$("${compose[@]}" ps -q api)"
 approve() {
   printf '%s\n' "$1" > "$STATE/built-sha"
   printf '%s\n' "$1" > "$STATE/schema-approved-sha"
@@ -122,6 +123,19 @@ approve() {
   chmod 600 "$STATE/"*-sha
 }
 approve "$BAD"
+# A healthy PostgreSQL container and HTTP-200 API are insufficient when the
+# API loses its DB network route. Refuse before backup or replacing images.
+docker network disconnect usd-home_default "$api_before"
+if bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/no-db-connectivity.log" 2>&1; then
+  echo 'Release accepted an API without PostgreSQL connectivity' >&2
+  exit 1
+fi
+grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/no-db-connectivity.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ "$("${compose[@]}" ps -q db)" == "$db_before" ]]
+docker network connect --alias api usd-home_default "$api_before"
+# With connectivity restored, the candidate's HTTP-500 must now reach the
+# normal post-switch rollback path (not fail the baseline readiness preflight).
 if bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/rollback.log" 2>&1; then
   echo 'Unhealthy API was incorrectly released' >&2
   exit 1
