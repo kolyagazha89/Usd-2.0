@@ -74,10 +74,13 @@ export async function runRegistrationJourney(){
  state.__postAction=async(path:string,body:any)=>{assert.equal(path,'/registrations/me');submitted=body;return {id:'flow-registration'}};
  history.replaceState({},'','/participant/register?stageId=flow-stage');
  const root=createRoot(document.getElementById('root')!);
- const button=(label:string)=>[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label)!;
+ const button=(label:string)=>{const found=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label);assert.ok(found,'Missing registration button «'+label+'». Rendered screen: '+(document.querySelector('main')?.textContent??'').slice(0,800));return found};
  const select=async(label:string,value:string)=>{const input=[...document.querySelectorAll<HTMLLabelElement>('.registration-field')].find(l=>l.querySelector('span')?.textContent===label)!.querySelector('select')!;await act(async()=>{input.value=value;input.dispatchEvent(new window.Event('change',{bubbles:true}))});await flush()};
  try{
   await act(async()=>root.render(<App/>));await flush();await flush();
+  // Portal loading and stage-class loading settle independently. Wait for the
+  // actual registration step instead of assuming two timer ticks are enough.
+  for(let attempt=0;attempt<12&&!document.querySelector('.entry-navigation .primary-button');attempt++)await flush();
   assert.equal(button('Перейти к классам').disabled,true);
   await select('Ваш автомобиль',car.id);await select('Ваш автомобиль','other-car');
   await act(async()=>{releaseOld!([{id:'flow-configuration',name:'На сезон',versions:[version]}])});await flush();
