@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,preferredUpcomingStage,upcomingStages} from '../src/participant/member-readiness.ts';
+import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
 
 const row=(direction,type='MIDBASS',quantity=1)=>({direction,type,brand:' USD ',model:'Model 1',quantity});
 
@@ -92,4 +92,27 @@ test('garage renders all other upcoming events when a registered event is featur
  assert.match(dashboard,/preferredUpcomingStage\(upcoming,registrations,car\?\.id\)/);
  assert.match(dashboard,/otherStages=upcoming\.filter\(item=>item\.id!==stage\?\.id\)/);
  assert.match(dashboard,/otherStages\.slice\(0,3\)/);
+});
+
+test('garage checks all required audio directions for registered competition classes',()=>{
+ const registration={classes:[
+  {class:{name:'Limited 2.0',direction:{name:'SPL'}}},
+  {class:{name:'Gate 1-6',direction:{name:'BFSPL'}}},
+  {class:{name:'BDW SPL',direction:{name:'BDW SPL'}}},
+ ]};
+ assert.deepEqual(requiredDirectionsForRegistration(registration),['SUB','FRONT','REAR']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'BassRace 139.9'}}]}),['SUB']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Storm Wall'}}]}),['SUB']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Gate 1-6',direction:{name:'BFSPL'}}}]}),['FRONT']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'NoLim',direction:{name:'SPL'}}}]}),['SUB']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Wicket 6-10',direction:{name:'BFSPL'}}}]}),['FRONT']);
+ assert.deepEqual(requiredDirectionsForRegistration({classes:[{class:{name:'Custom class'}}]}),[]);
+ assert.deepEqual(requiredDirectionsForRegistration(undefined),[]);
+});
+
+test('garage readiness requires the equipment for registered classes, not any unrelated speaker',async()=>{
+ const dashboard=await readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8');
+ assert.match(dashboard,/requiredDirectionsForRegistration\(entry\)\.filter\(direction=>!filled\(direction\)\)/);
+ assert.match(dashboard,/done:equipmentReady/);
+ assert.match(dashboard,/missingRequiredDirections\.length\?'Для ваших классов заполните:/);
 });
