@@ -98,6 +98,19 @@ export class ParticipantsController {
     );
   }
 
+  /** Personal USD ID is separate from the stage-specific registration QR. */
+  @Roles('PARTICIPANT')
+  @Get('participants/me/usd-id')
+  myUsdId(@Req() request: AuthenticatedRequest) {
+    return this.participantsService.getMyUsdId(request);
+  }
+
+  @Roles('PARTICIPANT')
+  @Post('participants/me/usd-id/rotate')
+  rotateMyUsdId(@Req() request: AuthenticatedRequest) {
+    return this.participantsService.rotateMyUsdId(request);
+  }
+
   // =========================================================
   // ALL CARS — ADMIN / JUDGE
   // =========================================================
