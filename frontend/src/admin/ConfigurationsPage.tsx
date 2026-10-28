@@ -202,7 +202,7 @@ function cleanConfig(v:any,catalogModels:any[]=[]){
    const entry=catalogModels.find((item:any)=>item?.id&&item.isActive!==false&&item.category===category
     &&String(item.brand??'').trim().toLocaleLowerCase('ru')===String(row.brand??'').trim().toLocaleLowerCase('ru')
     &&String(item.model??'').trim().toLocaleLowerCase('ru')===String(row.model??'').trim().toLocaleLowerCase('ru'));
-   return {...row,catalogEntryId:entry?String(entry.id):undefined};
+   return {...row,catalogEntryId:entry?String(entry.id):row.catalogEntryId};
   });
  }
  const strip=(x:any):any=>{
