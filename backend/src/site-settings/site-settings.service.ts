@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
-  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
+  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
@@ -19,6 +19,9 @@ const DEFAULTS:SiteSettingsShape={
     {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'}],
     heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
     heroKicker:'USD / ЧЕМПИОНАТ ПО АВТОЗВУКУ',
+    heroStageLabel:'ULTIMATE SOUND DESTRUCTION',heroStageTagline:'СИЛА ЗВУКА',heroPulseHint:'Нажми на эмблему — запусти импульс',
+    heroWatchLabel:'Что такое USD',heroPrimaryButtonLabel:'Ближайший этап',heroCalendarButtonLabel:'Календарь этапов',
+    heroTopics:['СОРЕВНОВАНИЯ','РЕКОРДЫ','СООБЩЕСТВО','РАЗВИТИЕ','АВТОЗВУК'],
     communityTitle:'СТАНЬ ЧАСТЬЮ\nСООБЩЕСТВА USD',
     communitySubtitle:'УЧАСТВУЙ. РАЗВИВАЙСЯ. УСТАНАВЛИВАЙ РЕКОРДЫ.',
     communityButtonLabel:'Присоединиться',
@@ -68,6 +71,14 @@ export class SiteSettingsService{
   private validateHomepage(value:unknown){
     if(!value||typeof value!=='object'||Array.isArray(value)) return;
     const homepage=value as Record<string,unknown>;
+    for(const field of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel']){
+      if(homepage[field]!==undefined&&(typeof homepage[field]!=='string'||(homepage[field] as string).length>160))
+        throw new BadRequestException('Неверный текст первого экрана.');
+    }
+    if(homepage.heroTopics!==undefined){
+      if(!Array.isArray(homepage.heroTopics)||homepage.heroTopics.length>8||homepage.heroTopics.some((topic:unknown)=>typeof topic!=='string'||topic.length>40))
+        throw new BadRequestException('Неверные подписи первого экрана.');
+    }
     if(!Object.prototype.hasOwnProperty.call(homepage,'valuesCards')) return;
     const cards=homepage.valuesCards;
     if(!Array.isArray(cards)||cards.length>5) throw new BadRequestException('Неверный список карточек главной страницы.');
