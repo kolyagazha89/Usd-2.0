@@ -36,6 +36,15 @@ test('unchanged imported rows remain editable but cannot be used to bypass catal
  assert.equal(isUnchangedLegacyCatalogRow(null,'audioComponents',original[0]),false);
 });
 
+test('retired catalog entries remain editable only with an unchanged ID, quantity and direction',()=>{
+ const old={id:'saved-1',catalogEntryId:'retired-uuid',type:'SUBWOOFER',direction:'SUB',quantity:2,brand:'Pride',model:'Retired 15'};
+ assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old}),true);
+ assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old,catalogEntryId:undefined}),false);
+ assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old,catalogEntryId:'another-uuid'}),false);
+ assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old,quantity:3}),false);
+ assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old,direction:'FRONT'}),false);
+});
+
 test('both member and admin editor validate models against the same catalog rules',async()=>{
  const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
  assert.match(editor,/isApprovedCatalogModel\(catalogs\.componentModels,key,row\)/);
@@ -44,4 +53,5 @@ test('both member and admin editor validate models against the same catalog rule
  assert.match(editor,/modelOptions\('AUDIO_COMPONENT',x\.brand,x\.model,x\.type\)/);
  assert.doesNotMatch(editor,/if\(admin\|\|historicalFinal\)return true/);
  assert.match(editor,/Number\.isSafeInteger\(Number\(x\.quantity\)\)/);
+ assert.match(editor,/catalogEntryId:entry\?String\(entry\.id\):row\.catalogEntryId/);
 });
