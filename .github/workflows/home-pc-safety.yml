@@ -42,6 +42,11 @@ jobs:
           # Never inject the tunnel credential into the API or database container.
           docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --format json |
             python3 -c 'import json,sys; services=json.load(sys.stdin)["services"]; assert "TUNNEL_TOKEN" not in services["api"].get("environment",{}); assert "TUNNEL_TOKEN" not in services["db"].get("environment",{}); assert services["cloudflared"]["environment"]["TUNNEL_TOKEN"] == "ci-placeholder"'
+      - name: Validate GitHub main push CI release gate
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s deploy/home-pc -p 'test-verify-main-ci.py' -v
+          python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/home-pc/verify-main-ci.py").read_text())'
       - name: Check invalid release SHA is rejected before Docker access
         run: |
           set -euo pipefail
