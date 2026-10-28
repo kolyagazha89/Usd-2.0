@@ -150,6 +150,16 @@ chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
+# Root-run Docker Compose must reject mutable/unreviewed YAML.
+printf '\n# unreviewed local change\n' >> "$ROOT/compose.yaml"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unreviewed-compose.log" 2>&1; then exit 1; fi
+grep -q 'differs from reviewed root-owned snapshot' "$WORK/unreviewed-compose.log"
+cp "$TRUSTED_DIR/compose.yaml" "$ROOT/compose.yaml"
+chmod 777 "$TRUSTED_DIR"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/untrusted-compose-dir.log" 2>&1; then exit 1; fi
+grep -q 'must not be group/world writable' "$WORK/untrusted-compose-dir.log"
+chmod 755 "$TRUSTED_DIR"
+[[ ! -s "$USD_TEST_LOG" ]]
 chmod 640 "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-env.log" 2>&1; then
   echo "Expected insecure production environment to block release" >&2
