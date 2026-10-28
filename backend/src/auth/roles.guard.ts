@@ -79,6 +79,8 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  if(name==='ParticipantsController') {
   if(path==='/participants/teams')return method==='GET';
   if(path==='/participants/me')return ['GET','POST','PATCH'].includes(method);
+  if(path==='/participants/me/usd-id')return method==='GET';
+  if(path==='/participants/me/usd-id/rotate')return method==='POST';
   if(path==='/participants/me/cars')return ['GET','POST'].includes(method);
   if(/^\/cars\/[^/]+$/.test(path))return ['PATCH','DELETE'].includes(method);
   return false;
