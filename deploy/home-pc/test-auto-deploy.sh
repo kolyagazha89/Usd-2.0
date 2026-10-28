@@ -45,7 +45,7 @@ cat > "$WORK/bin/git" <<'SH'
 case "$*" in
  *'remote get-url origin') echo https://github.com/kolyagazha89/Usd-2.0.git ;;
  *'fetch --no-tags --depth=1 origin '*) exit 0 ;;
- *'ls-remote --exit-code origin refs/heads/main') printf '%s\\trefs/heads/main\\n' "${USD_TEST_REMOTE_SHA:-$USD_TEST_MAIN_SHA}" ;;
+ *'ls-remote --exit-code origin refs/heads/main') printf '%s\trefs/heads/main\n' "\${USD_TEST_REMOTE_SHA:-$USD_TEST_MAIN_SHA}" ;;
  *) exec "$REAL_GIT" "$@" ;;
 esac
 SH
