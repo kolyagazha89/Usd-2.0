@@ -62,6 +62,6 @@ test('upcoming events exclude past stages even when registration remains open',(
 
 test('garage selects its upcoming stage through the shared calendar-day filter',async()=>{
  const dashboard=await readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8');
- assert.match(dashboard,/const upcoming=upcomingStages\\(stages\\)/);
- assert.doesNotMatch(dashboard,/registrationOpen\\|\\|new Date\\(s\\.date/);
+ assert.match(dashboard,/const upcoming=upcomingStages\(stages\)/);
+ assert.doesNotMatch(dashboard,/registrationOpen\|\|new Date\(s\.date/);
 });
