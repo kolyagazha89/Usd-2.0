@@ -20,15 +20,22 @@ def evaluate(payload: object, sha: str, require_frontend: bool) -> tuple[int, st
         return 75, "Invalid GitHub Actions response"
     # PR-only safety checks cannot authorize a main release: require the
     # disposable real-Docker/PG18 rehearsal from this exact main push SHA.
-    required = {"Backend CI", "Home PC deployment safety checks"}
+    required = {
+        "Backend CI": ".github/workflows/backend-ci.yml",
+        "Home PC deployment safety checks": ".github/workflows/home-pc-safety.yml",
+    }
     if require_frontend:
-        required.add("Frontend CI")
+        required["Frontend CI"] = ".github/workflows/frontend.yml"
     runs = payload["workflow_runs"]
     for name in sorted(required):
         candidates = [
             run for run in runs
             if isinstance(run, dict)
             and run.get("name") == name
+            # Workflow display names are not unique. A second workflow with
+            # the same name must never be able to impersonate the required
+            # production build or disposable Docker/PG18 safety rehearsal.
+            and run.get("path") == required[name]
             and run.get("head_sha") == sha
             and run.get("head_branch") == "main"
             and run.get("event") == "push"
