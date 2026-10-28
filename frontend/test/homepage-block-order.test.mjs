@@ -19,7 +19,7 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
    settings:{homepage:{blocks,valuesCards:[]},partners:[],news:[]},
    stages:[],results:[],records:[],participants:[],liveResults:[],loading:false,
   })));
-  const ids=['documents','records','teams','community','latest-results'];
+  const ids=['documents','records','teams','community','latest-results','live-results','live-stream'];
   const blocks=ids.map(id=>({id,enabled:true}));
   const html=render(blocks);
   for(const [index,id] of ids.entries()){
@@ -31,6 +31,6 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   assert.match(hidden,/data-home-block="teams" style="order:2"/,'hiding records must not remove the team block');
   const swapped=render([...blocks].reverse());
   assert.match(swapped,/data-home-block="latest-results" style="order:0"/);
-  assert.match(swapped,/data-home-block="documents" style="order:4"/);
+  assert.match(swapped,/data-home-block="documents" style="order:6"/);
  }finally{await rm(scratch,{recursive:true,force:true})}
 });
