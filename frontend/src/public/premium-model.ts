@@ -6,7 +6,7 @@
 function stageCalendarDay(value:unknown):string|null{
  const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
  if(!date||!Number.isFinite(date.getTime()))return null;
- const iso=typeof value==='string'?value.match(/^(\\d{4}-\\d{2}-\\d{2})(?:T|$)/):null;
+ const iso=typeof value==='string'?value.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/):null;
  if(iso)return iso[1];
  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
 }
