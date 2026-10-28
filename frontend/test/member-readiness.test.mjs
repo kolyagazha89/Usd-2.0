@@ -30,6 +30,8 @@ test('garage uses the active configuration current version, not another version 
  assert.equal(isDirectionConfigured(components,'SUB'),false);
  assert.equal(isDirectionConfigured(components,'FRONT'),true);
  assert.equal(currentCarAudioComponents({configurations:[]}),undefined);
+ assert.equal(currentCarAudioComponents({configurations:[{isActive:true,currentVersion:99,versions:[{version:1,audioComponents:[row('SUB','SUBWOOFER')]}]}]}),undefined,'stale currentVersion must not mark old equipment as ready');
+ assert.deepEqual(currentCarAudioComponents({configurations:[{isActive:true,versions:[{version:1,audioComponents:[row('FRONT')]}]}]}),[row('FRONT')],'legacy configurations without a pointer remain readable');
 });
 
 test('a registration on another vehicle or stage never completes selected vehicle readiness',()=>{
@@ -53,6 +55,9 @@ test('upcoming events exclude past stages even when registration remains open',(
   {id:'today',date:'2026-10-27T00:00:00.000Z',registrationOpen:false},
   {id:'tomorrow',date:'2026-10-28',registrationOpen:true},
   {id:'deleted',date:'2026-10-27T09:00:00.000Z',isDeleted:true},
+  {id:'draft',date:'2026-10-27T09:00:00.000Z',status:'DRAFT',registrationOpen:true},
+  {id:'cancelled',date:'2026-10-27T09:00:00.000Z',status:'CANCELLED'},
+  {id:'completed-future',date:'2026-11-01T09:00:00.000Z',status:'COMPLETED'},
   {id:'bad-date',date:'not-a-date',registrationOpen:true},
   {id:'no-date',registrationOpen:true},
  ];
