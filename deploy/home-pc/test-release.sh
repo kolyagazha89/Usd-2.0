@@ -45,8 +45,10 @@ fi
 if [[ "${1:-}" == inspect ]]; then
   if [[ "$*" == *'.State.Health.Status'* ]]; then
     if [[ "${USD_TEST_DB_UNHEALTHY_BEFORE:-0}" == 1 ]] ||
-       { [[ "${USD_TEST_DB_UNHEALTHY_AFTER:-0}" == 1 ]] &&
+       { [[ "${USD_TEST_DB_UNHEALTHY_PERSISTENT:-0}" == 1 ]] && [[ -f "$USD_TEST_DB_LATCH" ]]; } ||
+       { [[ "${USD_TEST_DB_UNHEALTHY_AFTER:-0}" == 1 || "${USD_TEST_DB_UNHEALTHY_PERSISTENT:-0}" == 1 ]] &&
          grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; }; then
+      if [[ "${USD_TEST_DB_UNHEALTHY_PERSISTENT:-0}" == 1 ]]; then touch "$USD_TEST_DB_LATCH"; fi
       echo unhealthy
     else
       echo healthy
@@ -161,6 +163,13 @@ grep -q "Production DB became unhealthy during release" "$WORK/db-unhealthy-afte
 grep -q "Previous API/frontend passed readiness after rollback" "$WORK/db-unhealthy-after.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_DB_UNHEALTHY_AFTER=0
+export USD_TEST_DB_UNHEALTHY_PERSISTENT=1
+export USD_TEST_DB_LATCH="$WORK/db-unhealthy-latch"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-still-unhealthy.log" 2>&1; then exit 1; fi
+grep -q "CRITICAL: production DB is unhealthy after application rollback" "$WORK/db-still-unhealthy.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+export USD_TEST_DB_UNHEALTHY_PERSISTENT=0
+rm -f "$USD_TEST_DB_LATCH"
 bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
