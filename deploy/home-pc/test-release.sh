@@ -68,7 +68,7 @@ if [[ "${1:-}" == inspect ]]; then
 fi
 if [[ "${1:-}" == compose ]]; then
   case "$*" in
-    *" config --quiet"*) exit 0 ;;
+    *" config --quiet"*) [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] ;;
     *" up -d --no-deps api frontend"*)
       echo "up $(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)" >> "$USD_TEST_LOG"
       if [[ "${USD_TEST_INTERRUPT_RELEASE:-0}" == 1 ]] &&
@@ -133,6 +133,16 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/invalid-archive.log" 
 [[ ! -s "$USD_TEST_LOG" ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_FAIL_ARCHIVE_CHECK=0
+export USD_TEST_FAIL_CONFIG=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/config-failure.log" 2>&1; then
+  echo "Expected Compose validation failure to block release" >&2
+  exit 1
+fi
+[[ ! -s "$USD_TEST_LOG" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.release.*' -print -quit)" ]] ||
+  { echo "Sensitive staged .env was left behind after failed validation" >&2; exit 1; }
+export USD_TEST_FAIL_CONFIG=0
 export USD_TEST_INTERRUPT_RELEASE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/interrupted.log" 2>&1; then exit 1; fi
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
