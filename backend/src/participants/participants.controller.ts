@@ -152,6 +152,12 @@ export class ParticipantsController {
   // =========================================================
 
   @Public()
+  @Get('participants/usd-id/:token')
+  findPublicByUsdId(@Param('token') token: string) {
+    return this.participantsService.findPublicByUsdId(token);
+  }
+
+  @Public()
   @Get('participants/:id')
   findOne(
     @Param('id') id: string,
