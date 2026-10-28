@@ -112,6 +112,8 @@ export class SiteSettingsService{
     if(value===undefined)return;
     if(!Array.isArray(value)||value.length>200)
       throw new BadRequestException('Некорректный список партнёров (максимум 200).');
+    // Unchanged historical CMS records must not block unrelated site edits.
+    if(JSON.stringify(value)===JSON.stringify(previous))return;
     const ids=new Set<string>();
     for(const [index,raw] of value.entries()){
       if(!raw||typeof raw!=='object'||Array.isArray(raw))
