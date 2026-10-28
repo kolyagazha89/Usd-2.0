@@ -12,7 +12,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node src/scripts/migrate-safe.js && node dist/src/scripts/run-historical-migration.js && node dist/main.js",
+    "start:prod": "node dist/main.js",
     "lint": "oxlint --type-aware src/ test/",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:consents": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand src/auth/auth.service.consent.spec.ts src/registrations/registrations.consent.spec.ts src/site-settings/site-settings.legal-approval.spec.ts src/site-settings/site-settings.rules-versions.spec.ts src/mail/email-notifications.service.spec.ts src/mail/email-notifications.reminders.spec.ts src/mail/email-notifications.retry.spec.ts",
