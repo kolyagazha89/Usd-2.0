@@ -9,6 +9,10 @@ export const DEFAULT_PUBLIC_NAVIGATION = [
  {id:'news',path:'/news',label:'Новости',enabled:true,sortOrder:6},
  {id:'rules',path:'/rules',label:'Регламент',enabled:true,sortOrder:7},
  {id:'documents',path:'/documents',label:'Документы',enabled:true,sortOrder:8},
+ {id:'partners',path:'/partners',label:'Партнёры',enabled:false,sortOrder:9},
+ {id:'cars',path:'/cars',label:'Автомобили',enabled:false,sortOrder:10},
+ {id:'about',path:'/about',label:'О чемпионате',enabled:false,sortOrder:11},
+ {id:'contacts',path:'/contacts',label:'Контакты',enabled:false,sortOrder:12},
 ] as const;
 export type PublicMenuItem={id:string;path:string;label:string;enabled:boolean;sortOrder:number};
 const allowed=new Map<string,typeof DEFAULT_PUBLIC_NAVIGATION[number]>(DEFAULT_PUBLIC_NAVIGATION.map(item=>[item.path,item]));
