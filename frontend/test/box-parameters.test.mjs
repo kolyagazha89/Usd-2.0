@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../src/participant/box-parameters.ts';
 
 const box=(volume,tuning,type='ФИ')=>({type,volume,tuning});
@@ -37,4 +38,14 @@ test('valid fractional parameters are normalized consistently',()=>{
  assert.equal(formatBoxLine(candidate),'Короб: ЗЯ · 180.5 л · 32.5 Гц\n\n');
  assert.equal(withoutBoxLine('Свободное описание'),'Свободное описание');
  assert.deepEqual(boxFromDescription('Свободное описание'),box('','','ФИ'));
+});
+
+test('configuration editor uses validated decimal inputs and the shared serializer',async()=>{
+ const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
+ assert.match(editor,/const boxError=validateBoxParameters\(box\)/);
+ assert.match(editor,/key==='BOX'\?isBoxConfigured\(box\)/);
+ assert.match(editor,/const boxLine=formatBoxLine\(box\)/);
+ assert.match(editor,/Объём, л<input type="text" inputMode="decimal"/);
+ assert.match(editor,/Настройка, Гц<input type="text" inputMode="decimal"/);
+ assert.doesNotMatch(editor,/box\.volume.*replace\(\/\[\^0-9\]\//);
 });
