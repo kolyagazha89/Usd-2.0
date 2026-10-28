@@ -11,6 +11,24 @@ permissions:
   contents: read
 
 jobs:
+  build-candidate-images:
+    name: Build actual API and frontend Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build candidate API image from production Dockerfile
+        run: docker build -t usd-api-candidate:${{ github.sha }} ./backend
+      - name: Verify API artifact and no implicit migration startup
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node usd-api-candidate:${{ github.sha }} -e "if(!require('node:fs').existsSync('/app/dist/main.js'))process.exit(1)"
+          test "$(docker image inspect --format '{{json .Config.Cmd}}' usd-api-candidate:${{ github.sha }})" = '["node","dist/main.js"]'
+      - name: Build candidate frontend image with production API URL
+        run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
+      - name: Verify production frontend assets exist
+        run: docker run --rm --entrypoint sh usd-frontend-candidate:${{ github.sha }} -c 'test -s /usr/share/nginx/html/index.html'
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
