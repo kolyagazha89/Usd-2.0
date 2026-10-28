@@ -151,8 +151,21 @@ export class SiteSettingsService{
             throw new Error('unsafe');
         }catch{throw new BadRequestException('Сайт партнёра должен быть корректной ссылкой https:// или http:// без логина и пароля.');}
       }
-      if(item.photoUrl!==undefined&&item.photoUrl!==null&&!text('photoUrl',2048))
-        throw new BadRequestException('Некорректная ссылка на логотип партнёра.');
+      if(item.photoUrl!==undefined&&item.photoUrl!==null){
+        if(!text('photoUrl',2048))
+          throw new BadRequestException('Некорректная ссылка на логотип партнёра.');
+        const image=String(item.photoUrl);
+        if(image){
+          const local=image.startsWith('/')&&!image.startsWith('//');
+          let remote=false;
+          try{
+            const url=new URL(image);
+            remote=['https:','http:'].includes(url.protocol)&&!!url.hostname&&!url.username&&!url.password;
+          }catch{/* Relative media paths are allowed. */}
+          if(!local&&!remote||/\\s|\\\\/.test(image))
+            throw new BadRequestException('Логотип партнёра должен быть загруженным файлом или безопасной ссылкой.');
+        }
+      }
     }
   }
   private validateCatalogs(value:unknown){
