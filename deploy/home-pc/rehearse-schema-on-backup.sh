@@ -10,8 +10,19 @@ archive="$1"
 image="$2"
 [[ -f "$archive" && ! -L "$archive" && -s "$archive" ]] || { echo 'Backup must be a nonempty regular file (not a symlink)' >&2; exit 1; }
 [[ "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$ ]] || { echo 'Invalid candidate image reference' >&2; exit 1; }
-for tool in docker openssl mktemp date; do command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }; done
+for tool in docker openssl date du df awk; do command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }; done
 docker image inspect "$image" >/dev/null || { echo 'Candidate API image not found locally' >&2; exit 1; }
+# A compressed pg_dump can expand several-fold during restore. Fail closed
+# before creating Docker resources if the Docker data filesystem is too full.
+docker_root="$(docker info --format '{{.DockerRootDir}}')"
+[[ -d "$docker_root" ]] || { echo 'Cannot inspect Docker storage' >&2; exit 1; }
+archive_kb="$(du -k "$archive" | awk '{print $1}')"
+free_kb="$(df -Pk "$docker_root" | awk 'NR==2 {print $4}')"
+[[ "$archive_kb" =~ ^[0-9]+$ && "$free_kb" =~ ^[0-9]+$ ]] ||
+  { echo 'Cannot measure disposable restore capacity' >&2; exit 1; }
+(( free_kb > archive_kb * 6 + 2097152 )) ||
+  { echo 'Insufficient Docker storage for isolated PostgreSQL restore rehearsal' >&2; exit 1; }
+
 # An internal Docker network prevents a candidate image from reaching
 # production PostgreSQL, S3, mail services or the public internet.
 network="usd-migration-rehearsal-$(date +%s)-$$"
