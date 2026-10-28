@@ -97,6 +97,14 @@ jobs:
             sleep 2
           done
           [[ "$ready" == 1 ]]
+          # A production backup already contains _prisma_migrations. A dump of
+          # an arbitrary table in an unmigrated database is not a valid Prisma
+          # upgrade rehearsal: Prisma correctly rejects it with P3005.
+          # First initialize the disposable source DB with the candidate's
+          # actual migration history, then add a user-data fixture and dump it.
+          db_url="postgresql://usd:disposable-ci-only@$db:5432/usd?schema=public"
+          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \\
+            --entrypoint npx usd-api-candidate:${{ github.sha }} prisma migrate deploy
           docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE schema_rehearsal_fixture (id integer PRIMARY KEY); INSERT INTO schema_rehearsal_fixture VALUES (42);'
           docker exec "$db" pg_dump -Fc --no-owner --no-acl -U usd -d usd > "$dump"
           bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}"
