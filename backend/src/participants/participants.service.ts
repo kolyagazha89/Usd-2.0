@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import { randomBytes } from 'node:crypto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegistrationCountry } from '../generated/prisma/enums';
@@ -503,6 +504,41 @@ export class ParticipantsService {
         car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
       })) ?? [],
     };
+  }
+
+  /** A USD ID is an opaque public locator, never a login credential.
+   * Provision lazily for historical participants without rewriting their data.
+   * updateMany's null predicate makes simultaneous first reads idempotent.
+   */
+  async getMyUsdId(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const id = this.requireParticipantId(user.participantId);
+    const existing = await this.prisma.participant.findUnique({
+      where: { id }, select: { usdIdToken: true },
+    });
+    if (!existing) throw new NotFoundException('Профиль участника не найден');
+    if (!existing.usdIdToken) {
+      await this.prisma.participant.updateMany({
+        where: { id, usdIdToken: null },
+        data: { usdIdToken: randomBytes(24).toString('hex') },
+      });
+    }
+    const current = await this.prisma.participant.findUniqueOrThrow({
+      where: { id }, select: { usdIdToken: true },
+    });
+    if (!current.usdIdToken) throw new ConflictException('Не удалось создать USD ID');
+    return { token: current.usdIdToken, path: '/usd-id/' + current.usdIdToken };
+  }
+
+  /** Revocation immediately invalidates every previously printed USD ID QR. */
+  async rotateMyUsdId(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const id = this.requireParticipantId(user.participantId);
+    const updated = await this.prisma.participant.update({
+      where: { id }, data: { usdIdToken: randomBytes(24).toString('hex') },
+      select: { usdIdToken: true },
+    });
+    return { token: updated.usdIdToken, path: '/usd-id/' + updated.usdIdToken };
   }
 
   // =========================================================
