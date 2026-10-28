@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {ArrowRight,ArrowUpRight,CalendarDays,CarFront,CheckCircle2,ClipboardCheck,MapPin,Plus,Trophy,Volume2} from 'lucide-react';
 import ParticipantJourney from './ParticipantJourney';
-import {currentCarAudioComponents,isDirectionConfigured} from './member-readiness';
+import {currentCarAudioComponents,isDirectionConfigured,upcomingStages} from './member-readiness';
 import {Photo,type PhotoPlaceholders} from '../public/PremiumUI';
 
 type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void;placeholders?:PhotoPlaceholders};
@@ -11,7 +11,7 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const [selectedCarId,setSelectedCarId]=useState('');
  const active=cars.filter(c=>c.isActive!==false),car=active.find(c=>c.id===selectedCarId)??active[0];
  const components=currentCarAudioComponents(car);
- const upcoming=stages.filter(s=>s.registrationOpen||new Date(s.date??0).getTime()>=Date.now()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
+ const upcoming=upcomingStages(stages);
  const stage=upcoming[0];
  const entryFor=(s:any,carId:string)=>registrations.find(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(r.carId??r.car?.id)===carId);
  const allCarsRegistered=(s:any)=>active.length>0&&active.every(c=>registrations.some(r=>r.status!=='CANCELLED'&&(r.stageId??r.stage?.id)===s.id&&(r.carId??r.car?.id)===c.id));
