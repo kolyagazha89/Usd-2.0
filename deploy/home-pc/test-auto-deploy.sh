@@ -48,6 +48,7 @@ SH
 cat > "$WORK/bin/docker" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$USD_TEST_WORK/docker.log"
+if [[ "${1:-}" == image && "${2:-}" == inspect && "${USD_TEST_MISSING_IMAGE:-0}" == 1 && "$*" == *frontend* ]]; then exit 1; fi
 [[ "${USD_TEST_FAIL_BUILD:-0}" != 1 ]]
 SH
 cat > "$WORK/bin/df" <<'SH'
@@ -89,10 +90,15 @@ if bash "$WORK/builder" > "$WORK/build-failure.log" 2>&1; then exit 1; fi
 [[ "$(cat "$WORK/state/built-sha")" != "$NEW" ]]
 unset USD_TEST_FAIL_BUILD
 printf '%s\n' "$NEW" > "$WORK/state/built-sha"
-build_lines="$(wc -l < "$WORK/docker.log")"
+build_lines="$(grep -c '^build ' "$WORK/docker.log")"
 bash "$WORK/builder" > "$WORK/release.log"
 [[ "$(cat "$WORK/releases.log")" == "$NEW" ]]
-[[ "$(wc -l < "$WORK/docker.log")" == "$build_lines" ]]
+[[ "$(grep -c '^build ' "$WORK/docker.log")" == "$build_lines" ]]
+# A pruned frontend image must invalidate the cache and rebuild BOTH images.
+export USD_TEST_MISSING_IMAGE=1
+bash "$WORK/builder" > "$WORK/pruned-image.log"
+[[ "$(grep -c '^build ' "$WORK/docker.log")" == "$((build_lines + 2))" ]]
+unset USD_TEST_MISSING_IMAGE
 # Lock contention is transient and must never quarantine a good build.
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
 export USD_TEST_BUSY_RELEASE=1
