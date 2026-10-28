@@ -69,7 +69,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(editor,/configurations-page-shell"\+\(admin\?" admin-configurations-shell":" usd-member"\)/);
  assert.match(editor,/usd-member/);
  assert.match(editor,/aria-label="Добавить оборудование"/);
- assert.match(editor,/activeModels\(picker\.kind\)/);
+ assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/const validateCatalog=/);
  assert.match(editor,/if\(!validateCatalog\(\)\)return/);
  assert.match(editor,/setRequestOpen\(true\)/);
