@@ -194,6 +194,15 @@ export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
 # without actually passing the trusted open file descriptor.
 if USD_DEPLOY_LOCK_HELD=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/forged-lock.log" 2>&1; then exit 1; fi
 grep -q 'Missing trusted inherited deploy lock descriptor' "$WORK/forged-lock.log"
+# Approval files and their containing directory must be controlled by root.
+chmod 666 "$STATE/built-sha"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/untrusted-built-marker.log" 2>&1; then exit 1; fi
+grep -q 'build marker is untrusted' "$WORK/untrusted-built-marker.log"
+chmod 600 "$STATE/built-sha"
+chmod 777 "$STATE"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/untrusted-state-dir.log" 2>&1; then exit 1; fi
+grep -q 'Release state directory must not be group/world writable' "$WORK/untrusted-state-dir.log"
+chmod 755 "$STATE"
 [[ ! -s "$USD_TEST_LOG" ]]
 # Root-run Docker Compose must reject mutable/unreviewed YAML.
 printf '\n# unreviewed local change\n' >> "$ROOT/compose.yaml"
