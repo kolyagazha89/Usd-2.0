@@ -69,6 +69,7 @@ fi
 if [[ "${1:-}" == inspect ]]; then
   if [[ "$*" == *'.State.Health.Status'* ]]; then
     if [[ "${USD_TEST_DB_UNHEALTHY_BEFORE:-0}" == 1 ]] ||
+       [[ -f "${USD_TEST_DB_BACKUP_LATCH:-/dev/null}" ]] ||
        { [[ "${USD_TEST_DB_UNHEALTHY_PERSISTENT:-0}" == 1 ]] && [[ -f "$USD_TEST_DB_LATCH" ]]; } ||
        { [[ "${USD_TEST_DB_UNHEALTHY_AFTER:-0}" == 1 || "${USD_TEST_DB_UNHEALTHY_PERSISTENT:-0}" == 1 ]] &&
          grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; }; then
@@ -101,7 +102,13 @@ if [[ "${1:-}" == compose ]]; then
       [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] || exit 1
       exit 0 ;;
     *" up -d --no-deps api frontend"*)
-      echo "up $(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)" >> "$USD_TEST_LOG"
+      current_tag="$(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)"
+      if [[ "$current_tag" == "$USD_TEST_NEW" ]]; then
+        rm -f "$USD_TEST_ROLLBACK_MARKER"
+      elif [[ -f "$USD_TEST_LOG" && "$(tail -n 1 "$USD_TEST_LOG")" == "up $USD_TEST_NEW" ]]; then
+        touch "$USD_TEST_ROLLBACK_MARKER"
+      fi
+      echo "up $current_tag" >> "$USD_TEST_LOG"
       if [[ "${USD_TEST_INTERRUPT_RELEASE:-0}" == 1 ]] &&
          grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
         kill -TERM "$PPID"
@@ -111,6 +118,7 @@ if [[ "${1:-}" == compose ]]; then
       if [[ "$*" == *" exec -T db "* ]]; then
         if [[ "$*" == *pg_dump* ]]; then
           [[ "${USD_TEST_FAIL_BACKUP:-0}" != 1 ]] || exit 1
+          if [[ "${USD_TEST_DB_UNHEALTHY_AFTER_BACKUP:-0}" == 1 ]]; then touch "$USD_TEST_DB_BACKUP_LATCH"; fi
           printf 'mock-custom-format-dump'
         else
           cat >/dev/null
@@ -118,7 +126,11 @@ if [[ "${1:-}" == compose ]]; then
         fi
         exit 0
       fi
-      if [[ "${USD_TEST_FAIL_ROLLBACK_READINESS:-0}" == 1 ]] &&
+      if [[ "${USD_TEST_FAIL_ROLLBACK_READINESS:-0}" == 1 && -f "$USD_TEST_ROLLBACK_MARKER" ]] &&
+         ! grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
+        exit 1
+      fi
+      if [[ "${USD_TEST_FAIL_BASELINE_READINESS:-0}" == 1 && ! -f "$USD_TEST_ROLLBACK_MARKER" ]] &&
          ! grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
         exit 1
       fi
@@ -150,6 +162,8 @@ chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
+export USD_TEST_ROLLBACK_MARKER="$WORK/rollback-phase"
+export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
 # Root-run Docker Compose must reject mutable/unreviewed YAML.
 printf '\n# unreviewed local change\n' >> "$ROOT/compose.yaml"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unreviewed-compose.log" 2>&1; then exit 1; fi
@@ -194,6 +208,23 @@ grep -q "Production DB is not healthy" "$WORK/db-unhealthy-before.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_DB_UNHEALTHY_BEFORE=0
+# Do not update a broken baseline: an unhealthy old API/frontend cannot be
+# assumed to be a safe rollback target.
+export USD_TEST_FAIL_BASELINE_READINESS=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/baseline-unhealthy.log" 2>&1; then exit 1; fi
+grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-unhealthy.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
+unset USD_TEST_FAIL_BASELINE_READINESS
+# A database that becomes unhealthy during backup must block the swap before
+# either application container is replaced.
+export USD_TEST_DB_UNHEALTHY_AFTER_BACKUP=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-after-backup.log" 2>&1; then exit 1; fi
+grep -q 'Production DB became unhealthy during backup' "$WORK/db-unhealthy-after-backup.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
+unset USD_TEST_DB_UNHEALTHY_AFTER_BACKUP
+rm -f "$USD_TEST_DB_BACKUP_LATCH"
 export USD_TEST_FAIL_BACKUP=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/backup-failure.log" 2>&1; then
   echo "Expected backup failure to block release" >&2
