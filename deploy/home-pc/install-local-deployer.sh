@@ -2,6 +2,11 @@
 # Installs inert, root-owned USD build/release helpers. Does NOT enable the timer.
 set -Eeuo pipefail
 [[ "$(id -u)" == 0 ]] || { echo "Run as root" >&2; exit 1; }
+# Installing reviewed scripts and Compose snapshots while a release is running
+# can replace the trust boundary between validation and docker compose up.
+# Serialize installer, local builder and release under the same host lock.
+exec 9>/run/lock/usd-home-deploy.lock
+flock -n 9 || { echo "USD deployment is active; installer must retry later" >&2; exit 75; }
 cd "$(dirname "$(realpath "$0")")"
 for tool in git docker flock systemctl install bash awk df python3 cmp readlink; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
