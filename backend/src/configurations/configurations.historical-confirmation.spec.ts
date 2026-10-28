@@ -32,5 +32,5 @@ describe('participant confirmation of final 2026 configuration',()=>{
   db.registration.count.mockResolvedValue(kind==='registration'?1:0);db.historicalConfigurationConfirmation.count.mockResolvedValue(kind==='confirmation'?1:0);
   await service.update(request,'config',dto);expect(db.carConfigurationVersion.create).toHaveBeenCalled();expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();expect(db.carHeadUnit.deleteMany).not.toHaveBeenCalled();
  });
- it('can still edit an unreferenced working draft',async()=>{db.registration.count.mockResolvedValue(0);await service.update(request,'config',dto);expect(db.carConfigurationVersion.create).not.toHaveBeenCalled();expect(db.carConfigurationVersion.update).toHaveBeenCalled()});
+ it('preserves even unreferenced working versions on edit',async()=>{db.registration.count.mockResolvedValue(0);await service.update(request,'config',dto);expect(db.carConfigurationVersion.create).toHaveBeenCalled();expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();expect(db.carHeadUnit.deleteMany).not.toHaveBeenCalled()});
 });
