@@ -76,6 +76,12 @@ mv "$WORK/enabled" "$WORK/disabled"
 bash "$WORK/builder" > "$WORK/disabled.log"
 [[ ! -f "$WORK/docker.log" && ! -f "$WORK/releases.log" ]]
 mv "$WORK/disabled" "$WORK/enabled"
+# Even a root-owned checkout is unsafe if other local users can write to it.
+chmod 777 "$WORK/source"
+if bash "$WORK/builder" > "$WORK/insecure-source.log" 2>&1; then exit 1; fi
+grep -q 'Deploy directory must not be group/world writable' "$WORK/insecure-source.log"
+[[ ! -f "$WORK/docker.log" ]]
+chmod 755 "$WORK/source"
 # Default remains build-only, then an approved unchanged schema releases cached images.
 bash "$WORK/builder" > "$WORK/build-only.log"
 [[ ! -f "$WORK/releases.log" ]]
