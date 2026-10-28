@@ -6,6 +6,7 @@ import {Photo} from '../public/PremiumUI';
 import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
+import {diffConfigurationVersions} from '../participant/configuration-diff';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
@@ -205,7 +206,11 @@ function cleanConfig(v:any){
 
 function ConfigurationDetails({configuration,onClose,onEdit,admin=false}:{configuration:any;onClose:()=>void;onEdit?:()=>void;admin?:boolean}){
  const[versionNumber,setVersionNumber]=useState<number>(configuration.currentVersion??configuration.versions?.[0]?.version??1);
+ const[compareVersionNumber,setCompareVersionNumber]=useState<number|null>(null);
  const version=configuration.versions?.find((x:any)=>x.version===versionNumber)||configuration.versions?.[0];
+ const otherVersions=(configuration.versions??[]).filter((candidate:any)=>candidate.version!==version?.version).sort((a:any,b:any)=>b.version-a.version);
+ const comparedVersion=otherVersions.find((candidate:any)=>candidate.version===compareVersionNumber)??otherVersions.find((candidate:any)=>candidate.version<version?.version)??otherVersions[0];
+ const versionChanges=version&&comparedVersion?diffConfigurationVersions(comparedVersion,version):[];
  if(!version)return <div className="configuration-details-page"><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>К конфигурациям автомобиля</button><h1>Конфигурация</h1></header><Empty text="Версия не найдена"/></div>;
  const names=(xs:any[])=>xs?.length?xs.map(x=>x.brand+' '+x.model+(x.quantity>1?' ×'+x.quantity:'')).join(', '):'—';
  const count=(xs:any[])=>xs?.reduce((n,x)=>n+(Number(x.quantity)||1),0)||0;
@@ -216,7 +221,8 @@ function ConfigurationDetails({configuration,onClose,onEdit,admin=false}:{config
     <div className="member-config-timeline-list">{(configuration.versions??[]).slice().sort((a:any,b:any)=>b.version-a.version).map((v:any,index:number)=><button key={v.version} type="button" className={v.version===version.version?'selected':''} aria-current={v.version===version.version?'true':undefined} onClick={()=>setVersionNumber(v.version)}><span className="member-config-timeline-number">{String(index+1).padStart(2,'0')}</span><span className="member-config-timeline-content"><strong>{v.version===configuration.currentVersion?'Текущая конфигурация':'Версия оборудования v'+v.version}</strong><small>{v.createdAt?new Date(v.createdAt).toLocaleDateString('ru-RU'):'Сохранённая версия конфигурации'}</small></span><span className={v.version===configuration.currentVersion?'timeline-live':'timeline-archive'}>{v.version===configuration.currentVersion?'АКТУАЛЬНА':'АРХИВ'}</span><ChevronRight size={18}/></button>)}</div>
    </section>}
    {admin&&configuration.versions?.length>1&&<div className="config-version-history"><span className="eyebrow">ВЕРСИИ</span><div className="page-actions">{configuration.versions.map((v:any)=><button key={v.version} className={'secondary-button compact '+(v.version===version.version?'active':'')} onClick={()=>setVersionNumber(v.version)}>v{v.version}{v.version===configuration.currentVersion?' · текущая':''}</button>)}</div></div>}
-  {version.historicalConfirmations?.length>0&&<p className="notice">Финал 2026 · подтверждено участником {new Date(version.historicalConfirmations[0].confirmedAt).toLocaleDateString('ru-RU')}</p>}
+  {comparedVersion&&<section className="configuration-compare" aria-label="Сравнение версий оборудования"><div className="configuration-compare-head"><div><span className="eyebrow">ИЗМЕНЕНИЯ ОБОРУДОВАНИЯ</span><h3>Что изменилось в сборке?</h3><p>Сравнение сохранённых версий без изменения исторических данных.</p></div><label>Сравнить v{version.version} с <select aria-label="Версия для сравнения" value={comparedVersion.version} onChange={event=>setCompareVersionNumber(Number(event.target.value))}>{otherVersions.map((candidate:any)=><option key={candidate.version} value={candidate.version}>Версия {candidate.version}{candidate.version===configuration.currentVersion?' · текущая':''}</option>)}</select></label></div>{versionChanges.length?<div className="configuration-compare-sections">{versionChanges.map(section=><div className="configuration-compare-section" key={section.key}><h4>{section.title}</h4><ul>{section.changes.map((change,index)=><li key={section.key+'-'+index}><strong>{change.label}</strong><span className="configuration-compare-values"><del aria-label="Было">{change.before}</del><ChevronRight size={15} aria-hidden="true"/><ins aria-label="Стало">{change.after}</ins></span></li>)}</ul></div>)}</div>:<p className="configuration-compare-empty" role="status">В этих версиях состав оборудования и указанные параметры совпадают.</p>}</section>}
+ {version.historicalConfirmations?.length>0&&<p className="notice">Финал 2026 · подтверждено участником {new Date(version.historicalConfirmations[0].confirmedAt).toLocaleDateString('ru-RU')}</p>}
   <div className="config-stat-grid"><div><span>Головные устройства</span><strong>{version.headUnits?.length||0}</strong></div><div><span>Аудиокомпоненты</span><strong>{count(version.audioComponents)}</strong></div><div><span>Усилители</span><strong>{count(version.amplifiers)}</strong></div><div><span>Питание</span><strong>{count(version.batteries)+count(version.generators)}</strong></div></div>
   <div className="config-detail-grid">
    <div className="detail-block"><span>Виброизоляция</span><strong>{version.vibrationIsolation||'—'}</strong></div>
