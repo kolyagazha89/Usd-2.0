@@ -7,16 +7,17 @@ OLD=1111111111111111111111111111111111111111
 NEW=2222222222222222222222222222222222222222
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
+TRUSTED_DIR=/etc/usd-deployer/compose
 # The mock writes to fixed paths. Refuse any existing real deployment state,
 # even if the CI environment variables were accidentally propagated on a host.
-[[ ! -e "$ROOT/.env" && ! -e "$STATE/built-sha" ]] ||
+[[ ! -e "$ROOT/.env" && ! -e "$STATE/built-sha" && ! -e "$TRUSTED_DIR" ]] ||
   { echo "Existing deployment state found; refusing destructive mock rehearsal" >&2; exit 1; }
 [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] ||
   { echo "Existing usd-home containers found; refusing mock rehearsal" >&2; exit 1; }
 WORK="$(mktemp -d)"
 cleanup() {
   rm -f /etc/usd-release-approved
-  rm -rf "$WORK"
+  rm -rf "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
 # Keep failure diagnostics inside the disposable CI rehearsal. The release
@@ -47,6 +48,8 @@ chmod 600 "$ROOT/.env"
 cp deploy/home-pc/compose.yaml "$ROOT/compose.yaml"
 cp deploy/home-pc/compose.local.yaml "$ROOT/compose.local.yaml"
 cp deploy/home-pc/compose.tunnel.yaml "$ROOT/compose.tunnel.yaml"
+mkdir -p "$TRUSTED_DIR"
+cp "$ROOT"/compose*.yaml "$TRUSTED_DIR/"
 printf '%s\n' "$NEW" > "$STATE/built-sha"
 printf '%s\n' "$NEW" > "$STATE/schema-approved-sha"
 printf '%s\n' "$NEW" > /etc/usd-release-approved
