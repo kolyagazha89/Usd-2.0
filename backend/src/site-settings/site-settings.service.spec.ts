@@ -286,3 +286,48 @@ describe('SiteSettingsService homepage hero CMS', () => {
     expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
   });
 });
+
+
+describe('SiteSettingsService community teams CMS', () => {
+  const makeService = () => {
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockImplementation(async (args: any) => ({ id: 'default', ...args.create })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return { service: new SiteSettingsService(prisma), prisma };
+  };
+
+  it('keeps the teams block editable and visible on older saved homepage configurations', async () => {
+    const { service, prisma } = makeService();
+    (prisma as any).siteSettings.findUnique.mockResolvedValueOnce({
+      homepage: { blocks: [{ id: 'hero', enabled: true }] },
+    });
+    const previous = await service.getAdmin();
+    expect(previous.settings.homepage.blocks.find(block => block.id === 'teams')?.enabled).toBe(true);
+    const updated = await service.update({ homepage: {
+      teamsEmptyTitle: 'Создай свою команду',
+      teamsEmptyDescription: 'Первые команды появятся здесь',
+      blocks: previous.settings.homepage.blocks.map(block =>
+        block.id === 'teams' ? { ...block, enabled: false } : block),
+    } } as any, 'admin-1');
+    expect(updated.settings.homepage.blocks.find(block => block.id === 'teams')?.enabled).toBe(false);
+    (prisma as any).siteSettings.findUnique.mockResolvedValueOnce({ homepage: updated.settings.homepage });
+    const publicSettings = await service.getPublic();
+    expect(publicSettings.settings.homepage.teamsEmptyTitle).toBe('Создай свою команду');
+    expect(publicSettings.settings.homepage.teamsEmptyDescription).toBe('Первые команды появятся здесь');
+  });
+
+  it('rejects oversized or non-text team copy without persisting', async () => {
+    const { service, prisma } = makeService();
+    for (const homepage of [
+      { teamsEmptyTitle: 'x'.repeat(161) },
+      { teamsEmptyDescription: ['unsafe'] },
+    ]) {
+      await expect(service.update({ homepage } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
+  });
+});
