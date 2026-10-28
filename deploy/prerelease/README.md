@@ -1,5 +1,8 @@
 # Dark Velocity frontend-only pre-release delivery
 
+> **RELEASE BLOCKER (2026-10-28):** This PR now contains API-side catalog-ID enforcement and an additive Prisma migration (`20261028172000_configuration_catalog_entry_ids`). The frontend-only procedure below is **not sufficient for this candidate**. Do not deploy the new garage frontend against the old API: the old server does not enforce catalog IDs. First inspect the real Ubuntu checkout/Compose/images, take and verify independent PostgreSQL and media backups, validate the migration against a restored staging copy, and approve a coordinated API+frontend prerelease with a tested rollback path. Do not auto-run migrations or touch the root domain. The steps below remain documentation for frontend-only revisions that do not change API contracts.
+
+
 This file documents a **manual, reversible** frontend update for the USD home-PC
 Ubuntu/Hyper-V stack. It does not imply that the running PC has been changed.
 
