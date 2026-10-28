@@ -6,6 +6,7 @@ exec 9>/run/lock/usd-home-deploy.lock
 flock -n 9 || { echo "Another USD build/release is running; retry later" >&2; exit 75; }
 
 DEPLOY_DIR=/home/usd/usd-deploy/deploy/home-pc
+TRUSTED_DIR=/etc/usd-deployer/compose
 STATE_DIR=/var/lib/usd-deployer
 PROJECT=usd-home
 NEW_TAG="${1:-}"
@@ -61,11 +62,15 @@ front_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.pr
 IFS=',' read -r -a active_files <<< "$api_files"
 compose_args=()
 has_base=0
+[[ -d "$TRUSTED_DIR" && ! -L "$TRUSTED_DIR" && "$(stat -c %u "$TRUSTED_DIR")" == 0 ]] ||
+  { echo "Missing or untrusted root-owned Compose directory" >&2; exit 1; }
+(( (8#$(stat -c %a "$TRUSTED_DIR") & 022) == 0 )) ||
+  { echo "Trusted Compose directory must not be group/world writable" >&2; exit 1; }
 for file in "${active_files[@]}"; do
   case "$file" in
-    "$DEPLOY_DIR/compose.yaml") has_base=1 ;;
-    "$DEPLOY_DIR/compose.local.yaml") ;;
-    "$DEPLOY_DIR/compose.tunnel.yaml")
+    "$DEPLOY_DIR/compose.yaml"|"$TRUSTED_DIR/compose.yaml") has_base=1 ;;
+    "$DEPLOY_DIR/compose.local.yaml"|"$TRUSTED_DIR/compose.local.yaml") ;;
+    "$DEPLOY_DIR/compose.tunnel.yaml"|"$TRUSTED_DIR/compose.tunnel.yaml")
       tunnel_env="$DEPLOY_DIR/.env.cloudflared"
       [[ -f "$tunnel_env" && ! -L "$tunnel_env" && "$(stat -c %u "$tunnel_env")" == 0 ]] ||
         { echo "Missing, symlinked or non-root-owned tunnel credential file" >&2; exit 1; }
@@ -73,8 +78,15 @@ for file in "${active_files[@]}"; do
         { echo "Tunnel credential file must not be accessible to group or others" >&2; exit 1; } ;;
     *) echo "Unknown active Compose file: $file" >&2; exit 1 ;;
   esac
-  [[ -f "$file" ]] || { echo "Compose file missing: $file" >&2; exit 1; }
-  compose_args+=(-f "$file")
+  [[ -f "$file" && ! -L "$file" ]] || { echo "Compose file missing or symlinked: $file" >&2; exit 1; }
+  trusted_file="$TRUSTED_DIR/${file##*/}"
+  [[ -f "$trusted_file" && ! -L "$trusted_file" && "$(stat -c %u "$trusted_file")" == 0 ]] ||
+    { echo "Missing or untrusted root-owned Compose snapshot: $trusted_file" >&2; exit 1; }
+  (( (8#$(stat -c %a "$trusted_file") & 022) == 0 )) ||
+    { echo "Compose snapshot is group/world writable: $trusted_file" >&2; exit 1; }
+  cmp -s "$file" "$trusted_file" ||
+    { echo "Running Compose config differs from reviewed root-owned snapshot: $file" >&2; exit 1; }
+  compose_args+=(-f "$trusted_file")
 done
 [[ "$has_base" == 1 ]] || { echo "Base Compose file absent" >&2; exit 1; }
 db_before="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")"
@@ -107,10 +119,10 @@ wait_ready() {
   for attempt in $(seq 1 30); do
     api_ok=0
     frontend_ok=0
-    docker compose --env-file .env "${compose_args[@]}" exec -T api node -e \
+    docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T api node -e \
       "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
       >/dev/null 2>&1 && api_ok=1
-    docker compose --env-file .env "${compose_args[@]}" exec -T frontend \
+    docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T frontend \
       wget -T 5 -q -O /dev/null http://127.0.0.1/index.html >/dev/null 2>&1 && frontend_ok=1
     if [[ "$api_ok" == 1 && "$frontend_ok" == 1 ]]; then return 0; fi
     sleep 4
@@ -131,7 +143,7 @@ rollback() {
        ! mv -f "$restore_tmp" .env; then
       [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
-    elif ! docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
+    elif ! docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
@@ -161,10 +173,10 @@ BACKUP_DIR=/home/usd/backups
 [[ ! -L "$BACKUP_DIR" ]] || { echo "Refusing symlinked backup directory" >&2; false; }
 install -d -m 0700 "$BACKUP_DIR"
 db_snapshot_tmp="$(mktemp "$BACKUP_DIR/release-$NEW_TAG.XXXXXXXX.partial")"
-docker compose --env-file .env "${compose_args[@]}" exec -T db sh -c \
+docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db sh -c \
   'pg_dump -Fc --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$db_snapshot_tmp"
 [[ -s "$db_snapshot_tmp" ]] || { echo "Database backup is empty" >&2; false; }
-docker compose --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
+docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
 mv "$db_snapshot_tmp" "${db_snapshot_tmp%.partial}.dump"
 db_snapshot_tmp=''
 
@@ -172,10 +184,10 @@ db_snapshot_tmp=''
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
 cp -p .env "$tmp"
 sed -i -E "s/^USD_IMAGE_TAG=[a-f0-9]{40}$/USD_IMAGE_TAG=$NEW_TAG/" "$tmp"
-docker compose --env-file "$tmp" "${compose_args[@]}" config --quiet
+docker compose --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
 changed=1
 mv -f "$tmp" .env
-docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
+docker compose --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
 
 # In-container checks work even when no localhost ports are published.
 # Both services must return HTTP 200; checking 404 on the API is not sufficient.
