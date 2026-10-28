@@ -155,7 +155,7 @@ export USD_TEST_IMAGE_MISMATCH=0
 export USD_TEST_TUNNEL_OVERLAY=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/missing-tunnel-env.log" 2>&1; then exit 1; fi
 grep -q 'Missing, symlinked or non-root-owned tunnel credential file' "$WORK/missing-tunnel-env.log"
-printf 'TUNNEL_TOKEN=ci-only\\n' > "$ROOT/.env.cloudflared"
+printf 'TUNNEL_TOKEN=ci-only\n' > "$ROOT/.env.cloudflared"
 chmod 644 "$ROOT/.env.cloudflared"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-tunnel-env.log" 2>&1; then exit 1; fi
 grep -q 'Tunnel credential file must not be accessible' "$WORK/insecure-tunnel-env.log"
