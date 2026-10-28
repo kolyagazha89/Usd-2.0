@@ -27,13 +27,14 @@ export class ConfigurationsService {
       tx.siteSettings.findUnique({ where: { id: 'default' }, select: { catalogs: true } }),
       previousVersionId ? tx.carConfigurationVersion.findUnique({
         where: { id: previousVersionId },
-        include: { headUnits: true, audioComponents: true, amplifiers: true },
+        include: { headUnits: true, audioComponents: true, amplifiers: true, batteries: true },
       }) : Promise.resolve(null),
     ]);
     assertCatalogEquipment(settings?.catalogs, dto, {
       headUnits: previous?.headUnits ?? [],
       audioComponents: previous?.audioComponents ?? [],
       amplifiers: previous?.amplifiers ?? [],
+      batteries: previous?.batteries ?? [],
     });
   }
 
