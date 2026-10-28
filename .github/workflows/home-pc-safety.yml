@@ -43,8 +43,8 @@ jobs:
             docker network rm "$network" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-          docker run -d --name usd-api-ci-db --network "$network" \\
-            -e POSTGRES_USER=usd -e POSTGRES_PASSWORD=disposable-ci-only -e POSTGRES_DB=usd \\
+          docker run -d --name usd-api-ci-db --network "$network" \
+            -e POSTGRES_USER=usd -e POSTGRES_PASSWORD=disposable-ci-only -e POSTGRES_DB=usd \
             postgres:18-alpine
           db_ready=0
           for attempt in $(seq 1 60); do
@@ -53,25 +53,25 @@ jobs:
           done
           if [[ "$db_ready" != 1 ]]; then docker logs usd-api-ci-db; exit 1; fi
           db_url='postgresql://usd:disposable-ci-only@usd-api-ci-db:5432/usd?schema=public'
-          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \\
+          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \
             --entrypoint npx usd-api-candidate:${{ github.sha }} prisma migrate deploy
-          docker run -d --name usd-api-ci-app --network "$network" \\
-            -e NODE_ENV=production -e DATABASE_URL="$db_url" \\
-            -e JWT_SECRET="$(openssl rand -hex 32)" -e JWT_ISSUER=usd-2.0-api -e JWT_AUDIENCE=usd-2.0-client \\
-            -e AUTH_COOKIE_SECURE=true -e CORS_ORIGINS=https://app.usd-russia.ru \\
-            -e CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru \\
-            -e S3_ENDPOINT=https://s3.invalid -e S3_BUCKET=disposable-ci \\
-            -e S3_ACCESS_KEY_ID=disposable -e S3_SECRET_ACCESS_KEY=disposable \\
+          docker run -d --name usd-api-ci-app --network "$network" \
+            -e NODE_ENV=production -e DATABASE_URL="$db_url" \
+            -e JWT_SECRET="$(openssl rand -hex 32)" -e JWT_ISSUER=usd-2.0-api -e JWT_AUDIENCE=usd-2.0-client \
+            -e AUTH_COOKIE_SECURE=true -e CORS_ORIGINS=https://app.usd-russia.ru \
+            -e CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru \
+            -e S3_ENDPOINT=https://s3.invalid -e S3_BUCKET=disposable-ci \
+            -e S3_ACCESS_KEY_ID=disposable -e S3_SECRET_ACCESS_KEY=disposable \
             usd-api-candidate:${{ github.sha }}
           api_ready=0
           for attempt in $(seq 1 45); do
-            if docker exec usd-api-ci-app node -e \\
-              "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \\
+            if docker exec usd-api-ci-app node -e \
+              "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
               >/dev/null 2>&1; then api_ready=1; break; fi
             sleep 2
           done
           if [[ "$api_ready" != 1 ]]; then docker logs --tail=150 usd-api-ci-app; exit 1; fi
-          docker exec usd-api-ci-app node -e \\
+          docker exec usd-api-ci-app node -e \
             'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000});(async()=>{try{await c.connect();const r=await c.query("SELECT 1 AS ok");if(r.rows[0].ok!==1)process.exitCode=1;}finally{await c.end();}})().catch(()=>{process.exitCode=1;})'
       - name: Build candidate frontend image with production API URL
         run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
