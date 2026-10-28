@@ -89,4 +89,4 @@ jobs:
       # unrelated TypeScript, unit-test, or E2E regressions.
       - name: Dependency audit
         if: ${{ always() && steps.install.outcome == 'success' }}
-        run: npm audit --omit=dev --omit=optional --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
