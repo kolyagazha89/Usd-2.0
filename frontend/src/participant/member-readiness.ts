@@ -20,10 +20,6 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
  });
 }
 
-/** Match the server's per-direction equipment rules for the garage checklist.
- * This is advisory only: registration eligibility is still checked by the API.
- * Unknown legacy class names do not introduce invented requirements.
- */
 /** Keep registration, garage and onboarding hints on the same class mapping.
  * Historic imports sometimes nest the class inside stageClass and attach a
  * generic SPL parent to BFSPL/BDW. Specific classes must win. */
@@ -31,7 +27,7 @@ function requiredDirectionForClass(row:unknown):AudioDirection|null{
  if(!row||typeof row!=='object')return null;
  const item=row as {class?:any;stageClass?:any;directionName?:unknown;direction?:any};
  const cls=item.class??item.stageClass?.class??item.stageClass??item;
- const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');
  const direction=normalize(cls?.direction?.name??cls?.directionName??item.directionName??item.direction?.name);
  const identity=[cls?.name,cls?.code,direction].map(normalize).join(' ');
  if(identity.includes('bfspl'))return 'FRONT';
