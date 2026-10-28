@@ -27,7 +27,7 @@ export function requiredDirectionsForRegistration(registration:unknown):AudioDir
  const classes=(registration as {classes?:unknown}|null)?.classes;
  if(!Array.isArray(classes))return [];
  const required=new Set<AudioDirection>();
- const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const normalize=(value:unknown)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');
  for(const row of classes){
   if(!row||typeof row!=='object')continue;
   const item=row as {class?:any;stageClass?:any};
