@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Mocked release rehearsal. Runs only on an isolated CI runner as root.
 set -Eeuo pipefail
-[[ "$(id -u)" == 0 ]] || { echo "Run only in isolated CI as root" >&2; exit 1; }
+[[ "${GITHUB_ACTIONS:-}" == true && -n "${GITHUB_RUN_ID:-}" && "$(id -u)" == 0 ]] ||
+  { echo "Refusing mock rehearsal outside a disposable GitHub Actions runner" >&2; exit 1; }
 OLD=1111111111111111111111111111111111111111
 NEW=2222222222222222222222222222222222222222
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
+# The mock writes to fixed paths. Refuse any existing real deployment state,
+# even if the CI environment variables were accidentally propagated on a host.
+[[ ! -e "$ROOT/.env" && ! -e "$STATE/built-sha" ]] ||
+  { echo "Existing deployment state found; refusing destructive mock rehearsal" >&2; exit 1; }
+[[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] ||
+  { echo "Existing usd-home containers found; refusing mock rehearsal" >&2; exit 1; }
 WORK="$(mktemp -d)"
 cleanup() {
   rm -f /etc/usd-release-approved
