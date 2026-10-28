@@ -54,12 +54,12 @@ export function highestDbRecord(rows:any[]){
 export function personName(person:any){return [person?.lastName,person?.firstName,person?.middleName].filter(Boolean).join(' ')||'Участник USD'}
 export function carName(car:any){return [car?.brand,car?.model].map(value=>String(value??'').trim()).filter(value=>value&&!/^(не указано|не указан|нет|—|-)$/i.test(value)).join(' ')||'Автомобиль USD'}
 export function initials(name:string){return name.trim().split(/\s+/).slice(0,2).map(x=>Array.from(x)[0]??'').join('').toLocaleUpperCase('ru')}
-export function stageDate(value:unknown){
+export function stageDate(value:unknown,includeYear=true){
  const day=stageCalendarDay(value);
  if(!day)return 'Дата уточняется';
  // Stage dates are calendar days, not UTC instants. Formatting an ISO midnight
  // in the viewer's timezone shifts the advertised day for some visitors.
  const date=new Date(day+'T00:00:00.000Z');
- return Number.isNaN(date.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);
+ return Number.isNaN(date.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',...(includeYear?{year:'numeric'}:{}),timeZone:'UTC'}).format(date);
 }
 export function countLabel(count:number,one:string,few:string,many:string){const form=new Intl.PluralRules('ru').select(count);return count+' '+(form==='one'?one:form==='few'?few:many)}
