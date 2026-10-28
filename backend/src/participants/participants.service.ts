@@ -544,11 +544,16 @@ export class ParticipantsService {
   async rotateMyUsdId(request: AuthenticatedRequest) {
     const user = await this.getAuthenticatedUser(request);
     const id = this.requireParticipantId(user.participantId);
-    const updated = await this.prisma.participant.update({
-      where: { id }, data: { usdIdToken: randomBytes(24).toString('hex') },
-      select: { usdIdToken: true },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.participant.update({
+        where: { id }, data: { usdIdToken: randomBytes(24).toString('hex') },
+        select: { usdIdToken: true },
+      });
+      await tx.auditLog.create({
+        data: { userId: user.id, action: 'USD_ID_ROTATED', entity: 'Participant', entityId: id },
+      });
+      return { token: updated.usdIdToken, path: '/usd-id/' + updated.usdIdToken };
     });
-    return { token: updated.usdIdToken, path: '/usd-id/' + updated.usdIdToken };
   }
 
   // =========================================================
