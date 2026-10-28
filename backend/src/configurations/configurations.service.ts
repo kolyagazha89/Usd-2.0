@@ -697,6 +697,7 @@ export class ConfigurationsService {
             data: currentVersion.headUnits.map(
               (headUnit) => ({
                 versionId: newVersion.id,
+                catalogEntryId: headUnit.catalogEntryId ?? null,
                 brand: headUnit.brand,
                 model: headUnit.model,
                 direction: headUnit.direction,
@@ -715,6 +716,7 @@ export class ConfigurationsService {
             await tx.carAudioComponent.create({
               data: {
                 versionId: newVersion.id,
+                catalogEntryId: component.catalogEntryId ?? null,
                 brand: component.brand,
                 model: component.model,
                 quantity: component.quantity,
@@ -739,6 +741,7 @@ export class ConfigurationsService {
             await tx.carAmplifier.create({
               data: {
                 versionId: newVersion.id,
+                catalogEntryId: amplifier.catalogEntryId ?? null,
                 brand: amplifier.brand,
                 model: amplifier.model,
                 quantity: amplifier.quantity,
@@ -915,7 +918,8 @@ export class ConfigurationsService {
         data: headUnits.map(
           (headUnit: CreateHeadUnitDto) => ({
             versionId,
-            brand: headUnit.brand,
+            catalogEntryId: headUnit.catalogEntryId ?? null,
+                brand: headUnit.brand,
             model: headUnit.model,
             direction: headUnit.direction,
           }),
@@ -944,7 +948,8 @@ export class ConfigurationsService {
         await tx.carAudioComponent.create({
           data: {
             versionId,
-            brand: component.brand,
+            catalogEntryId: component.catalogEntryId ?? null,
+                brand: component.brand,
             model: component.model,
             quantity: component.quantity,
             type: component.type,
@@ -974,7 +979,8 @@ export class ConfigurationsService {
         await tx.carAmplifier.create({
           data: {
             versionId,
-            brand: amplifier.brand,
+            catalogEntryId: amplifier.catalogEntryId ?? null,
+                brand: amplifier.brand,
             model: amplifier.model,
             quantity: amplifier.quantity,
             direction: amplifier.direction,
