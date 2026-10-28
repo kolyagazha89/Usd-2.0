@@ -81,7 +81,9 @@ if [[ "${1:-}" == inspect ]]; then
 fi
 if [[ "${1:-}" == compose ]]; then
   case "$*" in
-    *" config --quiet"*) [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] ;;
+    *" config --quiet"*)
+      [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] || exit 1
+      exit 0 ;;
     *" up -d --no-deps api frontend"*)
       echo "up $(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)" >> "$USD_TEST_LOG"
       if [[ "${USD_TEST_INTERRUPT_RELEASE:-0}" == 1 ]] &&
