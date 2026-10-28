@@ -426,3 +426,39 @@ body .participant-portal.usd-member .participant-admin-switch:hover{border-color
  body .participant-portal.usd-member .participant-admin-switch span{display:none}
  body .participant-portal.usd-member .participant-admin-switch svg{width:19px;height:19px;flex:none}
 }
+
+
+/* Returning competitors explicitly review their equipment before a new entry. */
+body .participant-portal.usd-member .entry-configuration-review{
+ min-width:0;margin:20px 0 0;padding:20px;border:1px solid #4c343d;
+ border-radius:16px;background:linear-gradient(145deg,#21191e,#171c24);
+ color:#f5f6f8;display:grid;gap:12px;
+}
+body .participant-portal.usd-member .entry-configuration-review legend{
+ padding:0 8px;font-size:17px;font-weight:780;line-height:1.4;color:#fff;
+}
+body .participant-portal.usd-member .entry-configuration-review p{
+ margin:0;color:#c7cbd3;line-height:1.55;
+}
+body .participant-portal.usd-member .entry-configuration-review label{
+ display:flex;align-items:flex-start;gap:12px;min-width:0;line-height:1.45;
+ cursor:pointer;color:#f4f5f7;
+}
+body .participant-portal.usd-member .entry-configuration-review input{
+ flex:none;width:19px;height:19px;margin:2px 0 0;accent-color:#ed344d;
+}
+body .participant-portal.usd-member .entry-configuration-changed{
+ display:grid;gap:12px;min-width:0;padding:14px;border-radius:12px;
+ background:#31242b;border:1px solid #68434e;
+}
+body .participant-portal.usd-member .entry-configuration-changed button{
+ justify-self:start;max-width:100%;white-space:normal;text-align:left;
+}
+body .participant-portal.usd-member .registration-class-count{
+ margin:0 0 16px;color:#cfd3da;font-size:14px;line-height:1.5;
+}
+@media(max-width:560px){
+ body .participant-portal.usd-member .entry-configuration-review{padding:14px;margin-top:14px}
+ body .participant-portal.usd-member .entry-configuration-review legend{font-size:16px}
+ body .participant-portal.usd-member .entry-configuration-changed button{width:100%;justify-content:center}
+}
