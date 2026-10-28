@@ -51,3 +51,14 @@ export function isCarRegisteredForStage(registrations:unknown,carId:unknown,stag
   &&(registration?.carId??registration?.car?.id)===carId
   &&(registration?.stageId??registration?.stage?.id)===stageId);
 }
+
+/**
+ * When a competitor is already registered for a later event, show that event
+ * as their primary upcoming start instead of an earlier unregistered event.
+ * Expects the chronological, non-deleted output of upcomingStages; does not
+ * alter the calendar or the selected car.
+ */
+export function preferredUpcomingStage<T extends {id?:unknown}>(upcoming:T[],registrations:unknown,carId:unknown):T|undefined{
+ if(!carId)return upcoming[0];
+ return upcoming.find(stage=>isCarRegisteredForStage(registrations,carId,stage.id))??upcoming[0];
+}
