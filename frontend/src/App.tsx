@@ -18,6 +18,7 @@ import MemberDashboard from './participant/MemberDashboard';
 import ParticipantIntro from './participant/ParticipantIntro';
 import RegistrationFlow from './participant/RegistrationFlow';
 import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds} from './participant/registration-classes';
+import {missingConfigurationRequirementForClass} from './participant/member-readiness';
 import AccountActionPage from './AccountActionPage';
 import PublicStageRulesSnapshot from './PublicStageRulesSnapshot';
 import ConfigurationsPage from './admin/ConfigurationsPage';
@@ -271,7 +272,7 @@ function RegistrationClassesView({registration,compact=false}:{registration:any;
  </div>;
 }
 
-function getMissingConfigurationRequirement(item:any,config:any):string {if(!config)return '';const cls=item.class??item;const norm=(value:any)=>String(value??'').trim().toLowerCase().replace(/[\s_-]/g,'');const direction=norm(cls.direction?.name??item.directionName??item.direction?.name);const identity=norm(cls.name)+' '+direction+' '+norm(cls.code);if((['spl','bassrace','hurrican','hurricane'].includes(direction)||identity.includes('bassrace')||identity.includes('stormwall'))&&!(config.audioComponents??[]).some((x:any)=>x.direction==='SUB'&&x.type==='SUBWOOFER'))return 'Для направлений SPL, BassRace и Storm Wall необходимо добавить сабвуфер в конфигурацию автомобиля.';if(identity.includes('bfspl')&&!(config.audioComponents??[]).some((x:any)=>x.direction==='FRONT'))return 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';if((identity.includes('bdw')||identity.includes('dbwspl')||direction==='bdw'||direction==='dbw')&&!(config.audioComponents??[]).some((x:any)=>x.direction==='REAR'))return 'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';return '';}
+const getMissingConfigurationRequirement=missingConfigurationRequirementForClass;
 
 function ParticipantPortalHeader({user,portalLogo,setPortalLogo,onGoSite,onGoAdmin,onRefresh,onLogout}:{user:User;portalLogo:string;setPortalLogo:(value:string)=>void;onGoSite:()=>void;onGoAdmin:()=>void;onRefresh?:()=>void;onLogout:()=>Promise<void>}){return <header className="participant-portal-header usd-member-header"><button className="public-brand" onClick={onGoSite} aria-label="Перейти на публичный сайт"><span className="participant-brand-logo"><img src={portalLogo||"/usd/usd-original.png"} alt="USD" onError={()=>setPortalLogo("")}/></span><span><strong>ЛИЧНЫЙ КАБИНЕТ</strong><small>ULTIMATE SOUND DESTRUCTION</small></span></button><div className="participant-header-actions"><span>{user.email}</span>{onRefresh&&<button className="secondary-button compact participant-refresh" aria-label="Обновить данные" onClick={onRefresh}><RefreshCw size={14}/>Обновить</button>}{hasAdminPanelAccess(user)&&<button className="secondary-button compact participant-admin-switch" onClick={onGoAdmin} aria-label="Перейти в админ-панель"><ShieldAlert size={15}/><span>Админ-панель</span></button>}<button className="secondary-button compact participant-site-return" onClick={onGoSite}>На сайт <ChevronRight size={14}/></button><button className="secondary-button compact participant-logout" aria-label="Выйти из аккаунта" onClick={()=>void onLogout()}><LogOut size={14}/>Выйти</button></div></header>}
 
