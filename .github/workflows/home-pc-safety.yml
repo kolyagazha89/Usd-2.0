@@ -127,10 +127,33 @@ jobs:
           bash -n deploy/home-pc/auto-deploy.sh
           bash -n deploy/home-pc/release-approved.sh
           bash -n deploy/home-pc/rehearse-schema-on-backup.sh
+          bash -n deploy/home-pc/verify-media-backup.sh
           bash -n deploy/home-pc/install-local-deployer.sh
           bash -n deploy/home-pc/test-release.sh
           bash -n deploy/home-pc/test-auto-deploy.sh
           bash -n deploy/home-pc/test-release-docker.sh
+      - name: Rehearse media backup, full restore and refusal of reused destination
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rclone
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          mkdir -p "$root/source/sub" "$root/backup"
+          printf 'USD media fixture 1\n' > "$root/source/first.bin"
+          printf 'USD media fixture 2\n' > "$root/source/sub/second.bin"
+          bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup"
+          test -s "$root/backup/first.bin"
+          test -s "$root/backup/sub/second.bin"
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup"; then
+            echo 'Media verifier accepted a reused backup destination' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source/nested"; then
+            echo 'Media verifier accepted a nested backup destination' >&2
+            exit 1
+          fi
       - name: Installer refuses to overwrite trusted scripts during a running release
         run: |
           set -euo pipefail
