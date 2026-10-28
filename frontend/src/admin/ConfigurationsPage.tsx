@@ -8,6 +8,7 @@ import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
 import {diffConfigurationVersions} from '../participant/configuration-diff';
 import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow} from '../participant/component-catalog-rules';
+import {validateConfigurationQuantities} from '../participant/configuration-quantity';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
 const DEFAULT_VIBRATION_BRANDS=['STP','ComfortMat','Audior','Global'];
@@ -110,7 +111,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   }
   return true;
  };
- const submit=async()=>{setError('');if(!validateCatalog())return;
+ const submit=async()=>{setError('');const quantityError=validateConfigurationQuantities(v);if(quantityError){setError(quantityError);return}if(!validateCatalog())return;
   const boxError=validateBoxParameters(box);if(boxError){setActiveView('BOX');setError(boxError);return}
   setSaving(true);try{
    const boxLine=formatBoxLine(box);
@@ -183,14 +184,14 @@ function ConfigDirectionListEditor({title,subtitle,icon:Icon,items,direction,onA
 }
 
 function cleanConfig(v:any,catalogModels:any[]=[]){
- const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Math.max(1,Number(component.quantity)||1)}));
+ const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Number(component.quantity)}));
  const amplifierLinks=allocateAmplifierLinks(audioComponents,v.amplifiers??[]);
  const normalized={
   ...v,
   audioComponents,
   amplifiers:(v.amplifiers??[]).map((amplifier:any,index:number)=>({
    ...amplifier,
-   quantity:Math.max(1,Number(amplifier.quantity)||1),
+   quantity:Number(amplifier.quantity),
    componentLinks:amplifierLinks[index]
   }))
  };
@@ -210,7 +211,7 @@ function cleanConfig(v:any,catalogModels:any[]=[]){
   if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x)
    .filter(([k,val])=>!['id','versionId','configurationId','amplifierId','version'].includes(k)&&val!==undefined&&val!==null)
    .map(([k,val])=>[k,k==='componentLinks'&&Array.isArray(val)
-    ?(val as any[]).filter((link:any)=>String(link.componentId??'').trim()!=='').map((link:any)=>({componentId:String(link.componentId),quantity:Number(link.quantity)||1}))
+    ?(val as any[]).filter((link:any)=>String(link.componentId??'').trim()!=='').map((link:any)=>({componentId:String(link.componentId),quantity:Number(link.quantity)}))
     :strip(val)]));
   return x;
  };
