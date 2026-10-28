@@ -13,10 +13,10 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
  const [configurationAnswer,setConfigurationAnswer]=useState<''|'unchanged'|'updated'>('');
  const [updatedReviewed,setUpdatedReviewed]=useState(false);
  const canContinueVehicle=canContinueVehicleRegistration(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed);
- useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false)},[carId,configurationId]);
+ useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false);setStep(0)},[carId,configurationId]);
  const title=useRef<HTMLHeadingElement>(null);
  const move=(next:number)=>{setStep(next);requestAnimationFrame(()=>{title.current?.focus();title.current?.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})})};
- useEffect(()=>{if(step>0&&!vehicleReady)setStep(0);else if(step>1&&!classesReady)setStep(1)},[vehicleReady,classesReady,step]);
+ useEffect(()=>{if(step>0&&!canContinueVehicle)setStep(0);else if(step>1&&!classesReady)setStep(1)},[canContinueVehicle,classesReady,step]);
  return <div className="member-entry-flow">
   <nav className="entry-steps" aria-label="Шаги регистрации"><ol>{steps.map((label,index)=><li key={label} data-state={index===step?'current':index<step?'complete':'next'}><button type="button" disabled={busy||index>step} aria-current={index===step?'step':undefined} onClick={()=>move(index)}><span>{index<step?<Check size={15}/>:String(index+1).padStart(2,'0')}</span><strong>{label}</strong></button></li>)}</ol></nav>
   <div className="entry-workspace"><div className="entry-task"><div className="entry-task-title"><span className="eyebrow">ШАГ {step+1} ИЗ 3</span><h2 ref={title} tabIndex={-1}>{['На чём выступаете?','В каких классах участвуете?','Проверьте вашу заявку'][step]}</h2><p>{['Выберите автомобиль и состав системы для этого этапа.','Отметьте классы. Доступность зависит от оборудования автомобиля.','Проверьте данные и подтвердите согласия перед отправкой.'][step]}</p></div>
