@@ -54,6 +54,21 @@ describe('permanent USD ID security and stage resolution', () => {
   expect(query.select.registrations.where).toEqual({ status: 'ACTIVE', stage: { isDeleted: false }, stageId: 'stage-1' });
  });
 
+ it('does not reveal a private profile from a valid USD ID token', async () => {
+  prisma.participant.findUnique.mockResolvedValue({ id: 'p1', isPublic: false });
+  await expect(new ParticipantsService(prisma).findPublicByUsdId('e'.repeat(48))).rejects.toBeInstanceOf(NotFoundException);
+  expect(prisma.participant.findUnique).toHaveBeenCalledTimes(1);
+ });
+
+ it('uses existing public profile redaction for an open USD ID', async () => {
+  prisma.participant.findUnique.mockResolvedValueOnce({ id: 'p1', isPublic: true }).mockResolvedValueOnce({ id: 'p1', isPublic: true, registrations: [], cars: [] });
+  const profile = await new ParticipantsService(prisma).findPublicByUsdId('f'.repeat(48));
+  expect(profile.id).toBe('p1');
+  const publicQuery = prisma.participant.findUnique.mock.calls[1][0] as any;
+  expect(publicQuery.select).not.toHaveProperty('phone');
+  expect(publicQuery.select).not.toHaveProperty('usdIdToken');
+ });
+
  it('does not query the database for a malformed QR token', async () => {
   await expect(new InspectionsService(prisma).resolveUsdId('not-a-token')).rejects.toBeInstanceOf(NotFoundException);
   expect(prisma.participant.findUnique).not.toHaveBeenCalled();
