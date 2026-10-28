@@ -35,12 +35,13 @@ jobs:
           ! docker compose --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --profile direct-edge --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
-          printf 'TUNNEL_TOKEN=ci-placeholder\\n' > .env.cloudflared
+          printf 'TUNNEL_TOKEN=ci-placeholder\n' > .env.cloudflared
           chmod 600 .env.cloudflared
           docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
           docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
           # Never inject the tunnel credential into the API or database container.
-          ! docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config | grep -q 'ci-placeholder'
+          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --format json |
+            python3 -c 'import json,sys; services=json.load(sys.stdin)["services"]; assert "TUNNEL_TOKEN" not in services["api"].get("environment",{}); assert "TUNNEL_TOKEN" not in services["db"].get("environment",{}); assert services["cloudflared"]["environment"]["TUNNEL_TOKEN"] == "ci-placeholder"'
       - name: Check invalid release SHA is rejected before Docker access
         run: |
           set -euo pipefail
