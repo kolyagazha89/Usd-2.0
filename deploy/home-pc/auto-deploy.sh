@@ -53,7 +53,7 @@ docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --qu
 docker compose --env-file .env -f compose.yaml -f compose.local.yaml up -d --no-deps api frontend
 # Readiness checks against existing localhost bindings.
 for i in $(seq 1 24); do
-  if curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:18080/ && curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:13000/; then
+  if curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:18080/ && curl -sS --max-time 3 -o /dev/null http://127.0.0.1:13000/; then
     printf '%s\n' "$SHA" > "$STATE_DIR/deployed-sha"
     rm -f "$STATE_DIR/previous.env"
     trap - ERR
