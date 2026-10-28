@@ -16,6 +16,39 @@ Use the existing Hyper-V Default Switch **only for initial staging**. Its intern
 - Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
 
+## Supervised Prisma migration rehearsal (no production writes)
+
+The installer provides `/usr/local/libexec/usd-rehearse-schema-on-backup`. Before
+any release that changes `backend/prisma`, use a **private, verified PostgreSQL
+18 custom-format archive** and the locally built API image for the proposed
+commit. This is a rehearsal only, **not** an authorization to apply migrations
+to the live database or deploy an unapproved PR.
+
+```bash
+# Example: replace the archive name and SHA with values verified on Ubuntu.
+sudo /usr/local/libexec/usd-rehearse-schema-on-backup \
+  /var/lib/usd-deployer/backups/verified-production.dump \
+  ghcr.io/kolyagazha89/usd-2.0-api:<FULL_APPROVED_SHA>
+```
+
+The helper creates a fresh Docker-internal network, PostgreSQL 18 container
+and disposable volume; it restores the **entire** archive with
+`pg_restore --exit-on-error`, runs `prisma migrate deploy` and
+`prisma migrate status` from the candidate image, then destroys those
+temporary resources. It publishes no ports, receives no production
+environment file, and cannot reach the public internet through its internal
+network. A failed restore or migration blocks approval. PostgreSQL 18 data
+volumes on the live Compose project are never mounted.
+
+A successful rehearsal **does not** prove that a live migration is safe:
+compare data counts and application invariants, review migration SQL for
+destructive operations, take a second off-host DB backup, and verify that
+all media/S3 objects can be restored independently. Do not enable automatic
+schema changes: `auto-deploy.sh` deliberately refuses Prisma tree changes.
+The real migration remains a separately approved, supervised operation with
+a recovery window. GitHub Actions tests this helper with a disposable
+PostgreSQL 18 fixture, **not** with the actual home-server database.
+
 ## Historical initial migration procedure (not an update procedure for a running host)
 
 Wait until the PR lands in main and the GitHub Actions image publication run succeeds. Make sure both images have the SAME successful commit tag.
