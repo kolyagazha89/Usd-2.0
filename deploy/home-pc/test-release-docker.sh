@@ -35,6 +35,20 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# Preserve failure evidence before the disposable stack and volume are removed.
+# Without this, an initdb/readiness race looks like an unexplained psql failure.
+diagnose_failure() {
+  local code="$1" line="$2"
+  echo "Real Docker release rehearsal failed at line $line (exit $code)" >&2
+  docker compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml" ps -a >&2 || true
+  docker compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml" logs --tail=100 db api frontend >&2 || true
+  for file in "$WORK"/*.log; do
+    [[ -f "$file" ]] || continue
+    echo "--- $(basename "$file") ---" >&2
+    tail -n 60 "$file" >&2
+  done
+}
+trap 'diagnose_failure "$?" "$LINENO"' ERR
 mkdir -p "$ROOT" "$STATE" "$WORK/api"
 # All service images contain test fixtures only; no production source or secrets.
 cat > "$WORK/api/server.js" <<'JS'
