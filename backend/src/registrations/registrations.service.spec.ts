@@ -176,7 +176,9 @@ describe('RegistrationsService', () => {
     { className: 'SPL BassRace', directionName: 'SPL', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
     { className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [], message: 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер' },
     { className: 'BFSPL', directionName: 'BFSPL', audioComponents: [], message: 'Для участия в BFSPL необходимо заполнить фронтальную акустику' },
+    { className: 'BFSPL Gate 1-6', directionName: 'SPL', audioComponents: [], message: 'Для участия в BFSPL необходимо заполнить фронтальную акустику' },
     { className: 'BDW', directionName: 'BDWSPL', audioComponents: [], message: 'Для участия в BDW необходимо заполнить тыловую акустику' },
+    { className: 'BDW SPL', directionName: 'SPL', audioComponents: [], message: 'Для участия в BDW необходимо заполнить тыловую акустику' },
   ])('rejects $className when the required equipment is missing', async ({ className, directionName, audioComponents, message }) => {
     const tx = baseTx({
       stageClass: {
@@ -239,6 +241,7 @@ describe('RegistrationsService', () => {
   it.each([
     { caseName: 'нулевое количество сабвуферов', className: 'Limited 2.0', directionName: 'SPL', audioComponents: [{ ...validSub, quantity: 0 }], message: 'сабвуфер' },
     { caseName: 'отрицательное количество сабвуферов', className: 'BassRace 129.9', directionName: 'BassRace', audioComponents: [{ ...validSub, quantity: -1 }], message: 'сабвуфер' },
+    { caseName: 'дробное количество сабвуферов', className: 'Limited 2.0', directionName: 'SPL', audioComponents: [{ ...validSub, quantity: 0.5 }], message: 'сабвуфер' },
     { caseName: 'пустая модель сабвуфера', className: 'Storm Wall', directionName: 'Storm Wall', audioComponents: [{ ...validSub, model: '  ' }], message: 'сабвуфер' },
     { caseName: 'пустой бренд фронта', className: 'Gate 1-6', directionName: 'BFSPL', audioComponents: [{ ...validFront, brand: '' }], message: 'фронтальную акустику' },
     { caseName: 'нулевое количество тыла', className: 'BDW', directionName: 'BDWSPL', audioComponents: [{ ...validRear, quantity: 0 }], message: 'тыловую акустику' },
@@ -253,7 +256,9 @@ describe('RegistrationsService', () => {
   it.each([
     { className: 'Limited 2.0', directionName: 'SPL', component: validSub },
     { className: 'Gate 1-6', directionName: 'BFSPL', component: validFront },
+    { className: 'BFSPL Gate 1-6', directionName: 'SPL', component: validFront },
     { className: 'BDW', directionName: 'BDWSPL', component: validRear },
+    { className: 'BDW SPL', directionName: 'SPL', component: validRear },
   ])('accepts valid positive-quantity equipment for $className', async ({ className, directionName, component }) => {
     const tx = equipmentTransaction(className, directionName, [component]);
     setupTransaction(tx);
