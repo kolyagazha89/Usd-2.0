@@ -44,7 +44,16 @@ describe('configuration equipment revision history',()=>{
   expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();
   expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function),{isolationLevel:'Serializable'});
  });
- it('does not advance the pointer if saving the new equipment fails',async()=>{
+ it('persists the approved catalog UUID with a newly created equipment revision',async()=>{
+   db.carAudioComponent.create.mockResolvedValue({id:'new-audio'});
+   const changed={...dto,audioComponents:[{catalogEntryId:'00000000-0000-4000-8000-000000000001',brand:'Deaf Bonce',model:'Test',quantity:1,type:'SUBWOOFER',direction:'SUB'}]};
+   await service.update(request,'config',changed as any);
+   expect(db.carAudioComponent.create).toHaveBeenCalledWith({data:expect.objectContaining({
+    catalogEntryId:'00000000-0000-4000-8000-000000000001',brand:'Deaf Bonce',model:'Test',
+   })});
+   expect(db.carConfiguration.update).toHaveBeenCalled();
+  });
+  it('does not advance the pointer if saving the new equipment fails',async()=>{
   db.carAudioComponent.create.mockRejectedValue(new Error('Failed to save component'));
   const changed={...dto,audioComponents:[{catalogEntryId:'00000000-0000-4000-8000-000000000001',brand:'Deaf Bonce',model:'Test',quantity:1,type:'SUBWOOFER',direction:'SUB'}]};
   await expect(service.update(request,'config',changed as any)).rejects.toThrow('Failed to save component');
