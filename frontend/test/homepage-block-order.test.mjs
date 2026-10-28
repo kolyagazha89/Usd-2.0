@@ -39,7 +39,7 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   assert.match(published,/u-home-partners/);
   assert.match(published,/Published partner/);
   const swapped=render([...blocks].reverse());
-  assert.match(swapped,/data-home-block="latest-results" style="order:0"/);
+  assert.match(swapped,/data-home-block="latest-results" style="order:2"/,'reversing the seven blocks puts latest-results at index two');
   assert.match(swapped,/data-home-block="documents" style="order:6"/);
  }finally{await rm(scratch,{recursive:true,force:true})}
 });
