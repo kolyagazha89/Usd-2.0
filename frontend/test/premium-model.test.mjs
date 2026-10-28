@@ -33,6 +33,21 @@ test('record spotlight excludes BassRace, Storm Wall and unpublished measurement
  assert.equal(highestDbRecord(rows.filter(row=>row.id!=='valid')),undefined);
 });
 
+test('record cards exclude BassRace even when historical parent direction is SPL',async()=>{
+ const {selectHomepageRecords,resultNumericValue}=await import('../src/public-result-utils.ts');
+ const rows=[
+  {id:'bass',value:199,class:{name:'BassRace 159.9',direction:{name:'SPL'},unit:'DB'}},
+  {id:'storm',value:250,class:{name:'Storm Wall',direction:{name:'SPL'},unit:'M/S'}},
+  {id:'sound',value:162,class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+  {id:'bfspl',value:151,class:{name:'Gate 1-6',direction:{name:'BFSPL'},unit:'DB'}},
+  {id:'missing',value:null,class:{name:'Limited 1x2',direction:{name:'SPL'},unit:'DB'}},
+ ];
+ assert.deepEqual(selectHomepageRecords(rows).map(row=>row.id),['sound','bfspl']);
+ assert.equal(resultNumericValue({value:null}),Number.NEGATIVE_INFINITY);
+ assert.equal(resultNumericValue({value:''}),Number.NEGATIVE_INFINITY);
+ assert.equal(resultNumericValue({result:{value:null}}),Number.NEGATIVE_INFINITY);
+});
+
 test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,21,22,25].map(n=>countLabel(n,'участник','участника','участников')),['0 участников','1 участник','2 участника','5 участников','11 участников','21 участник','22 участника','25 участников']);});
 
 test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});
