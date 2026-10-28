@@ -122,7 +122,14 @@ rollback() {
   trap - ERR TERM INT
   if [[ "$changed" == 1 ]]; then
     echo "Release failed (exit $status); restoring previous images" >&2
-    if ! cp -p "$backup" .env; then
+    # Restore via a private file on the SAME filesystem as .env. A direct
+    # cp into .env could truncate the active config if the host runs out of
+    # space or is interrupted midway through rollback.
+    restore_tmp=''
+    if ! restore_tmp="$(mktemp "$DEPLOY_DIR/.env.rollback.XXXXXXXX")" ||
+       ! cp -p "$backup" "$restore_tmp" ||
+       ! mv -f "$restore_tmp" .env; then
+      [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
     elif ! docker compose --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
