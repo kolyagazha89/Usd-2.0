@@ -7,10 +7,14 @@ describe('permanent USD ID security and stage resolution', () => {
  const prisma: any = {
   user: { findUnique: jest.fn() },
   participant: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
+  auditLog: { create: jest.fn() },
+  $transaction: jest.fn(),
  };
  const actor: any = { user: { sub: 'user-1', role: 'PARTICIPANT' } };
  beforeEach(() => {
   jest.clearAllMocks();
+  prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma));
+  prisma.auditLog.create.mockResolvedValue({ id: 'audit' });
   prisma.user.findUnique.mockResolvedValue({ id: 'user-1', participantId: 'p1', role: 'PARTICIPANT', customRoleId: null, isActive: true });
  });
 
@@ -40,6 +44,9 @@ describe('permanent USD ID security and stage resolution', () => {
   const update = prisma.participant.update.mock.calls[0][0] as any;
   expect(update.where).toEqual({ id: 'p1' });
   expect(update.data.usdIdToken).toMatch(/^[a-f0-9]{48}$/);
+  const audit = prisma.auditLog.create.mock.calls[0][0] as any;
+  expect(audit.data).toEqual({ userId: 'user-1', action: 'USD_ID_ROTATED', entity: 'Participant', entityId: 'p1' });
+  expect(JSON.stringify(audit)).not.toContain(update.data.usdIdToken);
  });
 
  it('staff QR lookup is stage-scoped and never selects phone, email or birth date', async () => {
