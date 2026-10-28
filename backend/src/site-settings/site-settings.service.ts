@@ -75,9 +75,9 @@ export class SiteSettingsService{
       throw new BadRequestException('Некорректные настройки меню.');
     const navigation=value as Record<string,unknown>;
     if(navigation.items===undefined)return;
-    if(!Array.isArray(navigation.items)||navigation.items.length>9)
+    if(!Array.isArray(navigation.items)||navigation.items.length>13)
       throw new BadRequestException('Меню содержит недопустимое количество пунктов.');
-    const allowed=new Set(['/','/stages','/results','/records','/participants','/teams','/news','/rules','/documents']);
+    const allowed=new Set(['/','/stages','/results','/records','/participants','/teams','/news','/rules','/documents','/partners','/cars','/about','/contacts']);
     const paths=new Set<string>();
     const ids=new Set<string>();
     for(const value of navigation.items){
