@@ -120,7 +120,17 @@ cat > "$WORK/bin/sleep" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-chmod +x "$WORK/bin/docker" "$WORK/bin/sleep"
+cat > "$WORK/bin/cp" <<'EOF'
+#!/usr/bin/env bash
+# Simulate a failure restoring the original environment, never the initial snapshot.
+if [[ "${USD_TEST_FAIL_ROLLBACK_COPY:-0}" == 1 &&
+      "${1:-}" == -p && "${2:-}" == /var/lib/usd-deployer/release-env.* &&
+      "${3:-}" == .env ]]; then
+  exit 1
+fi
+exec /usr/bin/cp "$@"
+EOF
+chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_NEW="$NEW"
@@ -203,6 +213,16 @@ grep -q "CRITICAL: production DB is unhealthy after application rollback" "$WORK
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_DB_UNHEALTHY_PERSISTENT=0
 rm -f "$USD_TEST_DB_LATCH"
+export USD_TEST_FAIL_READINESS=1
+export USD_TEST_FAIL_ROLLBACK_COPY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/restore-env-failure.log" 2>&1; then exit 1; fi
+grep -q 'CRITICAL: could not restore previous production .env' "$WORK/restore-env-failure.log"
+# Deliberately failed restoration leaves the new tag in place. Repair the
+# disposable test fixture explicitly before the next healthy release.
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+export USD_TEST_FAIL_ROLLBACK_COPY=0
+export USD_TEST_FAIL_READINESS=0
 bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
