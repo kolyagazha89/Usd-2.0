@@ -100,7 +100,7 @@ export class RegistrationsService {
         (!requireSubwoofer || item.type === 'SUBWOOFER') &&
         Boolean(String(item.brand ?? '').trim()) &&
         Boolean(String(item.model ?? '').trim()) &&
-        Number.isFinite(Number(item.quantity)) &&
+        Number.isSafeInteger(Number(item.quantity)) &&
         Number(item.quantity) > 0,
       );
     const className = normalize(stageClass.class.name);
@@ -108,25 +108,22 @@ export class RegistrationsService {
     const code = normalize(stageClass.class.code);
     const identity = className + ' ' + directionName + ' ' + code;
 
-    // Сабвуфер обязателен по направлению целиком: SPL, BassRace и Hurrican.
-    // Проверяем название направления отдельно, чтобы BFSPL/DBW SPL не попали под это правило.
+    // Imported classes can carry the legacy SPL parent direction. The
+    // specific BFSPL/BDW identity must win before the generic SPL rule.
+    if (identity.includes('bfspl')) {
+      return hasUsableAudio('FRONT') ? null : 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
+    }
+
+    if (identity.includes('bdw') || identity.includes('dbwspl') || directionName === 'dbw') {
+      return hasUsableAudio('REAR') ? null : 'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+    }
+
     if (
-      ['spl', 'bassrace', 'hurrican'].includes(directionName) ||
+      ['spl', 'bassrace', 'hurrican', 'hurricane'].includes(directionName) ||
       identity.includes('bassrace') ||
       identity.includes('stormwall')
     ) {
-      const hasSubwoofer = hasUsableAudio('SUB', true);
-      return hasSubwoofer ? null : 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер в конфигурацию автомобиля.';
-    }
-
-    if (identity.includes('bfspl')) {
-      const hasFront = hasUsableAudio('FRONT');
-      return hasFront ? null : 'Для участия в BFSPL необходимо заполнить фронтальную акустику в конфигурации автомобиля.';
-    }
-
-    if (identity.includes('bdw') || identity.includes('dbwspl') || directionName === 'bdw' || directionName === 'dbw') {
-      const hasRear = hasUsableAudio('REAR');
-      return hasRear ? null : 'Для участия в BDW необходимо заполнить тыловую акустику в конфигурации автомобиля.';
+      return hasUsableAudio('SUB', true) ? null : 'Для направлений SPL, BassRace и Hurrican необходимо добавить сабвуфер в конфигурацию автомобиля.';
     }
 
     return null;
