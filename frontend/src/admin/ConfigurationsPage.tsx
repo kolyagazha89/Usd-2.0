@@ -66,7 +66,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [requestOpen,setRequestOpen]=useState(false),[requestCategory,setRequestCategory]=useState('AUDIO_COMPONENT'),[requestBrand,setRequestBrand]=useState(''),[requestModel,setRequestModel]=useState(''),[requestDetails,setRequestDetails]=useState(''),[requestBusy,setRequestBusy]=useState(false),[requestNotice,setRequestNotice]=useState('');
  const [catalogs,setCatalogs]=useState<any>({vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:[],componentModels:[]});
  useEffect(()=>{(admin?getSiteSettings():getPublicSiteSettings()).then(r=>{const c=r?.settings?.catalogs;if(c)setCatalogs({vibrationBrands:Array.isArray(c.vibrationBrands)?c.vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:Array.isArray(c.componentBrands)?c.componentBrands:[],componentModels:Array.isArray(c.componentModels)?c.componentModels:[]})}).catch(()=>{})},[admin]);
- const catalogCategory=(kind:'audioComponents'|'amplifiers'|'headUnits')=>kind==='audioComponents'?'AUDIO_COMPONENT':kind==='amplifiers'?'AMPLIFIER':'HEAD_UNIT';
+
  const activeModels=(kind:'audioComponents'|'amplifiers'|'headUnits',type?:string)=>availableCatalogModels(catalogs.componentModels,kind,type);
  const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand)))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
  const pickerModels=picker?activeModels(picker.kind,picker.type).filter((x:any)=>x.brand===picker.brand&&String(x.model).toLowerCase().includes(modelQuery.trim().toLowerCase())):[];
@@ -101,7 +101,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   for(const [key,category] of [['headUnits','HEAD_UNIT'],['audioComponents','AUDIO_COMPONENT'],['amplifiers','AMPLIFIER']] as const){
    for(const row of v[key]){
     const brand=String(row.brand??'').trim(),model=String(row.model??'').trim();
-    const registered=isApprovedCatalogModel(catalogs.componentModels,key,row);
+    const registered=isApprovedCatalogModel(catalogs.componentModels,key,row)&&activeModels(key,row.type).some((entry:any)=>Boolean(entry.id)&&String(entry.brand).trim().toLocaleLowerCase('ru')===brand.toLocaleLowerCase('ru')&&String(entry.model).trim().toLocaleLowerCase('ru')===model.toLocaleLowerCase('ru'));
     const existed=isUnchangedLegacyCatalogRow(initial[key],key,row);
     if(!registered&&!existed){setError('Модель «'+(model||'не указана')+'» не найдена в каталоге USD. Выберите существующую модель или запросите добавление.');setRequestCategory(category);setRequestBrand(brand);setRequestModel(model);setRequestOpen(true);return false}
    }
