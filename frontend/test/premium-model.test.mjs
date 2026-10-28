@@ -68,5 +68,7 @@ test('homepage stage selection handles timezone-offset dates without shifting th
 test('stage date labels preserve the advertised day across UTC and offset timestamps',()=>{
  assert.equal(stageDate('2026-10-28T00:00:00.000Z'),'28 октября 2026 г.');
  assert.equal(stageDate('2026-10-28T00:00:00+05:00'),'28 октября 2026 г.');
+ assert.equal(stageDate('2026-10-28T00:00:00.000Z',false),'28 октября');
+ assert.equal(stageDate('2026-10-28T00:00:00+05:00',false),'28 октября');
  assert.equal(stageDate('not-a-date'),'Дата уточняется');
 });
