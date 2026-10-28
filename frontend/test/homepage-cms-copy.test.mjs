@@ -9,7 +9,8 @@ test('homepage hero and calls to action read copy from CMS settings',async()=>{
  for(const field of ['heroKicker','communityTitle','communitySubtitle','communityButtonLabel','documentsDescription','documentsButtonLabel']){
   assert.match(home,new RegExp("homeText\\('"+field+"'"));
  }
- assert.match(home,/heroTitle&&heroTitle!=='USD'/);
+ assert.match(home,/heroTitle\?heroTitle:/,'explicit CMS hero title must render even when it equals USD');
+ assert.doesNotMatch(home,/heroTitle&&heroTitle!=='USD'/,'never override an explicitly configured USD headline');
  assert.match(home,/settings\.homepage\?\.heroTitle/);
 });
 
