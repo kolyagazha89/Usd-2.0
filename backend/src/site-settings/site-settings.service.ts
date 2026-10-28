@@ -162,7 +162,7 @@ export class SiteSettingsService{
             const url=new URL(image);
             remote=['https:','http:'].includes(url.protocol)&&!!url.hostname&&!url.username&&!url.password;
           }catch{/* Relative media paths are allowed. */}
-          if(!local&&!remote||/\\s|\\\\/.test(image))
+          if(!local&&!remote||/\s|\\/.test(image))
             throw new BadRequestException('Логотип партнёра должен быть загруженным файлом или безопасной ссылкой.');
         }
       }
