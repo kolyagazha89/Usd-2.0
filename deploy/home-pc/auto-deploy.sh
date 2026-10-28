@@ -107,6 +107,23 @@ else
   echo "Main CI gate refused automatic release" >&2
   exit "$ci_status"
 fi
+# A main push may land while a large local Docker build is running. CI
+# approval for the original SHA must never publish it as the newest release
+# after the branch tip has moved. Defer rather than quarantine the old SHA;
+# the next timer poll will build and validate the newer main commit.
+remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" || {
+  echo "Cannot recheck main branch after CI; deferring release" >&2
+  exit 0
+}
+latest_main="$(printf '%s\\n' "$remote_main" | awk '$2 == "refs/heads/main" {print $1}')"
+[[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "Invalid main branch tip response; deferring release" >&2
+  exit 0
+}
+if [[ "$latest_main" != "$SHA" ]]; then
+  echo "Main moved from $SHA to $latest_main during build/CI; deferring stale release" >&2
+  exit 0
+fi
 if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sha")" == "$SHA" ]]; then
   echo "This SHA already failed release; inspect logs before explicitly clearing failed-release-sha" >&2
   exit 1
