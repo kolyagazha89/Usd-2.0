@@ -134,6 +134,13 @@ if [[ "${1:-}" == compose ]]; then
       fi
       exit 0 ;;
     *" exec -T "*)
+      # HTTP 200 may be healthy while the API cannot authenticate to DB.
+      if [[ "$*" == *'SELECT 1'* ]]; then
+        if [[ "${USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY:-0}" == 1 ]] &&
+           grep -q "^USD_IMAGE_TAG=1111111111111111111111111111111111111111$" /home/usd/usd-deploy/deploy/home-pc/.env; then exit 1; fi
+        if [[ "${USD_TEST_FAIL_NEW_DB_CONNECTIVITY:-0}" == 1 ]] &&
+           grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then exit 1; fi
+      fi
       if [[ "$*" == *" exec -T db "* ]]; then
         if [[ "$*" == *pg_dump* ]]; then
           [[ "${USD_TEST_FAIL_BACKUP:-0}" != 1 ]] || exit 1
@@ -240,6 +247,14 @@ grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-unh
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 unset USD_TEST_FAIL_BASELINE_READINESS
+# A healthy HTTP root with broken API database credentials must not be
+# accepted as a rollback baseline, even if PostgreSQL itself is healthy.
+export USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/baseline-db-unreachable.log" 2>&1; then exit 1; fi
+grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-db-unreachable.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
+unset USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY
 # A database that becomes unhealthy during backup must block the swap before
 # either application container is replaced.
 export USD_TEST_DB_UNHEALTHY_AFTER_BACKUP=1
@@ -272,6 +287,14 @@ grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.release.*' -print -quit)" ]] ||
   { echo "Sensitive staged .env was left behind after failed validation" >&2; exit 1; }
 export USD_TEST_FAIL_CONFIG=0
+# A candidate with HTTP 200 but no API-to-database connectivity must
+# roll back to the previous healthy image, not pass the readiness gate.
+export USD_TEST_FAIL_NEW_DB_CONNECTIVITY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/candidate-db-unreachable.log" 2>&1; then exit 1; fi
+grep -q 'New API/frontend failed readiness checks' "$WORK/candidate-db-unreachable.log"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/candidate-db-unreachable.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+unset USD_TEST_FAIL_NEW_DB_CONNECTIVITY
 # A healthy HTTP endpoint on the wrong container image must not count as a
 # successful release. Confirm the original tag and readiness after rollback.
 export USD_TEST_IMAGE_MISMATCH_AFTER=1
