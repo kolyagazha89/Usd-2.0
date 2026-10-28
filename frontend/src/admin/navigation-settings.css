@@ -1,0 +1,20 @@
+/* Light administrative workspace: Dark Velocity red accents, not a dark admin theme. */
+.settings-navigation-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.settings-navigation-heading h2{margin:0 0 .4rem;color:#202329}
+.settings-navigation-list{display:grid;gap:.7rem;margin:1.25rem 0}
+.settings-navigation-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1rem;background:#fff;border:1px solid #e1e4e9;border-radius:16px;padding:1rem;box-shadow:0 4px 20px #1b253008}
+.settings-navigation-row:focus-within{border-color:#d94b4b}
+.settings-navigation-toggle{display:flex;align-items:center;justify-content:center;min-width:34px}
+.settings-navigation-toggle input{width:20px;height:20px;accent-color:#c82332}
+.settings-navigation-fields{min-width:0;display:grid;gap:.35rem}
+.settings-navigation-fields label{display:grid;gap:.3rem;font-size:.8rem;font-weight:600;color:#515968}
+.settings-navigation-fields input{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d8dce4;border-radius:10px;background:#fff;color:#202329;font-size:16px;padding:.7rem .8rem}
+.settings-navigation-fields small{font-size:.76rem;color:#7d8592;overflow-wrap:anywhere}
+.settings-navigation-order{display:flex;gap:.4rem}
+.settings-navigation-order .icon-button{min-width:36px;min-height:36px;display:grid;place-items:center}
+.settings-navigation-preview{border:1px solid #e1e4e9;background:#f7f8fa;border-radius:16px;padding:1.2rem;color:#202329}
+.settings-navigation-preview strong{display:block;margin-bottom:.75rem}
+.settings-navigation-preview nav{display:flex;flex-wrap:wrap;gap:.5rem}
+.settings-navigation-preview nav span{background:#fff;border:1px solid #e4e6ec;border-radius:9px;padding:.5rem .8rem;font-weight:600}
+.settings-navigation-preview nav em{font-size:.85rem;color:#636b78}
+@media(max-width:600px){.settings-navigation-row{gap:.65rem;padding:.75rem}.settings-navigation-order{flex-direction:column}.settings-navigation-heading .secondary-button{width:100%;justify-content:center}}
