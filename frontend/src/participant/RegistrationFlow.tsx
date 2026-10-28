@@ -15,7 +15,7 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
  const canContinueVehicle=canContinueVehicleRegistration(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed);
  useEffect(()=>{setConfigurationAnswer('');setUpdatedReviewed(false)},[carId,configurationId]);
  const title=useRef<HTMLHeadingElement>(null);
- const move=(next:number)=>{setStep(next);requestAnimationFrame(()=>{title.current?.focus();title.current?.scrollIntoView?.({block:'start',behavior:'smooth'})})};
+ const move=(next:number)=>{setStep(next);requestAnimationFrame(()=>{title.current?.focus();title.current?.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})})};
  useEffect(()=>{if(step>0&&!vehicleReady)setStep(0);else if(step>1&&!classesReady)setStep(1)},[vehicleReady,classesReady,step]);
  return <div className="member-entry-flow">
   <nav className="entry-steps" aria-label="Шаги регистрации"><ol>{steps.map((label,index)=><li key={label} data-state={index===step?'current':index<step?'complete':'next'}><button type="button" disabled={busy||index>step} aria-current={index===step?'step':undefined} onClick={()=>move(index)}><span>{index<step?<Check size={15}/>:String(index+1).padStart(2,'0')}</span><strong>{label}</strong></button></li>)}</ol></nav>
