@@ -200,7 +200,7 @@ jobs:
           from pathlib import Path
           workflow = Path('.github/workflows/request-home-pc-deploy.yml').read_text()
           installer = Path('deploy/home-pc/install-runner-trigger.sh').read_text()
-          for expected in ('workflow_run:', 'Publish self-hosted USD images', "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
+          for expected in ('workflow_run:', 'Publish self-hosted USD images', 'Home PC deployment safety checks', "vars.USD_HOME_PC_HOST_APPROVED == 'true'", "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
               assert expected in workflow, expected
           assert 'pull_request:' not in workflow
           assert 'actions/checkout' not in workflow
@@ -213,6 +213,46 @@ jobs:
             exit 1
           fi
           grep -q 'Runner account must exist and must not be root' /tmp/usd-runner-refusal.log
+          # An account can have sudo through a direct sudoers entry or a custom
+          # group, without belonging to sudo/wheel. The installer must refuse
+          # that account before installing its narrow trigger rule.
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin usd_runner_ci
+          usd_ci_trigger_created=0
+          cleanup_runner_fixture() {
+            if [[ "$usd_ci_trigger_created" == 1 ]]; then sudo rm -f /etc/sudoers.d/usd-home-pc-trigger; fi
+            sudo rm -f /etc/sudoers.d/usd-runner-ci-test
+            sudo userdel usd_runner_ci
+          }
+          trap cleanup_runner_fixture EXIT
+          printf 'usd_runner_ci ALL=(root) NOPASSWD: /usr/bin/true\n' | sudo tee /etc/sudoers.d/usd-runner-ci-test >/dev/null
+          sudo chmod 0440 /etc/sudoers.d/usd-runner-ci-test
+          sudo visudo -cf /etc/sudoers.d/usd-runner-ci-test
+          if sudo bash deploy/home-pc/install-runner-trigger.sh usd_runner_ci >/tmp/usd-runner-existing-sudo.log 2>&1; then
+            echo 'Installer accepted a runner with direct sudoers privileges' >&2
+            exit 1
+          fi
+          grep -q 'Runner has pre-existing sudo privileges' /tmp/usd-runner-existing-sudo.log
+          # Reusing the exact narrow trigger must not hide any additional rule.
+          sudo test ! -e /etc/sudoers.d/usd-home-pc-trigger
+          sudo test ! -L /etc/sudoers.d/usd-home-pc-trigger
+          printf 'usd_runner_ci ALL=(root) NOPASSWD: /usr/bin/systemctl start usd-auto-deploy.service\n' | sudo tee /etc/sudoers.d/usd-home-pc-trigger >/dev/null
+          usd_ci_trigger_created=1
+          sudo chmod 0440 /etc/sudoers.d/usd-home-pc-trigger
+          sudo visudo -cf /etc/sudoers.d/usd-home-pc-trigger
+          if sudo python3 deploy/home-pc/verify-runner-policy.py usd_runner_ci >/tmp/usd-runner-reused-sudo.log 2>&1; then
+            echo 'Reused trigger hid an additional direct sudo grant' >&2; exit 1
+          fi
+          grep -q 'Runner has pre-existing sudo privileges' /tmp/usd-runner-reused-sudo.log
+          sudo rm -f /etc/sudoers.d/usd-runner-ci-test
+          sudo python3 deploy/home-pc/verify-runner-policy.py usd_runner_ci
+          sudo chmod 0666 /etc/sudoers.d/usd-home-pc-trigger
+          if sudo python3 deploy/home-pc/verify-runner-policy.py usd_runner_ci >/tmp/usd-runner-writable-sudo.log 2>&1; then
+            echo 'Runner audit accepted a writable reused trigger' >&2; exit 1
+          fi
+          grep -q 'Untrusted existing runner sudoers policy' /tmp/usd-runner-writable-sudo.log
+
+          trap - EXIT
+          cleanup_runner_fixture
       - name: Rehearse media backup, full restore and refusal of reused destination
         shell: bash
         run: |
@@ -334,6 +374,7 @@ jobs:
           python3 deploy/home-pc/test-initial-schema.py
           python3 deploy/home-pc/test-diagnose-live-prisma-history.py -v
           python3 deploy/home-pc/test-verify-prerelease.py -v
+          python3 deploy/home-pc/test-verify-runner-policy.py -v
           python3 deploy/home-pc/test-prepare-host-files.py -v
           sudo bash deploy/home-pc/test-setup-home-pc.sh
           python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/home-pc/verify-main-ci.py").read_text())'

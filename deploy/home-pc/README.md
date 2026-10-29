@@ -48,7 +48,21 @@ root. It installs only one exact sudoers command, with no wildcard and
 without granting shell, Docker or arbitrary systemctl privileges.
 **Do not use the existing `usd` administrator account as the runner.**
 Do not grant a public repository's self-hosted runner broad Docker or
-host administrator access.
+host administrator access. The runner installer also audits the effective
+sudoers policy: it refuses any account with **existing** sudo grants, including
+direct per-user entries and custom groups outside `sudo`/`wheel`. Use a
+new dedicated unprivileged account rather than reusing a general admin user.
+
+**Additional default-off GitHub gate:** the runner job requires the repository
+Actions variable `USD_HOME_PC_HOST_APPROVED=true`. Leave it unset until the
+actual Ubuntu VM, Compose overlays, running images, off-host database/media
+recovery, schema migration on a real-data copy, and rollback have been
+supervised and accepted. An absent variable skips the job even when main CI
+passes. This repository variable is an explicit operator acknowledgement,
+**not** a substitute for the root-owned local release gates. Old queued
+workflow runs created before this guard was merged must be reviewed/cancelled
+before a runner is registered; a new workflow file does not retroactively
+change already queued jobs.
 
 The runner trigger does **not** enable the systemd timer, create
 `/etc/usd-deploy-enabled`, set `/etc/usd-auto-release-schema`, approve
@@ -72,6 +86,12 @@ protect an API accidentally connected to a different database.
 
 Duplicate or missing critical variables, unresolved interpolation and
 malformed URLs are rejected **before any image replacement or backup**.
+The PostgreSQL URL accepts no connection-query overrides: only the optional
+single `?schema=public` Prisma parameter is permitted. A URL with an
+apparently valid `db:5432` authority but `?host=`, `?hostaddr=`,
+`?database=`, duplicate `schema` or other query parameters is refused,
+because database clients can reinterpret those options and connect to a
+different, unprotected database.
 In addition to checking the on-disk settings, the helper inspects the
 **already running** API and PostgreSQL container environments through Docker:
 the live API `DATABASE_URL` must match the approved local DB URL; the live
@@ -362,3 +382,29 @@ The installer takes the same exclusive deployment lock as the builder and releas
 **Current evidence:** shell tests cover build-only default, cached-image release, schema refusal, untrusted policy rejection, failed-SHA quarantine, failed/invalid backup refusal, running-image mismatch refusal, successful release, interrupted release, healthy rollback and unhealthy rollback. The mocks additionally cover a failed baseline readiness check and a database that becomes unhealthy during the backup; both must refuse a release before replacing containers. They also assert that the builder retains its exclusive lock through the release call and that a forged inherited-lock flag is rejected. The CI gate tests verify that a newer failed/pending workflow run cannot be masked by an older successful rerun. These mocks do not prove the real Ubuntu host, Docker images, public ingress, database restore or live deployment. Do not enable production automation until those host gates pass.
 
 `test-release-docker.sh` is restricted to a disposable GitHub Actions runner. It creates fixture-only API/frontend images and a uniquely named labeled PostgreSQL 18 volume, tests an unhealthy release and rollback, verifies retained marker data/DB identity, and restores the generated dump into a separate disposable database. It refuses an existing stack or volume. Its CI result must be checked; never run it on the live host.
+
+### Public acceptance remains inside rollback (2026-10-29)
+
+`release-approved.sh` now keeps its application rollback trap active until the
+root-owned `/usr/local/libexec/usd-verify-prerelease NEW_SHA` succeeds. It checks
+both exact public revisions, settings/stages/records response shapes, anonymous
+access denial for personal API routes, and HTML plus the actual built JS/CSS
+assets for home, login, participant and inspection routes. These are read-only
+requests without credentials; they do not prove a successful login or a full
+participant/judge workflow. Requests and redirects stay on the two prerelease
+origins; the primary domain is excluded.
+
+A missing, writable or symlinked verifier refuses a release before replacing
+images. A failed public check after replacement rolls the application back using
+the existing same-schema policy. It does not restore or mutate the live database.
+The success marker is written only after public acceptance. Existing installations
+must receive the reviewed helper update through `install-local-deployer.sh`
+(or the supervised setup) before this behavior exists on Ubuntu.
+
+Runner admission is checked on **every** supervised setup, including an already
+registered runner with an existing trigger. `verify-runner-policy.py` accepts
+only an explicitly unprivileged fresh account, or the exact trusted narrow
+trigger as its only effective sudo grant. Direct/custom-group extra grants,
+Docker socket access, privileged groups, symlinked or writable policies stop
+setup before registration or service activation. CI covers narrow-plus-extra
+sudoers, valid reuse, and a writable existing trigger on a disposable account.

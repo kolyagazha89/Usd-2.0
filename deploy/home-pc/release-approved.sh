@@ -71,6 +71,14 @@ approved_sha "$STATE_DIR/schema-approved-sha" || { echo "Schema compatibility no
 approved_sha "$STATE_DIR/built-sha" ||
   { echo "Requested SHA was not built locally or its build marker is untrusted" >&2; exit 1; }
 
+# Public acceptance is part of this transaction, not a later CI observation.
+# Refuse an untrusted executable before taking backups or replacing images.
+PUBLIC_VERIFIER=/usr/local/libexec/usd-verify-prerelease
+[[ -f "$PUBLIC_VERIFIER" && -x "$PUBLIC_VERIFIER" && ! -L "$PUBLIC_VERIFIER" &&
+   "$(stat -c %u "$PUBLIC_VERIFIER")" == 0 ]] &&
+  (( (8#$(stat -c %a "$PUBLIC_VERIFIER") & 022) == 0 )) ||
+  { echo "Untrusted public prerelease verifier" >&2; exit 1; }
+
 cd "$DEPLOY_DIR"
 [[ -f .env && ! -L .env ]] || { echo "Missing or symlinked production .env" >&2; exit 1; }
 (( (8#$(stat -c %a .env) & 077) == 0 )) ||
@@ -91,7 +99,7 @@ python3 - .env <<'PY'
 import re
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 critical = {"APP_DOMAIN", "API_DOMAIN", "POSTGRES_DB", "POSTGRES_USER",
             "POSTGRES_PASSWORD", "DATABASE_URL"}
@@ -122,10 +130,18 @@ try:
     if values["APP_DOMAIN"] != "app.usd-russia.ru" or values["API_DOMAIN"] != "api.usd-russia.ru":
         raise ValueError("deployment targets are not the approved prerelease domains")
     db = urlsplit(values["DATABASE_URL"])
+    # pg-connection-string/Prisma can interpret query parameters as connection
+    # overrides. A URL whose authority says db:5432 can still select another
+    # host/database via ?host=, ?hostaddr=, ?database=, etc. The release backup
+    # protects ONLY the local Compose DB; accept the documented Prisma schema
+    # parameter and no other connection options (including duplicates).
+    params = parse_qsl(db.query, keep_blank_values=True, strict_parsing=True)
+    if params not in ([], [("schema", "public")]):
+        raise ValueError("unsafe PostgreSQL connection query parameters")
     if (db.scheme not in ("postgres", "postgresql") or db.hostname != "db" or db.port != 5432
             or unquote(db.username or "") != values["POSTGRES_USER"]
             or unquote(db.password or "") != values["POSTGRES_PASSWORD"]
-            or unquote(db.path.lstrip("/")) != values["POSTGRES_DB"]
+            or unquote(db.path) != "/" + values["POSTGRES_DB"]
             or db.fragment):
         raise ValueError("application database does not match local PostgreSQL backup target")
 except (OSError, ValueError, KeyError, IndexError) as exc:
@@ -562,6 +578,16 @@ db_after="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --
 [[ "$db_before" == "$db_after" ]] || { echo "Database container changed unexpectedly" >&2; false; }
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_after")" == healthy ]] ||
   { echo "Production DB became unhealthy during release" >&2; false; }
+
+# Keep the rollback trap armed while checking external HTTPS, shipped assets,
+# exact frontend/API revision, public data and unauthenticated access denial.
+# Existing images remain available; never reverse database migrations here.
+public_accepted=0
+for public_attempt in 1 2 3; do
+  if "$PUBLIC_VERIFIER" "$NEW_TAG"; then public_accepted=1; break; fi
+  [[ "$public_attempt" == 3 ]] || sleep 5
+done
+[[ "$public_accepted" == 1 ]] || { echo "Public prerelease acceptance failed; rolling back application images" >&2; false; }
 
 printf '%s\n' "$NEW_TAG" > "$STATE_DIR/deployed-sha"
 rm -f "$backup" "$approval_file"

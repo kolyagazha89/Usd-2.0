@@ -17,6 +17,7 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+PUBLIC_VERIFIER=/usr/local/libexec/usd-verify-prerelease
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
@@ -24,6 +25,8 @@ LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
 [[ ! -e "$LOCAL_VERIFIER" && ! -L "$LOCAL_VERIFIER" ]] || { echo "Local verifier exists in disposable runner" >&2; exit 1; }
+[[ ! -e "$PUBLIC_VERIFIER" && ! -L "$PUBLIC_VERIFIER" ]] ||
+  { echo "Public verifier exists; refusing disposable fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
 for protected in "$ROOT/.env" \
@@ -55,7 +58,7 @@ cleanup() {
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$STATE/initial-preflight"
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
+  rm -f -- "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -73,6 +76,13 @@ diagnose_failure() {
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
 mkdir -p "$ROOT" "$STATE" "$WORK/bin" /usr/local/libexec
+cat > "$PUBLIC_VERIFIER" <<'PUBLIC'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && "$1" =~ ^[a-f0-9]{40}$ ]] || exit 1
+[[ "${USD_TEST_FAIL_PUBLIC_ACCEPTANCE:-0}" != 1 ]] || exit 1
+PUBLIC
+chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -318,6 +328,25 @@ sed -i 's/@db:5432/@remote-db:5432/' "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-database.log" 2>&1; then exit 1; fi
 grep -q 'does not match local PostgreSQL backup target' "$WORK/wrong-database.log"
 sed -i 's/@remote-db:5432/@db:5432/' "$ROOT/.env"
+# PostgreSQL URL query options can override the validated authority when
+# parsed by the API driver. Reject hidden alternate hosts/databases before
+# even attempting to inspect a Docker image or take a database backup.
+for unsafe_query in 'host=remote-db' 'schema=public&host=remote-db' \
+  'hostaddr=192.0.2.1' 'schema=public&schema=other' 'database=other' 'sslmode=require'; do
+  python3 - "$ROOT/.env" "$unsafe_query" <<'QUERY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+p.write_text('\n'.join('DATABASE_URL=postgresql://usd:test@db:5432/usd?'+sys.argv[2] if line.startswith('DATABASE_URL=') else line for line in p.read_text().splitlines())+'\n')
+QUERY
+  if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsafe-db-query.log" 2>&1; then
+    echo "Release accepted unsafe PostgreSQL URL query: $unsafe_query" >&2
+    exit 1
+  fi
+  grep -q 'unsafe PostgreSQL connection query parameters' "$WORK/unsafe-db-query.log"
+  [[ ! -s "$USD_TEST_LOG" ]]
+done
+sed -i 's|^DATABASE_URL=.*|DATABASE_URL=postgresql://usd:test@db:5432/usd|' "$ROOT/.env"
 sed -i 's/^POSTGRES_PASSWORD=test$/POSTGRES_PASSWORD=not-the-api-password/' "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-password-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'does not match local PostgreSQL backup target' "$WORK/db-password-mismatch.log"
@@ -479,6 +508,21 @@ for mode in moved malformed unavailable; do
   [[ -z "$(find "$STATE" -maxdepth 1 -name 'release-env.*' -print -quit)" ]] || exit 1
 done
 unset USD_TEST_REMOTE_MAIN_SHA USD_TEST_FAIL_MAIN_LOOKUP
+# Public routing/asset/auth failure must remain inside the rollback boundary.
+if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/public-acceptance-failed.log" 2>&1; then
+  echo 'Release succeeded although public acceptance failed' >&2
+  exit 1
+fi
+grep -q 'Public prerelease acceptance failed' "$WORK/public-acceptance-failed.log"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/public-acceptance-failed.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -f "$STATE/deployed-sha" ]]
+# Do not execute a verifier writable by an unprivileged local account.
+chmod 0777 "$PUBLIC_VERIFIER"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/public-verifier-untrusted.log" 2>&1; then exit 1; fi
+grep -q 'Untrusted public prerelease verifier' "$WORK/public-verifier-untrusted.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+chmod 0755 "$PUBLIC_VERIFIER"
 # A candidate with HTTP 200 but no API-to-database connectivity must
 # roll back to the previous healthy image, not pass the readiness gate.
 export USD_TEST_FAIL_NEW_DB_CONNECTIVITY=1
