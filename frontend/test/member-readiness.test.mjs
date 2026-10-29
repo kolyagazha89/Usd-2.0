@@ -73,6 +73,12 @@ test('garage uses the active configuration current version, not another version 
  assert.equal(currentCarAudioComponents({configurations:[]}),undefined);
  assert.equal(currentCarAudioComponents({configurations:[{isActive:true,currentVersion:99,versions:[{version:1,audioComponents:[row('SUB','SUBWOOFER')]}]}]}),undefined,'stale currentVersion must not mark old equipment as ready');
  assert.deepEqual(currentCarAudioComponents({configurations:[{isActive:true,versions:[{version:1,audioComponents:[row('FRONT')]}]}]}),[row('FRONT')],'legacy configurations without a pointer remain readable');
+ assert.deepEqual(currentCarAudioComponents({configurations:[{isActive:true,versions:[
+  {version:1,audioComponents:[row('SUB','SUBWOOFER')]},
+  {version:3,audioComponents:[row('REAR')]},
+  {version:2,audioComponents:[row('FRONT')]},
+ ]}]}),[row('REAR')],'legacy versions may be unordered; use the newest version');
+ assert.equal(currentCarAudioComponents({configurations:[{isActive:true,versions:[{version:0,audioComponents:[row('SUB','SUBWOOFER')]}]}]}),undefined,'invalid legacy version cannot mark equipment as ready');
 });
 
 test('a registration on another vehicle or stage never completes selected vehicle readiness',()=>{
