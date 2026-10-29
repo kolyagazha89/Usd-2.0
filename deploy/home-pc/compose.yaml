@@ -61,7 +61,7 @@ services:
 
   caddy:
     # Explicit opt-in: a plain `docker compose up -d` must never expose WAN ports
-    # on tunnel-only installations. Start with `--profile direct-edge` or name
+    # until public ingress is approved. Start with `--profile direct-edge` or name
     # the caddy service explicitly after the operator approves public ingress.
     profiles: [direct-edge]
     image: caddy:2-alpine

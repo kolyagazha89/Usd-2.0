@@ -18,16 +18,19 @@ DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
+LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host DB backup policy/helper; refusing mock fixture' >&2; exit 1; }
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
+[[ ! -e "$LOCAL_VERIFIER" && ! -L "$LOCAL_VERIFIER" ]] || { echo "Local verifier exists in disposable runner" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
-for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
-  "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+for protected in "$ROOT/.env" \
+  "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
   "$STATE/deployed-sha" "$STATE/failed-release-sha" \
+  "$STATE/initial-preflight" \
   /etc/usd-release-approved "$TRUSTED_DIR"; do
   [[ ! -e "$protected" && ! -L "$protected" ]] ||
     { echo "Existing deployment state at $protected; refusing destructive mock rehearsal" >&2; exit 1; }
@@ -46,12 +49,13 @@ WORK="$(mktemp -d)"
 cleanup() {
   # Do not leak fixture credentials/approvals into the following real-Docker
   # rehearsal, or leave a misleading deployed SHA in the runner filesystem.
-  rm -f -- "$ROOT/.env" "$ROOT/.env.cloudflared" \
-    "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+  rm -f -- "$ROOT/.env" \
+    "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" \
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
+  rm -f -- "$STATE/initial-preflight"
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -82,7 +86,7 @@ chmod 600 "$DB_OFFSITE_POLICY"
 cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^usd-db-offsite:verified/release-[a-f0-9]{40}-[0-9]{8}T[0-9]{6}Z-[0-9]+\.dump$ ]] || exit 1
 [[ "${USD_TEST_FAIL_OFFSITE:-0}" != 1 ]] || exit 1
 printf '%s\n' "$2" >> "$USD_TEST_WORK_OFFSITE_LOG"
 OFFSITE
@@ -110,7 +114,6 @@ EOF
 chmod 600 "$ROOT/.env"
 cp deploy/home-pc/compose.yaml "$ROOT/compose.yaml"
 cp deploy/home-pc/compose.local.yaml "$ROOT/compose.local.yaml"
-cp deploy/home-pc/compose.tunnel.yaml "$ROOT/compose.tunnel.yaml"
 mkdir -p "$TRUSTED_DIR"
 cp "$ROOT"/compose*.yaml "$TRUSTED_DIR/"
 printf '%s\n' "$NEW" > "$STATE/built-sha"
@@ -166,8 +169,8 @@ if [[ "${1:-}" == inspect ]]; then
     echo "ghcr.io/kolyagazha89/usd-2.0-$service:$tag"
     exit 0
   fi
-  if [[ "${USD_TEST_TUNNEL_OVERLAY:-0}" == 1 ]]; then
-    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.tunnel.yaml"
+  if [[ "${USD_TEST_UNKNOWN_OVERLAY:-0}" == 1 ]]; then
+    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.unknown.yaml"
   else
     echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
   fi
@@ -294,13 +297,13 @@ fi
 grep -q "must not be accessible to group" "$WORK/insecure-env.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 chmod 600 "$ROOT/.env"
-printf 'CLOUDFLARE_TUNNEL_TOKEN=ci-only\n' >> "$ROOT/.env"
+printf 'LEGACY_TUNNEL_TOKEN=ci-only\n' >> "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/leaked-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential must be isolated' "$WORK/leaked-tunnel-env.log"
-sed -i '/^CLOUDFLARE_TUNNEL_TOKEN=/d' "$ROOT/.env"
+grep -q 'Unsupported ingress token' "$WORK/leaked-tunnel-env.log"
+sed -i '/^LEGACY_TUNNEL_TOKEN=/d' "$ROOT/.env"
 printf '  TUNNEL_TOKEN =ci-only\\n' >> "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/padded-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential must be isolated' "$WORK/padded-tunnel-env.log"
+grep -q 'Unsupported ingress token' "$WORK/padded-tunnel-env.log"
 sed -i '/^[[:space:]]*TUNNEL_TOKEN[[:space:]]*=/d' "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 # A local DB backup cannot protect an API accidentally pointing to another
@@ -341,15 +344,10 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=0
-export USD_TEST_TUNNEL_OVERLAY=1
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/missing-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Missing, symlinked or non-root-owned tunnel credential file' "$WORK/missing-tunnel-env.log"
-printf 'TUNNEL_TOKEN=ci-only\n' > "$ROOT/.env.cloudflared"
-chmod 644 "$ROOT/.env.cloudflared"
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential file must not be accessible' "$WORK/insecure-tunnel-env.log"
-chmod 600 "$ROOT/.env.cloudflared"
-export USD_TEST_TUNNEL_OVERLAY=0
+export USD_TEST_UNKNOWN_OVERLAY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsupported-overlay.log" 2>&1; then exit 1; fi
+grep -q 'Unknown active Compose file' "$WORK/unsupported-overlay.log"
+export USD_TEST_UNKNOWN_OVERLAY=0
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_DB_UNHEALTHY_BEFORE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-before.log" 2>&1; then exit 1; fi
@@ -410,6 +408,15 @@ if USD_TEST_FAIL_RESTORE_REHEARSAL=1 bash deploy/home-pc/release-approved.sh "$N
   exit 1
 fi
 grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-rehearsal-failure.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+
+# First-run schema setup may verify backup/restore without replacing apps.
+touch "$USD_TEST_LOG"
+before_preflight="$(wc -l < "$USD_TEST_LOG")"
+bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/preflight-only.log" 2>&1
+grep -q 'live images and database were not changed' "$WORK/preflight-only.log"
+[[ "$(wc -l < "$USD_TEST_LOG")" == "$before_preflight" ]]
+[[ "$(cat "$STATE/initial-preflight")" == "$NEW"$'\n'"$OLD"$'\n'mock-db ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
 # A database that becomes unhealthy during backup must block the swap before
@@ -560,4 +567,31 @@ run_automatic_candidate
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ ! -f /etc/usd-release-approved ]]
+# The explicit same-PC backup path must remain DISABLED for automatic releases.
+# It requires an actual caller-held lock, root-reviewed local snapshot verifier,
+# paused auto-deploy gate, and affirmative same-host risk acknowledgment.
+cat > "$LOCAL_VERIFIER" <<'LOCAL'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && "$1" == /srv/usd-backups/snapshots/local-ci-fixture ]] || exit 1
+LOCAL
+chmod 0750 "$LOCAL_VERIFIER"
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+printf '%s\n' "$NEW" > "$STATE/release-approved-sha"
+chmod 0600 "$STATE/release-approved-sha"
+run_local_candidate() (
+  exec 9>/run/lock/usd-home-deploy.lock
+  flock -n 9
+  USD_DEPLOY_LOCK_HELD=1 "$@" bash deploy/home-pc/release-approved.sh "$NEW" \
+    --local-hdd-snapshot /srv/usd-backups/snapshots/local-ci-fixture
+)
+if run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=0 > "$WORK/local-no-consent.log" 2>&1; then
+  echo 'Same-PC local release bypassed operator consent' >&2
+  exit 1
+fi
+grep -q 'Local-HDD prerelease needs operator consent' "$WORK/local-no-consent.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=1
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+echo "Local HDD-only supervised release passed explicit consent and no-cloud tests"
 echo "Mocked release, main-tip deferral, healthy rollback and unhealthy rollback rehearsals passed"

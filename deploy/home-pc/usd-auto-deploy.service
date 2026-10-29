@@ -1,5 +1,5 @@
 [Unit]
-Description=USD main image builder and optional schema-pinned release
+Description=USD published main images and optional schema-pinned release
 Wants=network-online.target
 After=network-online.target docker.service
 Requires=docker.service
@@ -9,6 +9,11 @@ Type=oneshot
 User=root
 Group=root
 UMask=0077
+StateDirectory=usd-deployer
+StateDirectoryMode=0700
+Environment=BUILDX_CONFIG=/var/lib/usd-deployer/buildx
+Environment=RCLONE_CONFIG=/var/lib/usd-deployer/rclone.conf
+Environment=RCLONE_CACHE_DIR=/var/lib/usd-deployer/rclone-cache
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=read-only

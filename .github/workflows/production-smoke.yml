@@ -1,8 +1,8 @@
-name: Production API Smoke
+name: Self-hosted prerelease API smoke
 
 on:
   workflow_run:
-    workflows: ["Backend CI"]
+    workflows: ["Request USD home-PC deploy after images and main checks"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Wait until the publication endpoint is deployed
         env:
-          API_BASE: https://usd-api-production.up.railway.app
+          API_BASE: https://api.usd-russia.ru
         run: |
           set -euo pipefail
           expected_status=""
@@ -42,9 +42,9 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm Railway serves the same commit as GitHub main
+      - name: Confirm the home API serves the same commit as GitHub main
         env:
-          API_BASE: https://usd-api-production.up.railway.app
+          API_BASE: https://api.usd-russia.ru
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
@@ -56,19 +56,19 @@ jobs:
                 if(x.profileSearchVersion!=="principal-v2")process.exit(1);
                 if(x.gitCommitSha!==process.env.EXPECTED_SHA)process.exit(1);
               '; then
-                echo "Railway is serving expected commit $EXPECTED_SHA and current profile search."
+                echo "Home API is serving expected commit $EXPECTED_SHA and current profile search."
                 exit 0
               fi
             fi
-            echo "Railway is not yet serving $EXPECTED_SHA (attempt $attempt/60)."
+            echo "Home API is not yet serving $EXPECTED_SHA (attempt $attempt/60)."
             sleep 10
           done
-          echo "::error::Railway API did not deploy the latest GitHub main revision. Check its connected source and deployment trigger."
+          echo "::error::Home API did not deploy the latest GitHub main revision. Check its connected source and deployment trigger."
           exit 1
 
       - name: Check health, public stages, results privacy, and records
         env:
-          API_BASE: https://usd-api-production.up.railway.app
+          API_BASE: https://api.usd-russia.ru
         run: |
           node --input-type=module <<'NODE'
           const base = process.env.API_BASE;

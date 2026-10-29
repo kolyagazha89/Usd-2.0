@@ -1,0 +1,43 @@
+name: usd-s3
+
+# Separate storage stack. It is NOT an overlay for the application deployer.
+# Start it only after the SSD is mounted and the existing USD Docker network exists.
+services:
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    command: ["/data"]
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - /etc/usd-s3/s3.env
+    environment:
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: "warn"
+    volumes:
+      - type: bind
+        source: /srv/usd-s3/data
+        target: /data
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:19000:9000/tcp"
+      - "127.0.0.1:19001:9001/tcp"
+    healthcheck:
+      test: ["CMD", "sh", "-ec", "curl -fsS http://127.0.0.1:9000/health/ready >/dev/null && curl -fsS http://127.0.0.1:9001/rustfs/console/health >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks:
+      usd-internal:
+        aliases: [usd-s3]
+
+networks:
+  usd-internal:
+    name: usd-home_usd-internal
+    external: true

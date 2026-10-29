@@ -95,7 +95,8 @@ body .usd-live .public-legal-document-files a{display:inline-block}
 
 /* Public sporting history: expandable published measurements, including narrow screens. */
 .usd-live .p-history-entry{min-width:0}.usd-live .p-history-row>div{min-width:0;flex:1}.usd-live .p-history-row h3,.usd-live .p-history-row p{overflow-wrap:anywhere}.usd-live .p-history-row .u-btn{flex-shrink:0}.usd-live .p-entry-results{padding:22px;border:1px solid #2e3e48;border-top:0;border-radius:0 0 6px 6px;background:#0c151b}.usd-live .p-entry-results ul{list-style:none;margin:0 0 20px;padding:0;display:grid;gap:12px}.usd-live .p-entry-results li{display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-bottom:1px solid #2e3e48;padding-bottom:12px}.usd-live .p-entry-results li>span:first-child{flex:1;min-width:150px}.usd-live .p-entry-results strong{font-size:25px;color:#e9d4aa}.usd-live .p-entry-results small{font-size:14px}.usd-live .p-entry-results p{margin-bottom:18px;color:#a4b0b7}@media(max-width:740px){.usd-live .p-history-row .u-btn{width:100%}.usd-live .p-entry-results{padding:20px}.usd-live .p-entry-results li>span:first-child{flex-basis:100%}}
-body .usd-live .public-result-profile-link{color:inherit;text-decoration:underline;text-decoration-color:#a7656f;text-underline-offset:4px;overflow-wrap:anywhere}
+body .usd-live :is(.public-result-profile-link,.public-record-profile-link){color:inherit;text-decoration:underline;text-decoration-color:#a7656f;text-underline-offset:4px;overflow-wrap:anywhere}
+body .usd-live .public-record-profile-link{display:inline-flex;align-items:center;min-height:44px;min-width:0}
 /* Long public system names must leave room for the version badge on phones. */
 .usd-live .p-system .u-panel-heading{flex-wrap:wrap;align-items:flex-start}.usd-live .p-system .u-panel-heading h3{min-width:0;flex:1 1 180px;overflow-wrap:anywhere}.usd-live .p-system .u-panel-heading .u-tag{max-width:100%;white-space:normal}
 

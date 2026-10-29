@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {getLiveQaConfig} from '../../scripts/public-browser-qa-config.mjs';
+import {isCandidateApiRequest} from '../../scripts/candidate-browser-qa-config.mjs';
+
+test('candidate browser fixtures intercept only the self-hosted API',()=>{
+ for(const url of ['https://api.usd-russia.ru/auth/refresh','https://api.usd-russia.ru/stages/public'])assert.equal(isCandidateApiRequest(url),true);
+ for(const url of ['https://api.usd-russia.ru.example.com/auth/refresh','https://api.usd-russia.ru@unrelated.example/auth/refresh','https://usd-russia.ru/','http://127.0.0.1:3000/','invalid'])assert.equal(isCandidateApiRequest(url),false);
+});
 
 test('live acceptance checks the deployed prerelease site without candidate CSS',()=>{
  const config=getLiveQaConfig({});

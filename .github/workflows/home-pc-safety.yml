@@ -14,6 +14,7 @@ on:
       - 'frontend/**'
       - '.github/workflows/home-pc-safety.yml'
       - '.github/workflows/request-home-pc-deploy.yml'
+      - '.github/workflows/publish-home-pc-images.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build candidate API image from production Dockerfile
-        run: docker build -t usd-api-candidate:${{ github.sha }} ./backend
+        run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-api-candidate:${{ github.sha }} ./backend
       - name: Verify API artifact and no implicit migration startup
         run: |
           set -euo pipefail
@@ -72,6 +73,7 @@ jobs:
             sleep 2
           done
           if [[ "$api_ready" != 1 ]]; then docker logs --tail=150 usd-api-ci-app; exit 1; fi
+          docker exec usd-api-ci-app node -e "fetch('http://127.0.0.1:3000/release').then(r=>r.json()).then(v=>process.exit(v.revision==='${{ github.sha }}'?0:1)).catch(()=>process.exit(1))"
           docker exec usd-api-ci-app node -e \
             'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000});(async()=>{try{await c.connect();const r=await c.query("SELECT 1 AS ok");if(r.rows[0].ok!==1)process.exitCode=1;}finally{await c.end();}})().catch(()=>{process.exitCode=1;})'
       - name: Rehearse schema migration on a restored PostgreSQL 18 archive
@@ -132,20 +134,31 @@ jobs:
           grep -q "Migration rehearsal cleanup failed" "$fakebin/failure.log"
           rm -rf "$fakebin"
       - name: Build candidate frontend image with production API URL
-        run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
+        run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
+      - name: Rehearse first-run nullable schema upgrade on real isolated PostgreSQL
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT,RUNNER_ENVIRONMENT bash deploy/home-pc/test-initial-schema-docker.sh '${{ github.sha }}'
       - name: Verify production frontend assets exist
-        run: docker run --rm --entrypoint sh usd-frontend-candidate:${{ github.sha }} -c 'test -s /usr/share/nginx/html/index.html'
+        run: |
+          docker run --rm --entrypoint sh usd-frontend-candidate:${{ github.sha }} -c 'test -s /usr/share/nginx/html/index.html'
+          docker run --rm --entrypoint cat usd-frontend-candidate:${{ github.sha }} /usr/share/nginx/html/usd-release.json | python3 -c 'import json,sys; assert json.load(sys.stdin)["revision"] == "${{ github.sha }}"'
       - name: Smoke-test real Nginx frontend readiness without publishing ports
         run: |
           set -euo pipefail
           docker run -d --name usd-frontend-ci-readiness usd-frontend-candidate:${{ github.sha }}
           trap 'docker rm -f usd-frontend-ci-readiness >/dev/null 2>&1 || true' EXIT
+          usd_frontend_ready=0
           for attempt in $(seq 1 20); do
-            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then exit 0; fi
+            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then usd_frontend_ready=1; break; fi
             sleep 1
           done
-          docker logs usd-frontend-ci-readiness
-          exit 1
+          [[ "$usd_frontend_ready" == 1 ]] || { docker logs usd-frontend-ci-readiness; exit 1; }
+          for path in /index.html /admin/inspections /usd-release.json; do
+            headers="$(docker exec usd-frontend-ci-readiness wget -S -O /dev/null "http://127.0.0.1$path" 2>&1)"
+            grep -qi 'X-Frame-Options: DENY' <<< "$headers"
+            grep -qi 'X-Content-Type-Options: nosniff' <<< "$headers"
+            grep -qi 'Permissions-Policy: camera=(self)' <<< "$headers"
+            if [[ "$path" == /usd-release.json ]]; then grep -qi 'Cache-Control: no-store' <<< "$headers"; fi
+          done
 
   validate:
     runs-on: ubuntu-latest
@@ -162,9 +175,22 @@ jobs:
           bash -n deploy/home-pc/verify-db-offsite-backup.sh
           bash -n deploy/home-pc/install-local-deployer.sh
           bash -n deploy/home-pc/install-runner-trigger.sh
+          bash -n deploy/home-pc/setup-home-pc.sh
+          bash -n deploy/home-pc/test-initial-schema-docker.sh
+          bash -n deploy/home-pc/test-setup-home-pc.sh
+          bash -n deploy/home-pc/prepare-runner-launcher.sh
           bash -n deploy/home-pc/test-release.sh
           bash -n deploy/home-pc/test-auto-deploy.sh
           bash -n deploy/home-pc/test-release-docker.sh
+          python3 -m py_compile deploy/home-pc/s3/migrate-b2.py
+          python3 deploy/home-pc/s3/migrate-b2.py --help >/dev/null
+          python3 -m py_compile deploy/home-pc/s3/stage-api-s3.py
+          python3 -m py_compile deploy/home-pc/s3/configure-offsite-b2.py
+          python3 -m py_compile deploy/home-pc/s3/backup-to-second-disk.py
+          python3 deploy/home-pc/s3/backup-to-second-disk.py --help >/dev/null
+          python3 -m py_compile deploy/home-pc/s3/verify-local-hdd-snapshot.py
+          bash -n deploy/home-pc/s3/finish-usd-on-ubuntu.sh
+          python3 deploy/home-pc/s3/stage-api-s3.py --help >/dev/null
       - name: Check self-hosted runner trigger has no privileged workflow checkout
         run: |
           set -euo pipefail
@@ -172,7 +198,7 @@ jobs:
           from pathlib import Path
           workflow = Path('.github/workflows/request-home-pc-deploy.yml').read_text()
           installer = Path('deploy/home-pc/install-runner-trigger.sh').read_text()
-          for expected in ('workflow_run:', 'Home PC deployment safety checks', "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
+          for expected in ('workflow_run:', 'Publish self-hosted USD images', "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
               assert expected in workflow, expected
           assert 'pull_request:' not in workflow
           assert 'actions/checkout' not in workflow
@@ -193,7 +219,7 @@ jobs:
           sudo apt-get install -y -qq rclone
           root="$(mktemp -d)"
           trap 'rm -rf "$root"' EXIT
-          mkdir -p "$root/source/sub" "$root/backup"
+          mkdir -p "$root/source/sub"
           printf 'USD media fixture 1\n' > "$root/source/first.bin"
           printf 'USD media fixture 2\n' > "$root/source/sub/second.bin"
           bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup"
@@ -283,13 +309,13 @@ jobs:
             test "$status" -eq 75
             grep -q "deployment is active" /tmp/usd-installer-lock-test.log
           '
-      - name: Validate local and tunnel Compose overlays without touching a server
+      - name: Validate local Compose overlays without touching a server
         run: |
           set -euo pipefail
           cd deploy/home-pc
           cp .env.example .env
           chmod 600 .env
-          # Tunnel-only hosts must not expose the direct Caddy ingress by default.
+          # Direct ingress remains opt-in until the host is approved.
           ! docker compose --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --profile direct-edge --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
@@ -299,18 +325,14 @@ jobs:
           trap 'rm -rf "$trusted"' EXIT
           cp compose*.yaml "$trusted/"
           docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.local.yaml" config --quiet
-          printf 'TUNNEL_TOKEN=ci-placeholder\n' > .env.cloudflared
-          chmod 600 .env.cloudflared
-          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
-          docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.tunnel.yaml" config --quiet
-          docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
-          # Never inject the tunnel credential into the API or database container.
-          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --format json |
-            python3 -c 'import json,sys; services=json.load(sys.stdin)["services"]; assert "TUNNEL_TOKEN" not in services["api"].get("environment",{}); assert "TUNNEL_TOKEN" not in services["db"].get("environment",{}); assert services["cloudflared"]["environment"]["TUNNEL_TOKEN"] == "ci-placeholder"'
       - name: Validate GitHub main push CI release gate
         run: |
           set -euo pipefail
           python3 deploy/home-pc/test-verify-main-ci.py -v
+          python3 deploy/home-pc/test-initial-schema.py -v
+          python3 deploy/home-pc/test-verify-prerelease.py -v
+          python3 deploy/home-pc/test-prepare-host-files.py -v
+          sudo bash deploy/home-pc/test-setup-home-pc.sh
           python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/home-pc/verify-main-ci.py").read_text())'
       - name: Check invalid release SHA is rejected before Docker access
         run: |

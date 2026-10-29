@@ -31,7 +31,7 @@ export default function PremiumHome({settings,stages,results,records,participant
  const best=highestDbRecord(records),topRecords=selectHomepageRecords(records),teams=teamGroups(participants),news=publishedNews(settings.news);
  const partners=visiblePartners(settings.partners);
  const stream=safeHref(settings.stream?.embedUrl);
- const streamAllowed=stream.startsWith('https:')&&!/\.workers\.dev|\.up\.railway\.app/.test(new URL(stream).hostname);
+ const streamAllowed=stream.startsWith('https:');
  const showBroadcast=enabled('live-stream')&&settings.homepage?.showLiveStream!==false;
  const showLive=enabled('live-results')&&settings.homepage?.showLiveResults!==false;
  const broadcastActive=showBroadcast&&settings.stream?.enabled===true;

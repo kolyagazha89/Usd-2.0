@@ -3,7 +3,7 @@ const API_BASE = configuredApiBase
   ? (/^https?:\/\//i.test(configuredApiBase)
       ? configuredApiBase
       : 'https://' + configuredApiBase.replace(/^\/+/, ''))
-  : 'https://usd-api-production.up.railway.app';
+  : 'https://api.usd-russia.ru';
 
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;
@@ -77,7 +77,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
 export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
 export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch((error:ApiError)=>{accessToken=null;if(error.status===401){clearAuthSession();window.dispatchEvent(new Event('usd:session-expired'));}return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
-export function clearAuthSession(){accessToken=null;try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}}
+export function clearAuthSession(){accessToken=null;for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}privateMediaObjectUrls.clear();try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}}
 export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}catch{/* Expired sessions or network errors must not block local sign-out. */}finally{clearAuthSession();}}
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
@@ -91,7 +91,30 @@ export async function apiPatch<T=any>(path:string,body:any){return request<T>(pa
 export async function apiPut<T=any>(path:string,body:any){return request<T>(path,{method:'PUT',body:JSON.stringify(body)});}
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
-export async function getMediaUrl(targetType:string,targetId:string){const path=targetType==='SITE_ASSET'?'/media/public-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId):'/media/view/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);const r=await apiGet<{success:boolean;url?:string}>(path);return r.url??`${API_BASE}${path}`;}
+const privateMediaObjectUrls = new Set<string>();
+export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.delete(url))URL.revokeObjectURL(url);}
+export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
+  const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
+  const read=async(retry:boolean):Promise<string>=>{
+    const headers=new Headers();
+    if(accessToken)headers.set('Authorization',`Bearer ${accessToken}`);
+    const response=await fetch(`${API_BASE}${path}`,{headers,credentials:'include'});
+    if(response.status===401&&retry){
+      const renewed=await refresh();
+      if(renewed)return read(false);
+    }
+    if(!response.ok)throw new Error('Не удалось получить медиафайл ('+response.status+')');
+    const url=URL.createObjectURL(await response.blob());
+    privateMediaObjectUrls.add(url);
+    return url;
+  };
+  if(!accessToken)await refresh();
+  return read(true);
+}
+export async function getMediaUrl(targetType:string,targetId:string){
+  if(targetType==='SITE_ASSET')return `${API_BASE}/media/public-file/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`;
+  return getPrivateMediaObjectUrl(targetType,targetId);
+}
 
 export async function getSiteSettings(){return apiGet<any>('/site-settings');}
 export async function getPublicSiteSettings(){return apiGet<any>('/site-settings/public');}

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Exercise production builder logic against a disposable Git repo and Docker mocks.
+# All host paths are rewritten into a private temporary directory below and
+# Docker is replaced with a mock. No production host fixture is installed.
 set -Eeuo pipefail
-[[ "${GITHUB_ACTIONS:-}" == true && -n "${GITHUB_RUN_ID:-}" && "$(id -u)" == 0 ]] ||
-  { echo 'Run only in isolated GitHub Actions CI as root' >&2; exit 1; }
+[[ "$(id -u)" == 0 ]] ||
+  { echo 'Run as root to exercise root-owned policy checks' >&2; exit 1; }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/source/backend/prisma" "$WORK/state" "$WORK/bin"
@@ -60,8 +61,18 @@ SH
 cat > "$WORK/bin/docker" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$USD_TEST_WORK/docker.log"
-if [[ "${1:-}" == image && "${2:-}" == inspect && "${USD_TEST_MISSING_IMAGE:-0}" == 1 && "$*" == *frontend* ]]; then exit 1; fi
-[[ "${USD_TEST_FAIL_BUILD:-0}" != 1 ]]
+if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then
+  if [[ "${USD_TEST_MISSING_IMAGE:-0}" == 1 && "$*" == *frontend* && ! -e "$USD_TEST_WORK/frontend-pulled" ]]; then exit 1; fi
+  if [[ "$*" == *org.opencontainers.image.revision* ]]; then
+    printf '%s\n' "${USD_TEST_IMAGE_REVISION:-$USD_TEST_MAIN_SHA}"
+  fi
+fi
+if [[ "${1:-}" == pull ]]; then
+  [[ "${USD_TEST_FAIL_PULL:-}" != api || "$*" != *usd-2.0-api:* ]] || exit 1
+  [[ "${USD_TEST_FAIL_PULL:-}" != frontend || "$*" != *usd-2.0-frontend:* ]] || exit 1
+  [[ "$*" != *frontend* ]] || touch "$USD_TEST_WORK/frontend-pulled"
+fi
+[[ "${1:-}" != build ]] || { echo 'Home host must use published images' >&2; exit 1; }
 SH
 cat > "$WORK/bin/df" <<'SH'
 #!/usr/bin/env bash
@@ -69,7 +80,7 @@ printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/mock 999999
 SH
 cat > "$WORK/bin/awk" <<'SH'
 #!/usr/bin/env bash
-if [[ "$*" == *MemAvailable* ]]; then echo 8192; else exec /usr/bin/awk "$@"; fi
+if [[ "$*" == *MemAvailable* ]]; then echo "${USD_TEST_AVAILABLE_MB:-8192}"; else exec /usr/bin/awk "$@"; fi
 SH
 cat > "$WORK/release" <<'SH'
 #!/usr/bin/env bash
@@ -120,10 +131,25 @@ if bash "$WORK/builder" > "$WORK/insecure-source.log" 2>&1; then exit 1; fi
 grep -q 'Deploy directory must not be group/world writable' "$WORK/insecure-source.log"
 [[ ! -f "$WORK/docker.log" ]]
 chmod 755 "$WORK/source"
+# Pulling published images does not need the old 3 GiB compilation budget,
+# but must retain room for the bounded disposable PostgreSQL/Prisma containers.
+export USD_TEST_AVAILABLE_MB=1024
+if bash "$WORK/builder" > "$WORK/low-memory.log" 2>&1; then exit 1; fi
+grep -q 'Insufficient memory' "$WORK/low-memory.log"
+[[ ! -f "$WORK/docker.log" ]]
+export USD_TEST_AVAILABLE_MB=2048
 # Default remains build-only, then an approved unchanged schema releases cached images.
 bash "$WORK/builder" > "$WORK/build-only.log"
 [[ ! -f "$WORK/releases.log" ]]
 [[ "$(cat "$WORK/state/built-sha")" == "$NEW" ]]
+[[ "$(grep -c '^pull ' "$WORK/docker.log")" == 2 ]]
+! grep -q '^build ' "$WORK/docker.log"
+# Cached images are checked too; a marker is not evidence of their provenance.
+export USD_TEST_IMAGE_REVISION="$OLD"
+if bash "$WORK/builder" > "$WORK/wrong-cached-revision.log" 2>&1; then exit 1; fi
+grep -q 'Image revision does not match' "$WORK/wrong-cached-revision.log"
+[[ ! -f "$WORK/releases.log" ]]
+unset USD_TEST_IMAGE_REVISION
 printf '%s\n' "$SCHEMA" > "$WORK/policy"
 chmod 600 "$WORK/policy"
 # A pending or failed main push CI must not release even a locally built SHA.
@@ -179,22 +205,32 @@ grep -q 'Main moved or became unverifiable during media backup' "$WORK/main-move
 [[ ! -f "$WORK/releases.log" ]]
 rm -f "$WORK/main-moved-during-media"
 unset USD_TEST_MOVE_MAIN_DURING_MEDIA
-# A failed image build cannot mark this version ready or invoke release.
-printf '%040d\n' 0 > "$WORK/state/built-sha"
-export USD_TEST_FAIL_BUILD=1
-if bash "$WORK/builder" > "$WORK/build-failure.log" 2>&1; then exit 1; fi
-[[ ! -f "$WORK/releases.log" ]]
+# Neither a failed first pull nor a successful API/failed frontend pull may
+# mark the candidate ready or invoke the release helper.
+for image in api frontend; do
+  printf '%040d\n' 0 > "$WORK/state/built-sha"
+  export USD_TEST_FAIL_PULL="$image"
+  if bash "$WORK/builder" > "$WORK/pull-failure-$image.log" 2>&1; then exit 1; fi
+  [[ ! -f "$WORK/releases.log" ]]
+  [[ "$(cat "$WORK/state/built-sha")" != "$NEW" ]]
+done
+unset USD_TEST_FAIL_PULL
+# A mistagged image must fail closed, including an already cached candidate.
+export USD_TEST_IMAGE_REVISION="$OLD"
+if bash "$WORK/builder" > "$WORK/wrong-image-revision.log" 2>&1; then exit 1; fi
+grep -q 'Image revision does not match' "$WORK/wrong-image-revision.log"
 [[ "$(cat "$WORK/state/built-sha")" != "$NEW" ]]
-unset USD_TEST_FAIL_BUILD
+unset USD_TEST_IMAGE_REVISION
 printf '%s\n' "$NEW" > "$WORK/state/built-sha"
-build_lines="$(grep -c '^build ' "$WORK/docker.log")"
+pull_lines="$(grep -c '^pull ' "$WORK/docker.log")"
 bash "$WORK/builder" > "$WORK/release.log"
 [[ "$(cat "$WORK/releases.log")" == "$NEW" ]]
-[[ "$(grep -c '^build ' "$WORK/docker.log")" == "$build_lines" ]]
-# A pruned frontend image must invalidate the cache and rebuild BOTH images.
+[[ "$(grep -c '^pull ' "$WORK/docker.log")" == "$pull_lines" ]]
+# A pruned frontend image invalidates the cache and reacquires both images.
 export USD_TEST_MISSING_IMAGE=1
+rm -f "$WORK/frontend-pulled"
 bash "$WORK/builder" > "$WORK/pruned-image.log"
-[[ "$(grep -c '^build ' "$WORK/docker.log")" == "$((build_lines + 2))" ]]
+[[ "$(grep -c '^pull ' "$WORK/docker.log")" == "$((pull_lines + 2))" ]]
 unset USD_TEST_MISSING_IMAGE
 # Lock contention is transient and must never quarantine a good build.
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
@@ -241,4 +277,4 @@ export USD_TEST_MAIN_SHA="$NEWER"
 bash "$WORK/builder" > "$WORK/frontend-change.log"
 grep -q "^$NEWER 1$" "$WORK/ci.log"
 grep -q "^$NEWER$" "$WORK/releases.log"
-echo 'Automatic release policy, cached builds, schema gate and failed-SHA quarantine tests passed'
+echo 'Published image pulls, partial-download refusal, revision checks, release policies, schema and quarantine tests passed'

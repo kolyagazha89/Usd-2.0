@@ -3,6 +3,7 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import {isCandidateApiRequest} from './candidate-browser-qa-config.mjs';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
 const output=path.resolve('candidate-browser-qa');await mkdir(output,{recursive:true});
@@ -86,7 +87,7 @@ try{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
-    if(url.hostname==='usd-api-production.up.railway.app'){
+    if(isCandidateApiRequest(url)){
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'){
       blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
      }

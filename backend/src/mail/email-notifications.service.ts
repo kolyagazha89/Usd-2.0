@@ -23,7 +23,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
   private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
-  private readonly apiUrl = (process.env.PUBLIC_API_URL ?? process.env.API_BASE_URL ?? process.env.BACKEND_URL ?? 'https://usd-api-production.up.railway.app').replace(/\/+$/, '');
+  private readonly apiUrl = (process.env.PUBLIC_API_URL ?? process.env.API_BASE_URL ?? process.env.BACKEND_URL ?? 'https://api.usd-russia.ru').replace(/\/+$/, '');
 
   private async getLogoUrl(): Promise<string | null> {
     const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { branding: true } });

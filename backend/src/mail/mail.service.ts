@@ -10,7 +10,7 @@ import { setDefaultResultOrder } from 'node:dns';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
-// Prefer IPv4 on Railway, where outbound IPv6 SMTP routes may be unavailable.
+// Prefer IPv4 on домашнем сервере USD, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
 
 function escapeHtml(value: unknown): string {
@@ -200,7 +200,7 @@ export class MailService {
         throw new Error('RESEND_FROM_EMAIL must be configured when RESEND_API_KEY is set');
       }
 
-      // Resend uses HTTPS (port 443), which works on Railway plans that block SMTP.
+      // Resend uses HTTPS (port 443), which works on домашнем сервере USD plans that block SMTP.
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -258,7 +258,7 @@ export class MailService {
     if(gmailPartiallyConfigured&&!smtpConfigured) {
       throw new Error('Gmail API email configuration is incomplete. Set GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL or configure a complete SMTP/Resend provider.');
     }
-    // Railway may block outbound SMTP. Keep the explicit opt-in, even when
+    // домашнем сервере USD may block outbound SMTP. Keep the explicit opt-in, even when
     // SMTP credentials are present: avoid hanging real registration requests.
     if (process.env.SMTP_EGRESS_ALLOWED !== 'true') {
       throw new Error('SMTP delivery requires SMTP_EGRESS_ALLOWED=true on a network that supports it; otherwise configure Gmail API or Resend HTTPS.');
@@ -332,7 +332,7 @@ export class MailService {
         !process.env.GMAIL_REFRESH_TOKEN?.trim()&&'GMAIL_REFRESH_TOKEN',
         !process.env.GMAIL_SENDER_EMAIL?.trim()&&'GMAIL_SENDER_EMAIL',
       ].filter((v):v is string=>Boolean(v));
-      return {provider:'Gmail API HTTPS',ready:!missing.length,missing,note:missing.length?'Gmail API настроен частично. Заполните отсутствующие параметры в окружении Railway.':'OAuth-настройки присутствуют; фактическую авторизацию проверит тестовое письмо.'};
+      return {provider:'Gmail API HTTPS',ready:!missing.length,missing,note:missing.length?'Gmail API настроен частично. Заполните отсутствующие параметры в окружении сервера USD.':'OAuth-настройки присутствуют; фактическую авторизацию проверит тестовое письмо.'};
     }
     const missing=[
       !process.env.SMTP_HOST?.trim()&&'SMTP_HOST',
@@ -341,7 +341,7 @@ export class MailService {
       !this.from?.trim()&&'SMTP_FROM',
       process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
     ].filter((v):v is string=>Boolean(v));
-    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно не включено для отправки с сервера. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на Railway подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
+    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно не включено для отправки с сервера. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на сервере USD подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
@@ -365,12 +365,12 @@ export class MailService {
       };
     } catch (error) {
       this.logger.error(`Test email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
-      throw new InternalServerErrorException('Почтовый провайдер не принял тестовое письмо. Проверьте конфигурацию почты в Railway.');
+      throw new InternalServerErrorException('Почтовый провайдер не принял тестовое письмо. Проверьте конфигурацию почты в домашнем сервере USD.');
     }
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
-    const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://usd-api-production.up.railway.app').replace(/\/+$/, '');
+    const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://api.usd-russia.ru').replace(/\/+$/, '');
     const verificationUrl = `${apiUrl}/auth/verify-email?token=${encodeURIComponent(token)}`;
     const template = await this.getEmailTemplate('AUTH_EMAIL_VERIFICATION');
     const message = renderBrandedEmail({

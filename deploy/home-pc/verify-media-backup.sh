@@ -42,6 +42,9 @@ except (OSError, ValueError) as exc:
     sys.exit(1)
 PY
 # Require an empty backup prefix: never overwrite or mix snapshots.
+# Filesystem-style remotes return an error for a missing directory. Create the
+# validated new prefix first; mkdir is idempotent and never replaces objects.
+rclone mkdir "$backup"
 existing="$(rclone lsf --recursive --files-only "$backup")" || { echo 'Backup destination is not accessible' >&2; exit 1; }
 [[ -z "$existing" ]] || { echo 'Backup destination is not empty; use a new snapshot prefix' >&2; exit 1; }
 summary="$(rclone size --json "$source")"

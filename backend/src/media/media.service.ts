@@ -188,6 +188,26 @@ export class MediaService {
     return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, expiresIn), expiresIn, contentType: upload.contentType };
   }
 
+  async getPrivateMediaFile(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
+    // Private site assets may include unpublished legal documents; require ADMIN.
+    if (targetType === MediaTargetType.SITE_ASSET && role !== 'ADMIN') throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false);
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: { targetType, targetId, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { objectKey: true, contentType: true },
+    });
+    if (!upload) throw new NotFoundException('Медиафайл не найден');
+    const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
+    if (!response.ok) throw new ServiceUnavailableException('Не удалось получить медиафайл из S3');
+    const contentLength = Number(response.headers.get('content-length') || '0');
+    if (contentLength > MAX_IMAGE_BYTES) throw new BadRequestException('Размер медиафайла превышает 10 MB');
+    const body = Buffer.from(await response.arrayBuffer());
+    if (body.length === 0 || body.length > MAX_IMAGE_BYTES) throw new BadRequestException('Некорректный размер медиафайла');
+    return { body, contentType: upload.contentType };
+  }
+
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
     if (targetType === MediaTargetType.SITE_ASSET) {
       if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
@@ -344,7 +364,6 @@ export class MediaService {
       return true;
     });
     const referenced = await this.getReferencedSiteAssetIds();
-    const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
     return {
       success: true,
       items: latest.map((upload) => ({
@@ -354,7 +373,6 @@ export class MediaService {
         contentType: upload.contentType,
         completedAt: upload.completedAt,
         createdAt: upload.createdAt,
-        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
         isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
           ? referenced.has(upload.targetId)
           : true,
