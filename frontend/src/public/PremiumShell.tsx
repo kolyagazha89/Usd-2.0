@@ -6,6 +6,7 @@ import {hasAdminPanelAccess} from '../navigation/accountAccess';
 import {Link,PremiumNavigation,PremiumPlaceholders,type PhotoPlaceholders} from './PremiumUI';
 import type {User} from '../api';
 import {safeHref} from './premium-model';
+import {canonicalForRoute,openGraphImageUrl} from './metadata-model';
 import {footerPublicNavigationGroups,mobileDockNavigationItems} from './navigation-model';
 const DOCK_ICONS:Record<string,typeof Home>={'/':Home,'/stages':CalendarDays,'/results':BarChart3,'/records':Trophy,'/participants':UserRound,'/teams':Users,'/news':Newspaper,'/rules':BookOpen,'/documents':FileText,'/partners':Handshake,'/cars':Car,'/about':Info,'/contacts':Phone};
 const dockRouteActive=(route:string,path:string)=>route===path||(path!=='/'&&route.startsWith(path+'/'));
@@ -30,9 +31,9 @@ export function PublicMetadata({path,settings,title}:{path:string;settings:any;t
   const text=path==='/'?(settings.seo?.title||'USD — Ultimate Sound Destruction'):title+' — USD';document.title=text;
   const description=settings.seo?.description||'Чемпионат USD по автозвуку: этапы, результаты, рекорды и сообщество участников.';
   const set=(name:string,content:string,property=false)=>{let el=document.querySelector<HTMLMetaElement>(`meta[${property?'property':'name'}="${name}"]`);if(!el){el=document.createElement('meta');el.setAttribute(property?'property':'name',name);document.head.append(el)}el.content=content};
-  set('description',description);set('og:title',settings.seo?.ogTitle||text,true);set('og:description',settings.seo?.ogDescription||description,true);set('og:type','website',true);set('og:image',safeHref(settings.seo?.ogImage)||location.origin+'/usd/usd-show-hero.webp',true);
+  set('description',description);set('og:title',settings.seo?.ogTitle||text,true);set('og:description',settings.seo?.ogDescription||description,true);set('og:type','website',true);set('og:image',openGraphImageUrl(settings.seo?.ogImage,location.origin),true);
   if(settings.seo?.keywords)set('keywords',settings.seo.keywords);
   let icon=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.append(icon)}icon.href=safeHref(settings.branding?.faviconUrl)||'/favicon.ico';
-  let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.append(canonical)}const configured=safeHref(settings.seo?.canonical);const canonicalUrl=configured?new URL(configured,location.origin):null;canonical.href=canonicalUrl?.origin===location.origin?canonicalUrl.href:location.origin+path;set('og:url',canonical.href,true);
+  let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.append(canonical)}canonical.href=canonicalForRoute(path,settings.seo?.canonical,location.origin);set('og:url',canonical.href,true);
  },[path,settings.seo?.title,settings.seo?.description,settings.seo?.ogTitle,settings.seo?.ogDescription,settings.seo?.ogImage,settings.seo?.canonical,settings.seo?.keywords,settings.branding?.faviconUrl,title]);return null;
 }
