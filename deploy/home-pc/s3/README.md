@@ -295,6 +295,54 @@ supervised release/backup gates, verified production migration and HTTPS
 ingress. Keep Backblaze until the public media UI and independent backups
 are fully verified.
 
+## 5a. Recommended offsite backup using a separate Backblaze B2 bucket
+
+Keep the existing B2 `usd-media` originals untouched as a rollback copy.
+Create a **new, private** Backblaze B2 bucket called `usd-backups` in
+region `us-east-005` and a **separate application key** with read/write/list
+access restricted to that backup bucket. Do not reuse the old read-only
+`usd-b2` migration key and do not expose Backblaze credentials in GitHub/chat.
+Using B2 for backup incurs provider storage/API/egress costs.
+
+Install rclone and store the new B2 key through AWS CLI's interactive
+root-only profile, not through a shell variable or shell history:
+
+```bash
+sudo apt-get install -y rclone
+sudo /usr/local/bin/aws configure --profile usd-b2-backup
+# AWS Access Key ID = NEW Backblaze application key ID
+# AWS Secret Access Key = NEW Backblaze application key
+# Default region name = us-east-005
+# Default output format = json
+sudo chmod 0600 /root/.aws/credentials
+```
+
+The root-only setup helper reads only the restricted local RustFS credentials
+and this new B2 profile. It verifies local media inventory and access to the
+separate bucket, writes/reads one small non-deleted connectivity marker in B2,
+then creates two protected rclone remotes and two release backup policies.
+It **does not run a live backup itself**, restart containers or re-enable
+the autodeployer. It refuses to overwrite existing remotes/policies:
+
+```bash
+cd /home/usd/usd-deploy
+git fetch --no-tags origin fix/home-pc-autodeploy-20261029
+git show FETCH_HEAD:deploy/home-pc/s3/configure-offsite-b2.py | sudo python3 -
+```
+
+Success: `OFFSITE CONFIGURED`. Now run the existing reviewed verifier
+`usd-verify-media-backup` with a **fresh unique** snapshot path under
+`usd-b2-offsite:usd-backups/backups/usd/media`; it copies all source media
+and downloads it back to a disposable directory for byte-by-byte check.
+Also create a fresh PostgreSQL 18 dump and run
+`usd-verify-db-offsite-backup` against
+`usd-b2-offsite:usd-backups/backups/usd/postgres/<unique>.dump`, then
+restore that dump to disposable PostgreSQL and verify its contents before
+authorizing any app release. **Do not** treat an installed policy alone as
+evidence that the backups or restore succeeded. Establish regular retention,
+encryption and a recovery procedure from another machine; backup IAM should
+not be used by the live USD API.
+
 ## 5. Independent backups and PR #309
 
 The server-local RustFS bucket can be the `rclone` media *source*, but the
