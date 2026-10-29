@@ -76,6 +76,9 @@ USD_IMAGE_TAG=$OLD
 POSTGRES_DB=usd
 POSTGRES_USER=usd
 POSTGRES_PASSWORD=disposable-ci-only
+DATABASE_URL=postgresql://usd:disposable-ci-only@db:5432/usd?schema=public
+APP_DOMAIN=app.usd-russia.ru
+API_DOMAIN=api.usd-russia.ru
 QA_VOLUME=$volume
 ENV
 chmod 600 "$ROOT/.env"
