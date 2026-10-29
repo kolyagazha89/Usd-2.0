@@ -80,7 +80,7 @@ domains, wrong database hosts, mismatched passwords and duplicates.
 
 ## Image builds and data boundaries
 
-- Before an automatic release, the builder checks the live GitHub main tip again **after** CI verification; if a new commit arrived during the long local build, it defers the stale candidate and rebuilds the newer main SHA on the next poll. A malformed or unreachable remote ref also blocks release without quarantining a healthy image.
+- Before an automatic release, the builder checks the live GitHub main tip after CI and again after the full media backup. The release helper makes one **final main-tip check after the independent PostgreSQL backup, disposable restore/migration rehearsal and Compose validation, immediately before replacing `.env`**. A newer, malformed or unreachable main ref defers the stale candidate with retry status 75; it must not replace live containers or quarantine a healthy SHA. Direct supervised releases remain explicitly operator-approved.
 - The local timer builds API/frontend with immutable full Git SHA tags. GHCR publication is a manual fallback. Local builds require at least 3 GB available RAM and 8 GB free Docker storage; insufficient capacity blocks the build. The build cache is valid only when both SHA-tagged images remain present; if Docker prunes either one, the next poll rebuilds both. The dedicated root-owned checkout is forcibly cleaned of untracked files before every rebuild.
 - Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env.
 - Database remains private on the Compose bridge (no published PostgreSQL port).
