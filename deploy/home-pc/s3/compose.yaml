@@ -26,7 +26,7 @@ services:
       - "127.0.0.1:19000:9000/tcp"
       - "127.0.0.1:19001:9001/tcp"
     healthcheck:
-      test: ["CMD", "sh", "-ec", "curl -fsS http://127.0.0.1:9000/health >/dev/null && curl -fsS http://127.0.0.1:9001/rustfs/console/health >/dev/null"]
+      test: ["CMD", "sh", "-ec", "curl -fsS http://127.0.0.1:9000/health/ready >/dev/null && curl -fsS http://127.0.0.1:9001/rustfs/console/health >/dev/null"]
       interval: 20s
       timeout: 10s
       retries: 6
