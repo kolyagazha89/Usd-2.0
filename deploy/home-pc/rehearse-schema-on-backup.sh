@@ -34,11 +34,28 @@ network_created=0
 volume_created=0
 container_created=0
 cleanup() {
-  local status=$?
+  local status=$? cleanup_failed=0
   trap - EXIT
-  if [[ "$container_created" == 1 ]]; then docker rm -f "$db" >/dev/null 2>&1 || true; fi
-  if [[ "$volume_created" == 1 ]]; then docker volume rm "$volume" >/dev/null 2>&1 || true; fi
-  if [[ "$network_created" == 1 ]]; then docker network rm "$network" >/dev/null 2>&1 || true; fi
+  # The disposable volume contains a FULL copy of production personal data.
+  # A cleanup failure must never be reported as a successful rehearsal.
+  if [[ "$container_created" == 1 ]] && ! docker rm -f "$db" >/dev/null 2>&1; then
+    echo "CRITICAL: disposable PostgreSQL container remains: $db" >&2
+    cleanup_failed=1
+  fi
+  if [[ "$volume_created" == 1 ]] && ! docker volume rm "$volume" >/dev/null 2>&1; then
+    echo "CRITICAL: restored production data may remain in Docker volume: $volume" >&2
+    cleanup_failed=1
+  fi
+  if [[ "$network_created" == 1 ]] && ! docker network rm "$network" >/dev/null 2>&1; then
+    echo "CRITICAL: disposable migration network remains: $network" >&2
+    cleanup_failed=1
+  fi
+  if [[ "$cleanup_failed" == 1 ]]; then
+    echo 'Migration rehearsal cleanup failed; remove isolated resources securely before approving any release' >&2
+    [[ "$status" != 0 ]] || status=1
+  elif [[ "$status" == 0 ]]; then
+    echo 'PASS: PostgreSQL 18 archive restored; Prisma migrations applied; existing row counts preserved; disposable database and volume securely removed.'
+  fi
   exit "$status"
 }
 trap cleanup EXIT
@@ -83,4 +100,4 @@ rows_after="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc "$
   exit 1
 }
 docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc 'SELECT 1' | grep -qx 1
-echo 'PASS: PostgreSQL 18 archive restored; candidate Prisma migrations applied, status checked and existing table row counts preserved on isolated disposable DB.'
+# Success is reported by the EXIT trap only after all disposable resources are removed.
