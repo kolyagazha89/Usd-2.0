@@ -88,7 +88,7 @@ curl -fsS http://127.0.0.1:19000/health
 
 The systemd unit refuses to start if /srv/usd-s3 is not a mount point.
 It owns the container lifecycle (no Docker restart policy that could bypass
-the disk-mount preflight). Source image: `rustfs/rustfs:1.0.3` — review/pin
+the disk-mount preflight). Source image: `rustfs/rustfs:1.0.4` — review/pin
 its immutable digest on the host after verifying the official image.
 
 Open the private Console from your PC via SSH local forwarding:
