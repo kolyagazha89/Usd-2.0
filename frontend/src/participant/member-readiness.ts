@@ -6,12 +6,13 @@ export type AudioDirection='SUB'|'FRONT'|'REAR';
 
 /** An imported or partially entered car is not ready just because it has an ID.
  * Keep historical cars visible, but guide the owner to complete missing fields. */
+const hasUsableName=(value:unknown)=>typeof value==='string'&&value.trim().length>0
+ &&!/^(не указано|не указан|нет|—|-)$/i.test(value.trim());
+
 export function isCarIdentityComplete(car:unknown):boolean{
  if(!car||typeof car!=='object')return false;
  const item=car as {id?:unknown;brand?:unknown;model?:unknown};
- const usable=(value:unknown)=>typeof value==='string'&&value.trim().length>0
-  &&!/^(не указано|не указан|нет|—|-)$/i.test(value.trim());
- return usable(item.id)&&usable(item.brand)&&usable(item.model);
+ return hasUsableName(item.id)&&hasUsableName(item.brand)&&hasUsableName(item.model);
 }
 type AudioComponent={direction?:unknown;type?:unknown;brand?:unknown;model?:unknown;quantity?:unknown};
 
@@ -23,8 +24,8 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
   const validQuantity=typeof item.quantity==='number'||(typeof item.quantity==='string'&&/^[0-9]+$/.test(item.quantity.trim()));
   const quantity=Number(item.quantity);
   return validQuantity&&item.direction===direction
-   &&String(item.brand??'').trim().length>0
-   &&String(item.model??'').trim().length>0
+   &&hasUsableName(item.brand)
+   &&hasUsableName(item.model)
    &&Number.isSafeInteger(quantity)&&quantity>0
    &&(direction==='SUB' ? item.type==='SUBWOOFER' : ['MIDBASS','MIDRANGE','HORN'].includes(String(item.type??'')));
  });
