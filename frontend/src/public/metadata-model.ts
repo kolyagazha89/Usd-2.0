@@ -37,7 +37,7 @@ export function publicImageAssetUrl(value:unknown,origin:string,fallbackPath:str
  const fallback=new URL(fallbackPath,origin).href;
  if(typeof value!=='string'||!value.trim())return fallback;
  const candidate=value.trim();
- if(candidate.startsWith('//')||candidate.includes('\\\\')||/[\\u0000-\\u001f\\u007f]/.test(candidate))return fallback;
+ if(candidate.startsWith('//')||candidate.includes('\\')||/[\u0000-\u001f\u007f]/.test(candidate))return fallback;
  try{
   const base=new URL(origin),url=new URL(candidate,base.origin);
   if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return fallback;
