@@ -19,10 +19,32 @@ STATE_DIR=/var/lib/usd-deployer
 PROJECT=usd-home
 NEW_TAG="${1:-}"
 [[ "$NEW_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Usage: release-approved.sh <full Git SHA>" >&2; exit 2; }
-[[ $# == 1 || ( $# == 2 && "$2" == --preflight-only ) ]] ||
-  { echo 'Usage: release-approved.sh <full Git SHA> [--preflight-only]' >&2; exit 2; }
 preflight_only=0
-[[ "${2:-}" != --preflight-only ]] || preflight_only=1
+local_hdd_snapshot=''
+shift
+while (( $# )); do
+  case "$1" in
+    --preflight-only)
+      [[ "$preflight_only" == 0 ]] || exit 2
+      preflight_only=1; shift ;;
+    --local-hdd-snapshot)
+      [[ -z "$local_hdd_snapshot" && $# -ge 2 ]] || exit 2
+      local_hdd_snapshot="$2"; shift 2 ;;
+    *) echo 'Usage: release-approved.sh SHA [--preflight-only] [--local-hdd-snapshot PATH]' >&2; exit 2 ;;
+  esac
+done
+if [[ -n "$local_hdd_snapshot" ]]; then
+  # Explicit, supervised local-risk prerelease ONLY. The normal automated
+  # release still requires a truly independent off-host DB/media backup.
+  [[ "${USD_ACCEPT_SAME_HOST_BACKUP:-0}" == 1 &&
+     "${USD_DEPLOY_LOCK_HELD:-0}" == 1 &&
+     ! -e /etc/usd-deploy-enabled ]] ||
+    { echo 'Local-HDD prerelease needs operator consent, inherited lock and disabled auto-deploy' >&2; exit 1; }
+  [[ -x /usr/local/libexec/usd-verify-local-hdd-snapshot ]] ||
+    { echo 'Trusted local HDD snapshot verifier not installed' >&2; exit 1; }
+  /usr/local/libexec/usd-verify-local-hdd-snapshot "$local_hdd_snapshot"
+  echo 'WARNING: backup on same Windows PC is NOT offsite. Manual prerelease only.'
+fi
 
 # Approval state is a privileged trust boundary, not merely a cache. A
 # group-writable state directory or built-SHA file could authorize an image
@@ -353,7 +375,7 @@ wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refu
 # otherwise manual release would protect PostgreSQL but lose uploaded media.
 # The inherited lock path is only accepted with the verified FD 9 above and
 # already completed this media gate in the root-owned automatic builder.
-if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 ]]; then
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 && -z "$local_hdd_snapshot" ]]; then
   MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
   MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
   [[ -f "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" &&
@@ -379,6 +401,7 @@ fi
 # An on-host PostgreSQL dump alone cannot survive a Windows/VM disk failure.
 # A separately configured off-host rclone target is mandatory before any
 # release, including a supervised invocation of this helper.
+if [[ -z "$local_hdd_snapshot" ]]; then
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 [[ -f "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" &&
@@ -397,6 +420,7 @@ db_offsite_prefix="$(cat "$DB_OFFSITE_POLICY")"
 [[ "$db_offsite_prefix" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_-]*:[a-zA-Z0-9_/-]+$ &&
    "$db_offsite_prefix" != *"//"* && "$db_offsite_prefix" != */ ]] ||
   { echo "Invalid off-host PostgreSQL backup remote prefix" >&2; false; }
+fi
 
 # Keep a private custom-format database archive before replacing either service.
 # This does not migrate, restore, restart or recreate PostgreSQL.
@@ -424,9 +448,16 @@ db_snapshot_tmp=''
 
 # A separate off-host copy must be retrievable and byte-for-byte identical
 # before the candidate is allowed to replace any live application container.
-db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
-"$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
-  { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
+if [[ -z "$local_hdd_snapshot" ]]; then
+  db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$.dump"
+  "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
+    { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
+else
+  # The verified same-PC HDD snapshot, separate fresh local PG dump, and
+  # isolated full restore/migration rehearsal are all mandatory.
+  /usr/local/libexec/usd-verify-local-hdd-snapshot "$local_hdd_snapshot" ||
+    { echo "Local HDD snapshot stale/corrupt before restore rehearsal" >&2; false; }
+fi
 
 # pg_restore --list checks archive structure, NOT whether a backup can actually
 # be restored. Before touching either live application container, restore this
