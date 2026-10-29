@@ -449,7 +449,7 @@ db_snapshot_tmp=''
 # A separate off-host copy must be retrievable and byte-for-byte identical
 # before the candidate is allowed to replace any live application container.
 if [[ -z "$local_hdd_snapshot" ]]; then
-  db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$.dump"
+  db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
   "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
     { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
 else
