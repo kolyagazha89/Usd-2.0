@@ -1,6 +1,8 @@
 name: Request USD home-PC deploy after images and main checks
 
 # This workflow is loaded from the default branch, never from an unreviewed PR.
+# The explicit repository variable remains unset until a real host audit and
+# supervised migration/restore acceptance have been completed.
 # The runner has no Docker access, production secrets or broad sudo privileges.
 on:
   workflow_run:
@@ -22,7 +24,8 @@ jobs:
   request-deploy:
     # A successful PR or manual workflow_dispatch run must not start the host.
     if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
+      ${{ vars.USD_HOME_PC_HOST_APPROVED == 'true' &&
+          github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
           github.event.workflow_run.head_repository.full_name == github.repository }}

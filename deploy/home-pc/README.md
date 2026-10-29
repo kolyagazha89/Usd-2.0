@@ -48,7 +48,21 @@ root. It installs only one exact sudoers command, with no wildcard and
 without granting shell, Docker or arbitrary systemctl privileges.
 **Do not use the existing `usd` administrator account as the runner.**
 Do not grant a public repository's self-hosted runner broad Docker or
-host administrator access.
+host administrator access. The runner installer also audits the effective
+sudoers policy: it refuses any account with **existing** sudo grants, including
+direct per-user entries and custom groups outside `sudo`/`wheel`. Use a
+new dedicated unprivileged account rather than reusing a general admin user.
+
+**Additional default-off GitHub gate:** the runner job requires the repository
+Actions variable `USD_HOME_PC_HOST_APPROVED=true`. Leave it unset until the
+actual Ubuntu VM, Compose overlays, running images, off-host database/media
+recovery, schema migration on a real-data copy, and rollback have been
+supervised and accepted. An absent variable skips the job even when main CI
+passes. This repository variable is an explicit operator acknowledgement,
+**not** a substitute for the root-owned local release gates. Old queued
+workflow runs created before this guard was merged must be reviewed/cancelled
+before a runner is registered; a new workflow file does not retroactively
+change already queued jobs.
 
 The runner trigger does **not** enable the systemd timer, create
 `/etc/usd-deploy-enabled`, set `/etc/usd-auto-release-schema`, approve
@@ -72,6 +86,12 @@ protect an API accidentally connected to a different database.
 
 Duplicate or missing critical variables, unresolved interpolation and
 malformed URLs are rejected **before any image replacement or backup**.
+The PostgreSQL URL accepts no connection-query overrides: only the optional
+single `?schema=public` Prisma parameter is permitted. A URL with an
+apparently valid `db:5432` authority but `?host=`, `?hostaddr=`,
+`?database=`, duplicate `schema` or other query parameters is refused,
+because database clients can reinterpret those options and connect to a
+different, unprotected database.
 In addition to checking the on-disk settings, the helper inspects the
 **already running** API and PostgreSQL container environments through Docker:
 the live API `DATABASE_URL` must match the approved local DB URL; the live
