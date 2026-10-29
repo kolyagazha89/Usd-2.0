@@ -8,6 +8,9 @@ set -Eeuo pipefail
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
 TRUSTED_DIR=/etc/usd-deployer/compose
+RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
+[[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
+  { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in disposable Docker rehearsal" >&2; exit 1; }
 [[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
 # This rehearsal deliberately creates fixture credentials and state at fixed
 # paths. Never overwrite an existing installation even if CI environment
@@ -31,6 +34,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
+  rm -f -- "$RESTORE_VERIFIER"
   rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
@@ -49,7 +53,25 @@ diagnose_failure() {
   done
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
-mkdir -p "$ROOT" "$STATE" "$WORK/api"
+mkdir -p "$ROOT" "$STATE" "$WORK/api" /usr/local/libexec
+# CI fixture API images intentionally lack Prisma. This harness restores the
+# release archive into a separate disposable database and checks real rows;
+# the production Prisma-enabled isolated-volume helper is exercised separately
+# against the actual API Dockerfile by Home PC safety checks.
+cat > "$RESTORE_VERIFIER" <<'RESTORE'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+[[ "$#" == 2 && -s "$1" && "$2" == ghcr.io/kolyagazha89/usd-2.0-api:* ]] || exit 1
+root=/home/usd/usd-deploy/deploy/home-pc
+compose=(docker compose --env-file "$root/.env" -f "$root/compose.yaml")
+name="release_rehearsal_$"
+"${compose[@]}" exec -T db createdb -U usd "$name"
+cleanup() { "${compose[@]}" exec -T db dropdb -U usd --if-exists "$name"; }
+trap cleanup EXIT
+"${compose[@]}" exec -T db pg_restore -U usd -d "$name" --no-owner --no-acl --exit-on-error --single-transaction < "$1"
+[[ "$("${compose[@]}" exec -T db psql -At -U usd -d "$name" -c 'SELECT id FROM release_marker')" == 42 ]]
+RESTORE
+chmod 0700 "$RESTORE_VERIFIER"
 # All service images contain test fixtures only; no production source or secrets.
 cat > "$WORK/api/server.js" <<'JS'
 require('node:http').createServer((req,res)=>{res.statusCode=Number(process.env.QA_STATUS);res.end('disposable USD release rehearsal');}).listen(3000,'0.0.0.0');
