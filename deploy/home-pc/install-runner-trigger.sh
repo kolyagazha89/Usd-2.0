@@ -10,7 +10,7 @@ runner="$1"
 [[ "$runner" != root && "$(id -u "$runner" 2>/dev/null)" =~ ^[0-9]+$ &&
    "$(id -u "$runner")" != 0 ]] ||
   { echo 'Runner account must exist and must not be root' >&2; exit 1; }
-for tool in systemctl visudo install runuser stat id; do
+for tool in systemctl visudo install runuser stat id sudo; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 [[ "$(command -v systemctl)" == /usr/bin/systemctl ]] ||
