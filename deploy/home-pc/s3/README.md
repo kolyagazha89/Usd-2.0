@@ -1,5 +1,41 @@
 # USD SSD / private S3 setup (Ubuntu guest in Hyper-V)
 
+## Alternative: Windows HDD via private SMB/CIFS share
+
+If Hyper-V guest sees only `sda` (Ubuntu) and `sdb` (RustFS), the Windows
+HDD is **not** an Ubuntu disk. One-time operator action on the Windows host
+must publish a dedicated directory on the physical HDD (not a user profile
+or SSD) as an authenticated Windows SMB share. A guest cannot create a Windows
+SMB share or attach a new host-side VHDX by itself without access to Windows
+administration. Prefer a dedicated least-privilege backup-only Windows user.
+
+Read-only Ubuntu connectivity probe for a typical Hyper-V Default Switch:
+
+```bash
+HOST="$(ip -4 route show default | awk '{print $3; exit}')"
+for port in 445 22; do
+  if timeout 3 bash -c "echo >/dev/tcp/$HOST/$port" 2>/dev/null; then
+    echo "$port open"
+  else
+    echo "$port unavailable"
+  fi
+done
+```
+
+Port 445 reachable only confirms SMB connectivity; it does not prove the
+existence, security or physical HDD placement of the share. Never expose SMB
+445 to the public internet, and do not send Windows passwords in chat.
+After confirming a protected share and its HDD path from Windows, mount it
+**only in the VM** at `/srv/usd-backups` with a root-only credentials file,
+`cifs-utils`, `uid=0,gid=0,dir_mode=0700,file_mode=0600` and an appropriate
+SMB3 security version; do not type passwords in the command line or in
+`/etc/fstab`. Hyper-V Default Switch guest/host addresses may change after
+reboot, so re-check reliability before scheduling backups. The backup helper
+supports both an ext4 backup VHDX and a mounted SMB/CIFS share. It checks
+mount presence, copy/restore integrity and refuses to write onto Ubuntu root
+if that share is not mounted. It cannot independently prove a Windows
+share resides on the intended **physical HDD**; verify that on Windows.
+
 ## Second physical disk (Windows HDD) backups — no extra cloud quota
 
 USD's Ubuntu VM, PostgreSQL and RustFS live on the SSD. A **separate,
