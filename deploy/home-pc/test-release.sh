@@ -14,6 +14,10 @@ TRUSTED_DIR=/etc/usd-deployer/compose
 # host; the mock must therefore remove only files it created on exit.
 TEST_BACKUP_DIR=/var/lib/usd-deployer/backups
 RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
+DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
+DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+[[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
+  { echo 'Existing off-host DB backup policy/helper; refusing mock fixture' >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
 for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
@@ -43,7 +47,7 @@ cleanup() {
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$RESTORE_VERIFIER"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -68,6 +72,17 @@ set -euo pipefail
 [[ "${USD_TEST_FAIL_RESTORE_REHEARSAL:-0}" != 1 ]] || exit 1
 RESTORE
 chmod 0700 "$RESTORE_VERIFIER"
+mkdir -p /etc/usd-deployer
+printf 'usd-db-offsite:verified\n' > "$DB_OFFSITE_POLICY"
+chmod 600 "$DB_OFFSITE_POLICY"
+cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+[[ "${USD_TEST_FAIL_OFFSITE:-0}" != 1 ]] || exit 1
+printf '%s\n' "$2" >> "$USD_TEST_WORK_OFFSITE_LOG"
+OFFSITE
+chmod 0700 "$DB_OFFSITE_VERIFIER"
 cat > "$ROOT/.env" <<EOF
 USD_IMAGE_TAG=$OLD
 POSTGRES_DB=usd
@@ -202,6 +217,7 @@ EOF
 chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
+export USD_TEST_WORK_OFFSITE_LOG="$WORK/offsite.log"
 export USD_TEST_NEW="$NEW"
 export USD_TEST_ROLLBACK_MARKER="$WORK/rollback-phase"
 export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
@@ -316,6 +332,14 @@ grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-db-
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 unset USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY
+# Even a valid local archive must never release when the independent remote
+# cannot accept and return the exact same bytes.
+if USD_TEST_FAIL_OFFSITE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/offsite-failure.log" 2>&1; then
+  echo 'Release accepted a failed independent PostgreSQL backup' >&2
+  exit 1
+fi
+grep -q 'Independent PostgreSQL backup/download verification failed' "$WORK/offsite-failure.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 # A syntactically valid archive is not proof of a recoverable backup.
 # Refuse the release when the full disposable restore/migration check fails.
 if USD_TEST_FAIL_RESTORE_REHEARSAL=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/restore-rehearsal-failure.log" 2>&1; then
