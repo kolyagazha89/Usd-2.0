@@ -200,6 +200,57 @@ API, change DNS, or touch the primary `usd-russia.ru` domain until the revised
 media routes are tested and the existing production release gates pass.
 The S3 systemd service is separate and may run without changes to USD API.
 
+## 4a. One-time read-only B2 inventory and migration
+
+Historical media may still reside in Backblaze B2. The previously recorded
+photo URLs identify bucket `usd-media` in region `us-east-005`. **Do not
+assume** that every MediaUpload row has a retrievable object, and do not
+replace API S3 credentials until verified. Source endpoint:
+`https://s3.us-east-005.backblazeb2.com`.
+
+Create a separate Backblaze B2 application key **restricted to read/list only**
+for bucket `usd-media` (NOT the Backblaze master key). Enter it on Ubuntu
+using the root-only AWS profile. Never copy either source or destination keys
+into GitHub, chat or a shell command that remains in command history:
+
+```bash
+sudo aws configure --profile usd-b2
+# Access Key ID: Backblaze application key ID
+# Secret Access Key: Backblaze application key
+# Region: us-east-005
+# Output: json
+sudo chmod 0600 /root/.aws/credentials
+sudo /usr/local/bin/aws --profile usd-b2 --region us-east-005 \
+  --endpoint-url https://s3.us-east-005.backblazeb2.com \
+  s3api head-bucket --bucket usd-media
+```
+
+Fetch the specific reviewed migration helper into the current server worktree
+without switching branches or touching live Compose, PostgreSQL, or ingress:
+
+```bash
+cd /home/usd/usd-deploy
+git fetch --no-tags origin fix/home-pc-autodeploy-20261029
+git show f04f69ed4f7da5323b8f4243da7a041b772a6890:deploy/home-pc/s3/migrate-b2.py \
+  | sudo python3 - inspect
+```
+
+Default `inspect` reads existing database keys, source B2 inventory and
+destination access **without writing any objects**. It shows only totals and
+missing-key counts. It refuses migration if a DB key is absent from B2, MIME
+types disagree or IAM access fails. Re-read and review the exact helper before
+using its explicit `copy` mode. `copy` copies all objects under `usd/`
+(including historical ones not referenced by current DB), preserves their
+object keys and Content-Type, compares source and destination SHA256 from
+downloaded bytes, never overwrites an existing destination object and never
+deletes an original B2 object. Interrupted migrations can be resumed safely.
+The separate `verify` mode checks bytes again without writes.
+
+Source may incur Backblaze API/egress charges. Copying source objects to the
+same physical SSD is not an off-host backup, and it does not authorize a live
+API or DNS cutover. Keep B2 intact until every object is verified and the new
+version of the API/frontend has passed a supervised production media test.
+
 ## 5. Independent backups and PR #309
 
 The server-local RustFS bucket can be the `rclone` media *source*, but the
