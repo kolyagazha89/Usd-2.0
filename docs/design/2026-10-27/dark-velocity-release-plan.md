@@ -39,7 +39,7 @@ There are at least two unmerged infrastructure PRs:
 - #232 `infra/github-container-auto-update`: Windows laptop `deploy/laptop`, PowerShell polling `main`.
 - #302 `infra/self-hosted-hyperv-usd-20261025`: Ubuntu VM `deploy/home-pc/compose.yaml`, GHCR immutable images, Cloudflare Tunnel override, and a workflow that publishes only on `main` or the infra branch.
 
-The owner has said the PC is running and may use a non-main branch. **Repository contents alone do not prove the live PC's checkout, running image tag, compose files or update mechanism.** Before deploy, read `git branch --show-current`, `git rev-parse HEAD`, `docker compose ps`, current frontend image digest, `USD_IMAGE_TAG` (without printing secrets), and the effective compose configuration from the actual host. Verify database backup and frontend-only rollback path. Do not touch the database for a design deployment.
+The owner has said the PC is running and may use a non-main branch. **Repository contents alone do not prove the live PC's checkout, running image tag, compose files or update mechanism.** Before deploy, read `git branch --show-current`, `git rev-parse HEAD`, `docker compose ps`, current frontend image digest, `USD_IMAGE_TAG` (without printing secrets), and the effective compose configuration from the actual host. This PR now includes API-side catalog-ID enforcement and Prisma migration `20261028172000_configuration_catalog_entry_ids`; **frontend-only deployment is unsafe**. Verify a restorable PostgreSQL backup, media backup, migration on a restored staging copy, immutable API/frontend image tags, and coordinated rollback before any Ubuntu rollout. Never migrate the live database just to preview CSS.
 
 If no authenticated PC access exists, leave PR and build artifacts ready and record deployment as blocked. Never claim the app is updated until a fresh public smoke test proves it.
 
@@ -56,7 +56,7 @@ If no authenticated PC access exists, leave PR and build artifacts ready and rec
 1. Resolve latest frontend CI errors and browser QA regressions, inspect screenshot artifacts, and polish typography/spacing on 320–1440 widths.
 2. Verify 3D fallback, reduced motion, mobile Safari safe areas, and all participant/admin interactive routes.
 3. Address backend dependency audit as a separate security hardening change with full backend tests.
-4. Determine actual PC image deployment and publish a validated frontend artifact for its workflow.
+4. Coordinate with PR #306 to inspect the actual Ubuntu runner/Compose stack, validate restored backups and the additive migration, and publish immutable, matching API/frontend artifacts.
 5. Deploy **only** to `app.usd-russia.ru`, verify from outside the host, record the SHA and rollback tag, then notify the owner.
 
 ## Visual correctness fixes — 2026-10-28
@@ -66,3 +66,10 @@ If no authenticated PC access exists, leave PR and build artifacts ready and rec
 - Preserve the established hero behavior: original trademark logo, WebGL fallback, system reduced-motion preference and offscreen rendering suspension. The previously removed manual pause control is not reintroduced.
 - Administration remains light; public/member surfaces remain dark. No API contracts, historical results, CMS data or deployed resources are changed by these visual fixes.
 - Actual authenticated role acceptance and deployment/image verification still require the owner's host and test-account access. Do not represent candidate screenshots or synthetic fixtures as live authenticated acceptance.
+
+## Partner directory consistency — 2026-10-29
+
+- Homepage, public partner directory and partner showcase now share `visiblePartners` filtering and deterministic ordering. Hidden or unpublished partners do not leave an empty, misleading showcase; the directory displays its collaboration empty state instead.
+- Partner logos without a valid external website are non-interactive on the full directory rather than linking back to the same page; the homepage still links to the directory.
+- Regression coverage includes legacy published records, drafts, inactive records, invalid ordering and non-mutating sort.
+- This is a **code-only** checkpoint. Passing synthetic CI cannot replace an authenticated browser audit on the deployed `app.usd-russia.ru` image. The apex domain remains out of scope.
