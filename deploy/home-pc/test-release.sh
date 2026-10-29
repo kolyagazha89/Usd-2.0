@@ -254,6 +254,20 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/duplicate-domain.log"
 grep -q 'duplicate or malformed deployment setting' "$WORK/duplicate-domain.log"
 sed -i '$d' "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
+# Compose gives inherited process env priority over --env-file. The release
+# helper must refuse even when its on-disk .env is perfectly valid.
+for override in APP_DOMAIN DATABASE_URL USD_IMAGE_TAG COMPOSE_FILE DOCKER_HOST; do
+  case "$override" in
+    APP_DOMAIN) value=usd-russia.ru ;;
+    DATABASE_URL) value=postgresql://usd:test@external-db:5432/usd ;;
+    USD_IMAGE_TAG) value=9999999999999999999999999999999999999999 ;;
+    COMPOSE_FILE) value=/tmp/attacker-compose.yaml ;;
+    DOCKER_HOST) value=tcp://external-docker:2375 ;;
+  esac
+  if env "$override=$value" bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/inherited-$override.log" 2>&1; then exit 1; fi
+  grep -q "Unsafe inherited Compose/Docker override: $override" "$WORK/inherited-$override.log"
+done
+[[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
