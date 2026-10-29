@@ -73,7 +73,10 @@ export function currentCarAudioComponents(car:any):unknown{
  const versions=Array.isArray(config.versions)?config.versions:[];
  // Never treat a stale historical version as the active build when the
  // currentVersion pointer is present but its referenced version is missing.
- const version=config.currentVersion==null?versions[0]:versions.find((item:any)=>item.version===config.currentVersion);
+ const version=config.currentVersion==null
+  ?versions.filter((item:any)=>Number.isSafeInteger(item?.version)&&item.version>0)
+   .reduce((latest:any,item:any)=>!latest||item.version>latest.version?item:latest,undefined)
+  :versions.find((item:any)=>item.version===config.currentVersion);
  return version?.audioComponents;
 }
 
