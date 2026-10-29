@@ -102,7 +102,20 @@ server only; never paste them into a chat or commit them to Git.
 
 ## 3. Create a private media bucket
 
-Install AWS CLI on Ubuntu (`sudo apt-get install -y awscli`).
+Ubuntu 24.04 (Noble) can report `awscli` without an APT installation candidate
+even with Universe enabled. Install the official AWS CLI v2 using its verified
+installer instead of modifying unrelated Ubuntu repositories:
+
+```bash
+install_dir="$(mktemp -d)"
+curl -fsSLo "$install_dir/aws-install.sh" https://awscli.amazonaws.com/v2/install.sh
+sudo bash "$install_dir/aws-install.sh" --system
+rm -rf "$install_dir"
+/usr/local/bin/aws --version
+```
+
+This installer is published by AWS and installs to `/usr/local/bin/aws`.
+
 The following reads the private server environment without printing the key:
 
 ```bash
