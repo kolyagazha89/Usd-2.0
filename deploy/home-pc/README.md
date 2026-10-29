@@ -32,7 +32,10 @@ root. It installs only one exact sudoers command, with no wildcard and
 without granting shell, Docker or arbitrary systemctl privileges.
 **Do not use the existing `usd` administrator account as the runner.**
 Do not grant a public repository's self-hosted runner broad Docker or
-host administrator access.
+host administrator access. The runner installer also audits the effective
+sudoers policy: it refuses any account with **existing** sudo grants, including
+direct per-user entries and custom groups outside `sudo`/`wheel`. Use a
+new dedicated unprivileged account rather than reusing a general admin user.
 
 **Additional default-off GitHub gate:** the runner job requires the repository
 Actions variable `USD_HOME_PC_HOST_APPROVED=true`. Leave it unset until the
