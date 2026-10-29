@@ -28,7 +28,16 @@ const configuration={id:'config1',name:'Соревновательная сбо�
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
 const result={id:'r1',value:150.25,unit:'DB',place:1,classId:'class1',class:klass,participant,registrationClassId:'rc1',registration:{...registration}};
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+const rulesBlocks=[
+ {type:'heading',level:2,text:'Раздел А'},
+ {type:'list-item',ordered:true,level:0,text:'Первое условие'},
+ {type:'list-item',ordered:true,level:0,text:'Второе условие'},
+ {type:'list-item',ordered:true,level:1,text:'Вложенное условие'},
+ {type:'list-item',ordered:true,level:0,text:'Третье условие'},
+ {type:'heading',level:2,text:'Раздел Б'},
+ {type:'list-item',ordered:true,level:0,text:'Новый список'},
+];
+const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role,participantId:role==='PARTICIPANT'?'p1':null});
 const requests=new Set(),blocked=[];
@@ -182,7 +191,24 @@ try{
       row.publicAchievements='published results expanded; stage protocol link available';
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded achievements fit viewport');
      }
-     if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
+     if(route==='/rules'&&role===null){
+       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'official DOCX lists keep nested numbering');
+       const search=page.getByRole('textbox',{name:'Поиск по регламенту'});
+       await search.fill('Раздел Б');
+       assert.equal(await page.locator('.public-rules-list-item').count(),1,'search keeps the matching regulation section');
+       assert.equal(await page.locator('.public-rules-sidebar nav a').count(),1,'filtered contents only links to visible headings');
+       const anchor=await page.locator('.public-rules-sidebar nav a').first().getAttribute('href');
+       assert.equal(await page.locator(anchor).count(),1,'table of contents anchor resolves after search');
+       await page.getByRole('button',{name:'Сбросить поиск'}).click();
+       row.rulesNumbering='nested ordered markers, filtered section and anchor passed';
+      }
+      if(route==='/admin/rules'&&role==='ADMIN'){
+       await page.getByRole('button',{name:'Просмотреть содержимое'}).click();
+       const markers=await page.locator('.rules-admin-list-item').evaluateAll(items=>items.map(item=>item.textContent.trim().match(/^(?:\d+\.|•)/)?.[0]));
+       assert.deepEqual(markers,['1.','2.','1.','3.','1.'],'light admin DOCX preview uses public numbering');
+       row.rulesAdminPreview='numbered DOCX preview passed';
+      }
+      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
      if(route==='/stages/stage1'){
