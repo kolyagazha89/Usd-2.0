@@ -400,3 +400,11 @@ the existing same-schema policy. It does not restore or mutate the live database
 The success marker is written only after public acceptance. Existing installations
 must receive the reviewed helper update through `install-local-deployer.sh`
 (or the supervised setup) before this behavior exists on Ubuntu.
+
+Runner admission is checked on **every** supervised setup, including an already
+registered runner with an existing trigger. `verify-runner-policy.py` accepts
+only an explicitly unprivileged fresh account, or the exact trusted narrow
+trigger as its only effective sudo grant. Direct/custom-group extra grants,
+Docker socket access, privileged groups, symlinked or writable policies stop
+setup before registration or service activation. CI covers narrow-plus-extra
+sudoers, valid reuse, and a writable existing trigger on a disposable account.

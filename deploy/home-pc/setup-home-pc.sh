@@ -134,6 +134,9 @@ for group in $(id -nG "$RUNNER_USER"); do
   case "$group" in root|sudo|wheel|docker) echo "Unsafe runner group: $group" >&2; exit 1 ;; esac
 done
 [[ "$(id -u "$RUNNER_USER")" != 0 && ! -L "$RUNNER" ]] || exit 1
+# Existing registration/sudoers must not bypass effective-policy inspection.
+# This runs before any runner download, registration or service activation.
+python3 "$SOURCE/deploy/home-pc/verify-runner-policy.py" "$RUNNER_USER"
 if [[ ! -f "$RUNNER/.runner" ]]; then
   [[ ! -e "$RUNNER" ]] || { echo 'Unregistered runner directory already exists; refusing overwrite' >&2; exit 1; }
   install -d -o root -g root -m 0700 "$RUNNER"

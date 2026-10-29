@@ -26,3 +26,8 @@
 
 - Baseline: frontend 148/148 tests; backend 59 suites, 761/761 tests; backend build passed with disposable DATABASE_URL.
 - Existing #307 merged into worktree, conflicts resolved in favor of current main's newer real backup transport and supervised legacy-Compose handling, plus the #307 default-off gate/query/sudo protections.
+- Verifier tests: 13/13 passed after reproducing malformed-data/auth/asset acceptance failures. Live read-only acceptance passed for existing09d936fb; new code is not deployed.
+- Full release mock in a network-disabled disposable root container: passed after reproducing public-check false success. Existing real Docker/PG18 CI passed on611ad30f.
+- Review found a setup rerun bypass of effective sudo checks. Ruling: use the same read-only runner policy validator before any setup registration/start and in the narrow-rule installer; existing policy must be root-controlled and its only effective command must be the exact trigger. Fail-closed may require an operator to remove unrelated runner privileges; allowing broader rights would violate the runner trust boundary.
+- Review fixture finding: preserve literal ampersands in every PostgreSQL query test so duplicate-schema and mixed query parameters exercise the actual intended URLs.
+- Added four offline sudo-output tests and a real isolated CI fixture for existing narrow trigger plus extra grant, accepted narrow reuse, and rejected writable rule. No real runner or host was enabled.

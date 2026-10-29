@@ -333,7 +333,12 @@ sed -i 's/@remote-db:5432/@db:5432/' "$ROOT/.env"
 # even attempting to inspect a Docker image or take a database backup.
 for unsafe_query in 'host=remote-db' 'schema=public&host=remote-db' \
   'hostaddr=192.0.2.1' 'schema=public&schema=other' 'database=other' 'sslmode=require'; do
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://usd:test@db:5432/usd?$unsafe_query|" "$ROOT/.env"
+  python3 - "$ROOT/.env" "$unsafe_query" <<'QUERY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+p.write_text('\n'.join('DATABASE_URL=postgresql://usd:test@db:5432/usd?'+sys.argv[2] if line.startswith('DATABASE_URL=') else line for line in p.read_text().splitlines())+'\n')
+QUERY
   if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsafe-db-query.log" 2>&1; then
     echo "Release accepted unsafe PostgreSQL URL query: $unsafe_query" >&2
     exit 1

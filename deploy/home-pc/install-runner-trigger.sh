@@ -10,33 +10,13 @@ runner="$1"
 [[ "$runner" != root && "$(id -u "$runner" 2>/dev/null)" =~ ^[0-9]+$ &&
    "$(id -u "$runner")" != 0 ]] ||
   { echo 'Runner account must exist and must not be root' >&2; exit 1; }
-for tool in systemctl visudo install runuser stat id sudo; do
+for tool in systemctl visudo install runuser stat id sudo python3; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 [[ "$(command -v systemctl)" == /usr/bin/systemctl ]] ||
   { echo 'Expected /usr/bin/systemctl; review sudoers path manually' >&2; exit 1; }
-# Runner must not have unrestricted sudo or Docker access.
-for group in $(id -nG "$runner"); do
-  case "$group" in
-    docker|sudo|wheel|root) echo "Unsafe runner group: $group" >&2; exit 1 ;;
-  esac
-done
-if [[ -e /var/run/docker.sock ]] &&
-   runuser -u "$runner" -- test -w /var/run/docker.sock; then
-  echo 'Runner can access Docker socket; refusing privilege installation' >&2
-  exit 1
-fi
-# Group membership alone is insufficient: sudoers can grant privileges to
-# this user directly or through an arbitrary supplementary group. Audit the
-# complete effective policy before adding the one permitted systemctl action.
-# sudo -l -U can exit ZERO even when the user is denied all sudo commands,
-# so its exit code alone is not a reliable privilege test. With C locale,
-# accept only the explicit no-privileges response; fail closed otherwise.
-sudo_policy="$(LC_ALL=C sudo -n -l -U "$runner" 2>&1)" || :
-case "$sudo_policy" in
-  "User $runner is not allowed to run sudo on "*) ;;
-  *) echo 'Runner has pre-existing sudo privileges or an unverifiable sudo policy' >&2; exit 1 ;;
-esac
+# The SAME read-only policy audit is required for new and reused runners.
+python3 "$(dirname "$(realpath "$0")")/verify-runner-policy.py" "$runner"
 for protected in /etc/systemd/system/usd-auto-deploy.service /usr/local/sbin/usd-auto-deploy; do
   [[ -f "$protected" && ! -L "$protected" && "$(stat -c %u "$protected")" == 0 ]] ||
     { echo "Missing or untrusted root-owned service: $protected" >&2; exit 1; }
