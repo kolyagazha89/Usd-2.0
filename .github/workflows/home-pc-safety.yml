@@ -109,6 +109,28 @@ jobs:
           docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE schema_rehearsal_fixture (id integer PRIMARY KEY); INSERT INTO schema_rehearsal_fixture VALUES (42);'
           docker exec "$db" pg_dump -Fc --no-owner --no-acl -U usd -d usd > "$dump"
           bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}"
+          # Negative rehearsal: if Docker cannot remove the restored-data
+          # volume, the helper must fail rather than print a misleading PASS.
+          fakebin="$(mktemp -d)"
+          cat > "$fakebin/docker" <<'SH'
+          #!/usr/bin/env bash
+          if [[ "${1:-}" == volume && "${2:-}" == rm ]]; then
+            echo "CI-injected volume removal failure" >&2
+            exit 1
+          fi
+          exec /usr/bin/docker "$@"
+          SH
+          chmod +x "$fakebin/docker"
+          set +e
+          PATH="$fakebin:$PATH" bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}" > "$fakebin/failure.log" 2>&1
+          cleanup_status=$?
+          set -e
+          leftovers="$(docker volume ls -q --filter label=usd.migration.disposable=true)"
+          [[ -n "$leftovers" ]] || { echo "Cleanup failure fixture did not leave a disposable volume" >&2; exit 1; }
+          while IFS= read -r v; do docker volume rm "$v" >/dev/null; done <<< "$leftovers"
+          [[ "$cleanup_status" -ne 0 ]] || { echo "Rehearsal ignored failed volume cleanup" >&2; exit 1; }
+          grep -q "Migration rehearsal cleanup failed" "$fakebin/failure.log"
+          rm -rf "$fakebin"
       - name: Build candidate frontend image with production API URL
         run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
       - name: Verify production frontend assets exist
