@@ -185,6 +185,25 @@ jobs:
             exit 1
           fi
           grep -q 'Runner account must exist and must not be root' /tmp/usd-runner-refusal.log
+          # An account can have sudo through a direct sudoers entry or a custom
+          # group, without belonging to sudo/wheel. The installer must refuse
+          # that account before installing its narrow trigger rule.
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin usd_runner_ci
+          cleanup_runner_fixture() {
+            sudo rm -f /etc/sudoers.d/usd-runner-ci-test
+            sudo userdel usd_runner_ci
+          }
+          trap cleanup_runner_fixture EXIT
+          printf 'usd_runner_ci ALL=(root) NOPASSWD: /usr/bin/true\\n' | sudo tee /etc/sudoers.d/usd-runner-ci-test >/dev/null
+          sudo chmod 0440 /etc/sudoers.d/usd-runner-ci-test
+          sudo visudo -cf /etc/sudoers.d/usd-runner-ci-test
+          if sudo bash deploy/home-pc/install-runner-trigger.sh usd_runner_ci >/tmp/usd-runner-existing-sudo.log 2>&1; then
+            echo 'Installer accepted a runner with direct sudoers privileges' >&2
+            exit 1
+          fi
+          grep -q 'Runner has pre-existing sudo privileges' /tmp/usd-runner-existing-sudo.log
+          trap - EXIT
+          cleanup_runner_fixture
       - name: Rehearse media backup, full restore and refusal of reused destination
         shell: bash
         run: |
