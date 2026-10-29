@@ -9,6 +9,10 @@ ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
 TRUSTED_DIR=/etc/usd-deployer/compose
 RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
+DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
+DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+[[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
+  { echo 'Existing off-host PostgreSQL policy/helper; refusing Docker fixture' >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in disposable Docker rehearsal" >&2; exit 1; }
 [[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
@@ -34,7 +38,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
-  rm -f -- "$RESTORE_VERIFIER"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY"
   rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
@@ -72,6 +76,15 @@ trap cleanup EXIT
 [[ "$("${compose[@]}" exec -T db psql -At -U usd -d "$name" -c 'SELECT id FROM release_marker')" == 42 ]]
 RESTORE
 chmod 0700 "$RESTORE_VERIFIER"
+mkdir -p /etc/usd-deployer
+printf 'usd-db-offsite:verified\n' > "$DB_OFFSITE_POLICY"
+chmod 600 "$DB_OFFSITE_POLICY"
+cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+OFFSITE
+chmod 0700 "$DB_OFFSITE_VERIFIER"
 # All service images contain test fixtures only; no production source or secrets.
 cat > "$WORK/api/server.js" <<'JS'
 require('node:http').createServer((req,res)=>{res.statusCode=Number(process.env.QA_STATUS);res.end('disposable USD release rehearsal');}).listen(3000,'0.0.0.0');
