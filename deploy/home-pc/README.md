@@ -77,6 +77,40 @@ domains, wrong database hosts, mismatched passwords and duplicates.
 - Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
 
+## Mandatory independent PostgreSQL backup before every release
+
+An archive kept only in `/var/lib/usd-deployer/backups` cannot survive a
+physical disk or VM loss. **All releases, including manual invocations of
+`usd-release-approved`, now require an independently retrievable database
+archive.** The installer installs the root-owned
+`/usr/local/libexec/usd-verify-db-offsite-backup` helper. Configure the
+single-line root-owned, mode `0600` policy file
+`/etc/usd-deployer/db-backup.conf`, for example:
+
+```text
+usd-db-offsite:backups/usd/postgres
+```
+
+The remote name and path are examples, not an existing backup service.
+The operator must configure rclone credentials readable only by root, confirm
+the destination is genuinely independent of the home PC, set retention and
+encryption, and verify recovery from another machine. The remote prefix must
+not contain spaces, traversal, shell interpolation or a trailing slash.
+
+Before replacing either application container, the release helper creates a
+fresh PostgreSQL 18 custom-format dump, verifies the archive list, uploads it
+to a unique remote object, downloads it to a private temporary file and
+compares **every byte** with the original. It then restores the local archive
+into disposable PostgreSQL 18 and checks candidate Prisma migrations. A
+missing policy, inaccessible remote, changed bytes or failed cleanup blocks
+the release. The automatic builder remains build-only when the policy is
+missing. The off-host object is retained for recovery; the temporary downloaded
+copy is removed before release proceeds.
+
+This does **not** enable unattended Prisma schema migrations, prove that
+the off-host service has independent failure domains, or replace a supervised
+restore of the actual production backup. Keep `usd-russia.ru` untouched.
+
 ## Automatic off-host media gate (opt-in, fail closed)
 
 The local builder now stays **build-only** until an operator installs **both** the reviewed Prisma tree policy and a private, root-owned `/etc/usd-deployer/media-backup.conf` containing exactly two lines: an rclone **source** remote path and an independent **off-host backup prefix**. Example policy values (illustrative, not live credentials):
