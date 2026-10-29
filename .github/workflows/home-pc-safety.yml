@@ -248,13 +248,13 @@ jobs:
         run: |
           set -Eeuo pipefail
           # rclone is installed by the media verification step above.
-          root="$(mktemp -d)"
+          root="$(mktemp -d "$PWD/usd-db-offsite-XXXXXXXX")"
           trap 'sudo rm -rf "$root"' EXIT
           printf '[usd-db-ci]\ntype = local\n' > "$root/rclone.conf"
           printf 'disposable PostgreSQL archive payload for transport verification\n' > "$root/sample.dump"
           sudo chown root:root "$root/sample.dump"
           sudo chmod 600 "$root/sample.dump"
-          target="usd-db-ci:$root/offsite/verified.dump"
+          target="usd-db-ci:$(basename "$root")/offsite/verified.dump"
           sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "$target"
           sudo test -s "$root/offsite/verified.dump"
           sudo cmp "$root/sample.dump" "$root/offsite/verified.dump"
