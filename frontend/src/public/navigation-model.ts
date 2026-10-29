@@ -36,6 +36,23 @@ export function visiblePublicNavigationItems(navigation:SettingsNavigation):stri
  const saved=savedRows(navigation);
  return (saved??DEFAULT_PUBLIC_NAVIGATION).filter(item=>item.enabled).map(item=>[item.path,item.label]);
 }
+/** Footer links obey the same CMS visibility, names and ordering as the header.
+ * Legal documents remain independently accessible even if the menu is hidden.
+ */
+export function footerPublicNavigationGroups(navigation:SettingsNavigation){
+ const groups={competitions:[] as string[][],community:[] as string[][],information:[] as string[][]};
+ const competitions=new Set(['/stages','/results','/records']);
+ const community=new Set(['/participants','/teams','/cars','/news','/partners']);
+ const information=new Set(['/about','/rules','/documents','/contacts']);
+ for(const entry of visiblePublicNavigationItems(navigation)){
+  const path=entry[0];
+  if(competitions.has(path))groups.competitions.push(entry);
+  else if(community.has(path))groups.community.push(entry);
+  else if(information.has(path))groups.information.push(entry);
+ }
+ return groups;
+}
+
 /** Show every supported route in the editor, including routes hidden in old CMS data. */
 export function editablePublicNavigationItems(navigation:SettingsNavigation):PublicMenuItem[]{
  const saved=savedRows(navigation);
