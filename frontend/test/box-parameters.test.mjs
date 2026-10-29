@@ -50,3 +50,34 @@ test('configuration editor uses validated decimal inputs and the shared serializ
  assert.match(editor,/Настройка, Гц<input type="text" inputMode="decimal"/);
  assert.doesNotMatch(editor,/box\.volume.*replace\(\/\[\^0-9\]\//);
 });
+
+
+test('editing an imported box preserves notes that precede the box line',()=>{
+ const original='Схема питания: 6 секций\\nКороб: ФИ · 180,5 л · 32,75 Гц\\n\\nУсилитель под сиденьем';
+ const parsed=boxFromDescription(original);
+ assert.deepEqual(parsed,box('180.5','32.75'));
+ const notes=withoutBoxLine(original);
+ assert.equal(notes,'Схема питания: 6 секций\\nУсилитель под сиденьем');
+ const saved=formatBoxLine({...parsed,tuning:'33'})+notes;
+ assert.equal(boxFromDescription(saved).tuning,'33');
+ assert.equal(withoutBoxLine(saved),notes);
+});
+
+test('duplicate structured box lines are removed without touching freeform notes',()=>{
+ const original='Короб: ФИ · 180 л · 32 Гц\\n\\nСвободная заметка\\nКороб: ЗЯ · 120 л · 36 Гц\\n\\n';
+ assert.deepEqual(boxFromDescription(original),box('180','32'));
+ assert.equal(withoutBoxLine(original),'Свободная заметка\\n');
+ const sentence='У меня в заметках есть фраза Короб: ФИ · 180 л · 32 Гц, но это обычный текст.';
+ assert.equal(withoutBoxLine(sentence),sentence);
+ assert.deepEqual(boxFromDescription(sentence),box('','','ФИ'));
+});
+
+test('invalid box type cannot be serialized into an unreadable version',()=>{
+ for(const type of ['', '  ', 'ФИ\\nдругая строка', 'ФИ · 200 л']){
+  const candidate=box('180','32',type);
+  assert.match(validateBoxParameters(candidate),/тип короба/);
+  assert.equal(isBoxConfigured(candidate),false);
+  assert.equal(formatBoxLine(candidate),'');
+ }
+ assert.equal(formatBoxLine(box('180','32',' ФИ ')),'Короб: ФИ · 180 л · 32 Гц\\n\\n');
+});
