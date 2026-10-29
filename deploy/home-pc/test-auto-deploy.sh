@@ -17,7 +17,7 @@ printf 'application-v2\n' > "$WORK/source/application.txt"
 "$REAL_GIT" -C "$WORK/source" add .
 "$REAL_GIT" -C "$WORK/source" -c user.name=QA -c user.email=qa@example.org commit -qm application
 NEW="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD)"
-export USD_TEST_MAIN_SHA="$NEW"
+export USD_TEST_MAIN_SHA="$NEW" USD_TEST_OLD_SHA="$OLD"
 SCHEMA="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD:backend/prisma)"
 printf '%s\n' "$NEW" > "$WORK/source/.git/FETCH_HEAD"
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
@@ -47,7 +47,12 @@ cat > "$WORK/bin/git" <<'SH'
 case "$*" in
  *'remote get-url origin') echo https://github.com/kolyagazha89/Usd-2.0.git ;;
  *'fetch --no-tags --depth=1 origin '*) exit 0 ;;
- *'ls-remote --exit-code origin refs/heads/main') printf '%s\trefs/heads/main\n' "${USD_TEST_REMOTE_SHA:-$USD_TEST_MAIN_SHA}" ;;
+ *'ls-remote --exit-code origin refs/heads/main')
+   if [[ -f "$USD_TEST_WORK/main-moved-during-media" ]]; then
+     printf '%s\trefs/heads/main\n' "$USD_TEST_OLD_SHA"
+   else
+     printf '%s\trefs/heads/main\n' "${USD_TEST_REMOTE_SHA:-$USD_TEST_MAIN_SHA}"
+   fi ;;
  *) exec "$REAL_GIT" "$@" ;;
 esac
 SH
@@ -85,6 +90,9 @@ cat > "$WORK/media-verify" <<'SH'
 set -euo pipefail
 [[ "$#" == 2 && "$1" == "usd-media:current" && "$2" == usd-offsite:verified/* ]] || exit 1
 echo "$*" >> "$USD_TEST_WORK/media.log"
+if [[ "${USD_TEST_MOVE_MAIN_DURING_MEDIA:-0}" == 1 ]]; then
+  touch "$USD_TEST_WORK/main-moved-during-media"
+fi
 [[ "${USD_TEST_FAIL_MEDIA:-0}" != 1 ]]
 SH
 cat > "$WORK/verify-ci" <<'SH'
@@ -155,6 +163,14 @@ bash "$WORK/builder" > "$WORK/media-failure.log" 2>&1
 grep -q 'Off-host media backup/restore failed' "$WORK/media-failure.log"
 [[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
 unset USD_TEST_FAIL_MEDIA
+# The backup can be slow; a new main push during it must invalidate the
+# earlier SHA even though CI passed before the backup started.
+export USD_TEST_MOVE_MAIN_DURING_MEDIA=1
+bash "$WORK/builder" > "$WORK/main-moved-during-media.log" 2>&1
+grep -q 'Main moved or became unverifiable during media backup' "$WORK/main-moved-during-media.log"
+[[ ! -f "$WORK/releases.log" ]]
+rm -f "$WORK/main-moved-during-media"
+unset USD_TEST_MOVE_MAIN_DURING_MEDIA
 # A failed image build cannot mark this version ready or invoke release.
 printf '%040d\n' 0 > "$WORK/state/built-sha"
 export USD_TEST_FAIL_BUILD=1
