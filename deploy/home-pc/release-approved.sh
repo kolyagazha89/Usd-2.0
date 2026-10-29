@@ -54,6 +54,56 @@ OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' .env)"
 [[ "$OLD_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid or duplicated USD_IMAGE_TAG" >&2; exit 1; }
 [[ "$OLD_TAG" != "$NEW_TAG" ]] || { echo "Already at requested SHA"; exit 0; }
 
+# The backup below covers the local usd-home PostgreSQL service. Never
+# authorize an API release against a different DB (or the primary website):
+# a successful local pg_dump would otherwise protect the WRONG database.
+# Parse without sourcing .env, expanding shell code, or printing secrets.
+python3 - .env <<'PY'
+import re
+import sys
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+critical = {"APP_DOMAIN", "API_DOMAIN", "POSTGRES_DB", "POSTGRES_USER",
+            "POSTGRES_PASSWORD", "DATABASE_URL"}
+values = {}
+try:
+    for raw in Path(sys.argv[1]).read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, val = line.partition("=")
+        key = key.strip()
+        if key not in critical:
+            continue
+        if not sep or key in values:
+            raise ValueError("duplicate or malformed deployment setting")
+        val = val.strip()
+        if val.startswith(('"', "'")):
+            if len(val) < 2 or val[-1] != val[0]:
+                raise ValueError("unclosed quoted setting")
+            val = val[1:-1]
+        else:
+            val = re.sub(r"\s+#.*$", "", val).strip()
+        if not val or "${" in val:
+            raise ValueError("missing or interpolated deployment setting")
+        values[key] = val
+    if values.keys() != critical:
+        raise ValueError("missing deployment setting")
+    if values["APP_DOMAIN"] != "app.usd-russia.ru" or values["API_DOMAIN"] != "api.usd-russia.ru":
+        raise ValueError("deployment targets are not the approved prerelease domains")
+    db = urlsplit(values["DATABASE_URL"])
+    if (db.scheme not in ("postgres", "postgresql") or db.hostname != "db" or db.port != 5432
+            or unquote(db.username or "") != values["POSTGRES_USER"]
+            or unquote(db.password or "") != values["POSTGRES_PASSWORD"]
+            or unquote(db.path.lstrip("/")) != values["POSTGRES_DB"]
+            or db.fragment):
+        raise ValueError("application database does not match local PostgreSQL backup target")
+except (OSError, ValueError, KeyError, IndexError) as exc:
+    print(f"Unsafe deployment environment: {exc}", file=sys.stderr)
+    sys.exit(1)
+PY
+
 for service in api frontend; do
   for tag in "$OLD_TAG" "$NEW_TAG"; do
     docker image inspect "ghcr.io/kolyagazha89/usd-2.0-$service:$tag" >/dev/null ||
