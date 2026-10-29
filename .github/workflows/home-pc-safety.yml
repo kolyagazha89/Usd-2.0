@@ -210,6 +210,25 @@ jobs:
             echo 'Media verifier accepted an ancestor of the live source as a backup destination' >&2
             exit 1
           fi
+          # A failed deletion of the private full-media restore must fail the
+          # backup verifier. TMPDIR keeps the simulated leak inside CI fixtures.
+          mkdir -p "$root/fakebin" "$root/tmp" "$root/backup-cleanup-failure"
+          cat > "$root/fakebin/rm" <<'SH'
+          #!/usr/bin/env bash
+          if [[ "${1:-}" == -rf && "${2:-}" == -- ]]; then
+            echo 'CI-injected private restore deletion failure' >&2
+            exit 1
+          fi
+          exec /usr/bin/rm "$@"
+          SH
+          chmod +x "$root/fakebin/rm"
+          if TMPDIR="$root/tmp" PATH="$root/fakebin:$PATH" bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup-cleanup-failure" > "$root/cleanup-failure.log" 2>&1; then
+            echo 'Media verifier ignored failed private restore cleanup' >&2
+            exit 1
+          fi
+          grep -q 'media restore cleanup failed' "$root/cleanup-failure.log"
+          [[ -n "$(find "$root/tmp" -mindepth 1 -maxdepth 1 -type d -print -quit)" ]] ||
+            { echo 'Media cleanup failure fixture did not leave a temporary restore' >&2; exit 1; }
       - name: Installer refuses to overwrite trusted scripts during a running release
         run: |
           set -euo pipefail
