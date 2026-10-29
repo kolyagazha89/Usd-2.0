@@ -86,7 +86,7 @@ chmod 600 "$DB_OFFSITE_POLICY"
 cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^usd-db-offsite:verified/release-[0-9a-f]{40}-[0-9]{8}T[0-9]{6}Z-[0-9]+\.dump$ ]] || exit 1
 OFFSITE
 chmod 0700 "$DB_OFFSITE_VERIFIER"
 printf 'usd-media:ci-source\nusd-media-offsite:verified\n' > "$MEDIA_POLICY"
