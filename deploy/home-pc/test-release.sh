@@ -18,10 +18,12 @@ DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
+LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host DB backup policy/helper; refusing mock fixture' >&2; exit 1; }
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
+[[ ! -e "$LOCAL_VERIFIER" && ! -L "$LOCAL_VERIFIER" ]] || { echo "Local verifier exists in disposable runner" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
 for protected in "$ROOT/.env" \
@@ -53,7 +55,7 @@ cleanup() {
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$STATE/initial-preflight"
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -565,4 +567,31 @@ run_automatic_candidate
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ ! -f /etc/usd-release-approved ]]
+# The explicit same-PC backup path must remain DISABLED for automatic releases.
+# It requires an actual caller-held lock, root-reviewed local snapshot verifier,
+# paused auto-deploy gate, and affirmative same-host risk acknowledgment.
+cat > "$LOCAL_VERIFIER" <<'LOCAL'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && "$1" == /srv/usd-backups/snapshots/local-ci-fixture ]] || exit 1
+LOCAL
+chmod 0750 "$LOCAL_VERIFIER"
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+printf '%s\n' "$NEW" > "$STATE/release-approved-sha"
+chmod 0600 "$STATE/release-approved-sha"
+run_local_candidate() (
+  exec 9>/run/lock/usd-home-deploy.lock
+  flock -n 9
+  USD_DEPLOY_LOCK_HELD=1 "$@" bash deploy/home-pc/release-approved.sh "$NEW" \
+    --local-hdd-snapshot /srv/usd-backups/snapshots/local-ci-fixture
+)
+if run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=0 > "$WORK/local-no-consent.log" 2>&1; then
+  echo 'Same-PC local release bypassed operator consent' >&2
+  exit 1
+fi
+grep -q 'Local-HDD prerelease needs operator consent' "$WORK/local-no-consent.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=1
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+echo "Local HDD-only supervised release passed explicit consent and no-cloud tests"
 echo "Mocked release, main-tip deferral, healthy rollback and unhealthy rollback rehearsals passed"
