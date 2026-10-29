@@ -15,6 +15,9 @@ flock -n 9 || { echo "Another USD build/release is running; retry later" >&2; ex
 
 DEPLOY_DIR=/home/usd/usd-deploy/deploy/home-pc
 TRUSTED_DIR=/etc/usd-deployer/compose
+# The first USD stack was created from usd-src, before the deploy worktree.
+LEGACY_DIR=/home/usd/usd-src/deploy/home-pc
+LEGACY_BASELINE=e8b5b0f22780a61e79765b8fd92167e241df82a2
 STATE_DIR=/var/lib/usd-deployer
 PROJECT=usd-home
 NEW_TAG="${1:-}"
@@ -175,17 +178,53 @@ for file in "${active_files[@]}"; do
   case "$file" in
     "$DEPLOY_DIR/compose.yaml"|"$TRUSTED_DIR/compose.yaml") has_base=1 ;;
     "$DEPLOY_DIR/compose.local.yaml"|"$TRUSTED_DIR/compose.local.yaml") ;;
-
+    "$LEGACY_DIR/compose.yaml")
+      [[ -n "$local_hdd_snapshot" ]] ||
+        { echo "Legacy Compose requires supervised local-HDD release" >&2; exit 1; }
+      has_base=1 ;;
+    "$LEGACY_DIR/compose.local.yaml")
+      [[ -n "$local_hdd_snapshot" ]] ||
+        { echo "Legacy overlay requires supervised local-HDD release" >&2; exit 1; } ;;
     *) echo "Unknown active Compose file: $file" >&2; exit 1 ;;
   esac
-  [[ -f "$file" && ! -L "$file" ]] || { echo "Compose file missing or symlinked: $file" >&2; exit 1; }
+  [[ -f "$file" && ! -L "$file" ]] ||
+    { echo "Compose file missing or symlinked: $file" >&2; exit 1; }
   trusted_file="$TRUSTED_DIR/${file##*/}"
   [[ -f "$trusted_file" && ! -L "$trusted_file" && "$(stat -c %u "$trusted_file")" == 0 ]] ||
     { echo "Missing or untrusted root-owned Compose snapshot: $trusted_file" >&2; exit 1; }
   (( (8#$(stat -c %a "$trusted_file") & 022) == 0 )) ||
     { echo "Compose snapshot is group/world writable: $trusted_file" >&2; exit 1; }
-  cmp -s "$file" "$trusted_file" ||
-    { echo "Running Compose config differs from reviewed root-owned snapshot: $file" >&2; exit 1; }
+  if [[ "$file" == "$LEGACY_DIR/"* ]]; then
+    # Only accept an exact known layout with comments omitted. The old
+    # user-writable file is NEVER passed to Docker Compose; only the trusted
+    # root-owned reviewed candidate is used to recreate API/frontend.
+    python3 - "$file" "$trusted_file" "$LEGACY_BASELINE" <<'PY'
+from pathlib import Path
+import subprocess
+import sys
+
+actual, trusted = map(Path, sys.argv[1:3])
+baseline = sys.argv[3]
+
+def significant(raw):
+    return tuple(line.rstrip() for line in raw.decode('utf-8').splitlines()
+                 if line.strip() and not line.lstrip().startswith('#'))
+
+old = subprocess.run(
+    ['git', '-C', '/opt/usd-release-source', 'show',
+     f'{baseline}:deploy/home-pc/{actual.name}'],
+    capture_output=True, check=False)
+allowed = [significant(trusted.read_bytes())]
+if old.returncode == 0:
+    allowed.append(significant(old.stdout))
+if significant(actual.read_bytes()) not in allowed:
+    raise SystemExit('Legacy running Compose differs from trusted or historical baseline; refusing: ' + str(actual))
+print('Verified legacy Compose origin:', actual)
+PY
+  else
+    cmp -s "$file" "$trusted_file" ||
+      { echo "Running Compose config differs from reviewed root-owned snapshot: $file" >&2; exit 1; }
+  fi
   compose_args+=(-f "$trusted_file")
 done
 [[ "$has_base" == 1 ]] || { echo "Base Compose file absent" >&2; exit 1; }

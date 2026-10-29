@@ -171,6 +171,8 @@ if [[ "${1:-}" == inspect ]]; then
   fi
   if [[ "${USD_TEST_UNKNOWN_OVERLAY:-0}" == 1 ]]; then
     echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.unknown.yaml"
+  elif [[ "${USD_TEST_LEGACY_SOURCE:-0}" == 1 ]]; then
+    echo "/home/usd/usd-src/deploy/home-pc/compose.yaml,/home/usd/usd-src/deploy/home-pc/compose.local.yaml"
   else
     echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
   fi
@@ -594,4 +596,35 @@ grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=1
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 echo "Local HDD-only supervised release passed explicit consent and no-cloud tests"
+
+# The actual first USD deployment was launched from usd-src, not usd-deploy.
+# Ensure operator-supervised migration ONLY accepts content that exactly
+# matches reviewed trusted YAML (allow comment-only differences), and never
+# implicitly approves arbitrary user-writable Compose changes.
+LEGACY=/home/usd/usd-src/deploy/home-pc
+[[ ! -e "$LEGACY" && ! -L "$LEGACY" ]] ||
+  { echo 'Disposable CI worker has unexpected historic USD source directory' >&2; exit 1; }
+mkdir -p "$LEGACY"
+cp "$TRUSTED_DIR/compose.yaml" "$TRUSTED_DIR/compose.local.yaml" "$LEGACY/"
+printf '\n# A comment is not a change to Docker service configuration\n' >> "$LEGACY/compose.yaml"
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+printf '%s\n' "$NEW" > "$STATE/release-approved-sha"
+chmod 0600 "$STATE/release-approved-sha"
+export USD_TEST_LEGACY_SOURCE=1
+printf '\n    image: unexpected-unreviewed-image\n' >> "$LEGACY/compose.yaml"
+if run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=1 > "$WORK/legacy-tampered.log" 2>&1; then
+  echo 'Release accepted modified service definition in historic compose source' >&2
+  exit 1
+fi
+grep -q 'Legacy running Compose differs from trusted or historical baseline' "$WORK/legacy-tampered.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+# Restore only the isolated fixture's original approved YAML.
+cp "$TRUSTED_DIR/compose.yaml" "$LEGACY/compose.yaml"
+printf '\n# harmless legacy comment\n' >> "$LEGACY/compose.yaml"
+run_local_candidate env USD_ACCEPT_SAME_HOST_BACKUP=1
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+unset USD_TEST_LEGACY_SOURCE
+rm -rf -- "$LEGACY"
+echo "Supervised legacy usd-src Compose migration passed; unreviewed YAML refused"
+
 echo "Mocked release, main-tip deferral, healthy rollback and unhealthy rollback rehearsals passed"
