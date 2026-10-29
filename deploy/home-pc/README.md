@@ -57,7 +57,11 @@ protect an API accidentally connected to a different database.
 Duplicate or missing critical variables, unresolved interpolation and
 malformed URLs are rejected **before any image replacement or backup**.
 Values are parsed as data, never executed as shell, and credentials are
-not printed. For special characters in the password, percent-encode them
+not printed. The helper also refuses inherited `APP_DOMAIN`, `DATABASE_URL`,
+`USD_IMAGE_TAG`, PostgreSQL variables, Compose project/file/profile overrides,
+and remote Docker host/context overrides. Docker Compose normally prioritizes
+exported process variables over `--env-file`; without this check a valid
+on-disk backup/domain policy could be bypassed by the operator's shell. For special characters in the password, percent-encode them
 in `DATABASE_URL` and keep the literal password in `POSTGRES_PASSWORD`.
 If the live host uses a different PostgreSQL topology, **do not bypass
 the gate**: review its actual DB topology, Compose files and backup
