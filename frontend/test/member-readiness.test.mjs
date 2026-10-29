@@ -24,6 +24,19 @@ test('direction readiness requires a real, positive-quantity component',()=>{
  assert.equal(isDirectionConfigured([row('REAR')],'FRONT'),false);
 });
 
+test('front and rear readiness requires acoustic drivers, not generic or mismatched equipment',()=>{
+ for(const direction of ['FRONT','REAR']){
+  for(const type of ['SUBWOOFER','AMPLIFIER','OTHER',undefined]){
+   assert.equal(isDirectionConfigured([row(direction,type)],direction),false,`Unexpected ${type} in ${direction}`);
+  }
+  for(const type of ['MIDBASS','MIDRANGE','HORN']){
+   assert.equal(isDirectionConfigured([row(direction,type)],direction),true,`Missing ${type} in ${direction}`);
+  }
+ }
+ assert.equal(isDirectionConfigured([row('FRONT','MIDRANGE')],'REAR'),false);
+ assert.equal(isDirectionConfigured([row('SUB','MIDBASS')],'SUB'),false);
+});
+
 test('registration hints prioritize BFSPL and BDW even with an imported SPL parent',()=>{
  const cls=(name)=>({class:{name,direction:{name:'SPL'}}});
  const front={audioComponents:[row('FRONT')]};
