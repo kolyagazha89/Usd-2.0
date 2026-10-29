@@ -144,7 +144,7 @@ unset USD_TEST_REMOTE_SHA
 bash "$WORK/builder" > "$WORK/no-media-policy.log"
 grep -q 'off-host media backup policy missing; build-only mode' "$WORK/no-media-policy.log"
 [[ ! -f "$WORK/releases.log" ]]
-printf 'usd-media:current\\nusd-offsite:verified\\n' > "$WORK/media-policy"
+printf 'usd-media:current\nusd-offsite:verified\n' > "$WORK/media-policy"
 chmod 666 "$WORK/media-policy"
 if bash "$WORK/builder" > "$WORK/insecure-media-policy.log" 2>&1; then exit 1; fi
 grep -q 'Media backup policy must be private and root-owned' "$WORK/insecure-media-policy.log"
