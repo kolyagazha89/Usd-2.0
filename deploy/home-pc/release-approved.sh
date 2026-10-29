@@ -283,7 +283,8 @@ docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env
   'pg_dump -Fc --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$db_snapshot_tmp"
 [[ -s "$db_snapshot_tmp" ]] || { echo "Database backup is empty" >&2; false; }
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" exec -T db pg_restore --list < "$db_snapshot_tmp" >/dev/null
-mv "$db_snapshot_tmp" "${db_snapshot_tmp%.partial}.dump"
+archive="${db_snapshot_tmp%.partial}.dump"
+mv "$db_snapshot_tmp" "$archive"
 db_snapshot_tmp=''
 # PostgreSQL must remain the SAME healthy container throughout the backup.
 # A DB restart or degraded database during pg_dump is not a safe release base.
@@ -292,6 +293,23 @@ db_snapshot_tmp=''
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
   { echo "Production DB became unhealthy during backup; refusing release" >&2; false; }
 
+# pg_restore --list checks archive structure, NOT whether a backup can actually
+# be restored. Before touching either live application container, restore this
+# exact fresh archive into an isolated PostgreSQL 18 volume and run the locally
+# built candidate's Prisma migrations against that disposable copy. The helper
+# must remove the copy even when verification fails; no production migration or
+# production DB restart is performed by this step.
+RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
+[[ -f "$RESTORE_VERIFIER" && -x "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" &&
+   "$(stat -c %u "$RESTORE_VERIFIER")" == 0 ]] ||
+  { echo "Missing or untrusted root-owned PostgreSQL restore verifier; refusing release" >&2; false; }
+(( (8#$(stat -c %a "$RESTORE_VERIFIER") & 022) == 0 )) ||
+  { echo "PostgreSQL restore verifier must not be group/world writable" >&2; false; }
+"$RESTORE_VERIFIER" "$archive" "ghcr.io/kolyagazha89/usd-2.0-api:$NEW_TAG" ||
+  { echo "Fresh PostgreSQL restore/migration rehearsal failed; refusing release" >&2; false; }
+[[ "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")" == "$db_before" &&
+   "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
+  { echo "Production DB changed during isolated restore rehearsal; refusing release" >&2; false; }
 
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
