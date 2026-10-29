@@ -188,6 +188,8 @@ jobs:
           python3 -m py_compile deploy/home-pc/s3/configure-offsite-b2.py
           python3 -m py_compile deploy/home-pc/s3/backup-to-second-disk.py
           python3 deploy/home-pc/s3/backup-to-second-disk.py --help >/dev/null
+          python3 -m py_compile deploy/home-pc/s3/verify-local-hdd-snapshot.py
+          bash -n deploy/home-pc/s3/finish-usd-on-ubuntu.sh
           python3 deploy/home-pc/s3/stage-api-s3.py --help >/dev/null
       - name: Check self-hosted runner trigger has no privileged workflow checkout
         run: |
