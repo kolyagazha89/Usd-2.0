@@ -13,6 +13,9 @@ TRUSTED_DIR=/etc/usd-deployer/compose
 # The real-Docker rehearsal runs later in this SAME CI job and requires a clean
 # host; the mock must therefore remove only files it created on exit.
 TEST_BACKUP_DIR=/var/lib/usd-deployer/backups
+RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
+[[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
+  { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
 for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
   "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
@@ -40,6 +43,7 @@ cleanup() {
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
+  rm -f -- "$RESTORE_VERIFIER"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -56,7 +60,14 @@ diagnose_failure() {
   done
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
-mkdir -p "$ROOT" "$STATE" "$WORK/bin"
+mkdir -p "$ROOT" "$STATE" "$WORK/bin" /usr/local/libexec
+cat > "$RESTORE_VERIFIER" <<'RESTORE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && -s "$1" && "$2" == "ghcr.io/kolyagazha89/usd-2.0-api:2222222222222222222222222222222222222222" ]] || exit 1
+[[ "${USD_TEST_FAIL_RESTORE_REHEARSAL:-0}" != 1 ]] || exit 1
+RESTORE
+chmod 0700 "$RESTORE_VERIFIER"
 cat > "$ROOT/.env" <<EOF
 USD_IMAGE_TAG=$OLD
 POSTGRES_DB=usd
@@ -305,6 +316,15 @@ grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-db-
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 unset USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY
+# A syntactically valid archive is not proof of a recoverable backup.
+# Refuse the release when the full disposable restore/migration check fails.
+if USD_TEST_FAIL_RESTORE_REHEARSAL=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/restore-rehearsal-failure.log" 2>&1; then
+  echo 'Release accepted an unrestorable PostgreSQL archive' >&2
+  exit 1
+fi
+grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-rehearsal-failure.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+
 # A database that becomes unhealthy during backup must block the swap before
 # either application container is replaced.
 export USD_TEST_DB_UNHEALTHY_AFTER_BACKUP=1
