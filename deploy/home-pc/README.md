@@ -43,6 +43,27 @@ and migration rehearsal, not frontend-only deployment and not an
 automatic schema-changing release. Until the VM is inspected, the
 workflow may remain queued because no trusted runner is registered.
 
+## Pre-release environment and database identity gate
+
+The release helper now **refuses to switch either image** unless the private
+Compose `.env` targets exactly `app.usd-russia.ru` and
+`api.usd-russia.ru`. The main `usd-russia.ru` domain is not an allowed
+application target. It also checks that `DATABASE_URL` points to the local
+Compose PostgreSQL service `db:5432` and that its decoded username,
+password and database name match `POSTGRES_USER`, `POSTGRES_PASSWORD`
+and `POSTGRES_DB`. This is essential: a backup of the local DB cannot
+protect an API accidentally connected to a different database.
+
+Duplicate or missing critical variables, unresolved interpolation and
+malformed URLs are rejected **before any image replacement or backup**.
+Values are parsed as data, never executed as shell, and credentials are
+not printed. For special characters in the password, percent-encode them
+in `DATABASE_URL` and keep the literal password in `POSTGRES_PASSWORD`.
+If the live host uses a different PostgreSQL topology, **do not bypass
+the gate**: review its actual DB topology, Compose files and backup
+target under a supervised migration plan. The CI fixture checks wrong
+domains, wrong database hosts, mismatched passwords and duplicates.
+
 ## Image builds and data boundaries
 
 - Before an automatic release, the builder checks the live GitHub main tip again **after** CI verification; if a new commit arrived during the long local build, it defers the stale candidate and rebuilds the newer main SHA on the next poll. A malformed or unreachable remote ref also blocks release without quarantining a healthy image.
