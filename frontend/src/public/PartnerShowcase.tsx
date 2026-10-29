@@ -1,11 +1,9 @@
 import {Link,Photo} from './PremiumUI';
 import {safeHref} from './premium-model';
+import {visiblePartners,type PublicPartner} from './partner-model';
 
 type Tier = 'GENERAL' | 'PREMIUM' | 'REGULAR';
-type Partner = {
- id?:string;name?:string;description?:string;photoUrl?:string|null;
- website?:string;isActive?:boolean;sortOrder?:number;tier?:string;
-};
+type Partner=PublicPartner;
 const TIERS:{id:Tier;heading:string;badge:string}[]=[
  {id:'GENERAL',heading:'Генеральный партнёр',badge:'ГЕНЕРАЛЬНЫЙ ПАРТНЁР'},
  {id:'PREMIUM',heading:'Премиальные партнёры',badge:'ПРЕМИАЛЬНЫЙ ПАРТНЁР'},
@@ -27,8 +25,7 @@ function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:b
 }
 
 export default function PartnerShowcase({partners,variant='full'}:{partners:Partner[];variant?:'home'|'full'}){
- const visible=(Array.isArray(partners)?partners:[]).filter(p=>p&&p.isActive!==false&&(p as Partner & {isPublished?:boolean}).isPublished!==false).slice().sort((a,b)=>
-  (Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||displayName(a).localeCompare(displayName(b),'ru'));
+ const visible=visiblePartners(partners);
  const compact=variant==='home';
  return <div className={'usd-partner-showcase usd-partner-showcase--'+variant}>
   {TIERS.map(tier=>{
