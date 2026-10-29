@@ -210,6 +210,19 @@ jobs:
             echo 'Media verifier accepted an ancestor of the live source as a backup destination' >&2
             exit 1
           fi
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source/../source/hidden"; then
+            echo 'Media verifier accepted a traversal alias nested under the source' >&2
+            exit 1
+          fi
+          ln -s "$root/source" "$root/source-alias"
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source-alias/hidden"; then
+            echo 'Media verifier accepted a symlink alias nested under the source' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "usd-media:bucket/photos" "usd-media:bucket/photos/../archive"; then
+            echo 'Media verifier accepted remote path traversal' >&2
+            exit 1
+          fi
           # A failed deletion of the private full-media restore must fail the
           # backup verifier. TMPDIR keeps the simulated leak inside CI fixtures.
           mkdir -p "$root/fakebin" "$root/tmp" "$root/backup-cleanup-failure"
