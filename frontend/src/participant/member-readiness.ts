@@ -67,18 +67,21 @@ export function missingConfigurationRequirementForClass(item:any,config:any):str
  return 'Для направлений SPL, BassRace и Storm Wall необходимо добавить сабвуфер в конфигурацию автомобиля.';
 }
 
+/** Resolve the active immutable snapshot regardless of API array order.
+ * A stale explicit pointer must never silently expose an older build.
+ */
+export function currentConfigurationVersion(config:any):any|undefined{
+ const versions=Array.isArray(config?.versions)?config.versions:[];
+ if(config?.currentVersion!=null)return versions.find((item:any)=>item?.version===config.currentVersion);
+ return versions.filter((item:any)=>Number.isSafeInteger(item?.version)&&item.version>0)
+  .reduce((latest:any,item:any)=>!latest||item.version>latest.version?item:latest,undefined);
+}
+
 export function currentCarAudioComponents(car:any):unknown{
  const configs=Array.isArray(car?.configurations)?car.configurations:[];
  const config=configs.find((item:any)=>item?.isActive!==false);
  if(!config)return undefined;
- const versions=Array.isArray(config.versions)?config.versions:[];
- // Never treat a stale historical version as the active build when the
- // currentVersion pointer is present but its referenced version is missing.
- const version=config.currentVersion==null
-  ?versions.filter((item:any)=>Number.isSafeInteger(item?.version)&&item.version>0)
-   .reduce((latest:any,item:any)=>!latest||item.version>latest.version?item:latest,undefined)
-  :versions.find((item:any)=>item.version===config.currentVersion);
- return version?.audioComponents;
+ return currentConfigurationVersion(config)?.audioComponents;
 }
 
 /** Keep the member's next stage tied to its calendar date, not to a stale
