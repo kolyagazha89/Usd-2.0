@@ -1,0 +1,19 @@
+[Unit]
+Description=USD SSD S3 storage (RustFS)
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target
+RequiresMountsFor=/mnt/usd-ssd
+
+[Service]
+Type=simple
+WorkingDirectory=/home/usd/usd-deploy/deploy/home-pc/s3
+ExecStartPre=/usr/bin/mountpoint -q /mnt/usd-ssd
+ExecStart=/usr/bin/docker compose -f compose.yaml up --no-color
+ExecStop=/usr/bin/docker compose -f compose.yaml stop
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=180s
+
+[Install]
+WantedBy=multi-user.target
