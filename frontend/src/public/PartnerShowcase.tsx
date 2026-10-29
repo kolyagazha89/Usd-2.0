@@ -18,7 +18,7 @@ function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:b
  const photo=<Photo src={partner.photoUrl??undefined} alt={name} className="p-partner-logo" fallback={name}/>;
  return <article className={'usd-partner-card usd-partner-card--'+tier.toLowerCase()+' u-panel'}>
   <span className="usd-partner-badge">{TIERS.find(t=>t.id===tier)?.badge}</span>
-  {external?<a className="usd-partner-visual" href={href} target="_blank" rel="noopener noreferrer" aria-label={'Сайт партнёра '+name}>{photo}</a>:<Link className="usd-partner-visual" to="/partners" aria-label={'Подробнее о партнёре '+name}>{photo}</Link>}
+  {external?<a className="usd-partner-visual" href={href} target="_blank" rel="noopener noreferrer" aria-label={'Сайт партнёра '+name}>{photo}</a>:compact?<Link className="usd-partner-visual" to="/partners" aria-label={'Подробнее о партнёре '+name}>{photo}</Link>:<div className="usd-partner-visual">{photo}</div>}
   <div className="usd-partner-info"><h3>{name}</h3>{!compact&&partner.description&&<p>{partner.description}</p>}
   {external?<a className="usd-partner-link" href={href} target="_blank" rel="noopener noreferrer">Сайт партнёра ↗</a>:compact?<Link className="usd-partner-link" to="/partners">Подробнее ↗</Link>:null}</div>
  </article>;
