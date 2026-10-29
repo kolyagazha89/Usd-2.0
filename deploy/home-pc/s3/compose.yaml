@@ -4,7 +4,7 @@ name: usd-s3
 # Start it only after the SSD is mounted and the existing USD Docker network exists.
 services:
   rustfs:
-    image: rustfs/rustfs:1.0.3
+    image: rustfs/rustfs:1.0.4
     command: ["/data"]
     user: "10001:10001"
     security_opt:
