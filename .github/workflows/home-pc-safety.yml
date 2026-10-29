@@ -184,6 +184,8 @@ jobs:
           bash -n deploy/home-pc/test-release-docker.sh
           python3 -m py_compile deploy/home-pc/s3/migrate-b2.py
           python3 deploy/home-pc/s3/migrate-b2.py --help >/dev/null
+          python3 -m py_compile deploy/home-pc/s3/stage-api-s3.py
+          python3 deploy/home-pc/s3/stage-api-s3.py --help >/dev/null
       - name: Check self-hosted runner trigger has no privileged workflow checkout
         run: |
           set -euo pipefail
