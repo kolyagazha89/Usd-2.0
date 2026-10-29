@@ -188,6 +188,16 @@ if USD_TEST_FAIL_MEDIA=1 bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK
 fi
 grep -q 'Independent media backup/full restore failed' "$WORK/media-refusal.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+# Even with db:5432 in the URL authority, a query parameter may override
+# the connection target. Reject it before Docker or PostgreSQL backup access.
+sed -i 's|?schema=public$|?schema=public\\&host=remote-db|' "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/unsafe-db-query.log" 2>&1; then
+  echo 'Release accepted query-overridden PostgreSQL connection target' >&2
+  exit 1
+fi
+grep -q 'unsafe PostgreSQL connection query parameters' "$WORK/unsafe-db-query.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+sed -i 's|?schema=public&host=remote-db$|?schema=public|' "$ROOT/.env"
 # A valid on-disk local DB URL is not proof of the actual running DB target.
 # Change BOTH .env credentials without recreating containers: the old live
 # PostgreSQL/API still use the original password. Refuse before pg_dump.
