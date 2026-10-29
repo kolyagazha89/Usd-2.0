@@ -3,6 +3,16 @@
  * by the registrations API against the selected immutable configuration version.
  */
 export type AudioDirection='SUB'|'FRONT'|'REAR';
+
+/** An imported or partially entered car is not ready just because it has an ID.
+ * Keep historical cars visible, but guide the owner to complete missing fields. */
+export function isCarIdentityComplete(car:unknown):boolean{
+ if(!car||typeof car!=='object')return false;
+ const item=car as {id?:unknown;brand?:unknown;model?:unknown};
+ const usable=(value:unknown)=>typeof value==='string'&&value.trim().length>0
+  &&!/^(не указано|не указан|нет|—|-)$/i.test(value.trim());
+ return usable(item.id)&&usable(item.brand)&&usable(item.model);
+}
 type AudioComponent={direction?:unknown;type?:unknown;brand?:unknown;model?:unknown;quantity?:unknown};
 
 export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boolean{
