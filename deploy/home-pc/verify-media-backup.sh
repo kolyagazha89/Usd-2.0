@@ -21,7 +21,20 @@ read -r count bytes < <(python3 -c 'import json,sys; v=json.load(sys.stdin); pri
 # The restore target is a newly-created private local directory; it is never
 # the original media directory or any production Docker volume.
 restore="$(mktemp -d)"
-trap 'rm -rf -- "$restore"' EXIT
+cleanup() {
+  local status=$?
+  trap - EXIT
+  # This directory contains a full restore of private participant media.
+  # Never claim a verified backup while that sensitive copy remains on disk.
+  if ! rm -rf -- "$restore"; then
+    echo "CRITICAL: media restore cleanup failed; remove private data at $restore" >&2
+    [[ "$status" != 0 ]] || status=1
+  elif [[ "$status" == 0 ]]; then
+    echo "PASS: backed up and restored $count media objects ($bytes bytes); verified full content both ways and removed temporary restore."
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 available="$(df -PB1 "$restore" | awk 'NR==2 {print $4}')"
 [[ "$available" =~ ^[0-9]+$ && "$available" -gt "$bytes" ]] || { echo 'Not enough free space for full restore verification' >&2; exit 1; }
 rclone copy "$source" "$backup" --checkers 8 --transfers 4
@@ -30,4 +43,4 @@ rclone copy "$backup" "$restore" --checkers 8 --transfers 4
 rclone check "$backup" "$restore" --download
 read -r restored_count restored_bytes < <(rclone size --json "$restore" | python3 -c 'import json,sys; v=json.load(sys.stdin); print(v["count"],v["bytes"])')
 [[ "$restored_count" == "$count" && "$restored_bytes" == "$bytes" ]] || { echo 'Restored media count or size differs from source' >&2; exit 1; }
-echo "PASS: backed up and restored $count media objects ($bytes bytes); verified full content both ways."
+# Report success only after private temporary media have been removed.
