@@ -82,7 +82,7 @@ chmod 600 "$DB_OFFSITE_POLICY"
 cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^usd-db-offsite:verified/release-[0-9a-f]{40}-[0-9]{8}T[0-9]{6}Z-[0-9]+\.dump$ ]] || exit 1
 [[ "${USD_TEST_FAIL_OFFSITE:-0}" != 1 ]] || exit 1
 printf '%s\n' "$2" >> "$USD_TEST_WORK_OFFSITE_LOG"
 OFFSITE
