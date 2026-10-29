@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """One-time upgrade of the two reviewed nullable additions from the e8b5b0f host.
 
+The 20261005130000_site_settings migration is the original historical SQL
+from commit 1b07512c550b0a71866ce1ef4c22f6b4373390d4. It is already
+applied to the live DB, but must remain in the candidate migration directory
+for Prisma history compatibility. Neither this helper nor a new release should
+reapply it to the live DB.
+
 Never resets/restores the live DB, edits migration history or changes app images.
 An actual fresh backup/restore receipt is mandatory before --apply.
 """
@@ -22,7 +28,7 @@ from urllib.parse import urlsplit
 SOURCE = Path("/opt/usd-release-source")
 STATE = Path("/var/lib/usd-deployer")
 BASELINE = "e8b5b0f22780a61e79765b8fd92167e241df82a2"
-REVIEWED_TREE = "d2a0f5faf5229af1bd32313a854b1b83378069ce"
+REVIEWED_TREE = "4d9fa43dafd01e58354c3d22ead2cafe45152044"
 REVIEWED_ADDITIONS = {
     "20261028150000_participant_usd_id": "88873ec9c8f94fd76269afd29109f9d26b58485584513c19e70fb6ad4273e9f1",
     "20261028172000_configuration_catalog_entry_ids": "cae9b2ef5bcc936199dc7f0c42a1de78555b676ce0b9b949fd23f44c27dd68c9",
