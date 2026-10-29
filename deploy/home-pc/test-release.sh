@@ -24,8 +24,8 @@ MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
   { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
-for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
-  "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+for protected in "$ROOT/.env" \
+  "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
   "$STATE/deployed-sha" "$STATE/failed-release-sha" \
   "$STATE/initial-preflight" \
@@ -47,8 +47,8 @@ WORK="$(mktemp -d)"
 cleanup() {
   # Do not leak fixture credentials/approvals into the following real-Docker
   # rehearsal, or leave a misleading deployed SHA in the runner filesystem.
-  rm -f -- "$ROOT/.env" "$ROOT/.env.cloudflared" \
-    "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
+  rm -f -- "$ROOT/.env" \
+    "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" \
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$STATE/initial-preflight"
@@ -112,7 +112,7 @@ EOF
 chmod 600 "$ROOT/.env"
 cp deploy/home-pc/compose.yaml "$ROOT/compose.yaml"
 cp deploy/home-pc/compose.local.yaml "$ROOT/compose.local.yaml"
-cp deploy/home-pc/compose.tunnel.yaml "$ROOT/compose.tunnel.yaml"
+cp deploy/home-pc/compose.unknown.yaml
 mkdir -p "$TRUSTED_DIR"
 cp "$ROOT"/compose*.yaml "$TRUSTED_DIR/"
 printf '%s\n' "$NEW" > "$STATE/built-sha"
@@ -168,8 +168,8 @@ if [[ "${1:-}" == inspect ]]; then
     echo "ghcr.io/kolyagazha89/usd-2.0-$service:$tag"
     exit 0
   fi
-  if [[ "${USD_TEST_TUNNEL_OVERLAY:-0}" == 1 ]]; then
-    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.tunnel.yaml"
+  if [[ "${USD_TEST_UNKNOWN_OVERLAY:-0}" == 1 ]]; then
+    echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.unknown.yaml"
   else
     echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.local.yaml"
   fi
@@ -296,13 +296,13 @@ fi
 grep -q "must not be accessible to group" "$WORK/insecure-env.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 chmod 600 "$ROOT/.env"
-printf 'CLOUDFLARE_TUNNEL_TOKEN=ci-only\n' >> "$ROOT/.env"
+printf 'LEGACY_TUNNEL_TOKEN=ci-only\n' >> "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/leaked-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential must be isolated' "$WORK/leaked-tunnel-env.log"
-sed -i '/^CLOUDFLARE_TUNNEL_TOKEN=/d' "$ROOT/.env"
+grep -q 'Unsupported ingress token' "$WORK/leaked-tunnel-env.log"
+sed -i '/^LEGACY_TUNNEL_TOKEN=/d' "$ROOT/.env"
 printf '  TUNNEL_TOKEN =ci-only\\n' >> "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/padded-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential must be isolated' "$WORK/padded-tunnel-env.log"
+grep -q 'Unsupported ingress token' "$WORK/padded-tunnel-env.log"
 sed -i '/^[[:space:]]*TUNNEL_TOKEN[[:space:]]*=/d' "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 # A local DB backup cannot protect an API accidentally pointing to another
@@ -343,15 +343,10 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=0
-export USD_TEST_TUNNEL_OVERLAY=1
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/missing-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Missing, symlinked or non-root-owned tunnel credential file' "$WORK/missing-tunnel-env.log"
-printf 'TUNNEL_TOKEN=ci-only\n' > "$ROOT/.env.cloudflared"
-chmod 644 "$ROOT/.env.cloudflared"
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/insecure-tunnel-env.log" 2>&1; then exit 1; fi
-grep -q 'Tunnel credential file must not be accessible' "$WORK/insecure-tunnel-env.log"
-chmod 600 "$ROOT/.env.cloudflared"
-export USD_TEST_TUNNEL_OVERLAY=0
+export USD_TEST_UNKNOWN_OVERLAY=1
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsupported-overlay.log" 2>&1; then exit 1; fi
+grep -q 'Unknown active Compose file' "$WORK/unsupported-overlay.log"
+export USD_TEST_UNKNOWN_OVERLAY=0
 [[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_DB_UNHEALTHY_BEFORE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-before.log" 2>&1; then exit 1; fi

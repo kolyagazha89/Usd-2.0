@@ -12,7 +12,7 @@ SOURCE = Path('/opt/usd-release-source')
 DEPLOY = Path('/home/usd/usd-deploy/deploy/home-pc')
 STATE = Path('/var/lib/usd-deployer')
 BASELINE = 'e8b5b0f22780a61e79765b8fd92167e241df82a2'
-KEYS = {'TUNNEL_TOKEN', 'CLOUDFLARE_TUNNEL_TOKEN'}
+KNOWN_COMPOSE = {'compose.yaml', 'compose.local.yaml'}
 
 
 def needs_upgrade(current: bytes, candidate: bytes, baseline: bytes) -> bool:
@@ -23,39 +23,12 @@ def needs_upgrade(current: bytes, candidate: bytes, baseline: bytes) -> bool:
     raise ValueError('Customized Compose file differs from the reviewed baseline; refusing overwrite')
 
 
-def token_value(raw: str) -> str:
-    value = raw.strip()
-    if value.startswith(('"', "'")):
-        if len(value) < 2 or value[-1] != value[0]:
-            raise ValueError('Invalid tunnel credential quoting')
-        value = value[1:-1]
-    else:
-        value = re.sub(r'\s+#.*$', '', value).strip()
-    if not re.fullmatch(r'[A-Za-z0-9_./+=-]+', value):
-        raise ValueError('Invalid or unresolved tunnel credential; value was not printed')
-    return value
-
-
-def isolate_tunnel(shared: str, private: str | None) -> tuple[str, str | None]:
-    tokens = []
-    keep = []
-    for line in shared.splitlines(keepends=True):
-        key, sep, value = line.strip().partition('=')
-        if sep and key in KEYS:
-            tokens.append(token_value(value))
-        else:
-            keep.append(line)
-    if private is not None:
-        for line in private.splitlines():
-            if not line.strip() or line.strip().startswith('#'):
-                continue
-            key, sep, value = line.strip().partition('=')
-            if not sep or key != 'TUNNEL_TOKEN':
-                raise ValueError('Unexpected setting in private tunnel credential file')
-            tokens.append(token_value(value))
-    if tokens and len(set(tokens)) != 1:
-        raise ValueError('Conflicting tunnel credentials; no value was printed')
-    return ''.join(keep), ('TUNNEL_TOKEN=' + tokens[0] + '\n' if tokens else None)
+def validate_running_config_files(raw: str) -> None:
+    paths = [Path(value).name for value in raw.split(',') if value.strip()]
+    if 'compose.yaml' not in paths:
+        raise ValueError('Running API has no known base Compose file')
+    if any(path not in KNOWN_COMPOSE for path in paths):
+        raise ValueError('Unsupported active ingress overlay; configure direct HTTPS first')
 
 
 def replace(path: Path, content: bytes, *, private: bool = False) -> None:
@@ -79,7 +52,7 @@ def main() -> None:
         if path.is_symlink() or not path.is_dir():
             raise ValueError('Missing or symlinked host preparation directory')
     plans = []
-    for name in ('compose.yaml', 'compose.local.yaml', 'compose.tunnel.yaml'):
+    for name in ('compose.yaml', 'compose.local.yaml'):
         current, candidate = DEPLOY / name, SOURCE / 'deploy/home-pc' / name
         if current.is_symlink() or not current.is_file():
             raise ValueError('Missing or symlinked active Compose file')
@@ -93,16 +66,22 @@ def main() -> None:
             baseline = subprocess.check_output(['git', '-C', str(SOURCE), 'show', f'{BASELINE}:deploy/home-pc/{name}'])
         if needs_upgrade(old, new, baseline):
             plans.append((current, new, False))
-    env, tunnel = DEPLOY / '.env', DEPLOY / '.env.cloudflared'
-    if env.is_symlink() or tunnel.is_symlink():
-        raise ValueError('Refusing symlinked application/tunnel credentials')
-    shared = env.read_text()
-    private = tunnel.read_text() if tunnel.exists() else None
-    clean, isolated = isolate_tunnel(shared, private)
-    if clean != shared:
-        plans.append((env, clean.encode(), True))
-    if isolated is not None:
-        plans.append((tunnel, isolated.encode(), True))
+    env = DEPLOY / '.env'
+    if env.is_symlink() or not env.is_file():
+        raise ValueError('Missing or symlinked application environment')
+    if re.search(r'(?m)^[ \t]*[A-Za-z_]*TUNNEL_TOKEN[ \t]*=', env.read_text()):
+        raise ValueError('Unsupported ingress token in application environment')
+    running = subprocess.check_output([
+        'docker', 'ps', '-q', '--filter', 'label=com.docker.compose.project=usd-home',
+        '--filter', 'label=com.docker.compose.service=api'
+    ], text=True).split()
+    if len(running) != 1:
+        raise ValueError('Expected one running USD API before host file reconciliation')
+    configs = subprocess.check_output([
+        'docker', 'inspect', '-f',
+        '{{ index .Config.Labels "com.docker.compose.project.config_files" }}', running[0]
+    ], text=True).strip()
+    validate_running_config_files(configs)
     # Validate EVERY input before rewriting any host file. Backups stay private.
     if plans:
         backup = Path(tempfile.mkdtemp(prefix='setup-config-', dir=STATE))
@@ -113,7 +92,7 @@ def main() -> None:
         for path, content, is_private in plans:
             replace(path, content, private=is_private)
     os.chmod(env, 0o600)
-    print('Reviewed Compose files and isolated tunnel credentials prepared; running database and ingress were not restarted')
+    print('Reviewed local Compose files prepared; live database and ingress unchanged')
 
 
 if __name__ == '__main__':

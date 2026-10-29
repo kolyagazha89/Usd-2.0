@@ -300,13 +300,13 @@ jobs:
             test "$status" -eq 75
             grep -q "deployment is active" /tmp/usd-installer-lock-test.log
           '
-      - name: Validate local and tunnel Compose overlays without touching a server
+      - name: Validate local Compose overlays without touching a server
         run: |
           set -euo pipefail
           cd deploy/home-pc
           cp .env.example .env
           chmod 600 .env
-          # Tunnel-only hosts must not expose the direct Caddy ingress by default.
+          # Direct ingress remains opt-in until the host is approved.
           ! docker compose --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --profile direct-edge --env-file .env -f compose.yaml config --services | grep -qx caddy
           docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
@@ -316,14 +316,6 @@ jobs:
           trap 'rm -rf "$trusted"' EXIT
           cp compose*.yaml "$trusted/"
           docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.local.yaml" config --quiet
-          printf 'TUNNEL_TOKEN=ci-placeholder\n' > .env.cloudflared
-          chmod 600 .env.cloudflared
-          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
-          docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.tunnel.yaml" config --quiet
-          docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
-          # Never inject the tunnel credential into the API or database container.
-          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --format json |
-            python3 -c 'import json,sys; services=json.load(sys.stdin)["services"]; assert "TUNNEL_TOKEN" not in services["api"].get("environment",{}); assert "TUNNEL_TOKEN" not in services["db"].get("environment",{}); assert services["cloudflared"]["environment"]["TUNNEL_TOKEN"] == "ci-placeholder"'
       - name: Validate GitHub main push CI release gate
         run: |
           set -euo pipefail

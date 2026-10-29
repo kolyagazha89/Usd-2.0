@@ -50,8 +50,8 @@ cd "$DEPLOY_DIR"
 [[ -f .env && ! -L .env ]] || { echo "Missing or symlinked production .env" >&2; exit 1; }
 (( (8#$(stat -c %a .env) & 077) == 0 )) ||
   { echo "Production .env must not be accessible to group or other users" >&2; exit 1; }
-if grep -Eq '^[[:space:]]*(TUNNEL_TOKEN|CLOUDFLARE_TUNNEL_TOKEN)[[:space:]]*=' .env; then
-  echo "Tunnel credential must be isolated in .env.cloudflared, not shared with API" >&2
+if grep -Eq '^[[:space:]]*([A-Za-z_]*TUNNEL_TOKEN)[[:space:]]*=' .env; then
+  echo "Unsupported ingress token in application environment" >&2
   exit 1
 fi
 OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' .env)"
@@ -153,12 +153,7 @@ for file in "${active_files[@]}"; do
   case "$file" in
     "$DEPLOY_DIR/compose.yaml"|"$TRUSTED_DIR/compose.yaml") has_base=1 ;;
     "$DEPLOY_DIR/compose.local.yaml"|"$TRUSTED_DIR/compose.local.yaml") ;;
-    "$DEPLOY_DIR/compose.tunnel.yaml"|"$TRUSTED_DIR/compose.tunnel.yaml")
-      tunnel_env="$DEPLOY_DIR/.env.cloudflared"
-      [[ -f "$tunnel_env" && ! -L "$tunnel_env" && "$(stat -c %u "$tunnel_env")" == 0 ]] ||
-        { echo "Missing, symlinked or non-root-owned tunnel credential file" >&2; exit 1; }
-      (( (8#$(stat -c %a "$tunnel_env") & 077) == 0 )) ||
-        { echo "Tunnel credential file must not be accessible to group or others" >&2; exit 1; } ;;
+
     *) echo "Unknown active Compose file: $file" >&2; exit 1 ;;
   esac
   [[ -f "$file" && ! -L "$file" ]] || { echo "Compose file missing or symlinked: $file" >&2; exit 1; }

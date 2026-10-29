@@ -27,7 +27,7 @@ install -o root -g root -m 0750 verify-db-offsite-backup.sh /usr/local/libexec/u
 # Docker Compose runs as root through the release helper. Never execute a
 # Compose YAML directly from the usd-owned checkout during an automatic release.
 install -d -o root -g root -m 0755 /etc/usd-deployer/compose
-for config in compose.yaml compose.local.yaml compose.tunnel.yaml; do
+for config in compose.yaml compose.local.yaml; do
   install -o root -g root -m 0644 "$config" "/etc/usd-deployer/compose/$config"
 done
 install -d -o root -g root -m 0700 /var/lib/usd-deployer

@@ -14,24 +14,12 @@ class HostFilesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.needs_upgrade(b"operator customization", b"new", b"old")
 
-    def test_isolates_existing_token_and_preserves_application_settings(self):
-        shared = 'APP_DOMAIN=app.usd-russia.ru\nCLOUDFLARE_TUNNEL_TOKEN="private-token"\nDATABASE_URL=unchanged\n'
-        clean, private = module.isolate_tunnel(shared, None)
-        self.assertEqual(clean, 'APP_DOMAIN=app.usd-russia.ru\nDATABASE_URL=unchanged\n')
-        self.assertEqual(private, 'TUNNEL_TOKEN=private-token\n')
-
-    def test_existing_matching_private_token_is_idempotent(self):
-        shared = 'TUNNEL_TOKEN=private-token\nOTHER=value\n'
-        self.assertEqual(module.isolate_tunnel(shared, 'TUNNEL_TOKEN=private-token\n'), ('OTHER=value\n', 'TUNNEL_TOKEN=private-token\n'))
-
-    def test_conflicting_tokens_refuse_before_any_file_write(self):
-        for shared, private in [('TUNNEL_TOKEN=a\n', 'TUNNEL_TOKEN=b\n'),
-                                ('TUNNEL_TOKEN=a\nCLOUDFLARE_TUNNEL_TOKEN=b\n', None)]:
-            with self.subTest(shared=shared), self.assertRaises(ValueError):
-                module.isolate_tunnel(shared, private)
-
-    def test_no_tunnel_does_not_create_a_credential_file(self):
-        self.assertEqual(module.isolate_tunnel('APP_DOMAIN=app.usd-russia.ru\n', None), ('APP_DOMAIN=app.usd-russia.ru\n', None))
+    def test_only_reviewed_compose_files_are_accepted(self):
+        module.validate_running_config_files('/srv/compose.yaml,/srv/compose.local.yaml')
+        with self.assertRaisesRegex(ValueError, 'Unsupported active ingress overlay'):
+            module.validate_running_config_files('/srv/compose.yaml,/srv/compose.unknown.yaml')
+        with self.assertRaisesRegex(ValueError, 'no known base'):
+            module.validate_running_config_files('/srv/compose.local.yaml')
 
 
 if __name__ == '__main__':
