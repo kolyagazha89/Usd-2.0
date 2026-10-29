@@ -275,6 +275,19 @@ deployment is enabled. It refuses to stage while the auto-release gate is
 enabled, if keys have unsafe characters, or if object inventory/Compose checks
 fail. The AWS application user remains restricted to `usd-media`.
 
+If `--apply` refuses with `Automatic deployment enabled`, that is an
+expected safety stop, not an S3 failure. Existing hosts may retain the
+root-owned `/etc/usd-deploy-enabled` switch even when off-host backup
+policies are absent. Under explicit operator supervision, disable/stop
+`usd-auto-deploy.timer`, acquire the shared exclusive
+`/run/lock/usd-home-deploy.lock`, and move (do not delete) the gate to
+a private location `/etc/usd-s3/usd-deploy-enabled.paused`. Only then
+run `--apply`, retaining the gate paused until independent database/media
+backups, release policies, and real-site tests are complete. Do **not**
+re-enable the timer or gate merely because config staging succeeded:
+future actions require the supervised production release process.
+Never bypass the guard with a fake path or alter the script itself.
+
 Staging is NOT a release: the currently running API environment is unchanged.
 Do not run `docker compose up -d` to force deployment; it can unintentionally
 recreate the DB or switch public ingress. Actual first-cutover requires the
