@@ -4,6 +4,7 @@ import {Trophy,ChartNoAxesCombined,Users,Settings,Gem,Play,MapPin,ArrowUpRight} 
 import {publicResultUnit,publicResultValue,selectHomepageRecords} from '../public-result-utils';
 import {Link,Button,Eyebrow,EmptyState,Photo,NewsCard} from './PremiumUI';
 import PartnerShowcase from './PartnerShowcase';
+import {visiblePartners} from './partner-model';
 import {homepageCopy,type HomepageCopyKey} from './homepage-copy';
 import {carName,countLabel,highestDbRecord,initials,nextPublishedStage,personName,publishedNews,safeHref,stageDate,stageRegistrationPath,teamGroups} from './premium-model';
 const LogoShowcase=lazy(()=>import('./LogoShowcase'));
@@ -28,7 +29,7 @@ export default function PremiumHome({settings,stages,results,records,participant
  const next=nextPublishedStage(stages);
  const nextUrl=next?'/stages/'+encodeURIComponent(next.id):'/stages';
  const best=highestDbRecord(records),topRecords=selectHomepageRecords(records),teams=teamGroups(participants),news=publishedNews(settings.news);
- const partners=(settings.partners??[]).filter((p:any)=>p&&p.isActive!==false&&p.isPublished!==false).slice().sort((a:any,b:any)=>(a.sortOrder??0)-(b.sortOrder??0));
+ const partners=visiblePartners(settings.partners);
  const stream=safeHref(settings.stream?.embedUrl);
  const streamAllowed=stream.startsWith('https:')&&!/\.workers\.dev|\.up\.railway\.app/.test(new URL(stream).hostname);
  const showBroadcast=enabled('live-stream')&&settings.homepage?.showLiveStream!==false;
