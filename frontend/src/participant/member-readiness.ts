@@ -26,7 +26,7 @@ export function isDirectionConfigured(rows:unknown,direction:AudioDirection):boo
    &&String(item.brand??'').trim().length>0
    &&String(item.model??'').trim().length>0
    &&Number.isSafeInteger(quantity)&&quantity>0
-   &&(direction!=='SUB'||item.type==='SUBWOOFER');
+   &&(direction==='SUB' ? item.type==='SUBWOOFER' : ['MIDBASS','MIDRANGE','HORN'].includes(String(item.type??'')));
  });
 }
 
