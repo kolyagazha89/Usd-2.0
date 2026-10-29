@@ -196,7 +196,7 @@ test('dashboard and onboarding share the same car completion rule',async()=>{
   readFile(new URL('../src/participant/ParticipantJourney.tsx',import.meta.url),'utf8')
  ]);
  for(const source of [dashboard,journey]){
-  assert.match(source,/isCarIdentityComplete\\(car\\)/);
+  assert.match(source,/isCarIdentityComplete\(car\)/);
   assert.match(source,/done:carReady/);
  }
 });
