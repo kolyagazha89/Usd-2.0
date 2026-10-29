@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {currentCarAudioComponents,isCarIdentityComplete,isCarRegisteredForStage,isDirectionConfigured,missingConfigurationRequirementForClass,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
+import {currentCarAudioComponents,currentConfigurationVersion,isCarIdentityComplete,isCarRegisteredForStage,isDirectionConfigured,missingConfigurationRequirementForClass,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
 
 const row=(direction,type='MIDBASS',quantity=1)=>({direction,type,brand:' USD ',model:'Model 1',quantity});
 
@@ -227,4 +227,20 @@ test('dashboard and onboarding share the same car completion rule',async()=>{
   assert.match(source,/isCarIdentityComplete\(car\)/);
   assert.match(source,/done:carReady/);
  }
+});
+
+
+test('public car page uses the exact active configuration version, not array position',async()=>{
+ const old={version:1,audioComponents:[row('SUB','SUBWOOFER')]};
+ const current={version:3,audioComponents:[row('FRONT')]};
+ const later={version:4,audioComponents:[row('REAR')]};
+ assert.equal(currentConfigurationVersion({currentVersion:3,versions:[old,later,current]}),current);
+ assert.equal(currentConfigurationVersion({currentVersion:3,versions:[later,current,old]}),current);
+ assert.equal(currentConfigurationVersion({currentVersion:99,versions:[old,current]}),undefined,'stale pointers must not expose a historical build');
+ assert.equal(currentConfigurationVersion({versions:[old,later,current]}),later,'legacy versions use the highest valid number');
+ assert.equal(currentConfigurationVersion({versions:[{version:0}, {version:'5'}]}),undefined);
+ assert.equal(currentConfigurationVersion(null),undefined);
+ const page=await readFile(new URL('../src/public/PublicCommunity.tsx',import.meta.url),'utf8');
+ assert.match(page,/currentConfigurationVersion\(c\)/);
+ assert.doesNotMatch(page,/const v=c\.versions\?\.\[0\]/);
 });
