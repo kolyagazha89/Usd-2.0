@@ -156,8 +156,11 @@ def compose_validate(content):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--apply", action="store_true",
-                   help="Atomically update .env after checks, but do NOT restart any container")
+    modes = p.add_mutually_exclusive_group()
+    modes.add_argument("--check", action="store_true",
+                       help="Read-only preflight (the default)")
+    modes.add_argument("--apply", action="store_true",
+                       help="Atomically update .env after checks, but do NOT restart any container")
     args = p.parse_args()
     require(os.geteuid() == 0, "Run as root via sudo")
     require(SSD.is_mount(), "SSD is not mounted; refusing S3 changes")
