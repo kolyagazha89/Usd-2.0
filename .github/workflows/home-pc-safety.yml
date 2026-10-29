@@ -146,12 +146,19 @@ jobs:
           set -euo pipefail
           docker run -d --name usd-frontend-ci-readiness usd-frontend-candidate:${{ github.sha }}
           trap 'docker rm -f usd-frontend-ci-readiness >/dev/null 2>&1 || true' EXIT
+          usd_frontend_ready=0
           for attempt in $(seq 1 20); do
-            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then exit 0; fi
+            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then usd_frontend_ready=1; break; fi
             sleep 1
           done
-          docker logs usd-frontend-ci-readiness
-          exit 1
+          [[ "$usd_frontend_ready" == 1 ]] || { docker logs usd-frontend-ci-readiness; exit 1; }
+          for path in /index.html /admin/inspections /usd-release.json; do
+            headers="$(docker exec usd-frontend-ci-readiness wget -S -O /dev/null "http://127.0.0.1$path" 2>&1)"
+            grep -qi 'X-Frame-Options: DENY' <<< "$headers"
+            grep -qi 'X-Content-Type-Options: nosniff' <<< "$headers"
+            grep -qi 'Permissions-Policy: camera=(self)' <<< "$headers"
+            if [[ "$path" == /usd-release.json ]]; then grep -qi 'Cache-Control: no-store' <<< "$headers"; fi
+          done
 
   validate:
     runs-on: ubuntu-latest
