@@ -34,6 +34,7 @@ for old,new in {
  '/etc/usd-deploy-enabled':work+'/enabled',
  '/etc/usd-auto-release-schema':work+'/policy',
  '/etc/usd-deployer/media-backup.conf':work+'/media-policy',
+ '/etc/usd-deployer/db-backup.conf':work+'/db-offsite-policy',
  '/usr/local/libexec/usd-verify-media-backup':work+'/media-verify',
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
@@ -148,6 +149,13 @@ bash "$WORK/builder" > "$WORK/invalid-main.log" 2>&1
 grep -q 'Invalid main branch tip response' "$WORK/invalid-main.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_REMOTE_SHA
+# Even with approved schema and green CI, no off-host PostgreSQL policy
+# means build-only rather than quarantining a healthy candidate.
+bash "$WORK/builder" > "$WORK/no-db-offsite-policy.log"
+grep -q 'off-host PostgreSQL backup policy missing; build-only mode' "$WORK/no-db-offsite-policy.log"
+[[ ! -f "$WORK/releases.log" ]]
+printf 'usd-db-offsite:verified\n' > "$WORK/db-offsite-policy"
+chmod 600 "$WORK/db-offsite-policy"
 # Even with approved schema and green CI, no media policy means build-only.
 bash "$WORK/builder" > "$WORK/no-media-policy.log"
 grep -q 'off-host media backup policy missing; build-only mode' "$WORK/no-media-policy.log"
