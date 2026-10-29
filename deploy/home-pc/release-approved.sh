@@ -452,6 +452,22 @@ tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
 cp -p .env "$tmp"
 sed -i -E "s/^USD_IMAGE_TAG=[a-f0-9]{40}$/USD_IMAGE_TAG=$NEW_TAG/" "$tmp"
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
+# Off-host backups and a full PostgreSQL restore can take minutes or hours.
+# A newer main push during that work must not let this automatic candidate
+# replace the current application. This is the final check before changing
+# production .env; direct, operator-supervised releases remain explicit.
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
+  defer_stale_main() { return 75; }
+  remote_main="$(git -C /opt/usd-release-source ls-remote --exit-code origin refs/heads/main)" || {
+    echo "Cannot verify main after backup/restore; deferring automatic release" >&2
+    defer_stale_main
+  }
+  latest_main="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
+  if [[ ! "$latest_main" =~ ^[a-f0-9]{40}$ || "$latest_main" != "$NEW_TAG" ]]; then
+    echo "Main moved or is invalid after backup/restore; deferring stale automatic release" >&2
+    defer_stale_main
+  fi
+fi
 changed=1
 mv -f "$tmp" .env
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
