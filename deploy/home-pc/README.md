@@ -134,6 +134,13 @@ environment file, and cannot reach the public internet through its internal
 network. A failed restore or migration blocks approval. PostgreSQL 18 data
 volumes on the live Compose project are never mounted.
 
+The disposable restore volume contains a complete copy of the production
+database, including personal data. The rehearsal reports success **only after**
+its temporary container, network and data volume have been removed. Failure
+to remove any resource is a hard error, and the remaining resource name is
+printed for immediate supervised cleanup. The real-Docker CI suite injects
+a volume-deletion failure to verify that this condition cannot pass silently.
+
 A successful rehearsal **does not** prove that a live migration is safe:
 compare data counts and application invariants, review migration SQL for
 destructive operations, take a second off-host DB backup, and verify that
