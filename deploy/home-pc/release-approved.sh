@@ -174,6 +174,86 @@ db_before="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" -
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before")" == healthy ]] ||
   { echo "Production DB is not healthy; refusing release" >&2; exit 1; }
 
+# The .env file may have been edited since the current containers started.
+# A healthy API could still be connected to an external PostgreSQL instance:
+# dumping the local db would then protect the WRONG participant records.
+# Verify the actual running container environments, without printing secrets,
+# before considering either the existing deployment or its backup trustworthy.
+python3 - "$DEPLOY_DIR/.env" "$api_id" "$db_before" <<'PY'
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+def expected_env(path):
+    required = {"DATABASE_URL", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"}
+    found = {}
+    for raw in Path(path).read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        key = key.strip()
+        if key not in required:
+            continue
+        if not sep or key in found:
+            raise ValueError("duplicate or malformed DB setting")
+        value = value.strip()
+        if value.startswith(('"', "'")):
+            if len(value) < 2 or value[-1] != value[0]:
+                raise ValueError("unclosed DB setting")
+            value = value[1:-1]
+        else:
+            value = re.sub(r"\\s+#.*$", "", value).strip()
+        found[key] = value
+    if found.keys() != required:
+        raise ValueError("missing DB setting")
+    return found
+
+def container_env(container_id):
+    output = subprocess.run(
+        ["docker", "inspect", "--format", "{{json .Config.Env}}", container_id],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    entries = json.loads(output)
+    if not isinstance(entries, list):
+        raise ValueError("invalid Docker environment")
+    result = {}
+    for entry in entries:
+        if not isinstance(entry, str) or "=" not in entry:
+            raise ValueError("invalid Docker environment entry")
+        key, value = entry.split("=", 1)
+        if key in result:
+            raise ValueError("duplicate Docker environment entry")
+        result[key] = value
+    return result
+
+try:
+    expected = expected_env(sys.argv[1])
+    api = container_env(sys.argv[2])
+    db = container_env(sys.argv[3])
+    api_checks = {
+        "DATABASE_URL": expected["DATABASE_URL"],
+        "NODE_ENV": "production",
+        "AUTH_COOKIE_SECURE": "true",
+        "FRONTEND_URL": "https://app.usd-russia.ru",
+        "CORS_ORIGINS": "https://app.usd-russia.ru",
+        "CSRF_TRUSTED_ORIGINS": "https://app.usd-russia.ru",
+        "API_PUBLIC_URL": "https://api.usd-russia.ru",
+        "PUBLIC_API_URL": "https://api.usd-russia.ru",
+    }
+    db_checks = {key: expected[key] for key in ("POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD")}
+    if any(api.get(key) != value for key, value in api_checks.items()):
+        raise ValueError("running API environment drift")
+    if any(db.get(key) != value for key, value in db_checks.items()):
+        raise ValueError("running PostgreSQL environment drift")
+except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
+    # Never include the actual values, which may contain database credentials.
+    print(f"Running API/DB configuration does not match approved prerelease backup target: {type(exc).__name__}", file=sys.stderr)
+    sys.exit(1)
+PY
+
 # Use a private, unique rollback snapshot. Preserve original ownership and mode.
 mkdir -p "$STATE_DIR"
 backup="$(mktemp "$STATE_DIR/release-env.XXXXXXXX")"
