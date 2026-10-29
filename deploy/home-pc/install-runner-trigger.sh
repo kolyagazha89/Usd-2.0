@@ -26,6 +26,17 @@ if [[ -e /var/run/docker.sock ]] &&
   echo 'Runner can access Docker socket; refusing privilege installation' >&2
   exit 1
 fi
+# Group membership alone is insufficient: sudoers can grant privileges to
+# this user directly or through an arbitrary supplementary group. Audit the
+# complete effective policy before adding the one permitted systemctl action.
+# sudo -l -U can exit ZERO even when the user is denied all sudo commands,
+# so its exit code alone is not a reliable privilege test. With C locale,
+# accept only the explicit no-privileges response; fail closed otherwise.
+sudo_policy="$(LC_ALL=C sudo -n -l -U "$runner" 2>&1)" || :
+case "$sudo_policy" in
+  "User $runner is not allowed to run sudo on "*) ;;
+  *) echo 'Runner has pre-existing sudo privileges or an unverifiable sudo policy' >&2; exit 1 ;;
+esac
 for protected in /etc/systemd/system/usd-auto-deploy.service /usr/local/sbin/usd-auto-deploy; do
   [[ -f "$protected" && ! -L "$protected" && "$(stat -c %u "$protected")" == 0 ]] ||
     { echo "Missing or untrusted root-owned service: $protected" >&2; exit 1; }
