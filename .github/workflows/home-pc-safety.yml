@@ -194,7 +194,7 @@ jobs:
             sudo userdel usd_runner_ci
           }
           trap cleanup_runner_fixture EXIT
-          printf 'usd_runner_ci ALL=(root) NOPASSWD: /usr/bin/true\\n' | sudo tee /etc/sudoers.d/usd-runner-ci-test >/dev/null
+          printf 'usd_runner_ci ALL=(root) NOPASSWD: /usr/bin/true\n' | sudo tee /etc/sudoers.d/usd-runner-ci-test >/dev/null
           sudo chmod 0440 /etc/sudoers.d/usd-runner-ci-test
           sudo visudo -cf /etc/sudoers.d/usd-runner-ci-test
           if sudo bash deploy/home-pc/install-runner-trigger.sh usd_runner_ci >/tmp/usd-runner-existing-sudo.log 2>&1; then
