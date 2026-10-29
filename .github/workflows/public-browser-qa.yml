@@ -6,6 +6,7 @@ on:
       - "frontend/**"
       - "scripts/public-browser-qa.mjs"
       - "scripts/candidate-browser-qa.mjs"
+      - "scripts/candidate-browser-qa-config.mjs"
       - ".github/workflows/public-browser-qa.yml"
   workflow_dispatch:
 
