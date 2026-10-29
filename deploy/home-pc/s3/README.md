@@ -182,15 +182,18 @@ S3_ACCESS_KEY_ID=RESTRICTED_IAM_ACCESS_KEY
 S3_SECRET_ACCESS_KEY=RESTRICTED_IAM_SECRET_KEY
 ```
 
-This is a Docker-internal hostname; it works for signed requests made **by the
-API server**, not for browser fetches. The existing public-file proxy is
-suitable for public photos and approved documents. Some existing API routes
-still return direct S3 presigned URLs (private media `/media/view`,
-`/media/public` and media-library previews); these cannot work in browsers
-with `S3_ENDPOINT=http://usd-s3:9000`. **Do not claim complete end-to-end
-media UX until those routes are changed to safe API-served media and tested.**
-In particular, do not open RustFS or private participant photos to the WAN
-merely to make old presigned preview URLs work.
+This is a Docker-internal hostname: API requests can reach it, but browsers
+cannot and must not connect directly. The revised PR #309 frontend uses
+`GET /media/private-file/:targetType/:targetId` with its existing bearer
+authentication to load private photos and admin previews as local browser
+blobs. Public photos and published documents continue through
+`GET /media/public-file/:targetType/:targetId`; uploads run through the
+existing authenticated `PUT /media/upload` API route. Legacy direct-presign
+routes (`/media/view` and `/media/public`) remain for compatibility,
+but first-party frontend does not rely on them and direct internal S3 links
+are not browser URLs. Validate private media RBAC, admin preview and site asset
+flows end-to-end after the supervised release; passing a local bucket CLI
+test alone does not prove these features work.
 
 Do not overwrite the `.env`, modify the running Compose overlay, restart USD
 API, change DNS, or touch the primary `usd-russia.ru` domain until the revised
