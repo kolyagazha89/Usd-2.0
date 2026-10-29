@@ -132,55 +132,70 @@ sudo bash -c '
 '
 ```
 
-For browser uploads from USD, configure bucket-level S3 CORS/permissions, and **test** a signed PUT/GET/HEAD/DELETE
-using the actual web application. Do not make private participant photos a
-publicly readable bucket.
+## 3a. Verified local storage, use restricted API credentials
 
-## 4. Critical: public signed upload URL
+The existing frontend uses **authenticated** `PUT /media/upload` on the USD API
+for images and DOCX. The Nest API then sends a signed PUT to S3 *inside Docker*.
+For public participant/car photos and published site files, the frontend also
+uses the API's `/media/public-file/:targetType/:targetId` proxy. Thus the
+current upload path does **not** require a public S3 hostname, TLS on port
+9000, or S3 browser CORS.
 
-Current backend `backend/src/media/media.service.ts` generates S3
-presigned URLs for the **browser** using the same `S3_ENDPOINT` the API uses.
-Therefore `http://usd-s3:9000` is NOT a usable production `S3_ENDPOINT`:
-a public browser cannot resolve the Docker-only hostname.
+After `usd-media` passes an AWS CLI PUT/GET/DELETE round-trip, first verify
+the running API container can reach RustFS on its existing shared network:
 
-To enable real uploads, first provide a browser-reachable HTTPS host such
-as `https://s3.usd-russia.ru` routed to `usd-s3:9000`, and verify that
-the API container can also reach that HTTPS URL. Configure only after
-public ingress is independently solved:
-
-```text
-S3_ENDPOINT=https://s3.usd-russia.ru
-S3_REGION=us-east-1
-S3_BUCKET=usd-media
-S3_FORCE_PATH_STYLE=true
-S3_ACCESS_KEY_ID=ACTUAL_PRIVATE_ACCESS_KEY
-S3_SECRET_ACCESS_KEY=ACTUAL_PRIVATE_SECRET_KEY
+```bash
+API_ID="$(sudo docker ps -q --filter 'label=com.docker.compose.project=usd-home' --filter 'label=com.docker.compose.service=api')"
+test -n "$API_ID"
+sudo docker exec "$API_ID" node -e 'fetch("http://usd-s3:9000/health/ready").then(r=>{console.log("S3 reachable from API:",r.status);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e.message);process.exit(1)})'
 ```
 
-Use a **separate, least-privilege RustFS IAM user/service account** for
-`S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, restricted to the
-`usd-media` bucket and required object operations. Keep the RustFS root
-credentials only in `/etc/usd-s3/s3.env` for host administration, never in
-the API application environment. See upstream IAM documentation and test
-presigned PUT/GET/HEAD/DELETE under the limited identity.
+**Do not put the root RustFS credentials in USD's API environment.**
+Use the private RustFS Console via SSH port forwarding to create an IAM
+user/service account with only the required permissions on `usd-media`.
+Example policy:
 
-These are added to the existing PRIVATE
-`/home/usd/usd-deploy/deploy/home-pc/.env` — do not replace that file
-or edit live app credentials without a supervised release.
-On direct Caddy ingress, a reviewed route can be added:
-
-```caddyfile
-s3.usd-russia.ru {
-    reverse_proxy usd-s3:9000
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect":"Allow","Action":["s3:ListBucket","s3:GetBucketLocation"],"Resource":["arn:aws:s3:::usd-media"]},
+    {"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::usd-media/*"]}
+  ]
 }
 ```
 
-Do not change `usd-russia.ru`, and do not publish ports 19000 or 19001
-to the WAN. With carrier-grade NAT, inbound 80/443 forwarding normally
-cannot work: obtain an actual public IPv4/IPv6 route or an independent
-reverse gateway before removing the currently working ingress.
-SSL, DNS, reverse-proxy Host preservation, CORS and end-to-end signed
-upload/download must be validated before claiming readiness.
+Verify that account's Put/Get/Head/Delete with a separate test key. Never
+post credentials or database environments in tickets, logs or chat.
+
+## 4. Connect the internal storage to USD API
+
+After validating the IAM account, the intended production configuration
+in the **existing** root-protected application `deploy/home-pc/.env` is:
+
+```text
+S3_ENDPOINT=http://usd-s3:9000
+S3_REGION=us-east-1
+S3_BUCKET=usd-media
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=RESTRICTED_IAM_ACCESS_KEY
+S3_SECRET_ACCESS_KEY=RESTRICTED_IAM_SECRET_KEY
+```
+
+This is a Docker-internal hostname; it works for signed requests made **by the
+API server**, not for browser fetches. The existing public-file proxy is
+suitable for public photos and approved documents. Some existing API routes
+still return direct S3 presigned URLs (private media `/media/view`,
+`/media/public` and media-library previews); these cannot work in browsers
+with `S3_ENDPOINT=http://usd-s3:9000`. **Do not claim complete end-to-end
+media UX until those routes are changed to safe API-served media and tested.**
+In particular, do not open RustFS or private participant photos to the WAN
+merely to make old presigned preview URLs work.
+
+Do not overwrite the `.env`, modify the running Compose overlay, restart USD
+API, change DNS, or touch the primary `usd-russia.ru` domain until the revised
+media routes are tested and the existing production release gates pass.
+The S3 systemd service is separate and may run without changes to USD API.
 
 ## 5. Independent backups and PR #309
 
