@@ -159,6 +159,7 @@ jobs:
           bash -n deploy/home-pc/release-approved.sh
           bash -n deploy/home-pc/rehearse-schema-on-backup.sh
           bash -n deploy/home-pc/verify-media-backup.sh
+          bash -n deploy/home-pc/verify-db-offsite-backup.sh
           bash -n deploy/home-pc/install-local-deployer.sh
           bash -n deploy/home-pc/install-runner-trigger.sh
           bash -n deploy/home-pc/test-release.sh
@@ -242,6 +243,35 @@ jobs:
           grep -q 'media restore cleanup failed' "$root/cleanup-failure.log"
           [[ -n "$(find "$root/tmp" -mindepth 1 -maxdepth 1 -type d -print -quit)" ]] ||
             { echo 'Media cleanup failure fixture did not leave a temporary restore' >&2; exit 1; }
+      - name: Verify independent PostgreSQL archive upload and full byte-for-byte download
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # rclone is installed by the media verification step above.
+          root="$(mktemp -d)"
+          trap 'sudo rm -rf "$root"' EXIT
+          printf '[usd-db-ci]\ntype = local\n' > "$root/rclone.conf"
+          printf 'disposable PostgreSQL archive payload for transport verification\n' > "$root/sample.dump"
+          sudo chown root:root "$root/sample.dump"
+          sudo chmod 600 "$root/sample.dump"
+          target="usd-db-ci:$root/offsite/verified.dump"
+          sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "$target"
+          sudo test -s "$root/offsite/verified.dump"
+          sudo cmp "$root/sample.dump" "$root/offsite/verified.dump"
+          # A reused backup destination must never silently overwrite data.
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "$target"; then
+            echo 'Off-host DB verifier accepted an existing archive object' >&2
+            exit 1
+          fi
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "usd-db-ci:$root/../unsafe.dump"; then
+            echo 'Off-host DB verifier accepted traversal' >&2
+            exit 1
+          fi
+          # A remote read failure must not authorize a live release.
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "missing-remote:backups/failed.dump"; then
+            echo 'Off-host DB verifier accepted an inaccessible remote' >&2
+            exit 1
+          fi
       - name: Installer refuses to overwrite trusted scripts during a running release
         run: |
           set -euo pipefail
