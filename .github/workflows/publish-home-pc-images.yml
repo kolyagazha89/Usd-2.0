@@ -1,7 +1,10 @@
 name: Publish self-hosted USD images
 
-# Manual fallback only; normal deployment builds locally on Ubuntu.
+# Build on GitHub-hosted workers. The home VM only pulls immutable SHA tags.
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -21,7 +24,8 @@ jobs:
       - run: docker compose --project-directory deploy/home-pc -f deploy/home-pc/compose.yaml config --quiet
 
   publish:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
+    needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -47,7 +51,11 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ghcr.io/kolyagazha89/${{ matrix.image }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
           build-args: |
             VITE_API_URL=https://api.usd-russia.ru
+            USD_RELEASE_SHA=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

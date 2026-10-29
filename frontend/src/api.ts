@@ -3,7 +3,7 @@ const API_BASE = configuredApiBase
   ? (/^https?:\/\//i.test(configuredApiBase)
       ? configuredApiBase
       : 'https://' + configuredApiBase.replace(/^\/+/, ''))
-  : 'https://usd-api-production.up.railway.app';
+  : 'https://api.usd-russia.ru';
 
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;

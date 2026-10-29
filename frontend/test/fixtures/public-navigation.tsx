@@ -172,6 +172,21 @@ export async function runResultProfileLinks(){
  history.replaceState({},'','/results?stageId=alpha');const root=createRoot(document.getElementById('root')!);
  try{await act(async()=>root.render(<App/>));await flush();assert.ok(document.querySelector('.public-result-card a[href="/participants/public-person"]'),'published result links to the public competitor profile');assert.equal(document.querySelector('a[href="/participants/private-person"]'),null,'hidden competitor identities never link to a profile')}finally{await act(async()=>root.unmount())}
 }
+export async function runRecordProfileLinks(){
+ state.__accountUser=null;
+ const record={id:'record-public',value:150,class:{name:'Limited 2.0',unit:'DB',direction:{name:'SPL'}},stage:stages[0]};
+ const records=[{...record,participant:{id:'public-person',firstName:'Открытый',isPublic:true}},{...record,id:'record-nested',result:{registration:{participant:{id:'nested-person',firstName:'Вложенный',isPublic:true}}}},{...record,id:'record-private',participant:{id:'private-person',firstName:'Скрытый',isPublic:false}}];
+ state.__getPublic=async(path:string)=>path==='/records/current'?records:path==='/site-settings/public'?{settings:{}}:path==='/participants/public-person'?{id:'public-person',firstName:'Открытый',cars:[],registrations:[]}:[];
+ history.replaceState({},'','/records');const root=createRoot(document.getElementById('root')!);
+ try{
+  await act(async()=>root.render(<App/>));await flush();
+  const link=document.querySelector<HTMLAnchorElement>('.public-record-card a[href="/participants/public-person"]');
+  assert.ok(link,'record holder links to their public achievements');
+  assert.ok(document.querySelector('.public-record-card a[href="/participants/nested-person"]'),'record resolves the competitor through its result');
+  assert.equal(document.querySelector('a[href="/participants/private-person"]'),null,'a hidden record holder has no public profile link');
+  await click(link);assert.equal(location.pathname,'/participants/public-person');assert.match(document.querySelector('.p-profile-banner')?.textContent??'',/Открытый/);
+ }finally{await act(async()=>root.unmount())}
+}
 export async function runRegistrationContext(){
  state.__accountUser=null;state.__getPublic=async(path:string)=>path==='/stages/public/alpha'?{...stages[0],name:'Выбранный кубок'}:path==='/site-settings/public'?{settings:{legal:{legalApproved:true,ipName:'USD',privacyText:'policy',consentText:'consent',termsText:'terms'}}}:[];
  history.replaceState({},'','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dalpha');const root=createRoot(document.getElementById('root')!);

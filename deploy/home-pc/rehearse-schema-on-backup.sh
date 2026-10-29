@@ -12,6 +12,9 @@ image="$2"
 [[ "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$ ]] || { echo 'Invalid candidate image reference' >&2; exit 1; }
 for tool in docker openssl date du df awk sort; do command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }; done
 docker image inspect "$image" >/dev/null || { echo 'Candidate API image not found locally' >&2; exit 1; }
+available_mb="$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
+[[ "$available_mb" =~ ^[0-9]+$ && "$available_mb" -ge 1536 ]] ||
+  { echo 'Insufficient memory for isolated PostgreSQL/Prisma restore rehearsal' >&2; exit 1; }
 # A compressed pg_dump can expand several-fold during restore. Fail closed
 # before creating Docker resources if the Docker data filesystem is too full.
 docker_root="$(docker info --format '{{.DockerRootDir}}')"
@@ -69,6 +72,7 @@ network_created=1
 docker volume create --label usd.migration.disposable=true "$volume" >/dev/null
 volume_created=1
 docker run -d --name "$db" --network "$network" --network-alias "$db" \
+  --memory=512m --memory-swap=512m \
   --mount "type=volume,source=$volume,target=/var/lib/postgresql" \
   -e POSTGRES_USER=usd -e POSTGRES_DB=usd -e "POSTGRES_PASSWORD=$password" \
   --label usd.migration.disposable=true postgres:18-alpine >/dev/null
@@ -92,8 +96,8 @@ count_query="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc \
 rows_before="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc "$count_query" | LC_ALL=C sort)"
 [[ -n "$rows_before" ]] || { echo 'Cannot count rows in restored archive' >&2; exit 1; }
 # Candidate image gets only an ephemeral DATABASE_URL; no production env file.
-docker run --rm --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate deploy
-docker run --rm --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate status
+docker run --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate deploy
+docker run --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate status
 rows_after="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc "$count_query" | LC_ALL=C sort)"
 [[ "$rows_after" == "$rows_before" ]] || {
   echo 'Migration rehearsal changed row counts or removed a pre-existing table; manual data migration review required' >&2

@@ -45,6 +45,7 @@ test('public stage links, selector URLs and browser history show the requested r
     await workflow.runRulesSearch();
     await workflow.runPrereleaseErrors();
     await workflow.runResultProfileLinks();
+    await workflow.runRecordProfileLinks();
     await workflow.runRegistrationContext();
     await workflow.runCommunityNavigationRace();
     await workflow.runGuestPrivateEntry();

@@ -83,12 +83,14 @@ chmod 0700 "$RESTORE_VERIFIER"
 mkdir -p /etc/usd-deployer
 printf 'usd-db-offsite:verified\n' > "$DB_OFFSITE_POLICY"
 chmod 600 "$DB_OFFSITE_POLICY"
-cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
-OFFSITE
-chmod 0700 "$DB_OFFSITE_VERIFIER"
+# Exercise the REAL path validator and byte-for-byte transport helper against
+# a disposable rclone alias. A wildcard mock missed malformed backup names.
+command -v rclone >/dev/null
+mkdir -p "$WORK/offsite"
+export RCLONE_CONFIG="$WORK/rclone.conf"
+printf '[usd-db-offsite]\ntype = alias\nremote = %s/offsite\n' "$WORK" > "$RCLONE_CONFIG"
+chmod 600 "$RCLONE_CONFIG"
+install -o root -g root -m 0700 deploy/home-pc/verify-db-offsite-backup.sh "$DB_OFFSITE_VERIFIER"
 printf 'usd-media:ci-source\nusd-media-offsite:verified\n' > "$MEDIA_POLICY"
 chmod 600 "$MEDIA_POLICY"
 cat > "$MEDIA_VERIFIER" <<'MEDIA'

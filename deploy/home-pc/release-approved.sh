@@ -19,6 +19,10 @@ STATE_DIR=/var/lib/usd-deployer
 PROJECT=usd-home
 NEW_TAG="${1:-}"
 [[ "$NEW_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Usage: release-approved.sh <full Git SHA>" >&2; exit 2; }
+[[ $# == 1 || ( $# == 2 && "$2" == --preflight-only ) ]] ||
+  { echo 'Usage: release-approved.sh <full Git SHA> [--preflight-only]' >&2; exit 2; }
+preflight_only=0
+[[ "${2:-}" != --preflight-only ]] || preflight_only=1
 
 # Approval state is a privileged trust boundary, not merely a cache. A
 # group-writable state directory or built-SHA file could authorize an image
@@ -425,7 +429,7 @@ db_snapshot_tmp=''
 
 # A separate off-host copy must be retrievable and byte-for-byte identical
 # before the candidate is allowed to replace any live application container.
-db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$.dump"
+db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
 "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
   { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
 
@@ -446,6 +450,19 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 [[ "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")" == "$db_before" &&
    "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
   { echo "Production DB changed during isolated restore rehearsal; refusing release" >&2; false; }
+
+if [[ "$preflight_only" == 1 ]]; then
+  # This receipt authorizes ONLY the separately installed, tightly scoped
+  # first-run nullable-migration helper. No application image is replaced.
+  receipt_tmp="$(mktemp "$STATE_DIR/initial-preflight.XXXXXXXX")"
+  printf '%s\n%s\n%s\n' "$NEW_TAG" "$OLD_TAG" "$db_before" > "$receipt_tmp"
+  chmod 0600 "$receipt_tmp"
+  mv -f "$receipt_tmp" "$STATE_DIR/initial-preflight"
+  rm -f -- "$backup"
+  trap - ERR TERM INT
+  echo 'First-release backup, independent download and isolated restore verified; live images and database were not changed'
+  exit 0
+fi
 
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"

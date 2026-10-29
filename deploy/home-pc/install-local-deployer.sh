@@ -12,10 +12,15 @@ for tool in git docker flock systemctl install bash awk df python3 cmp readlink;
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 docker compose version >/dev/null
-for script in auto-deploy.sh release-approved.sh rehearse-schema-on-backup.sh verify-media-backup.sh verify-db-offsite-backup.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
+for script in auto-deploy.sh release-approved.sh rehearse-schema-on-backup.sh verify-media-backup.sh verify-db-offsite-backup.sh setup-home-pc.sh prepare-runner-launcher.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read_text())'
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read_text())'
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-prerelease.py").read_text())'
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").read_text())'
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
+install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema
+install -o root -g root -m 0755 verify-prerelease.py /usr/local/libexec/usd-verify-prerelease
 install -o root -g root -m 0750 rehearse-schema-on-backup.sh /usr/local/libexec/usd-rehearse-schema-on-backup
 install -o root -g root -m 0750 verify-media-backup.sh /usr/local/libexec/usd-verify-media-backup
 install -o root -g root -m 0750 verify-db-offsite-backup.sh /usr/local/libexec/usd-verify-db-offsite-backup

@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend.yml"
+    # The host validates the exact newest main SHA, including when an earlier
+    # frontend change is followed by a docs/backend commit before deployment.
   pull_request:
     paths:
       - "frontend/**"
@@ -44,4 +43,4 @@ jobs:
       - name: Validate Wrangler Worker assets without publishing
         run: npx --yes wrangler deploy --dry-run
         env:
-          VITE_API_URL: https://usd-api-production.up.railway.app
+          VITE_API_URL: https://api.usd-russia.ru

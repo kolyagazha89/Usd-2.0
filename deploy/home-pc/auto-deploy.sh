@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# USD main builder with an optional, schema-pinned automatic release policy.
+# Acquire published USD main images and optionally release a pinned schema.
 set -Eeuo pipefail
 umask 077
 exec 9>/run/lock/usd-home-deploy.lock
@@ -19,8 +19,9 @@ fi
 
 available_mb="$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
 free_kb="$(df -Pk /var/lib/docker | awk 'NR==2 {print $4}')"
-if (( available_mb < 3072 || free_kb < 8388608 )); then
-  echo "Insufficient available memory or disk for safe local Docker build" >&2
+if [[ ! "$free_kb" =~ ^[0-9]+$ || ! "$available_mb" =~ ^[0-9]+$ ]] ||
+   (( available_mb < 1536 || free_kb < 8388608 )); then
+  echo "Insufficient memory or Docker storage for image preparation and restore rehearsal" >&2
   exit 1
 fi
 
@@ -43,7 +44,7 @@ done
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main
 SHA="$(git -C "$SOURCE_DIR" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-# A cached SHA is valid only while BOTH locally built images still exist.
+# A cached SHA is valid only while BOTH published images still exist.
 # Docker pruning can remove either tag without changing the Git commit.
 images_cached=0
 if [[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$SHA" ]] &&
@@ -52,19 +53,29 @@ if [[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$SHA" ]] 
   images_cached=1
 fi
 if [[ "$images_cached" == 1 ]]; then
-  echo "Images already built for $SHA"
+  echo "Images already available for $SHA"
 else
-# Dedicated root-owned source checkout: discard all untracked build artifacts
-# before Docker receives the build context, even after an interrupted build.
+# Keep the dedicated root-owned source checkout at the candidate commit and
+# discard artifacts left by older installations which built on this VM.
 git -C "$SOURCE_DIR" checkout --force --detach "$SHA"
 git -C "$SOURCE_DIR" clean -ffdx
 
-# Sequential local builds; do not run migrations or restart any service.
-docker build -t "ghcr.io/kolyagazha89/usd-2.0-api:$SHA" "$SOURCE_DIR/backend"
-docker build --build-arg VITE_API_URL=https://api.usd-russia.ru \
-  -t "ghcr.io/kolyagazha89/usd-2.0-frontend:$SHA" "$SOURCE_DIR/frontend"
-printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"
+# GitHub-hosted workers install dependencies and build both images. The home
+# VM only downloads them: its npm/BuildKit network is not a release dependency.
+# Never fall back silently to a local build or another commit's image.
+docker pull "ghcr.io/kolyagazha89/usd-2.0-api:$SHA"
+docker pull "ghcr.io/kolyagazha89/usd-2.0-frontend:$SHA"
 fi
+# A SHA-shaped tag alone cannot detect accidental publication of the wrong
+# source. Validate both OCI revision labels, even when using the local cache.
+for image in api frontend; do
+  revision="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "ghcr.io/kolyagazha89/usd-2.0-$image:$SHA")"
+  [[ "$revision" == "$SHA" ]] || { echo "Image revision does not match $SHA: $image" >&2; exit 1; }
+done
+# Preserve the existing release helper's state-file contract, but only after
+# BOTH downloads and their source labels have been verified.
+printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"
 
 # Existing installations stay build-only until the operator pins the schema
 # they have actually verified on the host. Schema changes always stop here.

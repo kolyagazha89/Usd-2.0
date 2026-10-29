@@ -218,7 +218,7 @@ function PublicRecordCards({rows,go}:{rows:any[];go:(path:string)=>void}){
    <div className="public-record-value">{value}<small>{publicResultUnit(r.unit||r.result?.unit||r.class?.unit,r.class||r.result?.registrationClass?.class)}</small></div>
    <div className="public-record-class">{r.class?.name||r.className||'Спортивный класс'}</div>
    <div className="public-record-divider"/>
-   <div className="public-record-person-row">{photoUrl?<img className="public-record-avatar" src={photoUrl} alt={name} loading="lazy"/>:<span className="public-record-avatar public-record-avatar-placeholder">{String(name||'USD').slice(0,1).toUpperCase()}</span>}<strong className="public-record-person">{name}</strong></div><span className="public-record-car">{car}</span>
+   <div className="public-record-person-row">{photoUrl?<img className="public-record-avatar" src={photoUrl} alt={name} loading="lazy"/>:<span className="public-record-avatar public-record-avatar-placeholder">{String(name||'USD').slice(0,1).toUpperCase()}</span>}{participant?.id&&participant.isPublic!==false?<PublicLink to={'/participants/'+encodeURIComponent(participant.id)} className="public-record-person public-record-profile-link"><strong>{name}</strong></PublicLink>:<strong className="public-record-person">{name}</strong>}</div><span className="public-record-car">{car}</span>
    <span className="public-record-stage">{r.stage?.name||r.result?.registration?.stage?.name||'История USD'}</span>
   </article>
  })}</div>;

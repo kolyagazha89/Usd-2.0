@@ -1,5 +1,21 @@
 # USD — migration to Windows/Hyper-V/Ubuntu (staged)
 
+## Разовый запуск на существующем домашнем сервере
+
+После слияния и успешных проверок этой версии выполните в существующем SSH-сеансе:
+
+```bash
+cd /home/usd/usd-deploy && git switch main && git pull --ff-only && sudo bash deploy/home-pc/setup-home-pc.sh
+```
+
+Скрипт использует существующие `.env`, контейнеры и PostgreSQL. В первый раз потребуется настроить в диалоге rclone **внешнее** хранилище и источник медиа, а затем войти в GitHub по коду через свой браузер. Пароли и ключи вводятся только на сервере/странице провайдера. Временная административная сессия GitHub удаляется после выхода; runner работает отдельным пользователем без Docker и широких прав sudo.
+
+Установка проверяет точный main CI, загружает оба образа, согласует только известные исходные Compose-файлы и отделяет старый tunnel token от `.env`, не перезапуская БД или входящий туннель. Перед первым переходом с `e8b5b0f` проверяются внешние копии, скачивание архива и настоящее восстановление PostgreSQL 18. Допускаются только две конкретные проверенные миграции: nullable USD ID и nullable ссылки на каталог оборудования. Их SHA256 и состояние истории сверяются до запуска; неизвестные/изменённые миграции и потеря строк блокируют переход.
+
+После первого релиза проверяются **обе** публичные версии: `app.usd-russia.ru/usd-release.json` и `api.usd-russia.ru/release`. Затем установка создаёт безопасный контрольный коммит `deploy/home-pc/deployment-probe.json` в main и ждёт нового релиза и успешной работы именно установленного runner. Отдельного ручного запуска второго деплоя нет. Ожидание включает CI, публикацию, проверку резервных копий и восстановление; при больших медиа оно может занять значительное время.
+
+Только после этих проверок сообщение установщика подтверждает автодеплой. Будущие обычные изменения с совместимой закреплённой Prisma-схемой обновляются через runner и резервный таймер. Изменение схемы за пределами проверенного перехода, красный CI или неисправное хранилище останавливают обновление, сохраняя работающую версию. Это не обещание применять любые будущие миграции без проверки. Основной `usd-russia.ru` не является целью установщика.
+
 This is a deployment scaffold, **not evidence that the live site or database has been migrated**. Do not expose an empty USD database to public traffic. Do not switch production DNS until the restored database, S3 objects, WAN routing, HTTPS and all role flows have been verified.
 
 ## Historical host notes — current host inspection still required
@@ -12,7 +28,7 @@ Use the existing Hyper-V Default Switch **only for initial staging**. Its intern
 
 The `.github/workflows/request-home-pc-deploy.yml` workflow is a **request**, not a
 release authorization. It runs only after a successful **main push** of
-`Home PC deployment safety checks`, on a dedicated runner with labels
+`Publish self-hosted USD images`, on a dedicated runner with labels
 `self-hosted, linux, x64, usd-home-pc`. It does not check out repository
 code, receive application secrets or access the Docker socket. The runner
 only invokes `sudo -n /usr/bin/systemctl start usd-auto-deploy.service`.
@@ -81,8 +97,8 @@ domains, wrong database hosts, mismatched passwords and duplicates.
 ## Image builds and data boundaries
 
 - Before an automatic release, the builder checks the live GitHub main tip after CI and again after the full media backup. The release helper makes one **final main-tip check after the independent PostgreSQL backup, disposable restore/migration rehearsal and Compose validation, immediately before replacing `.env`**. A newer, malformed or unreachable main ref defers the stale candidate with retry status 75; it must not replace live containers or quarantine a healthy SHA. Direct supervised releases remain explicitly operator-approved.
-- The local timer builds API/frontend with immutable full Git SHA tags. GHCR publication is a manual fallback. Local builds require at least 3 GB available RAM and 8 GB free Docker storage; insufficient capacity blocks the build. The build cache is valid only when both SHA-tagged images remain present; if Docker prunes either one, the next poll rebuilds both. The dedicated root-owned checkout is forcibly cleaned of untracked files before every rebuild.
-- Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env.
+- GitHub-hosted workers automatically build and publish API/frontend for every main push, with full Git SHA tags and matching OCI revision labels. Manual main publication remains available. The home service pulls these images and checks both revision labels before recording the candidate; it never silently falls back to npm installation or another SHA. A failed or partial pull cannot authorize a release. The cache is valid only while both images exist, and their revision labels are checked on every poll. Keep at least 1536 MiB available RAM and 8 GiB free Docker storage; disposable PostgreSQL and Prisma processes are each limited to 512 MiB. The dedicated root-owned checkout is cleaned before preparing a new candidate.
+- Private GHCR images require host authentication using a suitable token with read:packages; do not commit tokens or place them in .env. Public images can be pulled anonymously. An existing installation must reinstall the reviewed root-owned helpers to adopt this pipeline; merely pulling the writable checkout does not update the installed service.
 - Database remains private on the Compose bridge (no published PostgreSQL port).
 - Backend Dockerfile and Compose start the API with `node dist/main.js`. The obsolete historical-import startup script has been removed; schema migrations remain a separate reviewed operation.
 - Production secrets, media objects and actual DB data are NOT present in this repository.
@@ -313,9 +329,13 @@ Before enabling deployment jobs:
 
 **Until these controls are in place, do not add `runs-on: self-hosted` jobs in this public repository or grant the runner privileged access.**
 
-## Local build timer and optional automatic release (host validation pending)
+## Published-image timer and optional automatic release (host validation pending)
 
-`auto-deploy.sh` polls trusted `main`, builds API and frontend images sequentially with full Git SHA tags, and caches the built SHA. It requires the root-owned `/etc/usd-deploy-enabled` switch. With no automatic release policy it remains build-only, preserving existing installations.
+`auto-deploy.sh` polls trusted `main`, downloads both GitHub-published images with full Git SHA tags, verifies their OCI revision labels, and caches the prepared SHA in the existing `built-sha` state file. It requires the root-owned `/etc/usd-deploy-enabled` switch. With no automatic release policy it remains build-only (image preparation only), preserving existing installations. GitHub publication can finish before the remaining main CI checks; the host still waits for its independent exact-SHA CI gate, and the ten-minute timer retries deferred releases.
+
+The service sets `BUILDX_CONFIG=/var/lib/usd-deployer/buildx`, under its private writable state directory. This avoids the old `/root/.docker/buildx` write failure under `ProtectHome=read-only`, without making root's home writable. Normal deployment no longer invokes Buildx on Ubuntu.
+
+Both production Dockerfiles print the npm debug-log tail from a failed `npm ci` layer and retain its exit code. `--foreground-scripts` also makes lifecycle-script failures visible. These are in-container options; host `NPM_CONFIG_*` settings alone are not passed into Docker build. The observed 16–17 second `read ETIMEDOUT` remains a host-network incident until the debug stack and failing request are captured; moving normal builds to GitHub removes it from the home release path, but does not establish its root cause.
 
 **Main CI gate:** automatic release also checks GitHub Actions for the exact new commit SHA on the `main` push. Both `Backend CI` and `Home PC deployment safety checks` must complete successfully on **every** release; the latter builds both production Dockerfiles, applies the production Prisma migrations to a disposable PostgreSQL 18 database, boots the actual API with fixture-only credentials and checks HTTP plus database connectivity, and rehearses a real PostgreSQL 18 backup/restore plus failed-image rollback in an isolated GitHub-hosted stack. When the deployed and new commits differ under `frontend/`, the path-filtered `Frontend CI` must also succeed. A green pull-request run does not substitute for a successful `main` push run. PR checks, runs for other branches or SHAs, pending/failed/cancelled runs and unverifiable API responses cannot authorize a release. The gate also binds each required workflow name to its reviewed `.github/workflows/` file path; a second green workflow with the same display name cannot impersonate Backend CI, Frontend CI or the real Docker/PostgreSQL safety rehearsal. When a workflow has multiple runs for the same SHA, the newest run ID takes precedence; only within that run does the latest attempt take precedence. An older successful rerun cannot mask a newer failed or pending run. A pending or unavailable check leaves the current containers untouched and retries on the next poll. The verifier is installed at `/usr/local/libexec/usd-verify-main-ci`; Ubuntu requires Python 3 and outbound HTTPS to the public GitHub Actions API. This gate is **in addition to** schema compatibility, local image validation, database backup, readiness and rollback; it does not prove the live site's functional correctness. Do not enable automatic release until the main branch's push workflows are verified operational and the host's first supervised release succeeds.
 

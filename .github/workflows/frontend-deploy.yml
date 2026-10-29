@@ -1,12 +1,8 @@
-name: Frontend Deploy
+name: Legacy Cloudflare frontend deploy (manual only)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-deploy.yml"
+  # Home-PC publication is handled by publish-home-pc-images.yml. A main push
+  # must not also overwrite the legacy Worker/its configured domain routes.
   workflow_dispatch:
 
 permissions:

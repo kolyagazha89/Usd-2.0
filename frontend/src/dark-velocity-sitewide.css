@@ -133,6 +133,7 @@ body .usd-live .u-cinema-inner{
   gap:clamp(10px,3vw,55px);
 }
 body .usd-live .u-cinema-copy{
+  container-type:inline-size;
   padding-top:0!important;
   padding-bottom:58px;
   z-index:9;
@@ -165,7 +166,9 @@ body .usd-live .u-cinema-copy h1.u-wordmark-title>span{
 body .usd-live .u-cinema-copy h1.u-wordmark-title>em{
   font-style:normal!important;
   color:var(--dv-red-hot)!important;
-  font-size:1em!important;
+  /* Keep the default brand word intact when the web font cannot load. */
+  font-size:min(1em,13cqw)!important;
+  white-space:nowrap;
   text-shadow:0 0 48px rgba(239,24,57,.22)!important;
 }
 body .usd-live .u-cinema-copy p{

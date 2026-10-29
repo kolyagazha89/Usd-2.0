@@ -1,10 +1,11 @@
-name: Request USD home-PC deploy after main safety CI
+name: Request USD home-PC deploy after images and main checks
 
 # This workflow is loaded from the default branch, never from an unreviewed PR.
 # The runner has no Docker access, production secrets or broad sudo privileges.
 on:
   workflow_run:
     workflows:
+      - Publish self-hosted USD images
       - Home PC deployment safety checks
     types:
       - completed
@@ -28,7 +29,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, usd-home-pc]
     timeout-minutes: 150
     steps:
-      - name: Request root-owned, CI-gated local builder
+      - name: Request root-owned, CI-gated image deployment
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -37,4 +38,14 @@ jobs:
           sudo -n /usr/bin/systemctl start usd-auto-deploy.service
           result="$(systemctl show usd-auto-deploy.service --property=Result --value)"
           test "$result" = success
-          echo 'Host builder completed; actual release still requires local schema policy and independent CI verification.'
+          usd_verify_deadline=$((SECONDS+600))
+          while (( SECONDS < usd_verify_deadline )); do
+            usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"
+            if /usr/local/libexec/usd-verify-prerelease "$usd_latest_sha"; then
+              echo "Public prerelease accepted after the host service: $usd_latest_sha"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Host service returned, but public release acceptance is still missing' >&2
+          exit 1

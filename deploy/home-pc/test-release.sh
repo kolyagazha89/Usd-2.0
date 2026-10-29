@@ -28,6 +28,7 @@ for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
   "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
   "$STATE/deployed-sha" "$STATE/failed-release-sha" \
+  "$STATE/initial-preflight" \
   /etc/usd-release-approved "$TRUSTED_DIR"; do
   [[ ! -e "$protected" && ! -L "$protected" ]] ||
     { echo "Existing deployment state at $protected; refusing destructive mock rehearsal" >&2; exit 1; }
@@ -50,6 +51,7 @@ cleanup() {
     "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" "$ROOT/compose.tunnel.yaml" \
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
+  rm -f -- "$STATE/initial-preflight"
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
   rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
@@ -82,7 +84,7 @@ chmod 600 "$DB_OFFSITE_POLICY"
 cat > "$DB_OFFSITE_VERIFIER" <<'OFFSITE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^usd-db-offsite:verified/release-[a-f0-9]{40}-[0-9]{8}T[0-9]{6}Z-[0-9]+\.dump$ ]] || exit 1
 [[ "${USD_TEST_FAIL_OFFSITE:-0}" != 1 ]] || exit 1
 printf '%s\n' "$2" >> "$USD_TEST_WORK_OFFSITE_LOG"
 OFFSITE
@@ -410,6 +412,14 @@ if USD_TEST_FAIL_RESTORE_REHEARSAL=1 bash deploy/home-pc/release-approved.sh "$N
   exit 1
 fi
 grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-rehearsal-failure.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+
+# First-run schema setup may verify backup/restore without replacing apps.
+before_preflight="$(wc -l < "$USD_TEST_LOG")"
+bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/preflight-only.log" 2>&1
+grep -q 'live images and database were not changed' "$WORK/preflight-only.log"
+[[ "$(wc -l < "$USD_TEST_LOG")" == "$before_preflight" ]]
+[[ "$(cat "$STATE/initial-preflight")" == "$NEW"$'\n'"$OLD"$'\n'mock-db ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
 # A database that becomes unhealthy during backup must block the swap before
