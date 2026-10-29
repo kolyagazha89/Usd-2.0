@@ -190,7 +190,9 @@ export class MediaService {
 
   async getPrivateMediaFile(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
-    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
+    // Private site assets may include unpublished legal documents; require ADMIN.
+    if (targetType === MediaTargetType.SITE_ASSET && role !== 'ADMIN') throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
