@@ -158,6 +158,17 @@ if ! "$MEDIA_VERIFIER" "${media_paths[0]}" "$media_snapshot"; then
   # No live release was attempted. Retry on the next poll after remote recovery.
   exit 0
 fi
+# Full off-host media verification can take a long time. A new main push
+# during that backup must not let an older candidate replace the newest SHA.
+remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" || {
+  echo "Cannot recheck main after media backup; deferring release" >&2
+  exit 0
+}
+latest_main="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
+if [[ ! "$latest_main" =~ ^[0-9a-f]{40}$ || "$latest_main" != "$SHA" ]]; then
+  echo "Main moved or became unverifiable during media backup; deferring stale release" >&2
+  exit 0
+fi
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
 # Keep the SAME lock continuously across build, CI approval and release.
