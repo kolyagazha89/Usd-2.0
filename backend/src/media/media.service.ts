@@ -364,7 +364,6 @@ export class MediaService {
       return true;
     });
     const referenced = await this.getReferencedSiteAssetIds();
-    const expiresIn = Math.min(Math.max(Number(process.env.S3_VIEW_EXPIRES_SECONDS ?? 300), 30), 900);
     return {
       success: true,
       items: latest.map((upload) => ({
@@ -374,7 +373,6 @@ export class MediaService {
         contentType: upload.contentType,
         completedAt: upload.completedAt,
         createdAt: upload.createdAt,
-        previewUrl: this.presignedUrl('GET', upload.objectKey, null, expiresIn),
         isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
           ? referenced.has(upload.targetId)
           : true,
