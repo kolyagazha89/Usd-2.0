@@ -15,6 +15,7 @@ import {
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
+import { readReleaseInfo } from '../release-info';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
@@ -32,7 +33,7 @@ export class AuthController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
-    // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
+    // Frontend and API may be on different origins (for example app.usd-russia.ru and api.usd-russia.ru).
     // In production the refresh cookie must therefore be a secure cross-site cookie.
     const sameSite = isProduction ? ('none' as const) : ('lax' as const);
 
@@ -63,7 +64,7 @@ export class AuthController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
-    // Frontend and API may be on different origins (for example usd-russia.ru + Railway API).
+    // Frontend and API may be on different origins (for example app.usd-russia.ru and api.usd-russia.ru).
     // In production the refresh cookie must therefore be a secure cross-site cookie.
     const sameSite = isProduction ? ('none' as const) : ('lax' as const);
 
@@ -264,7 +265,7 @@ export class AuthController {
   buildInfo() {
     return {
       profileSearchVersion: 'principal-v2',
-      gitCommitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
+      gitCommitSha: readReleaseInfo().revision,
     };
   }
 
