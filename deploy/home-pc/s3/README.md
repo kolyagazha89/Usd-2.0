@@ -262,7 +262,7 @@ the proposed .env is accepted by Docker Compose.
 ```bash
 cd /home/usd/usd-deploy
 git fetch --no-tags origin fix/home-pc-autodeploy-20261029
-git show 346f64dca243229003cd711408399b5538027a61:deploy/home-pc/s3/stage-api-s3.py \
+git show FETCH_HEAD:deploy/home-pc/s3/stage-api-s3.py \
   | sudo python3 - --check
 ```
 
