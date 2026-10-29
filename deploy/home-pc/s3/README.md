@@ -73,13 +73,16 @@ Do **not** forward the console port to the internet. Credentials stay outside Gi
 ```bash
 sudo docker network inspect usd-home_usd-internal >/dev/null
 sudo install -d -o root -g root -m 0700 /etc/usd-s3
-sudo bash -c 'umask 077; printf "RUSTFS_ACCESS_KEY=%s\nRUSTFS_SECRET_KEY=%s\n" "$(openssl rand -hex 16)" "$(openssl rand -hex 32)" > /etc/usd-s3/s3.env'
+if [ ! -s /etc/usd-s3/s3.env ]; then
+  sudo bash -c 'umask 077; printf "RUSTFS_ACCESS_KEY=%s\nRUSTFS_SECRET_KEY=%s\n" "$(openssl rand -hex 16)" "$(openssl rand -hex 32)" > /etc/usd-s3/s3.env'
+fi
 sudo chmod 0600 /etc/usd-s3/s3.env
 
 cd /home/usd/usd-deploy/deploy/home-pc/s3
-sudo docker compose config --quiet
-sudo docker compose pull
+sudo install -o root -g root -m 0644 compose.yaml /etc/usd-s3/compose.yaml
 sudo install -o root -g root -m 0644 usd-s3.service /etc/systemd/system/usd-s3.service
+sudo docker compose -f /etc/usd-s3/compose.yaml config --quiet
+sudo docker compose -f /etc/usd-s3/compose.yaml pull
 sudo systemctl daemon-reload
 sudo systemctl enable --now usd-s3.service
 sudo systemctl status usd-s3.service --no-pager
@@ -88,7 +91,8 @@ curl -fsS http://127.0.0.1:19000/health
 
 The systemd unit refuses to start if /srv/usd-s3 is not a mount point.
 It owns the container lifecycle (no Docker restart policy that could bypass
-the disk-mount preflight). Source image: `rustfs/rustfs:1.0.4` — review/pin
+the disk-mount preflight). Config is root-owned in /etc/usd-s3.
+Source image: `rustfs/rustfs:1.0.4` — review/pin
 its immutable digest on the host after verifying the official image.
 
 Open the private Console from your PC via SSH local forwarding:
@@ -113,8 +117,7 @@ sudo bash -c '
 '
 ```
 
-For browser uploads from USD, configure S3 bucket CORS/permissions (or
-the RustFS API-origin setting above), and **test** a signed PUT/GET/HEAD/DELETE
+For browser uploads from USD, configure bucket-level S3 CORS/permissions, and **test** a signed PUT/GET/HEAD/DELETE
 using the actual web application. Do not make private participant photos a
 publicly readable bucket.
 

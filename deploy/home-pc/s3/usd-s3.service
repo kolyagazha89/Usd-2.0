@@ -7,10 +7,10 @@ RequiresMountsFor=/srv/usd-s3
 
 [Service]
 Type=simple
-WorkingDirectory=/home/usd/usd-deploy/deploy/home-pc/s3
+WorkingDirectory=/etc/usd-s3
 ExecStartPre=/usr/bin/mountpoint -q /srv/usd-s3
-ExecStart=/usr/bin/docker compose -f compose.yaml up --no-color
-ExecStop=/usr/bin/docker compose -f compose.yaml stop
+ExecStart=/usr/bin/docker compose -f /etc/usd-s3/compose.yaml up --no-color
+ExecStop=/usr/bin/docker compose -f /etc/usd-s3/compose.yaml stop
 Restart=on-failure
 RestartSec=10s
 TimeoutStopSec=180s
