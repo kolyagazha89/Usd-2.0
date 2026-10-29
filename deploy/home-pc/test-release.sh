@@ -16,8 +16,12 @@ TEST_BACKUP_DIR=/var/lib/usd-deployer/backups
 RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host DB backup policy/helper; refusing mock fixture' >&2; exit 1; }
+[[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
+  { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
 for protected in "$ROOT/.env" "$ROOT/.env.cloudflared" \
@@ -47,7 +51,7 @@ cleanup() {
     "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -83,6 +87,16 @@ set -euo pipefail
 printf '%s\n' "$2" >> "$USD_TEST_WORK_OFFSITE_LOG"
 OFFSITE
 chmod 0700 "$DB_OFFSITE_VERIFIER"
+printf 'usd-media:current\nusd-media-offsite:verified\n' > "$MEDIA_POLICY"
+chmod 600 "$MEDIA_POLICY"
+cat > "$MEDIA_VERIFIER" <<'MEDIA'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && "$1" == usd-media:current && "$2" == usd-media-offsite:verified/2222222222222222222222222222222222222222-* ]] || exit 1
+[[ "${USD_TEST_FAIL_MEDIA:-0}" != 1 ]] || exit 1
+printf '%s\n' "$2" >> "$USD_TEST_WORK_MEDIA_LOG"
+MEDIA
+chmod 0700 "$MEDIA_VERIFIER"
 cat > "$ROOT/.env" <<EOF
 USD_IMAGE_TAG=$OLD
 POSTGRES_DB=usd
@@ -232,6 +246,7 @@ chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_WORK_OFFSITE_LOG="$WORK/offsite.log"
+export USD_TEST_WORK_MEDIA_LOG="$WORK/media.log"
 export USD_TEST_NEW="$NEW"
 export USD_TEST_ROLLBACK_MARKER="$WORK/rollback-phase"
 export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
@@ -357,6 +372,17 @@ grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-db-
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 unset USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY
+# A direct/manual release must not bypass media backup just because
+# PostgreSQL backup and image readiness checks are green.
+rm -f "$MEDIA_POLICY"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/media-policy-missing.log" 2>&1; then exit 1; fi
+grep -q 'Missing or untrusted off-host media backup policy' "$WORK/media-policy-missing.log"
+printf 'usd-media:current\nusd-media-offsite:verified\n' > "$MEDIA_POLICY"
+chmod 600 "$MEDIA_POLICY"
+if USD_TEST_FAIL_MEDIA=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/media-restore-failed.log" 2>&1; then exit 1; fi
+grep -q 'Independent media backup/full restore failed' "$WORK/media-restore-failed.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
 # Even a valid local archive must never release when the independent remote
 # cannot accept and return the exact same bytes.
 if USD_TEST_FAIL_OFFSITE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/offsite-failure.log" 2>&1; then

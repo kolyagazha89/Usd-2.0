@@ -11,8 +11,12 @@ TRUSTED_DIR=/etc/usd-deployer/compose
 RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host PostgreSQL policy/helper; refusing Docker fixture' >&2; exit 1; }
+[[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
+  { echo "Existing media policy/helper; refusing Docker fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in disposable Docker rehearsal" >&2; exit 1; }
 [[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
@@ -38,7 +42,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY"
+  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
   rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
@@ -85,6 +89,15 @@ set -euo pipefail
 [[ "$#" == 2 && -s "$1" && "$2" == usd-db-offsite:verified/release-*.dump ]] || exit 1
 OFFSITE
 chmod 0700 "$DB_OFFSITE_VERIFIER"
+printf 'usd-media:ci-source\nusd-media-offsite:verified\n' > "$MEDIA_POLICY"
+chmod 600 "$MEDIA_POLICY"
+cat > "$MEDIA_VERIFIER" <<'MEDIA'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && "$1" == usd-media:ci-source && "$2" == usd-media-offsite:verified/* ]] || exit 1
+[[ "${USD_TEST_FAIL_MEDIA:-0}" != 1 ]] || exit 1
+MEDIA
+chmod 0700 "$MEDIA_VERIFIER"
 # All service images contain test fixtures only; no production source or secrets.
 cat > "$WORK/api/server.js" <<'JS'
 require('node:http').createServer((req,res)=>{res.statusCode=Number(process.env.QA_STATUS);res.end('disposable USD release rehearsal');}).listen(3000,'0.0.0.0');
@@ -168,6 +181,13 @@ approve() {
   chmod 600 "$STATE/"*-sha
 }
 approve "$BAD"
+# Manual release must refuse a failed media restore BEFORE touching DB or images.
+if USD_TEST_FAIL_MEDIA=1 bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/media-refusal.log" 2>&1; then
+  echo 'Manual release accepted a failed media backup' >&2
+  exit 1
+fi
+grep -q 'Independent media backup/full restore failed' "$WORK/media-refusal.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 # A valid on-disk local DB URL is not proof of the actual running DB target.
 # Change BOTH .env credentials without recreating containers: the old live
 # PostgreSQL/API still use the original password. Refuse before pg_dump.

@@ -134,6 +134,14 @@ The operator must verify that these are genuinely independent storage systems, w
 
 For every eligible, CI-approved same-schema `main` SHA, the builder creates a **new unique backup prefix**, calls the installed root-owned `usd-verify-media-backup`, compares every object by downloaded content, restores the full media backup into a private temporary directory, verifies it again and deletes the temporary copy before requesting a live application swap. An inaccessible source, empty source, insufficient local restore space, failed checksum, failed restore or failed cleanup leaves the existing application untouched. A remote failure is retryable; it does not quarantine an unattempted application release. This media preflight is **in addition to** the release helper's fresh PostgreSQL dump and mandatory disposable PostgreSQL 18 restore/migration rehearsal. Budget up to two hours for the bounded host service; the GitHub runner trigger can wait up to 150 minutes. Capacity and remote throughput must be checked on the actual Ubuntu host before enabling anything.
 
+Direct supervised calls to `usd-release-approved` also require this policy and
+a successful full media backup/restore **before** taking the database dump or
+switching containers. Previously only the automatic builder enforced the media
+gate, so a manual release could bypass it. Automatic releases reuse their
+already-verified media preflight under the continuously held deployment lock;
+they do not run a second full media backup. Mock and real-Docker rehearsals
+exercise the manual refusal path.
+
 ## Supervised off-host media backup and restore check
 
 The installer also provides `/usr/local/libexec/usd-verify-media-backup`.

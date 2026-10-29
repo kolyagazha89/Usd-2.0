@@ -349,6 +349,34 @@ trap 'rollback 130' INT
 # for a newly started candidate and for rollback recovery.
 wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refusing automatic replacement" >&2; false; }
 
+# A direct supervised invocation does not pass through auto-deploy.sh.
+# It must perform the same full independent media backup/restore preflight;
+# otherwise manual release would protect PostgreSQL but lose uploaded media.
+# The inherited lock path is only accepted with the verified FD 9 above and
+# already completed this media gate in the root-owned automatic builder.
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 ]]; then
+  MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+  MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
+  [[ -f "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" &&
+     "$(stat -c %u "$MEDIA_POLICY")" == 0 ]] ||
+    { echo "Missing or untrusted off-host media backup policy" >&2; false; }
+  (( (8#$(stat -c %a "$MEDIA_POLICY") & 077) == 0 )) ||
+    { echo "Off-host media backup policy must be root-only" >&2; false; }
+  [[ -f "$MEDIA_VERIFIER" && -x "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" &&
+     "$(stat -c %u "$MEDIA_VERIFIER")" == 0 ]] ||
+    { echo "Missing or untrusted root-owned media backup verifier" >&2; false; }
+  (( (8#$(stat -c %a "$MEDIA_VERIFIER") & 022) == 0 )) ||
+    { echo "Off-host media backup verifier must not be group/world writable" >&2; false; }
+  mapfile -t media_paths < "$MEDIA_POLICY"
+  [[ "${#media_paths[@]}" == 2 && -n "${media_paths[0]}" && -n "${media_paths[1]}" &&
+     "${media_paths[0]}" =~ ^[a-zA-Z0-9_-]+: && "${media_paths[1]}" =~ ^[a-zA-Z0-9_-]+: &&
+     "${media_paths[0]%%:*}" != "${media_paths[1]%%:*}" ]] ||
+    { echo "Media policy must specify distinct source and off-host rclone remotes" >&2; false; }
+  media_snapshot="${media_paths[1]%/}/$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$"
+  "$MEDIA_VERIFIER" "${media_paths[0]}" "$media_snapshot" ||
+    { echo "Independent media backup/full restore failed; refusing release" >&2; false; }
+fi
+
 # An on-host PostgreSQL dump alone cannot survive a Windows/VM disk failure.
 # A separately configured off-host rclone target is mandatory before any
 # release, including a supervised invocation of this helper.
