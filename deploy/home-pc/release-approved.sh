@@ -205,7 +205,7 @@ def expected_env(path):
                 raise ValueError("unclosed DB setting")
             value = value[1:-1]
         else:
-            value = re.sub(r"\\s+#.*$", "", value).strip()
+            value = re.sub(r"\s+#.*$", "", value).strip()
         found[key] = value
     if found.keys() != required:
         raise ValueError("missing DB setting")
