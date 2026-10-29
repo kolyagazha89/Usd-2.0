@@ -1,0 +1,93 @@
+name: usd-home
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres18_data:/var/lib/postgresql
+    shm_size: 128mb
+    mem_limit: 640m
+    healthcheck:
+      # During first init the official image starts a temporary socket-only server.
+      # TCP readiness prevents a false healthy state before its final restart.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  api:
+    image: ghcr.io/kolyagazha89/usd-2.0-api:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
+    restart: unless-stopped
+    # API startup never executes schema or historical data migrations.
+    # Apply reviewed schema migrations explicitly after backing up the database.
+    command: ["node", "dist/main.js"]
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      AUTH_COOKIE_SECURE: "true"
+      CORS_ORIGINS: https://${APP_DOMAIN:?set APP_DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      TRUST_PROXY_HOPS: "1"
+      FRONTEND_URL: https://${APP_DOMAIN}
+      API_PUBLIC_URL: https://${API_DOMAIN:?set API_DOMAIN}
+      PUBLIC_API_URL: https://${API_DOMAIN}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose: ["3000"]
+    mem_limit: 896m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  frontend:
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
+    restart: unless-stopped
+    expose: ["80"]
+    mem_limit: 128m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+  caddy:
+    # Explicit opt-in: a plain `docker compose up -d` must never expose WAN ports
+    # on tunnel-only installations. Start with `--profile direct-edge` or name
+    # the caddy service explicitly after the operator approves public ingress.
+    profiles: [direct-edge]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
+volumes:
+  postgres18_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  usd-internal:
+    driver: bridge

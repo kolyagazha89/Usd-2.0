@@ -461,7 +461,7 @@ body { --usd-dock-height:env(safe-area-inset-bottom,0px); }
  body:has(.usd-member .participant-tabs) { --usd-dock-height:calc(79px + env(safe-area-inset-bottom)); }
 }
 @media(max-width:740px){
- body:has(.usd-live .u-mobile-dock) { --usd-dock-height:calc(63px + env(safe-area-inset-bottom)); }
+ body:has(.usd-live):has(> .u-mobile-dock) { --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px)); }
 }
 html:has(.cookie-notice) { scroll-padding-bottom:calc(var(--usd-cookie-height,180px) + 110px); }
 body:has(.cookie-notice) .app-shell .main .content,

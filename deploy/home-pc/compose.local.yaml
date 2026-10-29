@@ -1,0 +1,14 @@
+# Private smoke-test of API and frontend inside Ubuntu. Do not expose these
+# ports on 0.0.0.0 or the Windows host.
+#   docker compose -f compose.yaml -f compose.local.yaml up -d db api frontend
+#   curl -I http://127.0.0.1:18080
+#   curl -i http://127.0.0.1:13000
+# App's built frontend API URL remains production hostname; use only for local
+# container/process smoke testing, not complete browser auth or CORS testing.
+services:
+  api:
+    ports:
+      - "127.0.0.1:13000:3000/tcp"
+  frontend:
+    ports:
+      - "127.0.0.1:18080:80/tcp"

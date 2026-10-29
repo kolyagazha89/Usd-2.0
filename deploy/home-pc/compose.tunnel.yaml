@@ -1,0 +1,26 @@
+# Optional Cloudflare Tunnel transport. Start only after DB restore, image verification
+# and private application smoke tests. No inbound 80/443 forwarding is required.
+# To enable, create a separate chmod 600 .env.cloudflared containing TUNNEL_TOKEN=...\n# (never put the tunnel token in the API's shared .env), then run:
+#   docker compose -f compose.yaml -f compose.tunnel.yaml up -d api frontend cloudflared
+# Dashboard published application routes (AFTER approved DNS cutover):
+#   app.usd-russia.ru -> http://frontend:80
+#   api.usd-russia.ru -> http://api:3000
+# Backend, frontend and cloudflared are on the same Docker network.
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    # Separate env file prevents the tunnel credential from being inherited by
+    # the API container through its shared application env_file.
+    env_file:
+      - path: ./.env.cloudflared
+        required: true
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - usd-internal
+    mem_limit: 128m
+    logging:
+      options: {max-size: "10m", max-file: "3"}

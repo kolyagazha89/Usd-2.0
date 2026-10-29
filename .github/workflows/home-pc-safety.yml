@@ -1,0 +1,336 @@
+name: Home PC deployment safety checks
+
+on:
+  # A successful PR check is not proof that the merged main SHA passed.
+  # Run the real Docker/PG18 rehearsal for every main commit so the local
+  # auto-release verifier can gate the exact deployed SHA on this workflow.
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'deploy/home-pc/**'
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/home-pc-safety.yml'
+      - '.github/workflows/request-home-pc-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-candidate-images:
+    name: Build actual API and frontend Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build candidate API image from production Dockerfile
+        run: docker build -t usd-api-candidate:${{ github.sha }} ./backend
+      - name: Verify API artifact and no implicit migration startup
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node usd-api-candidate:${{ github.sha }} -e "if(!require('node:fs').existsSync('/app/dist/main.js'))process.exit(1)"
+          test "$(docker image inspect --format '{{json .Config.Cmd}}' usd-api-candidate:${{ github.sha }})" = '["node","dist/main.js"]'
+      - name: Rehearse real production API startup and Prisma migrations on disposable PostgreSQL 18
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          network="usd-api-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker network create "$network"
+          cleanup() {
+            docker rm -f usd-api-ci-app usd-api-ci-db >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name usd-api-ci-db --network "$network" \
+            -e POSTGRES_USER=usd -e POSTGRES_PASSWORD=disposable-ci-only -e POSTGRES_DB=usd \
+            postgres:18-alpine
+          db_ready=0
+          for attempt in $(seq 1 60); do
+            if docker exec usd-api-ci-db pg_isready -h 127.0.0.1 -U usd -d usd >/dev/null 2>&1; then db_ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$db_ready" != 1 ]]; then docker logs usd-api-ci-db; exit 1; fi
+          db_url='postgresql://usd:disposable-ci-only@usd-api-ci-db:5432/usd?schema=public'
+          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \
+            --entrypoint npx usd-api-candidate:${{ github.sha }} prisma migrate deploy
+          docker run -d --name usd-api-ci-app --network "$network" \
+            -e NODE_ENV=production -e DATABASE_URL="$db_url" \
+            -e JWT_SECRET="$(openssl rand -hex 32)" -e JWT_ISSUER=usd-2.0-api -e JWT_AUDIENCE=usd-2.0-client \
+            -e AUTH_COOKIE_SECURE=true -e CORS_ORIGINS=https://app.usd-russia.ru \
+            -e CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru \
+            -e S3_ENDPOINT=https://s3.invalid -e S3_BUCKET=disposable-ci \
+            -e S3_ACCESS_KEY_ID=disposable -e S3_SECRET_ACCESS_KEY=disposable \
+            usd-api-candidate:${{ github.sha }}
+          api_ready=0
+          for attempt in $(seq 1 45); do
+            if docker exec usd-api-ci-app node -e \
+              "fetch('http://127.0.0.1:3000/',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
+              >/dev/null 2>&1; then api_ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$api_ready" != 1 ]]; then docker logs --tail=150 usd-api-ci-app; exit 1; fi
+          docker exec usd-api-ci-app node -e \
+            'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000});(async()=>{try{await c.connect();const r=await c.query("SELECT 1 AS ok");if(r.rows[0].ok!==1)process.exitCode=1;}finally{await c.end();}})().catch(()=>{process.exitCode=1;})'
+      - name: Rehearse schema migration on a restored PostgreSQL 18 archive
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # This fixture is disposable and never contains production data.
+          network="usd-schema-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          db="usd-schema-fixture-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          dump="$(mktemp)"
+          cleanup() {
+            docker rm -f "$db" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+            rm -f "$dump"
+          }
+          trap cleanup EXIT
+          docker network create --internal "$network"
+          docker run -d --name "$db" --network "$network" \
+            -e POSTGRES_USER=usd -e POSTGRES_PASSWORD=disposable-ci-only -e POSTGRES_DB=usd \
+            postgres:18-alpine
+          ready=0
+          for attempt in $(seq 1 60); do
+            if docker exec "$db" pg_isready -h 127.0.0.1 -U usd -d usd >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          [[ "$ready" == 1 ]]
+          # A production backup already contains _prisma_migrations. A dump of
+          # an arbitrary table in an unmigrated database is not a valid Prisma
+          # upgrade rehearsal: Prisma correctly rejects it with P3005.
+          # First initialize the disposable source DB with the candidate's
+          # actual migration history, then add a user-data fixture and dump it.
+          db_url="postgresql://usd:disposable-ci-only@$db:5432/usd?schema=public"
+          docker run --rm --network "$network" -e DATABASE_URL="$db_url" \
+            --entrypoint npx usd-api-candidate:${{ github.sha }} prisma migrate deploy
+          docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -c 'CREATE TABLE schema_rehearsal_fixture (id integer PRIMARY KEY); INSERT INTO schema_rehearsal_fixture VALUES (42);'
+          docker exec "$db" pg_dump -Fc --no-owner --no-acl -U usd -d usd > "$dump"
+          bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}"
+          # Negative rehearsal: if Docker cannot remove the restored-data
+          # volume, the helper must fail rather than print a misleading PASS.
+          fakebin="$(mktemp -d)"
+          cat > "$fakebin/docker" <<'SH'
+          #!/usr/bin/env bash
+          if [[ "${1:-}" == volume && "${2:-}" == rm ]]; then
+            echo "CI-injected volume removal failure" >&2
+            exit 1
+          fi
+          exec /usr/bin/docker "$@"
+          SH
+          chmod +x "$fakebin/docker"
+          set +e
+          PATH="$fakebin:$PATH" bash deploy/home-pc/rehearse-schema-on-backup.sh "$dump" "usd-api-candidate:${{ github.sha }}" > "$fakebin/failure.log" 2>&1
+          cleanup_status=$?
+          set -e
+          leftovers="$(docker volume ls -q --filter label=usd.migration.disposable=true)"
+          [[ -n "$leftovers" ]] || { echo "Cleanup failure fixture did not leave a disposable volume" >&2; exit 1; }
+          while IFS= read -r v; do docker volume rm "$v" >/dev/null; done <<< "$leftovers"
+          [[ "$cleanup_status" -ne 0 ]] || { echo "Rehearsal ignored failed volume cleanup" >&2; exit 1; }
+          grep -q "Migration rehearsal cleanup failed" "$fakebin/failure.log"
+          rm -rf "$fakebin"
+      - name: Build candidate frontend image with production API URL
+        run: docker build --build-arg VITE_API_URL=https://api.usd-russia.ru -t usd-frontend-candidate:${{ github.sha }} ./frontend
+      - name: Verify production frontend assets exist
+        run: docker run --rm --entrypoint sh usd-frontend-candidate:${{ github.sha }} -c 'test -s /usr/share/nginx/html/index.html'
+      - name: Smoke-test real Nginx frontend readiness without publishing ports
+        run: |
+          set -euo pipefail
+          docker run -d --name usd-frontend-ci-readiness usd-frontend-candidate:${{ github.sha }}
+          trap 'docker rm -f usd-frontend-ci-readiness >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if docker exec usd-frontend-ci-readiness wget -q -O /dev/null http://127.0.0.1/index.html; then exit 0; fi
+            sleep 1
+          done
+          docker logs usd-frontend-ci-readiness
+          exit 1
+
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: |
+          set -euo pipefail
+          bash -n deploy/home-pc/auto-deploy.sh
+          bash -n deploy/home-pc/release-approved.sh
+          bash -n deploy/home-pc/rehearse-schema-on-backup.sh
+          bash -n deploy/home-pc/verify-media-backup.sh
+          bash -n deploy/home-pc/verify-db-offsite-backup.sh
+          bash -n deploy/home-pc/install-local-deployer.sh
+          bash -n deploy/home-pc/install-runner-trigger.sh
+          bash -n deploy/home-pc/test-release.sh
+          bash -n deploy/home-pc/test-auto-deploy.sh
+          bash -n deploy/home-pc/test-release-docker.sh
+      - name: Check self-hosted runner trigger has no privileged workflow checkout
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/request-home-pc-deploy.yml').read_text()
+          installer = Path('deploy/home-pc/install-runner-trigger.sh').read_text()
+          for expected in ('workflow_run:', 'Home PC deployment safety checks', "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
+              assert expected in workflow, expected
+          assert 'pull_request:' not in workflow
+          assert 'actions/checkout' not in workflow
+          assert 'secrets.' not in workflow
+          assert 'docker ' not in workflow
+          assert 'NOPASSWD: /usr/bin/systemctl start usd-auto-deploy.service' in installer
+          PY
+          if sudo bash deploy/home-pc/install-runner-trigger.sh root >/tmp/usd-runner-refusal.log 2>&1; then
+            echo 'Installer accepted root as a runner account' >&2
+            exit 1
+          fi
+          grep -q 'Runner account must exist and must not be root' /tmp/usd-runner-refusal.log
+      - name: Rehearse media backup, full restore and refusal of reused destination
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rclone
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          mkdir -p "$root/source/sub" "$root/backup"
+          printf 'USD media fixture 1\n' > "$root/source/first.bin"
+          printf 'USD media fixture 2\n' > "$root/source/sub/second.bin"
+          bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup"
+          test -s "$root/backup/first.bin"
+          test -s "$root/backup/sub/second.bin"
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup"; then
+            echo 'Media verifier accepted a reused backup destination' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source/nested"; then
+            echo 'Media verifier accepted a nested backup destination' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root"; then
+            echo 'Media verifier accepted an ancestor of the live source as a backup destination' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source/../source/hidden"; then
+            echo 'Media verifier accepted a traversal alias nested under the source' >&2
+            exit 1
+          fi
+          ln -s "$root/source" "$root/source-alias"
+          if bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/source-alias/hidden"; then
+            echo 'Media verifier accepted a symlink alias nested under the source' >&2
+            exit 1
+          fi
+          if bash deploy/home-pc/verify-media-backup.sh "usd-media:bucket/photos" "usd-media:bucket/photos/../archive"; then
+            echo 'Media verifier accepted remote path traversal' >&2
+            exit 1
+          fi
+          # A failed deletion of the private full-media restore must fail the
+          # backup verifier. TMPDIR keeps the simulated leak inside CI fixtures.
+          mkdir -p "$root/fakebin" "$root/tmp" "$root/backup-cleanup-failure"
+          cat > "$root/fakebin/rm" <<'SH'
+          #!/usr/bin/env bash
+          if [[ "${1:-}" == -rf && "${2:-}" == -- ]]; then
+            echo 'CI-injected private restore deletion failure' >&2
+            exit 1
+          fi
+          exec /usr/bin/rm "$@"
+          SH
+          chmod +x "$root/fakebin/rm"
+          if TMPDIR="$root/tmp" PATH="$root/fakebin:$PATH" bash deploy/home-pc/verify-media-backup.sh "$root/source" "$root/backup-cleanup-failure" > "$root/cleanup-failure.log" 2>&1; then
+            echo 'Media verifier ignored failed private restore cleanup' >&2
+            exit 1
+          fi
+          grep -q 'media restore cleanup failed' "$root/cleanup-failure.log"
+          [[ -n "$(find "$root/tmp" -mindepth 1 -maxdepth 1 -type d -print -quit)" ]] ||
+            { echo 'Media cleanup failure fixture did not leave a temporary restore' >&2; exit 1; }
+      - name: Verify independent PostgreSQL archive upload and full byte-for-byte download
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # rclone is installed by the media verification step above.
+          root="$(mktemp -d "$PWD/usd-db-offsite-XXXXXXXX")"
+          trap 'sudo rm -rf "$root"' EXIT
+          printf '[usd-db-ci]\ntype = local\n' > "$root/rclone.conf"
+          printf 'disposable PostgreSQL archive payload for transport verification\n' > "$root/sample.dump"
+          sudo chown root:root "$root/sample.dump"
+          sudo chmod 600 "$root/sample.dump"
+          target="usd-db-ci:$(basename "$root")/offsite/verified.dump"
+          sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "$target"
+          sudo test -s "$root/offsite/verified.dump"
+          sudo cmp "$root/sample.dump" "$root/offsite/verified.dump"
+          # A reused backup destination must never silently overwrite data.
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "$target"; then
+            echo 'Off-host DB verifier accepted an existing archive object' >&2
+            exit 1
+          fi
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "usd-db-ci:$root/../unsafe.dump"; then
+            echo 'Off-host DB verifier accepted traversal' >&2
+            exit 1
+          fi
+          # A remote read failure must not authorize a live release.
+          if sudo env RCLONE_CONFIG="$root/rclone.conf" bash deploy/home-pc/verify-db-offsite-backup.sh "$root/sample.dump" "missing-remote:backups/failed.dump"; then
+            echo 'Off-host DB verifier accepted an inaccessible remote' >&2
+            exit 1
+          fi
+      - name: Installer refuses to overwrite trusted scripts during a running release
+        run: |
+          set -euo pipefail
+          sudo flock /run/lock/usd-home-deploy.lock bash -c '
+            set +e
+            bash deploy/home-pc/install-local-deployer.sh > /tmp/usd-installer-lock-test.log 2>&1
+            status=$?
+            set -e
+            test "$status" -eq 75
+            grep -q "deployment is active" /tmp/usd-installer-lock-test.log
+          '
+      - name: Validate local and tunnel Compose overlays without touching a server
+        run: |
+          set -euo pipefail
+          cd deploy/home-pc
+          cp .env.example .env
+          chmod 600 .env
+          # Tunnel-only hosts must not expose the direct Caddy ingress by default.
+          ! docker compose --env-file .env -f compose.yaml config --services | grep -qx caddy
+          docker compose --profile direct-edge --env-file .env -f compose.yaml config --services | grep -qx caddy
+          docker compose --env-file .env -f compose.yaml -f compose.local.yaml config --quiet
+          # Release uses root-owned snapshots outside the project directory.
+          # Ensure Compose still resolves .env and relative bind paths correctly.
+          trusted="$(mktemp -d)"
+          trap 'rm -rf "$trusted"' EXIT
+          cp compose*.yaml "$trusted/"
+          docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.local.yaml" config --quiet
+          printf 'TUNNEL_TOKEN=ci-placeholder\n' > .env.cloudflared
+          chmod 600 .env.cloudflared
+          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --quiet
+          docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.tunnel.yaml" config --quiet
+          docker compose --env-file .env -f compose.yaml -f compose.local.yaml -f compose.tunnel.yaml config --quiet
+          # Never inject the tunnel credential into the API or database container.
+          docker compose --env-file .env -f compose.yaml -f compose.tunnel.yaml config --format json |
+            python3 -c 'import json,sys; services=json.load(sys.stdin)["services"]; assert "TUNNEL_TOKEN" not in services["api"].get("environment",{}); assert "TUNNEL_TOKEN" not in services["db"].get("environment",{}); assert services["cloudflared"]["environment"]["TUNNEL_TOKEN"] == "ci-placeholder"'
+      - name: Validate GitHub main push CI release gate
+        run: |
+          set -euo pipefail
+          python3 deploy/home-pc/test-verify-main-ci.py -v
+          python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/home-pc/verify-main-ci.py").read_text())'
+      - name: Check invalid release SHA is rejected before Docker access
+        run: |
+          set -euo pipefail
+          set +e
+          sudo bash deploy/home-pc/release-approved.sh invalid >/tmp/release-refusal.log 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -q 'full Git SHA' /tmp/release-refusal.log
+      - name: Rehearse approved release and rollback with isolated Docker mocks
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT bash deploy/home-pc/test-release.sh
+      - name: Rehearse optional automatic releases and schema-change refusal
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT bash deploy/home-pc/test-auto-deploy.sh
+      - name: Rehearse real Docker rollback and PostgreSQL 18 backup/restore on disposable data
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT bash deploy/home-pc/test-release-docker.sh
+      - name: Diagnose remaining development dependency advisories
+        run: |
+          cd backend
+          npm audit --json > /tmp/usd-npm-audit.json || true
+          node -e 'const a=require("/tmp/usd-npm-audit.json"); for (const [name,v] of Object.entries(a.vulnerabilities||{})) console.log(name, v.severity, JSON.stringify(v.fixAvailable))'
+      - name: Fail if any critical npm advisories remain
+        run: cd backend && npm audit --audit-level=critical
