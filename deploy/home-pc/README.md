@@ -8,6 +8,41 @@ Host: Windows 10 Pro 1903, Hyper-V, Ubuntu 24.04 LTS VM named USD-SERVER, Docker
 
 Use the existing Hyper-V Default Switch **only for initial staging**. Its internal guest IP (previously 172.17.251.201) may change after reboot. Guest Docker published ports are NOT automatically reachable on the public internet. Do not create an External VMSwitch remotely without a verified fallback, because it can interrupt RDP and AnyDesk.
 
+## Optional self-hosted GitHub runner (no iPhone commands after supervised setup)
+
+The `.github/workflows/request-home-pc-deploy.yml` workflow is a **request**, not a
+release authorization. It runs only after a successful **main push** of
+`Home PC deployment safety checks`, on a dedicated runner with labels
+`self-hosted, linux, x64, usd-home-pc`. It does not check out repository
+code, receive application secrets or access the Docker socket. The runner
+only invokes `sudo -n /usr/bin/systemctl start usd-auto-deploy.service`.
+The root-owned systemd unit independently fetches current main, verifies
+the exact SHA's required main-push CI and enforces the approved Prisma
+tree, existing image/Compose identity, DB backup and readiness checks.
+A workflow success is **not** evidence of a production deployment.
+
+**One-time supervised host setup is unavoidable**: inspect the live VM,
+Docker Compose overlays, current images, database/media backups and off-host
+restore; register a dedicated unprivileged runner account with the
+`usd-home-pc` label, and review/install the root-owned deployment helpers.
+The runner must not be root, in `docker`/`sudo`/`wheel` groups, or have
+Docker socket access. After inspecting the installed service and runner
+account, an operator may run `install-runner-trigger.sh <runner-user>` as
+root. It installs only one exact sudoers command, with no wildcard and
+without granting shell, Docker or arbitrary systemctl privileges.
+**Do not use the existing `usd` administrator account as the runner.**
+Do not grant a public repository's self-hosted runner broad Docker or
+host administrator access.
+
+The runner trigger does **not** enable the systemd timer, create
+`/etc/usd-deploy-enabled`, set `/etc/usd-auto-release-schema`, approve
+a schema change, or alter production. Without these separately reviewed
+root-owned gates the system stays disabled/build-only. PR #305 adds
+Prisma migrations; it must go through a supervised real-data restore
+and migration rehearsal, not frontend-only deployment and not an
+automatic schema-changing release. Until the VM is inspected, the
+workflow may remain queued because no trusted runner is registered.
+
 ## Image builds and data boundaries
 
 - Before an automatic release, the builder checks the live GitHub main tip again **after** CI verification; if a new commit arrived during the long local build, it defers the stale candidate and rebuilds the newer main SHA on the next poll. A malformed or unreachable remote ref also blocks release without quarantining a healthy image.
