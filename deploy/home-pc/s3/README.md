@@ -1,5 +1,79 @@
 # USD SSD / private S3 setup (Ubuntu guest in Hyper-V)
 
+## Second physical disk (Windows HDD) backups — no extra cloud quota
+
+USD's Ubuntu VM, PostgreSQL and RustFS live on the SSD. A **separate,
+new VHDX file on the Windows HDD** may safely hold local backup snapshots.
+This protects against SSD loss, but not fire, theft, malware or failure of
+the entire PC. The release gate's existing **off-host** checks must not
+be bypassed or falsely satisfied using a second local VHDX; automatic
+deployment remains disabled until separately reviewed.
+
+### Discover host placement first (read-only)
+
+Run in Windows **administrator PowerShell**, not in Ubuntu:
+
+```powershell
+Get-PhysicalDisk | Select FriendlyName,MediaType,Size
+Get-Volume | Select DriveLetter,FileSystem,SizeRemaining,Size
+Get-VM -Name 'USD-SERVER' | Select Name,State
+Get-VMHardDiskDrive -VMName 'USD-SERVER' | Select ControllerType,ControllerLocation,Path
+```
+
+Verify which Windows volume is physically on the HDD and how much free space
+it has. **Do not format any disk, initialise Windows volumes, move the existing
+VM, or create a new VHDX over an existing file.**
+
+After confirming the backing HDD and sufficient free space, create a
+**new dynamic VHDX** on an HDD path of your choice (example `C:\USD-Backups`)
+and attach it to the running Generation 2 VM's SCSI controller through
+PowerShell, using Microsoft Hyper-V `New-VHD` and `Add-VMHardDiskDrive`.
+Before doing that, confirm the candidate path belongs to the HDD (not SSD).
+Only the newly created, blank disk should then be partitioned/formatted
+as ext4 **inside Ubuntu**. Mount persistently by its actual UUID at
+`/srv/usd-backups`, with root-only mode `0700`. Never guess `/dev/sdc`
+without comparing `lsblk` before and after attachment. The existing
+`/dev/sda` OS root and `/dev/sdb` RustFS must remain untouched.
+
+The separate HDD snapshot helper is
+`deploy/home-pc/s3/backup-to-second-disk.py`. After the new HDD filesystem
+is safely mounted, verify the source image and install rclone if necessary:
+
+```bash
+sudo apt-get install -y rclone
+sudo docker image inspect postgres:18-alpine >/dev/null
+cd /home/usd/usd-deploy
+git fetch --no-tags origin fix/home-pc-autodeploy-20261029
+git show FETCH_HEAD:deploy/home-pc/s3/backup-to-second-disk.py \
+  | sudo python3 - --check
+```
+
+A successful check reports `CHECK SUCCESS` and writes nothing.
+To create the first snapshot (only after observing the source and separate
+HDD devices):
+
+```bash
+git show FETCH_HEAD:deploy/home-pc/s3/backup-to-second-disk.py \
+  | sudo python3 - --backup
+```
+
+`BACKUP SUCCESS` means it copied RustFS objects to a unique HDD snapshot,
+verified all copied data via `rclone check --download` and SHA-256 hashes,
+dumped PostgreSQL 18 in custom format, then restored and queried the dump
+in a disposable, network-isolated PostgreSQL 18 container. Temporary
+restore container and volume are removed. It does not change or restart
+the production database or API. Failed snapshots remain as clearly marked
+`.incomplete` directories for manual examination. It never deletes
+older verified backups automatically. Ensure sufficient HDD space and
+set an explicit, reviewed retention policy before scheduling daily copies.
+
+After a successful snapshot, confirm the Windows HDD's VHDX path, record
+the backup location, and periodically rehearse restoring onto a separate
+machine. Without an off-site copy, losing the whole home PC loses both the
+site and backups.
+
+
+
 This does not change the live app, DNS, PostgreSQL, or the existing USD ingress.
 The **same-PC SSD is NOT an off-host backup**. The home release gate still requires
 independent DB and media remotes and a complete restore rehearsal.
