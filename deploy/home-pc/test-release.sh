@@ -313,6 +313,20 @@ sed -i 's/@db:5432/@remote-db:5432/' "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-database.log" 2>&1; then exit 1; fi
 grep -q 'does not match local PostgreSQL backup target' "$WORK/wrong-database.log"
 sed -i 's/@remote-db:5432/@db:5432/' "$ROOT/.env"
+# PostgreSQL URL query options can override the validated authority when
+# parsed by the API driver. Reject hidden alternate hosts/databases before
+# even attempting to inspect a Docker image or take a database backup.
+for unsafe_query in 'host=remote-db' 'schema=public&host=remote-db' \
+  'hostaddr=192.0.2.1' 'schema=public&schema=other' 'database=other' 'sslmode=require'; do
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://usd:test@db:5432/usd?$unsafe_query|" "$ROOT/.env"
+  if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsafe-db-query.log" 2>&1; then
+    echo "Release accepted unsafe PostgreSQL URL query: $unsafe_query" >&2
+    exit 1
+  fi
+  grep -q 'unsafe PostgreSQL connection query parameters' "$WORK/unsafe-db-query.log"
+  [[ ! -s "$USD_TEST_LOG" ]]
+done
+sed -i 's|^DATABASE_URL=.*|DATABASE_URL=postgresql://usd:test@db:5432/usd|' "$ROOT/.env"
 sed -i 's/^POSTGRES_PASSWORD=test$/POSTGRES_PASSWORD=not-the-api-password/' "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-password-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'does not match local PostgreSQL backup target' "$WORK/db-password-mismatch.log"
