@@ -269,6 +269,28 @@ trap 'rollback 130' INT
 # for a newly started candidate and for rollback recovery.
 wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refusing automatic replacement" >&2; false; }
 
+# An on-host PostgreSQL dump alone cannot survive a Windows/VM disk failure.
+# A separately configured off-host rclone target is mandatory before any
+# release, including a supervised invocation of this helper.
+DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
+[[ -f "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" &&
+   "$(stat -c %u "$DB_OFFSITE_POLICY")" == 0 ]] ||
+  { echo "Missing or untrusted off-host PostgreSQL backup policy" >&2; false; }
+(( (8#$(stat -c %a "$DB_OFFSITE_POLICY") & 077) == 0 )) ||
+  { echo "Off-host PostgreSQL backup policy must be root-only" >&2; false; }
+[[ -f "$DB_OFFSITE_VERIFIER" && -x "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" &&
+   "$(stat -c %u "$DB_OFFSITE_VERIFIER")" == 0 ]] ||
+  { echo "Missing or untrusted off-host PostgreSQL backup verifier" >&2; false; }
+(( (8#$(stat -c %a "$DB_OFFSITE_VERIFIER") & 022) == 0 )) ||
+  { echo "Off-host PostgreSQL backup verifier must not be group/world writable" >&2; false; }
+db_offsite_prefix="$(cat "$DB_OFFSITE_POLICY")"
+# A named remote, not a local disk or a relative path. Do not trust paths
+# containing traversal, spaces, rclone special remotes or shell expansion.
+[[ "$db_offsite_prefix" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_-]*:[a-zA-Z0-9_/-]+$ &&
+   "$db_offsite_prefix" != *"//"* && "$db_offsite_prefix" != */ ]] ||
+  { echo "Invalid off-host PostgreSQL backup remote prefix" >&2; false; }
+
 # Keep a private custom-format database archive before replacing either service.
 # This does not migrate, restore, restart or recreate PostgreSQL.
 BACKUP_DIR="$STATE_DIR/backups"
@@ -292,6 +314,12 @@ db_snapshot_tmp=''
   { echo "Production DB container changed during backup; refusing release" >&2; false; }
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
   { echo "Production DB became unhealthy during backup; refusing release" >&2; false; }
+
+# A separate off-host copy must be retrievable and byte-for-byte identical
+# before the candidate is allowed to replace any live application container.
+db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$.dump"
+"$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
+  { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
 
 # pg_restore --list checks archive structure, NOT whether a backup can actually
 # be restored. Before touching either live application container, restore this
