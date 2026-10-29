@@ -33,6 +33,8 @@ for old,new in {
  '/var/lib/usd-deployer':work+'/state',
  '/etc/usd-deploy-enabled':work+'/enabled',
  '/etc/usd-auto-release-schema':work+'/policy',
+ '/etc/usd-deployer/media-backup.conf':work+'/media-policy',
+ '/usr/local/libexec/usd-verify-media-backup':work+'/media-verify',
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
  '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
@@ -78,12 +80,19 @@ echo "$1" >> "$USD_TEST_WORK/releases.log"
 [[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
 SH
+cat > "$WORK/media-verify" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$#" == 2 && "$1" == "usd-media:current" && "$2" == usd-offsite:verified/* ]] || exit 1
+echo "$*" >> "$USD_TEST_WORK/media.log"
+[[ "${USD_TEST_FAIL_MEDIA:-0}" != 1 ]]
+SH
 cat > "$WORK/verify-ci" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$USD_TEST_WORK/ci.log"
 exit "${USD_TEST_CI_STATUS:-0}"
 SH
-chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci"
+chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci" "$WORK/media-verify"
 export PATH="$WORK/bin:$PATH"
 # A missing operator switch must not build or release anything.
 mv "$WORK/enabled" "$WORK/disabled"
@@ -131,6 +140,21 @@ bash "$WORK/builder" > "$WORK/invalid-main.log" 2>&1
 grep -q 'Invalid main branch tip response' "$WORK/invalid-main.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_REMOTE_SHA
+# Even with approved schema and green CI, no media policy means build-only.
+bash "$WORK/builder" > "$WORK/no-media-policy.log"
+grep -q 'off-host media backup policy missing; build-only mode' "$WORK/no-media-policy.log"
+[[ ! -f "$WORK/releases.log" ]]
+printf 'usd-media:current\\nusd-offsite:verified\\n' > "$WORK/media-policy"
+chmod 666 "$WORK/media-policy"
+if bash "$WORK/builder" > "$WORK/insecure-media-policy.log" 2>&1; then exit 1; fi
+grep -q 'Media backup policy must be private and root-owned' "$WORK/insecure-media-policy.log"
+[[ ! -f "$WORK/releases.log" ]]
+chmod 600 "$WORK/media-policy"
+export USD_TEST_FAIL_MEDIA=1
+bash "$WORK/builder" > "$WORK/media-failure.log" 2>&1
+grep -q 'Off-host media backup/restore failed' "$WORK/media-failure.log"
+[[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
+unset USD_TEST_FAIL_MEDIA
 # A failed image build cannot mark this version ready or invoke release.
 printf '%040d\n' 0 > "$WORK/state/built-sha"
 export USD_TEST_FAIL_BUILD=1
