@@ -415,6 +415,7 @@ grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-reh
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
 # First-run schema setup may verify backup/restore without replacing apps.
+touch "$USD_TEST_LOG"
 before_preflight="$(wc -l < "$USD_TEST_LOG")"
 bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/preflight-only.log" 2>&1
 grep -q 'live images and database were not changed' "$WORK/preflight-only.log"

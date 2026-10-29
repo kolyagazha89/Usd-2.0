@@ -50,7 +50,11 @@ def pending_migrations(expected: dict[str, str], history: list[dict]) -> list[st
 
 
 def command(*args: str) -> str:
-    return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL).strip()
+    try:
+        return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL).strip()
+    except subprocess.CalledProcessError as exc:
+        # Name only the operation, never command output or environment values.
+        raise ValueError(f"Initial host metadata command failed: {args[0]} {args[1]} (exit {exc.returncode})") from exc
 
 
 def container(service: str) -> str:
@@ -71,7 +75,8 @@ def history(db: str) -> list[dict]:
     return json.loads(query(db, """SELECT coalesce(json_agg(json_build_object(
         'migration_name', migration_name, 'checksum', checksum,
         'finished', finished_at IS NOT NULL, 'rolled_back', rolled_back_at IS NOT NULL)), '[]')
-        FROM "_prisma_migrations"""))
+        FROM "_prisma_migrations"
+        """))
 
 
 def row_counts(db: str) -> list[str]:
