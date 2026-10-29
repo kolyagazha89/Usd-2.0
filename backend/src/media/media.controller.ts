@@ -44,6 +44,27 @@ export class MediaController {
     return this.mediaService.getSignedPublicMediaUrl(targetType, targetId);
   }
 
+  @Get('private-file/:targetType/:targetId')
+  async privateFile(
+    @Req() request: AuthenticatedRequest,
+    @Param('targetType') targetType: MediaTargetType,
+    @Param('targetId') targetId: string,
+    @Res() response: Response,
+  ) {
+    const media = await this.mediaService.getPrivateMediaFile(
+      request.user.sub,
+      request.user.role,
+      targetType,
+      targetId,
+      Boolean(request.user.customRoleId),
+    );
+    response.setHeader('Content-Type', media.contentType);
+    response.setHeader('Content-Length', String(media.body.length));
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.send(media.body);
+  }
+
   @Public()
   @Get('public-file/:targetType/:targetId')
   async publicFile(

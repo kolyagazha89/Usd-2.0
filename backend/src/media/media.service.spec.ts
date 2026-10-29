@@ -53,6 +53,25 @@ describe('MediaService media library', () => {
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
   });
 
+  it('never serves an unauthorized private participant photo', async () => {
+    prisma.participant.findFirst = jest.fn().mockResolvedValue(null);
+    await expect(service.getPrivateMediaFile('other-user', 'PARTICIPANT', MediaTargetType.PARTICIPANT_PHOTO, 'participant-1'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('serves authorized private media through the API without exposing a signed S3 URL', async () => {
+    prisma.mediaUpload.findFirst.mockResolvedValue({ objectKey: 'private-key', contentType: 'image/png' });
+    global.fetch = jest.fn(async () => new Response(Buffer.from([0x89,0x50,0x4e,0x47]), {
+      status: 200,
+      headers: { 'content-type':'image/png' },
+    })) as typeof fetch;
+    const result = await service.getPrivateMediaFile('admin-user', 'ADMIN', MediaTargetType.SITE_ASSET, 'logo');
+    expect(result.contentType).toBe('image/png');
+    expect(result.body).toEqual(Buffer.from([0x89,0x50,0x4e,0x47]));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('requires ADMIN to list the unified media library', async () => {
     await expect(service.listMediaLibrary('PARTICIPANT')).rejects.toBeInstanceOf(ForbiddenException);
   });
