@@ -13,6 +13,7 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - '.github/workflows/home-pc-safety.yml'
+      - '.github/workflows/request-home-pc-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -137,9 +138,30 @@ jobs:
           bash -n deploy/home-pc/rehearse-schema-on-backup.sh
           bash -n deploy/home-pc/verify-media-backup.sh
           bash -n deploy/home-pc/install-local-deployer.sh
+          bash -n deploy/home-pc/install-runner-trigger.sh
           bash -n deploy/home-pc/test-release.sh
           bash -n deploy/home-pc/test-auto-deploy.sh
           bash -n deploy/home-pc/test-release-docker.sh
+      - name: Check self-hosted runner trigger has no privileged workflow checkout
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/request-home-pc-deploy.yml').read_text()
+          installer = Path('deploy/home-pc/install-runner-trigger.sh').read_text()
+          for expected in ('workflow_run:', 'Home PC deployment safety checks', "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
+              assert expected in workflow, expected
+          assert 'pull_request:' not in workflow
+          assert 'actions/checkout' not in workflow
+          assert 'secrets.' not in workflow
+          assert 'docker ' not in workflow
+          assert 'NOPASSWD: /usr/bin/systemctl start usd-auto-deploy.service' in installer
+          PY
+          if sudo bash deploy/home-pc/install-runner-trigger.sh root >/tmp/usd-runner-refusal.log 2>&1; then
+            echo 'Installer accepted root as a runner account' >&2
+            exit 1
+          fi
+          grep -q 'Runner account must exist and must not be root' /tmp/usd-runner-refusal.log
       - name: Rehearse media backup, full restore and refusal of reused destination
         shell: bash
         run: |
