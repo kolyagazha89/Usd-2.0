@@ -64,7 +64,7 @@ set -Eeuo pipefail
 [[ "$#" == 2 && -s "$1" && "$2" == ghcr.io/kolyagazha89/usd-2.0-api:* ]] || exit 1
 root=/home/usd/usd-deploy/deploy/home-pc
 compose=(docker compose --env-file "$root/.env" -f "$root/compose.yaml")
-name="release_rehearsal_$"
+name="release_rehearsal_${BASHPID}"
 "${compose[@]}" exec -T db createdb -U usd "$name"
 cleanup() { "${compose[@]}" exec -T db dropdb -U usd --if-exists "$name"; }
 trap cleanup EXIT
