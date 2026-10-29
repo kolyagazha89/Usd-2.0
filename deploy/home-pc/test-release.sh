@@ -228,6 +228,18 @@ fi
 echo "Unexpected mocked docker call: $*" >&2
 exit 1
 EOF
+# Simulate a main push during the potentially long independent backup and
+# isolated PostgreSQL restore. Only the automatic (inherited-lock) release
+# must check the latest main tip immediately before changing .env.
+cat > "$WORK/bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == '-C /opt/usd-release-source ls-remote --exit-code origin refs/heads/main' ]]; then
+  [[ "${USD_TEST_FAIL_MAIN_LOOKUP:-0}" != 1 ]] || exit 1
+  printf '%s\trefs/heads/main\n' "${USD_TEST_REMOTE_MAIN_SHA:-2222222222222222222222222222222222222222}"
+  exit 0
+fi
+exec /usr/bin/git "$@"
+EOF
 cat > "$WORK/bin/sleep" <<'EOF'
 #!/usr/bin/env bash
 exit 0
@@ -242,7 +254,7 @@ if [[ "${USD_TEST_FAIL_ROLLBACK_COPY:-0}" == 1 &&
 fi
 exec /usr/bin/cp "$@"
 EOF
-chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp"
+chmod +x "$WORK/bin/docker" "$WORK/bin/sleep" "$WORK/bin/cp" "$WORK/bin/git"
 export PATH="$WORK/bin:$PATH"
 export USD_TEST_LOG="$WORK/docker.log"
 export USD_TEST_WORK_OFFSITE_LOG="$WORK/offsite.log"
@@ -432,6 +444,32 @@ grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.release.*' -print -quit)" ]] ||
   { echo "Sensitive staged .env was left behind after failed validation" >&2; exit 1; }
 export USD_TEST_FAIL_CONFIG=0
+# Rehearse the final automatic-release gate AFTER all independent backups,
+# PostgreSQL restore and Compose validation. A stale/unverifiable main tip
+# must defer with status 75, without swapping images or leaking private .env.
+run_automatic_candidate() (
+  exec 9>/run/lock/usd-home-deploy.lock
+  flock -n 9
+  USD_DEPLOY_LOCK_HELD=1 bash deploy/home-pc/release-approved.sh "$NEW"
+)
+for mode in moved malformed unavailable; do
+  case "$mode" in
+    moved) export USD_TEST_REMOTE_MAIN_SHA="$OLD"; unset USD_TEST_FAIL_MAIN_LOOKUP || true ;;
+    malformed) export USD_TEST_REMOTE_MAIN_SHA=not-a-sha; unset USD_TEST_FAIL_MAIN_LOOKUP || true ;;
+    unavailable) unset USD_TEST_REMOTE_MAIN_SHA || true; export USD_TEST_FAIL_MAIN_LOOKUP=1 ;;
+  esac
+  set +e
+  run_automatic_candidate > "$WORK/main-after-restore-$mode.log" 2>&1
+  status=$?
+  set -e
+  [[ "$status" == 75 ]] || { echo "Expected automatic release to defer for $mode (got $status)" >&2; exit 1; }
+  grep -q 'deferring .*release' "$WORK/main-after-restore-$mode.log"
+  grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+  [[ ! -s "$USD_TEST_LOG" ]]
+  [[ -z "$(find "$ROOT" -maxdepth 1 -name '.env.release.*' -print -quit)" ]] || exit 1
+  [[ -z "$(find "$STATE" -maxdepth 1 -name 'release-env.*' -print -quit)" ]] || exit 1
+done
+unset USD_TEST_REMOTE_MAIN_SHA USD_TEST_FAIL_MAIN_LOOKUP
 # A candidate with HTTP 200 but no API-to-database connectivity must
 # roll back to the previous healthy image, not pass the readiness gate.
 export USD_TEST_FAIL_NEW_DB_CONNECTIVITY=1
@@ -514,4 +552,12 @@ bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
 [[ ! -f /etc/usd-release-approved ]]
-echo "Mocked release, healthy rollback and unhealthy rollback rehearsals passed"
+# Positive path: when main is still the approved SHA, the automatic release
+# passes the final gate and performs the same verified image replacement.
+sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
+printf '%s\n' "$NEW" > /etc/usd-release-approved
+run_automatic_candidate
+[[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
+grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
+[[ ! -f /etc/usd-release-approved ]]
+echo "Mocked release, main-tip deferral, healthy rollback and unhealthy rollback rehearsals passed"
