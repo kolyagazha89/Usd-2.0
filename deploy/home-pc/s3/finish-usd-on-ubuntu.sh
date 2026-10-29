@@ -23,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-[[ -d "$WORK/.git" && -f "$WORK/deploy/home-pc/.env" ]] || { echo 'Existing USD checkout/env missing' >&2; exit 1; }
+[[ -e "$WORK/.git" && -f "$WORK/deploy/home-pc/.env" ]] || { echo 'Existing USD checkout/env missing' >&2; exit 1; }
 [[ ! -e /etc/usd-deploy-enabled ]] || { echo 'Auto-release gate is enabled; refusing simultaneous release' >&2; exit 1; }
 [[ "$(systemctl is-enabled usd-auto-deploy.timer 2>/dev/null || true)" != enabled ]] ||
   { echo 'Auto-deploy timer is enabled; disable it before manual release' >&2; exit 1; }
@@ -31,9 +31,9 @@ mountpoint -q /srv/usd-s3 || { echo 'RustFS SSD not mounted' >&2; exit 1; }
 [[ -f /etc/usd-s3/api.env ]] || { echo 'Restricted S3 IAM credentials missing' >&2; exit 1; }
 
 # Must be the actual fetched current main; never deploy a moving draft PR.
-SHA="$(git -C "$WORK" rev-parse FETCH_HEAD)"
+SHA="$(git -c safe.directory="$WORK" -C "$WORK" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
-[[ "$(git -C "$WORK" ls-remote origin refs/heads/main | awk '{print $1}')" == "$SHA" ]] ||
+[[ "$(git -c safe.directory="$WORK" -C "$WORK" ls-remote origin refs/heads/main | awk '{print $1}')" == "$SHA" ]] ||
   { echo 'FETCH_HEAD is not current main. Run git fetch origin main again.' >&2; exit 1; }
 python3 - "$WORK/deploy/home-pc/.env" <<'PY'
 import sys
@@ -50,8 +50,8 @@ if (pairs.get("S3_ENDPOINT"),pairs.get("S3_BUCKET"))!=("http://usd-s3:9000","usd
     raise SystemExit("Private S3 not staged; refusing deploy")
 PY
 echo "=== USD pre-release SHA: $SHA ==="
-git -C "$WORK" show "$SHA:deploy/home-pc/s3/backup-to-second-disk.py" > "$TMP/backup.py"
-git -C "$WORK" show "$SHA:deploy/home-pc/s3/verify-local-hdd-snapshot.py" > "$TMP/verify.py"
+git -c safe.directory="$WORK" -C "$WORK" show "$SHA:deploy/home-pc/s3/backup-to-second-disk.py" > "$TMP/backup.py"
+git -c safe.directory="$WORK" -C "$WORK" show "$SHA:deploy/home-pc/s3/verify-local-hdd-snapshot.py" > "$TMP/verify.py"
 python3 -m py_compile "$TMP/backup.py" "$TMP/verify.py"
 
 if ! command -v rclone >/dev/null || ! command -v mount.cifs >/dev/null; then
