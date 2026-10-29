@@ -128,6 +128,36 @@ if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sh
   echo "This SHA already failed release; inspect logs before explicitly clearing failed-release-sha" >&2
   exit 1
 fi
+# A database dump cannot protect participant photos, posters or S3 objects.
+# Require a root-owned off-host rclone policy and verify a fresh full media
+# backup plus a disposable full restore for EACH automatic release. Without
+# the policy, the local builder remains build-only.
+MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
+if [[ ! -f "$MEDIA_POLICY" ]]; then
+  echo "Images built for $SHA; off-host media backup policy missing; build-only mode"
+  exit 0
+fi
+[[ ! -L "$MEDIA_POLICY" && "$(stat -c %u "$MEDIA_POLICY")" == 0 ]] ||
+  { echo "Untrusted media backup policy; refusing automatic release" >&2; exit 1; }
+(( (8#$(stat -c %a "$MEDIA_POLICY") & 077) == 0 )) ||
+  { echo "Media backup policy must be private and root-owned" >&2; exit 1; }
+[[ -f "$MEDIA_VERIFIER" && -x "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" &&
+   "$(stat -c %u "$MEDIA_VERIFIER")" == 0 ]] ||
+  { echo "Missing or untrusted root-owned media backup verifier" >&2; exit 1; }
+(( (8#$(stat -c %a "$MEDIA_VERIFIER") & 022) == 0 )) ||
+  { echo "Media backup verifier must not be group/world writable" >&2; exit 1; }
+mapfile -t media_paths < "$MEDIA_POLICY"
+[[ "${#media_paths[@]}" == 2 && -n "${media_paths[0]}" && -n "${media_paths[1]}" &&
+   "${media_paths[0]}" =~ ^[a-zA-Z0-9_-]+: && "${media_paths[1]}" =~ ^[a-zA-Z0-9_-]+: &&
+   "${media_paths[0]%%:*}" != "${media_paths[1]%%:*}" ]] ||
+  { echo "Media policy must specify distinct source and off-host rclone remotes" >&2; exit 1; }
+media_snapshot="${media_paths[1]%/}/$SHA-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+if ! "$MEDIA_VERIFIER" "${media_paths[0]}" "$media_snapshot"; then
+  echo "Off-host media backup/restore failed; leaving current release untouched" >&2
+  # No live release was attempted. Retry on the next poll after remote recovery.
+  exit 0
+fi
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
 # Keep the SAME lock continuously across build, CI approval and release.
