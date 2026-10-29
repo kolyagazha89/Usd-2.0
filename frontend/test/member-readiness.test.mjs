@@ -26,8 +26,10 @@ test('direction readiness requires a real, positive-quantity component',()=>{
 
 test('front and rear readiness requires acoustic drivers, not generic or mismatched equipment',()=>{
  for(const direction of ['FRONT','REAR']){
-  for(const type of ['SUBWOOFER','AMPLIFIER','OTHER',undefined]){
-   assert.equal(isDirectionConfigured([row(direction,type)],direction),false,`Unexpected ${type} in ${direction}`);
+  for(const type of ['SUBWOOFER','AMPLIFIER','OTHER',undefined,null,'']){
+   // Explicitly preserve undefined: row() defaults its omitted type to MIDBASS.
+   const invalid={...row(direction),type};
+   assert.equal(isDirectionConfigured([invalid],direction),false,`Unexpected ${type} in ${direction}`);
   }
   for(const type of ['MIDBASS','MIDRANGE','HORN']){
    assert.equal(isDirectionConfigured([row(direction,type)],direction),true,`Missing ${type} in ${direction}`);
@@ -35,6 +37,13 @@ test('front and rear readiness requires acoustic drivers, not generic or mismatc
  }
  assert.equal(isDirectionConfigured([row('FRONT','MIDRANGE')],'REAR'),false);
  assert.equal(isDirectionConfigured([row('SUB','MIDBASS')],'SUB'),false);
+ for(const direction of ['SUB','FRONT','REAR']){
+  const type=direction==='SUB'?'SUBWOOFER':'MIDBASS';
+  for(const placeholder of ['Не указано','не указан','нет','—','-','  ']){
+   assert.equal(isDirectionConfigured([{...row(direction,type),brand:placeholder}],direction),false,'brand placeholder '+placeholder);
+   assert.equal(isDirectionConfigured([{...row(direction,type),model:placeholder}],direction),false,'model placeholder '+placeholder);
+  }
+ }
 });
 
 test('registration hints prioritize BFSPL and BDW even with an imported SPL parent',()=>{
