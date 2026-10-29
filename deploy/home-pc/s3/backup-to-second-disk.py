@@ -54,7 +54,15 @@ def check_mounts():
     require(BACKUP_MOUNT.stat().st_dev != SSD_MOUNT.stat().st_dev,
             "Backup and S3 use same mounted filesystem")
     what = run(["findmnt", "-n", "-o", "SOURCE,FSTYPE", "--mountpoint", str(BACKUP_MOUNT)])
-    require("ext4" in what.split(), "Expected dedicated ext4 second VHDX filesystem")
+    fs_type = what.split()[-1] if what.split() else ""
+    require(fs_type in ("ext4", "cifs"),
+            "Expected dedicated ext4 VHDX or mounted Windows SMB/CIFS share")
+    if fs_type == "cifs":
+        require(what.startswith("//"), "Expected a dedicated UNC share on Windows HDD")
+        # The VM cannot infer which PHYSICAL disk backs a Windows SMB share.
+        # Operator must confirm the Windows share path is on the separate HDD.
+        print("NOTICE: Verify this Windows SMB share is physically stored on the HDD.")
+        print("NOTICE: Same-PC backup is NOT independent off-host recovery.")
     require(not (BACKUP_MOUNT/"snapshots").is_symlink(), "Unsafe backup snapshots symlink")
     return what
 
@@ -160,8 +168,7 @@ def verify_pg_restore(snapshot):
     launched = False
     try:
         run(["docker", "run", "-d", "--name", name, "--network", "none",
-             "--memory", "768m", "--cpus", "1", "--mount",
-             f"type=bind,src={snapshot},dst=/backup,readonly",
+             "--memory", "768m", "--cpus", "1",
              "-e", f"POSTGRES_USER={RESTORE_USER}",
              "-e", f"POSTGRES_PASSWORD={password}",
              "-e", f"POSTGRES_DB={RESTORE_USER}",
@@ -176,9 +183,16 @@ def verify_pg_restore(snapshot):
             time.sleep(1)
         else:
             raise RuntimeError("Disposable PG18 restore container never became ready")
+        # Avoid binding a root-only HDD/CIFS archive into a PostgreSQL container:
+        # its postgres user cannot read root-owned 0600 snapshots. Docker copies
+        # into a disposable, offline container, where only that test DB sees it.
+        run(["docker", "cp", str(snapshot/"database.dump"),
+             name + ":/tmp/usd-restore.dump"], timeout=1800)
+        run(["docker", "exec", "-u", "0", name, "chmod", "0644",
+             "/tmp/usd-restore.dump"])
         run(["docker", "exec", name, "pg_restore", "--exit-on-error",
              "--no-owner", "--no-acl", "-U", RESTORE_USER,
-             "-d", RESTORE_USER, "/backup/database.dump"], timeout=1800)
+             "-d", RESTORE_USER, "/tmp/usd-restore.dump"], timeout=1800)
         count = run(["docker", "exec", name, "psql", "-X", "-At", "-U",
                      RESTORE_USER, "-d", RESTORE_USER, "-c",
                      'SELECT COUNT(*) FROM "MediaUpload" WHERE "completedAt" IS NOT NULL'])
