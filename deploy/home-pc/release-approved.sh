@@ -458,7 +458,7 @@ docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env
 # production .env; direct, operator-supervised releases remain explicit.
 if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
   defer_stale_main() { return 75; }
-  remote_main="$(git -C /opt/usd-release-source ls-remote --exit-code origin refs/heads/main)" || {
+  remote_main="$(GIT_TERMINAL_PROMPT=0 timeout 20s git -C /opt/usd-release-source ls-remote --exit-code origin refs/heads/main)" || {
     echo "Cannot verify main after backup/restore; deferring automatic release" >&2
     defer_stale_main
   }
