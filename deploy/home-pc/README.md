@@ -56,6 +56,16 @@ protect an API accidentally connected to a different database.
 
 Duplicate or missing critical variables, unresolved interpolation and
 malformed URLs are rejected **before any image replacement or backup**.
+In addition to checking the on-disk settings, the helper inspects the
+**already running** API and PostgreSQL container environments through Docker:
+the live API `DATABASE_URL` must match the approved local DB URL; the live
+PostgreSQL user, database and password must match the dump target; and the
+running API's CORS, CSRF, public URLs and cookie security must still target
+the prerelease site. An edited `.env` is **not** evidence that the running
+containers were recreated with those values. Any drift fails closed **before
+taking a backup**, without printing credentials. The mock release rehearsal
+includes mismatched live DB credentials, external API DB and primary-domain
+regression cases.
 Values are parsed as data, never executed as shell, and credentials are
 not printed. The helper also refuses inherited `APP_DOMAIN`, `DATABASE_URL`,
 `USD_IMAGE_TAG`, PostgreSQL variables, Compose project/file/profile overrides,
