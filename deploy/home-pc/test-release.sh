@@ -235,6 +235,25 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/padded-tunnel-env.log
 grep -q 'Tunnel credential must be isolated' "$WORK/padded-tunnel-env.log"
 sed -i '/^[[:space:]]*TUNNEL_TOKEN[[:space:]]*=/d' "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
+# A local DB backup cannot protect an API accidentally pointing to another
+# PostgreSQL host. Nor may a release target the primary usd-russia.ru domain.
+sed -i 's/^APP_DOMAIN=app.usd-russia.ru$/APP_DOMAIN=usd-russia.ru/' "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-domain.log" 2>&1; then exit 1; fi
+grep -q 'approved prerelease domains' "$WORK/wrong-domain.log"
+sed -i 's/^APP_DOMAIN=usd-russia.ru$/APP_DOMAIN=app.usd-russia.ru/' "$ROOT/.env"
+sed -i 's/@db:5432/@remote-db:5432/' "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-database.log" 2>&1; then exit 1; fi
+grep -q 'does not match local PostgreSQL backup target' "$WORK/wrong-database.log"
+sed -i 's/@remote-db:5432/@db:5432/' "$ROOT/.env"
+sed -i 's/^POSTGRES_PASSWORD=test$/POSTGRES_PASSWORD=not-the-api-password/' "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-password-mismatch.log" 2>&1; then exit 1; fi
+grep -q 'does not match local PostgreSQL backup target' "$WORK/db-password-mismatch.log"
+sed -i 's/^POSTGRES_PASSWORD=not-the-api-password$/POSTGRES_PASSWORD=test/' "$ROOT/.env"
+printf 'APP_DOMAIN=app.usd-russia.ru\n' >> "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/duplicate-domain.log" 2>&1; then exit 1; fi
+grep -q 'duplicate or malformed deployment setting' "$WORK/duplicate-domain.log"
+sed -i '$d' "$ROOT/.env"
+[[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_IMAGE_MISMATCH=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/image-mismatch.log" 2>&1; then exit 1; fi
 grep -q 'Running images do not match' "$WORK/image-mismatch.log"
