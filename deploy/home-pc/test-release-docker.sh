@@ -190,7 +190,7 @@ grep -q 'Independent media backup/full restore failed' "$WORK/media-refusal.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 # Even with db:5432 in the URL authority, a query parameter may override
 # the connection target. Reject it before Docker or PostgreSQL backup access.
-sed -i 's|?schema=public$|?schema=public\\&host=remote-db|' "$ROOT/.env"
+sed -i 's|?schema=public$|?schema=public\&host=remote-db|' "$ROOT/.env"
 if bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/unsafe-db-query.log" 2>&1; then
   echo 'Release accepted query-overridden PostgreSQL connection target' >&2
   exit 1
