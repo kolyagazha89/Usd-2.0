@@ -62,7 +62,7 @@ python3 - .env <<'PY'
 import re
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 critical = {"APP_DOMAIN", "API_DOMAIN", "POSTGRES_DB", "POSTGRES_USER",
             "POSTGRES_PASSWORD", "DATABASE_URL"}
@@ -93,10 +93,18 @@ try:
     if values["APP_DOMAIN"] != "app.usd-russia.ru" or values["API_DOMAIN"] != "api.usd-russia.ru":
         raise ValueError("deployment targets are not the approved prerelease domains")
     db = urlsplit(values["DATABASE_URL"])
+    # pg-connection-string/Prisma can interpret query parameters as connection
+    # overrides. A URL whose authority says db:5432 can still select another
+    # host/database via ?host=, ?hostaddr=, ?database=, etc. The release backup
+    # protects ONLY the local Compose DB; accept the documented Prisma schema
+    # parameter and no other connection options (including duplicates).
+    params = parse_qsl(db.query, keep_blank_values=True, strict_parsing=True)
+    if params not in ([], [("schema", "public")]):
+        raise ValueError("unsafe PostgreSQL connection query parameters")
     if (db.scheme not in ("postgres", "postgresql") or db.hostname != "db" or db.port != 5432
             or unquote(db.username or "") != values["POSTGRES_USER"]
             or unquote(db.password or "") != values["POSTGRES_PASSWORD"]
-            or unquote(db.path.lstrip("/")) != values["POSTGRES_DB"]
+            or unquote(db.path) != "/" + values["POSTGRES_DB"]
             or db.fragment):
         raise ValueError("application database does not match local PostgreSQL backup target")
 except (OSError, ValueError, KeyError, IndexError) as exc:
