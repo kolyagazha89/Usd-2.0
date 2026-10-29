@@ -116,6 +116,20 @@ if [[ "${1:-}" == ps ]]; then
   exit 0
 fi
 if [[ "${1:-}" == inspect ]]; then
+  if [[ "$*" == *'{{json .Config.Env}}'* ]]; then
+    if [[ "$*" == *mock-db* ]]; then
+      password=test
+      [[ "${USD_TEST_RUNTIME_DB_PASSWORD_MISMATCH:-0}" != 1 ]] || password=stale
+      printf '["POSTGRES_DB=usd","POSTGRES_USER=usd","POSTGRES_PASSWORD=%s"]\\n' "$password"
+    else
+      url='postgresql://usd:test@db:5432/usd'
+      [[ "${USD_TEST_RUNTIME_API_DB_MISMATCH:-0}" != 1 ]] || url='postgresql://usd:test@external-db:5432/usd'
+      domain='https://app.usd-russia.ru'
+      [[ "${USD_TEST_RUNTIME_DOMAIN_MISMATCH:-0}" != 1 ]] || domain='https://usd-russia.ru'
+      printf '["DATABASE_URL=%s","NODE_ENV=production","AUTH_COOKIE_SECURE=true","FRONTEND_URL=%s","CORS_ORIGINS=https://app.usd-russia.ru","CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru","API_PUBLIC_URL=https://api.usd-russia.ru","PUBLIC_API_URL=https://api.usd-russia.ru"]\\n' "$url" "$domain"
+    fi
+    exit 0
+  fi
   if [[ "$*" == *'.State.Health.Status'* ]]; then
     if [[ "${USD_TEST_DB_UNHEALTHY_BEFORE:-0}" == 1 ]] ||
        [[ -f "${USD_TEST_DB_BACKUP_LATCH:-/dev/null}" ]] ||
@@ -316,6 +330,17 @@ grep -q "Production DB is not healthy" "$WORK/db-unhealthy-before.log"
 [[ ! -s "$USD_TEST_LOG" ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_DB_UNHEALTHY_BEFORE=0
+# The file may describe the right DB while the running API or PostgreSQL
+# container still uses an older/wrong target. Refuse BEFORE taking a backup.
+for drift in USD_TEST_RUNTIME_API_DB_MISMATCH USD_TEST_RUNTIME_DB_PASSWORD_MISMATCH USD_TEST_RUNTIME_DOMAIN_MISMATCH; do
+  if env "$drift=1" bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/runtime-$drift.log" 2>&1; then
+    echo "Release accepted stale live container environment: $drift" >&2
+    exit 1
+  fi
+  grep -q 'Running API/DB configuration does not match approved prerelease backup target' "$WORK/runtime-$drift.log"
+  grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+  [[ ! -s "$USD_TEST_LOG" ]]
+done
 # Do not update a broken baseline: an unhealthy old API/frontend cannot be
 # assumed to be a safe rollback target.
 export USD_TEST_FAIL_BASELINE_READINESS=1
