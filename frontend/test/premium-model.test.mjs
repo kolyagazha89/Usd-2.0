@@ -111,3 +111,23 @@ test('stage date labels preserve the advertised day across UTC and offset timest
  assert.equal(stageDate('2026-10-28T00:00:00+05:00',false),'28 октября');
  assert.equal(stageDate('not-a-date'),'Дата уточняется');
 });
+
+test('public event dates reject impossible calendar days rather than displaying a phantom stage',()=>{
+ const now=new Date(2026,9,28,12).getTime();
+ const stages=[
+  {id:'bad-leap',status:'PUBLISHED',date:'2027-02-29T00:00:00Z'},
+  {id:'bad-month',status:'PUBLISHED',date:'2026-13-01T00:00:00Z'},
+  {id:'bad-day',status:'PUBLISHED',date:'2026-11-31T00:00:00Z'},
+  {id:'real',status:'PUBLISHED',date:'2026-12-01T00:00:00Z'},
+ ];
+ assert.equal(nextPublishedStage(stages,now)?.id,'real');
+ for(const invalid of stages.slice(0,3))assert.equal(stageDate(invalid.date),'Дата уточняется');
+ assert.equal(stageDate('2028-02-29T00:00:00Z'),'29 февраля 2028 г.');
+});
+
+test('team directory ignores sparse archive records and normalizes whitespace',()=>{
+ const groups=teamGroups([null,undefined,{id:'x',team:'  Sound   Force '},{id:'y',team:'sound force'},{id:'private',team:'Sound Force',isPublic:false}]);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0].name,'Sound Force');
+ assert.deepEqual(groups[0].members.map(x=>x.id),['x','y']);
+});
