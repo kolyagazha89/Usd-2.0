@@ -96,7 +96,10 @@ The helper copies without deleting source objects, downloads and compares
 every object against the backup, then restores the **entire** backup into a
 new private temporary local directory and verifies content and object counts
 again. It requires enough free local disk for the full restored dataset;
-failure leaves the off-host backup in place for investigation. Do not assume
+failure leaves the off-host backup in place for investigation. A successful
+backup is reported only after the private local restore directory is deleted;
+failure to delete that copy is a hard error with its path printed for secure
+cleanup. CI deliberately injects a deletion failure to exercise this gate. Do not assume
 the backup is off-host merely because the destination has a different name:
 verify its physical provider, account, access controls, retention and
 independent recovery credentials. Do not use a prefix nested inside the
