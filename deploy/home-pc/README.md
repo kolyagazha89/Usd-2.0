@@ -382,3 +382,21 @@ The installer takes the same exclusive deployment lock as the builder and releas
 **Current evidence:** shell tests cover build-only default, cached-image release, schema refusal, untrusted policy rejection, failed-SHA quarantine, failed/invalid backup refusal, running-image mismatch refusal, successful release, interrupted release, healthy rollback and unhealthy rollback. The mocks additionally cover a failed baseline readiness check and a database that becomes unhealthy during the backup; both must refuse a release before replacing containers. They also assert that the builder retains its exclusive lock through the release call and that a forged inherited-lock flag is rejected. The CI gate tests verify that a newer failed/pending workflow run cannot be masked by an older successful rerun. These mocks do not prove the real Ubuntu host, Docker images, public ingress, database restore or live deployment. Do not enable production automation until those host gates pass.
 
 `test-release-docker.sh` is restricted to a disposable GitHub Actions runner. It creates fixture-only API/frontend images and a uniquely named labeled PostgreSQL 18 volume, tests an unhealthy release and rollback, verifies retained marker data/DB identity, and restores the generated dump into a separate disposable database. It refuses an existing stack or volume. Its CI result must be checked; never run it on the live host.
+
+### Public acceptance remains inside rollback (2026-10-29)
+
+`release-approved.sh` now keeps its application rollback trap active until the
+root-owned `/usr/local/libexec/usd-verify-prerelease NEW_SHA` succeeds. It checks
+both exact public revisions, settings/stages/records response shapes, anonymous
+access denial for personal API routes, and HTML plus the actual built JS/CSS
+assets for home, login, participant and inspection routes. These are read-only
+requests without credentials; they do not prove a successful login or a full
+participant/judge workflow. Requests and redirects stay on the two prerelease
+origins; the primary domain is excluded.
+
+A missing, writable or symlinked verifier refuses a release before replacing
+images. A failed public check after replacement rolls the application back using
+the existing same-schema policy. It does not restore or mutate the live database.
+The success marker is written only after public acceptance. Existing installations
+must receive the reviewed helper update through `install-local-deployer.sh`
+(or the supervised setup) before this behavior exists on Ubuntu.

@@ -12,11 +12,14 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+PUBLIC_VERIFIER=/usr/local/libexec/usd-verify-prerelease
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host PostgreSQL policy/helper; refusing Docker fixture' >&2; exit 1; }
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing Docker fixture" >&2; exit 1; }
+[[ ! -e "$PUBLIC_VERIFIER" && ! -L "$PUBLIC_VERIFIER" ]] ||
+  { echo "Public verifier exists; refusing disposable fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in disposable Docker rehearsal" >&2; exit 1; }
 [[ ! -e "$TRUSTED_DIR" ]] || { echo "Trusted Compose directory already exists; refusing to overwrite it" >&2; exit 1; }
@@ -42,7 +45,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
-  rm -f -- "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
+  rm -f -- "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
   rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
@@ -66,6 +69,13 @@ mkdir -p "$ROOT" "$STATE" "$WORK/api" /usr/local/libexec
 # release archive into a separate disposable database and checks real rows;
 # the production Prisma-enabled isolated-volume helper is exercised separately
 # against the actual API Dockerfile by Home PC safety checks.
+cat > "$PUBLIC_VERIFIER" <<'PUBLIC'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && "$1" =~ ^[a-f0-9]{40}$ ]] || exit 1
+[[ "${USD_TEST_FAIL_PUBLIC_ACCEPTANCE:-0}" != 1 ]] || exit 1
+PUBLIC
+chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -234,12 +244,22 @@ grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/rollback.
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 "${compose[@]}" exec -T api node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status===200?0:1))"
 approve "$GOOD"
+# Healthy containers with failed public ingress/assets must still roll back.
+if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 bash deploy/home-pc/release-approved.sh "$GOOD" > "$WORK/public-rollback.log" 2>&1; then
+  echo 'Release ignored failed public acceptance' >&2; exit 1
+fi
+grep -q 'Public prerelease acceptance failed' "$WORK/public-rollback.log"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/public-rollback.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+[[ ! -f "$STATE/deployed-sha" ]]
+[[ "$("${compose[@]}" ps -q db)" == "$db_before" ]]
+[[ "$("${compose[@]}" exec -T db psql -At -U usd -d usd -c 'SELECT id FROM release_marker')" == 42 ]]
 bash deploy/home-pc/release-approved.sh "$GOOD"
 [[ "$("${compose[@]}" ps -q db)" == "$db_before" ]]
 [[ "$("${compose[@]}" exec -T db psql -At -U usd -d usd -c 'SELECT id FROM release_marker')" == 42 ]]
 # Verify a real archive restores into a separate disposable database.
 archives=(/var/lib/usd-deployer/backups/release-"$GOOD".*.dump)
-[[ "${#archives[@]}" == 1 && -s "${archives[0]}" ]]
+[[ "${#archives[@]}" == 2 && -s "${archives[0]}" ]]
 [[ "$(stat -c %u /var/lib/usd-deployer/backups)" == 0 ]] ||
   { echo "Release backup directory is not root-owned" >&2; exit 1; }
 [[ "$(stat -c %a /var/lib/usd-deployer/backups)" == 700 ]] ||
