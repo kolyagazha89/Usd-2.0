@@ -168,6 +168,19 @@ approve() {
   chmod 600 "$STATE/"*-sha
 }
 approve "$BAD"
+# A valid on-disk local DB URL is not proof of the actual running DB target.
+# Change BOTH .env credentials without recreating containers: the old live
+# PostgreSQL/API still use the original password. Refuse before pg_dump.
+sed -i -e 's/^POSTGRES_PASSWORD=disposable-ci-only$/POSTGRES_PASSWORD=stale-config-only/' \
+       -e 's/\(DATABASE_URL=postgresql:\/\/usd:\)disposable-ci-only@/\1stale-config-only@/' "$ROOT/.env"
+if bash deploy/home-pc/release-approved.sh "$BAD" > "$WORK/runtime-db-drift.log" 2>&1; then
+  echo 'Release accepted a stale live PostgreSQL configuration' >&2
+  exit 1
+fi
+grep -q 'Running API/DB configuration does not match approved prerelease backup target' "$WORK/runtime-db-drift.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+sed -i -e 's/^POSTGRES_PASSWORD=stale-config-only$/POSTGRES_PASSWORD=disposable-ci-only/' \
+       -e 's/\(DATABASE_URL=postgresql:\/\/usd:\)stale-config-only@/\1disposable-ci-only@/' "$ROOT/.env"
 # A healthy PostgreSQL container and HTTP-200 API are insufficient when the
 # API loses its DB network route. Refuse before backup or replacing images.
 docker network disconnect usd-home_default "$api_before"
