@@ -331,7 +331,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 deploy/home-pc/test-verify-main-ci.py -v
-          python3 deploy/home-pc/test-initial-schema.py -v
+          python3 deploy/home-pc/test-initial-schema.py
+          python3 deploy/home-pc/test-diagnose-live-prisma-history.py -v
           python3 deploy/home-pc/test-verify-prerelease.py -v
           python3 deploy/home-pc/test-prepare-host-files.py -v
           sudo bash deploy/home-pc/test-setup-home-pc.sh
