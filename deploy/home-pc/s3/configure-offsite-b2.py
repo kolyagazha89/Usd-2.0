@@ -5,6 +5,7 @@ Requires a *new* B2 bucket 'usd-backups' and a separately scoped B2 application
 key added as root's AWS CLI profile 'usd-b2-backup'. Never modifies production
 .env, Docker containers, PostgreSQL data, DNS, or deployment enablement.
 """
+import argparse
 import configparser
 import datetime
 import json
@@ -162,6 +163,15 @@ def write_policy(path, lines):
 
 
 def main():
+    global BUCKET
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--bucket", default=BUCKET,
+                        help="New, separate private B2 backup bucket name (globally unique)")
+    args = parser.parse_args()
+    BUCKET = args.bucket
+    require(bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{4,61}[a-z0-9]", BUCKET)),
+            "Invalid backup bucket name")
+    require(BUCKET != "usd-media", "Backup bucket must differ from legacy media bucket")
     require(os.geteuid() == 0, "Root is required")
     require(Path("/srv/usd-s3").is_mount(), "SSD is not mounted")
     require(not Path("/etc/usd-deploy-enabled").exists(),
