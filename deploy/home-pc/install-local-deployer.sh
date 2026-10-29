@@ -17,6 +17,7 @@ python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-prerelease.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").read_text())'
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("s3/verify-local-hdd-snapshot.py").read_text())'
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema
@@ -24,6 +25,7 @@ install -o root -g root -m 0755 verify-prerelease.py /usr/local/libexec/usd-veri
 install -o root -g root -m 0750 rehearse-schema-on-backup.sh /usr/local/libexec/usd-rehearse-schema-on-backup
 install -o root -g root -m 0750 verify-media-backup.sh /usr/local/libexec/usd-verify-media-backup
 install -o root -g root -m 0750 verify-db-offsite-backup.sh /usr/local/libexec/usd-verify-db-offsite-backup
+install -o root -g root -m 0750 s3/verify-local-hdd-snapshot.py /usr/local/libexec/usd-verify-local-hdd-snapshot
 # Docker Compose runs as root through the release helper. Never execute a
 # Compose YAML directly from the usd-owned checkout during an automatic release.
 install -d -o root -g root -m 0755 /etc/usd-deployer/compose
