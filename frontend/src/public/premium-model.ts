@@ -8,7 +8,12 @@ function stageCalendarDay(value:unknown):string|null{
  const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
  if(!date||!Number.isFinite(date.getTime()))return null;
  const iso=typeof value==='string'?value.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/):null;
- if(iso)return iso[1];
+ if(iso){
+  const [year,month,day]=iso[1].split('-').map(Number);
+  const calendar=new Date(Date.UTC(year,month-1,day));
+  if(calendar.getUTCFullYear()!==year||calendar.getUTCMonth()!==month-1||calendar.getUTCDate()!==day)return null;
+  return iso[1];
+ }
  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
 }
 export function nextPublishedStage(stages:any[]=[],now=Date.now()){
@@ -34,7 +39,8 @@ export function publishedNews(rows:any[]=[],now=Date.now()){
 export function teamGroups(people:any[]=[]){
  const groups=new Map<string,{name:string;members:any[]}>();
  for(const person of people){
-  const name=String(person.team??'').trim(),key=name.replace(/\s+/g,' ').toLocaleLowerCase('ru');
+  if(!person||typeof person!=='object')continue;
+  const name=String(person.team??'').trim().replace(/\s+/g,' '),key=name.toLocaleLowerCase('ru');
   if(person.isPublic===false||!key||['без команды','нет','—','-'].includes(key))continue;
   const team=groups.get(key)??{name,members:[]};team.members.push(person);groups.set(key,team);
  }
