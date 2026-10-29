@@ -112,7 +112,6 @@ EOF
 chmod 600 "$ROOT/.env"
 cp deploy/home-pc/compose.yaml "$ROOT/compose.yaml"
 cp deploy/home-pc/compose.local.yaml "$ROOT/compose.local.yaml"
-cp deploy/home-pc/compose.unknown.yaml
 mkdir -p "$TRUSTED_DIR"
 cp "$ROOT"/compose*.yaml "$TRUSTED_DIR/"
 printf '%s\n' "$NEW" > "$STATE/built-sha"
