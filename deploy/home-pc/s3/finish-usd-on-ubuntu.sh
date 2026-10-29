@@ -52,7 +52,8 @@ PY
 echo "=== USD pre-release SHA: $SHA ==="
 git -c safe.directory="$WORK" -C "$WORK" show "$SHA:deploy/home-pc/s3/backup-to-second-disk.py" > "$TMP/backup.py"
 git -c safe.directory="$WORK" -C "$WORK" show "$SHA:deploy/home-pc/s3/verify-local-hdd-snapshot.py" > "$TMP/verify.py"
-python3 -m py_compile "$TMP/backup.py" "$TMP/verify.py"
+git -c safe.directory="$WORK" -C "$WORK" show "$SHA:deploy/home-pc/s3/verify-windows-backup-acl.py" > "$TMP/windows-acl.py"
+python3 -m py_compile "$TMP/backup.py" "$TMP/verify.py" "$TMP/windows-acl.py"
 
 if ! command -v rclone >/dev/null || ! command -v mount.cifs >/dev/null; then
   apt-get update
@@ -95,14 +96,9 @@ if ! mountpoint -q /srv/usd-backups; then
   smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --set "$expected" >/dev/null
   smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --inherit remove >/dev/null
   acl_after="$(smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --numeric)"
-  ace_count="$(grep -c '^ACL:' <<< "$acl_after" || true)"
-  [[ "$ace_count" == 2 ]] ||
-    { echo 'Windows backup NTFS ACL retains unexpected ACEs; refusing private backup' >&2; exit 1; }
-  if grep '^ACL:' <<< "$acl_after" | grep -Ev '^ACL:S-1-5-(18|32-544):ALLOWED/' >/dev/null; then
-    echo 'Windows backup directory still exposes data to another principal' >&2
-    exit 1
-  fi
-  echo 'Windows NTFS backup directory restricted to SYSTEM and Administrators.'
+  # smbCACLS --numeric renders the ACE type as 0, not "ALLOWED".
+  # Verify exact SIDs, type, inheritable flags, and FULL mask.
+  printf '%s\n' "$acl_after" | python3 "$TMP/windows-acl.py"
   mount -t cifs "//$HOST/C\$" /srv/usd-backups \
     -o "credentials=$CREDS,prefixpath=USD-Backups,vers=3.0,sec=ntlmssp,uid=0,gid=0,file_mode=0600,dir_mode=0700,nosuid,nodev,noexec"
   mounted_here=1
