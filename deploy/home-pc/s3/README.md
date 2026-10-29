@@ -131,6 +131,13 @@ S3_ACCESS_KEY_ID=ACTUAL_PRIVATE_ACCESS_KEY
 S3_SECRET_ACCESS_KEY=ACTUAL_PRIVATE_SECRET_KEY
 ```
 
+Use a **separate, least-privilege RustFS IAM user/service account** for
+`S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, restricted to the
+`usd-media` bucket and required object operations. Keep the RustFS root
+credentials only in `/etc/usd-s3/s3.env` for host administration, never in
+the API application environment. See upstream IAM documentation and test
+presigned PUT/GET/HEAD/DELETE under the limited identity.
+
 These are added to the existing PRIVATE
 `/home/usd/usd-deploy/deploy/home-pc/.env` — do not replace that file
 or edit live app credentials without a supervised release.
