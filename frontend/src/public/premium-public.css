@@ -265,7 +265,7 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
   position:fixed!important;left:0!important;right:0!important;
   top:calc(100dvh - 66px - env(safe-area-inset-bottom,0px))!important;
   bottom:auto!important;
-  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  display:grid!important;grid-template-columns:repeat(var(--usd-dock-columns,4),minmax(0,1fr))!important;
   width:100%!important;width:100vw!important;max-width:none!important;
   min-height:66px;padding:0 0 env(safe-area-inset-bottom,0px)!important;
   margin:0!important;transform:none!important;will-change:auto!important;
@@ -280,7 +280,7 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
   font:500 11px/1.2 'Exo 2','Segoe UI',sans-serif;text-align:center;text-decoration:none;
  }
  body>.u-mobile-dock>a svg{width:23px;height:23px;flex-shrink:0}
- body>.u-mobile-dock>a span{white-space:nowrap}
+ body>.u-mobile-dock>a span{white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
  body>.u-mobile-dock>a.active,body>.u-mobile-dock>a[aria-current=page]{
   color:#ff4061!important;background:linear-gradient(#e60d3014,transparent);
  }

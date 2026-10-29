@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULT_PUBLIC_NAVIGATION,editablePublicNavigationItems,footerPublicNavigationGroups,visiblePublicNavigationItems} from '../src/public/navigation-model.ts';
+import {DEFAULT_PUBLIC_NAVIGATION,editablePublicNavigationItems,footerPublicNavigationGroups,mobileDockNavigationItems,visiblePublicNavigationItems} from '../src/public/navigation-model.ts';
 
 test('legacy navigation defaults to all USD public sections',()=>{
  assert.equal(visiblePublicNavigationItems({items:[]}).length,DEFAULT_PUBLIC_NAVIGATION.filter(item=>item.enabled).length);
@@ -55,4 +55,29 @@ test('public footer renders CMS menu groups without hiding mandatory legal docum
  for(const group of ['competitions','community','information'])assert.match(shell,new RegExp('footerLinks\\.'+group+'\\.map'));
  for(const legal of ['/privacy','/terms','/consent'])assert.ok(shell.includes("'"+legal+"'"));
  assert.doesNotMatch(shell,/const mainLinks=visiblePublicNavigationItems/);
+});
+
+test('mobile dock respects CMS visibility, labels and order while reserving an account slot',()=>{
+ assert.deepEqual(mobileDockNavigationItems(undefined),[['/','Главная'],['/stages','Этапы'],['/results','Результаты']]);
+ const rows=[
+  {path:'/news',label:'Журнал',enabled:true,sortOrder:2},
+  {path:'/results',label:'Скрытый результат',enabled:false,sortOrder:0},
+  {path:'/partners',label:'Партнёры',enabled:true,sortOrder:1},
+  {path:'/stages',label:'Календарь',enabled:true,sortOrder:3},
+  {path:'/rules',label:'Правила',enabled:true,sortOrder:4},
+  {path:'javascript:alert(1)',label:'Небезопасный пункт',enabled:true,sortOrder:0},
+ ];
+ assert.deepEqual(mobileDockNavigationItems({items:rows}),[['/partners','Партнёры'],['/news','Журнал'],['/stages','Календарь']]);
+ assert.deepEqual(mobileDockNavigationItems({items:DEFAULT_PUBLIC_NAVIGATION.map(item=>({...item,enabled:false}))}),[]);
+});
+
+test('mobile dock uses CMS entries and an independent account action instead of hardcoded shortcuts',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const shell=await readFile(new URL('../src/public/PremiumShell.tsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/public/premium-public.css',import.meta.url),'utf8');
+ assert.match(shell,/mobileDockNavigationItems\(settings\?\.navigation\)/);
+ assert.match(shell,/dockItems\.map/);
+ assert.match(shell,/<Link to=\{account\} className=\{dockRouteActive/);
+ assert.doesNotMatch(shell,/\[\[Home,'\/'/);
+ assert.match(css,/grid-template-columns:repeat\(var\(--usd-dock-columns,4\)/);
 });

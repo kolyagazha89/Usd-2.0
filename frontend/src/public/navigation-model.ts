@@ -60,3 +60,10 @@ export function editablePublicNavigationItems(navigation:SettingsNavigation):Pub
  const existing=new Set(saved.map(item=>item.path));
  return [...saved,...DEFAULT_PUBLIC_NAVIGATION.filter(item=>!existing.has(item.path)).map((item,index)=>({...item,enabled:false,sortOrder:saved.length+index}))];
 }
+
+/** The mobile dock follows the published CMS menu, never resurrecting hidden routes.
+ * Reserve the fourth slot for the account so a custom menu remains usable on iPhone.
+ */
+export function mobileDockNavigationItems(navigation:SettingsNavigation):string[][]{
+ return visiblePublicNavigationItems(navigation).slice(0,3);
+}
