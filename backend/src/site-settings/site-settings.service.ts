@@ -1,5 +1,6 @@
 import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
@@ -297,7 +298,7 @@ export class SiteSettingsService{
     delete publicRegistration.emailTemplates;
     return {
       success: true,
-      settings: {
+      settings: rewriteLegacyPublicMediaUrls({
         branding: s.branding,
         homepage: s.homepage,
         stream: s.stream,
@@ -337,7 +338,7 @@ export class SiteSettingsService{
           termsText: publicLegalApproved ? (legal.termsText ?? '') : '',
           documents: publicLegalApproved && legal.documents && typeof legal.documents === 'object' ? legal.documents : {},
         },
-      },
+      }, process.env.API_PUBLIC_URL ?? 'https://api.usd-russia.ru'),
     };
   }
   private mergeRegistration(currentValue: unknown, incomingValue: unknown): Record<string, any> {
