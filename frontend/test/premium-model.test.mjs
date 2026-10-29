@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {carName,countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord} from '../src/public/premium-model.ts';
+import {carName,countLabel,publishedNews,teamGroups,safeHref,stageRegistrationPath,highestDbRecord,nextPublishedStage,stageDate} from '../src/public/premium-model.ts';
 
 test('news excludes drafts and future posts, while preserving published content',()=>{
   const rows=[{id:'draft',isPublished:false},{id:'future',publishedAt:'2099-01-01'},{id:'old',publishedAt:'2025-01-01'},{id:'new',publishedAt:'2026-01-01'}];
@@ -21,6 +21,113 @@ test('record spotlight never compares speed in m/s with sound pressure',()=>{
   assert.equal(highestDbRecord(rows)?.id,'sound');assert.equal(highestDbRecord([]),undefined);
 });
 
+test('record spotlight excludes BassRace, Storm Wall and unpublished measurements',()=>{
+ const rows=[
+  {id:'bass',value:180,class:{name:'Bass Race 159.9',direction:{name:'SPL'},unit:'DB'}},
+  {id:'bass-code',value:190,class:{code:'BASSRACE_1599',direction:{name:'SPL'},unit:'DB'}},
+  {id:'storm',value:200,class:{name:'Storm Wall',direction:{name:'SPL'},unit:'MPS'}},
+  {id:'empty',value:'',class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+  {id:'valid',value:162,class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+ ];
+ assert.equal(highestDbRecord(rows)?.id,'valid');
+ assert.equal(highestDbRecord(rows.filter(row=>row.id!=='valid')),undefined);
+});
+
+test('record cards exclude BassRace even when historical parent direction is SPL',async()=>{
+ const {selectHomepageRecords,resultNumericValue}=await import('../src/public-result-utils.ts');
+ const rows=[
+  {id:'bass',value:199,class:{name:'BassRace 159.9',direction:{name:'SPL'},unit:'DB'}},
+  {id:'storm',value:250,class:{name:'Storm Wall',direction:{name:'SPL'},unit:'M/S'}},
+  {id:'sound',value:162,class:{name:'Limited 2.0',direction:{name:'SPL'},unit:'DB'}},
+  {id:'bfspl',value:151,class:{name:'Gate 1-6',direction:{name:'BFSPL'},unit:'DB'}},
+  {id:'missing',value:null,class:{name:'Limited 1x2',direction:{name:'SPL'},unit:'DB'}},
+ ];
+ assert.deepEqual(selectHomepageRecords(rows).map(row=>row.id),['sound','bfspl']);
+ assert.equal(resultNumericValue({value:null}),Number.NEGATIVE_INFINITY);
+ assert.equal(resultNumericValue({value:''}),Number.NEGATIVE_INFINITY);
+ assert.equal(resultNumericValue({result:{value:null}}),Number.NEGATIVE_INFINITY);
+});
+
+test('homepage first-place results require a real measurement',async()=>{
+ const {selectHomepageResults}=await import('../src/public-result-utils.ts');
+ const cls={id:'limited',name:'Limited 2.0',direction:{name:'SPL'}};
+ const rows=[
+  {id:'draft',place:1,value:null,registrationClass:{classId:'limited',class:cls}},
+  {id:'measured',place:1,value:157.5,registrationClass:{classId:'limited',class:cls}},
+  {id:'missing',place:1,value:'',registrationClass:{classId:'empty',class:{id:'empty',name:'1x2',direction:{name:'SPL'}}}},
+  {id:'second',place:2,value:162,registrationClass:{classId:'second',class:{id:'second',name:'2x2',direction:{name:'SPL'}}}},
+ ];
+ assert.deepEqual(selectHomepageResults(rows).map(row=>row.id),['measured']);
+});
+
 test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,21,22,25].map(n=>countLabel(n,'участник','участника','участников')),['0 участников','1 участник','2 участника','5 участников','11 участников','21 участник','22 участника','25 участников']);});
 
 test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});
+
+
+test('homepage keeps a published event visible for its entire local day',()=>{
+  const today=new Date(2026,9,28,20,30).getTime();
+  const stageDate=new Date(2026,9,28,9,0).toISOString();
+  const tomorrow=new Date(2026,9,29,9,0).toISOString();
+  const yesterday=new Date(2026,9,27,9,0).toISOString();
+  const stages=[
+    {id:'invalid',status:'PUBLISHED',date:'not-a-date'},
+    {id:'draft',status:'DRAFT',date:stageDate},
+    {id:'yesterday',status:'PUBLISHED',date:yesterday},
+    {id:'tomorrow',status:'PUBLISHED',date:tomorrow},
+    {id:'today',status:'PUBLISHED',date:stageDate},
+  ];
+  assert.equal(nextPublishedStage(stages,today)?.id,'today');
+  assert.equal(nextPublishedStage(stages.filter(s=>s.id!=='today'),today)?.id,'tomorrow');
+  assert.equal(nextPublishedStage([{id:'invalid',status:'PUBLISHED',date:'n/a'}],today),undefined);
+});
+
+
+test('homepage stage selection compares calendar days rather than midnight UTC instants',()=>{
+  const now=new Date(2026,9,28,20,30).getTime();
+  const stages=[
+    {id:'tomorrow',status:'PUBLISHED',date:'2026-10-29T00:00:00.000Z'},
+    {id:'today',status:'PUBLISHED',date:'2026-10-28T00:00:00.000Z'},
+    {id:'yesterday',status:'PUBLISHED',date:'2026-10-27T00:00:00.000Z'},
+    {id:'deleted',status:'PUBLISHED',isDeleted:true,date:'2026-10-28T00:00:00.000Z'},
+  ];
+  assert.equal(nextPublishedStage(stages,now)?.id,'today');
+  assert.equal(nextPublishedStage(stages.filter(s=>s.id!=='today'),now)?.id,'tomorrow');
+});
+
+test('homepage stage selection handles timezone-offset dates without shifting the advertised day',()=>{
+  const now=new Date(2026,9,28,23,45).getTime();
+  const stages=[
+    {id:'later',status:'PUBLISHED',date:'2026-10-29T00:00:00+05:00'},
+    {id:'local-day',status:'PUBLISHED',date:'2026-10-28T00:00:00+05:00'},
+  ];
+  assert.equal(nextPublishedStage(stages,now)?.id,'local-day');
+});
+
+test('stage date labels preserve the advertised day across UTC and offset timestamps',()=>{
+ assert.equal(stageDate('2026-10-28T00:00:00.000Z'),'28 октября 2026 г.');
+ assert.equal(stageDate('2026-10-28T00:00:00+05:00'),'28 октября 2026 г.');
+ assert.equal(stageDate('2026-10-28T00:00:00.000Z',false),'28 октября');
+ assert.equal(stageDate('2026-10-28T00:00:00+05:00',false),'28 октября');
+ assert.equal(stageDate('not-a-date'),'Дата уточняется');
+});
+
+test('public event dates reject impossible calendar days rather than displaying a phantom stage',()=>{
+ const now=new Date(2026,9,28,12).getTime();
+ const stages=[
+  {id:'bad-leap',status:'PUBLISHED',date:'2027-02-29T00:00:00Z'},
+  {id:'bad-month',status:'PUBLISHED',date:'2026-13-01T00:00:00Z'},
+  {id:'bad-day',status:'PUBLISHED',date:'2026-11-31T00:00:00Z'},
+  {id:'real',status:'PUBLISHED',date:'2026-12-01T00:00:00Z'},
+ ];
+ assert.equal(nextPublishedStage(stages,now)?.id,'real');
+ for(const invalid of stages.slice(0,3))assert.equal(stageDate(invalid.date),'Дата уточняется');
+ assert.equal(stageDate('2028-02-29T00:00:00Z'),'29 февраля 2028 г.');
+});
+
+test('team directory ignores sparse archive records and normalizes whitespace',()=>{
+ const groups=teamGroups([null,undefined,{id:'x',team:'  Sound   Force '},{id:'y',team:'sound force'},{id:'private',team:'Sound Force',isPublic:false}]);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0].name,'Sound Force');
+ assert.deepEqual(groups[0].members.map(x=>x.id),['x','y']);
+});

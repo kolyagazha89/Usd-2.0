@@ -100,6 +100,40 @@ export class InspectionsService {
     return shared;
   }
 
+  /** Resolve a scanned permanent USD ID only inside the staff inspection module.
+   * This is not a public profile endpoint and never returns contact details.
+   * Registration QR lookup remains unchanged.
+   */
+  async resolveUsdId(token: string, stageId?: string) {
+    if (!/^[a-f0-9]{48}$/.test(token)) {
+      throw new NotFoundException('USD ID не найден');
+    }
+    const participant = await this.prisma.participant.findUnique({
+      where: { usdIdToken: token },
+      select: {
+        id: true, firstName: true, lastName: true, middleName: true,
+        registrations: {
+          where: {
+            status: 'ACTIVE',
+            stage: { isDeleted: false },
+            ...(stageId ? { stageId } : {}),
+          },
+          orderBy: { registeredAt: 'desc' },
+          take: 30,
+          select: {
+            id: true, stageId: true, participantNumber: true,
+            inspection: { select: { status: true } },
+            stageInspection: { select: { status: true } },
+            stage: { select: { id: true, name: true, date: true } },
+            car: { select: { brand: true, model: true, registrationNumber: true } },
+          },
+        },
+      },
+    });
+    if (!participant) throw new NotFoundException('USD ID не найден или перевыпущен');
+    return participant;
+  }
+
   async findByRegistration(registrationId: string) {
     const registration = await this.prisma.registration.findUnique({
       where: { id: registrationId },

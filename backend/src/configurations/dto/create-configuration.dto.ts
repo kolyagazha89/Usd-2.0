@@ -5,6 +5,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -25,6 +27,12 @@ enum AudioComponentType {
 }
 
 export class CreateHeadUnitDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/)
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 
@@ -36,6 +44,12 @@ export class CreateHeadUnitDto {
 }
 
 export class CreateAudioComponentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/)
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 
@@ -63,6 +77,12 @@ export class CreateAmplifierComponentLinkDto {
 }
 
 export class CreateAmplifierDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/)
+  catalogEntryId?: string;
+
   @IsString()
   brand: string;
 

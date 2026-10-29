@@ -73,6 +73,7 @@ model User {
 
 model Participant {
   id                String             @id @default(uuid())
+  usdIdToken        String?            @unique @db.VarChar(64)
   team              String?
   phone             String?
   photoUrl          String?
@@ -164,6 +165,7 @@ model CarHeadUnit {
   id        String                  @id @default(uuid())
   versionId String
   brand     String
+  catalogEntryId String?
   model     String
   direction CarDirection
   version   CarConfigurationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
@@ -176,6 +178,7 @@ model CarAudioComponent {
   id             String                  @id @default(uuid())
   versionId      String
   brand          String
+  catalogEntryId String?
   model          String
   quantity       Int                     @default(1)
   type           AudioComponentType
@@ -192,6 +195,7 @@ model CarAmplifier {
   id             String                  @id @default(uuid())
   versionId      String
   brand          String
+  catalogEntryId String?
   model          String
   quantity       Int                     @default(1)
   direction      CarDirection

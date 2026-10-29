@@ -16,10 +16,27 @@ import {
 } from './dto/create-configuration.dto';
 
 import { UpdateConfigurationDto } from './dto/update-configuration.dto';
+import { assertCatalogEquipment } from './catalog-validation';
 
 @Injectable()
 export class ConfigurationsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async validateCatalogVersion(tx: Prisma.TransactionClient, dto: CreateConfigurationDto, previousVersionId?: string) {
+    const [settings, previous] = await Promise.all([
+      tx.siteSettings.findUnique({ where: { id: 'default' }, select: { catalogs: true } }),
+      previousVersionId ? tx.carConfigurationVersion.findUnique({
+        where: { id: previousVersionId },
+        include: { headUnits: true, audioComponents: true, amplifiers: true, batteries: true },
+      }) : Promise.resolve(null),
+    ]);
+    assertCatalogEquipment(settings?.catalogs, dto, {
+      headUnits: previous?.headUnits ?? [],
+      audioComponents: previous?.audioComponents ?? [],
+      amplifiers: previous?.amplifiers ?? [],
+      batteries: previous?.batteries ?? [],
+    });
+  }
 
   // A final correction is separate from the original registration snapshot.
   private final2026Where(userId: string): Prisma.RegistrationWhereInput {
@@ -63,6 +80,7 @@ export class ConfigurationsService {
       // Repeated submissions (including network retries) never create a duplicate.
       if (registration.configurationConfirmation) return registration.configurationConfirmation;
       const configurationId = registration.configurationVersion.configurationId;
+      await this.validateCatalogVersion(tx, dto, registration.configurationVersion.id);
       const current = await tx.carConfiguration.findUniqueOrThrow({ where: { id: configurationId } });
       const version = await tx.carConfigurationVersion.create({ data: {
         configurationId, version: current.currentVersion + 1,
@@ -463,6 +481,7 @@ export class ConfigurationsService {
 
     return this.prisma.$transaction(
       async (tx) => {
+        await this.validateCatalogVersion(tx, dto);
         const configuration =
           await tx.carConfiguration.create({
             data: {
@@ -569,30 +588,20 @@ export class ConfigurationsService {
           select: { id: true },
         });
         if (!currentVersion) throw new NotFoundException('Current configuration version not found');
+        await this.validateCatalogVersion(tx, dto, currentVersion.id);
 
-        // Versions used by an event or confirmed by a participant are immutable.
-        const references = await tx.registration.count({ where: { configurationVersionId: currentVersion.id } });
-        const confirmations = await tx.historicalConfigurationConfirmation.count({ where: { versionId: currentVersion.id } });
-        let targetVersionId = currentVersion.id;
-        if (references || confirmations) {
-          const next = await tx.carConfigurationVersion.create({ data: {
-            configurationId, version: current.currentVersion + 1,
-            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
-          } });
-          targetVersionId = next.id;
-          await tx.carConfiguration.update({ where: { id: configurationId }, data: { currentVersion: next.version } });
-        } else {
-          await tx.carAmplifierComponent.deleteMany({ where: { amplifier: { versionId: currentVersion.id } } });
-          await tx.carHeadUnit.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carAudioComponent.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carAmplifier.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carBattery.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carGenerator.deleteMany({ where: { versionId: currentVersion.id } });
-          await tx.carConfigurationVersion.update({ where: { id: currentVersion.id }, data: {
-            vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
-          } });
-        }
-        await this.createVersionChildren(tx, targetVersionId, dto);
+        // Every successful edit is an immutable new version, even if the
+        // previous build was never registered at a stage. Do not delete or
+        // overwrite earlier equipment rows: they form the member's audit trail.
+        const next = await tx.carConfigurationVersion.create({ data: {
+          configurationId, version: current.currentVersion + 1,
+          vibrationIsolation: dto.vibrationIsolation, additionalDescription: dto.additionalDescription,
+        } });
+        await this.createVersionChildren(tx, next.id, dto);
+        await tx.carConfiguration.update({
+          where: { id: configurationId },
+          data: { name: dto.name, currentVersion: next.version },
+        });
 
         return tx.carConfiguration.findUnique({
           where: { id: configurationId },
@@ -689,6 +698,7 @@ export class ConfigurationsService {
             data: currentVersion.headUnits.map(
               (headUnit) => ({
                 versionId: newVersion.id,
+                catalogEntryId: headUnit.catalogEntryId ?? null,
                 brand: headUnit.brand,
                 model: headUnit.model,
                 direction: headUnit.direction,
@@ -707,6 +717,7 @@ export class ConfigurationsService {
             await tx.carAudioComponent.create({
               data: {
                 versionId: newVersion.id,
+                catalogEntryId: component.catalogEntryId ?? null,
                 brand: component.brand,
                 model: component.model,
                 quantity: component.quantity,
@@ -731,6 +742,7 @@ export class ConfigurationsService {
             await tx.carAmplifier.create({
               data: {
                 versionId: newVersion.id,
+                catalogEntryId: amplifier.catalogEntryId ?? null,
                 brand: amplifier.brand,
                 model: amplifier.model,
                 quantity: amplifier.quantity,
@@ -907,7 +919,8 @@ export class ConfigurationsService {
         data: headUnits.map(
           (headUnit: CreateHeadUnitDto) => ({
             versionId,
-            brand: headUnit.brand,
+            catalogEntryId: headUnit.catalogEntryId ?? null,
+                brand: headUnit.brand,
             model: headUnit.model,
             direction: headUnit.direction,
           }),
@@ -936,7 +949,8 @@ export class ConfigurationsService {
         await tx.carAudioComponent.create({
           data: {
             versionId,
-            brand: component.brand,
+            catalogEntryId: component.catalogEntryId ?? null,
+                brand: component.brand,
             model: component.model,
             quantity: component.quantity,
             type: component.type,
@@ -966,7 +980,8 @@ export class ConfigurationsService {
         await tx.carAmplifier.create({
           data: {
             versionId,
-            brand: amplifier.brand,
+            catalogEntryId: amplifier.catalogEntryId ?? null,
+                brand: amplifier.brand,
             model: amplifier.model,
             quantity: amplifier.quantity,
             direction: amplifier.direction,

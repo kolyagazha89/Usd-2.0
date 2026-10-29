@@ -1,10 +1,46 @@
+import {isDbRecordEligible,resultNumericValue} from '../public-result-utils.ts';
+/**
+ * Stages are scheduled by calendar day, not by their UTC instant.
+ * An ISO date stored at midnight UTC must still be shown on that date for
+ * visitors west of UTC (otherwise it disappears the previous evening).
+ */
+function stageCalendarDay(value:unknown):string|null{
+ const date=value instanceof Date?value:typeof value==='string'||typeof value==='number'?new Date(value):null;
+ if(!date||!Number.isFinite(date.getTime()))return null;
+ const iso=typeof value==='string'?value.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/):null;
+ if(iso){
+  const [year,month,day]=iso[1].split('-').map(Number);
+  const calendar=new Date(Date.UTC(year,month-1,day));
+  if(calendar.getUTCFullYear()!==year||calendar.getUTCMonth()!==month-1||calendar.getUTCDate()!==day)return null;
+  return iso[1];
+ }
+ return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+}
+export function nextPublishedStage(stages:any[]=[],now=Date.now()){
+ const today=stageCalendarDay(new Date(now));
+ if(!today)return undefined;
+ return stages.filter(stage=>{
+  const day=stageCalendarDay(stage?.date);
+  return stage?.status==='PUBLISHED'&&stage?.isDeleted!==true&&day!==null&&day>=today;
+ }).sort((a,b)=>(stageCalendarDay(a.date)??'').localeCompare(stageCalendarDay(b.date)??''))[0];
+}
+
 export function publishedNews(rows:any[]=[],now=Date.now()){
- return rows.filter(row=>row.isPublished!==false&&(!row.publishedAt||new Date(row.publishedAt).getTime()<=now)).slice().sort((a,b)=>new Date(b.publishedAt||b.createdAt||0).getTime()-new Date(a.publishedAt||a.createdAt||0).getTime());
+ return rows.filter(row=>{
+  if(!row||row.isPublished===false)return false;
+  if(!row.publishedAt)return true;
+  const publishedAt=new Date(row.publishedAt).getTime();
+  return Number.isFinite(publishedAt)&&publishedAt<=now;
+ }).slice().sort((a,b)=>{
+  const date=(row:any)=>{const value=new Date(row.publishedAt||row.createdAt||0).getTime();return Number.isFinite(value)?value:0};
+  return date(b)-date(a);
+ });
 }
 export function teamGroups(people:any[]=[]){
  const groups=new Map<string,{name:string;members:any[]}>();
  for(const person of people){
-  const name=String(person.team??'').trim(),key=name.replace(/\s+/g,' ').toLocaleLowerCase('ru');
+  if(!person||typeof person!=='object')continue;
+  const name=String(person.team??'').trim().replace(/\s+/g,' '),key=name.toLocaleLowerCase('ru');
   if(person.isPublic===false||!key||['без команды','нет','—','-'].includes(key))continue;
   const team=groups.get(key)??{name,members:[]};team.members.push(person);groups.set(key,team);
  }
@@ -17,13 +53,18 @@ export function safeHref(value:unknown){
 }
 export function stageRegistrationPath(id:string){return '/login?next='+encodeURIComponent('/participant/register?stageId='+encodeURIComponent(id))}
 export function highestDbRecord(rows:any[]){
- return rows.filter(row=>{
-  const cls=row.class??row.result?.registrationClass?.class??{};
-  return row.value!=null&&Number.isFinite(Number(row.value))&&!/MPS|M\/S|М\/С/i.test(String(cls.unit??row.unit??''))&&!/storm wall|hurrican/i.test(String(cls.name??'')+' '+String(cls.direction?.name??''));
- }).sort((a,b)=>Number(b.value)-Number(a.value))[0];
+ return rows.filter(isDbRecordEligible)
+  .sort((a,b)=>resultNumericValue(b)-resultNumericValue(a))[0];
 }
 export function personName(person:any){return [person?.lastName,person?.firstName,person?.middleName].filter(Boolean).join(' ')||'Участник USD'}
 export function carName(car:any){return [car?.brand,car?.model].map(value=>String(value??'').trim()).filter(value=>value&&!/^(не указано|не указан|нет|—|-)$/i.test(value)).join(' ')||'Автомобиль USD'}
 export function initials(name:string){return name.trim().split(/\s+/).slice(0,2).map(x=>Array.from(x)[0]??'').join('').toLocaleUpperCase('ru')}
-export function stageDate(value:unknown){const d=new Date(String(value??''));return Number.isNaN(d.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d)}
+export function stageDate(value:unknown,includeYear=true){
+ const day=stageCalendarDay(value);
+ if(!day)return 'Дата уточняется';
+ // Stage dates are calendar days, not UTC instants. Formatting an ISO midnight
+ // in the viewer's timezone shifts the advertised day for some visitors.
+ const date=new Date(day+'T00:00:00.000Z');
+ return Number.isNaN(date.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',...(includeYear?{year:'numeric'}:{}),timeZone:'UTC'}).format(date);
+}
 export function countLabel(count:number,one:string,few:string,many:string){const form=new Intl.PluralRules('ru').select(count);return count+' '+(form==='one'?one:form==='few'?few:many)}

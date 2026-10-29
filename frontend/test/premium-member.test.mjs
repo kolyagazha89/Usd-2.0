@@ -18,8 +18,9 @@ test('all participant and account routes use the isolated premium public theme',
  assert.match(app,/className="login-page usd-auth"/);
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
- const lastCss=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line)).at(-1);
- assert.equal(lastCss,"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
+ const cssImports=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line));
+ assert.equal(cssImports.at(-2),"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
+ assert.equal(cssImports.at(-1),"import './dark-velocity-sitewide.css';",'Dark Velocity must be the final visual layer');
  assert.ok(main.indexOf("import './public/premium-member.css'")<main.indexOf("import './public/premium-configurator.css'"));
  assert.match(css,/body \.usd-member \.participant-tabs/);
  assert.match(css,/body \.usd-member \.config-direction-workspace/);
@@ -63,12 +64,12 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(app,/MemberDashboard from '\.\/participant\/MemberDashboard'/);
  assert.match(app,/<MemberDashboard\b/);
  assert.match(dashboard,/car\?\.photoUrl/);
- assert.match(dashboard,/audioComponents/);
+ assert.match(dashboard,/currentCarAudioComponents\(car\)/,'member garage must use current version audio summary');
  assert.match(dashboard,/registrations\.filter/);
  assert.match(editor,/configurations-page-shell"\+\(admin\?" admin-configurations-shell":" usd-member"\)/);
  assert.match(editor,/usd-member/);
  assert.match(editor,/aria-label="Добавить оборудование"/);
- assert.match(editor,/activeModels\(picker\.kind\)/);
+ assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/const validateCatalog=/);
  assert.match(editor,/if\(!validateCatalog\(\)\)return/);
  assert.match(editor,/setRequestOpen\(true\)/);
@@ -76,19 +77,44 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(css,/member-release-dashboard/);
 });
 
-test('box configuration is versioned and explicit save-as-new keeps older revisions',async()=>{
- const [editor,css]=await Promise.all([
+test('box configuration is versioned and saves preserve earlier revisions',async()=>{
+ const [editor,css,boxParameters]=await Promise.all([
   source('../src/admin/ConfigurationsPage.tsx'),
-  source('../src/public/premium-configurator.css')
+  source('../src/public/premium-configurator.css'),
+  source('../src/participant/box-parameters.ts')
  ]);
- assert.match(editor,/const BOX_LINE=/);
+ assert.match(boxParameters,/const BOX_LINE=/);
+ assert.match(editor,/boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine/);
  assert.match(editor,/withoutBoxLine\(initial\.additionalDescription/);
  assert.match(editor,/boxLine\+v\.additionalDescription/);
  assert.match(editor,/data-member-view=\{admin\?undefined:activeView\}/);
  assert.match(editor,/className="member-config-box"/);
  assert.match(editor,/Сохранить новую версию/);
- assert.match(editor,/if\(saveAsNew\)await apiPost/);
+ assert.match(editor,/else await apiPut\('\/configurations\/'\+configuration\.id,body\)/);
+ assert.doesNotMatch(editor,/if\(saveAsNew\)await apiPost/);
  assert.match(editor,/member-config-timeline/);
  assert.match(css,/data-member-view="BOX"/);
  assert.match(css,/member-config-timeline-list/);
+});
+
+
+test('member garage receives equipment summary from the authenticated cars endpoint',async()=>{
+ const [service,dashboard,journey,readiness]=await Promise.all([
+  source('../../backend/src/participants/participants.service.ts'),
+  source('../src/participant/MemberDashboard.tsx'),
+  source('../src/participant/ParticipantJourney.tsx'),
+  source('../src/participant/member-readiness.ts')
+ ]);
+ const start=service.indexOf('private async findCarsInternal(');
+ const end=service.indexOf('// =========================================================',start);
+ assert.ok(start>=0&&end>start,'authenticated car listing must exist');
+ const carsQuery=service.slice(start,end);
+ assert.match(carsQuery,/audioComponents:\s*\{\s*select:\s*\{/,'cars endpoint must include current audio summary');
+ for(const key of ['brand','model','quantity','type','direction'])assert.match(carsQuery,new RegExp(key+': true'),'missing '+key+' in car equipment summary');
+ assert.match(readiness,/Number\(item\.quantity\)/,'zero-quantity equipment must not count as ready');
+ assert.match(readiness,/quantity>0/,'only positive quantities count as ready');
+ assert.match(dashboard,/equipmentReady=hasUsableEquipment&&missingRequiredDirections\.length===0/,'equipment readiness must require a non-empty build and every direction required by registered classes');
+ assert.match(dashboard,/done:equipmentReady/,'saved empty versions must not complete the equipment step');
+ assert.match(dashboard,/<ParticipantJourney car=\{car\} stage=\{stage\}/,'onboarding must use the selected car and stage');
+ assert.match(journey,/isCarRegisteredForStage\(registrations,car\?\.id,stage\?\.id\)/,'other cars must not complete onboarding');
 });

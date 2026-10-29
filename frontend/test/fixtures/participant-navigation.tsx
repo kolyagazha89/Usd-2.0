@@ -58,7 +58,7 @@ export async function runRegistrationJourney(){
  const stage={id:'flow-stage',name:'Финал USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'flow-car',brand:'Lada',model:'Vesta',isActive:true};
  const cls={id:'flow-class',name:'Limited 2.0',direction:{name:'SPL'}};
- const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12'}]};
+ const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12',quantity:1}]};
  let submitted:any=null;let releaseOld:((value:any)=>void)|null=null;let firstConfigurationRequest=true;
  state.__getPublic=async(path:string)=>{
   if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',phone:'+79001111008'}};
@@ -74,10 +74,13 @@ export async function runRegistrationJourney(){
  state.__postAction=async(path:string,body:any)=>{assert.equal(path,'/registrations/me');submitted=body;return {id:'flow-registration'}};
  history.replaceState({},'','/participant/register?stageId=flow-stage');
  const root=createRoot(document.getElementById('root')!);
- const button=(label:string)=>[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label)!;
+ const button=(label:string)=>{const found=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label);assert.ok(found,'Missing registration button «'+label+'». Rendered screen: '+(document.querySelector('main')?.textContent??'').slice(0,800));return found};
  const select=async(label:string,value:string)=>{const input=[...document.querySelectorAll<HTMLLabelElement>('.registration-field')].find(l=>l.querySelector('span')?.textContent===label)!.querySelector('select')!;await act(async()=>{input.value=value;input.dispatchEvent(new window.Event('change',{bubbles:true}))});await flush()};
  try{
   await act(async()=>root.render(<App/>));await flush();await flush();
+  // Portal loading and stage-class loading settle independently. Wait for the
+  // actual registration step instead of assuming two timer ticks are enough.
+  for(let attempt=0;attempt<12&&!document.querySelector('.entry-navigation .primary-button');attempt++)await flush();
   assert.equal(button('Перейти к классам').disabled,true);
   await select('Ваш автомобиль',car.id);await select('Ваш автомобиль','other-car');
   await act(async()=>{releaseOld!([{id:'flow-configuration',name:'На сезон',versions:[version]}])});await flush();
@@ -102,20 +105,39 @@ export async function runRegistrationJourney(){
 
 export async function runDashboardAvailability(){
  const stages=[{id:'first',name:'Первый этап',date:'2027-01-01',registrationOpen:true},{id:'second',name:'Второй этап',date:'2027-02-01',registrationOpen:true}];
- const cars=[{id:'one',brand:'Lada',model:'Vesta',configurations:[{}]}];
- const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,carId:'one',status:'ACTIVE'}));
+ const validConfig={currentVersion:1,versions:[{version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Deaf Bonce',model:'Example',quantity:1}]}]};
+ const cars=[{id:'one',brand:'Lada',model:'Vesta',configurations:[validConfig]}];
+ const registrations=stages.map(stage=>({id:'entry-'+stage.id,stageId:stage.id,stage,car:{id:'one'},status:'ACTIVE',stageInspection:stage.id==='first'?{status:'PASSED'}:undefined}));
  const actions:string[]=[];
  const props={participant:{firstName:'Иван'},cars,stages,registrations,onGo:(path:string)=>actions.push(path),onAddCar:()=>{},onRegistration:()=>{},onStageRegistration:(stage:any)=>actions.push(stage.id)};
  const root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<MemberDashboard {...props}/>));
+  assert.equal(document.querySelector('.member-race-ticket strong')?.textContent,'—','missing participant number must not render as 00—');
   assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Открыть заявку');
   await click(document.querySelector<HTMLButtonElement>('.member-more-stages article button')!);assert.equal(actions.at(-1),'/participant/registration?registrationId=entry-second');
   assert.equal(document.querySelector('.member-race-add'),null);
-  await act(async()=>root.render(<MemberDashboard {...props} cars={[...cars,{id:'two',brand:'Lada',model:'Granta',configurations:[{}]}]}/>));
+  await act(async()=>root.render(<MemberDashboard {...props} cars={[...cars,{id:'two',brand:'Lada',model:'Granta',configurations:[validConfig]}]}/>));
   await click(document.querySelector<HTMLButtonElement>('.member-race-add')!);assert.equal(actions.at(-1),'first');
   assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Подать заявку');
   await click(document.querySelector<HTMLButtonElement>('.member-more-stages article button')!);assert.equal(actions.at(-1),'second');
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'4/4','first car is registered and has passed inspection');
+  const second=[...document.querySelectorAll<HTMLButtonElement>('.member-vehicle-selector button')].find(button=>button.textContent==='Lada Granta');
+  assert.ok(second,'multiple cars have a switcher');await click(second!);
+  assert.equal(second?.getAttribute('aria-pressed'),'true');
+  assert.match(document.querySelector('.member-vehicle-copy h3')?.textContent??'',/Granta/);
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'2/4','unregistered second car must not inherit first car admission');
+  assert.match(document.querySelector('.member-race-card .primary-button')?.textContent??'',/Подать заявку/);
+  assert.equal(document.querySelector('.member-more-stages article button')?.textContent,'Подать заявку');
+  await click(document.querySelector<HTMLButtonElement>('.member-race-card .primary-button')!);assert.equal(actions.at(-1),'first');
+  const emptyConfig={currentVersion:1,versions:[{version:1,audioComponents:[]}]};
+  await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[emptyConfig]}]}/>));
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','an empty saved version must not be marked as configured');
+  assert.match(document.querySelector('.member-readiness')?.textContent??'',/Добавьте акустику или сабвуфер/);
+  assert.match(document.querySelector('.participant-journey')?.textContent??'',/Настроить оборудование/,'empty saved configuration still offers setup guidance');
+  const zeroQuantity={currentVersion:1,versions:[{version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'Test',quantity:0}]}]};
+  await act(async()=>root.render(<MemberDashboard {...props} cars={[{...cars[0],configurations:[zeroQuantity]}]}/>));
+  assert.equal(document.querySelector('.member-readiness-count')?.textContent?.replace(/\s/g,''),'3/4','zero-quantity equipment cannot complete the checklist');
  }finally{await act(async()=>root.unmount())}
 }
 

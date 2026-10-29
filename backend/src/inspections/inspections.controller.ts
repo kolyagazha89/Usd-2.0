@@ -4,6 +4,8 @@ import {
   Delete,
   Get,
   Param,
+  Query,
+  Header,
   Patch,
   Post,
   Req,
@@ -17,6 +19,12 @@ import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 @Roles('ADMIN')
 export class InspectionsController {
   constructor(private readonly inspectionsService: InspectionsService) {}
+
+  @Get('usd-id/:token')
+  @Header('Cache-Control', 'no-store')
+  resolveUsdId(@Param('token') token: string, @Query('stageId') stageId?: string) {
+    return this.inspectionsService.resolveUsdId(token, stageId);
+  }
 
   @Get('registration/:registrationId')
   findByRegistration(@Param('registrationId') registrationId: string) {

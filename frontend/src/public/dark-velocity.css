@@ -1,0 +1,42 @@
+/* USD / DARK VELOCITY — pre-release design system, phase 1.
+   Scoped to public components; admin's light workspace remains intact. */
+:root{--usd-velocity-red:#e50922;--usd-velocity-ink:#070809;--usd-velocity-surface:#141619;--usd-velocity-border:rgba(255,255,255,.12);--usd-velocity-radius:16px}
+@media (prefers-reduced-motion:no-preference){
+  @keyframes usd-velocity-arrive{from{opacity:0;transform:translate3d(0,26px,0);filter:blur(5px)}to{opacity:1;transform:translate3d(0,0,0);filter:blur(0)}}
+  @keyframes usd-velocity-glow{0%,100%{opacity:.38;transform:scale(1)}50%{opacity:.7;transform:scale(1.09)}}
+  @keyframes usd-velocity-scan{from{transform:translateX(-120%) skewX(-18deg)}to{transform:translateX(480%) skewX(-18deg)}}
+  @keyframes usd-velocity-drift{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-10px,0)}}
+  .u-cinema-copy>*{animation:usd-velocity-arrive .95s cubic-bezier(.2,.7,.2,1) both}
+  .u-cinema-copy>*:nth-child(2){animation-delay:.13s}
+  .u-cinema-copy>*:nth-child(3){animation-delay:.24s}
+  .u-cinema-stage .u-stage-emblem{animation:usd-velocity-drift 7s ease-in-out infinite}
+  .u-home-content .u-panel,.u-next-event,.u-value-grid>a,.p-news-card{transition:transform .35s cubic-bezier(.2,.7,.2,1),border-color .35s,box-shadow .35s,background-color .35s}
+  .u-home-content .u-panel:hover,.u-value-grid>a:hover,.p-news-card:hover{transform:translateY(-4px);border-color:rgba(229,9,34,.42);box-shadow:0 24px 70px rgba(0,0,0,.24)}
+  .u-btn,.u-watch-button,.u-header a{transition:transform .25s,background-color .25s,color .25s,box-shadow .25s}
+  .u-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(229,9,34,.22)}
+}
+.u-cinema-hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse 55% 75% at 74% 50%,rgba(179,6,23,.18),transparent 75%),linear-gradient(120deg,#060709 8%,#0e1116 55%,#050506 100%)}
+.u-cinema-hero::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.32;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:80px 80px;mask-image:linear-gradient(90deg,transparent 10%,#000 100%)}
+.u-cinema-hero::after{content:"";position:absolute;z-index:-1;inset:-35% -12% auto auto;width:min(80vw,920px);aspect-ratio:1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(229,9,34,.13),transparent 64%);filter:blur(36px)}
+.u-wordmark-title{letter-spacing:-.055em;text-wrap:balance}
+.u-wordmark-title em{color:var(--usd-velocity-red)}
+.u-cinema-stage{position:relative;isolation:isolate}
+.u-cinema-stage::before{content:"";position:absolute;inset:12% 4%;border:1px solid rgba(255,255,255,.07);border-radius:50%;pointer-events:none}
+.u-cinema-stage::after{content:"";position:absolute;inset:23% 15%;border:1px solid rgba(229,9,34,.12);border-radius:50%;pointer-events:none}
+.u-panel,.u-next-event,.u-value-grid>a,.p-news-card,.u-event-mini{border-radius:var(--usd-velocity-radius);overflow:hidden}
+.u-btn,.u-watch-button,.u-mobile-dock a{border-radius:12px}
+.u-cinema-copy .u-btn{position:relative;overflow:hidden}
+.u-cinema-copy .u-btn::after{content:"";position:absolute;inset:-60% auto -60% -35%;width:25%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg)}
+@media(prefers-reduced-motion:no-preference){.u-cinema-copy .u-btn:hover::after{animation:usd-velocity-scan .85s ease-out both}}
+.u-header{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.u-home-dashboard .u-panel{border:1px solid var(--usd-velocity-border)}
+.u-panel-heading .u-eyebrow{letter-spacing:.12em}
+.u-mobile-dock{padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(max-width:600px){.u-cinema-hero::before{background-size:46px 46px}.u-cinema-hero::after{width:115vw;right:-45vw}.u-panel,.u-next-event,.u-value-grid>a,.p-news-card{border-radius:14px}.u-cinema-stage::before{inset:12% 7%}.u-cinema-stage::after{inset:25% 18%}}
+@media(prefers-reduced-motion:reduce){.u-cinema-copy>*,.u-cinema-stage *{animation:none!important}.u-home-content .u-panel,.u-next-event,.u-value-grid>a,.p-news-card{transition:none!important}}
+
+/* CMS hero artwork is optional. Keep the trademark emblem and CTAs legible. */
+.u-cinema-hero>.usd-hero-backdrop{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center;opacity:.19;pointer-events:none;filter:saturate(.7) contrast(1.15);mask-image:linear-gradient(90deg,transparent 0%,#000 38%,#000 100%)}
+.u-cinema-hero>.u-cinema-inner{position:relative;z-index:1}
+@media(max-width:700px){.u-cinema-hero>.usd-hero-backdrop{opacity:.12;mask-image:linear-gradient(180deg,#000,transparent 92%)}}
+@media(prefers-reduced-data:reduce){.u-cinema-hero>.usd-hero-backdrop{display:none}}

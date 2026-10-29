@@ -1,0 +1,104 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+
+const source=path=>readFile(new URL(path,import.meta.url),'utf8');
+
+test('homepage hero and calls to action read copy from CMS settings',async()=>{
+ const home=await source('../src/public/PremiumHome.tsx');
+ for(const field of ['heroKicker','communityTitle','communitySubtitle','communityButtonLabel','documentsDescription','documentsButtonLabel']){
+  assert.match(home,new RegExp("homeText\\('"+field+"'"));
+ }
+ assert.match(home,/heroTitle\?heroTitle:/,'explicit CMS hero title must render even when it equals USD');
+ assert.doesNotMatch(home,/heroTitle&&heroTitle!=='USD'/,'never override an explicitly configured USD headline');
+ assert.match(home,/settings\.homepage\?\.heroTitle/);
+});
+
+test('admin provides editing controls for homepage copy and persists through settings API',async()=>{
+ const admin=await source('../src/admin/SiteSettingsPage.tsx');
+ for(const field of ['heroKicker','communityTitle','communitySubtitle','communityButtonLabel','documentsDescription','documentsButtonLabel']){
+  assert.match(admin,new RegExp('homepage\\.'+field));
+ }
+ assert.match(admin,/updateSiteSettings\(settings\)/);
+});
+
+test('server defaults provide CMS copy for fresh sites and keep old data compatible',async()=>{
+ const backend=await source('../../backend/src/site-settings/site-settings.service.ts');
+ assert.match(backend,/heroKicker:'USD \/ ЧЕМПИОНАТ ПО АВТОЗВУКУ'/);
+ assert.match(backend,/communityTitle:/);
+ assert.match(backend,/documentsButtonLabel:/);
+ assert.match(backend,/homepage:this\.homepageWithBlocks\(row\?\.homepage\)/);
+});
+
+test('CMS headlines wrap on mobile without clipping',async()=>{
+ const css=await source('../src/dark-velocity-sitewide.css');
+ assert.match(css,/\.u-community-call h2\s*\{[\s\S]*?white-space:pre-line/);
+ assert.match(css,/overflow-wrap:anywhere/);
+});
+
+test('homepage value cards are CMS-driven with safe internal links',async()=>{
+ const home=await source('../src/public/PremiumHome.tsx');
+ assert.match(home,/settings\.homepage\?\.valuesCards/);
+ assert.match(home,/homeText\('valuesTitle'/);
+ assert.match(home,/homeText\('valuesSubtitle'/);
+ assert.match(home,/stages\|records\|participants\|news\|about/);
+ assert.doesNotMatch(home,/\[\[Trophy,'ОФИЦИАЛЬНЫЕ'/);
+});
+
+test('CMS controls value cards and optional homepage sections',async()=>{
+ const admin=await source('../src/admin/SiteSettingsPage.tsx');
+ const home=await source('../src/public/PremiumHome.tsx');
+ const backend=await source('../../backend/src/site-settings/site-settings.service.ts');
+ for(const key of ['heading','subtitle','description','path','enabled']) assert.match(admin,new RegExp("updateValueCard\\(card.id,'"+key+"'"));
+ for(const id of ['values','community','documents']) {
+  assert.match(home,new RegExp("enabled\\('"+id+"'\\)"));
+  assert.match(backend,new RegExp("id:'"+id+"'"));
+ }
+ assert.match(backend,/homepageWithBlocks/);
+ assert.match(backend,/valuesCards:\[/);
+});
+
+test('server rejects malformed homepage value cards and unsafe destinations',async()=>{
+ const backend=await source('../../backend/src/site-settings/site-settings.service.ts');
+ assert.match(backend,/validateHomepage\(input\.homepage\)/);
+ assert.match(backend,/seen\.has\(item\.id\)/);
+ assert.match(backend,/paths\.has\(item\.path\)/);
+ assert.match(backend,/item\[field\]\.length>240/);
+});
+
+
+test('cinematic hero labels and CTAs are editable, rendered and validated through CMS',async()=>{
+ const [home,admin,backend]=await Promise.all([
+  source('../src/public/PremiumHome.tsx'),
+  source('../src/admin/SiteSettingsPage.tsx'),
+  source('../../backend/src/site-settings/site-settings.service.ts'),
+ ]);
+ for(const key of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel']){
+  assert.match(home,new RegExp("homeText\\('"+key+"'"),key+' must be rendered from CMS');
+  assert.match(admin,new RegExp("'"+key+"'"),key+' must have an admin editor');
+  assert.match(backend,new RegExp(key+":"),key+' must have a server default');
+ }
+ assert.match(home,/settings\.homepage\?\.heroTopics/);
+ assert.match(admin,/homepage\.heroTopics/);
+ assert.match(backend,/homepage\.heroTopics\.length>8/);
+ assert.match(backend,/topic\.length>40/);
+ assert.doesNotMatch(home,/<span>СОРЕВНОВАНИЯ<\/span>/);
+});
+
+
+test('teams panel visibility and empty-state content are managed through CMS',async()=>{
+ const [home,admin,backend]=await Promise.all([
+  source('../src/public/PremiumHome.tsx'),
+  source('../src/admin/SiteSettingsPage.tsx'),
+  source('../../backend/src/site-settings/site-settings.service.ts'),
+ ]);
+ assert.match(home,/enabled\('teams'\)/);
+ assert.match(home,/title\('teams','СООБЩЕСТВО USD'\)/);
+ for(const key of ['teamsEmptyTitle','teamsEmptyDescription']){
+  assert.match(home,new RegExp("homeText\\('"+key+"'"));
+  assert.match(admin,new RegExp("homepage\\."+key));
+  assert.match(backend,new RegExp(key+":"));
+ }
+ assert.match(backend,/id:'teams',enabled:true/);
+ assert.match(backend,/homepageWithBlocks/);
+});

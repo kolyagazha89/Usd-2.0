@@ -1,20 +1,25 @@
 import {createRequire} from 'node:module';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
+import {getLiveQaConfig} from './public-browser-qa-config.mjs';
 
 const tooling=process.env.USD_BROWSER_TOOLING;
 if(!tooling)throw new Error('Set USD_BROWSER_TOOLING to the temporary Playwright installation');
 const {chromium}=createRequire(path.join(tooling,'package.json'))('playwright');
-const base='https://usd-2-0.ultimatesounddestruction.workers.dev';
+const {base,injectCandidateCss,visualSource}=getLiveQaConfig();
 const output=path.resolve('public-browser-qa');
 await mkdir(output,{recursive:true});
-const report={base,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
+const report={base,visualSource,injectCandidateCss,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
+let candidateCss='';
+if(injectCandidateCss){
 const candidateResultCss=await readFile('frontend/src/participant-ui-polish.css','utf8');
 const candidatePremiumCss=await readFile('frontend/src/premium-ui.css','utf8');
 const candidatePublicCss=await readFile('frontend/src/public/premium-public.css','utf8');
 const candidateBaseCss=await readFile('frontend/src/public/premium-base.css','utf8');
 const candidateMemberCss=await readFile('frontend/src/public/premium-member.css','utf8');
-const candidateCss=[candidateResultCss,candidatePremiumCss,candidateBaseCss,candidatePublicCss,candidateMemberCss].join('\n');
+const candidateVelocityCss=await readFile('frontend/src/dark-velocity-sitewide.css','utf8');
+candidateCss=[candidateResultCss,candidatePremiumCss,candidateBaseCss,candidatePublicCss,candidateMemberCss,candidateVelocityCss].join('\n');
+}
 async function navigatePublic(page,label){
  const toggle=page.locator('.public-nav-toggle');
  if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
@@ -55,8 +60,8 @@ try{
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
         const originalResultText=await inspectResultText(page);
-        await page.addStyleTag({content:candidateCss});
-        row.visualSource='live DOM with candidate branch CSS; candidate JavaScript is tested separately';
+        if(injectCandidateCss)await page.addStyleTag({content:candidateCss});
+        row.visualSource=visualSource;
         Object.assign(row,await page.evaluate(()=>{
           const width=innerWidth;
           const textControls=[...document.querySelectorAll('input,select,textarea')].filter(element=>!['hidden','checkbox','radio','file','submit','button'].includes(element.type)&&element.getBoundingClientRect().width>0);
@@ -95,10 +100,8 @@ try{
           if(route==='/results'&&!before.length)throw new Error('No public result cards available for text-style validation');
           if(before.length){
             await page.screenshot({path:path.join(output,width+'-'+(route==='/'?'home':'results')+'-live-before.png'),fullPage:false});
-            // Preview this branch's CSS over the live public DOM. No site or data is changed.
-            // Candidate CSS was already applied in production import order above.
             const after=await inspectResultText(page);
-            row.resultTextStyleSource='all candidate CSS layers injected in production order (read-only QA browser)';
+            row.resultTextStyleSource=visualSource;
             row.resultTextElementsChecked=after.length;
             row.resultTextSurfaceAfter=after.filter(hasSurface);
             row.resultClassBordersAfter=after.filter(element=>element.element==='public-result-class'&&element.borderWidth!=='0px');

@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
-  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
+  homepage:{blocks:Array<{id:string;enabled:boolean;title?:string|null}>;heroTitle:string;heroSubtitle:string;heroKicker?:string;heroStageLabel?:string;heroStageTagline?:string;heroPulseHint?:string;heroWatchLabel?:string;heroPrimaryButtonLabel?:string;heroCalendarButtonLabel?:string;heroTopics?:string[];copy?:Record<string,string>;communityTitle?:string;communitySubtitle?:string;communityButtonLabel?:string;documentsDescription?:string;documentsButtonLabel?:string;teamsEmptyTitle?:string;teamsEmptyDescription?:string;valuesTitle?:string;valuesSubtitle?:string;valuesCards?:Array<{id:string;heading:string;subtitle:string;description:string;path:string;enabled:boolean}>;showNextStage:boolean;showLatestResults:boolean;showRecords:boolean;showParticipants:boolean;showLiveStream:boolean;showLiveResults:boolean};
   stream:{enabled:boolean;provider:'YOUTUBE'|'VK'|'RUTUBE'|'CUSTOM';url:string;embedUrl:string;title:string;autoShowOnStageDay:boolean;showChat:boolean};
   liveResults:{enabled:boolean;stageId:string|null;refreshSeconds:number;showOnlyPublished:boolean};
   navigation:{items:Array<{id:string;label:string;path:string;enabled:boolean;sortOrder:number}>};
@@ -13,11 +13,29 @@ export type SiteSettingsShape = {
 const DEFAULTS:SiteSettingsShape={
   branding:{siteName:'USD',logoUrl:null,splashLogoUrl:null,mobileLogoUrl:null,faviconUrl:null,organizationName:'USD Russia',placeholders:{participant:null,car:null,stage:null}},
   homepage:{blocks:[
-    {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},
+    {id:'hero',enabled:true,title:null},{id:'next-stage',enabled:true,title:'Ближайший этап'},{id:'values',enabled:true,title:'Почему USD'},
     {id:'live-stream',enabled:true,title:'Прямая трансляция'},{id:'live-results',enabled:true,title:'Результаты LIVE'},
-    {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},
-    {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'}],
+    {id:'latest-results',enabled:true,title:'Последние результаты'},{id:'records',enabled:true,title:'Рекорды'},{id:'teams',enabled:true,title:'Сообщество USD'},
+    {id:'participants',enabled:false,title:'Участники'},{id:'partners',enabled:true,title:'Партнёры чемпионата'},{id:'news',enabled:true,title:'Новости USD'},{id:'community',enabled:true,title:'Сообщество'},{id:'documents',enabled:true,title:'Документы'}],
     heroTitle:'USD',heroSubtitle:'Официальный чемпионат по автозвуку',
+    heroKicker:'USD / ЧЕМПИОНАТ ПО АВТОЗВУКУ',
+    heroStageLabel:'ULTIMATE SOUND DESTRUCTION',heroStageTagline:'СИЛА ЗВУКА',heroPulseHint:'Нажми на эмблему — запусти импульс',
+    heroWatchLabel:'Что такое USD',heroPrimaryButtonLabel:'Ближайший этап',heroCalendarButtonLabel:'Календарь этапов',
+    heroTopics:['СОРЕВНОВАНИЯ','РЕКОРДЫ','СООБЩЕСТВО','РАЗВИТИЕ','АВТОЗВУК'],
+    communityTitle:'СТАНЬ ЧАСТЬЮ\nСООБЩЕСТВА USD',
+    communitySubtitle:'УЧАСТВУЙ. РАЗВИВАЙСЯ. УСТАНАВЛИВАЙ РЕКОРДЫ.',
+    communityButtonLabel:'Присоединиться',
+    documentsDescription:'Правила, регламенты и технические требования.',
+    documentsButtonLabel:'Перейти к документам',
+    teamsEmptyTitle:'Твоя команда. Твой звук.',teamsEmptyDescription:'Публичные команды участников появятся здесь.',
+     valuesTitle:'ПОЧЕМУ USD',valuesSubtitle:'БОЛЬШЕ, ЧЕМ СОРЕВНОВАНИЯ — ЭТО КУЛЬТУРА',
+    valuesCards:[
+      {id:'competitions',heading:'ОФИЦИАЛЬНЫЕ',subtitle:'СОРЕВНОВАНИЯ',description:'Продуманный путь до старта',path:'/stages',enabled:true},
+      {id:'records',heading:'НОВЫЕ',subtitle:'РЕКОРДЫ',description:'Измерения и личная история',path:'/records',enabled:true},
+      {id:'people',heading:'СИЛЬНОЕ',subtitle:'СООБЩЕСТВО',description:'Участники из разных городов',path:'/participants',enabled:true},
+      {id:'culture',heading:'РАЗВИТИЕ',subtitle:'АВТОЗВУК-КУЛЬТУРЫ',description:'События, знания, поддержка',path:'/news',enabled:true},
+      {id:'organization',heading:'ПРЕМИАЛЬНАЯ',subtitle:'ОРГАНИЗАЦИЯ',description:'Внимание к каждой детали',path:'/about',enabled:true},
+    ],
     showNextStage:true,showLatestResults:true,showRecords:true,showParticipants:true,showLiveStream:true,showLiveResults:true},
   stream:{enabled:false,provider:'YOUTUBE',url:'',embedUrl:'',title:'USD LIVE',autoShowOnStageDay:true,showChat:false},
   liveResults:{enabled:true,stageId:null,refreshSeconds:5,showOnlyPublished:true},
@@ -31,7 +49,15 @@ const DEFAULTS:SiteSettingsShape={
     {id:'auth-password-reset',name:'Восстановление пароля',trigger:'AUTH_PASSWORD_RESET',enabled:true,subject:'Восстановление пароля — USD',body:'{{intro}}',footer:'Если вы не запрашивали восстановление пароля, проигнорируйте письмо. Никому не сообщайте ссылку и токен.',buttonLabel:'Восстановить пароль'},
     {id:'auth-email-change',name:'Подтверждение нового email',trigger:'AUTH_EMAIL_CHANGE',enabled:true,subject:'Подтверждение нового email — USD',body:'{{intro}}',footer:'Ссылка действует 30 минут. Если вы не меняли email, не переходите по ссылке и обратитесь к администратору аккаунта.',buttonLabel:'Подтвердить новый email'}
   ]},
-  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[]},partners:[],news:[],
+  catalogs:{teams:[],vibrationBrands:['STP','ComfortMat','Audior','Global'],componentBrands:[],componentModels:[],batteryTypes:[
+    {code:'LTO',name:'LTO · литий-титанат',chemistry:'LTO',construction:'CELLS',isActive:true},
+    {code:'LIFEPO4',name:'LiFePO₄ · литий-железо-фосфат',chemistry:'LFP',construction:'CELLS',isActive:true},
+    {code:'NMC',name:'NMC · литий-никель-марганец-кобальт',chemistry:'NMC',construction:'CELLS',isActive:true},
+    {code:'AGM',name:'AGM · свинцово-кислотный',chemistry:'LEAD_ACID',construction:'AGM',isActive:true},
+    {code:'GEL',name:'GEL · свинцово-кислотный',chemistry:'LEAD_ACID',construction:'GEL',isActive:true},
+    {code:'FLOODED',name:'Обычный свинцово-кислотный',chemistry:'LEAD_ACID',construction:'FLOODED',isActive:true},
+    {code:'EFB',name:'EFB · улучшенный жидкостный',chemistry:'LEAD_ACID',construction:'EFB',isActive:true},
+  ]},partners:[],news:[],
 };
 
 @Injectable()
@@ -51,9 +77,189 @@ export class SiteSettingsService{
     if(!value||typeof value!=='object'||Array.isArray(value)) return base;
     return {...base,...value} as T;
   }
+  private validateNavigation(value:unknown){
+    if(value===undefined)return;
+    if(!value||typeof value!=='object'||Array.isArray(value))
+      throw new BadRequestException('Некорректные настройки меню.');
+    const navigation=value as Record<string,unknown>;
+    if(navigation.items===undefined)return;
+    if(!Array.isArray(navigation.items)||navigation.items.length>13)
+      throw new BadRequestException('Меню содержит недопустимое количество пунктов.');
+    const allowed=new Set(['/','/stages','/results','/records','/participants','/teams','/news','/rules','/documents','/partners','/cars','/about','/contacts']);
+    const paths=new Set<string>();
+    const ids=new Set<string>();
+    for(const value of navigation.items){
+      if(!value||typeof value!=='object'||Array.isArray(value))
+        throw new BadRequestException('Некорректный пункт меню.');
+      const item=value as Record<string,unknown>;
+      if(typeof item.path!=='string'||!allowed.has(item.path)||paths.has(item.path))
+        throw new BadRequestException('Недопустимая или повторяющаяся ссылка меню.');
+      if(typeof item.id!=='string'||!(/^[a-z][a-z0-9-]{0,31}$/).test(item.id)||ids.has(item.id))
+        throw new BadRequestException('Недопустимый идентификатор пункта меню.');
+      if(typeof item.label!=='string'||item.label.trim().length===0||item.label.length>48||[...item.label].some(char=>char.charCodeAt(0)<32||char.charCodeAt(0)===127))
+        throw new BadRequestException('Название пункта меню должно содержать от 1 до 48 символов.');
+      if(typeof item.enabled!=='boolean'||!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>1000)
+        throw new BadRequestException('Некорректный порядок или видимость пункта меню.');
+      paths.add(item.path);ids.add(item.id);
+    }
+  }
+  /**
+   * The public partner directory is CMS-controlled, but its content must be
+   * validated on the server. Existing legacy rows are preserved unchanged so
+   * an unrelated settings edit never breaks because of historical data.
+   */
+  private validatePartners(value:unknown,previous:Record<string,unknown>[]){
+    if(value===undefined)return;
+    if(!Array.isArray(value)||value.length>200)
+      throw new BadRequestException('Некорректный список партнёров (максимум 200).');
+    // Unchanged historical CMS records must not block unrelated site edits.
+    if(JSON.stringify(value)===JSON.stringify(previous))return;
+    const ids=new Set<string>();
+    for(const [index,raw] of value.entries()){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))
+        throw new BadRequestException('Некорректная запись партнёра.');
+      const item=raw as Record<string,unknown>;
+      const id=item.id;
+      const oldLegacy=previous[index];
+      if((id===undefined||id===null)&&oldLegacy&&JSON.stringify(oldLegacy)===JSON.stringify(item))continue;
+      if(typeof id!=='string'||!id.trim()||id.length>100||/[\u0000-\u001f\u007f]/.test(id)||ids.has(id))
+        throw new BadRequestException('У партнёра отсутствует уникальный идентификатор.');
+      ids.add(id);
+      const old=previous.find(row=>row?.id===id);
+      if(old&&JSON.stringify(old)===JSON.stringify(item))continue;
+      const text=(field:string,max:number,required=false)=>{
+        const v=item[field];
+        if(v===undefined||v===null)return !required;
+        return typeof v==='string'&&v.length<=max&&(!required||v.trim().length>0)
+          &&!(field==='description'?/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/:/[\u0000-\u001f\u007f]/).test(v);
+      };
+      if(!text('name',160,true)||!text('description',3000))
+        throw new BadRequestException('Проверьте название и описание партнёра.');
+      if(!['GENERAL','PREMIUM','REGULAR'].includes(String(item.tier)))
+        throw new BadRequestException('Выберите уровень партнёра: генеральный, премиальный или обычный.');
+      if(item.isActive!==undefined&&typeof item.isActive!=='boolean'
+        ||item.isPublished!==undefined&&typeof item.isPublished!=='boolean'
+        ||!old&&typeof item.isPublished!=='boolean')
+        throw new BadRequestException('Укажите статус публикации и видимости партнёра.');
+      if(item.sortOrder!==undefined&&(!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>100000))
+        throw new BadRequestException('Некорректный порядок партнёра.');
+      if(!text('website',2048))throw new BadRequestException('Некорректная ссылка партнёра.');
+      if(item.website){
+        try{
+          const rawUrl=String(item.website);
+          if(/\s|\\/.test(rawUrl))throw new Error('unsafe');
+          const url=new URL(rawUrl);
+          if(!['https:','http:'].includes(url.protocol)||!url.hostname||url.username||url.password)
+            throw new Error('unsafe');
+        }catch{throw new BadRequestException('Сайт партнёра должен быть корректной ссылкой https:// или http:// без логина и пароля.');}
+      }
+      if(item.photoUrl!==undefined&&item.photoUrl!==null){
+        if(!text('photoUrl',2048))
+          throw new BadRequestException('Некорректная ссылка на логотип партнёра.');
+        const image=String(item.photoUrl);
+        if(image){
+          const local=image.startsWith('/')&&!image.startsWith('//');
+          let remote=false;
+          try{
+            const url=new URL(image);
+            remote=['https:','http:'].includes(url.protocol)&&!!url.hostname&&!url.username&&!url.password;
+          }catch{/* Relative media paths are allowed. */}
+          if(!local&&!remote||/\s|\\/.test(image))
+            throw new BadRequestException('Логотип партнёра должен быть загруженным файлом или безопасной ссылкой.');
+        }
+      }
+    }
+  }
+  private validateCatalogs(value:unknown){
+    if(value===undefined)return;
+    if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
+    const types=(value as Record<string,unknown>).batteryTypes;
+    if(types===undefined)return;
+    if(!Array.isArray(types)||types.length>40)throw new BadRequestException('Некорректный справочник аккумуляторов.');
+    const seen=new Set<string>();
+    const chemistry=new Set(['LTO','LFP','NMC','LEAD_ACID']);
+    const construction=new Set(['CELLS','AGM','GEL','FLOODED','EFB']);
+    for(const raw of types){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('Некорректный тип аккумулятора.');
+      const item=raw as Record<string,unknown>;
+      if(typeof item.code!=='string'||!/^[A-Z0-9_]{2,32}$/.test(item.code)||seen.has(item.code)
+        ||typeof item.name!=='string'||!item.name.trim()||item.name.length>100
+        ||typeof item.chemistry!=='string'||!chemistry.has(item.chemistry)
+        ||typeof item.construction!=='string'||!construction.has(item.construction)
+        ||typeof item.isActive!=='boolean')
+        throw new BadRequestException('Некорректный тип аккумулятора или повтор кода.');
+      if((item.chemistry==='LEAD_ACID')===(item.construction==='CELLS'))
+        throw new BadRequestException('Для свинцово-кислотного аккумулятора укажите AGM, GEL, FLOODED или EFB; для литиевого — CELLS.');
+      seen.add(item.code);
+    }
+  }
+  private validateHomepage(value:unknown){
+    if(!value||typeof value!=='object'||Array.isArray(value)) return;
+    const homepage=value as Record<string,unknown>;
+    for(const field of ['heroStageLabel','heroStageTagline','heroPulseHint','heroWatchLabel','heroPrimaryButtonLabel','heroCalendarButtonLabel','teamsEmptyTitle','teamsEmptyDescription']){
+      if(homepage[field]!==undefined&&(typeof homepage[field]!=='string'||(homepage[field] as string).length>160))
+        throw new BadRequestException('Неверный текст главной страницы.');
+    }
+    if(homepage.heroTopics!==undefined){
+      if(!Array.isArray(homepage.heroTopics)||homepage.heroTopics.length>8||homepage.heroTopics.some((topic:unknown)=>typeof topic!=='string'||topic.length>40))
+        throw new BadRequestException('Неверные подписи первого экрана.');
+    }
+    if(homepage.copy!==undefined){
+      if(!homepage.copy||typeof homepage.copy!=='object'||Array.isArray(homepage.copy))
+        throw new BadRequestException('Неверные тексты блоков главной.');
+      const allowed=new Set([
+        'nextStageEyebrow','nextStageDetailsButton','nextStageRegistrationButton',
+        'nextStageEmptyEyebrow','nextStageEmptyTitle','nextStageEmptyDescription','nextStageAllButton',
+        'latestResultsAllButton','latestResultsEmptyTitle','latestResultsEmptyDescription',
+        'recordsAllButton','recordsEmptyTitle','recordsEmptyDescription','teamsAllButton',
+        'broadcastEyebrow','broadcastDescription','liveEmptyTitle','liveEmptyDescription',
+        'newsAllButton','newsEmptyTitle','newsEmptyDescription','partnersAllButton',
+        'participantsAllButton','documentsEyebrow',
+      ]);
+      const copy=homepage.copy as Record<string,unknown>;
+      if(Object.keys(copy).length>allowed.size)
+        throw new BadRequestException('Слишком много текстов блоков главной.');
+      for(const [key,value] of Object.entries(copy)){
+        if(!allowed.has(key)||typeof value!=='string'||value.length>240||[...value].some(char=>char.charCodeAt(0)<32||char.charCodeAt(0)===127))
+          throw new BadRequestException('Неверный текст блока главной: '+key);
+      }
+    }
+    if(!Object.prototype.hasOwnProperty.call(homepage,'valuesCards')) return;
+    const cards=homepage.valuesCards;
+    if(!Array.isArray(cards)||cards.length>5) throw new BadRequestException('Неверный список карточек главной страницы.');
+    const ids=new Set(['competitions','records','people','culture','organization']);
+    const paths=new Set(['/stages','/records','/participants','/news','/about']);
+    const seen=new Set<string>();
+    for(const card of cards){
+      if(!card||typeof card!=='object'||Array.isArray(card)) throw new BadRequestException('Неверная карточка главной страницы.');
+      const item=card as Record<string,unknown>;
+      if(typeof item.id!=='string'||!ids.has(item.id)||seen.has(item.id)) throw new BadRequestException('Неверный или повторяющийся идентификатор карточки.');
+      seen.add(item.id);
+      if(typeof item.path!=='string'||!paths.has(item.path)) throw new BadRequestException('Ссылка карточки должна вести на раздел USD.');
+      if(typeof item.enabled!=='boolean') throw new BadRequestException('Неверная настройка видимости карточки.');
+      for(const field of ['heading','subtitle','description']){
+        if(typeof item[field]!=='string'||item[field].length>240) throw new BadRequestException('Текст карточки не должен превышать 240 символов.');
+      }
+    }
+  }
+  private homepageWithBlocks(value:unknown):SiteSettingsShape['homepage']{
+    const homepage=this.merge(DEFAULTS.homepage,value);
+    const blocks=Array.isArray(homepage.blocks)?[...homepage.blocks]:[];
+    const known=new Set(blocks.map(block=>block?.id));
+    // The values section existed before it was editable. Keep its old position
+    // on sites whose saved block list predates the CMS editor.
+    if(!known.has('values')){
+      const index=blocks.findIndex(block=>block?.id==='next-stage');
+      const valueBlock=DEFAULTS.homepage.blocks.find(block=>block.id==='values');
+      if(valueBlock) blocks.splice(index<0?Math.min(2,blocks.length):index+1,0,valueBlock);
+      known.add('values');
+    }
+    for(const block of DEFAULTS.homepage.blocks) if(!known.has(block.id)) blocks.push(block);
+    return {...homepage,blocks};
+  }
   private shape(row:any):SiteSettingsShape{
     return {
-      branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.merge(DEFAULTS.homepage,row?.homepage),
+      branding:this.merge(DEFAULTS.branding,row?.branding),homepage:this.homepageWithBlocks(row?.homepage),
       stream:this.merge(DEFAULTS.stream,row?.stream),liveResults:this.merge(DEFAULTS.liveResults,row?.liveResults),
       navigation:this.merge(DEFAULTS.navigation,row?.navigation),
       contacts:row?.contacts??DEFAULTS.contacts,social:row?.social??DEFAULTS.social,seo:row?.seo??DEFAULTS.seo,
@@ -106,7 +312,11 @@ export class SiteSettingsService{
           ...publicRegistration,
           ...(s.registration.rulesDocument ? { rulesDocument: { published: (s.registration.rulesDocument as any).published ?? null } } : {}),
         },
-        partners: s.partners.filter((partner: any) => partner.isActive !== false),
+        // A draft partner must never be exposed by the public settings API.
+        // Missing isPublished remains public for legacy CMS records.
+        partners: s.partners.filter((partner: any) => partner && typeof partner === 'object' && !Array.isArray(partner) && partner.isActive !== false && partner.isPublished !== false)
+          .map((partner: any) => Object.fromEntries(Object.entries(partner).filter(([key]) =>
+            ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key)))),
         news: s.news.filter((item: any) => item.isPublished !== false),
         legal: {
           legalApproved: publicLegalApproved,
@@ -182,6 +392,10 @@ export class SiteSettingsService{
     try {
       const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
       phase = 'merge';
+      this.validateHomepage(input.homepage);
+      this.validateNavigation(input.navigation);
+      this.validateCatalogs(input.catalogs);
+      this.validatePartners(input.partners,current.partners);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;

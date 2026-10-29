@@ -183,6 +183,13 @@ export default function LogoShowcase() {
   let cleanup=()=>{};
   const reduce=matchMedia('(prefers-reduced-motion: reduce)');
   const small=matchMedia('(max-width: 740px)');
+  const device=navigator as Navigator&{connection?:{saveData?:boolean};deviceMemory?:number};
+  // Preserve a fast, accessible static logo on phones, low-memory devices and
+  // reduced-motion/data connections. Never import Three.js in these cases.
+  if(reduce.matches||small.matches||device.connection?.saveData===true||(device.deviceMemory!==undefined&&device.deviceMemory<4)){
+   setMotion('fallback');
+   return;
+  }
   async function init(){
    let renderer:any;
    try{
