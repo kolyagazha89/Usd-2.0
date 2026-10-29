@@ -104,6 +104,19 @@ except (OSError, ValueError, KeyError, IndexError) as exc:
     sys.exit(1)
 PY
 
+# Docker Compose gives exported process variables precedence over --env-file.
+# An inherited DATABASE_URL/APP_DOMAIN/USD_IMAGE_TAG could silently bypass
+# the validated backup target, prerelease domain or immutable image tag.
+# Refuse such invocations instead of relying on the caller's shell state.
+for inherited in APP_DOMAIN API_DOMAIN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
+  DATABASE_URL USD_IMAGE_TAG COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME \
+  COMPOSE_ENV_FILES COMPOSE_DISABLE_ENV_FILE DOCKER_HOST DOCKER_CONTEXT; do
+  if [[ -v "$inherited" ]]; then
+    echo "Unsafe inherited Compose/Docker override: $inherited" >&2
+    exit 1
+  fi
+done
+
 for service in api frontend; do
   for tag in "$OLD_TAG" "$NEW_TAG"; do
     docker image inspect "ghcr.io/kolyagazha89/usd-2.0-$service:$tag" >/dev/null ||
