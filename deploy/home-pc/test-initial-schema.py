@@ -21,6 +21,10 @@ class InitialSchemaTests(unittest.TestCase):
     def test_only_reviewed_nullable_additions_can_be_applied(self):
         self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)
 
+    def test_rolled_back_attempt_and_successful_same_migration_are_compatible(self):
+        self.history.append(dict(self.history[0], finished=False, rolled_back=True))
+        self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)
+
     def test_already_applied_additions_are_not_reapplied(self):
         self.history.extend({"migration_name": name, "checksum": digest, "finished": True,
                              "rolled_back": False} for name, digest in module.REVIEWED_ADDITIONS.items())
