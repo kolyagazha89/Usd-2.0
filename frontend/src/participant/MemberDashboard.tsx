@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {ArrowRight,ArrowUpRight,CalendarDays,CarFront,CheckCircle2,ClipboardCheck,MapPin,Plus,Trophy,Volume2} from 'lucide-react';
 import ParticipantJourney from './ParticipantJourney';
 import UsdIdCard from './UsdIdCard';
-import {currentCarAudioComponents,isDirectionConfigured,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from './member-readiness';
+import {currentCarAudioComponents,isCarIdentityComplete,isDirectionConfigured,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from './member-readiness';
 import {Photo,type PhotoPlaceholders} from '../public/PremiumUI';
 import {stageDate} from '../public/premium-model';
 
@@ -13,6 +13,7 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const [selectedCarId,setSelectedCarId]=useState('');
  const active=cars.filter(c=>c.isActive!==false),car=active.find(c=>c.id===selectedCarId)??active[0];
  const components=currentCarAudioComponents(car);
+ const carReady=isCarIdentityComplete(car);
  const upcoming=upcomingStages(stages);
  const stage=preferredUpcomingStage(upcoming,registrations,car?.id);
  const otherStages=upcoming.filter(item=>item.id!==stage?.id);
@@ -32,7 +33,7 @@ export default function MemberDashboard({participant,cars,registrations,stages,o
  const inspectionStatus=(entry?.stageInspection??entry?.inspection)?.status;
  // The checklist is a navigation aid, not a substitute for server-side admission checks.
  const readinessSteps=[
-  {id:'car',label:'Автомобиль',description:car?name(car):'Добавьте автомобиль',done:Boolean(car),onClick:()=>car?onGo('/participant?tab=cars'):onAddCar()},
+  {id:'car',label:'Автомобиль',description:carReady?name(car):car?'Уточните марку и модель автомобиля':'Добавьте автомобиль',done:carReady,onClick:()=>car?onGo('/participant?tab=cars'):onAddCar()},
   {id:'config',label:'Оборудование',description:equipmentDescription,done:equipmentReady,onClick:()=>car?onGo('/participant/configurations?carId='+encodeURIComponent(car.id)):onAddCar()},
   ...(stage?[
    {id:'registration',label:'Заявка',description:entry?'Заявка подана':stage.registrationOpen?'Регистрация открыта':'Регистрация закрыта',done:Boolean(entry),onClick:()=>entry?onGo('/participant/registration?registrationId='+encodeURIComponent(entry.id)):stage.registrationOpen?onStageRegistration(stage):onGo('/stages')},
