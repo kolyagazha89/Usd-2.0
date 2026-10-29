@@ -107,6 +107,8 @@ even with Universe enabled. Install the official AWS CLI v2 using its verified
 installer instead of modifying unrelated Ubuntu repositories:
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y unzip
 install_dir="$(mktemp -d)"
 curl -fsSLo "$install_dir/aws-install.sh" https://awscli.amazonaws.com/v2/install.sh
 sudo bash "$install_dir/aws-install.sh" --system
