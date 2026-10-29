@@ -136,7 +136,14 @@ services:
   api:
     image: ghcr.io/kolyagazha89/usd-2.0-api:${USD_IMAGE_TAG}
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+      AUTH_COOKIE_SECURE: "true"
+      FRONTEND_URL: https://${APP_DOMAIN}
+      CORS_ORIGINS: https://${APP_DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      API_PUBLIC_URL: https://${API_DOMAIN}
+      PUBLIC_API_URL: https://${API_DOMAIN}
     depends_on:
       db:
         condition: service_healthy
