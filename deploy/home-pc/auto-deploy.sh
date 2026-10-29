@@ -128,6 +128,19 @@ if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sh
   echo "This SHA already failed release; inspect logs before explicitly clearing failed-release-sha" >&2
   exit 1
 fi
+# The release helper requires a fresh byte-verified independent PostgreSQL
+# archive. Missing off-host DB policy is an operator setup task, not a failed
+# candidate SHA; keep build-only instead of quarantining a healthy commit.
+DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
+if [[ ! -f "$DB_OFFSITE_POLICY" ]]; then
+  echo "Images built for $SHA; off-host PostgreSQL backup policy missing; build-only mode"
+  exit 0
+fi
+[[ ! -L "$DB_OFFSITE_POLICY" && "$(stat -c %u "$DB_OFFSITE_POLICY")" == 0 ]] ||
+  { echo "Untrusted off-host PostgreSQL backup policy" >&2; exit 1; }
+(( (8#$(stat -c %a "$DB_OFFSITE_POLICY") & 077) == 0 )) ||
+  { echo "Off-host PostgreSQL backup policy must be private and root-owned" >&2; exit 1; }
+
 # A database dump cannot protect participant photos, posters or S3 objects.
 # Require a root-owned off-host rclone policy and verify a fresh full media
 # backup plus a disposable full restore for EACH automatic release. Without
