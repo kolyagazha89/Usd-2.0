@@ -372,7 +372,7 @@ if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 ]]; then
      "${media_paths[0]}" =~ ^[a-zA-Z0-9_-]+: && "${media_paths[1]}" =~ ^[a-zA-Z0-9_-]+: &&
      "${media_paths[0]%%:*}" != "${media_paths[1]%%:*}" ]] ||
     { echo "Media policy must specify distinct source and off-host rclone remotes" >&2; false; }
-  media_snapshot="${media_paths[1]%/}/$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$"
+  media_snapshot="${media_paths[1]%/}/$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$"
   "$MEDIA_VERIFIER" "${media_paths[0]}" "$media_snapshot" ||
     { echo "Independent media backup/full restore failed; refusing release" >&2; false; }
 fi
