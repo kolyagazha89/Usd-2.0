@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {currentCarAudioComponents,isCarRegisteredForStage,isDirectionConfigured,missingConfigurationRequirementForClass,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
+import {currentCarAudioComponents,isCarIdentityComplete,isCarRegisteredForStage,isDirectionConfigured,missingConfigurationRequirementForClass,preferredUpcomingStage,requiredDirectionsForRegistration,upcomingStages} from '../src/participant/member-readiness.ts';
 
 const row=(direction,type='MIDBASS',quantity=1)=>({direction,type,brand:' USD ',model:'Model 1',quantity});
 
@@ -174,4 +174,29 @@ test('onboarding uses the selected registration requirements instead of any unre
  assert.match(journey,/missing=required\.filter\(direction=>!isDirectionConfigured\(components,direction\)\)/);
  assert.match(journey,/const configured=hasEquipment&&missing\.length===0/);
  assert.match(journey,/Для выбранных классов заполните:/);
+});
+
+test('imported and partially entered cars remain visible but do not count as complete',()=>{
+ assert.equal(isCarIdentityComplete(undefined),false);
+ assert.equal(isCarIdentityComplete({id:'car-1',brand:'Lada',model:'Vesta'}),true);
+ for(const candidate of [
+  {id:'car-1',brand:'Lada',model:''},
+  {id:'car-1',brand:'Не указано',model:'Vesta'},
+  {id:'car-1',brand:'Lada',model:'—'},
+  {id:'car-1',brand:' ',model:'Vesta'},
+  {id:'car-1',brand:'Lada',model:null},
+ ]){
+  assert.equal(isCarIdentityComplete(candidate),false,JSON.stringify(candidate));
+ }
+});
+
+test('dashboard and onboarding share the same car completion rule',async()=>{
+ const [dashboard,journey]=await Promise.all([
+  readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/participant/ParticipantJourney.tsx',import.meta.url),'utf8')
+ ]);
+ for(const source of [dashboard,journey]){
+  assert.match(source,/isCarIdentityComplete\\(car\\)/);
+  assert.match(source,/done:carReady/);
+ }
 });
