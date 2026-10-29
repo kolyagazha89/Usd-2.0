@@ -92,7 +92,7 @@ chmod 600 "$MEDIA_POLICY"
 cat > "$MEDIA_VERIFIER" <<'MEDIA'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && "$1" == usd-media:current && "$2" == usd-media-offsite:verified/2222222222222222222222222222222222222222-* ]] || exit 1
+[[ "$#" == 2 && "$1" == usd-media:current && "$2" =~ ^usd-media-offsite:verified/[0-9a-f]{40}-[0-9]{8}T[0-9]{6}Z-[0-9]+$ ]] || exit 1
 [[ "${USD_TEST_FAIL_MEDIA:-0}" != 1 ]] || exit 1
 printf '%s\n' "$2" >> "$USD_TEST_WORK_MEDIA_LOG"
 MEDIA
