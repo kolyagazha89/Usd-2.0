@@ -79,6 +79,30 @@ if ! mountpoint -q /srv/usd-backups; then
   fi
   chmod 0600 "$CREDS"
   unset ADMIN PASS
+  # C:\USD-Backups is a NEW empty dedicated directory. Its inherited NTFS
+  # permissions often grant ordinary Windows Users read access to backups.
+  # Replace ONLY this directory's DACL with SYSTEM + Administrators,
+  # and prevent unsafe inherited ACEs from the C:\ root.
+  command -v smbcacls >/dev/null ||
+    { echo 'smbcacls missing; refusing to write private backups' >&2; exit 1; }
+  share="//$HOST/C\$"
+  acl_before="$(smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --numeric)"
+  owner="$(sed -n -E 's/^OWNER:(S-1-[0-9-]+)$/\1/p' <<< "$acl_before" | head -n1)"
+  group="$(sed -n -E 's/^GROUP:(S-1-[0-9-]+)$/\1/p' <<< "$acl_before" | head -n1)"
+  [[ -n "$owner" && -n "$group" ]] ||
+    { echo 'Windows backup folder ACL cannot be identified safely' >&2; exit 1; }
+  expected="REVISION:1,OWNER:$owner,GROUP:$group,ACL:S-1-5-18:ALLOWED/0x3/FULL,ACL:S-1-5-32-544:ALLOWED/0x3/FULL"
+  smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --set "$expected" >/dev/null
+  smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --inherit remove >/dev/null
+  acl_after="$(smbcacls "$share" USD-Backups -A "$CREDS" -m SMB3 --numeric)"
+  ace_count="$(grep -c '^ACL:' <<< "$acl_after" || true)"
+  [[ "$ace_count" == 2 ]] ||
+    { echo 'Windows backup NTFS ACL retains unexpected ACEs; refusing private backup' >&2; exit 1; }
+  if grep '^ACL:' <<< "$acl_after" | grep -Ev '^ACL:S-1-5-(18|32-544):ALLOWED/' >/dev/null; then
+    echo 'Windows backup directory still exposes data to another principal' >&2
+    exit 1
+  fi
+  echo 'Windows NTFS backup directory restricted to SYSTEM and Administrators.'
   mount -t cifs "//$HOST/C\$" /srv/usd-backups \
     -o "credentials=$CREDS,prefixpath=USD-Backups,vers=3.0,sec=ntlmssp,uid=0,gid=0,file_mode=0600,dir_mode=0700,nosuid,nodev,noexec"
   mounted_here=1
