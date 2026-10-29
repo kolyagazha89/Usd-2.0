@@ -120,13 +120,13 @@ if [[ "${1:-}" == inspect ]]; then
     if [[ "$*" == *mock-db* ]]; then
       password=test
       [[ "${USD_TEST_RUNTIME_DB_PASSWORD_MISMATCH:-0}" != 1 ]] || password=stale
-      printf '["POSTGRES_DB=usd","POSTGRES_USER=usd","POSTGRES_PASSWORD=%s"]\\n' "$password"
+      printf '["POSTGRES_DB=usd","POSTGRES_USER=usd","POSTGRES_PASSWORD=%s"]\n' "$password"
     else
       url='postgresql://usd:test@db:5432/usd'
       [[ "${USD_TEST_RUNTIME_API_DB_MISMATCH:-0}" != 1 ]] || url='postgresql://usd:test@external-db:5432/usd'
       domain='https://app.usd-russia.ru'
       [[ "${USD_TEST_RUNTIME_DOMAIN_MISMATCH:-0}" != 1 ]] || domain='https://usd-russia.ru'
-      printf '["DATABASE_URL=%s","NODE_ENV=production","AUTH_COOKIE_SECURE=true","FRONTEND_URL=%s","CORS_ORIGINS=https://app.usd-russia.ru","CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru","API_PUBLIC_URL=https://api.usd-russia.ru","PUBLIC_API_URL=https://api.usd-russia.ru"]\\n' "$url" "$domain"
+      printf '["DATABASE_URL=%s","NODE_ENV=production","AUTH_COOKIE_SECURE=true","FRONTEND_URL=%s","CORS_ORIGINS=https://app.usd-russia.ru","CSRF_TRUSTED_ORIGINS=https://app.usd-russia.ru","API_PUBLIC_URL=https://api.usd-russia.ru","PUBLIC_API_URL=https://api.usd-russia.ru"]\n' "$url" "$domain"
     fi
     exit 0
   fi
