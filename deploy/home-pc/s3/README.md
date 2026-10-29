@@ -4,56 +4,64 @@ This does not change the live app, DNS, PostgreSQL, or the existing USD ingress.
 The **same-PC SSD is NOT an off-host backup**. The home release gate still requires
 independent DB and media remotes and a complete restore rehearsal.
 
-## 1. Attach the SSD to the Ubuntu VM
+## 1. Use the SSD and 300-GiB VHDX already installed on 28 October 2026
 
-If the SSD is installed in the Windows host, create a *separate VHDX located on
-the SSD* and attach it to the stopped USD-SERVER VM. In Administrator PowerShell
-(change drive letter, free-space budget and disk path to the ACTUAL machine):
+**Do not create another VHDX. Do not format the OS volume.** The real USD setup is:
 
-```powershell
-# Example only; inspect Get-Volume and the VM's existing disks first.
-Get-VMHardDiskDrive -VMName USD-SERVER
-Get-Volume
-New-VHD -Path 'E:\HyperV\USD-S3.vhdx' -Dynamic -SizeBytes 350GB
-Add-VMHardDiskDrive -VMName USD-SERVER -Path 'E:\HyperV\USD-S3.vhdx'
-```
+- Windows stays on the existing HDD.
+- SSD: ARDOR GAMING NVMe, 512 GB, Windows drive `S:`.
+- Ubuntu VM: `S:\\HyperV\\USD-SERVER`; OS VHDX about 120 GiB, Ubuntu root LV about 115 GiB.
+- Existing, separately attached **dynamic** `USD-S3.vhdx`: 300 GiB, previously visible inside Ubuntu as `/dev/sdb`.
+- Planned permanent mount: `/srv/usd-s3`, with RustFS objects under `/srv/usd-s3/data`.
 
-Never repartition the Windows boot disk or the existing PostgreSQL VHDX.
-A VHDX on the same SSD as the VM OS is not physically independent.
+The last confirmed `lsblk` showed `/dev/sdb` as a **blank disk**; a successful partition,
+format or mount was NOT confirmed. Device names may have changed. Before any change, inspect:
 
-Inside Ubuntu (as usd), identify the newly attached EMPTY disk:
 ```bash
-lsblk -o NAME,PATH,SIZE,MODEL,FSTYPE,MOUNTPOINTS,UUID
+lsblk -o NAME,PATH,SIZE,FSTYPE,MOUNTPOINTS,UUID,MODEL
 findmnt /
+findmnt /srv/usd-s3 || true
+sudo blkid
+sudo grep -n '/srv/usd-s3' /etc/fstab || true
+sudo docker ps --format 'table {{.Names}}\\t{{.Image}}\\t{{.Status}}'
 ```
 
-**Destructive commands below are only an EXAMPLE** if the freshly attached empty
-disk is conclusively identified as `/dev/sdb`. Replace after confirming
-the device and that it has NO current USD data:
+**If /srv/usd-s3 already has a valid ext4 filesystem mounted, skip partitioning and formatting.**
+Inspect the existing objects and permissions; do not delete or overwrite them.
+
+If the 300-GiB disk is unformatted and **only after confirming** its identity and that it
+contains no existing files/partitions/data, follow a controlled initial setup.
+In the previously observed device layout that disk was `/dev/sdb` (not the OS disk):
 
 ```bash
-# ONLY on the newly attached EMPTY disk, never the Ubuntu boot/database disk.
+# DESTRUCTIVE only for the positively identified, unused 300-GiB S3 VHDX.
 sudo parted /dev/sdb --script mklabel gpt mkpart primary ext4 1MiB 100%
 sudo mkfs.ext4 -L USD_S3 /dev/sdb1
-sudo mkdir -p /mnt/usd-ssd
 sudo blkid -s UUID -o value /dev/sdb1
 ```
 
-Add the returned UUID to `/etc/fstab` using `sudoedit /etc/fstab`
-(one new line; replace the placeholder):
+Using `sudoedit /etc/fstab`, add the **actual resulting UUID** only once:
+
 ```text
-UUID=ACTUAL_NEW_DISK_UUID /mnt/usd-ssd ext4 defaults,nofail,x-systemd.device-timeout=15s 0 2
+UUID=ACTUAL_S3_UUID /srv/usd-s3 ext4 defaults,nofail,x-systemd.device-timeout=15s 0 2
 ```
-Then:
+
+Mount and verify without touching the Ubuntu LVM root or PostgreSQL volume:
+
 ```bash
+sudo mkdir -p /srv/usd-s3
 sudo systemctl daemon-reload
 sudo mount -a
-findmnt /mnt/usd-ssd
-mountpoint -q /mnt/usd-ssd || { echo "STOP: SSD not mounted"; exit 1; }
-sudo mkdir -p /mnt/usd-ssd/s3
-sudo chown 10001:10001 /mnt/usd-ssd/s3
-sudo chmod 0700 /mnt/usd-ssd/s3
+findmnt /srv/usd-s3
+mountpoint -q /srv/usd-s3 || { echo "STOP: S3 VHDX is not mounted"; exit 1; }
+sudo mkdir -p /srv/usd-s3/data
+sudo chown 10001:10001 /srv/usd-s3/data
+sudo chmod 0700 /srv/usd-s3/data
 ```
+
+The service verifies `/srv/usd-s3` is a mount point before starting, to prevent
+objects being written to the Ubuntu OS filesystem when the S3 VHDX is offline.
+Never run `docker compose down -v` or `prisma migrate reset` in this process.
 
 ## 2. Create private credentials and start RustFS
 
@@ -78,7 +86,7 @@ sudo systemctl status usd-s3.service --no-pager
 curl -fsS http://127.0.0.1:19000/health
 ```
 
-The systemd unit refuses to start if /mnt/usd-ssd is not a mount point.
+The systemd unit refuses to start if /srv/usd-s3 is not a mount point.
 It owns the container lifecycle (no Docker restart policy that could bypass
 the disk-mount preflight). Source image: `rustfs/rustfs:1.0.3` — review/pin
 its immutable digest on the host after verifying the official image.

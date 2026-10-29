@@ -19,7 +19,7 @@ services:
       RUSTFS_OBS_LOGGER_LEVEL: "warn"
     volumes:
       - type: bind
-        source: /mnt/usd-ssd/s3
+        source: /srv/usd-s3/data
         target: /data
         bind:
           create_host_path: false
