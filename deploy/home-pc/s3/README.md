@@ -251,6 +251,37 @@ same physical SSD is not an off-host backup, and it does not authorize a live
 API or DNS cutover. Keep B2 intact until every object is verified and the new
 version of the API/frontend has passed a supervised production media test.
 
+## 4b. Stage internal-only API credentials after verified B2 copy
+
+**Only after** the migration helper reports `COPY SUCCESS` and `VERIFY
+SUCCESS`, use the reviewed staging helper. It validates that every completed
+MediaUpload object key exists on the local RustFS, that the currently running
+API can reach RustFS, that limited credentials are securely stored, and that
+the proposed .env is accepted by Docker Compose.
+
+```bash
+cd /home/usd/usd-deploy
+git fetch --no-tags origin fix/home-pc-autodeploy-20261029
+git show 346f64dca243229003cd711408399b5538027a61:deploy/home-pc/s3/stage-api-s3.py \
+  | sudo python3 - --check
+```
+
+`--check` is strictly read-only. If the output ends in `CHECK SUCCESS`,
+the separately authorized `--apply` mode atomically changes **only** the
+six `S3_*` storage settings in the existing application `.env`, preserving
+all other site/domain/DB/image settings verbatim and recording the original
+under root-only `/etc/usd-s3`. No container is restarted and no automatic
+deployment is enabled. It refuses to stage while the auto-release gate is
+enabled, if keys have unsafe characters, or if object inventory/Compose checks
+fail. The AWS application user remains restricted to `usd-media`.
+
+Staging is NOT a release: the currently running API environment is unchanged.
+Do not run `docker compose up -d` to force deployment; it can unintentionally
+recreate the DB or switch public ingress. Actual first-cutover requires the
+supervised release/backup gates, verified production migration and HTTPS
+ingress. Keep Backblaze until the public media UI and independent backups
+are fully verified.
+
 ## 5. Independent backups and PR #309
 
 The server-local RustFS bucket can be the `rclone` media *source*, but the
