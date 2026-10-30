@@ -85,11 +85,12 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     let releaseMedia;
     const pendingMedia=new Promise(resolve=>{releaseMedia=resolve});
     globalThis.fetch=async(url)=>{
+      if(url.endsWith('/auth/login'))return new Response(JSON.stringify({accessToken:'media-access',refreshToken:'media-token',user:{id:'old-user',role:'PARTICIPANT'}}),{status:200,headers:{'Content-Type':'application/json'}});
       if(url.includes('/media/private-file/'))return pendingMedia;
       if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
       throw Error('Unexpected request: '+url);
     };
-    localStorage.setItem('usd_refresh_token','media-token');
+    await api.login('media@example.test','test-password');
     const staleMedia=api.getPrivateMediaObjectUrl('PARTICIPANT_PHOTO','old-user');
     await api.logout();
     releaseMedia(new Response(new Blob(['old-photo']),{status:200}));
