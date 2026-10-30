@@ -45,6 +45,8 @@ def backup(source, label):
         raise RuntimeError("invalid backup label")
     if DEST.is_symlink() or DEST.parent.is_symlink() or (DEST.exists() and os.stat(DEST).st_dev != os.stat(MOUNT).st_dev):
         raise RuntimeError("unsafe destination")
+    if shutil.disk_usage(MOUNT).free < st.st_size + 1024 * 1024 * 1024:
+        raise RuntimeError("insufficient second-disk space for private dump")
     DEST.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(DEST, 0o700)
     if DEST.stat().st_uid != 0 or DEST.stat().st_mode & 0o077:
