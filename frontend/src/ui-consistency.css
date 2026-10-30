@@ -621,3 +621,61 @@
 @media(max-width:780px){.registration-profile-results{grid-template-columns:minmax(0,1fr)}.registration-profile-picker-heading{flex-wrap:wrap}.registration-profile-choice{min-height:76px}}
 @media(max-width:390px){.registration-profile-picker{padding:14px}.registration-profile-choice{padding:11px;gap:9px}.registration-profile-choice.is-selected{padding:10px}.registration-profile-avatar{flex-basis:36px;width:36px;height:36px}.registration-profile-choice-status{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.registration-profile-choice{transition:none}}
+
+/* iPhone admin: inspection and on-site registration must use the entire viewport.
+   Keep horizontal scrolling inside data tables, never on the page shell. */
+@media (max-width: 760px) {
+  html, body, #root { width: 100%; max-width: 100%; margin: 0; }
+  body .app-shell { display: block; width: 100%; max-width: 100%; min-width: 0; }
+  body .app-shell > .main, body .app-shell .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  body .app-shell .main > .content,
+  body .app-shell .main .content,
+  body .app-shell .main .content > .page {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  body .app-shell .main .content :is(.panel,.resource-editor-page,.resource-editor-heading,.detail-hero,.detail-grid,.inspection-toolbar,.inspection-class-editor-panel) {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+  }
+  body .app-shell .main .content .resource-editor-heading { flex-direction: column; align-items: stretch; }
+  body .app-shell .main .content .resource-editor-heading > * { min-width: 0; max-width: 100%; }
+  body .app-shell .main .content .resource-editor-heading .secondary-button { width: 100%; }
+  body .app-shell .main .content .detail-grid { grid-template-columns: minmax(0,1fr); }
+  body .app-shell .main .content .detail-grid > * { min-width: 0; overflow-wrap: anywhere; }
+  body .app-shell .main .content :is(.table-wrap,.data-table-wrap) { max-width: 100%; overflow-x: auto; }
+}
+
+/* Mobile Race Control drawer: compact, legible, and consistent with dark admin navigation. */
+@media (max-width: 760px) {
+  body .app-shell .sidebar {
+    box-sizing: border-box;
+    width: min(320px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100dvh;
+    padding: 16px 12px max(16px, env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+  body .app-shell .sidebar-top { flex: 0 0 auto; padding: 4px 6px 14px; }
+  body .app-shell .sidebar nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  body .app-shell .sidebar .sidebar-label { padding: 12px 10px 5px; font-size: 10px; }
+  body .app-shell .sidebar .nav-item { min-height: 44px; padding: 9px 12px; font-size: 13px; border-radius: 10px; }
+  body .app-shell .sidebar .nav-item.active {
+    background: #301217 !important;
+    color: #fff !important;
+    border-color: rgba(237,38,56,.35) !important;
+    border-left: 3px solid #ed2638 !important;
+    padding-left: 9px;
+    box-shadow: none !important;
+  }
+  body .app-shell .sidebar-bottom { flex: 0 0 auto; padding-top: 10px; }
+  body .app-shell .sidebar .mobile-close { width: 44px; height: 44px; flex: 0 0 44px; }
+}
