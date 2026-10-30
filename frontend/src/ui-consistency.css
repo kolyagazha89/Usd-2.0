@@ -594,3 +594,30 @@
     font-size: 16px !important;
   }
 }
+
+
+/* USD registration · participant identity chooser, light admin visual language */
+.registration-profile-picker{display:grid;gap:16px;min-width:0;padding:clamp(16px,2.5vw,28px);border:1px solid #d8e0e5;border-radius:14px;background:#f8fafb;color:#16232c}
+.registration-profile-picker-heading{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.registration-profile-picker-heading h3{margin:0 0 6px;font-size:clamp(20px,2vw,26px);line-height:1.2;color:#111c25}
+.registration-profile-picker-heading p{margin:0;color:#536674;line-height:1.5}
+.registration-profile-picker-heading>span{flex-shrink:0;border-radius:100px;padding:7px 11px;background:#e8edf1;color:#425663;font-size:12px;font-weight:700}
+.registration-profile-search{display:grid;gap:8px;font-weight:700;color:#273946}
+.registration-profile-search input{display:block;width:100%;min-width:0;min-height:52px;padding:12px 16px;border:1px solid #a9bac5;border-radius:10px;background:#fff;color:#15232c;font-size:16px}
+.registration-profile-search input:focus-visible,.registration-profile-choice:focus-visible,.registration-profile-more:focus-visible{outline:3px solid #d41b39;outline-offset:3px}
+.registration-profile-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.registration-profile-choice{display:flex;align-items:center;gap:12px;min-width:0;min-height:84px;padding:14px;text-align:left;background:#fff;border:1px solid #d3dce2;border-radius:12px;color:#1d2d38;cursor:pointer;transition:border-color .15s,background .15s}
+.registration-profile-choice:hover{border-color:#b0233d;background:#fffafb}
+.registration-profile-choice.is-selected{border:2px solid #c81839;background:#fff3f5;padding:13px}
+.registration-profile-avatar{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:11px;background:#18262f;color:#fff;font-weight:800;font-size:20px}
+.registration-profile-identity{display:grid;gap:4px;min-width:0;flex:1}
+.registration-profile-identity strong{font-size:15px;overflow-wrap:anywhere;line-height:1.35}
+.registration-profile-identity small{font-size:12px;color:#5b6d79;overflow-wrap:anywhere}
+.registration-profile-choice-status{font-size:12px;font-weight:800;color:#b51a36;white-space:nowrap}
+.registration-profile-selected{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 14px;border:1px solid #b3d9c5;border-radius:10px;background:#edf9f1;color:#1b5937}
+.registration-profile-selected>span{flex:1;min-width:180px}
+.registration-profile-empty{grid-column:1/-1;padding:24px 12px;color:#586b76;text-align:center}
+.registration-profile-more{justify-self:start;min-height:44px}
+@media(max-width:780px){.registration-profile-results{grid-template-columns:minmax(0,1fr)}.registration-profile-picker-heading{flex-wrap:wrap}.registration-profile-choice{min-height:76px}}
+@media(max-width:390px){.registration-profile-picker{padding:14px}.registration-profile-choice{padding:11px;gap:9px}.registration-profile-choice.is-selected{padding:10px}.registration-profile-avatar{flex-basis:36px;width:36px;height:36px}.registration-profile-choice-status{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.registration-profile-choice{transition:none}}
