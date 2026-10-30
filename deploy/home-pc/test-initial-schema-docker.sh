@@ -36,6 +36,9 @@ cleanup() {
   exit "$result"
 }
 trap cleanup EXIT
+phase='prepare isolated source'
+# Report only a fixed operation name and line number, never BASH_COMMAND/env.
+trap 'printf "Initial schema fixture failed during %s at line %s\n" "$phase" "$LINENO" >&2' ERR
 # Use an independent fixture repository: a worktree .git file must never point
 # fixture commits/checkouts back into the candidate's real repository.
 git init -q "$SOURCE"
@@ -82,12 +85,14 @@ build_schema_fixture() {
   fixture_images+=("$fixture_image")
   rm -rf -- "$WORK/prisma"
   cp -R "$SOURCE/backend/prisma" "$WORK/prisma"
+  phase='build schema fixture image'
   docker build --build-arg "CANDIDATE_IMAGE=usd-api-candidate:$SHA" \
     --build-arg "FIXTURE_SHA=$fixture_sha" -t "$fixture_image" "$WORK"
   [[ "$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$fixture_image")" == "$fixture_sha" ]]
 }
 build_schema_fixture "$REVIEWED_SHA"
 REVIEWED="$IMAGE:$REVIEWED_SHA"
+phase='prepare legacy image and database'
 install -d -o root -g root -m 0700 "$STATE"
 docker tag "usd-api-candidate:$SHA" "$NEW"
 [[ "$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$NEW")" == "$SHA" ]]
@@ -129,6 +134,7 @@ flock -n 9
 export USD_DEPLOY_LOCK_HELD=1
 # Exercise the actual candidate tree when it has evolved. Baseline main still
 # gets negative coverage through a fixture-only unreviewed schema commit/image.
+phase='prepare unreviewed schema refusal'
 git -C "$SOURCE" checkout -q --detach "$SHA"
 REJECTED_SHA="$SHA"
 if [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TREE" ]]; then
@@ -139,6 +145,7 @@ if [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TREE" ]]
   REJECTED_SHA="$(git -C "$SOURCE" rev-parse HEAD)"
   build_schema_fixture "$REJECTED_SHA"
 fi
+phase='verify unreviewed source and image'
 check_source "$REJECTED_SHA"
 [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" != "$REVIEWED_TREE" ]]
 api_identity="$(docker inspect -f '{{.Id}} {{.Image}} {{.Config.Image}}' "$api")"
@@ -150,12 +157,25 @@ before_rejection="$(database_digest)"
 printf '%s\n%s\n%s\n' "$REJECTED_SHA" "$BASELINE" "${db_id:0:12}" > "$STATE/initial-preflight"
 chmod 600 "$STATE/initial-preflight"
 for mode in --check --apply; do
+  phase="reject unreviewed schema ($mode)"
   if python3 deploy/home-pc/initial-schema.py "$mode" "$REJECTED_SHA" > "$WORK/unreviewed-$mode.log" 2>&1; then
     echo "Unreviewed candidate schema accepted by $mode" >&2
     exit 1
   fi
-  grep -Fq 'Candidate schema is outside the two reviewed nullable additions' "$WORK/unreviewed-$mode.log"
-  [[ "$(database_digest)" == "$before_rejection" ]]
+  if ! grep -Fq 'Candidate schema is outside the two reviewed nullable additions' "$WORK/unreviewed-$mode.log"; then
+    printf 'Unexpected helper refusal reason for %s during %s at line %s:\n' "$mode" "$phase" "$LINENO" >&2
+    # This helper deliberately emits sanitized errors, never command output or
+    # environment values. Keep diagnostics bounded to its first eight lines.
+    head -n 8 "$WORK/unreviewed-$mode.log" >&2
+    exit 1
+  fi
+  phase="preserve database after unreviewed refusal ($mode)"
+  after_rejection="$(database_digest)"
+  if [[ "$after_rejection" != "$before_rejection" ]]; then
+    printf 'Database dump digest changed during %s at line %s: expected %s; actual %s\n' "$phase" "$LINENO" "$before_rejection" "$after_rejection" >&2
+    exit 1
+  fi
+  phase="preserve container/image/receipt identities ($mode)"
   [[ "$(docker inspect -f '{{.Id}} {{.Image}} {{.Config.Image}}' "$api")" == "$api_identity" ]]
   [[ "$(docker inspect -f '{{.Id}} {{.Image}} {{.Config.Image}}' "$db")" == "$db_identity" ]]
   [[ "$(cat "$STATE/initial-preflight")" == "$(printf '%s\n%s\n%s' "$REJECTED_SHA" "$BASELINE" "${db_id:0:12}")" ]]
@@ -163,6 +183,7 @@ done
 [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT id FROM initial_upgrade_marker')" == 42 ]]
 echo "Unreviewed schema refused by check/apply with DB, marker, receipt and image identities preserved: $REJECTED_SHA"
 rm -- "$STATE/initial-preflight"
+phase='accept reviewed nullable upgrade and verify receipts/idempotency'
 git -C "$SOURCE" checkout -q --detach "$REVIEWED_SHA"
 check_source "$REVIEWED_SHA"
 python3 deploy/home-pc/initial-schema.py --check "$REVIEWED_SHA"
