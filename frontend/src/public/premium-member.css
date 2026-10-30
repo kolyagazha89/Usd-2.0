@@ -345,3 +345,39 @@ body .usd-auth-simple .login-card{justify-self:center}
  body .usd-member .participant-portal-header .public-brand>span:last-child{overflow:hidden}
  body .usd-member .participant-portal-header .public-brand strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+
+/* First-login onboarding owns its own dark surfaces. Keep these rules with
+   the member theme instead of adding another global stylesheet. */
+body .usd-member.profile-match-page{min-height:100svh;background:radial-gradient(ellipse at 50% 0%,rgba(194,32,56,.16),transparent 55%),#070c12!important;color:#f4f7fa!important;overflow-x:clip;padding-top:max(12px,env(safe-area-inset-top))!important}
+body .usd-member .profile-match-shell{width:min(100%,880px)}
+body .usd-member .profile-match-brand{height:auto;min-height:68px;flex-wrap:wrap;padding:10px 0 16px;border-bottom:1px solid #283641!important}
+body .usd-member .profile-match-brand .text-button{color:#e4e9ed!important}
+body .usd-member .profile-match-hero{margin:clamp(22px,5vw,48px) auto 0;padding:clamp(20px,4vw,40px)!important;text-align:left;max-width:760px;background:linear-gradient(145deg,#14212a,#0a1219)!important;border:1px solid #334652!important;border-radius:22px!important;box-shadow:0 28px 80px rgba(0,0,0,.3)}
+body .usd-member .profile-match-hero h1{font-size:clamp(28px,5vw,48px)!important;line-height:1.1!important;letter-spacing:-.035em!important;overflow-wrap:normal;margin:14px 0 16px!important;color:#fff!important}
+body .usd-member .profile-match-hero>p{margin:0;max-width:590px;font-size:clamp(14px,2vw,16px);line-height:1.65;color:#b8c7d0!important}
+body .usd-member .profile-match-search{background:#111e27!important;border:1px solid #405460!important;border-radius:16px!important;padding:clamp(16px,3vw,24px)!important;box-shadow:none!important;max-width:none}
+body .usd-member .profile-match-search label{font-size:14px!important;color:#f3f6f8!important;line-height:1.4}
+body .usd-member .profile-match-search-row input{background:#09131b!important;color:#fff!important;border:1px solid #4d626d!important;font-size:16px!important;min-height:52px!important;border-radius:11px!important}
+body .usd-member .profile-match-search-row input::placeholder{color:#9aabb5!important}
+body .usd-member .profile-match-search-row input:focus-visible{border-color:#ef4965!important;outline:2px solid #ef4965;outline-offset:2px}
+body .usd-member .profile-match-search>small{font-size:12px!important;color:#a9bac5!important}
+body .usd-member .profile-match-search-row .primary-button{background:linear-gradient(120deg,#dc2547,#a71937)!important;border:1px solid #f04e6b!important;color:#fff!important;min-height:52px!important}
+body .usd-member .profile-match-results{padding:clamp(18px,3vw,28px)!important;border-radius:20px!important}
+body .usd-member .profile-match-empty,body .usd-member .profile-match-new{background:#101d26!important;border:1px solid #354955!important;border-radius:18px!important;color:#f3f6f8!important}
+body .usd-member .profile-match-empty h2,body .usd-member .profile-match-new h2{color:#fff!important}
+body .usd-member .profile-match-results-heading>span{background:#172630;color:#fff;border-color:#40535e}
+body .usd-member .historical-match-card{border-radius:13px!important}
+body .usd-member .profile-match-list .historical-match-unavailable small{color:#c1cbd2!important}
+@media(max-width:640px){
+ body .usd-member.profile-match-page{padding:env(safe-area-inset-top) 14px max(28px,env(safe-area-inset-bottom))!important}
+ body .usd-member .profile-match-brand{min-height:56px;gap:8px}
+ body .usd-member .profile-match-brand>span{font-size:10px;line-height:1.4;flex:1;min-width:0}
+ body .usd-member .profile-match-hero{padding:22px 17px!important;margin-top:22px!important;border-radius:17px!important}
+ body .usd-member .profile-match-hero h1{font-size:clamp(27px,7.6vw,36px)!important;line-height:1.12!important}
+ body .usd-member .profile-match-hero>p{font-size:14px!important;line-height:1.6!important}
+ body .usd-member .profile-match-search{padding:16px!important;margin-top:22px!important}
+ body .usd-member .profile-match-search-row{flex-direction:column}
+ body .usd-member .profile-match-search-row .primary-button{width:100%}
+ body .usd-member .profile-match-staff-entry .secondary-button{width:100%;min-height:48px}
+}
