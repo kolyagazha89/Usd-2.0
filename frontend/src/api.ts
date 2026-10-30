@@ -150,7 +150,11 @@ export async function getPrivateMediaObjectUrl(targetType:string,targetId:string
     privateMediaObjectUrls.add(url);
     return url;
   };
-  if(!accessToken)await refresh();
+  if(!accessToken){
+    const generation=authGeneration;
+    await refresh();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+  }
   return read(true);
 }
 export async function getMediaUrl(targetType:string,targetId:string){
