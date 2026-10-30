@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate local second disk backup code and regressions
         run: |
-          python3 -m unittest discover -s deploy/home-pc -p "test-second-disk-db-backup.py" -v
+          python3 -m unittest discover -s deploy/home-pc -p "test-second-disk-*-backup.py" -v
           python3 -m py_compile deploy/home-pc/verify-second-disk-db-backup.py deploy/home-pc/verify-second-disk-media-backup.py deploy/home-pc/release-readiness.py
           bash -n deploy/home-pc/auto-deploy.sh deploy/home-pc/release-approved.sh deploy/home-pc/setup-home-pc.sh deploy/home-pc/install-local-deployer.sh
       - name: Build candidate API image from production Dockerfile
