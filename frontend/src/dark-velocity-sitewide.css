@@ -856,3 +856,10 @@ body .usd-live .u-home-bottom--single{
   min-width:0;
 }
 body .usd-live .u-home-bottom--single>.u-panel{width:100%;min-width:0}
+
+/* Accessible regulations navigation, including long CMS-supplied headings. */
+body .usd-live .public-rules-rich-document :is(h3,h4,h5){scroll-margin-top:100px;overflow-wrap:anywhere}
+body .usd-live .public-rules-sidebar nav a:focus-visible,
+body .usd-live .public-rules-actions :is(a,button):focus-visible,
+body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--dv-red-hot);outline-offset:3px}
+@media(max-width:760px){body .usd-live .public-rules-rich-document :is(h3,h4,h5){scroll-margin-top:82px}}

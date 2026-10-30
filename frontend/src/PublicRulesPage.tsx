@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FileClock, Search } from 'lucide-react';
+import { rulesListMarkers } from './rules-list-markers';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type Props = { settings: any; go: (path: string) => void; rulesText?: string };
@@ -53,6 +54,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
   const published = settings?.registration?.rulesDocument?.published ?? null;
   const documentBlocks = Array.isArray(published?.blocks) ? published.blocks : [];
+  const listMarkers = rulesListMarkers(documentBlocks);
   const source = String(documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : rulesText || settings?.registration?.rulesText || '').trim();
   const publishedUrl = safeDocumentUrl(published?.url);
   const legal = settings?.legal || {};
@@ -102,10 +104,14 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
     for(let i=start;i<end;i++) selected.add(i);
     for(let parent=section?.parent;parent;parent=parent.parent) selected.add(parent.start);
   });
-  const visibleDocumentBlocks = documentBlocks.filter((_:any,index:number)=>!needle||selected.has(index));
-  const documentHeadings: { id: string; title: string; index: number }[] = visibleDocumentBlocks
-    .filter((block:any) => isStructuredHeading(block))
-    .map((block:any) => { const index = documentBlocks.indexOf(block); return { id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index }; });
+  const visibleDocumentEntries = documentBlocks
+    .map((block: any, index: number) => ({ block, index }))
+    .filter(({ index }: { index: number }) => !needle || selected.has(index));
+  const documentHeadings: { id: string; title: string; index: number }[] = visibleDocumentEntries
+    .filter(({ block }: { block: any }) => isStructuredHeading(block))
+    .map(({ block, index }: { block: any; index: number }) => ({
+      id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index,
+    }));
   const filtered = sections.filter(section => !needle ||
     [section.title, ...section.body].join(' ').toLocaleLowerCase('ru').includes(needle));
   const sectionCount = documentBlocks.length ? documentHeadings.length : filtered.length;
@@ -139,13 +145,13 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
           </aside>
           <div className="public-rules-document">
             <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{sectionCount} {sectionWord}</span></div>
-            {documentBlocks.length ? (visibleDocumentBlocks.length ? <div className="public-rules-rich-document">
-              {visibleDocumentBlocks.map((block: any, index: number) => {
+            {documentBlocks.length ? (visibleDocumentEntries.length ? <div className="public-rules-rich-document">
+              {visibleDocumentEntries.map(({ block, index }: { block: any; index: number }) => {
                 if (isStructuredHeading(block)) {
                   const level = Math.min(4, Math.max(2, Number(block.level) || 2));
-                  const originalIndex = documentBlocks.indexOf(block); const headingId = 'rules-doc-heading-' + originalIndex; return level === 2 ? <h3 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h3> : level === 3 ? <h4 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h4> : <h5 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h5>;
+                  const headingId = 'rules-doc-heading-' + index; return level === 2 ? <h3 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h3> : level === 3 ? <h4 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h4> : <h5 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h5>;
                 }
-                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{block.ordered ? '1.' : '•'}</span>{renderInline(block.runs, block.text, 'list-' + index)}</div>;
+                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{listMarkers[index]}</span>{renderInline(block.runs, block.text, 'list-' + index)}</div>;
                 if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => {
                   const runs = block.cellRuns?.[rowIndex]?.[cellIndex];
                   const value = renderInline(runs, cell, 'table-' + index + '-' + rowIndex + '-' + cellIndex);
