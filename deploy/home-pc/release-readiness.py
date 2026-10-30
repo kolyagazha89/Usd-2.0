@@ -86,7 +86,26 @@ def assess(root=Path("/"), live=False):
         valid_media = False
     add("media-offhost-policy", valid_media, "distinct remotes" if valid_media else "missing/invalid remote pair")
 
+    db_policy = root / "etc/usd-deployer/db-backup.conf"
+    try:
+        db_lines = db_policy.read_text(encoding="utf-8").splitlines()
+        valid_db = len(db_lines) > 0 and all(line.strip() for line in db_lines)
+    except (OSError, UnicodeError):
+        valid_db = False
+    add("db-offhost-policy", valid_db, "nonempty configuration" if valid_db else "missing/empty configuration")
+
+    verifier = root / "usr/local/libexec/usd-verify-media-backup"
+    trusted_verifier, detail = check_private_file(root, "usr/local/libexec/usd-verify-media-backup")
+    trusted_verifier = trusted_verifier and os.access(verifier, os.X_OK)
+    add("media-backup-verifier", trusted_verifier, detail if trusted_verifier else "missing, untrusted or not executable")
+    release_helper = root / "usr/local/sbin/usd-release-approved"
+    trusted_helper, detail = check_private_file(root, "usr/local/sbin/usd-release-approved")
+    trusted_helper = trusted_helper and os.access(release_helper, os.X_OK)
+    add("release-helper", trusted_helper, detail if trusted_helper else "missing, untrusted or not executable")
+
     if live:
+        if os.geteuid() != 0:
+            add("root-privileges", False, "run with sudo to inspect protected policies and Docker")
         for unit in REQUIRED_UNITS:
             active, _ = run(["systemctl", "is-active", "--quiet", unit])
             enabled, _ = run(["systemctl", "is-enabled", "--quiet", unit])
