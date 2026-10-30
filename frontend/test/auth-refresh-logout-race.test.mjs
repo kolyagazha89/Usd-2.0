@@ -67,6 +67,20 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     };
     await api.logout();
     assert.equal(localStorage.getItem('usd_refresh_token'),null,'offline logout must remain local logout');
+    // A protected response that arrives after logout must not be accepted as
+    // data belonging to the next user, even if the old HTTP request succeeded.
+    let releaseProtected;
+    const pendingProtected=new Promise(resolve=>{releaseProtected=resolve});
+    globalThis.fetch=async(url,init)=>{
+      if(url.endsWith('/auth/me'))return pendingProtected;
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      throw Error('Unexpected request: '+url);
+    };
+    const oldMe=api.me();
+    await api.logout();
+    releaseProtected(new Response(JSON.stringify({id:'old-user',email:'old@example.test',role:'ADMIN'}),{status:200,headers:{'Content-Type':'application/json'}}));
+    await assert.rejects(oldMe,/Сеанс завершён/,'a stale successful response must not be exposed after logout');
+
 
   }finally{
     for(const [key,descriptor]of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
