@@ -56,6 +56,13 @@ export function assertCatalogEquipment(
       legacy.set(key, (legacy.get(key) ?? 0) + 1);
     }
     for (const row of submitted[group] ?? []) {
+      // A valid catalog ID must not authorize moving a component into a
+      // different physical group by changing only its submitted type.
+      if ((group === 'headUnits' && row.type && row.type !== 'HEAD_UNIT') ||
+          (group === 'amplifiers' && row.type && row.type !== 'AMPLIFIER') ||
+          (group === 'audioComponents' && (row.type === 'HEAD_UNIT' || row.type === 'AMPLIFIER'))) {
+        throw new BadRequestException('Тип оборудования не соответствует разделу конфигурации.');
+      }
       const category = categoryFor(group, row);
       const id = String(row.catalogEntryId ?? '').trim();
       const approved = id && models.some(entry =>
