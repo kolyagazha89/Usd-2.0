@@ -94,6 +94,22 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     await api.logout();
     releaseMedia(new Response(new Blob(['old-photo']),{status:200}));
     await assert.rejects(staleMedia,/Сеанс завершён/,'private media from a logged-out account must be rejected');
+    // An unauthorized request must never retry under a different session.
+    let releaseUnauthorized;
+    const unauthorized=new Promise(resolve=>{releaseUnauthorized=resolve});
+    let protectedRequests=0;
+    globalThis.fetch=async(url)=>{
+      if(url.endsWith('/auth/me')){protectedRequests++;return unauthorized;}
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      if(url.endsWith('/auth/refresh'))throw Error('Unexpected refresh of old account');
+      throw Error('Unexpected request: '+url);
+    };
+    const oldUnauthorized=api.me();
+    await api.logout();
+    releaseUnauthorized(new Response(JSON.stringify({message:'Unauthorized'}),{status:401,headers:{'Content-Type':'application/json'}}));
+    await assert.rejects(oldUnauthorized,/Сеанс завершён/);
+    assert.equal(protectedRequests,1,'no protected retry may cross a logout boundary');
+
 
 
 
