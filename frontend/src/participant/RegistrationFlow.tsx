@@ -21,8 +21,8 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
   <nav className="entry-steps" aria-label="Шаги регистрации"><ol>{steps.map((label,index)=><li key={label} data-state={index===step?'current':index<step?'complete':'next'}><button type="button" disabled={busy||index>step} aria-current={index===step?'step':undefined} onClick={()=>move(index)}><span>{index<step?<Check size={15}/>:String(index+1).padStart(2,'0')}</span><strong>{label}</strong></button></li>)}</ol></nav>
   <div className="entry-workspace"><div className="entry-task"><div className="entry-task-title"><span className="eyebrow">ШАГ {step+1} ИЗ 3</span><h2 ref={title} tabIndex={-1}>{['На чём выступаете?','В каких классах участвуете?','Проверьте вашу заявку'][step]}</h2><p>{['Выберите автомобиль и состав системы для этого этапа.','Отметьте классы. Доступность зависит от оборудования автомобиля.','Проверьте данные и подтвердите согласия перед отправкой.'][step]}</p></div>
    {step===0?vehicle:step===1?classes:confirmation}
-   {step===0&&repeatVehicle&&vehicleReady&&<fieldset className="entry-configuration-review">
-    <legend>Вы меняли аудиосистему после предыдущего выступления?</legend>
+   {step===0&&repeatVehicle&&vehicleReady&&<section className="entry-configuration-review" aria-labelledby="entry-config-review-title">
+    <h3 id="entry-config-review-title">Вы меняли аудиосистему после предыдущего выступления?</h3>
     <p>Для новой заявки важно выбрать актуальную версию оборудования. Прошлые выступления сохраняют свои конфигурации.</p>
     <label><input type="radio" name="entry-config-changed" checked={configurationAnswer==='unchanged'} onChange={()=>{setConfigurationAnswer('unchanged');setUpdatedReviewed(false)}}/>Нет, состав системы не изменился</label>
     <label><input type="radio" name="entry-config-changed" checked={configurationAnswer==='updated'} onChange={()=>{setConfigurationAnswer('updated');setUpdatedReviewed(false)}}/>Да, я менял(а) оборудование</label>
@@ -31,7 +31,7 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
      <button type="button" className="secondary-button" onClick={onEditConfiguration}>Открыть редактор конфигурации <ArrowRight size={16}/></button>
      <label><input type="checkbox" checked={updatedReviewed} onChange={event=>setUpdatedReviewed(event.target.checked)}/>Я проверил(а), что выбрана актуальная версия оборудования</label>
     </div>}
-   </fieldset>}
+   </section>}
    {step<2&&<div className="entry-navigation">{step>0&&<button className="secondary-button" type="button" onClick={()=>move(step-1)}><ArrowLeft size={16}/>Назад</button>}<button className="primary-button" type="button" disabled={busy||!(step===0?canContinueVehicle:classesReady)} onClick={()=>move(step+1)}>{step===0?'Перейти к классам':'Проверить заявку'}<ArrowRight size={16}/></button></div>}
    {step===2&&<button className="text-button entry-edit-back" type="button" disabled={busy} onClick={()=>move(1)}><ArrowLeft size={15}/>Изменить классы</button>}
   </div>
