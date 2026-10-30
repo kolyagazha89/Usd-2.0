@@ -8,6 +8,8 @@ const API_BASE = configuredApiBase
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
+// Prevent an in-flight refresh response from restoring credentials after logout.
+let authGeneration = 0;
 
 export type Role = 'ADMIN' | 'PARTICIPANT';
 export type CustomRoleInfo = { id:string; key:string; name:string; permissions:Record<string,string[]> };
@@ -75,10 +77,41 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   }
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
-export async function login(email:string,password:string){const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
-export async function refresh(){if(refreshPromise)return refreshPromise;const storedRefreshToken=localStorage.getItem('usd_refresh_token');refreshPromise=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false).then(r=>{accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r;}).catch((error:ApiError)=>{accessToken=null;if(error.status===401){clearAuthSession();window.dispatchEvent(new Event('usd:session-expired'));}return null;}).finally(()=>{refreshPromise=null;});return refreshPromise;}
-export function clearAuthSession(){accessToken=null;for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}privateMediaObjectUrls.clear();try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}}
-export async function logout(){const refreshToken=localStorage.getItem('usd_refresh_token');try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}catch{/* Expired sessions or network errors must not block local sign-out. */}finally{clearAuthSession();}}
+export async function login(email:string,password:string){const generation=authGeneration;const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');authGeneration++;accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
+export async function refresh(){
+  if(refreshPromise)return refreshPromise;
+  const generation=authGeneration;
+  const storedRefreshToken=localStorage.getItem('usd_refresh_token');
+  const pending=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false)
+    .then(r=>{
+      if(generation!==authGeneration)return null;
+      accessToken=r.accessToken;
+      if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);
+      return r;
+    }).catch((error:ApiError)=>{
+      if(generation!==authGeneration)return null;
+      accessToken=null;
+      if(error.status===401){clearAuthSession();window.dispatchEvent(new Event('usd:session-expired'));}
+      return null;
+    }).finally(()=>{if(refreshPromise===pending)refreshPromise=null;});
+  refreshPromise=pending;
+  return pending;
+}
+export function clearAuthSession(){
+  authGeneration++;
+  accessToken=null;
+  for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}
+  privateMediaObjectUrls.clear();
+  try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
+}
+export async function logout(){
+  // Clear immediately, before the remote request: pending refreshes must not
+  // repopulate the session while the network request is still in flight.
+  const refreshToken=localStorage.getItem('usd_refresh_token');
+  clearAuthSession();
+  try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}
+  catch{/* Expired sessions or network errors must not block local sign-out. */}
+}
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
