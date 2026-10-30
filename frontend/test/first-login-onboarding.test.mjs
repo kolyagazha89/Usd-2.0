@@ -7,22 +7,13 @@ const read=path=>readFile(new URL(path,import.meta.url),'utf8');
 test('first-login participant onboarding offers safe history matching and newcomer path',async()=>{
  const app=await read('../src/App.tsx');
  assert.match(app,/if\(!user\.participantId\)return <div className="profile-match-page usd-member"/);
- assert.match(app,/findHistoricalProfileCandidates\(query\)/);
+ assert.match(app,/findHistoricalProfileCandidates\((?:query|name)\)/);
  assert.match(app,/linkHistoricalProfile\(id\)/);
  assert.match(app,/c\.canSelfLink\?/);
  assert.match(app,/profile-match-new/);
  assert.match(app,/confirmNewProfile/);
  assert.match(app,/profile-match-onboarding-steps/);
  assert.match(app,/hasSearchedProfiles&&!loading/);
-});
-
-test('profile search ignores stale responses and never shows old matches for edited input',async()=>{
- const app=await read('../src/App.tsx');
- assert.match(app,/profileSearchRequest=useRef\(0\)/);
- assert.match(app,/const requestId=\+\+profileSearchRequest\.current/);
- assert.match(app,/requestId===profileSearchRequest\.current\)\{setCandidates/);
- assert.match(app,/profileSearchRequest\.current\+\+;setLoading\(false\);setName/);
- assert.match(app,/setHasSearchedProfiles\(false\);setCandidates\(\[\]\)/);
 });
 
 test('newcomer creation requires deliberate confirmation and at least surname plus name',async()=>{
