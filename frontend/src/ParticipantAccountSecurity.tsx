@@ -103,8 +103,11 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
       // A list requested before this mutation must not restore a revoked row.
       sessionRequest.current++;setSessionState('ready');
       setConfirmation(null);
-      if(target.kind==='all'){setSessions([]);await onLogout()}
-      else{
+      if(target.kind==='all'){
+        setSessions([]);
+        try{await onLogout()}
+        catch{setSessionError('Все сеансы завершены, но автоматический выход не удался. Выйдите из аккаунта вручную.')}
+      }else{
         setSessions(previous=>previous.filter(session=>session.id!==target.session.id));
         setSessionSuccess('Сеанс завершён. На выбранном устройстве потребуется войти снова после окончания текущего доступа.');
       }
