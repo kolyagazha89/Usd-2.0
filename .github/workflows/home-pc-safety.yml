@@ -367,6 +367,11 @@ jobs:
           trap 'rm -rf "$trusted"' EXIT
           cp compose*.yaml "$trusted/"
           docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.local.yaml" config --quiet
+      - name: Verify read-only release readiness report and fail-closed policy tests
+        run: |
+          python3 -m py_compile deploy/home-pc/release-readiness.py
+          python3 deploy/home-pc/test-release-readiness.py -v
+          python3 deploy/home-pc/release-readiness.py --help >/dev/null
       - name: Validate GitHub main push CI release gate
         run: |
           set -euo pipefail
