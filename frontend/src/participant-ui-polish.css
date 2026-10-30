@@ -1628,3 +1628,11 @@
 .profile-match-page :is(button,input,a):focus-visible{outline:2px solid #ffb4c0!important;outline-offset:3px!important}
 @media(max-width:640px){.profile-match-page .profile-match-hero{padding:22px 16px;border-radius:14px}.profile-match-onboarding-steps{gap:7px;margin-bottom:22px}.profile-match-onboarding-steps span{font-size:11px;padding:8px 10px}.profile-match-page .profile-match-search-row{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.profile-match-page .profile-match-search-row button{width:100%;min-height:48px}.profile-match-page .historical-match-card{min-width:0}}
 @media(prefers-reduced-motion:reduce){.profile-match-page .historical-match-card{transition:none}}
+
+
+.profile-match-page .profile-match-new{display:grid;justify-items:start;gap:14px;margin-block:24px;padding:clamp(18px,3vw,30px);border:1px solid #485461;border-radius:16px;background:linear-gradient(135deg,#131d27,#0d131a)}
+.profile-match-page .profile-match-new h2{margin:0;color:#fff;font-size:clamp(23px,3vw,32px)}
+.profile-match-page .profile-match-new p{max-width:720px;margin:0;color:#b8c7d1;line-height:1.65}
+.profile-match-page .profile-match-new .profile-match-new-warning{padding:14px 16px;border-left:3px solid #ef9d56;background:#2d231d;color:#f6dac4}
+.profile-match-page .profile-match-new button{min-height:44px;white-space:normal;text-align:center}
+@media(max-width:640px){.profile-match-page .profile-match-new{padding:18px 16px}.profile-match-page .profile-match-new button{width:100%}}
