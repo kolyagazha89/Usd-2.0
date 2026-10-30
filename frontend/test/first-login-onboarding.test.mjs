@@ -33,3 +33,19 @@ test('onboarding uses mobile-safe Dark Velocity styling without changing admin t
  assert.match(css,/prefers-reduced-motion/);
  assert.match(main,/import '\.\/participant-ui-polish\.css'/);
 });
+
+
+test('first login has no account security section or forced mobile keyboard',async()=>{
+ const app=await read('../src/App.tsx');
+ const onboarding=app.split('if(!user.participantId)return ')[1]?.split('if(routePath===')[0]??'';
+ assert.ok(onboarding.length>1000);
+ assert.doesNotMatch(onboarding,/<ParticipantAccountSecurity/);
+ assert.doesNotMatch(onboarding,/autoFocus/);
+});
+
+test('first-login form has a dark member surface and iOS-safe input font',async()=>{
+ const css=await read('../src/public/premium-member.css');
+ assert.match(css,/body \.usd-member \.profile-match-search\{background:#111e27!important/);
+ assert.match(css,/body \.usd-member \.profile-match-search-row input\{[^}]*background:#09131b!important[^}]*font-size:16px!important/s);
+ assert.match(css,/body \.usd-member \.profile-match-hero h1\{[^}]*font-size:clamp\(28px,5vw,48px\)!important/s);
+});
