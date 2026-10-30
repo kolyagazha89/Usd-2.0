@@ -90,7 +90,7 @@ function App(){
  if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
  if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
  if(!user){if(/^\/participant(?:\/|\?|$)/.test(path))return <Splash/>;if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(accountLanding(loggedInUser,next,path.startsWith('/admin')))}}/>;return <PublicSite path={path} go={go} user={user}/>;}
- if(/^\/participant(?:\/|\?|$)/.test(path)||(path.startsWith('/admin')&&!hasAdminPanelAccess(user)))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{await logout();setUser(null)}}/>;
+ if(/^\/participant(?:\/|\?|$)/.test(path)||(path.startsWith('/admin')&&!hasAdminPanelAccess(user)))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{const signingOut=logout();setUser(null);await signingOut}}/>;
  // Public routes must remain public even when an ADMIN or custom-role session is active.
  // Otherwise "/" falls through to the admin shell and renders the generic "section is being prepared" page.
  if(!path.startsWith('/admin')){if(path==='/login')return <Splash/>;return <PublicSite path={path} go={go} user={user}/>;}

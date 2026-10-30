@@ -8,6 +8,9 @@ const API_BASE = configuredApiBase
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
+let logoutPromise: Promise<void> | null = null;
+// These promises settle only after both response headers (Set-Cookie) and body.
+const pendingAuthRequests = new Set<Promise<AuthResponse>>();
 // Prevent an in-flight refresh response from restoring credentials after logout.
 let authGeneration = 0;
 
@@ -31,6 +34,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const PUBLIC_AUTH_ENDPOINT = /^\/auth\/(?:login|register|refresh|logout|forgot-password|reset-password|verify-email|resend-verification|confirm-email-change)(?:[/?]|$)/;
 
 async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<T>{
+  const generation=authGeneration;
   const headers=new Headers(init.headers);
   if(init.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
@@ -47,11 +51,14 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
     });
 
     if(response.status===401 && retry && !PUBLIC_AUTH_ENDPOINT.test(path)){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const refreshed=await refresh();
-      if(refreshed) return request<T>(path,init,false);
+      if(refreshed && generation===authGeneration) return request<T>(path,init,false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
 
     const data=await response.json().catch(()=>({}));
+    if(generation!==authGeneration && !PUBLIC_AUTH_ENDPOINT.test(path))throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok){
       const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
       e.status=response.status;
@@ -77,12 +84,28 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   }
 }
 export function listData<T=any>(data:any):T[]{ if(Array.isArray(data)) return data; if(Array.isArray(data?.items)) return data.items; if(Array.isArray(data?.data)) return data.data; if(Array.isArray(data?.results)) return data.results; return []; }
-export async function login(email:string,password:string){const generation=authGeneration;const r=await request<AuthResponse>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');authGeneration++;accessToken=r.accessToken;if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);return r.user;}
+function requestAuth(path:string,init:RequestInit){
+  const pending=request<AuthResponse>(path,init,false);
+  pendingAuthRequests.add(pending);
+  void pending.then(()=>pendingAuthRequests.delete(pending),()=>pendingAuthRequests.delete(pending));
+  return pending;
+}
+export async function login(email:string,password:string){
+  if(logoutPromise)await logoutPromise;
+  const generation=authGeneration;
+  const r=await requestAuth('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
+  if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');
+  authGeneration++;
+  accessToken=r.accessToken;
+  if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);
+  return r.user;
+}
 export async function refresh(){
+  if(logoutPromise)return null;
   if(refreshPromise)return refreshPromise;
   const generation=authGeneration;
   const storedRefreshToken=localStorage.getItem('usd_refresh_token');
-  const pending=request<AuthResponse>('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined},false)
+  const pending=requestAuth('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined})
     .then(r=>{
       if(generation!==authGeneration)return null;
       accessToken=r.accessToken;
@@ -106,12 +129,34 @@ export function clearAuthSession(){
   try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
 }
 export async function logout(){
+  if(logoutPromise)return logoutPromise;
   // Clear immediately, before the remote request: pending refreshes must not
   // repopulate the session while the network request is still in flight.
   const refreshToken=localStorage.getItem('usd_refresh_token');
+  const inFlight=[...pendingAuthRequests];
   clearAuthSession();
-  try{await request('/auth/logout',{method:'POST',body:refreshToken?JSON.stringify({refreshToken}):undefined},false);}
-  catch{/* Expired sessions or network errors must not block local sign-out. */}
+  // Wait for older Set-Cookie responses before clearing the browser cookie.
+  // Revoke discarded login families as well as any rotated refresh token.
+  const pending=(async()=>{
+    const responses=await Promise.allSettled(inFlight);
+    const tokens=new Set<string>();
+    if(refreshToken)tokens.add(refreshToken);
+    let cleanCookie=tokens.size===0;
+    for(const response of responses){
+      if(response.status==='fulfilled'&&response.value.refreshToken)tokens.add(response.value.refreshToken);
+      else cleanCookie=true; // A failed body may still have applied Set-Cookie.
+    }
+    // A token-specific logout also clears the browser cookie. Revoke an
+    // unknown cookie first, before an explicit old token can erase its proof.
+    const cleanup:Array<string|undefined>=cleanCookie?[undefined,...tokens]:[...tokens];
+    for(const token of cleanup){
+      try{await request('/auth/logout',{method:'POST',body:token?JSON.stringify({refreshToken:token}):undefined},false)}
+      catch{/* Expired sessions or network errors must not block local sign-out. */}
+    }
+  })()
+    .finally(()=>{if(logoutPromise===pending)logoutPromise=null});
+  logoutPromise=pending;
+  return pending;
 }
 export async function me(){return request<User>('/auth/me');}
 export async function getDashboard(){return request<Dashboard>('/statistics/dashboard');}
@@ -130,19 +175,30 @@ export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.del
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
+    const generation=authGeneration;
     const headers=new Headers();
     if(accessToken)headers.set('Authorization',`Bearer ${accessToken}`);
     const response=await fetch(`${API_BASE}${path}`,{headers,credentials:'include'});
     if(response.status===401&&retry){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const renewed=await refresh();
-      if(renewed)return read(false);
+      if(renewed && generation===authGeneration)return read(false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok)throw new Error('Не удалось получить медиафайл ('+response.status+')');
-    const url=URL.createObjectURL(await response.blob());
+    const blob=await response.blob();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    const url=URL.createObjectURL(blob);
     privateMediaObjectUrls.add(url);
     return url;
   };
-  if(!accessToken)await refresh();
+  if(!accessToken){
+    const generation=authGeneration;
+    const refreshed=await refresh();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    if(!refreshed)throw new Error('Для просмотра файла необходимо войти в аккаунт.');
+  }
   return read(true);
 }
 export async function getMediaUrl(targetType:string,targetId:string){

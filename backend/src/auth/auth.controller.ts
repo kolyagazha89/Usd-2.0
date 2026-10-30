@@ -313,7 +313,8 @@ export class AuthController {
   @Get('sessions')
   async listSessions(@Req() request: Request) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
-    return this.authService.listMySessions(userId);
+    const cookie = request.cookies?.[process.env.AUTH_COOKIE_NAME ?? 'usd_refresh_token'];
+    return this.authService.listMySessions(userId, typeof cookie === 'string' ? cookie : undefined);
   }
 
   @Delete('sessions/:sessionId')
