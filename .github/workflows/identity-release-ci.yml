@@ -89,3 +89,37 @@ jobs:
         env:
           USD_COMPETITION_JOURNEY_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/competition-journey.e2e-spec.ts
+
+  auth-session-families:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/usd_identity_auth_ci
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: usd_identity_auth_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd_identity_auth_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - name: Verify rotation, replay revocation and concurrent logout on PostgreSQL 18
+        env:
+          USD_AUTH_FAMILY_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/auth-session-family.e2e-spec.ts

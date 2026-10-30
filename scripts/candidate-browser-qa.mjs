@@ -216,6 +216,7 @@ try{
        const focus=await link.evaluate(element=>({active:document.activeElement===element,outline:getComputedStyle(element).outlineStyle,width:parseFloat(getComputedStyle(element).outlineWidth)}));
        assert.ok(focus.active&&focus.outline!=='none'&&focus.width>=2,'keyboard contents navigation has a visible focus indicator');
        await page.keyboard.press('Enter');
+       await page.waitForURL(url=>url.hash===anchor);
        assert.equal(new URL(page.url()).hash,anchor,'keyboard activation reaches the matching heading');
        await page.getByRole('button',{name:'Сбросить поиск'}).click();
        assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'reset restores the original list markers');

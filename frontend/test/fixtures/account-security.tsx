@@ -8,13 +8,15 @@ let calls:Array<{path:string;method:string;body:any}>=[];
 let mutation:(path:string,body:any)=>Promise<any>;
 let listSessions:()=>Promise<any>;
 let failLogout=false;
+let logoutRequest:()=>Promise<any>;
 const sessions=[{id:'session/one',familyId:'family-one',userAgent:'Chrome on Android',ipAddress:'192.0.2.1',createdAt:'2026-10-01T10:00:00Z',updatedAt:'2026-10-29T10:00:00Z',expiresAt:'2026-11-01T10:00:00Z'},
   {id:'session-two',familyId:'family-two',userAgent:null,ipAddress:null,createdAt:'2026-10-02T10:00:00Z',updatedAt:'2026-10-28T10:00:00Z',expiresAt:'2026-11-02T10:00:00Z'}];
 const flush=async()=>{await act(async()=>{await new Promise(resolve=>setTimeout(resolve,0))})};
 const section=()=>{const node=document.querySelector<HTMLElement>('.participant-account-security');assert.ok(node,'account settings must be available inside the cabinet');return node};
 const button=(text:string,scope:ParentNode=section())=>{const node=[...scope.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.trim()===text);assert.ok(node,'missing button: '+text);return node};
 const click=async(text:string)=>{await act(async()=>button(text).click());await flush()};
-const fill=async(id:string,value:string)=>{const input=document.getElementById(id) as HTMLInputElement;assert.ok(input,id);await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}))})};
+const fillInput=async(input:HTMLInputElement,value:string)=>{assert.ok(input);await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}))})};
+const fill=async(id:string,value:string)=>fillInput(document.getElementById(id) as HTMLInputElement,value);
 const submit=async(id:string)=>{const form=document.getElementById(id)!;assert.ok(form);await act(async()=>{form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}))});await flush()};
 const writes=()=>calls.filter(c=>c.method!=='GET'&&c.path!=='/auth/refresh');
 
@@ -24,7 +26,7 @@ async function mount(role='PARTICIPANT',linked=true,judge=false){
   localStorage.clear();calls=[];
   const user={id:'fixture-user',email:'fixture@example.test',role,participantId:linked?'fixture-participant':null,
     ...(judge?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
-  mutation=async()=>({success:true});listSessions=async()=>sessions;failLogout=false;
+  mutation=async()=>({success:true});listSessions=async()=>sessions;failLogout=false;logoutRequest=async()=>({success:true});
   (globalThis as any).__securityFetch=async(url:string,init:RequestInit={})=>{
     const path=new URL(url).pathname,method=init.method??'GET',body=init.body?JSON.parse(String(init.body)):undefined;
     calls.push({path,method,body});
@@ -32,7 +34,7 @@ async function mount(role='PARTICIPANT',linked=true,judge=false){
     try{
       if(path==='/auth/refresh')data={accessToken:'synthetic-access',refreshToken:'synthetic-refresh',user};
       else if(path==='/auth/sessions'&&method==='GET')data=await listSessions();
-      else if(path==='/auth/logout'){if(failLogout)throw Object.assign(Error('Сервис выхода временно недоступен'),{status:503});data={success:true};}
+      else if(path==='/auth/logout'){if(failLogout)throw Object.assign(Error('Сервис выхода временно недоступен'),{status:503});data=await logoutRequest();}
       else if(method!=='GET')data=await mutation(path,body);
       else if(path==='/participants/me')data={participant:{id:'fixture-participant',firstName:'Тест',lastName:'Участник',isPublic:true}};
       else if(['/participants/me/cars','/registrations/me','/stages/public','/participants/teams'].includes(path))data=[];
@@ -124,7 +126,7 @@ export async function runAccountSecurity(){
 
     await mount();
     assert.match(section().textContent??'',/Chrome on Android/);assert.match(section().textContent??'',/Неизвестное устройство/);
-    assert.equal(section().textContent?.includes('Текущая сессия'),false,'API does not identify the current device');
+    assert.equal(section().querySelectorAll('.account-security-current-label').length,0,'a client without server proof must not label a current device');
     const revoke=section().querySelector<HTMLButtonElement>('[aria-label="Завершить сеанс: Chrome on Android"]')!;
     await act(async()=>revoke.click());await flush();assert.equal(writes().length,0);
     await click('Отмена');assert.equal(writes().length,0);
@@ -170,6 +172,32 @@ export async function runAccountSecurity(){
     await act(async()=>finishStaleList(sessions));await flush();
     assert.equal(Boolean(section().querySelector('[aria-label="Завершить сеанс: Chrome on Android"]')),false,'a GET started before successful revocation must not restore the revoked session');
     assert.match(section().textContent??'',/Неизвестное устройство/,'remaining sessions must be visible after revocation');
+
+    await mount();
+    listSessions=async()=>[{...sessions[0],isCurrent:true},sessions[1]];await click('Обновить сеансы');
+    assert.equal(section().querySelectorAll('.account-security-current-label').length,1);
+    assert.equal(section().querySelector('.account-security-current-label')?.textContent,'Это устройство');
+    const currentRevoke=section().querySelector<HTMLButtonElement>('[aria-label="Завершить сеанс: Chrome on Android"]')!;
+    await act(async()=>currentRevoke.click());await flush();
+    assert.match(section().querySelector('[aria-label="Подтверждение завершения сеансов"]')?.textContent??'',/сразу выйдете/);
+    mutation=async()=>{throw Error('Не удалось завершить сеанс')};await click('Да, завершить и выйти');
+    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','failed current-device revocation must keep local auth');
+    mutation=async()=>({success:true});
+    let finishLogout:()=>void=()=>{};
+    logoutRequest=()=>new Promise(resolve=>{finishLogout=()=>resolve({success:true})});
+    await act(async()=>currentRevoke.click());await flush();await click('Да, завершить и выйти');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'proven current-device revocation must clear local auth before remote logout cleanup finishes');
+    assert.match(document.querySelector('h1')?.textContent??'',/С возвращением/);
+    assert.equal(writes().filter(call=>call.method==='DELETE').at(-1)?.path,'/auth/sessions/session%2Fone');
+    mutation=async path=>path==='/auth/login'?{accessToken:'new-access',refreshToken:'new-refresh',user:{id:'fixture-user',email:'fixture@example.test',role:'PARTICIPANT',participantId:'fixture-participant'}}:{success:true};
+    await fillInput(document.querySelector<HTMLInputElement>('.login-card input[type="email"]')!,'fixture@example.test');
+    await fillInput(document.querySelector<HTMLInputElement>('.login-card input[type="password"]')!,'New-password');
+    await act(async()=>document.querySelector('.login-card form')!.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
+    assert.equal(calls.filter(call=>call.path==='/auth/login').length,0,'new login must wait for pending logout cookie cleanup');
+    await act(async()=>finishLogout());await flush();
+    assert.equal(calls.filter(call=>call.path==='/auth/login').length,1);
+    assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh','old logout must not clear a subsequent successful login');
+    assert.ok(section());
 
     await mount();
     let finishList:(value:any)=>void=()=>{};
