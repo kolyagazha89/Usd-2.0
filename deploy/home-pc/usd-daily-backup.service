@@ -1,0 +1,33 @@
+[Unit]
+Description=USD daily off-host PostgreSQL 18 and media backup verification
+Wants=network-online.target
+After=network-online.target docker.service
+Requisite=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+StateDirectory=usd-deployer
+StateDirectoryMode=0700
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/usd-deployer /run/lock
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ExecStart=/usr/local/sbin/usd-daily-backup
+TimeoutStartSec=12h
+TimeoutStopSec=15min
+Restart=on-failure
+RestartSec=15min
+KillMode=control-group
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
