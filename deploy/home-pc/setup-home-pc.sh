@@ -71,7 +71,7 @@ SHA="$(git -C "$SOURCE" rev-parse FETCH_HEAD)"
 git -C "$SOURCE" checkout --force --detach "$SHA"
 git -C "$SOURCE" clean -ffdx
 echo "Проверка CI для main: $SHA"
-python3 "$SOURCE/deploy/home-pc/verify-main-ci.py" "$SHA" 1
+python3 "$SOURCE/deploy/home-pc/verify-main-ci.py" "$SHA" 0
 for service in api frontend; do
   docker pull "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA"
   [[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA")" == "$SHA" ]] ||
