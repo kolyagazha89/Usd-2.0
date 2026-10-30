@@ -434,8 +434,8 @@ body .participant-portal.usd-member .entry-configuration-review{
  border-radius:16px;background:linear-gradient(145deg,#21191e,#171c24);
  color:#f5f6f8;display:grid;gap:12px;
 }
-body .participant-portal.usd-member .entry-configuration-review legend{
- padding:0 8px;font-size:17px;font-weight:780;line-height:1.4;color:#fff;
+body .participant-portal.usd-member .entry-configuration-review h3{
+ margin:0;padding:0;font-size:17px;font-weight:780;line-height:1.4;color:#fff;
 }
 body .participant-portal.usd-member .entry-configuration-review p{
  margin:0;color:#c7cbd3;line-height:1.55;
@@ -459,7 +459,7 @@ body .participant-portal.usd-member .registration-class-count{
 }
 @media(max-width:560px){
  body .participant-portal.usd-member .entry-configuration-review{padding:14px;margin-top:14px}
- body .participant-portal.usd-member .entry-configuration-review legend{font-size:16px}
+ body .participant-portal.usd-member .entry-configuration-review h3{font-size:16px}
  body .participant-portal.usd-member .entry-configuration-changed button{width:100%;justify-content:center}
 }
 
