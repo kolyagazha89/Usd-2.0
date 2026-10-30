@@ -133,15 +133,20 @@ export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.del
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
+    const generation=authGeneration;
     const headers=new Headers();
     if(accessToken)headers.set('Authorization',`Bearer ${accessToken}`);
     const response=await fetch(`${API_BASE}${path}`,{headers,credentials:'include'});
     if(response.status===401&&retry){
       const renewed=await refresh();
-      if(renewed)return read(false);
+      if(renewed && generation===authGeneration)return read(false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok)throw new Error('Не удалось получить медиафайл ('+response.status+')');
-    const url=URL.createObjectURL(await response.blob());
+    const blob=await response.blob();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    const url=URL.createObjectURL(blob);
     privateMediaObjectUrls.add(url);
     return url;
   };
