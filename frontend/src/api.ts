@@ -99,6 +99,7 @@ export async function refresh(){
 }
 export function clearAuthSession(){
   authGeneration++;
+  refreshPromise=null;
   accessToken=null;
   for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}
   privateMediaObjectUrls.clear();
