@@ -31,6 +31,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const PUBLIC_AUTH_ENDPOINT = /^\/auth\/(?:login|register|refresh|logout|forgot-password|reset-password|verify-email|resend-verification|confirm-email-change)(?:[/?]|$)/;
 
 async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<T>{
+  const generation=authGeneration;
   const headers=new Headers(init.headers);
   if(init.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
@@ -48,10 +49,12 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
 
     if(response.status===401 && retry && !PUBLIC_AUTH_ENDPOINT.test(path)){
       const refreshed=await refresh();
-      if(refreshed) return request<T>(path,init,false);
+      if(refreshed && generation===authGeneration) return request<T>(path,init,false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
 
     const data=await response.json().catch(()=>({}));
+    if(generation!==authGeneration && !PUBLIC_AUTH_ENDPOINT.test(path))throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok){
       const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
       e.status=response.status;
