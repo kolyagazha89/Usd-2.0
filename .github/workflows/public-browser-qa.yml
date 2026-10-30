@@ -40,12 +40,18 @@ jobs:
         run: node scripts/browser-qa-routing-regression.mjs
       - name: Check candidate public, participant and admin interfaces
         run: node scripts/candidate-browser-qa.mjs
+      - name: Verify account-security actions and focused controls
+        run: node scripts/account-security-browser-qa.mjs
+        env:
+          USD_ACCOUNT_QA_OUTPUT: ${{ github.workspace }}/account-security-browser-qa
       - name: Save candidate screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: candidate-browser-qa-${{ github.run_attempt }}
-          path: candidate-browser-qa/
+          path: |
+            candidate-browser-qa/
+            account-security-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested
