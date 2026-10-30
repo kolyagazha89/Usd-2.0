@@ -98,6 +98,18 @@ describe('server-side equipment catalog authorization', () => {
       { batteries: [legacy] })).toThrow(BadRequestException);
   });
 
+  it('rejects cross-group type spoofing even with approved catalog identifiers', () => {
+    expect(() => assertCatalogEquipment(catalogs, { headUnits: [
+      { catalogEntryId: subId, brand: 'Deaf Bonce', model: 'Apocalypse', type: 'SUBWOOFER' },
+    ] })).toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [
+      { ...sub, type: 'AMPLIFIER', catalogEntryId: ampId, model: 'AAB-2900' },
+    ] })).toThrow(BadRequestException);
+    expect(() => assertCatalogEquipment(catalogs, { amplifiers: [
+      { catalogEntryId: ampId, brand: 'Deaf Bonce', model: 'AAB-2900', type: 'SUBWOOFER' },
+    ] })).toThrow(BadRequestException);
+  });
+
   it('does not allow new arbitrary text when the catalog is empty', () => {
     expect(() => assertCatalogEquipment({}, { audioComponents: [sub] })).toThrow(BadRequestException);
     expect(() => assertCatalogEquipment({}, { audioComponents: [] })).not.toThrow();
