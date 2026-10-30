@@ -80,6 +80,21 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     await api.logout();
     releaseProtected(new Response(JSON.stringify({id:'old-user',email:'old@example.test',role:'ADMIN'}),{status:200,headers:{'Content-Type':'application/json'}}));
     await assert.rejects(oldMe,/Сеанс завершён/,'a stale successful response must not be exposed after logout');
+    // Private image downloads are also authenticated and must not expose
+    // a previous account's media after a session switch.
+    let releaseMedia;
+    const pendingMedia=new Promise(resolve=>{releaseMedia=resolve});
+    globalThis.fetch=async(url)=>{
+      if(url.includes('/media/private-file/'))return pendingMedia;
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      throw Error('Unexpected request: '+url);
+    };
+    localStorage.setItem('usd_refresh_token','media-token');
+    const staleMedia=api.getPrivateMediaObjectUrl('PARTICIPANT_PHOTO','old-user');
+    await api.logout();
+    releaseMedia(new Response(new Blob(['old-photo']),{status:200}));
+    await assert.rejects(staleMedia,/Сеанс завершён/,'private media from a logged-out account must be rejected');
+
 
 
   }finally{
