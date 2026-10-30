@@ -20,7 +20,7 @@ class MediaBackupTests(unittest.TestCase):
 
     def test_auto_deploy_generates_alphanumeric_media_label(self):
         script = Path(__file__).with_name("auto-deploy.sh").read_text()
-        self.assertIn('"media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$"', script)
+        self.assertIn('"media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$$"', script)
         self.assertNotIn('"media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$"', script)
         label = "media" + "a" * 40 + "20261030T180000Z" + "12345"
         self.assertTrue(label.isalnum())
