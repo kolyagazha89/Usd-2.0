@@ -24,7 +24,7 @@ class BackupTests(unittest.TestCase):
         import re
         from pathlib import Path
         script = Path(__file__).with_name('release-approved.sh').read_text()
-        self.assertIn('"release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$"', script)
+        self.assertIn('"release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$"', script)
         self.assertNotIn('"release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$"', script)
         label = 'release-' + 'a' * 40 + '-20261030T180000Z-12345'
         self.assertIsNotNone(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}', label))
