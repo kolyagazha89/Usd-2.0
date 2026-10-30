@@ -150,6 +150,16 @@ export async function runAccountSecurity(){
     assert.equal(writes().filter(c=>c.path==='/auth/sessions'&&c.method==='DELETE').length,2);
     assert.equal(localStorage.getItem('usd_refresh_token'),null);
 
+    // Bulk session revocation is committed server-side even if the subsequent
+    // remote logout endpoint is unavailable; the browser must still sign out.
+    await mount();
+    failLogout=true;
+    await click('Завершить все сеансы');
+    await click('Да, завершить все и выйти');
+    assert.equal(writes().filter(call=>call.path==='/auth/sessions'&&call.method==='DELETE').length,1);
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'bulk revoke must clear local auth despite remote logout failure');
+    assert.match(document.querySelector('h1')?.textContent??'',/С возвращением/);
+
     await mount();
     const racingRevoke=section().querySelector<HTMLButtonElement>('[aria-label="Завершить сеанс: Chrome on Android"]')!;
     await act(async()=>racingRevoke.click());await flush();
