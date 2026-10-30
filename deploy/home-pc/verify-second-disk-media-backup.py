@@ -40,6 +40,8 @@ def run(label):
         raise RuntimeError("RustFS source has no files")
     if any(p.is_symlink() or not stat.S_ISREG(p.lstat().st_mode) for p in files):
         raise RuntimeError("RustFS source contains unsupported file types")
+    if shutil.disk_usage(MOUNT).free < sum(p.stat().st_size for p in files) + 1024 * 1024 * 1024:
+        raise RuntimeError("insufficient second-disk space for media snapshot")
     if DEST.is_symlink() or DEST.parent.is_symlink():
         raise RuntimeError("unsafe backup directory")
     DEST.mkdir(parents=True, exist_ok=True, mode=0o700)
