@@ -53,3 +53,14 @@
 - Fresh independent review found stale session GET results could restore a revoked row, plus password-cancel keyboard focus loss. Both were reproduced by failing tests, corrected and included in the green full suite. Selected-device success wording now correctly avoids identifying the current device.
 - Ruling: existing API does not identify the current session, so the UI describes any session as potentially belonging to this device and does not claim a current-device badge. A selected revoke retains local auth until its current access ends; bulk revoke and password change sign out locally.
 - This is local candidate evidence only. Email delivery, Ubuntu deployment, production data preservation, real-device acceptance and the full master plan remain unverified by this change. No primary-domain, production, push or merge actions were performed.
+
+## Viewport follow-up — 2026-10-30
+
+The earlier full-element screenshots placed sticky/fixed cabinet chrome inside a tall captured strip and are superseded by normal viewport captures. The runner now starts at the profile top, scrolls to the account heading, waits until smooth scrolling is stable, then checks native input and confirmation focus without manually centering the controls. Each focused control must fit inside the viewport, avoid the header/navigation rectangles, and pass an `elementFromPoint` hit check.
+
+Two actual issues were reproduced with failing browser checks and fixed within `participant-account-security.css`:
+
+- At 320px the bulk-revoke confirmation button occupied y936–1000 while the fixed navigation occupied y924–1000. `scroll-margin-block:110px` on account inputs/buttons keeps focused controls above this chrome.
+- The global `styles.css` selector `.participant-portal [class*="-card"]` matched `.account-security-card-title`, creating the unintended near-black title bars. A more specific scoped transparent background removes them. Computed title-background checks now guard this behavior.
+
+Final verification: `npm test` 149/149; production build passes with the existing large-chunk advisory. The complete synthetic browser command uses `USD_ACCOUNT_QA_OUTPUT=/workspace/scratch/usd-account-viewport-final`, `USD_BROWSER_TOOLING=/opt/codex/runtimes/codex-primary-runtime/dependencies/node`, and `USD_BROWSER_EXECUTABLE=/usr/bin/chromium`. The complete run passed 21 role/layout checks, 6 action scenarios and 24 focused-control/confirmation checks at 1440/390/320px, with zero unexpected remote requests or runtime failures. Evidence is retained at `/workspace/scratch/usd-account-viewport-final/report.json`, with normal profile-top/account-heading screenshots and focused field/confirmation screenshots. This remains local Chromium candidate evidence, with no production requests, writes or live acceptance.

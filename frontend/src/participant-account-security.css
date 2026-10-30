@@ -8,6 +8,7 @@
 .participant-account-security .account-security-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .participant-account-security .account-security-card{min-width:0;padding:26px;border:1px solid var(--account-border);border-radius:20px;background:linear-gradient(145deg,#191c22,#101217);box-shadow:0 14px 40px rgba(0,0,0,.12)}
 .participant-account-security .account-security-card-title{display:flex;align-items:center;gap:10px;margin:0 0 15px;color:#ff6b6b}
+.participant-account-security .account-security-card .account-security-card-title{background:transparent}
 .participant-account-security .account-security-copy{margin-bottom:22px}
 .participant-account-security form,.participant-account-security fieldset{min-width:0;display:grid;gap:15px}
 .participant-account-security fieldset{margin:0 0 2px;padding:0;border:0}
@@ -16,6 +17,7 @@
 .participant-account-security input:focus-visible{border-color:#f76a6a;box-shadow:0 0 0 3px rgba(239,68,68,.17)}
 .participant-account-security small{color:var(--account-muted);font-size:12px;line-height:1.5;margin-top:-6px}
 .participant-account-security button{max-width:100%;min-height:44px;white-space:normal;line-height:1.4;justify-content:center}
+.participant-account-security :is(input,button){scroll-margin-block:110px}
 .participant-account-security button:focus-visible{outline:2px solid #ff8b8b;outline-offset:3px}
 .participant-account-security button:disabled,.participant-account-security fieldset:disabled{opacity:.55;cursor:wait}
 .participant-account-security .secondary-button{color:#f5f6f8;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.19)}
