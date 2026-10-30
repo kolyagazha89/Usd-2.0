@@ -157,7 +157,7 @@ fi
 # Verify mounted disk identity before entering the release transaction.
 [[ "$(findmnt -n -o SOURCE --mountpoint /srv/usd-s3)" == /dev/sdb1 ]] ||
   { echo "Dedicated second disk not mounted; release deferred" >&2; exit 0; }
-/usr/local/libexec/usd-verify-second-disk-media-backup "media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$" ||
+/usr/local/libexec/usd-verify-second-disk-media-backup "media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$$" ||
   { echo "Second-disk media snapshot failed; release deferred" >&2; exit 0; }
 # Recheck branch tip after backup policy verification.
 remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" || {

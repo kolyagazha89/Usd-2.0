@@ -507,7 +507,7 @@ if [[ "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" == 1 ]]; then
   [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 && -z "$local_hdd_snapshot" ]] || { echo "Local second-disk release requires inherited lock" >&2; false; }
   [[ -f /etc/usd-deployer/local-second-disk-approved && ! -L /etc/usd-deployer/local-second-disk-approved && "$(stat -c %u /etc/usd-deployer/local-second-disk-approved)" == 0 && "$(cat /etc/usd-deployer/local-second-disk-approved)" == SAME_PC_SECOND_DISK_ACCEPTED ]] || { echo "Local second-disk release not approved" >&2; false; }
   (( (8#$(stat -c %a /etc/usd-deployer/local-second-disk-approved) & 077) == 0 )) || { echo "Unsafe second disk approval" >&2; false; }
-  /usr/local/libexec/usd-verify-second-disk-db-backup "$archive" "release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$" || { echo "Second disk PostgreSQL copy failed; refusing release" >&2; false; }
+  /usr/local/libexec/usd-verify-second-disk-db-backup "$archive" "release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$" || { echo "Second disk PostgreSQL copy failed; refusing release" >&2; false; }
 elif [[ -z "$local_hdd_snapshot" ]]; then
   db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
   "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
