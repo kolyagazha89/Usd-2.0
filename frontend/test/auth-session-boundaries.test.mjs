@@ -25,6 +25,19 @@ async function withApi(run){
   }
 }
 
+test('anonymous public data survives a failed initial cookie refresh',()=>withApi(async api=>{
+  const response=deferred();
+  globalThis.fetch=async url=>url.endsWith('/auth/refresh')?new Response('{}',{status:401}):response.promise;
+  const publicData=api.apiGet('/stages/public');
+  // Keep the promise observed while the deliberately delayed body is pending.
+  const observed=publicData.then(value=>({value}),error=>({error}));
+  assert.equal(await api.refresh(),null);
+  response.resolve(new Response(JSON.stringify([{id:'public-stage'}])));
+  const result=await observed;
+  assert.equal(result.error,undefined,'guest boot refresh failure must not invalidate unauthenticated public data');
+  assert.deepEqual(result.value,[{id:'public-stage'}]);
+}));
+
 test('new login waits for pending logout cookie cleanup and duplicate logout shares the request',()=>withApi(async api=>{
   const cleanup=deferred();const calls=[];
   globalThis.fetch=async url=>{calls.push(url);if(url.endsWith('/auth/logout'))return cleanup.promise;if(url.endsWith('/auth/login'))return auth();throw Error(url)};
@@ -58,7 +71,8 @@ test('delayed login response cannot restore credentials after logout',()=>withAp
 
 test('protected response body resolving after logout is rejected',()=>withApi(async api=>{
   const body=deferred();const reading=deferred();
-  globalThis.fetch=async url=>url.endsWith('/auth/me')?{status:200,ok:true,json:()=>{reading.resolve();return body.promise}}:new Response('{}');
+  globalThis.fetch=async url=>url.endsWith('/auth/login')?auth('old'):url.endsWith('/auth/me')?{status:200,ok:true,json:()=>{reading.resolve();return body.promise}}:new Response('{}');
+  await api.login('old@example.test','synthetic-password');
   const request=api.me();const rejected=assert.rejects(request,/Сеанс завершён/);
   await reading.promise;await api.logout();body.resolve({id:'old-user'});await rejected;
 }));

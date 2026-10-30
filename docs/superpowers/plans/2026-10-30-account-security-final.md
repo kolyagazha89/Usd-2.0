@@ -16,7 +16,7 @@ Acceptance scope: `docs/USD_MASTER_PLAN.md` sections 7, 10 and 14, tracked by [i
 The added regressions were run against the unmodified production code first: frontend failures reproduced stale protected/private responses, unsafe preflight, duplicate logout and missing current-device UI; backend failures reproduced absent cookie forwarding and markers. They pass after integration.
 
 - Backend production build: pass. Generate with a synthetic unused localhost `DATABASE_URL`; generation/build does not connect to a database. Full Jest suite: **62 suites, 781 tests pass**. Own-session controller/service tests: **15 pass**. `npm run lint`: exit 0, retaining existing warnings outside the new session tests.
-- Frontend production build: pass with the existing large-chunk advisory. Full `npm test`: **169 tests pass**. Coverage includes password and bulk remote-logout failures, current-device revoke error/retry, immediate local logout, relogin during pending cleanup, delayed refresh/login, protected JSON body, private image body, stale 401 and failed/interrupted media preflight.
+- Frontend production build: pass with the existing large-chunk advisory. Full `npm test`: **170 tests pass**. Coverage includes password and bulk remote-logout failures, current-device revoke error/retry, immediate local logout, relogin during pending cleanup, delayed refresh/login, protected JSON body, private image body, stale 401 and failed/interrupted media preflight.
 - `git diff --check`: pass. No schema, migration, dependency, generated Prisma, production data or deployment changes.
 
 Evidence is stored outside the repository in `/workspace/usd-account-final-{frontend,backend}-{build,tests}.log`, `/workspace/usd-account-final-backend-lint.log`, focused/red-test logs and `/workspace/usd-account-final-browser-evidence/`.
@@ -49,3 +49,15 @@ DB operations occur. A job in the identity CI workflow runs it separately.
 ## Limits
 
 Real browser cookie ordering for already in-flight login/refresh responses, cross-tab behavior and live account acceptance remain unproven by the synthetic fixtures. Generation guards discard stale JavaScript credentials/data; explicit response ordering and server family revocation additionally prevent a rotated token surviving logout in the tested scenarios. Cross-tab and physical-device cookie acceptance remain separate checks. No full release-readiness or real-device acceptance claim is made here.
+
+## Guest-page regression found in candidate CI
+
+The generation guard initially rejected unauthenticated public data when guest
+bootstrap refresh returned401. It now binds successful responses only when the
+request actually carried Authorization; stale401 retries remain guarded even
+without a token. Tests first reproduced the failure, then passed with authentic
+old-account setup for protected-response cases. Full frontend170 tests and build
+pass. Built-browser replay of home/stage at1440/1024/390/320 passed8/8, while the
+full generic candidate rerun remains a GitHub acceptance gate. Keyboard anchor
+checks now wait for observable URL navigation after Enter instead of asserting
+before the browser updates the hash. No timeout increase or test bypass.

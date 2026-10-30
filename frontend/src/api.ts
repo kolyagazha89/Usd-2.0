@@ -38,6 +38,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   const headers=new Headers(init.headers);
   if(init.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
+  const sessionBound=headers.has('Authorization');
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), path.startsWith('/admin/permanent-deletion/') ? 120_000 : REQUEST_TIMEOUT_MS);
@@ -58,7 +59,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
     }
 
     const data=await response.json().catch(()=>({}));
-    if(generation!==authGeneration && !PUBLIC_AUTH_ENDPOINT.test(path))throw new Error('Сеанс завершён. Повторите вход.');
+    if(sessionBound && generation!==authGeneration && !PUBLIC_AUTH_ENDPOINT.test(path))throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok){
       const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
       e.status=response.status;

@@ -73,10 +73,12 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     let releaseProtected;
     const pendingProtected=new Promise(resolve=>{releaseProtected=resolve});
     globalThis.fetch=async(url,init)=>{
+      if(url.endsWith('/auth/login'))return new Response(JSON.stringify({accessToken:'old-access',refreshToken:'old-refresh',user:{id:'old-user',role:'ADMIN'}}),{headers:{'Content-Type':'application/json'}});
       if(url.endsWith('/auth/me'))return pendingProtected;
       if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
       throw Error('Unexpected request: '+url);
     };
+    await api.login('old@example.test','synthetic-password');
     const oldMe=api.me();
     await api.logout();
     releaseProtected(new Response(JSON.stringify({id:'old-user',email:'old@example.test',role:'ADMIN'}),{status:200,headers:{'Content-Type':'application/json'}}));
