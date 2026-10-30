@@ -43,11 +43,11 @@ def backup(source, label):
         raise RuntimeError("source dump must be nonempty, root-owned and private")
     if not label.isalnum() or len(label) > 80:
         raise RuntimeError("invalid backup label")
-    if DEST.is_symlink() or (DEST.exists() and os.stat(DEST).st_dev != os.stat(MOUNT).st_dev):
+    if DEST.is_symlink() or DEST.parent.is_symlink() or (DEST.exists() and os.stat(DEST).st_dev != os.stat(MOUNT).st_dev):
         raise RuntimeError("unsafe destination")
     DEST.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(DEST, 0o700)
-    if DEST.stat().st_uid != 0:
+    if DEST.stat().st_uid != 0 or DEST.stat().st_mode & 0o077:
         raise RuntimeError("backup directory must be root-owned")
     target = DEST / (label + ".dump")
     if target.exists() or target.is_symlink():
