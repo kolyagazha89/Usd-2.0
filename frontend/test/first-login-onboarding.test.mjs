@@ -19,7 +19,8 @@ test('first-login participant onboarding offers safe history matching and newcom
 test('newcomer creation requires deliberate confirmation and at least surname plus name',async()=>{
  const app=await read('../src/App.tsx');
  assert.match(app,/if\(!confirmNewProfile\)\{setConfirmNewProfile\(true\);return\}/);
- assert.match(app,/parts\.length<2/);
+ assert.match(app,/if\(!lastName\|\|!firstName\)/);
+ assert.match(app,/middleName:middleName\|\|null/);
  assert.match(app,/apiPost\('\/participants\/me'/);
  assert.match(app,/setConfirmNewProfile\(false\)/);
 });
