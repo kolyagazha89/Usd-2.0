@@ -501,3 +501,65 @@ body .usd-member .member-config-picker-title,body .usd-member .member-config-pic
  body .usd-member .member-config-picker-title h2{font-size:23px!important}
  body .usd-member .member-config-picker-screen{padding-top:16px;gap:10px}
 }
+
+
+/* Impeccable · task-first finishing for the member configurator.
+   Preserve the approved Dark Velocity palette and the white admin workspace. */
+body .usd-member .configuration-editor-page[data-member-view] :is(
+  input,select,textarea,button,a,[role="button"]
+):focus-visible{
+  outline:2px solid #ffd09b!important;
+  outline-offset:3px!important;
+}
+body .usd-member .configuration-editor-page[data-member-view] :is(
+  input,select,textarea
+):focus-visible{
+  border-color:#ffd09b!important;
+}
+body .usd-member .configuration-editor-page[data-member-view] :is(
+  input,select,textarea
+)::placeholder{color:#aab7c1;opacity:1}
+body .usd-member .member-config-directions{
+  scroll-padding-inline:12px;
+}
+body .usd-member .member-config-directions button{
+  white-space:normal;
+  overflow-wrap:normal;
+  text-align:center;
+}
+body .usd-member .member-config-directions button[aria-selected="true"],
+body .usd-member .member-config-directions button[aria-current="step"]{
+  color:#fff!important;
+}
+@media(max-width:760px){
+  body .usd-member .configuration-editor-page[data-member-view]{
+    min-width:0;
+    padding-bottom:calc(22px + env(safe-area-inset-bottom,0px));
+  }
+  body .usd-member .member-config-directions{
+    scrollbar-width:thin;
+    scrollbar-color:#65747d #0b1014;
+    scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+  }
+  body .usd-member .member-config-directions button{
+    min-width:104px;
+    min-height:48px;
+    line-height:1.35!important;
+  }
+  body .usd-member .configuration-editor-page[data-member-view] .config-editor-actions{
+    padding-bottom:max(12px,env(safe-area-inset-bottom,0px))!important;
+  }
+  body .usd-member .configuration-editor-page[data-member-view] :is(input,select,textarea){
+    font-size:max(16px,1rem)!important;
+    min-width:0;
+    max-width:100%;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body .usd-member .configuration-editor-page[data-member-view] :is(button,a,input,select,textarea){
+    scroll-behavior:auto!important;
+    transition-duration:0s!important;
+    animation-duration:0s!important;
+  }
+}
