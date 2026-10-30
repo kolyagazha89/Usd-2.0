@@ -60,7 +60,7 @@ def backup(source, label):
             os.fsync(output.fileno())
         if digest(source) != digest(temp):
             raise RuntimeError("second disk copy checksum mismatch")
-        subprocess.run(["pg_restore", "--list", temp], check=True, stdout=subprocess.DEVNULL)
+        with open(temp, "rb") as archive:\n            subprocess.run(["docker", "exec", "-i", "usd-home-db-1", "pg_restore", "--list"],\n                           stdin=archive, check=True, stdout=subprocess.DEVNULL)
         os.replace(temp, target)
         dir_fd = os.open(DEST, os.O_RDONLY | os.O_DIRECTORY)
         try:
