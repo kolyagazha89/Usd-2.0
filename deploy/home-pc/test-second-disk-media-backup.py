@@ -23,7 +23,7 @@ class MediaBackupTests(unittest.TestCase):
             root = Path(directory)
             (root / "data").mkdir()
             (root / "data" / "file").write_bytes(b"media")
-            with patch.object(media, "MOUNT", root), patch.object(media, "SOURCE", root / "data"), patch.object(media, "DEST", root / "backups" / "rustfs"), patch.object(media.os, "geteuid", return_value=0), patch.object(media.subprocess, "check_output", return_value="/dev/sdb1"):
+            with patch.object(media, "MOUNT", root), patch.object(media, "SOURCE", root / "data"), patch.object(media, "DEST", root / "backups" / "rustfs"), patch.object(media.os, "geteuid", return_value=0), patch.object(media.subprocess, "check_output", return_value="/dev/sdb1"), patch.object(Path, "is_mount", return_value=True):
                 with self.assertRaisesRegex(RuntimeError, "invalid snapshot label"):
                     media.run("../escape")
 
