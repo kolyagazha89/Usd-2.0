@@ -138,7 +138,8 @@ fi
 [[ -x "$RUNNER/runsvc.sh" ]] || { echo 'Registered runner installation is incomplete: runsvc.sh missing' >&2; exit 1; }
 usd_runner_id="$(python3 - "$RUNNER/.runner" <<'PY'
 import json,sys
-data=json.load(open(sys.argv[1]))
+with open(sys.argv[1], encoding='utf-8-sig') as runner_file:
+    data=json.load(runner_file)
 if data.get('gitHubUrl','').rstrip('/')!='https://github.com/kolyagazha89/Usd-2.0':raise SystemExit('Runner is registered to a different repository')
 print(int(data['agentId']))
 PY
