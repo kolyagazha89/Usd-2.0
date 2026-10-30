@@ -45,6 +45,21 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     assert.equal(localStorage.getItem('usd_refresh_token'),null);
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/refresh')).length,1);
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/logout')).length,1);
+
+    // An old refresh must not block a new session from refreshing after logout.
+    localStorage.setItem('usd_refresh_token','new-login-token');
+    let releaseSecondRefresh;
+    const secondRefresh=new Promise(resolve=>{releaseSecondRefresh=resolve});
+    globalThis.fetch=async(url,init)=>{
+      calls.push({url,init});
+      if(url.endsWith('/auth/refresh'))return secondRefresh;
+      throw Error('Unexpected request: '+url);
+    };
+    const newSessionRefresh=api.refresh();
+    assert.equal(calls.at(-1).init.body,JSON.stringify({refreshToken:'new-login-token'}));
+    releaseSecondRefresh(new Response(JSON.stringify({accessToken:'fresh-access',refreshToken:'fresh-refresh',user:{id:'u2',role:'PARTICIPANT'}}),{status:200,headers:{'Content-Type':'application/json'}}));
+    assert.equal((await newSessionRefresh).accessToken,'fresh-access');
+    assert.equal(localStorage.getItem('usd_refresh_token'),'fresh-refresh');
   }finally{
     for(const [key,descriptor]of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
     dom.window.close();
