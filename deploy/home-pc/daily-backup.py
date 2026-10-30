@@ -99,11 +99,15 @@ def command(args, *, stdout=None, stdin=None, timeout=120, log=None):
         try:
             process.communicate(timeout=TERM_GRACE_SECONDS)
         except subprocess.TimeoutExpired:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            process.communicate()
+            pass
+        # A shell may exit promptly while a background verifier ignores TERM.
+        # communicate() then returns when output was redirected to a log file;
+        # terminate the remaining group even if its original leader has exited.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate()
         if not isinstance(error, subprocess.TimeoutExpired):
             raise
         raise BackupError('Backup command unavailable or timed out; sensitive output withheld', 75) from None
