@@ -435,6 +435,10 @@ or signature failures keep current services untouched; the timer retries later.
 Existing running images remain the supervised rollback baseline during the
 transition from old unsigned releases. No new unsigned candidate is admitted.
 There is no option to skip signatures, certificate checks or transparency checks.
+Rehearsal runs the authenticated local content ID. Before application replacement,
+the SHA tags are restored from captured authenticated IDs and Compose uses
+`--pull never`. Pruning during a long backup therefore stops the release instead
+of fetching different bytes from a mutable registry tag.
 This code must be installed on Ubuntu before its protections exist there.
 
 Every main SHA now runs and must pass Backend CI, Home PC deployment safety,

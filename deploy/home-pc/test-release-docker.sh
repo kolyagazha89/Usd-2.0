@@ -89,7 +89,7 @@ chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == ghcr.io/kolyagazha89/usd-2.0-api:* ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
 root=/home/usd/usd-deploy/deploy/home-pc
 compose=(docker compose --env-file "$root/.env" -f "$root/compose.yaml")
 name="release_rehearsal_${BASHPID}"

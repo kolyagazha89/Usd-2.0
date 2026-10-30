@@ -563,7 +563,7 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
   { echo "Missing or untrusted root-owned PostgreSQL restore verifier; refusing release" >&2; false; }
 (( (8#$(stat -c %a "$RESTORE_VERIFIER") & 022) == 0 )) ||
   { echo "PostgreSQL restore verifier must not be group/world writable" >&2; false; }
-"$RESTORE_VERIFIER" "$archive" "ghcr.io/kolyagazha89/usd-2.0-api:$NEW_TAG" ||
+"$RESTORE_VERIFIER" "$archive" "$new_api_id" ||
   { echo "Fresh PostgreSQL restore/migration rehearsal failed; refusing release" >&2; false; }
 [[ "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")" == "$db_before" &&
    "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
@@ -585,6 +585,11 @@ fi
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
 cp -p .env "$tmp"
+# Long backup/rehearsal may overlap ordinary image pruning. Restore the SHA
+# tags only from authenticated local content IDs. If the bytes disappeared,
+# stop before changing .env; never let Compose pull replacement bytes by tag.
+docker image tag "$new_api_id" "ghcr.io/kolyagazha89/usd-2.0-api:$NEW_TAG"
+docker image tag "$new_frontend_id" "ghcr.io/kolyagazha89/usd-2.0-frontend:$NEW_TAG"
 sed -i -E "s/^USD_IMAGE_TAG=[a-f0-9]{40}$/USD_IMAGE_TAG=$NEW_TAG/" "$tmp"
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
 # Off-host backups and a full PostgreSQL restore can take minutes or hours.
@@ -605,7 +610,7 @@ if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
 fi
 changed=1
 mv -f "$tmp" .env
-docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --pull never --no-deps api frontend
 
 # In-container checks work even when no localhost ports are published.
 # Both services must return HTTP 200; checking 404 on the API is not sufficient.

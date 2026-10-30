@@ -96,7 +96,7 @@ chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == "ghcr.io/kolyagazha89/usd-2.0-api:2222222222222222222222222222222222222222" ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" == "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ]] || exit 1
 [[ "${USD_TEST_FAIL_RESTORE_REHEARSAL:-0}" != 1 ]] || exit 1
 RESTORE
 chmod 0700 "$RESTORE_VERIFIER"
@@ -150,7 +150,10 @@ if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then
   fi
   exit 0
 fi
-if [[ "${1:-}" == image && "${2:-}" == tag ]]; then exit 0; fi
+if [[ "${1:-}" == image && "${2:-}" == tag ]]; then
+  if [[ "${USD_TEST_MISSING_VERIFIED_CANDIDATE:-0}" == 1 && "$4" == *":$USD_TEST_NEW" ]]; then exit 1; fi
+  exit 0
+fi
 if [[ "${1:-}" == ps ]]; then
   case "$*" in
     *service=api*) echo mock-api ;;
@@ -550,6 +553,10 @@ grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 chmod 0755 "$PUBLIC_VERIFIER"
 # A mutable SHA tag must not substitute another image after signature approval.
 rm -f "$USD_TEST_ROLLBACK_MARKER"
+before_pruned_candidate="$(wc -l < "$USD_TEST_LOG")"
+if USD_TEST_MISSING_VERIFIED_CANDIDATE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/pruned-candidate.log" 2>&1; then exit 1; fi
+[[ "$(wc -l < "$USD_TEST_LOG")" == "$before_pruned_candidate" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 if USD_TEST_ROLLBACK_TAG_ID_MISMATCH=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-rollback-tag.log" 2>&1; then exit 1; fi
 grep -q 'Rollback tag does not identify' "$WORK/wrong-rollback-tag.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
