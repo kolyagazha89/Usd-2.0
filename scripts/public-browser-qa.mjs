@@ -2,6 +2,8 @@ import {createRequire} from 'node:module';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {getLiveQaConfig} from './public-browser-qa-config.mjs';
+import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
+import {handleLiveQaRoute} from './public-browser-qa-routing.mjs';
 
 const tooling=process.env.USD_BROWSER_TOOLING;
 if(!tooling)throw new Error('Set USD_BROWSER_TOOLING to the temporary Playwright installation');
@@ -35,25 +37,20 @@ async function inspectResultText(page){
   ));
 }
 const hasSurface=element=>!['transparent','rgba(0, 0, 0, 0)'].includes(element.background)||element.backgroundImage!=='none'||element.shadow!=='none';
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch(getBrowserLaunchOptions());
 const routes=['/','/stages?season=ALL','/stages?season=2025','/results','/records','/rules','/privacy','/terms','/consent','/login','/reset-password','/confirm-email-change'];
 try{
   for(const width of [1440,390]){
-    const context=await browser.newContext({viewport:{width,height:900},deviceScaleFactor:1});
-    await context.route('**/*',async route=>{
-      const request=route.request();
-      if(['GET','HEAD','OPTIONS'].includes(request.method()))return route.continue();
-      report.blockedRequests.push({method:request.method(),url:request.url().split('?')[0]});
-      // Anonymous session bootstrap needs a deterministic response, with no live POST.
-      if(new URL(request.url()).pathname==='/auth/refresh')return route.fulfill({status:401,contentType:'application/json',body:'{"message":"Anonymous QA session"}'});
-      return route.abort('blockedbyclient');
-    });
+    const context=await browser.newContext({viewport:{width,height:900},deviceScaleFactor:1,serviceWorkers:'block'});
+    await context.route('**/*',route=>handleLiveQaRoute(route,report.blockedRequests));
     const page=await context.newPage();
     for(const route of routes){
       const errors=[];
       const onError=error=>errors.push(error.message);
       page.on('pageerror',onError);
       const row={width,route};
+      const startedAt=Date.now();
+      console.log('PUBLIC_QA_START '+JSON.stringify(row));
       try{
         await page.goto(base+route,{waitUntil:'domcontentloaded',timeout:60000});
         await page.locator('.usd-live,.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
@@ -116,13 +113,16 @@ try{
       const filename=width+'-'+route.replace(/[^a-zA-Z0-9]/g,'_')+'.png';
       await page.screenshot({path:path.join(output,filename),fullPage:false}).catch(error=>{row.screenshotError=error.message});
       page.off('pageerror',onError);
+      row.durationMs=Date.now()-startedAt;
       report.pages.push(row);
       console.log(JSON.stringify(row));
+      await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
     }
     await context.close();
   }
 }finally{
   await browser.close();
+  for(const request of report.blockedRequests.filter(request=>['redirect','read failed'].includes(request.reason)))report.failures.push({route:request.url,error:request.reason==='redirect'?'Live QA blocked an HTTP redirect before following it':'Live QA read failed before a response was available'});
   report.finishedAt=new Date().toISOString();
   await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
 }
