@@ -20,6 +20,13 @@ class BackupTests(unittest.TestCase):
             second.write_bytes(b'changed')
             self.assertNotEqual(module.digest(first), module.digest(second))
 
+    def test_release_label_is_safe(self):
+        import re
+        pattern = r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}'
+        self.assertIsNotNone(re.fullmatch(pattern, 'release-' + 'a' * 40 + '-20261030T180000Z-1234'))
+        for unsafe in ('../escape', 'release/escape', '.hidden', 'a b', 'a\\\\b', 'a' * 81):
+            self.assertIsNone(re.fullmatch(pattern, unsafe))
+
     def test_rejects_world_readable_dump(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'dump'
