@@ -7,6 +7,7 @@ must still rehearse a full PostgreSQL restore before switching images.
 import argparse
 import hashlib
 import os
+import re
 from pathlib import Path
 import shutil
 import stat
@@ -41,7 +42,7 @@ def backup(source, label):
     st = source.lstat()
     if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_size == 0 or st.st_mode & 0o077:
         raise RuntimeError("source dump must be nonempty, root-owned and private")
-    if not label.isalnum() or len(label) > 80:
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}', label):
         raise RuntimeError("invalid backup label")
     if DEST.is_symlink() or DEST.parent.is_symlink() or (DEST.exists() and os.stat(DEST).st_dev != os.stat(MOUNT).st_dev):
         raise RuntimeError("unsafe destination")
