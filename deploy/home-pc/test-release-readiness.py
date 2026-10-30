@@ -48,21 +48,22 @@ class ReadinessTests(unittest.TestCase):
             path.chmod(0o640)
             self.assertFalse(readiness.check_private_file(root, "etc/usd-deployer/media-backup.conf", require_private=True)[0])
 
-    def test_distinct_offsite_remotes_required(self):
+    def test_explicit_private_second_disk_approval_required(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            path = root / "etc/usd-deployer/media-backup.conf"
+            path = root / "etc/usd-deployer/local-second-disk-approved"
             path.parent.mkdir(parents=True)
-            path.write_text("local:media\nlocal:backup\n")
+            path.write_text("SAME_PC_SECOND_DISK_ACCEPTED\n")
+            path.chmod(0o600)
             with patch.object(readiness.shutil, "which", return_value="/usr/bin/tool"):
                 result = readiness.assess(root)
-            item = next(x for x in result["checks"] if x["name"] == "media-offhost-policy")
+            item = next(x for x in result["checks"] if x["name"] == "second-disk-risk-accepted")
+            self.assertEqual(item["ok"], os.geteuid() == 0)
+            path.write_text("NOT_APPROVED\n")
+            with patch.object(readiness.shutil, "which", return_value="/usr/bin/tool"):
+                result = readiness.assess(root)
+            item = next(x for x in result["checks"] if x["name"] == "second-disk-risk-accepted")
             self.assertFalse(item["ok"])
-            path.write_text("local:media\noffsite:backup\n")
-            with patch.object(readiness.shutil, "which", return_value="/usr/bin/tool"):
-                result = readiness.assess(root)
-            item = next(x for x in result["checks"] if x["name"] == "media-offhost-policy")
-            self.assertTrue(item["ok"])
 
     def test_json_report_has_no_policy_contents_or_secrets(self):
         with tempfile.TemporaryDirectory() as folder:

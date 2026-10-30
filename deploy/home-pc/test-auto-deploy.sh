@@ -34,9 +34,9 @@ for old,new in {
  '/var/lib/usd-deployer':work+'/state',
  '/etc/usd-deploy-enabled':work+'/enabled',
  '/etc/usd-auto-release-schema':work+'/policy',
- '/etc/usd-deployer/media-backup.conf':work+'/media-policy',
- '/etc/usd-deployer/db-backup.conf':work+'/db-offsite-policy',
- '/usr/local/libexec/usd-verify-media-backup':work+'/media-verify',
+ '/etc/usd-deployer/local-second-disk-approved':work+'/local-policy',
+ '/usr/local/libexec/usd-verify-second-disk-db-backup':work+'/db-verify',
+ '/usr/local/libexec/usd-verify-second-disk-media-backup':work+'/media-verify',
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
  '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
@@ -86,7 +86,7 @@ cat > "$WORK/release" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 # The builder must not release its exclusive lock before invoking the helper.
-[[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]
+[[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" == 1 ]]
 [[ "$(readlink /proc/self/fd/9)" == "$USD_TEST_WORK/lock" ]]
 exec 10>"$USD_TEST_WORK/lock"
 if flock -n 10; then echo 'Builder released its lock before handoff' >&2; exit 1; fi
@@ -100,7 +100,7 @@ SH
 cat > "$WORK/media-verify" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && "$1" == "usd-media:current" && "$2" == usd-offsite:verified/* ]] || exit 1
+[[ "$#" == 1 && "$1" == media* ]] || exit 1
 echo "$*" >> "$USD_TEST_WORK/media.log"
 if [[ "${USD_TEST_MOVE_MAIN_DURING_MEDIA:-0}" == 1 ]]; then
   touch "$USD_TEST_WORK/main-moved-during-media"
@@ -111,6 +111,10 @@ cat > "$WORK/verify-ci" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$USD_TEST_WORK/ci.log"
 exit "${USD_TEST_CI_STATUS:-0}"
+SH
+cat > "$WORK/bin/findmnt" <<'SH'
+#!/usr/bin/env bash
+printf '/dev/sdb1\n'
 SH
 chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci" "$WORK/media-verify"
 export PATH="$WORK/bin:$PATH"
@@ -175,33 +179,25 @@ bash "$WORK/builder" > "$WORK/invalid-main.log" 2>&1
 grep -q 'Invalid main branch tip response' "$WORK/invalid-main.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_REMOTE_SHA
-# Even with approved schema and green CI, no off-host PostgreSQL policy
-# means build-only rather than quarantining a healthy candidate.
-bash "$WORK/builder" > "$WORK/no-db-offsite-policy.log"
-grep -q 'off-host PostgreSQL backup policy missing; build-only mode' "$WORK/no-db-offsite-policy.log"
+# Second-disk acceptance and a fresh media snapshot are mandatory.
+bash "$WORK/builder" > "$WORK/no-local-policy.log"
+grep -q 'Second-disk risk acceptance missing' "$WORK/no-local-policy.log"
 [[ ! -f "$WORK/releases.log" ]]
-printf 'usd-db-offsite:verified\n' > "$WORK/db-offsite-policy"
-chmod 600 "$WORK/db-offsite-policy"
-# Even with approved schema and green CI, no media policy means build-only.
-bash "$WORK/builder" > "$WORK/no-media-policy.log"
-grep -q 'off-host media backup policy missing; build-only mode' "$WORK/no-media-policy.log"
-[[ ! -f "$WORK/releases.log" ]]
-printf 'usd-media:current\nusd-offsite:verified\n' > "$WORK/media-policy"
-chmod 666 "$WORK/media-policy"
-if bash "$WORK/builder" > "$WORK/insecure-media-policy.log" 2>&1; then exit 1; fi
-grep -q 'Media backup policy must be private and root-owned' "$WORK/insecure-media-policy.log"
-[[ ! -f "$WORK/releases.log" ]]
-chmod 600 "$WORK/media-policy"
+printf 'SAME_PC_SECOND_DISK_ACCEPTED\n' > "$WORK/local-policy"
+chmod 666 "$WORK/local-policy"
+if bash "$WORK/builder" > "$WORK/insecure-local-policy.log" 2>&1; then exit 1; fi
+grep -q 'Local backup approval must be private' "$WORK/insecure-local-policy.log"
+chmod 600 "$WORK/local-policy"
+touch "$WORK/db-verify"
+chmod 700 "$WORK/db-verify"
 export USD_TEST_FAIL_MEDIA=1
 bash "$WORK/builder" > "$WORK/media-failure.log" 2>&1
-grep -q 'Off-host media backup/restore failed' "$WORK/media-failure.log"
+grep -q 'Second-disk media snapshot failed' "$WORK/media-failure.log"
 [[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
 unset USD_TEST_FAIL_MEDIA
-# The backup can be slow; a new main push during it must invalidate the
-# earlier SHA even though CI passed before the backup started.
 export USD_TEST_MOVE_MAIN_DURING_MEDIA=1
 bash "$WORK/builder" > "$WORK/main-moved-during-media.log" 2>&1
-grep -q 'Main moved or became unverifiable during media backup' "$WORK/main-moved-during-media.log"
+grep -q 'Main moved or became unverifiable' "$WORK/main-moved-during-media.log"
 [[ ! -f "$WORK/releases.log" ]]
 rm -f "$WORK/main-moved-during-media"
 unset USD_TEST_MOVE_MAIN_DURING_MEDIA

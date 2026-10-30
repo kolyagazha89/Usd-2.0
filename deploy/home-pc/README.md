@@ -1,3 +1,9 @@
+## Same-PC second HDD mode
+
+Operator-selected local backups use /dev/sdb1 mounted at /srv/usd-s3, without cloud remotes. Each release requires an explicit private root-owned approval, a checksum-verified PostgreSQL dump copied to /srv/usd-s3/backups/postgres, a verified RustFS file snapshot at /srv/usd-s3/backups/rustfs, and isolated PostgreSQL restore/migration rehearsal before application replacement. Failed checks leave live containers unchanged.
+
+**Risk:** The media snapshot and original RustFS data reside on the same /dev/sdb1 filesystem, so disk failure can destroy both. PostgreSQL is backed up to a separate drive, but total PC loss remains unprotected. Backup retention must be managed manually until a safe policy is implemented.
+
 # USD — migration to Windows/Hyper-V/Ubuntu (staged)
 
 ## Разовый запуск на существующем домашнем сервере
