@@ -86,13 +86,10 @@ def assess(root=Path("/"), live=False):
         valid_media = False
     add("media-offhost-policy", valid_media, "distinct remotes" if valid_media else "missing/invalid remote pair")
 
-    db_policy = root / "etc/usd-deployer/db-backup.conf"
-    try:
-        db_lines = db_policy.read_text(encoding="utf-8").splitlines()
-        valid_db = len(db_lines) > 0 and all(line.strip() for line in db_lines)
-    except (OSError, UnicodeError):
-        valid_db = False
-    add("db-offhost-policy", valid_db, "nonempty configuration" if valid_db else "missing/empty configuration")
+    # The deployer sources this policy in a supervised release. Only verify
+    # existence/ownership here; never echo or parse secrets into the report.
+    db_policy_ok, _ = check_private_file(root, "etc/usd-deployer/db-backup.conf", require_private=True)
+    add("db-offhost-policy", db_policy_ok, "trusted private file" if db_policy_ok else "missing/untrusted configuration")
 
     verifier = root / "usr/local/libexec/usd-verify-media-backup"
     trusted_verifier, detail = check_private_file(root, "usr/local/libexec/usd-verify-media-backup")
