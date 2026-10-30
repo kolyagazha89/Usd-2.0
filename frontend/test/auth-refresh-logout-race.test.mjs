@@ -60,6 +60,14 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     releaseSecondRefresh(new Response(JSON.stringify({accessToken:'fresh-access',refreshToken:'fresh-refresh',user:{id:'u2',role:'PARTICIPANT'}}),{status:200,headers:{'Content-Type':'application/json'}}));
     assert.equal((await newSessionRefresh).accessToken,'fresh-access');
     assert.equal(localStorage.getItem('usd_refresh_token'),'fresh-refresh');
+    // If the network fails while signing out, local credentials stay cleared.
+    globalThis.fetch=async(url)=>{
+      if(url.endsWith('/auth/logout'))throw Error('Network offline');
+      throw Error('Unexpected request: '+url);
+    };
+    await api.logout();
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'offline logout must remain local logout');
+
   }finally{
     for(const [key,descriptor]of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
     dom.window.close();
