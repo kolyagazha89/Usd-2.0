@@ -154,8 +154,9 @@ export async function getPrivateMediaObjectUrl(targetType:string,targetId:string
   };
   if(!accessToken){
     const generation=authGeneration;
-    await refresh();
+    const refreshed=await refresh();
     if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    if(!refreshed)throw new Error('Для просмотра файла необходимо войти в аккаунт.');
   }
   return read(true);
 }
