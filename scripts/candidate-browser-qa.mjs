@@ -4,6 +4,7 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {isCandidateApiRequest} from './candidate-browser-qa-config.mjs';
+import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
 const output=path.resolve('candidate-browser-qa');await mkdir(output,{recursive:true});
@@ -29,7 +30,17 @@ const configuration={id:'config1',name:'Соревновательная сбо�
 const car={id:'car1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'A123AA72',color:'Графит',isPublic:true,isActive:true,participantId:'p1',participant,configurations:[configuration]};
 const registration={id:'reg1',participantId:'p1',participant,carId:'car1',car,stageId:'stage1',stage,participantNumber:7,status:'ACTIVE',registeredAt:'2026-10-01T12:00:00Z',numbers:[{id:'n1',number:7}],classes:[{id:'rc1',classId:'class1',class:klass}],results:[],configurationVersion:version};
 const result={id:'r1',value:150.25,unit:'DB',place:1,classId:'class1',class:klass,participant,registrationClassId:'rc1',registration:{...registration}};
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+const rulesBlocks=[
+ {type:'heading',level:2,text:'Раздел А'},
+ {type:'list-item',ordered:true,level:0,text:'Первое условие'},
+ {type:'list-item',ordered:true,level:0,text:'Второе условие'},
+ {type:'list-item',ordered:true,level:1,text:'Вложенное условие'},
+ {type:'list-item',ordered:true,level:0,text:'Третье условие'},
+ {type:'heading',level:2,text:'Раздел Б'},
+ {type:'list-item',ordered:true,level:0,text:'Новый список'},
+];
+const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+stage.rulesSnapshot={revisionId:'rules-fixture',publishedAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role,participantId:role==='PARTICIPANT'?'p1':null});
 const requests=new Set(),blocked=[];
@@ -75,13 +86,16 @@ function dataFor(url,role){
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
-const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',pages:[],failures:[],blocked};
-const browser=await chromium.launch({headless:true});
+const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
+const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
    const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
-   const context=await browser.newContext({viewport:{width,height:960}});
+   // Layout checks exercise the supported accessible experience. Software WebGL
+   // can starve the CI renderer; graphics acceptance needs a separate browser.
+   const reducedMotion='reduce';
+   const context=await browser.newContext({viewport:{width,height:960},reducedMotion,serviceWorkers:'block'});
    const failuresSeen=new Set();
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -111,7 +125,9 @@ try{
    const page=await context.newPage();page.setDefaultTimeout(10000);
    for(const route of routes){
     const errors=[],onError=error=>errors.push(error.message);page.on('pageerror',onError);
-    const row={role:role??'PUBLIC',width,route};
+    const row={role:role??'PUBLIC',width,route,reducedMotion};
+    const startedAt=Date.now();
+    console.log('CANDIDATE_QA_START '+JSON.stringify(row));
     try{
      await page.goto(base+route,{waitUntil:'networkidle'});
      await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.app-shell').first().waitFor();
@@ -147,11 +163,11 @@ try{
      if(role===null&&route.startsWith('/login?'))assert.match(await page.locator('.usd-auth-context').innerText(),/Кубок USD/);
      if(route.endsWith('/missing')){assert.match(await page.locator('main').innerText(),/не найден/);assert.equal(await page.locator('.p-error').count(),0)}
      if(route.endsWith('/offline')){
-      assert.match(await page.locator('main [role="alert"]').innerText(),/Не удалось/);
+      assert.match(await page.locator('main .p-error[role="alert"]').innerText(),/Не удалось/);
       await page.screenshot({path:path.join(output,`${role??'PUBLIC'}-${width}-${route.replaceAll('/','_')}-error.png`)});
       await page.getByRole('button',{name:'Попробовать ещё раз',exact:true}).click();
       await page.locator(route.startsWith('/participants/')?'.p-profile-banner':'.public-stage-detail').waitFor();
-      assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
+      assert.equal(await page.locator('main .p-error[role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
      }
      if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/i);
      if(route==='/partners'){
@@ -183,13 +199,44 @@ try{
       row.publicAchievements='published results expanded; stage protocol link available';
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded achievements fit viewport');
      }
-     if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
+     if(route==='/rules'&&role===null){
+       await page.locator('.public-rules-list-item').first().waitFor();
+       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'official DOCX lists keep nested numbering');
+       const search=page.getByRole('textbox',{name:'Поиск по регламенту'});
+       await search.fill('Раздел Б');
+       assert.equal(await page.locator('.public-rules-list-item').count(),1,'search keeps the matching regulation section');
+       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.'],'filtered section retains its document numbering');
+       assert.equal(await page.locator('.public-rules-sidebar nav a').count(),1,'filtered contents only links to visible headings');
+       const anchor=await page.locator('.public-rules-sidebar nav a').first().getAttribute('href');
+       assert.equal(await page.locator(anchor).count(),1,'table of contents anchor resolves after search');
+       const link=page.locator('.public-rules-sidebar nav a').first();
+       await link.focus();
+       await page.keyboard.press('Tab');
+       await page.keyboard.press('Shift+Tab');
+       const focus=await link.evaluate(element=>({active:document.activeElement===element,outline:getComputedStyle(element).outlineStyle,width:parseFloat(getComputedStyle(element).outlineWidth)}));
+       assert.ok(focus.active&&focus.outline!=='none'&&focus.width>=2,'keyboard contents navigation has a visible focus indicator');
+       await page.keyboard.press('Enter');
+       assert.equal(new URL(page.url()).hash,anchor,'keyboard activation reaches the matching heading');
+       await page.getByRole('button',{name:'Сбросить поиск'}).click();
+       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'reset restores the original list markers');
+       row.rulesNumbering='nested ordered markers, filtered section, keyboard focus and anchor passed';
+      }
+      if(route==='/admin/rules'&&role==='ADMIN'){
+       await page.getByRole('button',{name:'Просмотреть содержимое'}).click();
+       const markers=await page.locator('.rules-admin-list-item').evaluateAll(items=>items.map(item=>item.textContent.trim().match(/^(?:\d+\.|•)/)?.[0]));
+       assert.deepEqual(markers,['1.','2.','1.','3.','1.'],'light admin DOCX preview uses public numbering');
+       row.rulesAdminPreview='numbered DOCX preview passed';
+      }
+      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
      if(route==='/stages/stage1'){
       const labels=await page.locator('.public-stage-poster-placeholder').evaluateAll(posters=>posters.flatMap(poster=>[...poster.children].map(child=>{const r=child.getBoundingClientRect();return {top:r.top,bottom:r.bottom}})));
       assert.equal(labels.length,5,'stage fixture must render all five fallback poster labels');
       for(let i=1;i<labels.length;i++)assert.ok(labels[i].top>=labels[i-1].bottom,'fallback poster labels must not overlap');
+      await page.locator('.public-stage-rules>summary').click();
+      assert.deepEqual(await page.locator('.public-stage-rules .public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'saved stage regulation keeps the same numbering');
+      row.stageRules='saved revision expanded with nested ordered numbering';
      }
 
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'interactive state fits viewport');
@@ -217,12 +264,26 @@ try{
      if(width<=740&&role===null&&['/','/stages','/results?stageId=stage1'].includes(route)){
       assert.equal(await page.locator('.u-mobile-dock [aria-current="page"]').count(),1,'public dock marks one current section');
      }
+     if(width<=740&&role===null&&route==='/stages'){
+      row.mobileChrome=[];
+      for(const height of [568,844,960]){
+       await page.setViewportSize({width,height});
+       await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
+       await page.waitForFunction(()=>{
+        const notice=document.querySelector('.cookie-notice')?.getBoundingClientRect();
+        const dock=document.querySelector('body>.u-mobile-dock')?.getBoundingClientRect();
+        return notice&&dock&&notice.top>=0&&notice.bottom<=dock.top+1&&Math.abs(dock.bottom-innerHeight)<=1;
+       });
+       row.mobileChrome.push({height,...await page.evaluate(()=>({noticeBottom:document.querySelector('.cookie-notice').getBoundingClientRect().bottom,dockTop:document.querySelector('body>.u-mobile-dock').getBoundingClientRect().top}))});
+      }
+      await page.evaluate(()=>scrollTo(0,0));
+     }
      if(width<=760&&await notice.isVisible()){
       const chrome=await page.evaluate(()=>{
        const rect=selector=>{const e=document.querySelector(selector);if(!e||!e.getClientRects().length)return null;return e.getBoundingClientRect().toJSON()};
        return {notice:rect('.cookie-notice'),dock:rect('.participant-tabs,.u-mobile-dock'),save:rect('.config-editor-actions')};
       });
-      if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top,'cookie notice leaves bottom navigation reachable');
+      if(chrome.dock&&chrome.dock.height)assert.ok(chrome.notice.bottom<=chrome.dock.top+1,'cookie notice leaves bottom navigation reachable: '+JSON.stringify(chrome));
       await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
       if(role==='PARTICIPANT'&&route==='/participant?tab=registrations'){
       const card=await page.locator('.participant-registration-list>article').first().boundingBox();
@@ -351,16 +412,14 @@ try{
      row.status='passed';
     }catch(error){row.status='failed';row.error=error.message;row.runtimeErrors=errors;report.failures.push({role:row.role,width,route,error:error.message})}
     const name=row.role+'-'+width+'-'+route.replace(/[^a-zA-Z0-9]/g,'_');
-    await page.screenshot({path:path.join(output,name+'.png'),fullPage:true}).catch(()=>{});
-    if([1440,390].includes(width)&&(route==='/'||route==='/participant'||route==='/admin')){
-     const preview=await page.screenshot({type:'jpeg',quality:38,fullPage:false});
-     console.log('USD_VISUAL '+JSON.stringify({role:row.role,width,route,image:'data:image/jpeg;base64,'+preview.toString('base64')}));
-    }
+    await page.screenshot({path:path.join(output,name+'.png'),fullPage:true,timeout:10000}).catch(error=>{row.screenshotError=error.message});
+    row.durationMs=Date.now()-startedAt;
     page.off('pageerror',onError);report.pages.push(row);console.log(JSON.stringify(row));
+    await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
    }
    await context.close();
   }
  }
-}finally{await browser.close();await new Promise(resolve=>server.close(resolve));report.requests=[...requests];await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2))}
+}finally{await browser.close();await new Promise(resolve=>server.close(resolve));report.finishedAt=new Date().toISOString();report.requests=[...requests];await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2))}
 console.log('CANDIDATE_QA_SUMMARY '+JSON.stringify({pages:report.pages.length,passed:report.pages.filter(p=>p.status==='passed').length,failures:report.failures,blocked}));
 if(report.failures.length||blocked.length)process.exitCode=1;

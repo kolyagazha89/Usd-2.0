@@ -77,6 +77,17 @@ export default function CookieNotice() {
           -webkit-backdrop-filter: blur(16px);
         }
         body:has(.cookie-notice) .cookie-notice { bottom: calc(var(--usd-dock-height, 0px) + 12px) !important; }
+        /* The public iOS dock is positioned from 100dvh via top, NOT bottom.
+           The cookie dialog must use the same coordinate system, or it can
+           overlap the dock when Safari collapses/expands its address bar. */
+        @media (max-width: 740px) {
+          body:has(> .u-mobile-dock) .cookie-notice {
+            top: max(12px, calc(100dvh - var(--usd-dock-height, 66px) - var(--usd-cookie-height, 180px) - 12px)) !important;
+            bottom: auto !important;
+            max-height: calc(100dvh - var(--usd-dock-height, 66px) - 24px);
+            overflow-y: auto;
+          }
+        }
         body:has(.member-config-actions-overlay,.member-config-picker-overlay,.catalog-request-form[role="dialog"]) .cookie-notice { visibility: hidden; }
         .cookie-notice__copy { min-width: 0; }
         .cookie-notice__copy strong { display: block; font-size: 14px; font-weight: 800; }

@@ -27,6 +27,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Validate local second disk backup code and regressions
+        run: |
+          python3 deploy/home-pc/test-second-disk-db-backup.py -v
+          python3 deploy/home-pc/test-second-disk-media-backup.py -v
+          python3 -m py_compile deploy/home-pc/verify-second-disk-db-backup.py deploy/home-pc/verify-second-disk-media-backup.py deploy/home-pc/release-readiness.py
+          bash -n deploy/home-pc/auto-deploy.sh deploy/home-pc/release-approved.sh deploy/home-pc/setup-home-pc.sh deploy/home-pc/install-local-deployer.sh
       - name: Build candidate API image from production Dockerfile
         run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-api-candidate:${{ github.sha }} ./backend
       - name: Verify API artifact and no implicit migration startup
@@ -367,6 +373,11 @@ jobs:
           trap 'rm -rf "$trusted"' EXIT
           cp compose*.yaml "$trusted/"
           docker compose --project-directory "$PWD" --env-file "$PWD/.env" -f "$trusted/compose.yaml" -f "$trusted/compose.local.yaml" config --quiet
+      - name: Verify read-only release readiness report and fail-closed policy tests
+        run: |
+          python3 -m py_compile deploy/home-pc/release-readiness.py
+          python3 deploy/home-pc/test-release-readiness.py -v
+          python3 deploy/home-pc/release-readiness.py --help >/dev/null
       - name: Validate GitHub main push CI release gate
         run: |
           set -euo pipefail

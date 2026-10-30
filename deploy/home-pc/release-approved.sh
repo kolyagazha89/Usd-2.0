@@ -430,7 +430,7 @@ wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refu
 # otherwise manual release would protect PostgreSQL but lose uploaded media.
 # The inherited lock path is only accepted with the verified FD 9 above and
 # already completed this media gate in the root-owned automatic builder.
-if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 && -z "$local_hdd_snapshot" ]]; then
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 && -z "$local_hdd_snapshot" && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" != 1 ]]; then
   MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
   MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
   [[ -f "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" &&
@@ -456,7 +456,7 @@ fi
 # An on-host PostgreSQL dump alone cannot survive a Windows/VM disk failure.
 # A separately configured off-host rclone target is mandatory before any
 # release, including a supervised invocation of this helper.
-if [[ -z "$local_hdd_snapshot" ]]; then
+if [[ -z "$local_hdd_snapshot" && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" != 1 ]]; then
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 [[ -f "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" &&
@@ -503,7 +503,12 @@ db_snapshot_tmp=''
 
 # A separate off-host copy must be retrievable and byte-for-byte identical
 # before the candidate is allowed to replace any live application container.
-if [[ -z "$local_hdd_snapshot" ]]; then
+if [[ "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" == 1 ]]; then
+  [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 && -z "$local_hdd_snapshot" ]] || { echo "Local second-disk release requires inherited lock" >&2; false; }
+  [[ -f /etc/usd-deployer/local-second-disk-approved && ! -L /etc/usd-deployer/local-second-disk-approved && "$(stat -c %u /etc/usd-deployer/local-second-disk-approved)" == 0 && "$(cat /etc/usd-deployer/local-second-disk-approved)" == SAME_PC_SECOND_DISK_ACCEPTED ]] || { echo "Local second-disk release not approved" >&2; false; }
+  (( (8#$(stat -c %a /etc/usd-deployer/local-second-disk-approved) & 077) == 0 )) || { echo "Unsafe second disk approval" >&2; false; }
+  /usr/local/libexec/usd-verify-second-disk-db-backup "$archive" "release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$" || { echo "Second disk PostgreSQL copy failed; refusing release" >&2; false; }
+elif [[ -z "$local_hdd_snapshot" ]]; then
   db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
   "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
     { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, FileClock, FileText, Loader2, UploadCloud } from 'lucide-react';
 import { apiPost, getSiteSettings, updateSiteSettings, uploadRulesDocx } from './api';
+import { rulesListMarkers } from './rules-list-markers';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type Block = { type: 'heading' | 'paragraph' | 'list-item' | 'table'; level?: number; text?: string; runs?: InlineRun[]; ordered?: boolean; rows?: string[][]; cellRuns?: InlineRun[][][]; };
@@ -34,10 +35,11 @@ function inlineContent(runs: InlineRun[] | undefined, fallback: string): ReactNo
 }
 
 function Preview({ blocks }: { blocks: Block[] }) {
+  const listMarkers = rulesListMarkers(blocks);
   return <div className="rules-admin-preview">{blocks.map((b,i) => {
     if (b.type === 'heading') { const level=Math.min(4,Math.max(2,b.level??2)); return level===2?<h2 key={i}>{inlineContent(b.runs, b.text ?? '')}</h2>:level===3?<h3 key={i}>{inlineContent(b.runs, b.text ?? '')}</h3>:<h4 key={i}>{inlineContent(b.runs, b.text ?? '')}</h4>; }
     if (b.type === 'table') return <div className="table-wrap" key={i}><table><tbody>{(b.rows??[]).map((row,j)=><tr key={j}>{row.map((cell,k)=>{const value=inlineContent(b.cellRuns?.[j]?.[k],cell);return j===0?<th key={k}>{value}</th>:<td key={k}>{value}</td>;})}</tr>)}</tbody></table></div>;
-    if (b.type === 'list-item') return <div key={i} style={{paddingLeft:Math.min(6,b.level??0)*18+12}} className="rules-admin-list-item">{b.ordered?'1.':'•'} {inlineContent(b.runs,b.text??'')}</div>;
+    if (b.type === 'list-item') return <div key={i} style={{paddingLeft:Math.min(6,b.level??0)*18+12}} className="rules-admin-list-item">{listMarkers[i]} {inlineContent(b.runs,b.text??'')}</div>;
     return <p key={i}>{inlineContent(b.runs,b.text??'')}</p>;
   })}</div>;
 }

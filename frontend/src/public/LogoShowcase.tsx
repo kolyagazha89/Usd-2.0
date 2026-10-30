@@ -197,7 +197,7 @@ export default function LogoShowcase() {
      import('three'),import('three/addons/environments/RoomEnvironment.js')
     ]);
     if(disposed)return;
-    renderer=new T.WebGLRenderer({canvas:surface!,alpha:true,antialias:true,powerPreference:'low-power'});
+    renderer=new T.WebGLRenderer({canvas:surface!,alpha:true,antialias:true,powerPreference:'low-power',failIfMajorPerformanceCaveat:true});
     renderer.setClearColor(0x000000,0);
     renderer.outputColorSpace=T.SRGBColorSpace;
     renderer.toneMapping=T.ACESFilmicToneMapping;
