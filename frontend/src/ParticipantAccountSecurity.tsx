@@ -66,10 +66,19 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
     operation.current=true;setBusy('password');setPasswordError('');
     try{
       await apiPost('/auth/change-password',{currentPassword,newPassword});
-      setCurrentPassword('');setNewPassword('');setPasswordConfirmation('');setConfirmation(null);
+    }catch(cause){
+      setPasswordError(message(cause,'Не удалось сменить пароль. Попробуйте ещё раз.'));
+      setConfirmation(null);operation.current=false;setBusy(null);
+      return;
+    }
+    // The server has already changed the password. Logout errors must never
+    // be reported as a failed password change or invite an old-password retry.
+    setCurrentPassword('');setNewPassword('');setPasswordConfirmation('');setConfirmation(null);
+    try{
       await onLogout();
-    }catch(cause){setPasswordError(message(cause,'Не удалось сменить пароль. Попробуйте ещё раз.'));setConfirmation(null)}
-    finally{operation.current=false;setBusy(null)}
+    }catch{
+      setPasswordError('Пароль успешно изменён, но автоматический выход не удался. Выйдите из аккаунта вручную и войдите с новым паролем.');
+    }finally{operation.current=false;setBusy(null)}
   }
   async function requestEmailChange(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(operation.current)return;
