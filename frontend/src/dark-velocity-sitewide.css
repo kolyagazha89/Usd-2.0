@@ -468,9 +468,10 @@ body .app-shell .sidebar{
 }
 body .app-shell .sidebar .nav-item{border-radius:11px!important;min-height:44px}
 body .app-shell .sidebar .nav-item.active{
-  background:linear-gradient(135deg,#fff,#eef2f7)!important;
-  color:#161c26!important;
-  border-left-color:var(--dv-red)!important;
+  background:#301217!important;
+  color:#fff!important;
+  border-left:3px solid var(--dv-red)!important;
+  box-shadow:none!important;
 }
 body .app-shell .sidebar .sidebar-label{color:#9ba9ba;letter-spacing:.14em}
 body .app-shell .main{background:#f3f5f8!important}
@@ -863,3 +864,14 @@ body .usd-live .public-rules-sidebar nav a:focus-visible,
 body .usd-live .public-rules-actions :is(a,button):focus-visible,
 body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--dv-red-hot);outline-offset:3px}
 @media(max-width:760px){body .usd-live .public-rules-rich-document :is(h3,h4,h5){scroll-margin-top:82px}}
+
+/* Keep the final sitewide theme from overriding mobile admin fixes in
+   ui-consistency.css (loaded before this stylesheet). */
+@media(max-width:760px){
+  body .app-shell{display:block;width:100%;min-width:0;max-width:100%}
+  body .app-shell .main{margin-left:0!important;width:100%!important;min-width:0!important;max-width:100%!important}
+  body .app-shell .main .content{width:100%;min-width:0;max-width:100%;overflow-wrap:anywhere}
+  body .app-shell .sidebar{width:min(320px,86vw)!important;max-width:86vw!important;height:100dvh;overflow:hidden}
+  body .app-shell .sidebar nav{min-height:0;overflow-y:auto;overflow-x:hidden}
+  body .app-shell .sidebar .nav-item.active{background:#301217!important;color:#fff!important;border-left:3px solid var(--dv-red)!important}
+}
