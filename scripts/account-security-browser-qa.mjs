@@ -62,7 +62,7 @@ async function scenario(width,kind,linked=true,checkFocused=false){
   const user={id:'fixture-user',email:'fixture@example.test',role:kind==='ADMIN'?'ADMIN':'PARTICIPANT',participantId:linked?participant.id:null,
     ...(kind==='JUDGE'?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
   const context=await browser.newContext({viewport:{width,height:1000}});
-  const state={sessions:structuredClone(sessionFixtures),calls:[],listError:false,emailError:false,passwordError:false};
+  const state={sessions:structuredClone(sessionFixtures),calls:[],listError:false,emailError:false,passwordError:false,logoutError:false};
   await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
@@ -80,7 +80,7 @@ async function scenario(width,kind,linked=true,checkFocused=false){
         if(state.emailError){status=409;data={message:'Этот email уже используется'}}else data={success:true};
       }else if(p==='/auth/change-password'&&method==='POST'){
         if(state.passwordError){status=401;data={message:'Неверный текущий пароль'}}else data={success:true};
-      }else if(p==='/auth/logout'&&method==='POST')data={success:true};
+      }else if(p==='/auth/logout'&&method==='POST'){if(state.logoutError){status=503;data={message:'Сервис выхода недоступен'}}else data={success:true};}
       else if(method!=='GET'){report.blocked.push({method,path:p});return route.abort('blockedbyclient')}
       else if(p==='/participants/me')data={participant};
       else if(p==='/site-settings/public')data={settings:{branding:{siteName:'USD'},homepage:{blocks:[]},catalogs:{},legal:{}}};
@@ -186,6 +186,31 @@ try{
     assert.deepEqual(password.state.calls.find(call=>call.path==='/auth/change-password').body,{currentPassword:'Synthetic-current-password',newPassword:'Synthetic-new-password'});
     report.actions.push({width,scenario:'judge password mismatch, confirmation, error/retry and sign-out'});
     await password.context.close();
+
+    // The server may revoke sessions / rotate the password while the separate
+    // logout request fails. Verify both successful mutations still sign out.
+    const bulkFailure=await scenario(width,'PARTICIPANT');
+    bulkFailure.state.logoutError=true;
+    await bulkFailure.security.getByRole('button',{name:'Завершить все сеансы',exact:true}).click();
+    await bulkFailure.security.getByRole('button',{name:'Да, завершить все и выйти',exact:true}).click();
+    await bulkFailure.page.getByRole('heading',{name:'С возвращением'}).waitFor();
+    assert.equal(await bulkFailure.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null);
+    assert.equal(bulkFailure.state.calls.filter(call=>call.path==='/auth/sessions'&&call.method==='DELETE').length,1);
+    report.actions.push({width,scenario:'bulk revoke with failed remote logout still clears local auth'});
+    await bulkFailure.context.close();
+
+    const passwordFailure=await scenario(width,'JUDGE');
+    passwordFailure.state.logoutError=true;
+    await passwordFailure.page.locator('#account-current-password').fill('Synthetic-current-password');
+    await passwordFailure.page.locator('#account-new-password').fill('Synthetic-rotated-password');
+    await passwordFailure.page.locator('#account-password-confirmation').fill('Synthetic-rotated-password');
+    await passwordFailure.security.getByRole('button',{name:'Сменить пароль',exact:true}).click();
+    await passwordFailure.security.getByRole('button',{name:'Сменить пароль и выйти',exact:true}).click();
+    await passwordFailure.page.getByRole('heading',{name:'С возвращением'}).waitFor();
+    assert.equal(await passwordFailure.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null);
+    assert.equal(passwordFailure.state.calls.filter(call=>call.path==='/auth/change-password').length,1);
+    report.actions.push({width,scenario:'password rotation with failed remote logout still clears local auth'});
+    await passwordFailure.context.close();
   }
   assert.deepEqual(report.blocked,[],'unexpected outbound requests or mutations were blocked');
   assert.deepEqual(report.failures,[],'browser runtime errors');
