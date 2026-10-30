@@ -63,6 +63,16 @@ git -C "$SOURCE_DIR" clean -ffdx
 # GitHub-hosted workers install dependencies and build both images. The home
 # VM only downloads them: its npm/BuildKit network is not a release dependency.
 # Never fall back silently to a local build or another commit's image.
+# The timer can run before GitHub Actions has published both SHA-tagged
+# images. Missing remote tags are a normal pending state, not a host failure.
+# Inspect the remote manifests first: do not pull one image until both exist.
+for image in api frontend; do
+  image_ref="ghcr.io/kolyagazha89/usd-2.0-$image:$SHA"
+  if ! docker manifest inspect "$image_ref" >/dev/null 2>&1; then
+    echo "Published image not available yet: $image_ref; deferring until next deploy request/timer"
+    exit 0
+  fi
+done
 docker pull "ghcr.io/kolyagazha89/usd-2.0-api:$SHA"
 docker pull "ghcr.io/kolyagazha89/usd-2.0-frontend:$SHA"
 fi
