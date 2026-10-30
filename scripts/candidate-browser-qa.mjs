@@ -163,11 +163,11 @@ try{
      if(role===null&&route.startsWith('/login?'))assert.match(await page.locator('.usd-auth-context').innerText(),/Кубок USD/);
      if(route.endsWith('/missing')){assert.match(await page.locator('main').innerText(),/не найден/);assert.equal(await page.locator('.p-error').count(),0)}
      if(route.endsWith('/offline')){
-      assert.match(await page.locator('main [role="alert"]').innerText(),/Не удалось/);
+      assert.match(await page.locator('main .p-error[role="alert"]').innerText(),/Не удалось/);
       await page.screenshot({path:path.join(output,`${role??'PUBLIC'}-${width}-${route.replaceAll('/','_')}-error.png`)});
       await page.getByRole('button',{name:'Попробовать ещё раз',exact:true}).click();
       await page.locator(route.startsWith('/participants/')?'.p-profile-banner':'.public-stage-detail').waitFor();
-      assert.equal(await page.locator('main [role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
+      assert.equal(await page.locator('main .p-error[role="alert"]').count(),0);row.errorRecovery='503 shown as failure, retry loaded entity';
      }
      if(route==='/stages/%E0%A4%A'||route==='/unknown-page')assert.match(await page.locator('main').innerText(),/не найдена/i);
      if(route==='/partners'){
@@ -200,6 +200,7 @@ try{
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded achievements fit viewport');
      }
      if(route==='/rules'&&role===null){
+       await page.locator('.public-rules-list-item').first().waitFor();
        assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'official DOCX lists keep nested numbering');
        const search=page.getByRole('textbox',{name:'Поиск по регламенту'});
        await search.fill('Раздел Б');
