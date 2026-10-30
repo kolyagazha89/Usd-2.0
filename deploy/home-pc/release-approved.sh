@@ -169,6 +169,21 @@ for service in api frontend; do
   done
 done
 
+# Authenticate both candidate digests before any backup, rehearsal or switch.
+# Existing deployed images remain the supervised rollback baseline; old unsigned
+# releases are never reintroduced as a new automatic candidate.
+IMAGE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
+[[ -f "$IMAGE_VERIFIER" && -x "$IMAGE_VERIFIER" && ! -L "$IMAGE_VERIFIER" &&
+   "$(stat -c %u "$IMAGE_VERIFIER")" == 0 ]] &&
+  (( (8#$(stat -c %a "$IMAGE_VERIFIER") & 022) == 0 )) ||
+  { echo 'Missing or untrusted image signature verifier' >&2; exit 1; }
+new_api_id="$("$IMAGE_VERIFIER" api "$NEW_TAG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" ||
+  { echo 'Candidate API signature not verified' >&2; exit 1; }
+new_frontend_id="$("$IMAGE_VERIFIER" frontend "$NEW_TAG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" ||
+  { echo 'Candidate frontend signature not verified' >&2; exit 1; }
+[[ "$new_api_id" =~ ^sha256:[a-f0-9]{64}$ && "$new_frontend_id" =~ ^sha256:[a-f0-9]{64}$ ]] ||
+  { echo 'Invalid verified candidate image identity' >&2; exit 1; }
+
 # Use the *exact* Compose overlays used by the running API, including the tunnel
 # overlay if present. Reject unfamiliar files rather than accidentally replacing
 # a container with an incomplete or different configuration.
@@ -179,6 +194,16 @@ front_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --
 [[ "$(docker inspect -f '{{.Config.Image}}' "$api_id")" == "ghcr.io/kolyagazha89/usd-2.0-api:$OLD_TAG" &&
    "$(docker inspect -f '{{.Config.Image}}' "$front_id")" == "ghcr.io/kolyagazha89/usd-2.0-frontend:$OLD_TAG" ]] ||
   { echo "Running images do not match the deployment environment; refusing an unverified rollback target" >&2; exit 1; }
+old_api_id="$(docker inspect -f '{{.Image}}' "$api_id")"
+old_frontend_id="$(docker inspect -f '{{.Image}}' "$front_id")"
+[[ "$old_api_id" =~ ^sha256:[a-f0-9]{64}$ && "$old_frontend_id" =~ ^sha256:[a-f0-9]{64}$ ]] ||
+  { echo 'Invalid running rollback image identity' >&2; exit 1; }
+for service in api frontend; do
+  baseline_id="$old_api_id"
+  [[ "$service" == api ]] || baseline_id="$old_frontend_id"
+  [[ "$(docker image inspect --format '{{.Id}}' "ghcr.io/kolyagazha89/usd-2.0-$service:$OLD_TAG")" == "$baseline_id" ]] ||
+    { echo 'Rollback tag does not identify the currently running image' >&2; exit 1; }
+done
 api_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$api_id")"
 front_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$front_id")"
 [[ -n "$api_files" && "$api_files" == "$front_files" ]] ||
@@ -347,6 +372,13 @@ verify_running_images() {
     [[ -n "$ids" && "$(echo "$ids" | wc -l)" -eq 1 ]] || return 1
     running_image="$(docker inspect -f '{{.Config.Image}}' "$ids")" || return 1
     [[ "$running_image" == "ghcr.io/kolyagazha89/usd-2.0-$service:$expected" ]] || return 1
+    local verified_id="$old_api_id"
+    [[ "$service" == api ]] || verified_id="$old_frontend_id"
+    if [[ "$expected" == "$NEW_TAG" ]]; then
+      verified_id="$new_api_id"
+      [[ "$service" == api ]] || verified_id="$new_frontend_id"
+    fi
+    [[ "$(docker inspect -f '{{.Image}}' "$ids")" == "$verified_id" ]] || return 1
   done
 }
 # A static HTTP 200 is not enough: the API can serve its root endpoint
@@ -391,7 +423,12 @@ rollback() {
       [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
       env_restored=0
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
-    elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
+    # Restore the rollback tags from the captured running image IDs, rather
+    # than trusting tags that another local image operation may have changed.
+    elif ! docker image tag "$old_api_id" "ghcr.io/kolyagazha89/usd-2.0-api:$OLD_TAG" ||
+         ! docker image tag "$old_frontend_id" "ghcr.io/kolyagazha89/usd-2.0-frontend:$OLD_TAG"; then
+      echo "CRITICAL: original rollback image identities are unavailable; manual intervention required" >&2
+    elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --pull never --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2
@@ -430,7 +467,7 @@ wait_ready 3 || { echo "Existing API/frontend failed pre-release readiness; refu
 # otherwise manual release would protect PostgreSQL but lose uploaded media.
 # The inherited lock path is only accepted with the verified FD 9 above and
 # already completed this media gate in the root-owned automatic builder.
-if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 && -z "$local_hdd_snapshot" ]]; then
+if [[ "${USD_DEPLOY_LOCK_HELD:-0}" != 1 && -z "$local_hdd_snapshot" && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" != 1 ]]; then
   MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
   MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
   [[ -f "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" &&
@@ -456,7 +493,7 @@ fi
 # An on-host PostgreSQL dump alone cannot survive a Windows/VM disk failure.
 # A separately configured off-host rclone target is mandatory before any
 # release, including a supervised invocation of this helper.
-if [[ -z "$local_hdd_snapshot" ]]; then
+if [[ -z "$local_hdd_snapshot" && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" != 1 ]]; then
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 [[ -f "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" &&
@@ -503,7 +540,12 @@ db_snapshot_tmp=''
 
 # A separate off-host copy must be retrievable and byte-for-byte identical
 # before the candidate is allowed to replace any live application container.
-if [[ -z "$local_hdd_snapshot" ]]; then
+if [[ "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" == 1 ]]; then
+  [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 && -z "$local_hdd_snapshot" ]] || { echo "Local second-disk release requires inherited lock" >&2; false; }
+  [[ -f /etc/usd-deployer/local-second-disk-approved && ! -L /etc/usd-deployer/local-second-disk-approved && "$(stat -c %u /etc/usd-deployer/local-second-disk-approved)" == 0 && "$(cat /etc/usd-deployer/local-second-disk-approved)" == SAME_PC_SECOND_DISK_ACCEPTED ]] || { echo "Local second-disk release not approved" >&2; false; }
+  (( (8#$(stat -c %a /etc/usd-deployer/local-second-disk-approved) & 077) == 0 )) || { echo "Unsafe second disk approval" >&2; false; }
+  /usr/local/libexec/usd-verify-second-disk-db-backup "$archive" "release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$" || { echo "Second disk PostgreSQL copy failed; refusing release" >&2; false; }
+elif [[ -z "$local_hdd_snapshot" ]]; then
   db_offsite_object="$db_offsite_prefix/release-$NEW_TAG-$(date -u +%Y%m%dT%H%M%SZ)-$$.dump"
   "$DB_OFFSITE_VERIFIER" "$archive" "$db_offsite_object" ||
     { echo "Independent PostgreSQL backup/download verification failed; refusing release" >&2; false; }
@@ -526,7 +568,7 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
   { echo "Missing or untrusted root-owned PostgreSQL restore verifier; refusing release" >&2; false; }
 (( (8#$(stat -c %a "$RESTORE_VERIFIER") & 022) == 0 )) ||
   { echo "PostgreSQL restore verifier must not be group/world writable" >&2; false; }
-"$RESTORE_VERIFIER" "$archive" "ghcr.io/kolyagazha89/usd-2.0-api:$NEW_TAG" ||
+"$RESTORE_VERIFIER" "$archive" "$new_api_id" ||
   { echo "Fresh PostgreSQL restore/migration rehearsal failed; refusing release" >&2; false; }
 [[ "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")" == "$db_before" &&
    "$(docker inspect -f '{{.State.Health.Status}}' "$db_before" 2>/dev/null)" == healthy ]] ||
@@ -548,6 +590,11 @@ fi
 # Atomic replacement: never edit .env in place and never source it as shell.
 tmp="$(mktemp "$DEPLOY_DIR/.env.release.XXXXXXXX")"
 cp -p .env "$tmp"
+# Long backup/rehearsal may overlap ordinary image pruning. Restore the SHA
+# tags only from authenticated local content IDs. If the bytes disappeared,
+# stop before changing .env; never let Compose pull replacement bytes by tag.
+docker image tag "$new_api_id" "ghcr.io/kolyagazha89/usd-2.0-api:$NEW_TAG"
+docker image tag "$new_frontend_id" "ghcr.io/kolyagazha89/usd-2.0-frontend:$NEW_TAG"
 sed -i -E "s/^USD_IMAGE_TAG=[a-f0-9]{40}$/USD_IMAGE_TAG=$NEW_TAG/" "$tmp"
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file "$tmp" "${compose_args[@]}" config --quiet
 # Off-host backups and a full PostgreSQL restore can take minutes or hours.
@@ -568,7 +615,7 @@ if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
 fi
 changed=1
 mv -f "$tmp" .env
-docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend
+docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --pull never --no-deps api frontend
 
 # In-container checks work even when no localhost ports are published.
 # Both services must return HTTP 200; checking 404 on the API is not sufficient.

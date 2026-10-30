@@ -5,6 +5,7 @@ Never prints secret contents, runs migrations, or changes Docker state.
 Exit 0 only if every mandatory gate is ready; 1 otherwise.
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -19,10 +20,10 @@ REQUIRED_UNITS = ("usd-auto-deploy.timer", "docker.service")
 POLICIES = (
     "etc/usd-deploy-enabled",
     "etc/usd-auto-release-schema",
-    "etc/usd-deployer/db-backup.conf",
-    "etc/usd-deployer/media-backup.conf",
+    "etc/usd-deployer/local-second-disk-approved",
 )
-TOOLS = ("docker", "git", "rclone", "systemctl", "flock")
+TOOLS = ("docker", "git", "systemctl", "flock", "findmnt")
+COSIGN_SHA256 = "4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71"
 
 
 def check_private_file(root, relative, *, require_private=False):
@@ -77,28 +78,41 @@ def assess(root=Path("/"), live=False):
         tags = []
     add("deployed-image-pin", len(tags) == 1, "valid immutable SHA" if len(tags) == 1 else "missing/invalid SHA")
 
-    media_policy = root / "etc/usd-deployer/media-backup.conf"
+    approval = root / "etc/usd-deployer/local-second-disk-approved"
+    approval_ok, _ = check_private_file(root, "etc/usd-deployer/local-second-disk-approved", require_private=True)
     try:
-        lines = media_policy.read_text(encoding="utf-8").splitlines()
-        remotes = [line.split(":", 1)[0] for line in lines if re.fullmatch(r"[A-Za-z0-9_-]+:.+", line)]
-        valid_media = len(lines) == 2 and len(remotes) == 2 and remotes[0] != remotes[1]
+        approval_ok = approval_ok and approval.read_text(encoding="ascii").strip() == "SAME_PC_SECOND_DISK_ACCEPTED"
     except (OSError, UnicodeError):
-        valid_media = False
-    add("media-offhost-policy", valid_media, "distinct remotes" if valid_media else "missing/invalid remote pair")
-
-    # The deployer sources this policy in a supervised release. Only verify
-    # existence/ownership here; never echo or parse secrets into the report.
-    db_policy_ok, _ = check_private_file(root, "etc/usd-deployer/db-backup.conf", require_private=True)
-    add("db-offhost-policy", db_policy_ok, "trusted private file" if db_policy_ok else "missing/untrusted configuration")
-
-    verifier = root / "usr/local/libexec/usd-verify-media-backup"
-    trusted_verifier, detail = check_private_file(root, "usr/local/libexec/usd-verify-media-backup")
+        approval_ok = False
+    add("second-disk-risk-accepted", approval_ok, "explicit local-risk acceptance" if approval_ok else "missing/invalid approval")
+    verifier = root / "usr/local/libexec/usd-verify-second-disk-db-backup"
+    trusted_verifier, detail = check_private_file(root, "usr/local/libexec/usd-verify-second-disk-db-backup")
     trusted_verifier = trusted_verifier and os.access(verifier, os.X_OK)
-    add("media-backup-verifier", trusted_verifier, detail if trusted_verifier else "missing, untrusted or not executable")
+    add("second-disk-backup-verifier", trusted_verifier, detail if trusted_verifier else "missing/untrusted")
+    media_verifier = root / "usr/local/libexec/usd-verify-second-disk-media-backup"
+    media_ok, media_detail = check_private_file(root, "usr/local/libexec/usd-verify-second-disk-media-backup")
+    add("second-disk-media-verifier", media_ok and os.access(media_verifier, os.X_OK), media_detail)
+    if live:
+        disk_ok, disk_source = run(["findmnt", "-n", "-o", "SOURCE", "--mountpoint", "/srv/usd-s3"])
+        add("second-disk-mounted", disk_ok and disk_source == "/dev/sdb1",
+            "dedicated /dev/sdb1" if disk_ok and disk_source == "/dev/sdb1" else "not mounted on expected device")
+
     release_helper = root / "usr/local/sbin/usd-release-approved"
     trusted_helper, detail = check_private_file(root, "usr/local/sbin/usd-release-approved")
     trusted_helper = trusted_helper and os.access(release_helper, os.X_OK)
     add("release-helper", trusted_helper, detail if trusted_helper else "missing, untrusted or not executable")
+    for relative in ("usr/local/libexec/usd-verify-image-signature", "usr/local/libexec/usd-cosign"):
+        trusted, detail = check_private_file(root, relative)
+        trusted = trusted and os.access(root / relative, os.X_OK)
+        if trusted and relative.endswith("usd-cosign"):
+            try:
+                with (root / relative).open("rb") as stream:
+                    trusted = hashlib.file_digest(stream, "sha256").hexdigest() == COSIGN_SHA256
+            except OSError:
+                trusted = False
+            detail = "pinned checksum verified" if trusted else "checksum mismatch"
+        add("signature-tool:" + relative.rsplit("/", 1)[1], trusted,
+            detail if trusted else "missing, untrusted or checksum mismatch")
 
     if live:
         if os.geteuid() != 0:

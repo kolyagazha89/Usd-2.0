@@ -96,8 +96,8 @@ count_query="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc \
 rows_before="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc "$count_query" | LC_ALL=C sort)"
 [[ -n "$rows_before" ]] || { echo 'Cannot count rows in restored archive' >&2; exit 1; }
 # Candidate image gets only an ephemeral DATABASE_URL; no production env file.
-docker run --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate deploy
-docker run --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate status
+docker run --pull never --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate deploy
+docker run --pull never --rm --memory=512m --memory-swap=512m --network "$network" -e "DATABASE_URL=$url" --entrypoint npx "$image" prisma migrate status
 rows_after="$(docker exec "$db" psql -X -v ON_ERROR_STOP=1 -U usd -d usd -tAc "$count_query" | LC_ALL=C sort)"
 [[ "$rows_after" == "$rows_before" ]] || {
   echo 'Migration rehearsal changed row counts or removed a pre-existing table; manual data migration review required' >&2
