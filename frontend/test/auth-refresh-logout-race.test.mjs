@@ -10,7 +10,7 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
   const base=path.dirname(fileURLToPath(import.meta.url));
   const scratch=await mkdtemp(path.join(base,'.auth-race-'));
   const dom=new JSDOM('',{url:'https://usd.test/participant'});
-  const previous=new Map();
+  const previous=new Map([['fetch',Object.getOwnPropertyDescriptor(globalThis,'fetch')]]);
   const globals={window:dom.window,document:dom.window.document,localStorage:dom.window.localStorage,
     location:dom.window.location,navigator:dom.window.navigator,Event:dom.window.Event};
   for(const [key,value]of Object.entries(globals)){
@@ -46,7 +46,6 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/refresh')).length,1);
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/logout')).length,1);
   }finally{
-    delete globalThis.fetch;
     for(const [key,descriptor]of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
     dom.window.close();
     await rm(scratch,{recursive:true,force:true});
