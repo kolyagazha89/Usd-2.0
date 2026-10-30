@@ -1,5 +1,5 @@
-/** Keep the client-side registration picker in sync with the server's five-class cap. */
-export const MAX_REGISTRATION_CLASSES=5;
+/** Match the server safety ceiling; class eligibility is governed by direction rules, not an arbitrary five-class cap. */
+export const MAX_REGISTRATION_CLASSES=32;
 
 /** Preserve the selected order (the first class determines the main number). */
 export function nextRegistrationClassIds(ids:string[],id:string,checked:boolean):string[]{
