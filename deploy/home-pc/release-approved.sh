@@ -169,6 +169,21 @@ for service in api frontend; do
   done
 done
 
+# Authenticate both candidate digests before any backup, rehearsal or switch.
+# Existing deployed images remain the supervised rollback baseline; old unsigned
+# releases are never reintroduced as a new automatic candidate.
+IMAGE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
+[[ -f "$IMAGE_VERIFIER" && -x "$IMAGE_VERIFIER" && ! -L "$IMAGE_VERIFIER" &&
+   "$(stat -c %u "$IMAGE_VERIFIER")" == 0 ]] &&
+  (( (8#$(stat -c %a "$IMAGE_VERIFIER") & 022) == 0 )) ||
+  { echo 'Missing or untrusted image signature verifier' >&2; exit 1; }
+new_api_id="$("$IMAGE_VERIFIER" api "$NEW_TAG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" ||
+  { echo 'Candidate API signature not verified' >&2; exit 1; }
+new_frontend_id="$("$IMAGE_VERIFIER" frontend "$NEW_TAG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" ||
+  { echo 'Candidate frontend signature not verified' >&2; exit 1; }
+[[ "$new_api_id" =~ ^sha256:[a-f0-9]{64}$ && "$new_frontend_id" =~ ^sha256:[a-f0-9]{64}$ ]] ||
+  { echo 'Invalid verified candidate image identity' >&2; exit 1; }
+
 # Use the *exact* Compose overlays used by the running API, including the tunnel
 # overlay if present. Reject unfamiliar files rather than accidentally replacing
 # a container with an incomplete or different configuration.
@@ -347,6 +362,11 @@ verify_running_images() {
     [[ -n "$ids" && "$(echo "$ids" | wc -l)" -eq 1 ]] || return 1
     running_image="$(docker inspect -f '{{.Config.Image}}' "$ids")" || return 1
     [[ "$running_image" == "ghcr.io/kolyagazha89/usd-2.0-$service:$expected" ]] || return 1
+    if [[ "$expected" == "$NEW_TAG" ]]; then
+      local verified_id="$new_api_id"
+      [[ "$service" == api ]] || verified_id="$new_frontend_id"
+      [[ "$(docker inspect -f '{{.Image}}' "$ids")" == "$verified_id" ]] || return 1
+    fi
   done
 }
 # A static HTTP 200 is not enough: the API can serve its root endpoint

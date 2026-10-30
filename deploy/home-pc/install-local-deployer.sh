@@ -18,7 +18,9 @@ python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-prerelease.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("s3/verify-local-hdd-snapshot.py").read_text())'
+bash install-cosign.sh
 install -d -o root -g root -m 0755 /usr/local/libexec
+install -o root -g root -m 0755 verify-image-signature.py /usr/local/libexec/usd-verify-image-signature
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema
 install -o root -g root -m 0755 verify-prerelease.py /usr/local/libexec/usd-verify-prerelease

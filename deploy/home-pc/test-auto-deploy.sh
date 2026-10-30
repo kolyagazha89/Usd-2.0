@@ -40,10 +40,16 @@ for old,new in {
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
  '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
+ '/usr/local/libexec/usd-verify-image-signature':work+'/verify-signature',
  '/var/lib/docker':work,
 }.items():s=s.replace(old,new)
 pathlib.Path(work+'/builder').write_text(s)
 PY
+cat > "$WORK/verify-signature" <<'SIGNATURE'
+#!/usr/bin/env bash
+[[ "${USD_TEST_FAIL_SIGNATURE:-0}" != 1 ]]
+SIGNATURE
+chmod 0755 "$WORK/verify-signature"
 cat > "$WORK/bin/git" <<'SH'
 #!/usr/bin/env bash
 case "$*" in
@@ -144,6 +150,10 @@ bash "$WORK/builder" > "$WORK/build-only.log"
 [[ "$(cat "$WORK/state/built-sha")" == "$NEW" ]]
 [[ "$(grep -c '^pull ' "$WORK/docker.log")" == 2 ]]
 ! grep -q '^build ' "$WORK/docker.log"
+# An available tag with an invalid/missing signature must remain build-only.
+USD_TEST_FAIL_SIGNATURE=1 bash "$WORK/builder" > "$WORK/signature-refused.log" 2>&1
+grep -q 'Published signatures not verified' "$WORK/signature-refused.log"
+[[ ! -f "$WORK/releases.log" ]]
 # Cached images are checked too; a marker is not evidence of their provenance.
 export USD_TEST_IMAGE_REVISION="$OLD"
 if bash "$WORK/builder" > "$WORK/wrong-cached-revision.log" 2>&1; then exit 1; fi

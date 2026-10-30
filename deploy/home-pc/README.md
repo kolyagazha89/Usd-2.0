@@ -408,3 +408,21 @@ trigger as its only effective sudo grant. Direct/custom-group extra grants,
 Docker socket access, privileged groups, symlinked or writable policies stop
 setup before registration or service activation. CI covers narrow-plus-extra
 sudoers, valid reuse, and a writable existing trigger on a disposable account.
+
+### Authenticated image digests (2026-10-30)
+
+The publishing workflow signs each image digest using GitHub Actions OIDC with
+checksum-pinned Cosign3.1.3 and a `git_sha` annotation. The host verifier requires
+that digest, the exact `publish-home-pc-images.yml@refs/heads/main` identity, the
+GitHub Actions issuer and valid certificate/transparency evidence. SHA-shaped
+tags and source labels alone do not authorize releases. After replacement, the
+running container image ID must match the authenticated local image ID.
+
+`install-local-deployer.sh` installs the checksum-pinned root-owned verifier
+through `install-cosign.sh`. This needs outbound HTTPS to the official GitHub
+release; normal image verification also requires GHCR/Sigstore services. Network
+or signature failures keep current services untouched; the timer retries later.
+Existing running images remain the supervised rollback baseline during the
+transition from old unsigned releases. No new unsigned candidate is admitted.
+There is no option to skip signatures, certificate checks or transparency checks.
+This code must be installed on Ubuntu before its protections exist there.

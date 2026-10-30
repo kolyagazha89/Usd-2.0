@@ -82,6 +82,9 @@ done
 flock -u 9
 bash "$SOURCE/deploy/home-pc/install-local-deployer.sh"
 flock -w 180 9 || exit 75
+for service in api frontend; do
+  /usr/local/libexec/usd-verify-image-signature "$service" "$SHA" >/dev/null
+done
 python3 "$SOURCE/deploy/home-pc/prepare-host-files.py"
 OLD="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY/.env")"
 [[ "$OLD" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid deployed SHA' >&2; exit 1; }

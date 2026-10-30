@@ -169,6 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n deploy/home-pc/auto-deploy.sh
+          bash -n deploy/home-pc/install-cosign.sh
           bash -n deploy/home-pc/release-approved.sh
           bash -n deploy/home-pc/rehearse-schema-on-backup.sh
           bash -n deploy/home-pc/verify-media-backup.sh
@@ -374,6 +375,7 @@ jobs:
           python3 deploy/home-pc/test-initial-schema.py
           python3 deploy/home-pc/test-diagnose-live-prisma-history.py -v
           python3 deploy/home-pc/test-verify-prerelease.py -v
+          python3 deploy/home-pc/test-verify-image-signature.py -v
           python3 deploy/home-pc/test-verify-runner-policy.py -v
           python3 deploy/home-pc/test-prepare-host-files.py -v
           sudo bash deploy/home-pc/test-setup-home-pc.sh
