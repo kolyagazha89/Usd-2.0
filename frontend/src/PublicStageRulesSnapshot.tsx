@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import './PublicStageRulesSnapshot.css';
+import { rulesListMarkers } from './rules-list-markers';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type RulesBlock =
@@ -69,7 +70,7 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
     ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsedDate)
     : '';
   const sourceUrl = safeDocumentUrl(snapshot.url);
-  const counters: number[] = [];
+  const listMarkers = rulesListMarkers(blocks);
 
   return (
     <details className="public-stage-rules">
@@ -86,7 +87,6 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
           {blocks.map((block, index) => {
             const text = 'text' in block ? String(block.text ?? '') : '';
             if (block.type === 'heading') {
-              counters.length = 0;
               const level = Math.min(4, Math.max(2, Number(block.level) || 2));
               const content = renderInline(block.runs, text, 'stage-rules-heading-' + index);
               if (level === 2) return <h3 key={index}>{content}</h3>;
@@ -95,11 +95,9 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
             }
             if (block.type === 'list-item') {
               const level = Math.min(8, Math.max(0, Number(block.level) || 0));
-              counters.length = level + 1;
-              const marker = block.ordered ? String((counters[level] = (counters[level] || 0) + 1) + '.') : '•';
+              const marker = listMarkers[index];
               return <div className="public-rules-list-item" key={index} style={{ paddingLeft: level * 18 + 12 }}><span>{marker}</span>{renderInline(block.runs, text, 'stage-rules-list-' + index)}</div>;
             }
-            counters.length = 0;
             if (block.type === 'table') {
               const rows = Array.isArray(block.rows) ? block.rows : [];
               return <div className="public-rules-table-wrap" key={index}><table><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => {
