@@ -78,6 +78,8 @@ function dataFor(url,role){
  if(p==='/cars/car1')return car;
  if(p==='/results/registration/reg1')return [result];
  if(p==='/participants/teams')return [{name:'USD Team'}];
+ if(p==='/teams/admin')return {teams:[],users:[]};
+ if(p==='/teams/public')return [{id:null,name:'USD Team',description:'',isActive:false,members:[],historicalMembers:[{id:participant.id,firstName:participant.firstName,lastName:participant.lastName,city:participant.city}],posts:[]}];
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
@@ -216,6 +218,7 @@ try{
        const focus=await link.evaluate(element=>({active:document.activeElement===element,outline:getComputedStyle(element).outlineStyle,width:parseFloat(getComputedStyle(element).outlineWidth)}));
        assert.ok(focus.active&&focus.outline!=='none'&&focus.width>=2,'keyboard contents navigation has a visible focus indicator');
        await page.keyboard.press('Enter');
+       await page.waitForURL(url=>url.hash===anchor);
        assert.equal(new URL(page.url()).hash,anchor,'keyboard activation reaches the matching heading');
        await page.getByRole('button',{name:'Сбросить поиск'}).click();
        assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'reset restores the original list markers');

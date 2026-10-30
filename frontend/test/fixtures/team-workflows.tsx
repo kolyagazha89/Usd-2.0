@@ -8,12 +8,12 @@ import TeamsPage from '../../src/admin/TeamsPage';
 
 export async function runTeamWorkflows(){
  const host=document.getElementById('root')!,root=createRoot(host);
- const calls:any[]=[];let membership:any=null;
+ const calls:any[]=[];let membership:any=null,malformedAdmin=false;
  const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
-  if(path==='/teams/admin')return {teams:[team],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
+  if(path==='/teams/admin')return malformedAdmin?[]:{teams:[team],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
   if(path==='/teams/me/leave'){membership=null;return {success:true}}
@@ -36,10 +36,15 @@ export async function runTeamWorkflows(){
   await click('Опубликовать');assert.equal(calls.at(-1).body.status,'PUBLISHED');
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
   await render(<PublicTeamsPage path="/teams/First%20team"/>);assert.match(host.textContent??'',/Reviewed news/);assert.match(host.textContent??'',/Public text/);
-  const Frame=({children}:any)=><main>{children}</main>,Error=({message}:any)=><p role="alert">{message}</p>;
+  const Frame=({children,action}:any)=><main>{action}{children}</main>,Error=({message,retry}:any)=><div role="alert">{message}<button onClick={()=>void retry()}>Повторить</button></div>;
   await render(<TeamsPage PageFrame={Frame} ErrorPanel={Error} LoadingPage={()=>null} Empty={({text}:any)=><p>{text}</p>}/>);
   assert.match(host.textContent??'',/Архивные названия/);assert.ok(!host.textContent?.includes('Переименование обновляет'));
   await input('Название новой команды','New normalized team');await click('Создать команду');
   assert.ok(calls.some(c=>c.method==='POST'&&c.path==='/teams'&&c.body.name==='New normalized team'));
+  malformedAdmin=true;await click('Обновить');
+  assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Не удалось загрузить список команд/);
+  malformedAdmin=false;await click('Повторить');
+  assert.equal(host.querySelector('[role="alert"]'),null);
+  assert.match(host.textContent??'',/First team/);
  }finally{await act(async()=>root.unmount())}
 }

@@ -38,3 +38,15 @@ The new `Team commanders on PostgreSQL 18` workflow reproduces migration and HTT
 For browser reproduction, keep the migrated synthetic `usd_teams_test` database, run `node test/team-browser-server.mjs` from backend, and run frontend with `VITE_API_URL=http://127.0.0.1:55440 npm run dev -- --host 127.0.0.1 --port 55441 --strictPort`. From repository root run `USD_BROWSER_TOOLING=/path/to/node_modules node scripts/team-browser-qa.mjs` where that directory contains Playwright; `/usr/bin/chromium` is the default browser (`CHROMIUM_EXECUTABLE` can override). The test server binds loopback only and imports no application mail modules. Screenshots/results default to `/tmp/usd-teams-browser-qa`; synthetic fixture tokens are written with mode 0600 outside the repository. No live endpoints are allowed by the browser harness.
 
 Release gates remain separate: remote CI evidence, owner-approved fresh backup and isolated restore rehearsal, supervised migration/release through the approved mechanism, and prerelease/physical-device acceptance. Do not mark USD_MASTER_PLAN §10 live accepted from these local results.
+
+## Response and browser regression follow-up
+
+A malformed admin reply could set teams to undefined and crash the screen.
+Admin list loading now validates the arrays before updating state, preserves
+the previous valid view, and exposes error/retry. The real React workflow test
+reproduced the crash before the fix and passed refresh/recovery afterward.
+Candidate fixtures now return the actual new API contract. A keyboard-anchor
+check waits for observable navigation after Enter. Local frontend160 tests and
+build pass;16 built-browser replays of admin/public teams and rules at
+1440/1024/390/320 passed with no overflow, runtime errors or blocked requests.
+Full GitHub rerun and the separate legacy-upgrade fixture fix remain gates.

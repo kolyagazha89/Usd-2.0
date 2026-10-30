@@ -4,7 +4,11 @@ import TeamWorkspace from '../teams/TeamWorkspace';
 import type {PublicTeam,Team,TeamUser} from '../teams/types';
 function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>}){
  const [teams,setTeams]=useState<Team[]>([]),[users,setUsers]=useState<TeamUser[]>([]),[legacy,setLegacy]=useState<PublicTeam[]>([]),[selected,setSelected]=useState(''),[name,setName]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const load=async()=>{const [result,directory]=await Promise.all([apiGet<{teams:Team[];users:TeamUser[]}>('/teams/admin'),apiGet<PublicTeam[]>('/teams/public')]);setTeams(result.teams);setUsers(result.users);setLegacy(listData<PublicTeam>(directory).filter(t=>!t.id));};
+ const load=async()=>{
+  const [result,directory]=await Promise.all([apiGet<{teams:Team[];users:TeamUser[]}>('/teams/admin'),apiGet<PublicTeam[]>('/teams/public')]);
+  if(!Array.isArray(result?.teams)||!Array.isArray(result?.users))throw new Error('Не удалось загрузить список команд. Попробуйте ещё раз.');
+  setTeams(result.teams);setUsers(result.users);setLegacy(listData<PublicTeam>(directory).filter(t=>!t.id));
+ };
  const refresh=async()=>{setLoading(true);setError('');try{await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить команды')}finally{setLoading(false)}};
  useEffect(()=>{void refresh()},[]);
  const create=async()=>{setBusy(true);setError('');try{const team=await apiPost<Team>('/teams',{name:name.trim()});setName('');await load();setSelected(team.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать команду')}finally{setBusy(false)}};
