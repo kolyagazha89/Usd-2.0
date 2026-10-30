@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
 
-test('participant can choose at most five classes while preserving primary class order',()=>{
- assert.equal(MAX_REGISTRATION_CLASSES,5);
- const selected=['a','b','c','d','e'];
- assert.deepEqual(nextRegistrationClassIds(selected,'f',true),selected);
+test('participant can select more than five classes while preserving primary class order',()=>{
+ assert.equal(MAX_REGISTRATION_CLASSES,32);
+ const selected=['a','b','c','d','e','f'];
+ assert.deepEqual(nextRegistrationClassIds(selected,'g',true),[...selected,'g']);
  assert.deepEqual(nextRegistrationClassIds(selected,'c',true),selected);
- assert.deepEqual(nextRegistrationClassIds(selected,'a',false),['b','c','d','e']);
- assert.deepEqual(nextRegistrationClassIds(['b','c','d','e'],'f',true),['b','c','d','e','f']);
- assert.deepEqual(selected,['a','b','c','d','e'],'selection must be immutable');
+ assert.deepEqual(nextRegistrationClassIds(selected,'a',false),['b','c','d','e','f']);
+ assert.deepEqual(nextRegistrationClassIds(['b','c','d','e','f'],'g',true),['b','c','d','e','f','g']);
+ assert.deepEqual(selected,['a','b','c','d','e','f'],'selection must be immutable');
 });
 test('unchecking a class removes it and duplicate clicks do not add it twice',()=>{
  assert.deepEqual(nextRegistrationClassIds(['a','b'],'b',false),['a']);
@@ -34,6 +34,10 @@ test('registration screen wires the class cap and returning-vehicle question',as
  assert.match(app,/registerClassIds\.length>=MAX_REGISTRATION_CLASSES/);
  assert.match(app,/repeatVehicle=\{Boolean\(registerCarId/);
  assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
+ assert.match(flow,/<section className="entry-configuration-review"/);
+ assert.doesNotMatch(flow,/<legend>Вы меняли аудиосистему/);
+ assert.match(app,/Выбрано классов: \{registerClassIds.length\}\./);
+ assert.doesNotMatch(app,/missing\|\|c\.code\|\|'Класс USD'/);
  assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
  assert.match(flow,/step===0\?canContinueVehicle:classesReady/);
  assert.match(flow,/\[stage\?\.id,carId,configurationId\]/, 'switching stage must reset the registration wizard and review answer');
