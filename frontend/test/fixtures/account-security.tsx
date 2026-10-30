@@ -7,6 +7,7 @@ let root:ReturnType<typeof createRoot>|undefined;
 let calls:Array<{path:string;method:string;body:any}>=[];
 let mutation:(path:string,body:any)=>Promise<any>;
 let listSessions:()=>Promise<any>;
+let failLogout=false;
 const sessions=[{id:'session/one',familyId:'family-one',userAgent:'Chrome on Android',ipAddress:'192.0.2.1',createdAt:'2026-10-01T10:00:00Z',updatedAt:'2026-10-29T10:00:00Z',expiresAt:'2026-11-01T10:00:00Z'},
   {id:'session-two',familyId:'family-two',userAgent:null,ipAddress:null,createdAt:'2026-10-02T10:00:00Z',updatedAt:'2026-10-28T10:00:00Z',expiresAt:'2026-11-02T10:00:00Z'}];
 const flush=async()=>{await act(async()=>{await new Promise(resolve=>setTimeout(resolve,0))})};
@@ -23,7 +24,7 @@ async function mount(role='PARTICIPANT',linked=true,judge=false){
   localStorage.clear();calls=[];
   const user={id:'fixture-user',email:'fixture@example.test',role,participantId:linked?'fixture-participant':null,
     ...(judge?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
-  mutation=async()=>({success:true});listSessions=async()=>sessions;
+  mutation=async()=>({success:true});listSessions=async()=>sessions;failLogout=false;
   (globalThis as any).__securityFetch=async(url:string,init:RequestInit={})=>{
     const path=new URL(url).pathname,method=init.method??'GET',body=init.body?JSON.parse(String(init.body)):undefined;
     calls.push({path,method,body});
@@ -31,7 +32,7 @@ async function mount(role='PARTICIPANT',linked=true,judge=false){
     try{
       if(path==='/auth/refresh')data={accessToken:'synthetic-access',refreshToken:'synthetic-refresh',user};
       else if(path==='/auth/sessions'&&method==='GET')data=await listSessions();
-      else if(path==='/auth/logout')data={success:true};
+      else if(path==='/auth/logout'){if(failLogout)throw Object.assign(Error('Сервис выхода временно недоступен'),{status:503});data={success:true};}
       else if(method!=='GET')data=await mutation(path,body);
       else if(path==='/participants/me')data={participant:{id:'fixture-participant',firstName:'Тест',lastName:'Участник',isPublic:true}};
       else if(['/participants/me/cars','/registrations/me','/stages/public','/participants/teams'].includes(path))data=[];
@@ -81,6 +82,19 @@ export async function runAccountSecurity(){
     await act(async()=>finishPassword());await flush();
     assert.deepEqual(writes().filter(c=>c.path==='/auth/change-password').at(-1),{path:'/auth/change-password',method:'POST',body:{currentPassword:'Current-password',newPassword:'New-password'}});
     assert.equal(localStorage.getItem('usd_refresh_token'),null,'password rotation must end local auth after success');
+    assert.match(document.querySelector('h1')?.textContent??'',/С возвращением/);
+
+    // A remote logout failure after password rotation must not turn a successful
+    // password change into a false failure or keep the local session alive.
+    await mount();
+    failLogout=true;
+    await fill('account-current-password','Current-password');
+    await fill('account-new-password','Rotated-password');
+    await fill('account-password-confirmation','Rotated-password');
+    await submit('account-password-form');
+    await click('Сменить пароль и выйти');
+    assert.equal(writes().filter(call=>call.path==='/auth/change-password').length,1);
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'local logout is mandatory even when remote logout fails');
     assert.match(document.querySelector('h1')?.textContent??'',/С возвращением/);
 
     await mount();
