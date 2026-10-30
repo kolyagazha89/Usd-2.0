@@ -1,6 +1,8 @@
 name: Competition journey, archive replay and permanent deletion
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:

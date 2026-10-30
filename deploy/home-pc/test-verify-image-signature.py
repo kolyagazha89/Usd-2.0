@@ -1,6 +1,8 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -15,6 +17,11 @@ REPO = 'ghcr.io/kolyagazha89/usd-2.0-api'
 
 
 class ImageSignatureTests(unittest.TestCase):
+    def setUp(self):
+        cache = patch.object(signature, 'cosign_environment', return_value={'HOME': '/root-only-cache'})
+        cache.start()
+        self.addCleanup(cache.stop)
+
     def image(self):
         return {'Id': IMAGE_ID, 'RepoDigests': [REPO + '@' + DIGEST], 'Config': {'Labels': {'org.opencontainers.image.revision': SHA}}}
 
@@ -34,6 +41,7 @@ class ImageSignatureTests(unittest.TestCase):
         self.assertIn('git_sha=' + SHA, args)
         self.assertIn(REPO + '@' + DIGEST, args)
         self.assertFalse(any('insecure' in arg or 'ignore' in arg for arg in args))
+        self.assertEqual(run.call_args_list[1].kwargs['env'], {'HOME': '/root-only-cache'})
 
     def test_invalid_service_or_revision_is_refused_before_any_subprocess(self):
         for service, sha in [('db', SHA), ('api', 'main'), ('evil/image', SHA)]:
@@ -57,6 +65,40 @@ class ImageSignatureTests(unittest.TestCase):
         with patch.dict(signature.os.environ, {'SIGSTORE_ROOT_FILE': '/tmp/other-root'}), patch.object(signature, 'run') as run:
             with self.assertRaises(ValueError): signature.verify('api', SHA)
             run.assert_not_called()
+
+
+@unittest.skipUnless(os.geteuid() == 0, 'real trust-cache policy requires isolated root fixture')
+class TrustCacheTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix='usd-cosign-test-', dir='/var/lib')
+        self.addCleanup(temporary.cleanup)
+        self.home = Path(temporary.name) / 'trust'
+        patched = patch.object(signature, 'TRUST_HOME', self.home)
+        patched.start()
+        self.addCleanup(patched.stop)
+
+    def test_inherited_home_and_xdg_roots_are_ignored(self):
+        with patch.dict(os.environ, {'HOME': '/tmp/evil', 'XDG_CONFIG_HOME': '/tmp/evil',
+                                    'SSL_CERT_FILE': '/tmp/evil-ca', 'DOCKER_CONFIG': '/tmp/evil'}):
+            env = signature.cosign_environment()
+        self.assertEqual(env['HOME'], str(self.home))
+        self.assertEqual(env['XDG_CONFIG_HOME'], str(self.home / '.config'))
+        self.assertEqual(env['DOCKER_CONFIG'], str(self.home / '.docker'))
+        self.assertNotIn('SSL_CERT_FILE', env)
+        self.assertEqual(self.home.stat().st_mode & 0o777, 0o700)
+
+    def test_symlink_writable_and_user_owned_cached_trust_are_refused(self):
+        for kind in ('symlink', 'writable', 'user-owned'):
+            with self.subTest(kind=kind):
+                self.home.mkdir(mode=0o700, exist_ok=True)
+                cache = self.home / 'root.json'
+                if kind == 'symlink': cache.symlink_to('/etc/hosts')
+                else:
+                    cache.write_text('{}')
+                    if kind == 'writable': cache.chmod(0o666)
+                    else: os.chown(cache, 1000, 1000)
+                with self.assertRaises(ValueError): signature.cosign_environment()
+                cache.unlink()
 
 
 if __name__ == '__main__': unittest.main()

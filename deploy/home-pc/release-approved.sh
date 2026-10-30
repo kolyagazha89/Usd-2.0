@@ -194,6 +194,16 @@ front_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --
 [[ "$(docker inspect -f '{{.Config.Image}}' "$api_id")" == "ghcr.io/kolyagazha89/usd-2.0-api:$OLD_TAG" &&
    "$(docker inspect -f '{{.Config.Image}}' "$front_id")" == "ghcr.io/kolyagazha89/usd-2.0-frontend:$OLD_TAG" ]] ||
   { echo "Running images do not match the deployment environment; refusing an unverified rollback target" >&2; exit 1; }
+old_api_id="$(docker inspect -f '{{.Image}}' "$api_id")"
+old_frontend_id="$(docker inspect -f '{{.Image}}' "$front_id")"
+[[ "$old_api_id" =~ ^sha256:[a-f0-9]{64}$ && "$old_frontend_id" =~ ^sha256:[a-f0-9]{64}$ ]] ||
+  { echo 'Invalid running rollback image identity' >&2; exit 1; }
+for service in api frontend; do
+  baseline_id="$old_api_id"
+  [[ "$service" == api ]] || baseline_id="$old_frontend_id"
+  [[ "$(docker image inspect --format '{{.Id}}' "ghcr.io/kolyagazha89/usd-2.0-$service:$OLD_TAG")" == "$baseline_id" ]] ||
+    { echo 'Rollback tag does not identify the currently running image' >&2; exit 1; }
+done
 api_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$api_id")"
 front_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$front_id")"
 [[ -n "$api_files" && "$api_files" == "$front_files" ]] ||
@@ -362,11 +372,13 @@ verify_running_images() {
     [[ -n "$ids" && "$(echo "$ids" | wc -l)" -eq 1 ]] || return 1
     running_image="$(docker inspect -f '{{.Config.Image}}' "$ids")" || return 1
     [[ "$running_image" == "ghcr.io/kolyagazha89/usd-2.0-$service:$expected" ]] || return 1
+    local verified_id="$old_api_id"
+    [[ "$service" == api ]] || verified_id="$old_frontend_id"
     if [[ "$expected" == "$NEW_TAG" ]]; then
-      local verified_id="$new_api_id"
+      verified_id="$new_api_id"
       [[ "$service" == api ]] || verified_id="$new_frontend_id"
-      [[ "$(docker inspect -f '{{.Image}}' "$ids")" == "$verified_id" ]] || return 1
     fi
+    [[ "$(docker inspect -f '{{.Image}}' "$ids")" == "$verified_id" ]] || return 1
   done
 }
 # A static HTTP 200 is not enough: the API can serve its root endpoint
@@ -411,7 +423,12 @@ rollback() {
       [[ -z "$restore_tmp" ]] || rm -f -- "$restore_tmp"
       env_restored=0
       echo "CRITICAL: could not restore previous production .env; manual intervention required" >&2
-    elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --no-deps api frontend; then
+    # Restore the rollback tags from the captured running image IDs, rather
+    # than trusting tags that another local image operation may have changed.
+    elif ! docker image tag "$old_api_id" "ghcr.io/kolyagazha89/usd-2.0-api:$OLD_TAG" ||
+         ! docker image tag "$old_frontend_id" "ghcr.io/kolyagazha89/usd-2.0-frontend:$OLD_TAG"; then
+      echo "CRITICAL: original rollback image identities are unavailable; manual intervention required" >&2
+    elif ! docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --pull never --no-deps api frontend; then
       echo "CRITICAL: automatic image rollback failed; manual intervention required" >&2
     elif ! wait_ready; then
       echo "CRITICAL: previous API/frontend failed readiness after rollback; manual intervention required" >&2

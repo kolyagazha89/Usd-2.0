@@ -142,7 +142,15 @@ printf '%s\n' "$NEW" > /etc/usd-release-approved
 cat > "$WORK/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then exit 0; fi
+if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then
+  if [[ "$*" == *'{{.Id}}'* ]]; then
+    identity=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    [[ "${USD_TEST_ROLLBACK_TAG_ID_MISMATCH:-0}" != 1 ]] || identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    printf 'sha256:%s\n' "$identity"
+  fi
+  exit 0
+fi
+if [[ "${1:-}" == image && "${2:-}" == tag ]]; then exit 0; fi
 if [[ "${1:-}" == ps ]]; then
   case "$*" in
     *service=api*) echo mock-api ;;
@@ -183,6 +191,7 @@ if [[ "${1:-}" == inspect ]]; then
   if [[ "$*" == *'{{.Image}}'* ]]; then
     identity=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     if [[ "${USD_TEST_IMAGE_ID_MISMATCH_AFTER:-0}" == 1 ]] && grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; fi
+    if [[ "${USD_TEST_ROLLBACK_IMAGE_ID_MISMATCH:-0}" == 1 && -f "$USD_TEST_ROLLBACK_MARKER" ]]; then identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; fi
     printf 'sha256:%s\n' "$identity"
     exit 0
   fi
@@ -209,7 +218,7 @@ if [[ "${1:-}" == compose ]]; then
     *" config --quiet"*)
       [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] || exit 1
       exit 0 ;;
-    *" up -d --no-deps api frontend"*)
+    *" up -d --no-deps api frontend"*|*" up -d --pull never --no-deps api frontend"*)
       current_tag="$(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)"
       if [[ "$current_tag" == "$USD_TEST_NEW" ]]; then
         rm -f "$USD_TEST_ROLLBACK_MARKER"
@@ -540,6 +549,14 @@ grep -q 'Untrusted public prerelease verifier' "$WORK/public-verifier-untrusted.
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 chmod 0755 "$PUBLIC_VERIFIER"
 # A mutable SHA tag must not substitute another image after signature approval.
+rm -f "$USD_TEST_ROLLBACK_MARKER"
+if USD_TEST_ROLLBACK_TAG_ID_MISMATCH=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-rollback-tag.log" 2>&1; then exit 1; fi
+grep -q 'Rollback tag does not identify' "$WORK/wrong-rollback-tag.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 USD_TEST_ROLLBACK_IMAGE_ID_MISMATCH=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-rollback-image.log" 2>&1; then exit 1; fi
+grep -q 'CRITICAL: previous API/frontend image tags do not match rollback target' "$WORK/wrong-rollback-image.log"
+if grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/wrong-rollback-image.log"; then exit 1; fi
+rm -f "$USD_TEST_ROLLBACK_MARKER"
 if USD_TEST_IMAGE_ID_MISMATCH_AFTER=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-signed-image.log" 2>&1; then exit 1; fi
 grep -q 'New API/frontend image tags do not match' "$WORK/wrong-signed-image.log"
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/wrong-signed-image.log"

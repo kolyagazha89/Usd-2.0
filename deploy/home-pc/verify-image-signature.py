@@ -13,6 +13,7 @@ COSIGN = Path('/usr/local/libexec/usd-cosign')
 COSIGN_SHA256 = '4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71'
 IDENTITY = 'https://github.com/kolyagazha89/Usd-2.0/.github/workflows/publish-home-pc-images.yml@refs/heads/main'
 ISSUER = 'https://token.actions.githubusercontent.com'
+TRUST_HOME = Path('/var/lib/usd-deployer/cosign-trust')
 
 
 def trusted_cosign() -> None:
@@ -30,8 +31,35 @@ def trusted_cosign() -> None:
         raise ValueError('Pinned signature verifier checksum mismatch')
 
 
-def run(args):
-    return subprocess.run(args, capture_output=True, text=True, timeout=90)
+def cosign_environment() -> dict:
+    # Cosign also loads TUF mirror/root state from HOME. Ignoring COSIGN_* alone
+    # would still accept user-provided cached trust roots and mirror settings.
+    if os.geteuid() != 0:
+        raise ValueError('Signature verification requires the root-owned trust cache')
+    for path in reversed((TRUST_HOME, *TRUST_HOME.parents)):
+        if not path.exists() and not path.is_symlink():
+            path.mkdir(mode=0o700)
+        info = path.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError('Untrusted signature cache directory')
+    if TRUST_HOME.stat().st_mode & 0o077:
+        raise ValueError('Signature trust home must be private')
+    for directory, folders, files in os.walk(TRUST_HOME, followlinks=False):
+        for name in folders + files:
+            info = (Path(directory) / name).lstat()
+            if (not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
+                    or info.st_uid != 0 or info.st_mode & 0o022):
+                raise ValueError('Untrusted signature cache contents')
+    env = {key: value for key, value in os.environ.items()
+           if key.lower() in ('http_proxy', 'https_proxy', 'no_proxy')}
+    env.update(PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+               HOME=str(TRUST_HOME), XDG_CACHE_HOME=str(TRUST_HOME / '.cache'),
+               XDG_CONFIG_HOME=str(TRUST_HOME / '.config'), DOCKER_CONFIG=str(TRUST_HOME / '.docker'))
+    return env
+
+
+def run(args, env=None):
+    return subprocess.run(args, capture_output=True, text=True, timeout=90, env=env)
 
 
 def verify(service: str, sha: str) -> dict:
@@ -40,6 +68,7 @@ def verify(service: str, sha: str) -> dict:
     if any(key.startswith(('COSIGN_', 'SIGSTORE_', 'FULCIO_', 'REKOR_', 'TUF_')) for key in os.environ):
         raise ValueError('Signature trust or repository overrides are not allowed')
     trusted_cosign()
+    env = cosign_environment()
     repo = 'ghcr.io/kolyagazha89/usd-2.0-' + service
     inspected = run(['docker', 'image', 'inspect', repo + ':' + sha])
     if inspected.returncode:
@@ -62,7 +91,7 @@ def verify(service: str, sha: str) -> dict:
     reference = references.pop()
     digest = reference.split('@', 1)[1]
     verified = run([str(COSIGN), 'verify', '--certificate-identity', IDENTITY,
-                    '--certificate-oidc-issuer', ISSUER, '-a', 'git_sha=' + sha, reference])
+                    '--certificate-oidc-issuer', ISSUER, '-a', 'git_sha=' + sha, reference], env=env)
     if verified.returncode:
         raise ValueError('Candidate signature is missing, invalid or from an unapproved workflow')
     payloads = json.loads(verified.stdout)

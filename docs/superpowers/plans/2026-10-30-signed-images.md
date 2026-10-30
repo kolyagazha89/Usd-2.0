@@ -22,6 +22,16 @@ the transition from old unsigned releases; no new unsigned candidate is accepted
 - No live database/schema/DNS change or server enablement is part of this change.
 - The change is not live accepted until the installed Ubuntu helper uses it.
 
+Independent review found and corrected inherited HOME/TUF trust state, read-only
+systemd home cache, and rollback tag/image-ID mismatch. Added a fixed private
+state-directory trust home with sanitized environment and cache ownership checks;
+captured/verified original rollback IDs. The readiness report now checks both
+signature tools and the pinned binary checksum. Regression tests cover these.
+
+The release CI gate also requires exact main-push journey, browser and publication
+workflows, which now run on every main push; completion events request another
+safe host poll. Missing, failed, skipped, cancelled or PR-only runs cannot pass.
+
 Sources: https://docs.sigstore.dev/cosign/signing/signing_with_containers/ and
 https://docs.sigstore.dev/cosign/verifying/verify/; official installer v4.1.0 and
 cosign v3.1.3 release checksum. Local cosign verify --help confirms the exact issuer

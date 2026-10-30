@@ -5,6 +5,7 @@ Never prints secret contents, runs migrations, or changes Docker state.
 Exit 0 only if every mandatory gate is ready; 1 otherwise.
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -23,6 +24,7 @@ POLICIES = (
     "etc/usd-deployer/media-backup.conf",
 )
 TOOLS = ("docker", "git", "rclone", "systemctl", "flock")
+COSIGN_SHA256 = "4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71"
 
 
 def check_private_file(root, relative, *, require_private=False):
@@ -99,6 +101,18 @@ def assess(root=Path("/"), live=False):
     trusted_helper, detail = check_private_file(root, "usr/local/sbin/usd-release-approved")
     trusted_helper = trusted_helper and os.access(release_helper, os.X_OK)
     add("release-helper", trusted_helper, detail if trusted_helper else "missing, untrusted or not executable")
+    for relative in ("usr/local/libexec/usd-verify-image-signature", "usr/local/libexec/usd-cosign"):
+        trusted, detail = check_private_file(root, relative)
+        trusted = trusted and os.access(root / relative, os.X_OK)
+        if trusted and relative.endswith("usd-cosign"):
+            try:
+                with (root / relative).open("rb") as stream:
+                    trusted = hashlib.file_digest(stream, "sha256").hexdigest() == COSIGN_SHA256
+            except OSError:
+                trusted = False
+            detail = "pinned checksum verified" if trusted else "checksum mismatch"
+        add("signature-tool:" + relative.rsplit("/", 1)[1], trusted,
+            detail if trusted else "missing, untrusted or checksum mismatch")
 
     if live:
         if os.geteuid() != 0:
