@@ -18,6 +18,20 @@ spec.loader.exec_module(readiness)
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_missing_or_untrusted_signature_tools_block_readiness(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            path = root / "usr/local/libexec/usd-cosign"
+            path.parent.mkdir(parents=True)
+            path.write_text("unreviewed binary")
+            path.chmod(0o777)
+            with patch.object(readiness.shutil, "which", return_value="/usr/bin/tool"):
+                result = readiness.assess(root)
+            tools = [item for item in result["checks"] if item["name"].startswith("signature-tool:")]
+            self.assertEqual(len(tools), 2)
+            self.assertTrue(all(not item["ok"] for item in tools))
+            self.assertNotIn("unreviewed binary", json.dumps(result))
+
     def test_missing_configuration_fails_closed_without_creating_files(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
