@@ -87,6 +87,9 @@ def assess(root=Path("/"), live=False):
     trusted_verifier, detail = check_private_file(root, "usr/local/libexec/usd-verify-second-disk-db-backup")
     trusted_verifier = trusted_verifier and os.access(verifier, os.X_OK)
     add("second-disk-backup-verifier", trusted_verifier, detail if trusted_verifier else "missing/untrusted")
+    media_verifier = root / "usr/local/libexec/usd-verify-second-disk-media-backup"
+    media_ok, media_detail = check_private_file(root, "usr/local/libexec/usd-verify-second-disk-media-backup")
+    add("second-disk-media-verifier", media_ok and os.access(media_verifier, os.X_OK), media_detail)
     if live:
         disk_ok, disk_source = run(["findmnt", "-n", "-o", "SOURCE", "--mountpoint", "/srv/usd-s3"])
         add("second-disk-mounted", disk_ok and disk_source == "/dev/sdb1",
