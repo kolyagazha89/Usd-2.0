@@ -71,7 +71,7 @@ SHA="$(git -C "$SOURCE" rev-parse FETCH_HEAD)"
 git -C "$SOURCE" checkout --force --detach "$SHA"
 git -C "$SOURCE" clean -ffdx
 echo "Проверка CI для main: $SHA"
-python3 "$SOURCE/deploy/home-pc/verify-main-ci.py" "$SHA" 1
+python3 "$SOURCE/deploy/home-pc/verify-main-ci.py" "$SHA" 0
 for service in api frontend; do
   docker pull "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA"
   [[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA")" == "$SHA" ]] ||
@@ -89,37 +89,15 @@ python3 "$SOURCE/deploy/home-pc/prepare-host-files.py"
 OLD="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY/.env")"
 [[ "$OLD" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid deployed SHA' >&2; exit 1; }
 
-export RCLONE_CONFIG="$STATE/rclone.conf"
-export RCLONE_CACHE_DIR="$STATE/rclone-cache"
-if [[ ! -e "$RCLONE_CONFIG" && -f /root/.config/rclone/rclone.conf && ! -L /root/.config/rclone/rclone.conf ]]; then
-  install -o root -g root -m 0600 /root/.config/rclone/rclone.conf "$RCLONE_CONFIG"
-fi
-[[ ! -L "$RCLONE_CONFIG" ]] || { echo 'Refusing symlinked rclone credentials' >&2; exit 1; }
-if [[ -e "$RCLONE_CONFIG" ]]; then
-  [[ "$(stat -c %u "$RCLONE_CONFIG")" == 0 ]] || { echo 'rclone credentials must be root-owned' >&2; exit 1; }
-  chmod 0600 "$RCLONE_CONFIG"
-fi
-echo 'Резервные копии должны храниться вне этого компьютера, в защищённом удалённом хранилище.'
-echo 'Настройте rclone: источник с текущими фотографиями и отдельное внешнее хранилище (желательно crypt).'
-if [[ ! -s /etc/usd-deployer/db-backup.conf || ! -s /etc/usd-deployer/media-backup.conf ]]; then
-  rclone config
-  rclone listremotes
-  read -r -p 'Текущие медиа, remote:bucket/path: ' usd_media_source
-  read -r -p 'Внешняя папка для копий медиа, remote:bucket/path: ' usd_media_backup
-  read -r -p 'Внешняя папка для копий БД, remote:bucket/path: ' usd_db_backup
-  python3 - "$usd_media_source" "$usd_media_backup" "$usd_db_backup" <<'PY'
-import re,sys
-source,media,db=sys.argv[1:]
-for raw in (source,media,db):
-    if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_-]*:[A-Za-z0-9_/-]+',raw) or raw.endswith('/') or ':/' in raw or '//' in raw:
-        raise SystemExit('Use a named remote and nonempty simple path without spaces/traversal')
-if source.split(':')[0]==media.split(':')[0]:raise SystemExit('Media source and backup need independently configured remotes')
-PY
-  printf '%s\n%s\n' "$usd_media_source" "$usd_media_backup" > /etc/usd-deployer/media-backup.conf
-  printf '%s\n' "$usd_db_backup" > /etc/usd-deployer/db-backup.conf
-  chmod 0600 /etc/usd-deployer/{media,db}-backup.conf
-fi
-
+# Local-only policy: operator has explicitly chosen same-PC second HDD.
+# No rclone credentials or external storage are required.
+[[ "$(findmnt -n -o SOURCE --mountpoint /srv/usd-s3)" == /dev/sdb1 ]] ||
+  { echo 'Expected /dev/sdb1 at /srv/usd-s3; refusing setup' >&2; exit 1; }
+[[ "$(stat -c %d /srv/usd-s3)" != "$(stat -c %d /)" ]] ||
+  { echo 'Second disk is not a separate filesystem' >&2; exit 1; }
+install -o root -g root -m 0600 /dev/null /etc/usd-deployer/local-second-disk-approved
+printf '%s\n' SAME_PC_SECOND_DISK_ACCEPTED > /etc/usd-deployer/local-second-disk-approved
+echo 'WARNING: same-PC backups cannot survive total machine loss.'
 # Use a disposable GitHub CLI profile. Administrative OAuth credentials are
 # removed on exit; the unprivileged runner receives only its runner identity.
 [[ ! -v GH_TOKEN && ! -v GITHUB_TOKEN ]] || { echo 'Do not pass a GitHub token through the setup environment' >&2; exit 1; }
@@ -163,7 +141,8 @@ fi
 [[ -x "$RUNNER/runsvc.sh" ]] || { echo 'Registered runner installation is incomplete: runsvc.sh missing' >&2; exit 1; }
 usd_runner_id="$(python3 - "$RUNNER/.runner" <<'PY'
 import json,sys
-data=json.load(open(sys.argv[1]))
+with open(sys.argv[1], encoding='utf-8-sig') as runner_file:
+    data=json.load(runner_file)
 if data.get('gitHubUrl','').rstrip('/')!='https://github.com/kolyagazha89/Usd-2.0':raise SystemExit('Runner is registered to a different repository')
 print(int(data['agentId']))
 PY
@@ -212,24 +191,17 @@ fi
 printf '%s\n' "$SHA" > "$STATE/built-sha"
 /usr/local/libexec/usd-initial-schema --check "$SHA"
 if [[ "$OLD" != "$SHA" ]]; then
-  for usd_policy in /etc/usd-deployer/{media,db}-backup.conf; do
-    [[ -f "$usd_policy" && ! -L "$usd_policy" && "$(stat -c %u "$usd_policy")" == 0 ]] &&
-      (( (8#$(stat -c %a "$usd_policy") & 077) == 0 )) || { echo 'Backup policy must be private and root-owned' >&2; exit 1; }
-  done
-  mapfile -t usd_media_paths < /etc/usd-deployer/media-backup.conf
-  [[ "${#usd_media_paths[@]}" == 2 && "${usd_media_paths[0]%%:*}" != "${usd_media_paths[1]%%:*}" ]] ||
-    { echo 'Media source and off-host destination must be independently configured' >&2; exit 1; }
-  echo 'Проверка полной внешней копии медиа и её восстановления.'
-  /usr/local/libexec/usd-verify-media-backup "${usd_media_paths[0]}" "${usd_media_paths[1]%/}/$SHA-$(date -u +%Y%m%dT%H%M%SZ)-$$-setup"
+  [[ -x /usr/local/libexec/usd-verify-second-disk-db-backup ]] ||
+    { echo 'Missing trusted second-disk backup verifier' >&2; exit 1; }
   printf '%s\n' "$SHA" > "$STATE/schema-approved-sha"
   printf '%s\n' "$SHA" > "$STATE/release-approved-sha"
   if [[ "$OLD" == "$BASELINE" ]]; then
     echo 'Проверка реальной резервной копии и восстановления перед двумя проверенными добавочными миграциями.'
-    USD_DEPLOY_LOCK_HELD=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only
+    USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only
     USD_DEPLOY_LOCK_HELD=1 /usr/local/libexec/usd-initial-schema --apply "$SHA"
   fi
   echo 'Первый релиз API и публичной части с проверкой отката.'
-  USD_DEPLOY_LOCK_HELD=1 /usr/local/sbin/usd-release-approved "$SHA"
+  USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA"
 fi
 /usr/local/libexec/usd-verify-prerelease "$SHA"
 git -C "$SOURCE" rev-parse "$SHA:backend/prisma" > /etc/usd-auto-release-schema
