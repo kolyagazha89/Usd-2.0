@@ -48,6 +48,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
     });
 
     if(response.status===401 && retry && !PUBLIC_AUTH_ENDPOINT.test(path)){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const refreshed=await refresh();
       if(refreshed && generation===authGeneration) return request<T>(path,init,false);
       if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
@@ -138,6 +139,7 @@ export async function getPrivateMediaObjectUrl(targetType:string,targetId:string
     if(accessToken)headers.set('Authorization',`Bearer ${accessToken}`);
     const response=await fetch(`${API_BASE}${path}`,{headers,credentials:'include'});
     if(response.status===401&&retry){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const renewed=await refresh();
       if(renewed && generation===authGeneration)return read(false);
       if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
