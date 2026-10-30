@@ -20,7 +20,8 @@ python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("s3/verify-local-hdd-snapshot.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-second-disk-db-backup.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-second-disk-media-backup.py").read_text())'
-python3 -m unittest discover -s . -p 'test-second-disk-db-backup.py'
+python3 test-second-disk-db-backup.py -v
+python3 test-second-disk-media-backup.py -v
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema
