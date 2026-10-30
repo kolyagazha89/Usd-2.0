@@ -10,3 +10,12 @@ export function getLiveQaConfig(env=process.env){
    :'deployed site, unmodified styles',
  };
 }
+
+// Live QA must never visit the primary site or send a mutation to production.
+export function isLiveQaReadRequest(value,method){
+ try{
+  const url=new URL(value);
+  return ['GET','HEAD','OPTIONS'].includes(method)&&url.protocol==='https:'
+   &&!url.username&&!url.password&&['app.usd-russia.ru','api.usd-russia.ru'].includes(url.hostname);
+ }catch{return false}
+}

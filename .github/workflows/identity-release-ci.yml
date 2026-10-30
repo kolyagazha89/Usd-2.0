@@ -1,4 +1,4 @@
-name: Archive replay and permanent deletion
+name: Competition journey, archive replay and permanent deletion
 
 on:
   pull_request:
@@ -19,7 +19,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/usd_identity_ci
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -51,3 +51,39 @@ jobs:
         env:
           USD_HISTORICAL_LIST_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/historical-results-list.e2e-spec.ts
+
+  # The archive replay above requires empty participant/result tables. Give the
+  # live journey its own service and database, with synthetic fixtures only.
+  live-competition-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/usd_identity_journey_ci
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: usd_identity_journey_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd_identity_journey_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - name: Verify participant, configuration, judging and public history journey on PostgreSQL 18
+        env:
+          USD_COMPETITION_JOURNEY_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/competition-journey.e2e-spec.ts

@@ -20,6 +20,12 @@ test('iPhone public dock is CSS-anchored to 100dvh without JS scroll offsets',as
  assert.doesNotMatch(shell,/usd-dock-visual-top/);
  assert.match(css,/env\(safe-area-inset-bottom/);
  assert.match(css,/--usd-dock-height:calc\(66px/);
+ const premium=await source('../src/premium-ui.css');
+ assert.match(premium,/body:has\(\.usd-live\):has\(> \.u-mobile-dock\) \{ --usd-dock-height:calc\(66px/,'body must expose the dock height to the cookie notice');
+ const notice=await source('../src/CookieNotice.tsx');
+ assert.match(notice,/body:has\(> \.u-mobile-dock\) \.cookie-notice/);
+ assert.match(notice,/top: max\(12px, calc\(100dvh/);
+ assert.match(notice,/bottom: auto !important/);
 });
 test('admin forms use flat search input and accessible mobile selector layout',async()=>{
  const styles=await source('../src/styles.css');
