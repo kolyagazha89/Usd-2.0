@@ -31,6 +31,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const PUBLIC_AUTH_ENDPOINT = /^\/auth\/(?:login|register|refresh|logout|forgot-password|reset-password|verify-email|resend-verification|confirm-email-change)(?:[/?]|$)/;
 
 async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<T>{
+  const generation=authGeneration;
   const headers=new Headers(init.headers);
   if(init.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
   if(accessToken) headers.set('Authorization',`Bearer ${accessToken}`);
@@ -47,11 +48,14 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
     });
 
     if(response.status===401 && retry && !PUBLIC_AUTH_ENDPOINT.test(path)){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const refreshed=await refresh();
-      if(refreshed) return request<T>(path,init,false);
+      if(refreshed && generation===authGeneration) return request<T>(path,init,false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
 
     const data=await response.json().catch(()=>({}));
+    if(generation!==authGeneration && !PUBLIC_AUTH_ENDPOINT.test(path))throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok){
       const e=new Error(data?.message ?? 'Произошла ошибка запроса') as ApiError;
       e.status=response.status;
@@ -130,19 +134,30 @@ export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.del
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
+    const generation=authGeneration;
     const headers=new Headers();
     if(accessToken)headers.set('Authorization',`Bearer ${accessToken}`);
     const response=await fetch(`${API_BASE}${path}`,{headers,credentials:'include'});
     if(response.status===401&&retry){
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
       const renewed=await refresh();
-      if(renewed)return read(false);
+      if(renewed && generation===authGeneration)return read(false);
+      if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     }
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     if(!response.ok)throw new Error('Не удалось получить медиафайл ('+response.status+')');
-    const url=URL.createObjectURL(await response.blob());
+    const blob=await response.blob();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    const url=URL.createObjectURL(blob);
     privateMediaObjectUrls.add(url);
     return url;
   };
-  if(!accessToken)await refresh();
+  if(!accessToken){
+    const generation=authGeneration;
+    const refreshed=await refresh();
+    if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
+    if(!refreshed)throw new Error('Для просмотра файла необходимо войти в аккаунт.');
+  }
   return read(true);
 }
 export async function getMediaUrl(targetType:string,targetId:string){
