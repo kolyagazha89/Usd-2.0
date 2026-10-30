@@ -43,6 +43,7 @@ model User {
   newsletterConsentRevokedSource String?
   customRoleId             String?
   customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  pushSubscriptions        PushSubscription[]
   componentCatalogRequests ComponentCatalogRequest[]
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
@@ -1008,4 +1009,57 @@ model HistoricalConfigurationConfirmation {
   registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   version CarConfigurationVersion @relation(fields: [versionId], references: [id])
   @@index([versionId])
+}
+
+
+// Browser endpoints and encryption keys are private credentials; never expose in list/log APIs.
+model PushSubscription {
+  id               String   @id @default(uuid())
+  userId           String
+  endpoint         String   @unique @db.VarChar(2048)
+  p256dh           String   @db.VarChar(87)
+  auth             String   @db.VarChar(22)
+  consentAt        DateTime @default(now()) @db.Timestamptz(3)
+  consentVersion   String   @db.VarChar(40)
+  registrationOpen Boolean  @default(true)
+  reminders        Boolean  @default(true)
+  announcements    Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+  user             User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries       PushDelivery[]
+  @@index([userId])
+}
+
+model PushMessage {
+  id              String   @id @default(uuid())
+  eventKey        String   @unique @db.VarChar(200)
+  category        String   @db.VarChar(30)
+  title           String   @db.VarChar(80)
+  body            String   @db.VarChar(240)
+  path            String   @db.VarChar(300)
+  stageId         String?
+  createdByUserId String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  deliveries      PushDelivery[]
+  @@index([createdAt])
+}
+
+model PushDelivery {
+  id              String   @id @default(uuid())
+  messageId       String
+  subscriptionId  String?
+  status          String   @default("PENDING") @db.VarChar(30)
+  attempts        Int      @default(0)
+  nextAttemptAt   DateTime @default(now()) @db.Timestamptz(3)
+  leaseUntil      DateTime? @db.Timestamptz(3)
+  lastStatusCode  Int?
+  acceptedAt      DateTime? @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  message         PushMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  subscription    PushSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  @@unique([messageId, subscriptionId])
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId])
 }

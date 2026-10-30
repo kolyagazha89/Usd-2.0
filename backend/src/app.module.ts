@@ -1,3 +1,4 @@
+import { PushModule } from './push/push.module';
 import {AdminDeletionModule} from './admin-deletion/admin-deletion.module';
 import { Module } from '@nestjs/common';
 
@@ -59,6 +60,7 @@ import { ComponentCatalogRequestsModule } from './component-catalog-requests/com
     AssistantModule,
     NormalizationDryRunModule,
     ComponentCatalogRequestsModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [AppService],

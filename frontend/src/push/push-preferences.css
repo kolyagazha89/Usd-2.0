@@ -1,0 +1,64 @@
+.push-preferences {
+  margin-top: 30px;
+  padding-top: 28px;
+  border-top: 1px solid var(--member-line, rgba(255, 255, 255, 0.14));
+  display: grid;
+  gap: 16px;
+  max-width: 760px;
+}
+.push-preferences h3 {
+  font-size: 22px;
+  margin: 8px 0;
+}
+.push-preferences p,
+.push-preferences small {
+  line-height: 1.65;
+  color: var(--member-muted, #a3a3ad);
+}
+.push-device,
+.push-opt-in {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.push-device > small {
+  display: block;
+}
+.push-topics {
+  display: grid;
+  gap: 12px;
+}
+.push-topics label,
+.push-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.push-topics input,
+.push-consent input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 4px 0;
+  accent-color: #ed2638;
+}
+.push-consent {
+  font-size: 13px;
+}
+.push-help {
+  padding: 14px;
+  border-left: 3px solid #ed2638;
+  background: rgba(255, 255, 255, 0.04);
+}
+.push-preferences button {
+  justify-self: start;
+  white-space: normal;
+}
+.push-preferences a {
+  color: inherit;
+  text-decoration: underline;
+}

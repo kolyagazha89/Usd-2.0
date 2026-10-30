@@ -1,0 +1,45 @@
+name: Web push on PostgreSQL 18
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-push-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/usd_push_test
+      PUSH_TEST_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/usd_push_test
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: usd_push_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd_push_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - name: Verify consent, ownership, retries and stage hooks with mocked provider transport
+        run: npm test -- --runInBand src/push

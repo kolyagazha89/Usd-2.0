@@ -2,6 +2,7 @@ import {useMemo,useRef} from 'react';
 import {Info} from 'lucide-react';
 import type {Role,User} from '../api';
 import RolesPage from './RolesPage';
+import NotificationsPage from './NotificationsPage';
 import HistoricalPage from './HistoricalPage';
 import ImportPage from './ImportPage';
 import CarsPage, {CarEditorPage} from './CarsPage';
@@ -34,6 +35,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   const routeRef=useRef({go,path});routeRef.current={go,path};
   const RoutedResourcePage=useMemo(()=>function RoutedResourcePage(props:any){return <ResourcePage {...props} go={routeRef.current.go} routePath={routeRef.current.path}/>},[ResourcePage]);
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
+  if(path.startsWith('/admin/notifications'))return <NotificationsPage user={user} PageFrame={PageFrame}/>;
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage user={user} ResourcePage={RoutedResourcePage} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
