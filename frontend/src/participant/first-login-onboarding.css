@@ -21,10 +21,12 @@ body .profile-match-page.usd-member {
  min-width:0;
  padding:0 clamp(16px,3.6vw,60px) 26px;
  color:var(--pm-white);
- background:
+ /* Specific override of the general Dark Velocity .usd-member !important skin.
+    * Both computed backdrop color and visual layers stay graphite on first login. */
+ background-color:#080b10!important;
+ background-image:
    radial-gradient(ellipse 67% 420px at 83% -2%,rgba(222,22,51,.14),transparent 80%),
-   radial-gradient(ellipse 45% 440px at -5% 43%,rgba(77,106,142,.10),transparent 85%),
-   var(--pm-ink);
+   radial-gradient(ellipse 45% 440px at -5% 43%,rgba(77,106,142,.10),transparent 85%)!important;
  overflow-x:clip;
  font-family:'Exo 2',Inter,system-ui,sans-serif;
 }
