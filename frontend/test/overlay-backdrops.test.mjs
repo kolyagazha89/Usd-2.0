@@ -50,7 +50,7 @@ test('floating menus are opaque; public, admin and modal backdrops cover the scr
 
 test('real browser QA exercises both backdrops, scroll restoration and mobile navigation',async()=>{
  const qa=await read('../../scripts/candidate-browser-qa.mjs');
- assert.match(qa,/body > \.public-nav-scrim/);
+ assert.match(qa,/\.usd-live > \.public-nav-scrim/);
  assert.match(qa,/publicBackdrop\.click/);
  assert.match(qa,/adminBackdrop\.click/);
  assert.match(qa,/tapping backdrop closes mobile menu/);
