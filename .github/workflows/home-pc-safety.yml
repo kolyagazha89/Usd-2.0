@@ -386,6 +386,7 @@ jobs:
           python3 deploy/home-pc/test-initial-schema.py
           python3 deploy/home-pc/test-diagnose-live-prisma-history.py -v
           python3 deploy/home-pc/test-verify-prerelease.py -v
+          python3 deploy/home-pc/test-deploy-diagnostics.py -v
           sudo python3 deploy/home-pc/test-verify-image-signature.py -v
           python3 deploy/home-pc/test-verify-runner-policy.py -v
           python3 deploy/home-pc/test-prepare-host-files.py -v

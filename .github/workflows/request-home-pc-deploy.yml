@@ -43,9 +43,30 @@ jobs:
           set -Eeuo pipefail
           # No checkout, GitHub secrets, Docker socket or deployment env access.
           # sudoers permits ONLY this exact systemd start operation.
-          sudo -n /usr/bin/systemctl start usd-auto-deploy.service
+          diagnose_service() {
+            # No more privileges: only public systemd state and known benign
+            # messages, not arbitrary journals or deployment credentials.
+            echo '::error::USD root-owned deployment service failed. Current release was not accepted.' >&2
+            systemctl show usd-auto-deploy.service --property=Result --property=ExecMainStatus --no-pager 2>/dev/null || true
+            if command -v journalctl >/dev/null; then
+              journalctl --no-pager --quiet --output=cat -u usd-auto-deploy.service -n 100 2>/dev/null |
+                # Exact complete, operator-safe messages ONLY. Never send raw
+                # journal entries or environment/path fragments to GitHub.
+                grep -Ex '(Schema changed; supervised migration and new schema approval required|Current deployment schema differs from approved policy|Insufficient memory or Docker storage for image preparation and restore rehearsal|Main CI gate refused automatic release|Main CI not verified yet; leaving current deployment untouched|Second-disk risk acceptance missing; build-only mode|Dedicated second disk not mounted; release deferred|Second-disk media snapshot failed; release deferred|Missing or untrusted image signature verifier|Missing deployment environment|This SHA already failed release; inspect logs before explicitly clearing failed-release-sha|Cannot compare frontend trees for CI policy|Cannot recheck main branch after CI; deferring release)' |
+                tail -n 12 || true
+            fi
+            echo 'Ubuntu: sudo journalctl -u usd-auto-deploy.service -n 120 --no-pager' >&2
+            echo 'Never bypass Prisma schema, backup or rollback approval to clear this error.' >&2
+          }
+          if ! sudo -n /usr/bin/systemctl start usd-auto-deploy.service; then
+            diagnose_service
+            exit 1
+          fi
           result="$(systemctl show usd-auto-deploy.service --property=Result --value)"
-          test "$result" = success
+          if [[ "$result" != success ]]; then
+            diagnose_service
+            exit 1
+          fi
           usd_verify_deadline=$((SECONDS+600))
           while (( SECONDS < usd_verify_deadline )); do
             usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"
