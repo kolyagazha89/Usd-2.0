@@ -16,6 +16,7 @@ done
 [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=usd-home)" ]] || exit 1
 REVIEWED_COMMIT=09d936fb3945222d1955ff9ea73490c9b82d04b0
 REVIEWED_TREE=4d9fa43dafd01e58354c3d22ead2cafe45152044
+REVIEWED_TEAM_TREE=a22c242dd0c6dfa9554f179cf705b39499a68967
 BASELINE=e8b5b0f22780a61e79765b8fd92167e241df82a2
 IMAGE=ghcr.io/kolyagazha89/usd-2.0-api
 NEW="$IMAGE:$SHA"
@@ -136,12 +137,13 @@ db_id="$(docker inspect -f '{{.Id}}' "$db")"
 exec 9>/run/lock/usd-home-deploy.lock
 flock -n 9
 export USD_DEPLOY_LOCK_HELD=1
-# Exercise the actual candidate tree when it has evolved. Baseline main still
-# gets negative coverage through a fixture-only unreviewed schema commit/image.
+# Exercise rejection for either approved candidate tree; the now-approved team
+# schema MUST be modified into an unreviewed fixture before negative admission.
 phase='prepare unreviewed schema refusal'
 git -C "$SOURCE" checkout -q --detach "$SHA"
 REJECTED_SHA="$SHA"
-if [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TREE" ]]; then
+if [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TREE" ||
+      "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TEAM_TREE" ]]; then
   printf '\n// Fixture only: unreviewed schema change.\n' >> "$SOURCE/backend/prisma/schema.prisma"
   git -C "$SOURCE" add backend/prisma/schema.prisma
   git -C "$SOURCE" -c user.name='USD CI fixture' -c user.email='fixture@invalid' \
@@ -167,7 +169,7 @@ for mode in --check --apply; do
     echo "Unreviewed candidate schema accepted by $mode" >&2
     exit 1
   fi
-  if ! grep -Fq 'Candidate schema is outside the two reviewed nullable additions' "$WORK/unreviewed-$mode.log"; then
+  if ! grep -Fq 'Candidate Prisma tree is not an explicitly reviewed additive upgrade' "$WORK/unreviewed-$mode.log"; then
     printf 'Unexpected helper refusal reason for %s during %s at line %s:\n' "$mode" "$phase" "$LINENO" >&2
     # This helper deliberately emits sanitized errors, never command output or
     # environment values. Keep diagnostics bounded to its first eight lines.
