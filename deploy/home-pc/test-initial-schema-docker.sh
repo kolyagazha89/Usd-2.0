@@ -3,6 +3,9 @@
 set -Eeuo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_ENVIRONMENT:-}" == github-hosted && "$(id -u)" == 0 ]] ||
   { echo 'Only run on a disposable GitHub-hosted CI worker' >&2; exit 1; }
+# Hosted runners may inherit a group-writable umask. The production helper
+# correctly refuses such source paths; keep this root-only fixture private.
+umask 077
 SHA="${1:-}"
 [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
 SOURCE=/opt/usd-release-source
