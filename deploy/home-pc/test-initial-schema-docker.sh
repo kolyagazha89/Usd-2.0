@@ -44,6 +44,7 @@ phase='prepare isolated source'
 trap 'printf "Initial schema fixture failed during %s at line %s\n" "$phase" "$LINENO" >&2' ERR
 # Use an independent fixture repository: a worktree .git file must never point
 # fixture commits/checkouts back into the candidate's real repository.
+install -d -o root -g root -m 0700 "$SOURCE"
 git init -q "$SOURCE"
 git -C "$SOURCE" fetch -q --no-tags --depth=1 "$PWD" "$SHA"
 git -C "$SOURCE" checkout -q --detach "$SHA"
@@ -161,6 +162,7 @@ printf '%s\n%s\n%s\n' "$REJECTED_SHA" "$BASELINE" "${db_id:0:12}" > "$STATE/init
 chmod 600 "$STATE/initial-preflight"
 for mode in --check --apply; do
   phase="reject unreviewed schema ($mode)"
+  stat -c 'Fixture source trust: uid=%u gid=%g mode=%a' "$SOURCE"
   if python3 deploy/home-pc/initial-schema.py "$mode" "$REJECTED_SHA" > "$WORK/unreviewed-$mode.log" 2>&1; then
     echo "Unreviewed candidate schema accepted by $mode" >&2
     exit 1
