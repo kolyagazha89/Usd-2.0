@@ -307,10 +307,23 @@ try{
       assert.equal(await page.locator('.menu-button').isVisible(),width<=800,'responsive admin menu control');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
-       await page.locator('.sidebar').waitFor({state:'visible'});
+       await page.locator('.sidebar.open').waitFor({state:'visible'});
+       const adminLayers=await page.evaluate(()=>{
+        const scrim=document.querySelector('.app-shell>.mobile-backdrop'),sidebar=document.querySelector('.app-shell .sidebar');
+        return {backdrop:getComputedStyle(scrim).backgroundColor,
+         backdropZ:Number(getComputedStyle(scrim).zIndex),
+         sidebarZ:Number(getComputedStyle(sidebar).zIndex),
+         overflow:getComputedStyle(document.body).overflow};
+       });
+       assert.match(adminLayers.backdrop,/0\\.79/);
+       assert.ok(adminLayers.sidebarZ>adminLayers.backdropZ);
+       assert.equal(adminLayers.overflow,'hidden');
+       await page.getByRole('button',{name:'Закрыть меню',exact:true}).last().click();
+       await page.locator('.sidebar.open').waitFor({state:'detached'});
+       await page.getByRole('button',{name:'Меню',exact:true}).click();
        await page.getByRole('button',{name:'Автомобили',exact:true}).click();
        await page.waitForURL(/\/admin\/cars$/);
-       row.mobileAdminNavigation='passed';
+       row.mobileAdminNavigation='opaque dark scrim, menu layers and dismiss passed';
        await page.goto(base+route,{waitUntil:'networkidle'});
       }
      }
@@ -353,10 +366,25 @@ try{
      if(role===null&&route==='/'&&width<=1100){
       const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
-      await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
+      const publicScrim=page.locator('.public-nav-backdrop');await publicScrim.waitFor({state:'visible'});
+      const layers=await page.evaluate(()=>{
+       const scrim=document.querySelector('.public-nav-backdrop'),header=document.querySelector('.p-public-header'),links=document.querySelector('.p-public-header .public-nav-links[data-open=true]');
+       return {scrim:getComputedStyle(scrim).backgroundColor,scrimZ:Number(getComputedStyle(scrim).zIndex),
+        headerZ:Number(getComputedStyle(header).zIndex),panel:getComputedStyle(links).backgroundColor,
+        bodyScroll:getComputedStyle(document.body).overflow,scrollWidth:document.documentElement.scrollWidth};
+      });
+      assert.match(layers.scrim,/0\\.82/,'the background behind mobile navigation must be dark and opaque enough');
+      assert.equal(layers.panel,'rgb(11, 19, 29)','mobile navigation must have an opaque graphite surface');
+      assert.ok(layers.headerZ>layers.scrimZ,'navigation must be in front of its backdrop');
+      assert.equal(layers.bodyScroll,'hidden','background must not scroll when the mobile menu is open');
+      assert.ok(layers.scrollWidth<=width+1,'menu background must not create horizontal overflow');
+      await publicScrim.click({position:{x:4,y:Math.min(220,Math.round(960*.65))}});
+      assert.equal(await toggle.getAttribute('aria-expanded'),'false','background tap dismisses menu without clicking through');
+      assert.equal(await page.locator('.public-nav-backdrop').count(),0);
+      await toggle.click();await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
       await toggle.click();await page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
-      row.mobilePublicNavigation='passed';
+      row.mobilePublicNavigation='opaque menu, dark scrim, blocked background interactions, dismiss/escape/navigation passed';
       await page.goto(base+route,{waitUntil:'networkidle'});
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=registrations'){
