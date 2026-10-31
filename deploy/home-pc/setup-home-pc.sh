@@ -227,6 +227,23 @@ if [[ "$OLD" != "$SHA" ]]; then
   USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA"
 fi
 /usr/local/libexec/usd-verify-prerelease "$SHA"
+# GitHub's workflow_run trigger is deliberately default-off. Do not create the
+# second-release probe until the host is explicitly authorized in Actions.
+# A same-PC second disk is NOT off-host recovery; never silently approve this
+# risk merely because the first prerelease passed local restore checks.
+usd_host_approved="$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --jq .value 2>/dev/null || true)"
+if [[ "$usd_host_approved" != true ]]; then
+  echo 'Проверки первого релиза прошли, но GitHub не имеет разрешения запускать этот сервер.'
+  echo 'Внимание: второй HDD находится на том же ПК. Независимого off-host бэкапа это НЕ заменяет.'
+  echo 'Разрешить ТОЛЬКО автоматические предрелизные обновления с неизменной одобренной схемой?'
+  [[ -r /dev/tty ]] || { echo 'Interactive host approval requires an SSH terminal; automatic trigger remains disabled' >&2; exit 1; }
+  read -r -p 'Введите ENABLE-USD-PRERELEASE для подтверждения: ' usd_host_consent < /dev/tty
+  [[ "$usd_host_consent" == ENABLE-USD-PRERELEASE ]] ||
+    { echo 'Host automation was not approved; running site remains unchanged' >&2; exit 1; }
+  gh variable set USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --body true
+  [[ "$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --jq .value)" == true ]] ||
+    { echo 'GitHub host approval was not persisted; refusing unverified automatic test' >&2; exit 1; }
+fi
 git -C "$SOURCE" rev-parse "$SHA:backend/prisma" > /etc/usd-auto-release-schema
 chmod 0600 /etc/usd-auto-release-schema
 install -o root -g root -m 0600 /dev/null /etc/usd-deploy-enabled
