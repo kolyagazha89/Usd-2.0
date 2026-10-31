@@ -1014,6 +1014,9 @@ body .app-shell .main .content > .page.event-ops-page {
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
+  /* Legacy 1024/760/600px .page rules add 18/12/10px !important
+     padding on top of .content padding and cause the empty right strip. */
+  padding: 0 !important;
   margin: 0 !important;
   overflow: visible !important;
 }
