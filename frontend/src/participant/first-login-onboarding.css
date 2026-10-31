@@ -1,0 +1,471 @@
+/* USD · First-login onboarding · Dark Velocity
+ * Standalone visual system. No admin/global form overrides.
+ * The login-to-profile transition must never expose the legacy white canvas.
+ */
+body:has(.profile-match-page.usd-member),
+html:has(.profile-match-page.usd-member) {
+ background:#080b10;
+ color-scheme:dark;
+}
+body .profile-match-page.usd-member {
+ --pm-ink:#080b10;
+ --pm-surface:#101721;
+ --pm-surface-2:#171f2b;
+ --pm-line:rgba(194,211,230,.15);
+ --pm-muted:#9daab9;
+ --pm-white:#f8fbff;
+ --pm-red:#ef2948;
+ min-height:100dvh;
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ padding:0 clamp(16px,3.6vw,60px) 26px;
+ color:var(--pm-white);
+ /* Specific override of the general Dark Velocity .usd-member !important skin.
+    * Both computed backdrop color and visual layers stay graphite on first login. */
+ background-color:#080b10!important;
+ background-image:
+   radial-gradient(ellipse 67% 420px at 83% -2%,rgba(222,22,51,.14),transparent 80%),
+   radial-gradient(ellipse 45% 440px at -5% 43%,rgba(77,106,142,.10),transparent 85%)!important;
+ overflow-x:clip;
+ font-family:'Exo 2',Inter,system-ui,sans-serif;
+}
+body .profile-match-page.usd-member *{box-sizing:border-box}
+body .profile-match-page.usd-member .profile-match-shell{
+ width:min(100%,1300px);
+ max-width:1300px;
+ min-width:0;
+ margin:0 auto;
+}
+body .profile-match-page.usd-member .profile-match-brand{
+ display:flex;align-items:center;justify-content:space-between;gap:18px;
+ height:auto;min-height:92px;padding:17px 0;
+ border-bottom:1px solid var(--pm-line);
+ color:var(--pm-muted);letter-spacing:normal;
+}
+body .profile-match-page.usd-member .profile-match-logo{
+ display:flex;align-items:center;gap:13px;min-width:0;padding:0;
+ background:none;color:var(--pm-white);border:0;cursor:pointer;text-align:left;
+}
+body .profile-match-page.usd-member .profile-match-logo img{
+ display:block;width:62px;height:50px;object-fit:contain;
+ filter:drop-shadow(0 5px 14px rgba(237,33,70,.22));
+}
+body .profile-match-page.usd-member .profile-match-logo>span{
+ min-width:0;display:grid;gap:3px;line-height:1.15;
+}
+body .profile-match-page.usd-member .profile-match-logo strong{
+ color:#fff;font-size:15px;font-weight:950;letter-spacing:.14em;
+}
+body .profile-match-page.usd-member .profile-match-logo small{
+ font-size:10px;font-weight:750;letter-spacing:.14em;color:#9daab9;
+}
+body .profile-match-page.usd-member .profile-match-header-actions{
+ display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;min-width:0;
+}
+body .profile-match-page.usd-member .profile-match-email{
+ display:block;max-width:230px;padding:0 11px 0 0;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+ color:#a8b4c2;font-size:12px;letter-spacing:0;font-weight:550;
+}
+body .profile-match-page.usd-member .profile-match-header-button{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ padding:10px 13px;min-height:42px;
+ background:rgba(255,255,255,.035);border:1px solid var(--pm-line);
+ border-radius:11px;color:#e9edf4;font-size:12px;font-weight:750;
+ cursor:pointer;white-space:nowrap;transition:border-color .2s,background-color .2s;
+}
+body .profile-match-page.usd-member .profile-match-header-button:hover{
+ border-color:rgba(255,73,100,.44);background:rgba(239,41,72,.085);
+}
+body .profile-match-page.usd-member .profile-match-logout{color:#adb9c8}
+body .profile-match-page.usd-member .profile-match-main{padding:31px 0 8px;min-width:0}
+body .profile-match-page.usd-member .profile-match-hero{
+ display:grid;grid-template-columns:minmax(0,1.48fr) minmax(290px,.74fr);
+ gap:clamp(22px,4vw,56px);
+ align-items:stretch;max-width:none;min-width:0;width:100%;
+ margin:0 0 24px;padding:clamp(26px,4.4vw,60px);
+ position:relative;isolation:isolate;overflow:hidden;
+ border:1px solid rgba(191,212,235,.18);
+ border-radius:27px;
+ text-align:left;
+ background:
+  linear-gradient(115deg,rgba(11,17,25,.97),rgba(21,27,39,.92)),
+  radial-gradient(circle at 80% 15%,rgba(214,21,51,.23),transparent 40%);
+ box-shadow:0 30px 90px rgba(0,0,0,.21);
+}
+body .profile-match-page.usd-member .profile-match-hero::before{
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:
+  repeating-linear-gradient(120deg,transparent 0,transparent 61px,rgba(255,255,255,.018) 62px,transparent 63px),
+  radial-gradient(circle at 80% 0%,rgba(243,33,69,.16),transparent 49%);
+}
+body .profile-match-page.usd-member .profile-match-hero::after{
+ content:"";position:absolute;right:-138px;bottom:-200px;width:550px;height:550px;
+ border:1px solid rgba(239,41,72,.16);border-radius:50%;
+ box-shadow:0 0 0 65px rgba(239,41,72,.018),0 0 0 120px rgba(239,41,72,.012);
+ z-index:-1;pointer-events:none;background:none;
+}
+body .profile-match-page.usd-member .profile-match-hero-copy{min-width:0;align-self:center}
+body .profile-match-page.usd-member .profile-match-kicker{
+ display:flex;align-items:center;gap:10px;margin-bottom:19px;
+ color:#fa6a7e;font-weight:850;letter-spacing:.19em;font-size:11px;
+}
+body .profile-match-page.usd-member .profile-match-kicker-dot{
+ display:inline-block;flex:0 0 9px;width:9px;height:9px;
+ border-radius:50%;background:var(--pm-red);
+ box-shadow:0 0 0 5px rgba(239,41,72,.11),0 0 17px rgba(239,41,72,.53);
+}
+body .profile-match-page.usd-member .profile-match-hero h1{
+ max-width:850px;margin:0 0 20px;
+ font-weight:890;letter-spacing:-.057em;line-height:1.03;
+ font-size:clamp(36px,5.1vw,71px);color:#fff;
+ text-wrap:balance;
+}
+body .profile-match-page.usd-member .profile-match-hero h1 span{
+ display:block;margin-top:4px;color:#fb3855;
+}
+body .profile-match-page.usd-member .profile-match-hero-copy>p{
+ margin:0;max-width:680px;font-size:clamp(14px,1.35vw,17px);
+ font-weight:450;line-height:1.8;color:#afbdcd;
+}
+body .profile-match-page.usd-member .profile-match-hero-benefits{
+ display:flex;flex-wrap:wrap;gap:10px;margin-top:28px;
+}
+body .profile-match-page.usd-member .profile-match-hero-benefits>span{
+ display:inline-flex;align-items:center;gap:8px;
+ padding:10px 13px;border:1px solid rgba(208,223,242,.14);
+ border-radius:100px;color:#d4dce8;font-size:12px;font-weight:680;
+ background:rgba(255,255,255,.035);
+}
+body .profile-match-page.usd-member .profile-match-hero-benefits svg{color:#fa6a7e}
+body .profile-match-page.usd-member .profile-match-hero-journey{
+ display:flex;flex-direction:column;min-width:0;align-self:stretch;
+ padding:clamp(21px,2.5vw,34px);
+ border:1px solid rgba(221,231,246,.16);border-radius:20px;
+ background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.015));
+ backdrop-filter:blur(9px);
+}
+body .profile-match-page.usd-member .profile-match-journey-head{
+ display:flex;justify-content:space-between;align-items:center;gap:14px;
+ padding:0 0 22px;border-bottom:1px solid var(--pm-line);
+}
+body .profile-match-page.usd-member .profile-match-journey-head>span{
+ color:#adb9c8;font-size:10px;font-weight:800;letter-spacing:.17em;
+}
+body .profile-match-page.usd-member .profile-match-journey-head strong{
+ color:#fff;font-size:26px;letter-spacing:-.05em;font-variant-numeric:tabular-nums;
+}
+body .profile-match-page.usd-member .profile-match-journey-head i{
+ font-size:17px;color:#8895a5;font-style:normal;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps{
+ display:grid;gap:0;padding:16px 0 10px;margin:0;list-style:none;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li{
+ display:flex;align-items:center;gap:12px;min-width:0;padding:14px 0;
+ color:#a0aebe;position:relative;
+}
+body .profile-match-page.usd-member .profile-match-step-number{
+ display:grid;place-items:center;flex:0 0 41px;width:41px;height:41px;
+ border:1px solid rgba(219,232,245,.18);border-radius:12px;background:rgba(255,255,255,.035);
+ font-size:13px;font-weight:850;color:#b9c4d1;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-complete .profile-match-step-number{
+ border-color:rgba(82,214,145,.46);color:#9de7bd;background:rgba(62,181,112,.12);
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-complete>svg{color:#86e4ad}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-current .profile-match-step-number{
+ border-color:#ee3c57;color:#fff;background:rgba(238,60,87,.15);
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li>div{
+ display:grid;gap:5px;min-width:0;flex:1 1 auto;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li strong{
+ font-weight:800;font-size:14px;color:#f6f9fd;line-height:1.3;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li small{
+ font-size:11px;color:#9dabbc;line-height:1.4;
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li svg{flex:0 0 auto;color:#fa6a7e}
+body .profile-match-page.usd-member .profile-match-journey-note{
+ display:flex;align-items:start;gap:11px;margin-top:auto;padding:16px 0 0;
+ border-top:1px solid var(--pm-line);color:#adbaca;font-size:11px;line-height:1.6;
+}
+body .profile-match-page.usd-member .profile-match-journey-note svg{flex:0 0 auto;color:#fa6a7e}
+body .profile-match-page.usd-member .profile-match-search{
+ width:100%;max-width:none;margin:0;
+ padding:clamp(22px,3.1vw,38px);
+ text-align:left;background:linear-gradient(135deg,#151d27,#101721);
+ border:1px solid var(--pm-line);border-radius:23px;
+ box-shadow:0 14px 48px rgba(0,0,0,.13);
+}
+body .profile-match-page.usd-member .profile-match-search-heading{
+ display:flex;align-items:center;gap:17px;margin:0 0 24px;
+}
+body .profile-match-page.usd-member .profile-match-section-icon,
+body .profile-match-page.usd-member .profile-match-new-icon{
+ display:grid;place-items:center;flex:0 0 55px;width:55px;height:55px;
+ border-radius:17px;border:1px solid rgba(242,81,108,.26);
+ background:rgba(239,41,72,.09);color:#f56b81;
+}
+body .profile-match-page.usd-member .profile-match-section-kicker{
+ display:block;margin:0 0 5px;color:#f46b7e;font-size:10px;font-weight:850;letter-spacing:.16em;
+}
+body .profile-match-page.usd-member :is(.profile-match-search-heading,.profile-match-new-heading) h2,
+body .profile-match-page.usd-member .profile-match-results-heading h2{
+ margin:0 0 6px;color:#fff;font-size:clamp(24px,2.6vw,33px);
+ letter-spacing:-.035em;line-height:1.16;
+}
+body .profile-match-page.usd-member :is(.profile-match-search-heading,.profile-match-new-heading,.profile-match-results-heading) p{
+ margin:0;color:#a6b5c5;font-size:13px;line-height:1.65;
+}
+body .profile-match-page.usd-member .profile-match-search form{display:grid;gap:11px;min-width:0}
+body .profile-match-page.usd-member .profile-match-search form>label{
+ display:block;color:#e2e9f2;font-size:12px;font-weight:750;letter-spacing:.015em;margin:0;
+}
+body .profile-match-page.usd-member .profile-match-search-row{
+ display:flex;align-items:center;gap:0;
+ width:100%;min-width:0;padding:6px 7px 6px 15px;min-height:66px;
+ border:1px solid rgba(207,225,243,.21);border-radius:15px;
+ background:#0b121b;transition:border-color .2s,box-shadow .2s;
+}
+body .profile-match-page.usd-member .profile-match-search-row:focus-within{
+ border-color:#ee4059;box-shadow:0 0 0 3px rgba(238,64,89,.11);
+}
+body .profile-match-page.usd-member .profile-match-input-icon{
+ display:flex;flex:0 0 26px;color:#9fabb9;
+}
+body .profile-match-page.usd-member .profile-match-search-row input{
+ width:100%;flex:1 1 auto;min-width:0;height:48px;min-height:48px;max-width:100%;
+ padding:0 10px;border:0!important;outline:0!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;color:#fff!important;
+ font-size:16px!important;line-height:1.4;
+}
+body .profile-match-page.usd-member .profile-match-search-row input::placeholder{color:#738295}
+body .profile-match-page.usd-member .profile-match-submit{
+ flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:12px;
+ min-height:52px;padding:13px 21px;
+ border:1px solid rgba(255,114,137,.5);border-radius:11px;
+ background:linear-gradient(135deg,#fb3554,#d41939);
+ color:#fff;font-size:14px;font-weight:850;white-space:nowrap;
+ box-shadow:0 8px 25px rgba(225,24,59,.16);
+}
+body .profile-match-page.usd-member .profile-match-submit:disabled{opacity:.56;box-shadow:none;cursor:not-allowed}
+body .profile-match-page.usd-member .profile-match-clear{
+ display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;
+ background:transparent;border:0;border-radius:9px;color:#aab6c5;
+}
+body .profile-match-page.usd-member .profile-match-clear:hover{background:rgba(255,255,255,.075)}
+body .profile-match-page.usd-member .profile-match-search form>small{
+ display:block;color:#93a2b4;font-size:11px;line-height:1.6;margin:0;
+}
+body .profile-match-page.usd-member .profile-match-error{
+ width:100%;max-width:none;min-width:0;margin:18px 0 0;
+ border:1px solid rgba(248,98,116,.42);border-radius:10px;
+ padding:15px;color:#fff;background:rgba(224,37,64,.13);
+ font-size:13px;line-height:1.55;
+}
+body .profile-match-page.usd-member .profile-match-results{
+ margin:24px 0 0;max-width:none;width:100%;padding:clamp(20px,3.1vw,38px);
+ background:linear-gradient(145deg,rgba(23,31,43,.95),rgba(16,23,33,.95));
+ border:1px solid var(--pm-line);border-radius:23px;
+}
+body .profile-match-page.usd-member .profile-match-results-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:16px;
+ min-width:0;margin:0 0 22px;
+}
+body .profile-match-page.usd-member .profile-match-results-count{
+ display:grid;align-content:center;justify-items:center;min-width:76px;min-height:66px;
+ padding:10px;border:1px solid rgba(255,255,255,.13);border-radius:14px;
+ background:rgba(255,255,255,.035);color:#fff;font-size:22px;font-weight:850;
+ font-variant-numeric:tabular-nums;
+}
+body .profile-match-page.usd-member .profile-match-results-count small{font-size:10px;color:#9caaba;font-weight:700}
+body .profile-match-page.usd-member .profile-match-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+body .profile-match-page.usd-member .historical-match-card{
+ display:flex;flex-wrap:wrap;align-items:center;gap:14px;
+ min-width:0;padding:20px;
+ border:1px solid rgba(199,217,235,.16);border-radius:17px;
+ background:linear-gradient(135deg,#1b2531,#141c26);
+ box-shadow:0 7px 28px rgba(0,0,0,.07);
+ transition:border-color .2s,background-color .2s,transform .2s;
+}
+body .profile-match-page.usd-member .historical-match-card:hover{
+ border-color:rgba(252,81,109,.50);background:#1a2330;transform:translateY(-2px);
+}
+body .profile-match-page.usd-member .historical-match-identity{
+ display:grid;place-items:center;flex:0 0 51px;width:51px;height:51px;
+ color:#f66c80;border-radius:14px;border:1px solid rgba(239,41,72,.18);
+ background:rgba(239,41,72,.09);
+}
+body .profile-match-page.usd-member .historical-match-main{display:grid;gap:7px;min-width:0;flex:1 1 170px}
+body .profile-match-page.usd-member .historical-match-main>strong{font-size:16px;font-weight:850;line-height:1.35;color:#f8fbff}
+body .profile-match-page.usd-member .historical-match-main>span{font-size:12px;color:#a6b4c4;line-height:1.4}
+body .profile-match-page.usd-member .historical-match-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}
+body .profile-match-page.usd-member .historical-match-meta>span{
+ display:inline-flex;align-items:center;gap:6px;max-width:100%;
+ padding:7px 9px;border:1px solid rgba(232,241,248,.09);
+ border-radius:8px;background:rgba(255,255,255,.045);
+ font-size:11px;line-height:1.5;color:#bfcbd9;overflow-wrap:anywhere;
+}
+body .profile-match-page.usd-member .historical-match-meta svg{flex:0 0 auto;color:#f46b7e}
+body .profile-match-page.usd-member .profile-match-action{
+ flex:0 0 100%;justify-content:center;display:flex;gap:9px;align-items:center;
+ min-height:46px!important;padding:11px 14px;font-size:13px;
+ background:linear-gradient(135deg,#f53554,#cc1635);border-radius:11px;
+ color:#fff;white-space:normal;
+}
+body .profile-match-page.usd-member .historical-match-unavailable{
+ display:flex;flex:0 0 100%;flex-direction:column;align-items:flex-start;gap:6px;
+ max-width:none;padding:12px;
+ border:1px solid rgba(255,199,110,.18);border-radius:10px;
+ background:rgba(255,173,58,.05);
+}
+body .profile-match-page.usd-member .historical-match-unavailable>span{
+ display:flex;align-items:center;gap:7px;color:#f4d59a;font-size:12px;font-weight:800;
+}
+body .profile-match-page.usd-member .historical-match-unavailable small{
+ text-align:left;color:#d1c5b5;font-size:11px;line-height:1.55;
+}
+body .profile-match-page.usd-member .profile-match-empty{
+ display:flex;align-items:center;gap:14px;max-width:none;width:100%;
+ padding:17px 19px;margin:0;text-align:left;
+ border:1px dashed rgba(214,224,239,.20);border-radius:13px;
+ background:rgba(255,255,255,.022);color:#d1dce8;
+}
+body .profile-match-page.usd-member .profile-match-empty svg{flex:0 0 auto;color:#f46b7e}
+body .profile-match-page.usd-member .profile-match-empty p{margin:0;font-size:13px;color:#bac7d6;line-height:1.6}
+body .profile-match-page.usd-member .profile-match-new{
+ display:grid;gap:20px;justify-items:stretch;min-width:0;
+ margin:23px 0 0;padding:clamp(21px,3.1vw,38px);
+ border:1px solid rgba(239,65,93,.27);border-radius:22px;
+ background:linear-gradient(121deg,rgba(239,41,72,.092),rgba(17,24,34,.95) 55%);
+}
+body .profile-match-page.usd-member .profile-match-new-heading{
+ display:flex;align-items:center;gap:18px;min-width:0;
+}
+body .profile-match-page.usd-member .profile-match-new-heading>div{min-width:0}
+body .profile-match-page.usd-member .profile-match-new-heading p{max-width:750px}
+body .profile-match-page.usd-member .profile-match-new-fields{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;
+ width:100%;margin:0;padding:22px;
+ border-radius:16px;border:1px solid rgba(207,222,240,.14);background:rgba(6,11,17,.45);
+}
+body .profile-match-page.usd-member .profile-match-new-fields label{
+ display:grid;gap:9px;min-width:0;color:#dfe6ef;font-size:12px;font-weight:800;
+}
+body .profile-match-page.usd-member .profile-match-new-fields input{
+ display:block;width:100%;min-width:0;height:50px;min-height:50px;
+ padding:12px 15px;border:1px solid rgba(197,218,242,.24);
+ border-radius:11px;color:#fff;background:#0d151e;
+ font-size:16px;line-height:1.4;box-shadow:none;
+}
+body .profile-match-page.usd-member .profile-match-new-fields input:focus-visible{
+ border-color:#f64d69;outline:2px solid rgba(246,77,105,.27);outline-offset:1px;
+}
+body .profile-match-page.usd-member .profile-match-new-fields .profile-match-new-warning{
+ grid-column:1/-1;display:flex;gap:9px;align-items:start;
+ margin:0;padding:13px 15px;border:1px solid rgba(255,192,110,.20);
+ border-radius:10px;border-left:3px solid #f6b56b;
+ background:rgba(246,167,79,.085);color:#f3d5ad;font-size:12px;line-height:1.6;
+}
+body .profile-match-page.usd-member .profile-match-new-warning svg{flex:0 0 auto}
+body .profile-match-page.usd-member .profile-match-new-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+body .profile-match-page.usd-member .profile-match-new-actions>button{
+ display:inline-flex;align-items:center;justify-content:center;gap:9px;
+ min-height:48px;padding:12px 19px;border-radius:11px;
+ font-size:13px;font-weight:800;white-space:normal;
+}
+body .profile-match-page.usd-member .profile-match-new-actions .primary-button{
+ border:1px solid rgba(255,103,127,.60);
+ color:#fff;background:linear-gradient(135deg,#f63854,#cb1534);
+}
+body .profile-match-page.usd-member .profile-match-new-actions .secondary-button{
+ border:1px solid rgba(221,231,242,.28);color:#f7f8fb;background:rgba(255,255,255,.055);
+}
+body .profile-match-page.usd-member .profile-match-new-actions .profile-match-cancel{
+ color:#bec8d5;background:transparent;border:0;
+}
+body .profile-match-page.usd-member .profile-match-help{
+ display:flex;gap:14px;align-items:start;margin:24px 0 0;padding:22px 24px;
+ border:1px solid rgba(183,204,229,.12);border-radius:15px;background:rgba(255,255,255,.025);
+}
+body .profile-match-page.usd-member .profile-match-help>svg{flex:0 0 auto;color:#f36a80}
+body .profile-match-page.usd-member .profile-match-help strong{color:#f2f6fa;font-size:14px}
+body .profile-match-page.usd-member .profile-match-help p{
+ margin:7px 0 0;max-width:950px;font-size:12px;line-height:1.7;color:#a6b2c1;
+}
+body .profile-match-page.usd-member .profile-match-footer{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+ padding:19px 0;margin:33px 0 0;border-top:1px solid var(--pm-line);
+ color:#7f8f9f;font-size:10px;letter-spacing:.09em;font-weight:750;
+}
+body .profile-match-page.usd-member :is(button,input,a):focus-visible{
+ outline:2px solid #fd6b82!important;outline-offset:3px!important;
+}
+@media(max-width:1100px){
+ body .profile-match-page.usd-member .profile-match-hero{grid-template-columns:minmax(0,1.3fr) minmax(270px,.85fr);padding:32px}
+ body .profile-match-page.usd-member .profile-match-hero h1{font-size:clamp(36px,4.6vw,53px)}
+ body .profile-match-page.usd-member .profile-match-email{max-width:155px}
+}
+@media(max-width:900px){
+ body .profile-match-page.usd-member .profile-match-hero{grid-template-columns:1fr}
+ body .profile-match-page.usd-member .profile-match-hero-journey{display:block}
+ body .profile-match-page.usd-member .profile-match-onboarding-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ body .profile-match-page.usd-member .profile-match-journey-note{margin-top:10px}
+ body .profile-match-page.usd-member .profile-match-list{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+ body .profile-match-page.usd-member{padding:0 14px 22px}
+ body .profile-match-page.usd-member .profile-match-brand{min-height:70px;padding:12px 0}
+ body .profile-match-page.usd-member .profile-match-logo img{width:47px;height:43px}
+ body .profile-match-page.usd-member .profile-match-logo small{font-size:8px}
+ body .profile-match-page.usd-member .profile-match-email{display:none}
+ body .profile-match-page.usd-member .profile-match-header-actions{gap:6px}
+ body .profile-match-page.usd-member .profile-match-header-button{padding:9px 10px;min-height:42px;font-size:11px}
+ body .profile-match-page.usd-member .profile-match-main{padding:17px 0 0}
+ body .profile-match-page.usd-member .profile-match-hero{gap:26px;padding:23px 18px;border-radius:18px;margin-bottom:15px}
+ body .profile-match-page.usd-member .profile-match-kicker{font-size:9px;letter-spacing:.11em}
+ body .profile-match-page.usd-member .profile-match-hero h1{font-size:clamp(32px,8vw,48px);margin-bottom:15px}
+ body .profile-match-page.usd-member .profile-match-hero-copy>p{font-size:13px;line-height:1.7}
+ body .profile-match-page.usd-member .profile-match-hero-benefits{gap:7px;margin-top:20px}
+ body .profile-match-page.usd-member .profile-match-hero-benefits>span{padding:8px 9px;font-size:10px}
+ body .profile-match-page.usd-member .profile-match-hero-journey{padding:16px;border-radius:13px}
+ body .profile-match-page.usd-member .profile-match-journey-head{padding:0 0 12px}
+ body .profile-match-page.usd-member .profile-match-onboarding-steps{grid-template-columns:1fr;gap:2px;padding:10px 0}
+ body .profile-match-page.usd-member .profile-match-onboarding-steps li{padding:8px 0}
+ body .profile-match-page.usd-member .profile-match-step-number{width:37px;height:37px;flex-basis:37px}
+ body .profile-match-page.usd-member .profile-match-search,
+ body .profile-match-page.usd-member .profile-match-results,
+ body .profile-match-page.usd-member .profile-match-new{padding:20px 16px;border-radius:16px}
+ body .profile-match-page.usd-member .profile-match-search-heading{align-items:flex-start;gap:12px;margin-bottom:22px}
+ body .profile-match-page.usd-member .profile-match-section-icon,
+ body .profile-match-page.usd-member .profile-match-new-icon{width:46px;height:46px;flex-basis:46px;border-radius:12px}
+ body .profile-match-page.usd-member .profile-match-search-heading h2{font-size:24px}
+ body .profile-match-page.usd-member .profile-match-search-row{display:flex;flex-wrap:wrap;padding:6px 9px;row-gap:5px}
+ body .profile-match-page.usd-member .profile-match-input-icon{flex:0 0 24px}
+ body .profile-match-page.usd-member .profile-match-search-row input{flex:1 1 calc(100% - 72px);min-width:0}
+ body .profile-match-page.usd-member .profile-match-submit{flex:1 1 100%;width:100%;min-height:48px}
+ body .profile-match-page.usd-member .profile-match-new-fields{grid-template-columns:1fr;padding:15px}
+ body .profile-match-page.usd-member .profile-match-new-heading{align-items:flex-start;gap:12px}
+ body .profile-match-page.usd-member .historical-match-card{padding:16px}
+ body .profile-match-page.usd-member .profile-match-results-heading{align-items:flex-start}
+ body .profile-match-page.usd-member .profile-match-results-count{min-width:60px;min-height:58px;font-size:19px}
+ body .profile-match-page.usd-member .profile-match-new-actions{display:grid;grid-template-columns:1fr}
+ body .profile-match-page.usd-member .profile-match-new-actions>button{width:100%}
+ body .profile-match-page.usd-member .profile-match-footer{margin-top:22px}
+}
+@media(max-width:375px){
+ body .profile-match-page.usd-member{padding-inline:11px}
+ body .profile-match-page.usd-member .profile-match-logo>span{display:none}
+ body .profile-match-page.usd-member .profile-match-header-button{font-size:10px;padding:8px}
+ body .profile-match-page.usd-member .profile-match-header-button svg{width:13px;height:13px}
+ body .profile-match-page.usd-member .profile-match-hero{padding:20px 16px}
+ body .profile-match-page.usd-member .profile-match-hero h1{font-size:32px}
+ body .profile-match-page.usd-member .profile-match-results-heading h2{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){
+ body .profile-match-page.usd-member :is(.historical-match-card,.profile-match-header-button,.profile-match-search-row){transition:none}
+ body .profile-match-page.usd-member .historical-match-card:hover{transform:none}
+}

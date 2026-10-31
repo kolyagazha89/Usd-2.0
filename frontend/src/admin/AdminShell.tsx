@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight} from 'lucide-react';
 import {getPublicSiteAsset,type Role,type User} from '../api';
 
@@ -43,9 +43,9 @@ const nav=[
  {section:'Система',label:'Медиатека',path:'/admin/media',icon:Layers,roles:['ADMIN']},
  {section:'Система',label:'Роли и права',path:'/admin/roles',icon:LockKeyhole,roles:['ADMIN']},
  {section:'Система',label:'Аудит действий',path:'/admin/audit',icon:FileClock,roles:['ADMIN']},
- {section:'Система',label:'Push-уведомления',path:'/admin/notifications',icon:Bell,roles:['ADMIN']},
  {section:'Система',label:'Шаблоны писем',path:'/admin/email-templates',icon:Mail,roles:['ADMIN']},
  {section:'Система',label:'Тестирование писем',path:'/admin/email-testing',icon:Mail,roles:['ADMIN']},
+ {section:'Система',label:'Push-уведомления',path:'/admin/notifications',icon:Bell,roles:['ADMIN']},
  {section:'Система',label:'Настройки сайта',path:'/admin/site-settings',icon:Settings2,roles:['ADMIN']},
  {section:'Система',label:'Ассистент USD',path:'/admin/assistant',icon:Bot,roles:['ADMIN']},
  ];
@@ -68,9 +68,9 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/data-quality'))return 'imports';
  if(path.startsWith('/admin/audit'))return 'statistics';
  if(path.startsWith('/admin/media'))return 'media';
- if(path.startsWith('/admin/notifications'))return 'notifications';
  if(path.startsWith('/admin/assistant'))return 'assistant';
  if(path.startsWith('/admin/google'))return 'integrations';
+ if(path.startsWith('/admin/notifications'))return 'notifications';
  if(path.startsWith('/admin/email-testing')||path.startsWith('/admin/email-templates'))return 'siteSettings';
  if(path.startsWith('/admin/legal-documents')||path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
  return '';
@@ -81,13 +81,30 @@ function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}c
 
 export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<Role,string>;cacheBrandLogo:(url:string)=>void}){
  const routePath=path.split('?')[0];
+ useEffect(()=>{if(mobileOpen)setMobileOpen(false)},[routePath]);
+ useEffect(()=>{
+  if(!mobileOpen)return;
+  const previous=document.body.style.overflow;
+  document.body.style.overflow='hidden';
+  const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setMobileOpen(false)};
+  const responsive=()=>{if(window.innerWidth>800)setMobileOpen(false)};
+  document.addEventListener('keydown',close);
+  window.addEventListener('resize',responsive);
+  return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',close);window.removeEventListener('resize',responsive)};
+ },[mobileOpen,setMobileOpen]);
+
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
  const visibleNav=nav.filter(x=>{if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
  const sections=[...new Set(visibleNav.map(x=>x.section))];
+ const activeItem=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));
+ const activeSection=activeItem?.section;
+ const navRef=useRef<HTMLElement>(null);
  const [openSections,setOpenSections]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem('usd_sidebar_sections')||'{}')}catch{return{}}});
- useEffect(()=>{const active=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));if(active&&!openSections[active.section])setOpenSections(s=>({...s,[active.section]:true}))},[path,visibleNav.length]);
- const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??true)};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
+ useEffect(()=>{if(activeSection&&openSections[activeSection]===false)setOpenSections(s=>({...s,[activeSection]:true}))},[routePath,activeSection]);
+ const activeExpanded=activeSection ? openSections[activeSection]!==false : false;
+ useEffect(()=>{const item=navRef.current?.querySelector('[aria-current="page"]');if(item&&typeof item.scrollIntoView==='function')item.scrollIntoView({block:'nearest',behavior:'auto'})},[routePath,activeExpanded]);
+ const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??(section===activeSection))};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
  return <div className="app-shell">
   <aside className={`sidebar ${mobileOpen?'open':''}`}>
    <div className="sidebar-top">
@@ -97,7 +114,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
     </button>
     <button className="icon-button mobile-close" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"><X size={18}/></button>
    </div>
-   <nav>{sections.map(section=>{const isOpen=openSections[section]??true;return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=routePath===item.path||(item.path!=='/admin'&&routePath.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
+   <nav ref={navRef} aria-label="Основное меню">{sections.map(section=>{const isOpen=openSections[section]??(section===activeSection);return <div key={section} className="sidebar-section"><button className="sidebar-label sidebar-section-toggle" onClick={()=>toggleSection(section)} aria-expanded={isOpen}><span>{section}</span><ChevronRight size={14} className={isOpen?'section-chevron open':''}/></button>{isOpen&&visibleNav.filter(x=>x.section===section).map(item=>{const Icon=item.icon;const active=routePath===item.path||(item.path!=='/admin'&&routePath.startsWith(item.path+'/'));return <button key={item.path} className={`nav-item ${active?'active':''}`} aria-current={active?'page':undefined} onClick={()=>go(item.path)}><Icon size={17}/><span>{item.label}</span></button>})}</div>})}</nav>
    <div className="sidebar-bottom">
     <div className="user-mini"><span className="avatar">{(user.email||'U').slice(0,1).toUpperCase()}</span><div><strong>{user.customRole?.name??roleName[user.role]}</strong><small>{user.email}</small></div></div>
     <button className="logout-button" onClick={()=>void onLogout()}><LogOut size={15}/>Выйти</button>

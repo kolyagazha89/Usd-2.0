@@ -1059,7 +1059,6 @@ model HistoricalConfigurationConfirmation {
   @@index([versionId])
 }
 
-
 // Browser endpoints and encryption keys are private credentials; never expose in list/log APIs.
 model PushSubscription {
   id               String   @id @default(uuid())

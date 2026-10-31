@@ -12,6 +12,9 @@ RUNNER=/opt/usd-deploy-runner
 RUNNER_USER=usd-runner
 RUNNER_UNIT=actions.runner.usd-home-pc.service
 BASELINE=e8b5b0f22780a61e79765b8fd92167e241df82a2
+TEAM_UPGRADE_SOURCE=e0c244bad7f77f576f1889abe36bf1dc0a9db735
+INITIAL_REVIEWED_TREE=4d9fa43dafd01e58354c3d22ead2cafe45152044
+TEAM_REVIEWED_TREE=a22c242dd0c6dfa9554f179cf705b39499a68967
 usd_gh_config=''
 usd_setup_done=0
 usd_timer_paused=0
@@ -70,6 +73,24 @@ SHA="$(git -C "$SOURCE" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
 git -C "$SOURCE" checkout --force --detach "$SHA"
 git -C "$SOURCE" clean -ffdx
+# Inspect deployed schema before making any release approvals.
+OLD_START="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY/.env")"
+[[ "$OLD_START" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid existing deployed SHA' >&2; exit 1; }
+if ! git -C "$SOURCE" cat-file -e "$OLD_START^{commit}" 2>/dev/null; then
+  git -C "$SOURCE" fetch --no-tags --depth=1 origin "$OLD_START"
+fi
+OLD_SCHEMA="$(git -C "$SOURCE" rev-parse "$OLD_START:backend/prisma")"
+NEW_SCHEMA="$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")"
+schema_migration_required=0
+if [[ "$OLD_SCHEMA" != "$NEW_SCHEMA" ]]; then
+  schema_migration_required=1
+  # Fail before installing trusted helpers, not after partially staging them.
+  if [[ ! ( "$OLD_START" == "$BASELINE" && "$NEW_SCHEMA" == "$INITIAL_REVIEWED_TREE" ) &&
+        ! ( "$OLD_START" == "$TEAM_UPGRADE_SOURCE" && "$NEW_SCHEMA" == "$TEAM_REVIEWED_TREE" ) ]]; then
+    echo 'BLOCK: unknown source or Prisma tree; supervised migration review required. Live DB unchanged.' >&2
+    exit 1
+  fi
+fi
 echo "Проверка CI для main: $SHA"
 python3 "$SOURCE/deploy/home-pc/verify-main-ci.py" "$SHA" 0
 for service in api frontend; do
@@ -87,7 +108,7 @@ for service in api frontend; do
 done
 python3 "$SOURCE/deploy/home-pc/prepare-host-files.py"
 OLD="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY/.env")"
-[[ "$OLD" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid deployed SHA' >&2; exit 1; }
+[[ "$OLD" =~ ^[a-f0-9]{40}$ && "$OLD" == "$OLD_START" ]] || { echo 'Deployment changed during setup' >&2; exit 1; }
 
 # Local-only policy: operator has explicitly chosen same-PC second HDD.
 # No rclone credentials or external storage are required.
@@ -189,14 +210,16 @@ else
 fi
 
 printf '%s\n' "$SHA" > "$STATE/built-sha"
-/usr/local/libexec/usd-initial-schema --check "$SHA"
+if [[ "$schema_migration_required" == 1 ]]; then
+  /usr/local/libexec/usd-initial-schema --check "$SHA"
+fi
 if [[ "$OLD" != "$SHA" ]]; then
   [[ -x /usr/local/libexec/usd-verify-second-disk-db-backup ]] ||
     { echo 'Missing trusted second-disk backup verifier' >&2; exit 1; }
   printf '%s\n' "$SHA" > "$STATE/schema-approved-sha"
   printf '%s\n' "$SHA" > "$STATE/release-approved-sha"
-  if [[ "$OLD" == "$BASELINE" ]]; then
-    echo 'Проверка реальной резервной копии и восстановления перед двумя проверенными добавочными миграциями.'
+  if [[ "$schema_migration_required" == 1 ]]; then
+    echo 'Свежая резервная копия и репетиция миграции на изолированной PostgreSQL 18.'
     USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only
     USD_DEPLOY_LOCK_HELD=1 /usr/local/libexec/usd-initial-schema --apply "$SHA"
   fi
@@ -204,6 +227,23 @@ if [[ "$OLD" != "$SHA" ]]; then
   USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA"
 fi
 /usr/local/libexec/usd-verify-prerelease "$SHA"
+# GitHub's workflow_run trigger is deliberately default-off. Do not create the
+# second-release probe until the host is explicitly authorized in Actions.
+# A same-PC second disk is NOT off-host recovery; never silently approve this
+# risk merely because the first prerelease passed local restore checks.
+usd_host_approved="$(gh variable list --repo kolyagazha89/Usd-2.0 --json name,value --jq '.[] | select(.name == "USD_HOME_PC_HOST_APPROVED") | .value' 2>/dev/null || true)"
+if [[ "$usd_host_approved" != true ]]; then
+  echo 'Проверки первого релиза прошли, но GitHub не имеет разрешения запускать этот сервер.'
+  echo 'Внимание: второй HDD находится на том же ПК. Независимого off-host бэкапа это НЕ заменяет.'
+  echo 'Разрешить ТОЛЬКО автоматические предрелизные обновления с неизменной одобренной схемой?'
+  [[ -r /dev/tty ]] || { echo 'Interactive host approval requires an SSH terminal; automatic trigger remains disabled' >&2; exit 1; }
+  read -r -p 'Введите ENABLE-USD-PRERELEASE для подтверждения: ' usd_host_consent < /dev/tty
+  [[ "$usd_host_consent" == ENABLE-USD-PRERELEASE ]] ||
+    { echo 'Host automation was not approved; running site remains unchanged' >&2; exit 1; }
+  gh variable set USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --body true
+  [[ "$(gh variable list --repo kolyagazha89/Usd-2.0 --json name,value --jq '.[] | select(.name == "USD_HOME_PC_HOST_APPROVED") | .value')" == true ]] ||
+    { echo 'GitHub host approval was not persisted; refusing unverified automatic test' >&2; exit 1; }
+fi
 git -C "$SOURCE" rev-parse "$SHA:backend/prisma" > /etc/usd-auto-release-schema
 chmod 0600 /etc/usd-auto-release-schema
 install -o root -g root -m 0600 /dev/null /etc/usd-deploy-enabled

@@ -21,6 +21,72 @@ class InitialSchemaTests(unittest.TestCase):
     def test_only_reviewed_nullable_additions_can_be_applied(self):
         self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)
 
+    def test_team_table_migration_requires_explicit_profile(self):
+        team = module.REVIEWED_TEAM_MIGRATION
+        self.expected[team] = "b" * 64
+        self.history.extend({"migration_name": name, "checksum": digest, "finished": True,
+                             "rolled_back": False} for name, digest in module.REVIEWED_ADDITIONS.items())
+        with self.assertRaisesRegex(ValueError, "Unreviewed pending"):
+            module.pending_migrations(self.expected, self.history)
+        approved = set(module.REVIEWED_ADDITIONS) | {team}
+        self.assertEqual(module.pending_migrations(self.expected, self.history, approved), [team])
+        self.history.append({"migration_name": team, "checksum": "b" * 64,
+                             "finished": True, "rolled_back": False})
+        self.assertEqual(module.pending_migrations(self.expected, self.history, approved), [])
+
+    def test_team_allowlist_does_not_approve_other_schema_changes(self):
+        self.expected[module.REVIEWED_TEAM_MIGRATION] = "b" * 64
+        self.expected["future_destructive_migration"] = "c" * 64
+        approved = set(module.REVIEWED_ADDITIONS) | {module.REVIEWED_TEAM_MIGRATION}
+        with self.assertRaisesRegex(ValueError, "Unreviewed pending"):
+            module.pending_migrations(self.expected, self.history, approved)
+        self.expected[self.allowed[0]] = "d" * 64
+        with self.assertRaisesRegex(ValueError, "Reviewed migration content"):
+            module.pending_migrations(self.expected, self.history, approved)
+
+    def test_team_release_pins_exact_schema_and_sql_blob(self):
+        self.assertRegex(module.REVIEWED_TEAM_TREE, r"^[a-f0-9]{40}$")
+        self.assertRegex(module.REVIEWED_TEAM_MIGRATION_BLOB, r"^[a-f0-9]{40}$")
+        self.assertRegex(module.REVIEWED_TEAM_SOURCE, r"^[a-f0-9]{40}$")
+        self.assertNotEqual(module.REVIEWED_TEAM_TREE, module.REVIEWED_TREE)
+
+    def test_exact_reviewed_team_upgrade_from_current_live_release(self):
+        name = module.REVIEWED_TEAM_MIGRATION
+        self.expected[name] = "b" * 64
+        self.history.extend({"migration_name": key, "checksum": value, "finished": True,
+                             "rolled_back": False} for key, value in module.REVIEWED_ADDITIONS.items())
+        source = "ghcr.io/kolyagazha89/usd-2.0-api:" + module.REVIEWED_TEAM_SOURCE
+        args = (module.REVIEWED_TEAM_TREE, module.REVIEWED_TEAM_MIGRATION_BLOB,
+                self.expected, self.history, source)
+        pending, approved = module.reviewed_pending_migrations(*args)
+        self.assertEqual(pending, [name])
+        self.assertEqual(approved, set(module.REVIEWED_ADDITIONS) | {name})
+        self.history.append({"migration_name": name, "checksum": "b" * 64, "finished": True,
+                             "rolled_back": False})
+        self.assertEqual(module.reviewed_pending_migrations(*args)[0], [])
+
+    def test_team_upgrade_rejects_mismatched_source_tree_and_sql(self):
+        name = module.REVIEWED_TEAM_MIGRATION
+        self.expected[name] = "b" * 64
+        self.history.extend({"migration_name": key, "checksum": value, "finished": True,
+                             "rolled_back": False} for key, value in module.REVIEWED_ADDITIONS.items())
+        source = "ghcr.io/kolyagazha89/usd-2.0-api:" + module.REVIEWED_TEAM_SOURCE
+        for tree, blob, old in [
+            ("f" * 40, module.REVIEWED_TEAM_MIGRATION_BLOB, source),
+            (module.REVIEWED_TEAM_TREE, "d" * 40, source),
+            (module.REVIEWED_TEAM_TREE, module.REVIEWED_TEAM_MIGRATION_BLOB,
+             "ghcr.io/kolyagazha89/usd-2.0-api:" + module.BASELINE),
+        ]:
+            with self.subTest(tree=tree, blob=blob, old=old), self.assertRaises(ValueError):
+                module.reviewed_pending_migrations(tree, blob, self.expected, self.history, old)
+
+    def test_team_upgrade_rejects_missing_prior_migrations(self):
+        self.expected[module.REVIEWED_TEAM_MIGRATION] = "b" * 64
+        source = "ghcr.io/kolyagazha89/usd-2.0-api:" + module.REVIEWED_TEAM_SOURCE
+        with self.assertRaisesRegex(ValueError, "one pending additive migration"):
+            module.reviewed_pending_migrations(module.REVIEWED_TEAM_TREE,
+                module.REVIEWED_TEAM_MIGRATION_BLOB, self.expected, self.history, source)
+
     def test_rolled_back_attempt_and_successful_same_migration_are_compatible(self):
         self.history.append(dict(self.history[0], finished=False, rolled_back=True))
         self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)

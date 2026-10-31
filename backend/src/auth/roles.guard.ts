@@ -76,7 +76,7 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  const path=request.path;
  const method=request.method.toUpperCase();
  const name=context.getClass().name;
- if(name==='PushController')return path==='/push/subscriptions'&&['GET','PUT'].includes(method)||/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method);
+ if(name==='PushController')return (path==='/push/subscriptions'&&['GET','PUT'].includes(method))||(/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method));
  if(name==='AuthController')return !path.startsWith('/auth/admin/');
  if(name==='TeamsController') {
   if(path==='/teams/me')return method==='GET';
