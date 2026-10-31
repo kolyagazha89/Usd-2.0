@@ -78,6 +78,16 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  const name=context.getClass().name;
  if(name==='PushController')return path==='/push/subscriptions'&&['GET','PUT'].includes(method)||/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method);
  if(name==='AuthController')return !path.startsWith('/auth/admin/');
+ if(name==='TeamsController') {
+  if(path==='/teams/me')return method==='GET';
+  if(path==='/teams/me/leave')return method==='POST';
+  if(/^\/teams\/[^/]+\/join$/.test(path))return method==='POST';
+  if(/^\/teams\/[^/]+$/.test(path)&&!['/teams/admin','/teams/public'].includes(path))return method==='PATCH';
+  if(/^\/teams\/[^/]+\/memberships\/[^/]+$/.test(path))return method==='PATCH';
+  if(/^\/teams\/[^/]+\/posts$/.test(path))return method==='POST';
+  if(/^\/teams\/[^/]+\/posts\/[^/]+$/.test(path))return method==='PATCH';
+  return false;
+ }
  if(name==='ParticipantsController') {
   if(path==='/participants/teams')return method==='GET';
   if(path==='/participants/me')return ['GET','POST','PATCH'].includes(method);

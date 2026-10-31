@@ -66,6 +66,8 @@ model User {
   participant              Participant?             @relation(fields: [participantId], references: [id])
   assistantRequestsCreated  AssistantRequest[]      @relation("AssistantRequestCreatedBy")
   assistantRequestsApproved AssistantRequest[]      @relation("AssistantRequestApprovedBy")
+  commandedTeam            Team?
+  teamPosts                TeamPost[]
 
   @@index([role])
   @@index([isActive])
@@ -93,11 +95,57 @@ model Participant {
   registrations     Registration[]
   stageInspections  ParticipantStageInspection[]
   user              User?
+  teamMembership    TeamMembership?
 
   @@index([lastName])
   @@index([firstName])
   @@index([team])
   @@index([city])
+}
+
+// Normalized teams are independent of Participant.team, which retains archive text.
+model Team {
+  id              String           @id @default(uuid())
+  name            String           @db.VarChar(120)
+  nameKey         String           @unique @db.VarChar(120)
+  description     String           @default("") @db.VarChar(4000)
+  commanderUserId String?          @unique
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+  commander       User?            @relation(fields: [commanderUserId], references: [id], onDelete: SetNull)
+  memberships     TeamMembership[]
+  posts           TeamPost[]
+}
+
+model TeamMembership {
+  id            String      @id @default(uuid())
+  teamId        String
+  participantId String      @unique
+  status        String      @default("PENDING") @db.VarChar(16)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+  team          Team        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, status])
+}
+
+model TeamPost {
+  id            String   @id @default(uuid())
+  teamId        String
+  authorUserId  String
+  kind          String   @db.VarChar(16)
+  title         String   @db.VarChar(160)
+  body          String   @db.VarChar(10000)
+  status        String   @default("DRAFT") @db.VarChar(16)
+  publishedAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  author        User     @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, status, createdAt])
 }
 
 model Car {
