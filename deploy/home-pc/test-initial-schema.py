@@ -21,6 +21,35 @@ class InitialSchemaTests(unittest.TestCase):
     def test_only_reviewed_nullable_additions_can_be_applied(self):
         self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)
 
+    def test_team_table_migration_requires_explicit_profile(self):
+        team = module.REVIEWED_TEAM_MIGRATION
+        self.expected[team] = "b" * 64
+        self.history.extend({"migration_name": name, "checksum": digest, "finished": True,
+                             "rolled_back": False} for name, digest in module.REVIEWED_ADDITIONS.items())
+        with self.assertRaisesRegex(ValueError, "Unreviewed pending"):
+            module.pending_migrations(self.expected, self.history)
+        approved = set(module.REVIEWED_ADDITIONS) | {team}
+        self.assertEqual(module.pending_migrations(self.expected, self.history, approved), [team])
+        self.history.append({"migration_name": team, "checksum": "b" * 64,
+                             "finished": True, "rolled_back": False})
+        self.assertEqual(module.pending_migrations(self.expected, self.history, approved), [])
+
+    def test_team_allowlist_does_not_approve_other_schema_changes(self):
+        self.expected[module.REVIEWED_TEAM_MIGRATION] = "b" * 64
+        self.expected["future_destructive_migration"] = "c" * 64
+        approved = set(module.REVIEWED_ADDITIONS) | {module.REVIEWED_TEAM_MIGRATION}
+        with self.assertRaisesRegex(ValueError, "Unreviewed pending"):
+            module.pending_migrations(self.expected, self.history, approved)
+        self.expected[self.allowed[0]] = "d" * 64
+        with self.assertRaisesRegex(ValueError, "Reviewed migration content"):
+            module.pending_migrations(self.expected, self.history, approved)
+
+    def test_team_release_pins_exact_schema_and_sql_blob(self):
+        self.assertRegex(module.REVIEWED_TEAM_TREE, r"^[a-f0-9]{40}$")
+        self.assertRegex(module.REVIEWED_TEAM_MIGRATION_BLOB, r"^[a-f0-9]{40}$")
+        self.assertRegex(module.REVIEWED_TEAM_SOURCE, r"^[a-f0-9]{40}$")
+        self.assertNotEqual(module.REVIEWED_TEAM_TREE, module.REVIEWED_TREE)
+
     def test_rolled_back_attempt_and_successful_same_migration_are_compatible(self):
         self.history.append(dict(self.history[0], finished=False, rolled_back=True))
         self.assertEqual(module.pending_migrations(self.expected, self.history), self.allowed)
