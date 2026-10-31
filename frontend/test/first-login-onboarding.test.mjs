@@ -51,9 +51,9 @@ test('protected historical identities remain unselectable without admin review',
 });
 
 test('onboarding is a premium DARK page with responsive controls and no legacy white form',async()=>{
- const [css,legacy,main]=await Promise.all([
+ const [css,base,main]=await Promise.all([
   read('../src/participant/first-login-onboarding.css'),
-  read('../src/participant-ui-polish.css'),
+  read('../src/styles.css'),
   read('../src/main.tsx'),
  ]);
  assert.match(css,/body \.profile-match-page\.usd-member/);
@@ -64,6 +64,7 @@ test('onboarding is a premium DARK page with responsive controls and no legacy w
  assert.match(css,/@media\(max-width:640px\)/);
  assert.match(css,/@media\(max-width:375px\)/);
  assert.match(css,/prefers-reduced-motion/);
- assert.match(legacy,/\.profile-match-onboarding-steps/);
+ assert.doesNotMatch(base,/\/\* Historical profile matching \*\//,'legacy white onboarding CSS must be deleted');
+ assert.doesNotMatch(base,/\.profile-match-page\{min-height:100vh;background:/,'do not restore the old white canvas');
  assert.match(main,/import '\.\/participant-ui-polish\.css'/);
 });
