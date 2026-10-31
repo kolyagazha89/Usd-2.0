@@ -23,9 +23,10 @@ const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
  {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
  {key:'integrations',label:'Интеграции',description:'Google и внешние подключения'},
  {key:'assistant',label:'Ассистент USD',description:'Запросы и действия ассистента'},
+ {key:'notifications',label:'Push-уведомления',description:'Сводка доставок и отправка объявлений подписчикам'},
 ];
 const ROLE_ACTIONS:Array<{key:string;label:string}>=[{key:'view',label:'Просмотр'},{key:'create',label:'Создание'},{key:'update',label:'Изменение'},{key:'delete',label:'Удаление'}];
-const actionsForModule=(module:string)=>module==='results'?ROLE_ACTIONS.filter(action=>action.key==='view'||action.key==='create'):ROLE_ACTIONS;
+const actionsForModule=(module:string)=>['results','notifications'].includes(module)?ROLE_ACTIONS.filter(action=>action.key==='view'||action.key==='create'):ROLE_ACTIONS;
 function RolesPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame: React.ComponentType<any>; ErrorPanel: React.ComponentType<any>; LoadingPage: React.ComponentType<any>; Empty: React.ComponentType<any>}){
  const [roles,setRoles]=useState<any[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[editing,setEditing]=useState<any|null>(null),[roleSearch,setRoleSearch]=useState(''),[moduleSearch,setModuleSearch]=useState(''),[deleteTargetId,setDeleteTargetId]=useState('');
  const blank=()=>({key:'',name:'',description:'',permissions:{} as Record<string,string[]>});

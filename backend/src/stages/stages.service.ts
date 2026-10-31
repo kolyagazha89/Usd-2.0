@@ -1,3 +1,4 @@
+import { PushService } from '../push/push.service';
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -13,6 +14,7 @@ export class StagesService {
     private readonly audit: AuditService,
     @Optional() private readonly siteSettings?: SiteSettingsService,
     @Optional() private readonly emailNotifications?: EmailNotificationsService,
+    @Optional() private readonly pushNotifications?: PushService,
   ) {}
 
   async findAll() {
@@ -213,6 +215,7 @@ export class StagesService {
 
     if (stage.registrationOpen && !existing?.registrationOpen) {
       void this.emailNotifications?.registrationOpened(stage.id).catch(() => undefined);
+      void this.pushNotifications?.registrationOpened(stage.id).catch(() => undefined);
     }
 
     return stage;
@@ -314,6 +317,7 @@ export class StagesService {
 
     if (!stage.registrationOpen && updated.registrationOpen) {
       void this.emailNotifications?.registrationOpened(updated.id).catch(() => undefined);
+      void this.pushNotifications?.registrationOpened(updated.id).catch(() => undefined);
     }
     if (
       stage.name !== updated.name ||

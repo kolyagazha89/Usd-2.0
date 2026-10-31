@@ -13,6 +13,7 @@ on:
       - Frontend CI
       - Competition journey, archive replay and permanent deletion
       - Public browser QA
+      - Web push on PostgreSQL 18
     types:
       - completed
     branches:

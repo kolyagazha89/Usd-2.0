@@ -853,7 +853,7 @@ export class AuthService {
       'stages', 'seasons', 'registrations', 'inspections', 'results',
       'records', 'participants', 'teams', 'cars', 'classes', 'imports',
       'disqualifications', 'configurations', 'media', 'siteSettings',
-      'historicalResults', 'history', 'statistics', 'integrations', 'assistant',
+      'historicalResults', 'history', 'statistics', 'integrations', 'assistant', 'notifications',
     ]);
     const actions = new Set(['view', 'create', 'update', 'delete']);
     if (!input || typeof input !== 'object' || Array.isArray(input)) {

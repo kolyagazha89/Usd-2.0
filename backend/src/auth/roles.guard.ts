@@ -14,6 +14,7 @@ type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 type PermissionMap = Record<string, unknown>;
 
 const CONTROLLER_MODULES: Record<string, string> = {
+  PushAdminController: 'notifications',
   StagesController: 'stages',
   SeasonsController: 'seasons',
   RegistrationsController: 'registrations',
@@ -75,6 +76,7 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  const path=request.path;
  const method=request.method.toUpperCase();
  const name=context.getClass().name;
+ if(name==='PushController')return (path==='/push/subscriptions'&&['GET','PUT'].includes(method))||(/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method));
  if(name==='AuthController')return !path.startsWith('/auth/admin/');
  if(name==='TeamsController') {
   if(path==='/teams/me')return method==='GET';

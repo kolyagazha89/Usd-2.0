@@ -1,0 +1,112 @@
+.notifications-page {
+  display: grid;
+  gap: 22px;
+  max-width: 1000px;
+}
+.notification-overview,
+.notification-composer,
+.notification-history {
+  padding: 24px;
+}
+.notification-overview {
+  display: grid;
+  gap: 12px;
+}
+.notification-overview p,
+.notification-composer small,
+.notification-history small {
+  color: #596273;
+  line-height: 1.6;
+}
+.notification-composer {
+  display: grid;
+  gap: 18px;
+}
+.notification-composer h2,
+.notification-history h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.notification-composer > label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.notification-composer input:not([type="checkbox"]),
+.notification-composer textarea,
+.notification-composer select {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+  padding: 12px;
+  border: 1px solid #cbd1da;
+  border-radius: 8px;
+  color: #1e2430;
+  background: #fff;
+}
+.notification-composer small {
+  font-weight: 400;
+}
+.notification-composer > .notification-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.6;
+}
+.notification-confirm input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #e51c36;
+}
+.notification-composer button,
+.notification-overview button {
+  justify-self: start;
+}
+.notification-preview {
+  border-left: 3px solid #e51c36;
+  padding: 14px 18px;
+  background: #f6f7f9;
+  overflow-wrap: anywhere;
+}
+.notification-preview p {
+  margin: 8px 0 0;
+}
+.notification-history article {
+  padding: 20px 0;
+  border-top: 1px solid #e4e6eb;
+  overflow-wrap: anywhere;
+}
+.notification-history article > small {
+  display: block;
+  margin-top: 6px;
+}
+.notification-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notification-statuses span {
+  font-size: 12px;
+  background: #f0f2f5;
+  padding: 6px 9px;
+  border-radius: 5px;
+}
+.notification-notice {
+  background: #eef8f0;
+  padding: 16px;
+  color: #245e32;
+  border-radius: 8px;
+}
+@media (max-width: 540px) {
+  .notification-overview,
+  .notification-composer,
+  .notification-history {
+    padding: 18px;
+  }
+  .notification-composer button {
+    width: 100%;
+  }
+}

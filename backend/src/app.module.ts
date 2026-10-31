@@ -1,3 +1,4 @@
+import { PushModule } from './push/push.module';
 import {AdminDeletionModule} from './admin-deletion/admin-deletion.module';
 import { Module } from '@nestjs/common';
 
@@ -61,6 +62,7 @@ import { TeamsModule } from './teams/teams.module';
     NormalizationDryRunModule,
     ComponentCatalogRequestsModule,
     TeamsModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [AppService],
