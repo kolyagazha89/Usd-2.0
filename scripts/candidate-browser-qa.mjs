@@ -313,7 +313,8 @@ try{
        const adminAlpha=await adminBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
        assert.ok(adminAlpha>=.7,'admin drawer backdrop must hide the page with a dark premium scrim');
        assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer locks page scroll');
-       await adminBackdrop.click();
+       await adminBackdrop.click({position:{x:width-12,y:240}});
+       await adminBackdrop.waitFor({state:'detached'});
        assert.equal(await adminBackdrop.count(),0,'outside press closes admin drawer');
        assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer restores page scroll');
        await page.getByRole('button',{name:'Меню',exact:true}).click();
@@ -373,7 +374,7 @@ try{
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
       assert.equal(await publicBackdrop.count(),0,'Escape removes the backdrop');
       assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','closing menu restores page scroll');
-      await toggle.click();await publicBackdrop.click();assert.equal(await toggle.getAttribute('aria-expanded'),'false','tapping backdrop closes mobile menu');
+      await toggle.click();await publicBackdrop.click({position:{x:5,y:250}});assert.equal(await toggle.getAttribute('aria-expanded'),'false','tapping backdrop closes mobile menu');
       await toggle.click();await page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';
