@@ -311,7 +311,7 @@ try{
        const button=active&&getComputedStyle(active);
        return {scrollbarColor:css.scrollbarColor,scrollbarGutter:css.scrollbarGutter,activeBackground:button?.backgroundColor,activeImage:button?.backgroundImage};
       });
-      assert.match(menuTheme.scrollbarColor,/rgb\\(76, 76, 82\\)/,'sidebar uses neutral graphite scrollbar, not blue');
+      assert.ok(menuTheme.scrollbarColor.includes('rgb(76, 76, 82)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
       assert.equal(menuTheme.scrollbarGutter,'auto','sidebar does not reserve a permanent right-hand scrollbar stripe');
       assert.equal(menuTheme.activeBackground,'rgb(49, 23, 28)','active menu link is dark graphite/red, not bright blue/white');
       assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
