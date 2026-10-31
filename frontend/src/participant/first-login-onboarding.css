@@ -169,6 +169,10 @@ body .profile-match-page.usd-member .profile-match-step-number{
  border:1px solid rgba(219,232,245,.18);border-radius:12px;background:rgba(255,255,255,.035);
  font-size:13px;font-weight:850;color:#b9c4d1;
 }
+body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-complete .profile-match-step-number{
+ border-color:rgba(82,214,145,.46);color:#9de7bd;background:rgba(62,181,112,.12);
+}
+body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-complete>svg{color:#86e4ad}
 body .profile-match-page.usd-member .profile-match-onboarding-steps li.is-current .profile-match-step-number{
  border-color:#ee3c57;color:#fff;background:rgba(238,60,87,.15);
 }
