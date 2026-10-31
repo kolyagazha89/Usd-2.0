@@ -403,7 +403,7 @@ try{
      if(role===null&&route==='/'&&width<=1100){
       const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
-      const publicBackdrop=page.locator('body > .public-nav-scrim');
+      const publicBackdrop=page.locator('.usd-live > .public-nav-scrim');
       await publicBackdrop.waitFor({state:'visible'});
       const backdropAlpha=await publicBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
       assert.ok(backdropAlpha>=.7,'public menu must dim the full viewport');
