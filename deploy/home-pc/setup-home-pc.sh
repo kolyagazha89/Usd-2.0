@@ -231,7 +231,7 @@ fi
 # second-release probe until the host is explicitly authorized in Actions.
 # A same-PC second disk is NOT off-host recovery; never silently approve this
 # risk merely because the first prerelease passed local restore checks.
-usd_host_approved="$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --jq .value 2>/dev/null || true)"
+usd_host_approved="$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --json value --jq .value 2>/dev/null || true)"
 if [[ "$usd_host_approved" != true ]]; then
   echo 'Проверки первого релиза прошли, но GitHub не имеет разрешения запускать этот сервер.'
   echo 'Внимание: второй HDD находится на том же ПК. Независимого off-host бэкапа это НЕ заменяет.'
@@ -241,7 +241,7 @@ if [[ "$usd_host_approved" != true ]]; then
   [[ "$usd_host_consent" == ENABLE-USD-PRERELEASE ]] ||
     { echo 'Host automation was not approved; running site remains unchanged' >&2; exit 1; }
   gh variable set USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --body true
-  [[ "$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --jq .value)" == true ]] ||
+  [[ "$(gh variable get USD_HOME_PC_HOST_APPROVED --repo kolyagazha89/Usd-2.0 --json value --jq .value)" == true ]] ||
     { echo 'GitHub host approval was not persisted; refusing unverified automatic test' >&2; exit 1; }
 fi
 git -C "$SOURCE" rev-parse "$SHA:backend/prisma" > /etc/usd-auto-release-schema
