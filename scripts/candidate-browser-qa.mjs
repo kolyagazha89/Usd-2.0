@@ -133,7 +133,7 @@ try{
     console.log('CANDIDATE_QA_START '+JSON.stringify(row));
     try{
      await page.goto(base+route,{waitUntil:'networkidle'});
-     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.app-shell').first().waitFor();
+     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.profile-match-page,.app-shell').first().waitFor();
      await page.waitForTimeout(100);
      if(route.includes('/configurations')&&route.includes('&view=')){await page.getByRole('button',{name:'Подробнее',exact:true}).click();await page.locator('.configuration-details-page').waitFor();row.configurationView='opened through UI'}
      if(route.includes('/configurations')&&route.includes('&edit=')){await page.getByRole('button',{name:'Редактировать',exact:true}).click();await page.locator('.configuration-editor-page').waitFor();row.configurationEditor='opened through UI; no saving'}
