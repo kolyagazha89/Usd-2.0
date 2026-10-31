@@ -9,7 +9,7 @@ test('public mobile navigation uses real click-blocking scrim, never transparent
   get('../src/navigation/PublicNavigation.tsx'),
   get('../src/dark-velocity-sitewide.css'),
  ]);
- assert.match(nav,/createPortal\(<button type="button" className="public-nav-backdrop"/);
+ assert.match(nav,/\{open&&<button type="button" className="public-nav-backdrop"/);
  assert.match(nav,/document\.body\.style\.overflow='hidden'/);
  assert.match(nav,/event\.target as Element\)\?\.closest\?\.\('\.public-nav-backdrop'\)/,'never remove scrim on pointerdown or clicks can hit the page behind');
  assert.match(nav,/onClick=\{\(\)=>setOpen\(false\)\}/);
@@ -19,7 +19,8 @@ test('public mobile navigation uses real click-blocking scrim, never transparent
  assert.match(css,/body \.public-nav-backdrop/);
  assert.match(css,/background:rgba\(3,6,12,\.82\)/);
  assert.match(css,/\.p-public-header:has\(\.public-nav-links\[data-open=true\]\)/);
- assert.match(css,/\.public-nav-links\[data-open=true\]\{\s*z-index:1501;isolation:isolate;\s*background:#0b131d!important/);
+ assert.match(css,/\.public-nav-links\[data-open=true\]\{\s*z-index:1502;isolation:isolate;\s*background:#0b131d!important/);
+ assert.match(css,/\.public-nav:has\(\.public-nav-backdrop\)/);
 });
 
 test('admin menu overlay is behind sidebar, dialog overlay is above both, form stays light',async()=>{
