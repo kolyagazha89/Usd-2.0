@@ -20,6 +20,8 @@ ADDITIONAL_WORKFLOWS = {
     "Competition journey, archive replay and permanent deletion": ".github/workflows/identity-release-ci.yml",
     "Public browser QA": ".github/workflows/public-browser-qa.yml",
     "Publish self-hosted USD images": ".github/workflows/publish-home-pc-images.yml",
+    "Team commanders on PostgreSQL 18": ".github/workflows/team-commanders-ci.yml",
+    "Web push on PostgreSQL 18": ".github/workflows/push-notifications-ci.yml",
 }
 
 
@@ -30,7 +32,7 @@ def run(name, *, sha=SHA, branch="main", event="push", status="completed", concl
 
 
 def evaluate(payload, sha, frontend):
-    # Baseline fixtures for the three workflows added to the mandatory gate;
+    # Baseline fixtures for the workflows added to the mandatory gate;
     # the dedicated tests below explicitly remove/fail each one.
     if isinstance(payload, dict) and isinstance(payload.get("workflow_runs"), list):
         payload = {"workflow_runs": payload["workflow_runs"] +
@@ -39,6 +41,20 @@ def evaluate(payload, sha, frontend):
 
 
 class CIGateTests(unittest.TestCase):
+    def test_feature_database_checks_cannot_be_bypassed_by_other_green_workflows(self):
+        paths = {**WORKFLOW_PATHS, **ADDITIONAL_WORKFLOWS}
+        complete = [run(name, path=path) for name, path in paths.items()]
+        for name in ("Team commanders on PostgreSQL 18", "Web push on PostgreSQL 18"):
+            others = [item for item in complete if item["name"] != name]
+            for fake in (None, run(name, path=paths[name], status="in_progress", conclusion=None),
+                         run(name, path=paths[name], conclusion="failure"),
+                         run(name, path=paths[name], event="pull_request"),
+                         run(name, path=paths[name], sha="b" * 40),
+                         run(name, path=".github/workflows/impostor.yml")):
+                with self.subTest(name=name, fake=fake):
+                    self.assertNotEqual(gate.evaluate({"workflow_runs": others + ([fake] if fake else [])}, SHA, False)[0], 0)
+        self.assertEqual(gate.evaluate({"workflow_runs": complete}, SHA, False)[0], 0)
+
     def test_unit_builds_alone_cannot_bypass_journey_browser_or_image_publication(self):
         base = [run("Backend CI"), run("Home PC deployment safety checks"), run("Frontend CI")]
         required = ADDITIONAL_WORKFLOWS

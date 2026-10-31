@@ -26,6 +26,8 @@ def evaluate(payload: object, sha: str, require_frontend: bool) -> tuple[int, st
         "Competition journey, archive replay and permanent deletion": ".github/workflows/identity-release-ci.yml",
         "Public browser QA": ".github/workflows/public-browser-qa.yml",
         "Publish self-hosted USD images": ".github/workflows/publish-home-pc-images.yml",
+        "Team commanders on PostgreSQL 18": ".github/workflows/team-commanders-ci.yml",
+        "Web push on PostgreSQL 18": ".github/workflows/push-notifications-ci.yml",
     }
     if require_frontend:
         required["Frontend CI"] = ".github/workflows/frontend.yml"
