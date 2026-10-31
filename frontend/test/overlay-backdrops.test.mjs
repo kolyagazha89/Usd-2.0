@@ -13,7 +13,7 @@ test('mobile public navigation owns a full-screen click-dismissable scrim in the
  assert.match(nav,/window\.addEventListener\('resize',responsive\)/);
  assert.match(nav,/window\.innerWidth>1100/);
  assert.match(nav,/event\.key==='Escape'/);
- assert.match(nav,/event\.key==='Tab'/);
+ assert.match(nav,/event\.key!=='Tab'/);
  assert.match(nav,/toggle\.current\?\.focus\(\)/);
 });
 
