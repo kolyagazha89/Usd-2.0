@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiGet, apiPost } from "../api";
 import "./permanent-deletion.css";
 export type DeletionKind = "participant" | "stage" | "user";
@@ -87,13 +88,14 @@ export function PermanentDeletionDialog({
       setBusy(false);
     }
   };
-  return (
+  return createPortal(
     <div className="permanent-delete-overlay">
       <section
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="permanent-delete-title"
+        aria-describedby="permanent-delete-description"
         className="panel permanent-delete-dialog"
         onKeyDown={(e) => {
           if (e.key === "Escape" && !busy) {
@@ -118,7 +120,7 @@ export function PermanentDeletionDialog({
         }}
       >
         <h2 id="permanent-delete-title">Удалить навсегда</h2>
-        <p>
+        <p id="permanent-delete-description">
           Это действие нельзя отменить.{" "}
           {kind === "stage"
             ? "Этап, его регистрации, результаты, инспекции и история импорта будут удалены. Участники и их учётные записи останутся."
@@ -195,6 +197,7 @@ export function PermanentDeletionDialog({
           </button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -23,7 +23,12 @@ export async function runDeletionWorkflow() {
     );
   await act(async () => render());
   await flush();
-  assert.ok(document.querySelector('[role="dialog"]'));
+  const dialog = document.querySelector('[role="dialog"]')!;
+  assert.ok(dialog);
+  assert.equal(dialog.parentElement, document.body, "the overlay must cover the full viewport, outside the admin scrolling shell");
+  assert.equal(document.querySelector("#root")?.querySelector('[role="dialog"]'), null);
+  assert.equal(dialog.getAttribute("aria-describedby"), "permanent-delete-description");
+  assert.equal(document.activeElement?.textContent, "Отмена");
   assert.match(document.body.textContent!, /Иванов Иван/);
   assert.match(document.body.textContent!, /Учётная запись/);
   const button = () =>
@@ -80,5 +85,6 @@ export async function runDeletionWorkflow() {
     fingerprint: "fresh-preview",
   });
   await act(async () => root.unmount());
+  assert.equal(document.querySelector('.permanent-delete-overlay'), null);
   assert.equal(closed, 0);
 }
