@@ -202,7 +202,10 @@ def main(argv: list[str]) -> int:
     fcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)
     receipt = STATE / "initial-preflight"
     trusted(receipt)
-    if time.time() - receipt.stat().st_mtime > 7200 or receipt.read_text().splitlines() != [sha, BASELINE, db]:
+    # The preflight receipt must be bound to the actual old image: nullable
+    # baseline and later team-table upgrades have different approved sources.
+    approved_source = REVIEWED_TEAM_SOURCE if tree == REVIEWED_TEAM_TREE else BASELINE
+    if time.time() - receipt.stat().st_mtime > 7200 or receipt.read_text().splitlines() != [sha, approved_source, db]:
         raise ValueError("Fresh successful backup/restore receipt for this live DB is required")
     image = "ghcr.io/kolyagazha89/usd-2.0-api:" + sha
     revision = command("docker", "image", "inspect", "--format",
