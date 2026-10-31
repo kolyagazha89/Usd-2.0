@@ -43,3 +43,35 @@ jobs:
       - run: npx prisma migrate deploy
       - name: Verify consent, ownership, retries and stage hooks with mocked provider transport
         run: npm test -- --runInBand src/push
+
+  push-browser-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      USD_BROWSER_TOOLING: /tmp/usd-push-browser-tooling
+      PUSH_BROWSER_OUTPUT: ${{ github.workspace }}/push-browser-qa
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - name: Install isolated browser tooling
+        run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1
+      - name: Install Chromium
+        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Build production frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api.usd-russia.ru
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Check opt-in, refusal, per-device controls, iPhone install guidance and admin permissions
+        run: node scripts/push-browser-qa.mjs
+      - name: Save eight isolated browser scenarios and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push-browser-qa-${{ github.run_attempt }}
+          path: push-browser-qa/
+          retention-days: 7
