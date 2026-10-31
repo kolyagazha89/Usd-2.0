@@ -17,9 +17,20 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
  useEffect(()=>{
   if(!open)return;
   const outside=(event:PointerEvent)=>{if(!nav.current?.contains(event.target as Node))setOpen(false)};
-  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpen(false);toggle.current?.focus()}};
-  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',escape);
-  return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape)};
+  const keys=(event:KeyboardEvent)=>{
+   if(event.key==='Escape'){setOpen(false);toggle.current?.focus();return}
+   if(event.key!=='Tab')return;
+   const links=[...nav.current?.querySelectorAll<HTMLAnchorElement>('.public-nav-links a')??[]];
+   const first=toggle.current,last=links.at(-1);
+   if(!first||!last)return;
+   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+  };
+  const responsive=()=>{if(window.innerWidth>1100)setOpen(false)};
+  document.addEventListener('pointerdown',outside);
+  document.addEventListener('keydown',keys);
+  window.addEventListener('resize',responsive);
+  return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',keys);window.removeEventListener('resize',responsive)};
  },[open]);
  return <>{open&&createPortal(<button type="button" className="public-nav-scrim" aria-label="Закрыть открытое меню" onClick={()=>{setOpen(false);toggle.current?.focus()}}/>,document.body)}<nav ref={nav} className="public-nav" aria-label="Основная навигация">
   <button ref={toggle} type="button" className="public-nav-toggle" aria-label={open?'Закрыть меню':'Открыть меню'} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(value=>!value)}>{open?<X size={21}/>:<Menu size={21}/>}</button>
