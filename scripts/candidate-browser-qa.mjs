@@ -78,6 +78,8 @@ function dataFor(url,role){
  if(p==='/cars/car1')return car;
  if(p==='/results/registration/reg1')return [result];
  if(p==='/participants/teams')return [{name:'USD Team'}];
+ if(p==='/teams/admin')return {teams:[],users:[]};
+ if(p==='/teams/public')return [{id:null,name:'USD Team',description:'',isActive:false,members:[],historicalMembers:[{id:participant.id,firstName:participant.firstName,lastName:participant.lastName,city:participant.city}],posts:[]}];
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];

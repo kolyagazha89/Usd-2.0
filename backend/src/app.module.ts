@@ -30,6 +30,7 @@ import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { NormalizationDryRunModule } from './data-quality/normalization-dry-run.module';
 import { ComponentCatalogRequestsModule } from './component-catalog-requests/component-catalog-requests.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ComponentCatalogRequestsModule } from './component-catalog-requests/com
     AssistantModule,
     NormalizationDryRunModule,
     ComponentCatalogRequestsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
