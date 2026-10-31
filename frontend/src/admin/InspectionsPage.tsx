@@ -2,7 +2,7 @@ import {readViewState,useViewState,useListScroll,seasonYears,matchesSeason,stage
 import {useEffect,useRef,useState} from 'react';
 import jsQR from 'jsqr';
 import {parseInspectionQr} from '../participant/usd-id';
-import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
+import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,Users,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 
 function isPastStageCalendar(s:any){if(!s)return false;if(s.status==='COMPLETED'||s.status==='CANCELLED')return true;if(!s.date)return false;const d=new Date(s.date),today=new Date();d.setHours(0,0,0,0);today.setHours(0,0,0,0);return d.getTime()<today.getTime()}
