@@ -17,6 +17,8 @@ done
 REVIEWED_COMMIT=09d936fb3945222d1955ff9ea73490c9b82d04b0
 REVIEWED_TREE=4d9fa43dafd01e58354c3d22ead2cafe45152044
 REVIEWED_TEAM_TREE=a22c242dd0c6dfa9554f179cf705b39499a68967
+REVIEWED_PUSH_TREE=b251982efe8265a31d52743437db063fdf76de6d
+PUSH_SOURCE=49998d27fd179ef50c61d7e115516734b546f7b9
 BASELINE=e8b5b0f22780a61e79765b8fd92167e241df82a2
 IMAGE=ghcr.io/kolyagazha89/usd-2.0-api
 NEW="$IMAGE:$SHA"
@@ -143,7 +145,8 @@ phase='prepare unreviewed schema refusal'
 git -C "$SOURCE" checkout -q --detach "$SHA"
 REJECTED_SHA="$SHA"
 if [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TREE" ||
-      "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TEAM_TREE" ]]; then
+      "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TEAM_TREE" ||
+      "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_PUSH_TREE" ]]; then
   printf '\n// Fixture only: unreviewed schema change.\n' >> "$SOURCE/backend/prisma/schema.prisma"
   git -C "$SOURCE" add backend/prisma/schema.prisma
   git -C "$SOURCE" -c user.name='USD CI fixture' -c user.email='fixture@invalid' \
@@ -221,7 +224,25 @@ echo 'Real PostgreSQL/Prisma reviewed nullable upgrade, unreviewed schema refusa
 
 # Rehearse the second explicitly reviewed additive upgrade from the e0c244b
 # prerelease on synthetic data. This cannot authorize a production migration.
-if [[ "$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")" == "$REVIEWED_TEAM_TREE" ]]; then
+candidate_tree="$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")"
+if [[ "$candidate_tree" == "$REVIEWED_TEAM_TREE" || "$candidate_tree" == "$REVIEWED_PUSH_TREE" ]]; then
+  TEAM_CANDIDATE_SHA="$SHA"
+  if [[ "$candidate_tree" == "$REVIEWED_PUSH_TREE" ]]; then
+    phase='prepare synthetic exact-team-tree migration fixture'
+    # The source fixture has exactly the tested team schema, not push SQL.
+    git -C "$SOURCE" fetch -q --no-tags --depth=1 "$(git remote get-url origin)" "$PUSH_SOURCE"
+    [[ "$(git -C "$SOURCE" rev-parse "$PUSH_SOURCE:backend/prisma")" == "$REVIEWED_TEAM_TREE" ]]
+    rm -rf -- "$SOURCE/backend/prisma"
+    install -d "$SOURCE/backend/prisma"
+    git -C "$SOURCE" archive "$REVIEWED_TEAM_TREE" | tar -x -C "$SOURCE/backend/prisma"
+    git -C "$SOURCE" add backend/prisma
+    git -C "$SOURCE" -c user.name='USD CI fixture' -c user.email='fixture@invalid' \
+      commit -q -m 'Fixture only: pinned team schema'
+    TEAM_CANDIDATE_SHA="$(git -C "$SOURCE" rev-parse HEAD)"
+    [[ "$(git -C "$SOURCE" rev-parse HEAD:backend/prisma)" == "$REVIEWED_TEAM_TREE" ]]
+    check_source "$TEAM_CANDIDATE_SHA"
+    build_schema_fixture "$TEAM_CANDIDATE_SHA"
+  fi
   phase='prepare verified e0c244b team migration source fixture'
   TEAM_BASE=e0c244bad7f77f576f1889abe36bf1dc0a9db735
   TEAM_OLD="$IMAGE:$TEAM_BASE"
@@ -236,25 +257,65 @@ if [[ "$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")" == "$REVIEWED_TEAM_T
   docker run -d --name "$api" --network "$network" \
     --label com.docker.compose.project=usd-home --label com.docker.compose.service=api \
     -e "DATABASE_URL=$url" --entrypoint node "$TEAM_OLD" -e 'setInterval(()=>{},1000)' >/dev/null
-  git -C "$SOURCE" checkout -q --detach "$SHA"
-  check_source "$SHA"
+  git -C "$SOURCE" checkout -q --detach "$TEAM_CANDIDATE_SHA"
+  check_source "$TEAM_CANDIDATE_SHA"
   phase='verify only team migration is pending from e0c244b'
-  python3 deploy/home-pc/initial-schema.py --check "$SHA"
+  python3 deploy/home-pc/initial-schema.py --check "$TEAM_CANDIDATE_SHA"
   before_team="$(database_digest)"
-  if python3 deploy/home-pc/initial-schema.py --apply "$SHA" > "$WORK/team-missing-receipt.log" 2>&1; then
+  if python3 deploy/home-pc/initial-schema.py --apply "$TEAM_CANDIDATE_SHA" > "$WORK/team-missing-receipt.log" 2>&1; then
     echo 'Team migration accepted without a full backup/restore receipt' >&2
     exit 1
   fi
   [[ "$(database_digest)" == "$before_team" ]]
-  printf '%s\n%s\n%s\n' "$SHA" "$TEAM_BASE" "$(printf '%s' "$db_id" | cut -c1-12)" > "$STATE/initial-preflight"
+  printf '%s\n%s\n%s\n' "$TEAM_CANDIDATE_SHA" "$TEAM_BASE" "$(printf '%s' "$db_id" | cut -c1-12)" > "$STATE/initial-preflight"
   chmod 600 "$STATE/initial-preflight"
   phase='apply only reviewed team tables on disposable PostgreSQL18'
-  python3 deploy/home-pc/initial-schema.py --apply "$SHA"
-  python3 deploy/home-pc/initial-schema.py --check "$SHA"
+  python3 deploy/home-pc/initial-schema.py --apply "$TEAM_CANDIDATE_SHA"
+  python3 deploy/home-pc/initial-schema.py --check "$TEAM_CANDIDATE_SHA"
   [[ ! -e "$STATE/initial-preflight" ]]
   [[ "$(docker inspect -f '{{.Id}}' "$db")" == "$db_id" ]]
   [[ "$(docker exec "$db" psql -At -U usd -d usd -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('Team','TeamMembership','TeamPost')")" == 3 ]]
   [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT id FROM initial_upgrade_marker')" == 42 ]]
   echo 'PASS: reviewed team migration from e0c244b and missing-receipt refusal on real PG18'
+  if [[ "$candidate_tree" == "$REVIEWED_PUSH_TREE" ]]; then
+    phase='prepare isolated verified 49998d2 push source'
+    PUSH_OLD="$IMAGE:$PUSH_SOURCE"
+    if docker image inspect "$PUSH_OLD" >/dev/null 2>&1; then
+      echo 'Refusing existing push-source fixture image' >&2
+      exit 1
+    fi
+    fixture_images+=("$PUSH_OLD")
+    printf 'FROM %s\nLABEL org.opencontainers.image.revision=%s\n' "$IMAGE:$TEAM_CANDIDATE_SHA" "$PUSH_SOURCE" > "$WORK/Dockerfile.push-source"
+    docker build -f "$WORK/Dockerfile.push-source" -t "$PUSH_OLD" "$WORK"
+    docker rm -fv "$api" >/dev/null
+    docker run -d --name "$api" --network "$network" \
+      --label com.docker.compose.project=usd-home --label com.docker.compose.service=api \
+      -e "DATABASE_URL=$url" --entrypoint node "$PUSH_OLD" -e 'setInterval(()=>{},1000)' >/dev/null
+    git -C "$SOURCE" checkout -q --detach "$SHA"
+    check_source "$SHA"
+    phase='verify only pinned push migration is pending'
+    python3 deploy/home-pc/initial-schema.py --check "$SHA"
+    before_push="$(database_digest)"
+    if python3 deploy/home-pc/initial-schema.py --apply "$SHA" > "$WORK/push-missing-receipt.log" 2>&1; then
+      echo 'Push migration accepted without a full backup/restore receipt' >&2
+      exit 1
+    fi
+    [[ "$(database_digest)" == "$before_push" ]]
+    api_before_push="$(docker inspect -f '{{.Id}} {{.Image}} {{.Config.Image}}' "$api")"
+    printf '%s\n%s\n%s\n' "$SHA" "$PUSH_SOURCE" "${db_id:0:12}" > "$STATE/initial-preflight"
+    chmod 600 "$STATE/initial-preflight"
+    phase='apply only reviewed push tables on disposable PostgreSQL18'
+    python3 deploy/home-pc/initial-schema.py --apply "$SHA"
+    python3 deploy/home-pc/initial-schema.py --check "$SHA"
+    python3 deploy/home-pc/initial-schema.py --apply "$SHA"
+    [[ ! -e "$STATE/initial-preflight" ]]
+    [[ "$(docker inspect -f '{{.Id}} {{.Image}} {{.Config.Image}}' "$api")" == "$api_before_push" ]]
+    [[ "$(docker inspect -f '{{.Id}}' "$db")" == "$db_id" ]]
+    [[ "$(docker exec "$db" psql -At -U usd -d usd -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('PushSubscription','PushMessage','PushDelivery')")" == 3 ]]
+    [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT id FROM initial_upgrade_marker')" == 42 ]]
+    [[ "$(docker exec "$db" psql -At -U usd -d usd -c "SELECT count(*) FROM \"_prisma_migrations\" WHERE migration_name='20261030061000_push_subscriptions' AND finished_at IS NOT NULL")" == 1 ]]
+    echo 'PASS: 49998d2 -> reviewed push schema, receipt enforcement, idempotency, preserved historic marker on real PG18'
+  fi
+
 fi
 
