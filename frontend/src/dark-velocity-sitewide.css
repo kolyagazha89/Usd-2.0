@@ -863,3 +863,76 @@ body .usd-live .public-rules-sidebar nav a:focus-visible,
 body .usd-live .public-rules-actions :is(a,button):focus-visible,
 body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--dv-red-hot);outline-offset:3px}
 @media(max-width:760px){body .usd-live .public-rules-rich-document :is(h3,h4,h5){scroll-margin-top:82px}}
+
+
+/* Dark Velocity overlay contract: backgrounds behind menus and dialogs must be
+   visibly dimmed, while the surface itself stays opaque and readable.
+   Keep admin panels LIGHT; these rules affect only the scrim, not the form theme. */
+@media(max-width:1100px){
+ body .public-nav-backdrop{
+  display:block;position:fixed;inset:0;z-index:1490;
+  width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;
+  background:rgba(3,6,12,.82);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  cursor:default;touch-action:manipulation;
+ }
+ body .usd-live .p-public-header:has(.public-nav-links[data-open=true]){
+  z-index:1500!important;
+ }
+ body .usd-live .p-public-header .public-nav-links[data-open=true]{
+  z-index:1501;isolation:isolate;
+  background:#0b131d!important;opacity:1!important;
+  border:1px solid rgba(194,213,236,.22)!important;
+  border-radius:15px!important;
+  box-shadow:0 30px 80px rgba(0,0,0,.62)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+ }
+ body .usd-live .p-public-header .public-nav-links[data-open=true]>a{
+  color:#e8edf5!important;background:transparent!important;
+ }
+ body .usd-live .p-public-header .public-nav-links[data-open=true]>a:is(:hover,:focus-visible,[aria-current=page]){
+  color:#fff!important;background:rgba(239,24,57,.12)!important;
+ }
+}
+@media(min-width:1101px){body .public-nav-backdrop{display:none}}
+@media(max-width:900px){
+ body .app-shell>.mobile-backdrop{
+  position:fixed;inset:0;z-index:104!important;
+  background:rgba(4,7,13,.79)!important;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:0;box-shadow:none;cursor:default;
+ }
+ body .app-shell .sidebar{z-index:105!important}
+ body:has(.app-shell>.mobile-backdrop){overflow:hidden!important}
+}
+/* Admin popups retain white panels; the parent page behind them cannot bleed
+   through. The backdrop is above either mobile navigation layer. */
+body .app-shell .modal-backdrop{
+ z-index:1200!important;
+ background:rgba(4,7,13,.81)!important;
+ backdrop-filter:blur(5px)!important;
+ -webkit-backdrop-filter:blur(5px)!important;
+}
+body .app-shell .modal-backdrop .modal{
+ background:#fff!important;color:#171b22;
+ border:1px solid #e1e5ea;
+ box-shadow:0 36px 110px rgba(0,0,0,.4)!important;
+}
+/* A separate black backdrop and opaque panels for participant configurator
+   overlays (actions sheet and catalogue). */
+body .usd-member :is(.member-config-picker-overlay,.member-config-actions-overlay){
+ background:rgba(3,6,12,.87)!important;
+ backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+}
+body .usd-member :is(.member-config-picker-screen,.member-config-actions-sheet){
+ background:#111a25!important;color:#f8fafc;
+ border-color:rgba(214,227,241,.17)!important;
+ box-shadow:0 35px 95px rgba(0,0,0,.65)!important;
+}
+@media(prefers-reduced-transparency:reduce){
+ body .public-nav-backdrop,body .app-shell>.mobile-backdrop,body .app-shell .modal-backdrop,
+ body .usd-member :is(.member-config-picker-overlay,.member-config-actions-overlay){
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  background:rgba(3,6,12,.94)!important;
+ }
+}
