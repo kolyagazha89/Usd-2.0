@@ -8,12 +8,6 @@ on:
   workflow_run:
     workflows:
       - Publish self-hosted USD images
-      - Home PC deployment safety checks
-      - Backend CI
-      - Frontend CI
-      - Competition journey, archive replay and permanent deletion
-      - Public browser QA
-      - Web push on PostgreSQL 18
     types:
       - completed
     branches:
@@ -22,10 +16,10 @@ on:
 permissions: {}
 
 concurrency:
-  # One active host request per release SHA; repeated completed workflows
-  # must not queue multiple long-running deploy attempts.
-  group: usd-home-pc-deploy-trigger-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
+  # Only the image publication workflow can request a host deployment.
+  # Keep a single active host operation; never cancel it halfway through.
+  group: usd-home-pc-deploy-trigger
+  cancel-in-progress: false
 
 jobs:
   request-deploy:
