@@ -48,12 +48,18 @@ async function mount(role='PARTICIPANT',linked=true,judge=false){
 
 export async function runAccountSecurity(){
   try{
-    // A role restriction or participant-link prerequisite must not hide personal security.
+    // Security actions stay in linked profile settings, not on first-login identity matching.
     for(const [role,linked,judge]of [['PARTICIPANT',true,false],['ADMIN',true,false],['PARTICIPANT',true,true],['ADMIN',false,false],['PARTICIPANT',false,true]] as const){
       await mount(role,linked,judge);
-      assert.match(section().textContent??'',/Безопасность аккаунта/);
-      assert.match(section().textContent??'',/fixture@example.test/);
-      assert.ok(calls.some(c=>c.path==='/auth/sessions'));
+      if(linked){
+        assert.match(section().textContent??'',/Безопасность аккаунта/);
+        assert.match(section().textContent??'',/fixture@example.test/);
+        assert.ok(calls.some(c=>c.path==='/auth/sessions'));
+      }else{
+        assert.ok(document.querySelector('.profile-match-page.usd-member'),'new account must start in the profile selection journey');
+        assert.equal(document.querySelector('.participant-account-security'),null,'security forms must not overwhelm the first-login page');
+        assert.equal(calls.some(c=>c.path==='/auth/sessions'),false,'first-login must not fetch sessions before user opens account settings');
+      }
       assert.equal(calls.some(c=>c.path.startsWith('/auth/admin/')),false);
     }
 
