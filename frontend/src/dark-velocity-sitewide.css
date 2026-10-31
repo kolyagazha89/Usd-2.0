@@ -869,6 +869,10 @@ body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--
    visibly dimmed, while the surface itself stays opaque and readable.
    Keep admin panels LIGHT; these rules affect only the scrim, not the form theme. */
 @media(max-width:1100px){
+ body .usd-live .p-public-header .public-nav:has(.public-nav-backdrop){
+  isolation:isolate;z-index:1501;position:relative;
+ }
+ body .usd-live .p-public-header .public-nav-toggle{position:relative;z-index:1502}
  body .public-nav-backdrop{
   display:block;position:fixed;inset:0;z-index:1490;
   width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;
@@ -880,7 +884,7 @@ body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--
   z-index:1500!important;
  }
  body .usd-live .p-public-header .public-nav-links[data-open=true]{
-  z-index:1501;isolation:isolate;
+  z-index:1502;isolation:isolate;
   background:#0b131d!important;opacity:1!important;
   border:1px solid rgba(194,213,236,.22)!important;
   border-radius:15px!important;
