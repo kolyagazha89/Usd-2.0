@@ -309,6 +309,9 @@ try{
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
        await page.locator('.sidebar').waitFor({state:'visible'});
+       // Sidebar sections are collapsed by default; open the cars section as a real user would.
+       const carsSection=page.locator('.sidebar-section-toggle').filter({hasText:'Участники и автопарк'});
+       if(await carsSection.getAttribute('aria-expanded')==='false')await carsSection.click();
        await page.getByRole('button',{name:'Автомобили',exact:true}).click();
        await page.waitForURL(/\/admin\/cars$/);
        row.mobileAdminNavigation='passed';

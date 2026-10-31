@@ -863,3 +863,89 @@ body .usd-live .public-rules-sidebar nav a:focus-visible,
 body .usd-live .public-rules-actions :is(a,button):focus-visible,
 body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--dv-red-hot);outline-offset:3px}
 @media(max-width:760px){body .usd-live .public-rules-rich-document :is(h3,h4,h5){scroll-margin-top:82px}}
+
+/* Sidebar: one dedicated dark scrolling pane, with a stationary brand and account.
+   The global light scrollbar theme must never leak into the dark admin navigation. */
+body .app-shell .sidebar {
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 14px 11px max(12px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+body .app-shell .sidebar-top,
+body .app-shell .sidebar-bottom { flex: 0 0 auto; min-width: 0; }
+body .app-shell .sidebar-top { padding: 8px 10px 18px; }
+body .app-shell .sidebar > nav {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 4px 5px 16px 1px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #404a59 transparent;
+}
+body .app-shell .sidebar > nav::-webkit-scrollbar { width: 5px; }
+body .app-shell .sidebar > nav::-webkit-scrollbar-track { background: transparent; }
+body .app-shell .sidebar > nav::-webkit-scrollbar-thumb {
+  background: #404a59;
+  border: 0;
+  border-radius: 6px;
+}
+body .app-shell .sidebar > nav::-webkit-scrollbar-thumb:hover { background: #677589; }
+body .app-shell .sidebar-section { min-width: 0; padding: 2px 0 10px; }
+body .app-shell .sidebar-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 37px;
+  padding: 9px 11px;
+  margin: 0 0 3px;
+  border-radius: 8px;
+  color: #9ba9ba;
+  font-size: 10px;
+  font-weight: 750;
+  text-align: left;
+}
+body .app-shell .sidebar-section-toggle:hover,
+body .app-shell .sidebar-section-toggle:focus-visible {
+  background: rgba(255,255,255,.055);
+  color: #eef3fa;
+}
+body .app-shell .sidebar-section-toggle .section-chevron { flex: 0 0 auto; }
+body .app-shell .sidebar .nav-item {
+  width: 100%;
+  min-height: 43px;
+  gap: 10px;
+  padding: 9px 11px;
+  margin: 2px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+body .app-shell .sidebar .nav-item > span { min-width: 0; overflow-wrap: anywhere; }
+body .app-shell .sidebar .nav-item:hover { color: #fff !important; background: #1a2430 !important; }
+body .app-shell .sidebar .nav-item.active { padding-left: 11px; }
+body .app-shell .sidebar-bottom { padding: 12px 3px 0; }
+body .app-shell .user-mini { min-width: 0; }
+body .app-shell .user-mini > div { min-width: 0; }
+body .app-shell .user-mini :is(strong, small) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 800px) {
+  body .app-shell .sidebar {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .app-shell .sidebar .section-chevron { transition: none; }
+}
