@@ -15,7 +15,7 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
   return()=>{document.body.style.overflow=previousOverflow;document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);window.removeEventListener('resize',resize)};
  },[open]);
  return <nav ref={nav} className="public-nav" aria-label="Основная навигация">
-  {open&&<button type="button" className="public-nav-backdrop" aria-label="Закрыть открытое меню" onClick={()=>setOpen(false)}/> }
+  {open&&<div className="public-nav-backdrop"><button type="button" className="public-nav-backdrop-dismiss" aria-label="Закрыть открытое меню" onClick={()=>setOpen(false)}/></div>}
   <button ref={toggle} type="button" className="public-nav-toggle" aria-label={open?'Закрыть меню':'Открыть меню'} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(value=>!value)}>{open?<X size={21}/>:<Menu size={21}/>}</button>
   <div id={id} className="public-nav-links" data-open={open}>{items.map(([href,label])=><InternalLink key={href} href={href} go={go} onNavigate={()=>setOpen(false)} aria-current={(route===href||(href!=='/'&&route.startsWith(href+'/')))?'page':undefined}>{label}</InternalLink>)}
    {adminPath&&<InternalLink className="public-nav-admin" href={adminPath} go={go} onNavigate={()=>setOpen(false)}>Админ-панель<ArrowUpRight size={15} aria-hidden="true"/></InternalLink>}
