@@ -58,11 +58,11 @@ async function captureFocused(page,locator,name){
   assert.ok(geometry.rect.top>=0&&geometry.rect.bottom<=geometry.viewport.height,name+': focused control outside viewport '+JSON.stringify(geometry));
   assert.equal(geometry.hit,true,name+': focused control is obscured '+JSON.stringify(geometry));
 }
-async function scenario(width,kind,linked=true,checkFocused=false){
+async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=false){
   const user={id:'fixture-user',email:'fixture@example.test',role:kind==='ADMIN'?'ADMIN':'PARTICIPANT',participantId:linked?participant.id:null,
     ...(kind==='JUDGE'?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
   const context=await browser.newContext({viewport:{width,height:1000}});
-  const state={sessions:structuredClone(sessionFixtures),calls:[],listError:false,emailError:false,passwordError:false,logoutError:false};
+  const state={sessions:structuredClone(sessionFixtures),calls:[],listError:false,emailError:false,passwordError:false,logoutError:false,revokeError:false,holdLogout:false,releaseLogout:()=>{}};
   await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
@@ -72,15 +72,24 @@ async function scenario(width,kind,linked=true,checkFocused=false){
       state.calls.push({path:p,method,body});
       let data={},status=200;
       if(p==='/auth/refresh')data={accessToken:'synthetic-access',refreshToken:'synthetic-refresh',user};
+      else if(p==='/auth/login'&&method==='POST'){
+        state.sessions=structuredClone(sessionFixtures);
+        data={accessToken:'synthetic-new-access',refreshToken:'synthetic-new-refresh',user};
+      }
       else if(p==='/auth/sessions'&&method==='GET'){
-        if(state.listError){status=503;data={message:'Список временно недоступен'}}else data=state.sessions;
+        if(state.listError){status=503;data={message:'Список временно недоступен'}}else data=state.sessions.map(session=>markCurrent&&session.id===sessionFixtures[0].id?{...session,isCurrent:true}:session);
       }else if(p==='/auth/sessions'&&method==='DELETE'){state.sessions=[];data={success:true,revoked:2}}
-      else if(p.startsWith('/auth/sessions/')&&method==='DELETE'){state.sessions=state.sessions.filter(session=>session.id!==decodeURIComponent(p.slice('/auth/sessions/'.length)));data={success:true}}
+      else if(p.startsWith('/auth/sessions/')&&method==='DELETE'){
+        if(state.revokeError){status=400;data={message:'Не удалось завершить сеанс'}}
+        else{state.sessions=state.sessions.filter(session=>session.id!==decodeURIComponent(p.slice('/auth/sessions/'.length)));data={success:true}}
+      }
       else if(p==='/auth/request-email-change'&&method==='POST'){
         if(state.emailError){status=409;data={message:'Этот email уже используется'}}else data={success:true};
       }else if(p==='/auth/change-password'&&method==='POST'){
         if(state.passwordError){status=401;data={message:'Неверный текущий пароль'}}else data={success:true};
-      }else if(p==='/auth/logout'&&method==='POST'){if(state.logoutError){status=503;data={message:'Сервис выхода недоступен'}}else data={success:true};}
+      }else if(p==='/auth/logout'&&method==='POST'){
+        if(state.holdLogout)await new Promise(resolve=>{state.releaseLogout=resolve});
+        if(state.logoutError){status=503;data={message:'Сервис выхода недоступен'}}else data={success:true};}
       else if(method!=='GET'){report.blocked.push({method,path:p});return route.abort('blockedbyclient')}
       else if(p==='/participants/me')data={participant};
       else if(p==='/site-settings/public')data={settings:{branding:{siteName:'USD'},homepage:{blocks:[]},catalogs:{},legal:{}}};
@@ -101,6 +110,7 @@ async function scenario(width,kind,linked=true,checkFocused=false){
   const security=page.locator('.participant-account-security');
   await security.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
   await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
+  assert.equal(await security.locator('.account-security-current-label').count(),markCurrent?1:0,'label only a server-proven current device');
   const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+1,inputSizes:[...document.querySelectorAll('.participant-account-security input')].map(input=>parseFloat(getComputedStyle(input).fontSize)),dark:getComputedStyle(document.querySelector('.account-security-card')).backgroundImage,titleBackgrounds:[...document.querySelectorAll('.account-security-card-title,.account-security-card-title h3')].map(element=>({tag:element.tagName,background:getComputedStyle(element).backgroundColor}))}));
   assert.equal(layout.overflow,false,`${kind} ${width}: horizontal overflow`);
   assert.ok(layout.inputSizes.every(size=>size>=16),'iOS inputs must be at least 16px');
@@ -119,7 +129,7 @@ async function scenario(width,kind,linked=true,checkFocused=false){
       await captureFocused(page,field,prefix+'-focus-'+id);
     }
   }
-  report.pages.push({width,role:kind,linked,screenshots:{profileTop:prefix+'-profile-top.png',securityHeading:prefix+'-security-heading.png'},...layout});
+  report.pages.push({width,role:kind,linked,markCurrent,screenshots:{profileTop:prefix+'-profile-top.png',securityHeading:prefix+'-security-heading.png'},...layout});
   return {context,page,security,state};
 }
 
@@ -186,6 +196,44 @@ try{
     assert.deepEqual(password.state.calls.find(call=>call.path==='/auth/change-password').body,{currentPassword:'Synthetic-current-password',newPassword:'Synthetic-new-password'});
     report.actions.push({width,scenario:'judge password mismatch, confirmation, error/retry and sign-out'});
     await password.context.close();
+
+    const current=await scenario(width,'PARTICIPANT',true,false,true);
+    const badge=current.security.getByText('Это устройство',{exact:true});
+    await badge.evaluate(element=>element.scrollIntoView({block:'center',behavior:'instant'}));await settleViewport(current.page);
+    await current.page.screenshot({path:path.join(output,`participant-${width}-proven-current.png`)});
+    const currentRevoke=current.security.getByRole('button',{name:'Завершить сеанс: '+sessionFixtures[0].userAgent,exact:true});
+    await currentRevoke.click();
+    const currentConfirm=current.security.getByRole('button',{name:'Да, завершить и выйти',exact:true});
+    await captureFocused(current.page,currentConfirm,`participant-${width}-confirm-current`);
+    current.state.revokeError=true;await currentConfirm.click();
+    await current.security.getByRole('alert').filter({hasText:'Не удалось завершить сеанс'}).waitFor();
+    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),'synthetic-refresh','failed current revoke preserves local auth');
+    current.state.revokeError=false;current.state.holdLogout=true;
+    await currentRevoke.click();
+    const cleanupStarted=current.page.waitForRequest(request=>new URL(request.url()).pathname==='/auth/logout');
+    await currentConfirm.click();await cleanupStarted;
+    await current.page.getByRole('heading',{name:'С возвращением'}).waitFor();
+    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null,'current revoke signs out before cookie cleanup responds');
+    await current.page.getByLabel('Email',{exact:true}).fill('fixture@example.test');
+    await current.page.getByLabel('Пароль',{exact:true}).fill('Synthetic-current-password');
+    await current.page.getByRole('button',{name:'Войти',exact:true}).click();
+    await current.page.getByRole('button',{name:'Входим…',exact:true}).waitFor();
+    assert.equal(current.state.calls.filter(call=>call.path==='/auth/login').length,0,'new login must wait for pending cookie cleanup');
+    current.state.releaseLogout();
+    await current.page.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
+    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),'synthetic-new-refresh','completed old cleanup must not erase new credentials');
+    report.actions.push({width,scenario:'proven current-device label, revoke confirmation, failure/retry, immediate local sign-out and safe relogin during pending cookie cleanup'});
+    await current.context.close();
+
+    const currentFailure=await scenario(width,'PARTICIPANT',true,false,true);
+    currentFailure.state.logoutError=true;
+    await currentFailure.security.getByRole('button',{name:'Завершить сеанс: '+sessionFixtures[0].userAgent,exact:true}).click();
+    await currentFailure.security.getByRole('button',{name:'Да, завершить и выйти',exact:true}).click();
+    await currentFailure.page.getByRole('heading',{name:'С возвращением'}).waitFor();
+    assert.equal(await currentFailure.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null);
+    assert.equal(currentFailure.state.calls.filter(call=>call.method==='DELETE').length,1);
+    report.actions.push({width,scenario:'current-device revoke with failed remote logout still clears local auth'});
+    await currentFailure.context.close();
 
     // The server may revoke sessions / rotate the password while the separate
     // logout request fails. Verify both successful mutations still sign out.

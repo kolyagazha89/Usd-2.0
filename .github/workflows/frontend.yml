@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci --ignore-scripts
       - name: Test frontend response handling
         run: npm test
       - name: Audit production dependencies

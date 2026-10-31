@@ -1,0 +1,11 @@
+[Unit]
+Description=Run verified USD off-host backups daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=30min
+Persistent=true
+Unit=usd-daily-backup.service
+
+[Install]
+WantedBy=timers.target

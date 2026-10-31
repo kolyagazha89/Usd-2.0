@@ -9,6 +9,10 @@ on:
     workflows:
       - Publish self-hosted USD images
       - Home PC deployment safety checks
+      - Backend CI
+      - Frontend CI
+      - Competition journey, archive replay and permanent deletion
+      - Public browser QA
     types:
       - completed
     branches:

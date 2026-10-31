@@ -414,3 +414,43 @@ trigger as its only effective sudo grant. Direct/custom-group extra grants,
 Docker socket access, privileged groups, symlinked or writable policies stop
 setup before registration or service activation. CI covers narrow-plus-extra
 sudoers, valid reuse, and a writable existing trigger on a disposable account.
+
+### Authenticated image digests (2026-10-30)
+
+The publishing workflow signs each image digest using GitHub Actions OIDC with
+checksum-pinned Cosign3.1.3 and a `git_sha` annotation. The host verifier requires
+that digest, the exact `publish-home-pc-images.yml@refs/heads/main` identity, the
+GitHub Actions issuer and valid certificate/transparency evidence. SHA-shaped
+tags and source labels alone do not authorize releases. After replacement, the
+running container image ID must match the authenticated local image ID.
+Rollback captures the previously running IDs, checks that the local rollback
+tags still identify those images, restores those tags from the captured IDs,
+and verifies the same IDs after recovery. An unavailable or mismatched original
+image is a critical recovery failure, never a successful rollback.
+
+Cosign uses a private root-controlled trust/cache home under
+`/var/lib/usd-deployer/cosign-trust`, which remains writable in the systemd
+sandbox. Inherited HOME/XDG, Docker credential paths and alternate certificate
+environment settings do not select trust data. Cached symlinks, writable files
+or files owned by another user stop verification.
+
+`install-local-deployer.sh` installs the checksum-pinned root-owned verifier
+through `install-cosign.sh`. This needs outbound HTTPS to the official GitHub
+release; normal image verification also requires GHCR/Sigstore services. Network
+or signature failures keep current services untouched; the timer retries later.
+Existing running images remain the supervised rollback baseline during the
+transition from old unsigned releases. No new unsigned candidate is admitted.
+There is no option to skip signatures, certificate checks or transparency checks.
+Rehearsal runs the authenticated local content ID. Before application replacement,
+the SHA tags are restored from captured authenticated IDs and Compose uses
+`--pull never`. Pruning during a long backup therefore stops the release instead
+of fetching different bytes from a mutable registry tag.
+This code must be installed on Ubuntu before its protections exist there.
+
+Every main SHA now runs and must pass Backend CI, Home PC deployment safety,
+Competition journey/archive/deletion, Public browser QA and image publication;
+Frontend CI is also mandatory when frontend differs from the deployed version.
+The gate checks the exact workflow paths, main branch and push event. A green
+PR or a manually dispatched run cannot authorize release. Frontend CI installs
+the locked dependency tree with `npm ci --ignore-scripts` before its explicit
+test/build steps.
