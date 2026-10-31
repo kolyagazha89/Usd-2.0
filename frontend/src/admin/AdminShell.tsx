@@ -79,6 +79,18 @@ function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}c
 
 export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<Role,string>;cacheBrandLogo:(url:string)=>void}){
  const routePath=path.split('?')[0];
+ useEffect(()=>{if(mobileOpen)setMobileOpen(false)},[routePath]);
+ useEffect(()=>{
+  if(!mobileOpen)return;
+  const previous=document.body.style.overflow;
+  document.body.style.overflow='hidden';
+  const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setMobileOpen(false)};
+  const responsive=()=>{if(window.innerWidth>800)setMobileOpen(false)};
+  document.addEventListener('keydown',close);
+  window.addEventListener('resize',responsive);
+  return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',close);window.removeEventListener('resize',responsive)};
+ },[mobileOpen,setMobileOpen]);
+
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
  const visibleNav=nav.filter(x=>{if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
