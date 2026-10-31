@@ -373,7 +373,7 @@ try{
         headerZ:Number(getComputedStyle(header).zIndex),panel:getComputedStyle(links).backgroundColor,
         bodyScroll:getComputedStyle(document.body).overflow,scrollWidth:document.documentElement.scrollWidth};
       });
-      assert.match(layers.scrim,/0\.82/,'the background behind mobile navigation must be dark and opaque enough');
+      assert.match(layers.scrim,/0\.82/,'the background behind mobile navigation must be dark and opaque enough; computed='+JSON.stringify(layers));
       assert.equal(layers.panel,'rgb(11, 19, 29)','mobile navigation must have an opaque graphite surface');
       assert.ok(layers.headerZ>layers.scrimZ,'navigation must be in front of its backdrop');
       assert.equal(layers.bodyScroll,'hidden','background must not scroll when the mobile menu is open');
