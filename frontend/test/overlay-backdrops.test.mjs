@@ -8,6 +8,7 @@ test('mobile public navigation owns a full-screen click-dismissable scrim in the
  const nav=await read('../src/navigation/PublicNavigation.tsx');
  assert.match(nav,/import \{createPortal\} from 'react-dom'/);
  assert.match(nav,/createPortal\(<button type="button" className="public-nav-scrim"/);
+ assert.match(nav,/nav\.current\?\.closest\('\.usd-live'\)\?\?document\.body/,'scrim and header share stacking context');
  assert.match(nav,/document\.body\.style\.overflow='hidden'/);
  assert.match(nav,/document\.body\.style\.overflow=previous/);
  assert.match(nav,/window\.addEventListener\('resize',responsive\)/);
