@@ -317,7 +317,16 @@ try{
       assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
-       await page.locator('.sidebar').waitFor({state:'visible'});
+       await page.locator('.sidebar.open').waitFor({state:'visible'});
+       const adminBackdrop=page.locator('.app-shell .mobile-backdrop');
+       await adminBackdrop.waitFor({state:'visible'});
+       const adminAlpha=await adminBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
+       assert.ok(adminAlpha>=.7,'admin drawer dark backdrop must obscure background');
+       assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer locks page scroll');
+       await adminBackdrop.click({position:{x:width-12,y:240}});
+       await adminBackdrop.waitFor({state:'detached'});
+       assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer restores page scroll after dismissal');
+       await page.getByRole('button',{name:'Меню',exact:true}).click();
        // Sidebar sections are collapsed by default; open the cars section as a real user would.
        const carsSection=page.locator('.sidebar-section-toggle').filter({hasText:'Участники и автопарк'});
        if(await carsSection.getAttribute('aria-expanded')==='false')await carsSection.click();
@@ -394,7 +403,20 @@ try{
      if(role===null&&route==='/'&&width<=1100){
       const toggle=page.locator('.public-nav-toggle');await toggle.click();
       assert.equal(await toggle.getAttribute('aria-expanded'),'true');
+      const publicBackdrop=page.locator('.usd-live > .public-nav-scrim');
+      await publicBackdrop.waitFor({state:'visible'});
+      const backdropAlpha=await publicBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
+      assert.ok(backdropAlpha>=.7,'public menu must dim the full viewport');
+      const menuBackground=await page.locator('.public-nav-links[data-open="true"]').evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.equal(menuBackground,'rgb(18, 19, 22)','public mobile menu background must be opaque graphite');
+      assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','public menu locks page scroll');
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
+      assert.equal(await publicBackdrop.count(),0,'Escape removes public scrim');
+      assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','public menu restores scrolling');
+      await toggle.click();
+      await publicBackdrop.click({position:{x:5,y:250}});
+      assert.equal(await toggle.getAttribute('aria-expanded'),'false','public backdrop dismisses menu');
+      await toggle.click();await page.keyboard.press('Escape');
       await toggle.click();await page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';
