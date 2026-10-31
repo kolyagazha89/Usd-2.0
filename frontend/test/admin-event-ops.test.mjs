@@ -80,12 +80,12 @@ test('admitted roster export includes only passed active participants, escapes C
    participant:{lastName:'=1+1',firstName:'"Имя";'},car:{brand:'@cmd',registrationNumber:'А111АА77'}}
  ];
  const csv=buildAdmittedRosterCsv(inputs);
- const lines=csv.split('\\r\\n');
+ const lines=csv.split('\r\n');
  assert.equal(lines.length,3,'one header and two passed active records');
  assert.match(csv,/Иванов Иван/);
  assert.match(csv,/А001УР001/);
  assert.doesNotMatch(csv,/Отменён|Петров|Семенов|Сидоров/);
- assert.match(csv,/'=1\\+1/);
+ assert.match(csv,/'=1\+1/);
  assert.match(csv,/'@cmd/);
  assert.match(csv,/""Имя"";/);
 });
