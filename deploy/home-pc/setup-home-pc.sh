@@ -13,6 +13,8 @@ RUNNER_USER=usd-runner
 RUNNER_UNIT=actions.runner.usd-home-pc.service
 BASELINE=e8b5b0f22780a61e79765b8fd92167e241df82a2
 TEAM_UPGRADE_SOURCE=e0c244bad7f77f576f1889abe36bf1dc0a9db735
+INITIAL_REVIEWED_TREE=4d9fa43dafd01e58354c3d22ead2cafe45152044
+TEAM_REVIEWED_TREE=a22c242dd0c6dfa9554f179cf705b39499a68967
 usd_gh_config=''
 usd_setup_done=0
 usd_timer_paused=0
@@ -82,8 +84,10 @@ NEW_SCHEMA="$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")"
 schema_migration_required=0
 if [[ "$OLD_SCHEMA" != "$NEW_SCHEMA" ]]; then
   schema_migration_required=1
-  if [[ "$OLD_START" != "$BASELINE" && "$OLD_START" != "$TEAM_UPGRADE_SOURCE" ]]; then
-    echo 'BLOCK: new Prisma tree requires supervised migration review; live DB unchanged.' >&2
+  # Fail before installing trusted helpers, not after partially staging them.
+  if [[ ! ( "$OLD_START" == "$BASELINE" && "$NEW_SCHEMA" == "$INITIAL_REVIEWED_TREE" ) &&
+        ! ( "$OLD_START" == "$TEAM_UPGRADE_SOURCE" && "$NEW_SCHEMA" == "$TEAM_REVIEWED_TREE" ) ]]; then
+    echo 'BLOCK: unknown source or Prisma tree; supervised migration review required. Live DB unchanged.' >&2
     exit 1
   fi
 fi
