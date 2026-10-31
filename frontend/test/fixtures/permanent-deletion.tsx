@@ -25,7 +25,7 @@ export async function runDeletionWorkflow() {
   await flush();
   const dialog = document.querySelector('[role="dialog"]')!;
   assert.ok(dialog);
-  assert.equal(dialog.parentElement, document.body, "the overlay must cover the full viewport, outside the admin scrolling shell");
+  assert.equal(dialog.closest(".permanent-delete-overlay")?.parentElement, document.body, "the overlay must cover the full viewport, outside the admin scrolling shell");
   assert.equal(document.querySelector("#root")?.querySelector('[role="dialog"]'), null);
   assert.equal(dialog.getAttribute("aria-describedby"), "permanent-delete-description");
   assert.equal(document.activeElement?.textContent, "Отмена");
