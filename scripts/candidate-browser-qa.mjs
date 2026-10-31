@@ -306,6 +306,15 @@ try{
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');
       assert.equal(await page.locator('.menu-button').isVisible(),width<=800,'responsive admin menu control');
+      const menuTheme=await page.locator('.sidebar > nav').evaluate(el=>{
+       const css=getComputedStyle(el),active=el.querySelector('.nav-item.active');
+       const button=active&&getComputedStyle(active);
+       return {scrollbarColor:css.scrollbarColor,scrollbarGutter:css.scrollbarGutter,activeBackground:button?.backgroundColor,activeImage:button?.backgroundImage};
+      });
+      assert.match(menuTheme.scrollbarColor,/rgb\\(76, 76, 82\\)/,'sidebar uses neutral graphite scrollbar, not blue');
+      assert.equal(menuTheme.scrollbarGutter,'auto','sidebar does not reserve a permanent right-hand scrollbar stripe');
+      assert.equal(menuTheme.activeBackground,'rgb(49, 23, 28)','active menu link is dark graphite/red, not bright blue/white');
+      assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
        await page.locator('.sidebar').waitFor({state:'visible'});
@@ -321,9 +330,16 @@ try{
      if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
       const root=page.locator('.event-ops-page');
       await root.waitFor();
-      const geometry=await root.evaluate(el=>({right:el.getBoundingClientRect().right,viewport:innerWidth,scroll:document.documentElement.scrollWidth}));
+      const geometry=await root.evaluate(el=>{
+       const main=el.closest('.content'),content=main.getBoundingClientRect(),css=getComputedStyle(main);
+       const body=el.getBoundingClientRect(),first=el.querySelector('.event-ops-overview')?.getBoundingClientRect();
+       return {left:body.left,right:body.right,expectedLeft:content.left+parseFloat(css.paddingLeft),expectedRight:content.right-parseFloat(css.paddingRight),overviewRight:first?.right,viewport:innerWidth,scroll:document.documentElement.scrollWidth};
+      });
+      assert.ok(Math.abs(geometry.right-geometry.expectedRight)<=2,'event operations must fill available space, no blank right rail '+JSON.stringify(geometry));
+      assert.ok(Math.abs(geometry.left-geometry.expectedLeft)<=2,'event operations must not have an extra left rail '+JSON.stringify(geometry));
       assert.ok(geometry.right<=geometry.viewport+1,'event operations must not leave a viewport-overhanging right strip '+JSON.stringify(geometry));
       assert.ok(geometry.scroll<=geometry.viewport+1,'event operations cannot horizontally scroll the page '+JSON.stringify(geometry));
+      assert.ok(!geometry.overviewRight||Math.abs(geometry.overviewRight-geometry.right)<=2,'event overview must use the working width '+JSON.stringify(geometry));
       await page.locator('.event-ops-results .data-table tbody tr').first().waitFor();
       if(width<=760){
        const display=await page.locator('.event-ops-results .data-table tbody tr').first().evaluate(el=>getComputedStyle(el).display);
