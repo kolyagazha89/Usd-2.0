@@ -873,6 +873,19 @@ body .usd-live .public-rules-search input:focus-visible{outline:2px solid var(--
   isolation:isolate;z-index:1501;position:relative;
  }
  body .usd-live .p-public-header .public-nav-toggle{position:relative;z-index:1502}
+ body .usd-live .p-public-header .public-nav .public-nav-backdrop{
+  background:rgba(3,6,12,.84)!important;
+  background-color:rgba(3,6,12,.84)!important;
+  background-image:none!important;
+  opacity:1!important;
+ }
+ body .usd-live .p-public-header .public-nav .public-nav-backdrop-dismiss{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  border:0;border-radius:0;padding:0;margin:0;
+  background:transparent!important;box-shadow:none!important;
+  cursor:default;
+ }
+
  body .public-nav-backdrop{
   display:block;position:fixed;inset:0;z-index:1490;
   width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;
