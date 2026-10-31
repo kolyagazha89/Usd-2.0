@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {
   operationsSearchText,matchesOperationsSearch,
   summarizeRegistrations,filterRegistrations,
-  summarizeInspections,filterInspections,isPendingInspection,
+  summarizeInspections,filterInspections,isPendingInspection,buildAdmittedRosterCsv,
 } from '../src/admin/event-ops-model.ts';
 
 const rows=[
@@ -70,4 +70,22 @@ test('operations UI preserves stage deep links and real mobile width',async()=>{
  assert.match(primitives,/className=\{\['page',className\]/);
  assert.match(css,/\.page\.event-ops-page/);
  assert.match(css,/\.event-ops-results \.data-table/);
+});
+
+test('admitted roster export includes only passed active participants, escapes CSV and formulas',()=>{
+ const inputs=[
+  ...rows,
+  {id:'e',status:'CANCELLED',inspection:{status:'PASSED'},participantNumber:6,participant:{lastName:'Отменён'}},
+  {id:'f',status:'ACTIVE',inspection:{status:'PASSED'},participantNumber:7,
+   participant:{lastName:'=1+1',firstName:'"Имя";'},car:{brand:'@cmd',registrationNumber:'А111АА77'}}
+ ];
+ const csv=buildAdmittedRosterCsv(inputs);
+ const lines=csv.split('\\r\\n');
+ assert.equal(lines.length,3,'one header and two passed active records');
+ assert.match(csv,/Иванов Иван/);
+ assert.match(csv,/А001УР001/);
+ assert.doesNotMatch(csv,/Отменён|Петров|Семенов|Сидоров/);
+ assert.match(csv,/'=1\\+1/);
+ assert.match(csv,/'@cmd/);
+ assert.match(csv,/""Имя"";/);
 });
