@@ -218,3 +218,43 @@ python3 deploy/home-pc/initial-schema.py --apply "$REVIEWED_SHA"
 [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT id FROM initial_upgrade_marker')" == 42 ]]
 [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT count(*) FROM information_schema.columns WHERE table_name IN ('"'"'CarHeadUnit'"'"','"'"'CarAudioComponent'"'"','"'"'CarAmplifier'"'"') AND column_name='"'"'catalogEntryId'"'"'')" == 3 ]]
 echo 'Real PostgreSQL/Prisma reviewed nullable upgrade, unreviewed schema refusals, receipt refusals and idempotency passed'
+
+# Rehearse the second explicitly reviewed additive upgrade from the e0c244b
+# prerelease on synthetic data. This cannot authorize a production migration.
+if [[ "$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")" == "$REVIEWED_TEAM_TREE" ]]; then
+  phase='prepare verified e0c244b team migration source fixture'
+  TEAM_BASE=e0c244bad7f77f576f1889abe36bf1dc0a9db735
+  TEAM_OLD="$IMAGE:$TEAM_BASE"
+  if docker image inspect "$TEAM_OLD" >/dev/null 2>&1; then
+    echo 'Refusing existing team-source fixture image' >&2
+    exit 1
+  fi
+  fixture_images+=("$TEAM_OLD")
+  printf 'FROM %s\nLABEL org.opencontainers.image.revision=%s\n' "$REVIEWED" "$TEAM_BASE" > "$WORK/Dockerfile.team-source"
+  docker build -f "$WORK/Dockerfile.team-source" -t "$TEAM_OLD" "$WORK"
+  docker rm -fv "$api" >/dev/null
+  docker run -d --name "$api" --network "$network" \
+    --label com.docker.compose.project=usd-home --label com.docker.compose.service=api \
+    -e "DATABASE_URL=$url" --entrypoint node "$TEAM_OLD" -e 'setInterval(()=>{},1000)' >/dev/null
+  git -C "$SOURCE" checkout -q --detach "$SHA"
+  check_source "$SHA"
+  phase='verify only team migration is pending from e0c244b'
+  python3 deploy/home-pc/initial-schema.py --check "$SHA"
+  before_team="$(database_digest)"
+  if python3 deploy/home-pc/initial-schema.py --apply "$SHA" > "$WORK/team-missing-receipt.log" 2>&1; then
+    echo 'Team migration accepted without a full backup/restore receipt' >&2
+    exit 1
+  fi
+  [[ "$(database_digest)" == "$before_team" ]]
+  printf '%s\n%s\n%s\n' "$SHA" "$TEAM_BASE" "$(printf '%s' "$db_id" | cut -c1-12)" > "$STATE/initial-preflight"
+  chmod 600 "$STATE/initial-preflight"
+  phase='apply only reviewed team tables on disposable PostgreSQL18'
+  python3 deploy/home-pc/initial-schema.py --apply "$SHA"
+  python3 deploy/home-pc/initial-schema.py --check "$SHA"
+  [[ ! -e "$STATE/initial-preflight" ]]
+  [[ "$(docker inspect -f '{{.Id}}' "$db")" == "$db_id" ]]
+  [[ "$(docker exec "$db" psql -At -U usd -d usd -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('Team','TeamMembership','TeamPost')")" == 3 ]]
+  [[ "$(docker exec "$db" psql -At -U usd -d usd -c 'SELECT id FROM initial_upgrade_marker')" == 42 ]]
+  echo 'PASS: reviewed team migration from e0c244b and missing-receipt refusal on real PG18'
+fi
+
