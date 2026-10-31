@@ -94,7 +94,7 @@ export function buildAdmittedRosterCsv(rows:readonly OperationsRow[]):string {
   const safe=(value:unknown):string=>{
     const raw=String(value??'').trim();
     // Spreadsheet applications can interpret user-provided names as formulas.
-    const neutral=/^[\\s\\u0000-\\u001f]*[=+@-]/.test(raw)?"'"+raw:raw;
+    const neutral=/^[\s\u0000-\u001f]*[=+@-]/.test(raw)?"'"+raw:raw;
     return '"'+neutral.replace(/"/g,'""')+'"';
   };
   const headers=['Номер','ФИО','Команда','Автомобиль','Госномер','Классы'];
@@ -111,5 +111,5 @@ export function buildAdmittedRosterCsv(rows:readonly OperationsRow[]):string {
       label(car?.registrationNumber),classNames,
     ].map(safe).join(';');
   });
-  return [headers.map(safe).join(';'),...items].join('\\r\\n');
+  return [headers.map(safe).join(';'),...items].join('\r\n');
 }
