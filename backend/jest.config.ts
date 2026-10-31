@@ -18,20 +18,7 @@ const config: Config = {
   },
   moduleNameMapper: {
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
-    '^(\\.{1,2}/.+)\\.js
-  },
-  collectCoverageFrom: [
-    'src/**/*.(t|j)s',
-    'libs/**/*.(t|j)s',
-    'apps/**/*.(t|j)s',
-  ],
-  coverageDirectory: './coverage',
-  testEnvironment: 'node',
-  verbose: false,
-};
-
-export default config;
-: '$1',
+    '^(\\.{1,2}/.+)\\.js$': '$1',
   },
   collectCoverageFrom: [
     'src/**/*.(t|j)s',
