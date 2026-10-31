@@ -149,13 +149,13 @@ function EntryInspection({stageId,user,readOnly,Empty,LoadingPage,SearchableSele
  const selectedRegistration=rows.find(r=>r.id===selectedRegistrationId);const backToInspectionList=()=>{setSelectedRegistrationId('');const params=new URLSearchParams(location.search);params.delete('registrationId');history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():''))};
  useListScroll('inspections:'+stageId,!registerOpen&&!selectedRegistration,!loading);
  return registerOpen ? <InspectionRegistrationModal stageId={stageId} onClose={()=>setRegisterOpen(false)} onSaved={async()=>{setRegisterOpen(false);await load()}} SearchableSelect={SearchableSelect} displayCarName={displayCarName} LoadingPage={LoadingPage} enumLabel={enumLabel}/> : selectedRegistration ? <InspectionDetailPage registration={selectedRegistration} user={user} readOnly={readOnly} onBack={backToInspectionList} onSaved={async()=>{await load();backToInspectionList()}} displayCarName={displayCarName}/> : <>
-  <div className="inspection-summary">
+  <section className="event-ops-overview" aria-label="Сводка инспекций"><div className="event-ops-intro"><span className="eyebrow">КОНТРОЛЬ ДОПУСКА · USD</span><h2>Инспекция участников</h2><p>Проверка автомобилей, управление допуском и регистрация на месте в одном рабочем пространстве.</p></div></section><div className="inspection-summary">
    <button className="inspection-stat"><strong>{rows.length}</strong><span>зарегистрировано</span></button>
    <button className="inspection-stat good" onClick={()=>setFilter('PASSED')}><strong>{passed}</strong><span>прошли</span></button>
    <button className="inspection-stat bad" onClick={()=>setFilter('NOT_PASSED')}><strong>{failed}</strong><span>не прошли</span></button>
    <button className="inspection-stat pending" onClick={()=>setFilter('ALL')}><strong>{pending}</strong><span>ожидают</span></button>
   </div>
-  <div className="inspection-toolbar">
+  <div className="inspection-toolbar event-ops-toolbar">
    <div className="search-box"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по №, участнику, автомобилю, госномеру или классу"/></div>
    <select className="filter-select" value={filter} onChange={e=>setFilter(e.target.value as any)}><option value="ALL">Все</option><option value="PASSED">Прошли</option><option value="NOT_PASSED">Не прошли</option></select>
    <button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={15}/>Обновить</button>
@@ -166,7 +166,7 @@ function EntryInspection({stageId,user,readOnly,Empty,LoadingPage,SearchableSele
   </div>
   {readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Инспекции доступны только для просмотра — изменения отключены.</span></div>}
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
-  <div className="panel table-wrap">
+  <div className="panel table-wrap event-ops-results">
    {loading?<LoadingPage small/>:filtered.length?<table className="data-table"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} readOnly={readOnly} displayCarName={displayCarName} onOpen={()=>setSelectedRegistrationId(r.id)}/>)}</tbody></table>:<Empty text={rows.length?'Поиск ничего не нашёл':'На выбранный этап нет активных регистраций'}/>}
   </div>
  </>;
