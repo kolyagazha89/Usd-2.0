@@ -88,3 +88,28 @@ export function filterInspections<T extends OperationsRow>(
     ||(status==='PENDING'&&isPendingInspection(r)))
     &&matchesOperationsSearch(r,query));
 }
+
+/** CSV for the post-inspection admitted roster. No pending or failed entries. */
+export function buildAdmittedRosterCsv(rows:readonly OperationsRow[]):string {
+  const safe=(value:unknown):string=>{
+    const raw=String(value??'').trim();
+    // Spreadsheet applications can interpret user-provided names as formulas.
+    const neutral=/^[\\s\\u0000-\\u001f]*[=+@-]/.test(raw)?"'"+raw:raw;
+    return '"'+neutral.replace(/"/g,'""')+'"';
+  };
+  const headers=['Номер','ФИО','Команда','Автомобиль','Госномер','Классы'];
+  const admitted=rows.filter(r=>r.status!=='CANCELLED'&&inspectionStatus(r)==='PASSED');
+  const items=admitted.map(r=>{
+    const participant=r.participant,car=r.car;
+    const numbers=(r.numbers??[]).map(n=>label(n.number)).filter(Boolean);
+    const fullName=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ');
+    const classNames=(r.classes??[]).map(c=>[c.class?.name,c.number?.number?('№'+c.number.number):''].filter(Boolean).join(' ')).join(', ');
+    return [
+      numbers.join(', ')||label(r.participantNumber),
+      fullName,label(participant?.team),
+      [label(car?.brand)||label(car?.make),label(car?.model)].filter(Boolean).join(' '),
+      label(car?.registrationNumber),classNames,
+    ].map(safe).join(';');
+  });
+  return [headers.map(safe).join(';'),...items].join('\\r\\n');
+}
