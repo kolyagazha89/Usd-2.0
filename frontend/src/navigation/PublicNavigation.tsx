@@ -7,12 +7,13 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
  useEffect(()=>setOpen(false),[route]);
  useEffect(()=>{
   if(!open)return;
-  const outside=(event:PointerEvent)=>{if(!nav.current?.contains(event.target as Node))setOpen(false)};
+  const outside=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('.public-nav-backdrop'))return;if(!nav.current?.contains(event.target as Node))setOpen(false)};
   const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpen(false);toggle.current?.focus()}};
   const previousOverflow=document.body.style.overflow;
   document.body.style.overflow='hidden';
-  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',escape);
-  return()=>{document.body.style.overflow=previousOverflow;document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape)};
+  const resize=()=>{if(window.innerWidth>1100)setOpen(false)};
+  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',escape);window.addEventListener('resize',resize);
+  return()=>{document.body.style.overflow=previousOverflow;document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);window.removeEventListener('resize',resize)};
  },[open]);
  return <><nav ref={nav} className="public-nav" aria-label="Основная навигация">
   <button ref={toggle} type="button" className="public-nav-toggle" aria-label={open?'Закрыть меню':'Открыть меню'} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(value=>!value)}>{open?<X size={21}/>:<Menu size={21}/>}</button>
