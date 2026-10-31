@@ -1,0 +1,41 @@
+name: USD failed prerelease deployment triage
+
+# Public-data analysis on GitHub-hosted Linux, never the private home runner.
+on:
+  workflow_run:
+    workflows:
+      - Request USD home-PC deploy after images and main checks
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Compare public prerelease revisions and Prisma trees (no host writes)
+        env:
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -Eeuo pipefail
+          python3 deploy/home-pc/deploy-diagnostics.py --target "$TARGET_SHA" | tee /tmp/usd-deploy-triage.txt
+          {
+            echo '### USD prerelease release triage'
+            echo
+            echo 'Read-only classification. No deploy, migration or backup approval was performed.'
+            echo
+            echo '```text'
+            cat /tmp/usd-deploy-triage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

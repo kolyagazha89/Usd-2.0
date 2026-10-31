@@ -454,3 +454,32 @@ The gate checks the exact workflow paths, main branch and push event. A green
 PR or a manually dispatched run cannot authorize release. Frontend CI installs
 the locked dependency tree with `npm ci --ignore-scripts` before its explicit
 test/build steps.
+
+
+## Read-only failed-deploy diagnostics (October 2026)
+
+The self-hosted request workflow never applies Prisma migrations. On a failed
+root-owned systemd start it prints only the systemctl result and allowlisted
+non-secret failure categories if the unprivileged runner can read the journal.
+It does not grant GitHub Actions Docker, broad sudo or application secrets.
+
+The separate GitHub-hosted triage workflow compares the public SHA metadata on
+app.usd-russia.ru and api.usd-russia.ru with the attempted Git SHA and public
+GitHub Prisma trees. This comparison is evidence of version drift, **not**
+evidence that a new tree is approved on the Ubuntu host. If Prisma changed,
+stop automatic release and perform supervised off-host database/media backup,
+isolated restore, migration rehearsal and separate root-owned schema policy
+approval. Never edit an approval file in CI.
+
+Read-only local command on a separate machine with the reviewed repo:
+
+    python3 deploy/home-pc/deploy-diagnostics.py --target <40-character-main-SHA>
+
+Host operator checks (not runner privileges):
+    sudo journalctl -u usd-auto-deploy.service -n 120 --no-pager
+    sudo python3 deploy/home-pc/release-readiness.py --live
+
+Do not copy secret-bearing host logs into GitHub issues. See
+docs/UBUNTU_RELEASE_ACCEPTANCE.md for supervised release criteria. GitHub CI,
+a local-HDD backup and the first public release do not prove off-host recovery
+or a second unattended SHA deployment.
