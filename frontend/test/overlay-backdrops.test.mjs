@@ -53,7 +53,7 @@ test('real browser QA exercises both backdrops, scroll restoration and mobile na
  assert.match(qa,/\.usd-live > \.public-nav-scrim/);
  assert.match(qa,/publicBackdrop\.click/);
  assert.match(qa,/adminBackdrop\.click/);
- assert.match(qa,/tapping backdrop closes mobile menu/);
+ assert.match(qa,/public backdrop dismisses menu/);
  assert.match(qa,/admin drawer restores page scroll/);
  assert.match(qa,/menuBackground/);
 });
