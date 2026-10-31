@@ -89,3 +89,20 @@ test('admitted roster export includes only passed active participants, escapes C
  assert.match(csv,/'@cmd/);
  assert.match(csv,/""Имя"";/);
 });
+
+test('event-day layouts fill their content pane and navigation stays graphite/red',async()=>{
+ const [css,shell,inspection]=await Promise.all([
+  readFile(new URL('../src/dark-velocity-sitewide.css',import.meta.url),'utf8'),
+  readFile(new URL('../src/admin/AdminShell.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
+ ]);
+ assert.match(css,/\.content:has\(> \.page\.event-ops-page\)/,'no static page width cap or blank right rail on event workspaces');
+ assert.match(css,/padding: 0 !important;/,'event pages must not double-inset at mobile/tablet breakpoints');
+ assert.match(css,/scrollbar-gutter: auto/,'navigation must not reserve a side stripe');
+ assert.match(css,/scrollbar-color: #4c4c52 #0b0b0d/,'dark neutral scrollbar replaces blue-gray');
+ assert.match(css,/\.sidebar \.nav-item\[aria-current="page"\]/,'active navigation has a distinct dark red state');
+ assert.match(css,/\.sidebar :is\(\.nav-item,\.sidebar-section-toggle/,'keyboard focus is explicitly accessible');
+ assert.match(shell,/aria-current=\{active\?'page':undefined\}/,'active route is announced');
+ assert.match(inspection,/classIds\.length>5/,'inspection editor enforces API class limit');
+ assert.match(inspection,/не более 5 классов/,'inspection editor explains the maximum');
+});

@@ -209,8 +209,8 @@ body :is(.participant-car-card,.participant-stage-stat-card,.participant-registr
 }
 body :is(.participant-car-card,.config-card,.participant-registration-card):hover { border-color:var(--ui-line-strong) !important; }
 body :is(.participant-stage-stat-meta,.participant-stage-results,.participant-registration-number-title) { border-color:var(--ui-line) !important; }
-body :is(.participant-empty,.config-empty,.profile-match-empty) { border:1px dashed var(--ui-line-strong) !important; background:transparent !important; border-radius:20px !important; padding:38px 24px !important; color:var(--ui-muted) !important; line-height:1.7; }
-body :is(.participant-empty,.config-empty,.profile-match-empty) h2 { color:var(--ui-text) !important; font-size:22px !important; font-weight:650 !important; }
+body :is(.participant-empty,.config-empty) { border:1px dashed var(--ui-line-strong) !important; background:transparent !important; border-radius:20px !important; padding:38px 24px !important; color:var(--ui-muted) !important; line-height:1.7; }
+body :is(.participant-empty,.config-empty) h2 { color:var(--ui-text) !important; font-size:22px !important; font-weight:650 !important; }
 body .configurations-page-shell { background:var(--ui-bg) !important; }
 body .configurations-page-top { margin-bottom:26px !important; gap:20px !important; }
 body .config-modal { padding:0 !important; overflow:visible !important; max-height:none !important; border:0 !important; background:transparent !important; box-shadow:none !important; }

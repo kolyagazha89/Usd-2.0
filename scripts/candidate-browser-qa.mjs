@@ -42,13 +42,14 @@ const rulesBlocks=[
 const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 stage.rulesSnapshot={revisionId:'rules-fixture',publishedAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
-const user=role=>({id:'fixture-user',email:'fixture@example.test',role,participantId:role==='PARTICIPANT'?'p1':null});
+const user=role=>({id:'fixture-user',email:'fixture@example.test',role:role==='ONBOARDING'?'PARTICIPANT':role,participantId:role==='PARTICIPANT'?'p1':null});
 const requests=new Set(),blocked=[];
 function dataFor(url,role){
  const p=url.pathname;
  requests.add(p);
  if(p==='/auth/refresh')return role?{accessToken:'browser-fixture-only',user:user(role)}:null;
  if(p==='/auth/me')return user(role);
+ if(p==='/auth/profile/historical-candidates'&&role==='ONBOARDING')return {candidates:[{...participant,id:'p1',lastName:'Иванов',firstName:'Иван',canSelfLink:true,cars:[car],_count:{registrations:3}},{...participant,id:'p2',lastName:'Иванов',firstName:'Иван',canSelfLink:false,cars:[car],_count:{registrations:2}}]};
  if(p==='/participants/me')return {participant};
  if(p==='/participants/me/historical-final-configuration')return {required:false};
  if(p==='/auth/legal-consent')return {legalReady:false};
@@ -92,8 +93,8 @@ const report={scope:'Built candidate JavaScript and CSS; all remote requests moc
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
-  for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/registrations','/admin/inspections','/admin/data-quality','/admin/site-settings']);
+  for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/data-quality','/admin/site-settings']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -104,7 +105,7 @@ try{
     if(url.origin===base)return route.continue();
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(isCandidateApiRequest(url)){
-     if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'){
+     if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
       blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
      }
      if(['/participants/missing','/cars/missing','/stages/public/missing'].includes(url.pathname))return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Не найдено'})});
@@ -132,7 +133,7 @@ try{
     console.log('CANDIDATE_QA_START '+JSON.stringify(row));
     try{
      await page.goto(base+route,{waitUntil:'networkidle'});
-     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.app-shell').first().waitFor();
+     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.profile-match-page,.app-shell').first().waitFor();
      await page.waitForTimeout(100);
      if(route.includes('/configurations')&&route.includes('&view=')){await page.getByRole('button',{name:'Подробнее',exact:true}).click();await page.locator('.configuration-details-page').waitFor();row.configurationView='opened through UI'}
      if(route.includes('/configurations')&&route.includes('&edit=')){await page.getByRole('button',{name:'Редактировать',exact:true}).click();await page.locator('.configuration-editor-page').waitFor();row.configurationEditor='opened through UI; no saving'}
@@ -305,19 +306,30 @@ try{
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
       assert.equal(mainColor,'rgb(243, 245, 248)','admin workspace stays light');
       assert.equal(await page.locator('.menu-button').isVisible(),width<=800,'responsive admin menu control');
+      const menuTheme=await page.locator('.sidebar > nav').evaluate(el=>{
+       const css=getComputedStyle(el),active=el.querySelector('.nav-item.active');
+       const button=active&&getComputedStyle(active);
+       return {scrollbarColor:css.scrollbarColor,scrollbarGutter:css.scrollbarGutter,activeBackground:button?.backgroundColor,activeImage:button?.backgroundImage};
+      });
+      assert.ok(menuTheme.scrollbarColor.includes('rgb(76, 76, 82)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
+      assert.equal(menuTheme.scrollbarGutter,'auto','sidebar does not reserve a permanent right-hand scrollbar stripe');
+      assert.equal(menuTheme.activeBackground,'rgb(49, 23, 28)','active menu link is dark graphite/red, not bright blue/white');
+      assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
-       await page.locator('.sidebar').waitFor({state:'visible'});
+       await page.locator('.sidebar.open').waitFor({state:'visible'});
        const adminBackdrop=page.locator('.app-shell .mobile-backdrop');
        await adminBackdrop.waitFor({state:'visible'});
        const adminAlpha=await adminBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
-       assert.ok(adminAlpha>=.7,'admin drawer backdrop must hide the page with a dark premium scrim');
+       assert.ok(adminAlpha>=.7,'admin drawer dark backdrop must obscure background');
        assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer locks page scroll');
        await adminBackdrop.click({position:{x:width-12,y:240}});
        await adminBackdrop.waitFor({state:'detached'});
-       assert.equal(await adminBackdrop.count(),0,'outside press closes admin drawer');
-       assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer restores page scroll');
+       assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','admin drawer restores page scroll after dismissal');
        await page.getByRole('button',{name:'Меню',exact:true}).click();
+       // Sidebar sections are collapsed by default; open the cars section as a real user would.
+       const carsSection=page.locator('.sidebar-section-toggle').filter({hasText:'Участники и автопарк'});
+       if(await carsSection.getAttribute('aria-expanded')==='false')await carsSection.click();
        await page.getByRole('button',{name:'Автомобили',exact:true}).click();
        await page.waitForURL(/\/admin\/cars$/);
        row.mobileAdminNavigation='passed';
@@ -327,9 +339,16 @@ try{
      if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
       const root=page.locator('.event-ops-page');
       await root.waitFor();
-      const geometry=await root.evaluate(el=>({right:el.getBoundingClientRect().right,viewport:innerWidth,scroll:document.documentElement.scrollWidth}));
+      const geometry=await root.evaluate(el=>{
+       const main=el.closest('.content'),content=main.getBoundingClientRect(),css=getComputedStyle(main);
+       const body=el.getBoundingClientRect(),first=el.querySelector('.event-ops-overview')?.getBoundingClientRect();
+       return {left:body.left,right:body.right,expectedLeft:content.left+parseFloat(css.paddingLeft),expectedRight:content.right-parseFloat(css.paddingRight),overviewRight:first?.right,viewport:innerWidth,scroll:document.documentElement.scrollWidth};
+      });
+      assert.ok(Math.abs(geometry.right-geometry.expectedRight)<=2,'event operations must fill available space, no blank right rail '+JSON.stringify(geometry));
+      assert.ok(Math.abs(geometry.left-geometry.expectedLeft)<=2,'event operations must not have an extra left rail '+JSON.stringify(geometry));
       assert.ok(geometry.right<=geometry.viewport+1,'event operations must not leave a viewport-overhanging right strip '+JSON.stringify(geometry));
       assert.ok(geometry.scroll<=geometry.viewport+1,'event operations cannot horizontally scroll the page '+JSON.stringify(geometry));
+      assert.ok(!geometry.overviewRight||Math.abs(geometry.overviewRight-geometry.right)<=2,'event overview must use the working width '+JSON.stringify(geometry));
       await page.locator('.event-ops-results .data-table tbody tr').first().waitFor();
       if(width<=760){
        const display=await page.locator('.event-ops-results .data-table tbody tr').first().evaluate(el=>getComputedStyle(el).display);
@@ -345,6 +364,27 @@ try{
        assert.equal(await page.locator('.event-ops-results .data-table tbody tr').count(),1,'pending queue includes unchecked registrations');
       }
       row.adminEventOperations='full-width responsive roster and status controls';
+     }
+     if(role==='ONBOARDING'&&route==='/participant'){
+      const onboarding=page.locator('.profile-match-page.usd-member');
+      await onboarding.waitFor({state:'visible'});
+      assert.equal(await page.locator('.participant-account-security').count(),0,'security settings must not interrupt first login');
+      const firstLoginSurface=await onboarding.evaluate(el=>getComputedStyle(el).backgroundColor);assert.ok(['rgb(8, 11, 16)','rgb(7, 9, 13)'].includes(firstLoginSurface),'first-login backdrop must stay dark graphite, never white: '+firstLoginSurface);
+      const header=page.locator('.profile-match-hero h1');
+      assert.match(await header.innerText(),/Один профиль USD/);
+      await page.locator('#historical-profile-name').fill('Иванов Иван');
+      await page.getByRole('button',{name:/Найти профиль/}).click();
+      await page.locator('.historical-match-card').first().waitFor({state:'visible'});
+      assert.equal(await page.locator('.historical-match-card').count(),2,'protected and eligible candidates should both appear');
+      assert.equal(await page.locator('.historical-match-card .profile-match-action').count(),1,'only eligible candidate can self-link');
+      assert.match(await page.locator('.historical-match-unavailable').innerText(),/Требуется подтверждение/);
+      await page.getByRole('button',{name:/Создать новый профиль/}).click();
+      assert.equal(await page.getByRole('button',{name:/Подтвердить создание профиля/}).isDisabled(),true,'newcomer action requires explicit FIO');
+      await page.getByPlaceholder('Иванов',{exact:true}).fill('Иванов');
+      await page.getByPlaceholder('Иван',{exact:true}).fill('Иван');
+      assert.equal(await page.getByRole('button',{name:/Подтвердить создание профиля/}).isEnabled(),true);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded newcomer fields fit viewport');
+      row.firstLogin='dark premium identity matching, protected profile, explicit new profile, no security panel';
      }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
@@ -366,15 +406,17 @@ try{
       const publicBackdrop=page.locator('body > .public-nav-scrim');
       await publicBackdrop.waitFor({state:'visible'});
       const backdropAlpha=await publicBackdrop.evaluate(el=>parseFloat(getComputedStyle(el).backgroundColor.split(',').at(-1)));
-      assert.ok(backdropAlpha>=.7,'mobile menu must darken the full page behind the popup');
+      assert.ok(backdropAlpha>=.7,'public menu must dim the full viewport');
       const menuBackground=await page.locator('.public-nav-links[data-open="true"]').evaluate(el=>getComputedStyle(el).backgroundColor);
-      assert.match(menuBackground,/^rgb\(/,'public menu must have an opaque background, not show page content through it');
-      assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','opening the public menu must lock background scroll');
-      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'public dropdown must fit screen without side strip');
+      assert.equal(menuBackground,'rgb(18, 19, 22)','public mobile menu background must be opaque graphite');
+      assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden','public menu locks page scroll');
       await page.keyboard.press('Escape');assert.equal(await toggle.getAttribute('aria-expanded'),'false');
-      assert.equal(await publicBackdrop.count(),0,'Escape removes the backdrop');
-      assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','closing menu restores page scroll');
-      await toggle.click();await publicBackdrop.click({position:{x:5,y:250}});assert.equal(await toggle.getAttribute('aria-expanded'),'false','tapping backdrop closes mobile menu');
+      assert.equal(await publicBackdrop.count(),0,'Escape removes public scrim');
+      assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','public menu restores scrolling');
+      await toggle.click();
+      await publicBackdrop.click({position:{x:5,y:250}});
+      assert.equal(await toggle.getAttribute('aria-expanded'),'false','public backdrop dismisses menu');
+      await toggle.click();await page.keyboard.press('Escape');
       await toggle.click();await page.getByRole('navigation',{name:'Основная навигация'}).getByRole('link',{name:'Этапы',exact:true}).click();await page.waitForURL(/\/stages$/);
       assert.equal(await page.getByRole('button',{name:'Открыть меню',exact:true}).getAttribute('aria-expanded'),'false');
       row.mobilePublicNavigation='passed';

@@ -35,7 +35,7 @@ test('floating menus are opaque; public, admin and modal backdrops cover the scr
  assert.match(scrim,/background:rgba\(3,7,13,\.77\)/);
  assert.match(scrim,/\.p-public-header\{position:sticky;z-index:110!important/);
  assert.match(scrim,/\.public-nav-links\[data-open="true"\]\{/);
- assert.match(scrim,/background:#101721!important/);
+ assert.match(scrim,/background:#121316!important/);
  assert.match(scrim,/body \.app-shell \.mobile-backdrop\{/);
  assert.match(scrim,/background:rgba\(5,10,18,\.75\)!important/);
  assert.match(scrim,/body \.modal-backdrop\{/);

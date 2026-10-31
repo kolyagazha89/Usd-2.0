@@ -16,7 +16,7 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
 
  useEffect(()=>{
   if(!open)return;
-  const outside=(event:PointerEvent)=>{if(!nav.current?.contains(event.target as Node))setOpen(false)};
+  const outside=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('.public-nav-scrim'))return;if(!nav.current?.contains(event.target as Node))setOpen(false)};
   const keys=(event:KeyboardEvent)=>{
    if(event.key==='Escape'){setOpen(false);toggle.current?.focus();return}
    if(event.key!=='Tab')return;

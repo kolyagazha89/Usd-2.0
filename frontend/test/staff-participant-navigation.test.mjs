@@ -25,10 +25,11 @@ test('judge and admin can use personal cabinet and their distinct staff navigati
 });
 
 test('public staff, member and admin navigation coexist, with independent buttons',async()=>{
- const [app,premium,navigation,adminShell,styles]=await Promise.all([
+ const [app,premium,navigation,adminShell,styles,onboarding]=await Promise.all([
   source('../src/App.tsx'),source('../src/public/PremiumShell.tsx'),
   source('../src/navigation/PublicNavigation.tsx'),source('../src/admin/AdminShell.tsx'),
   source('../src/public/premium-public.css'),
+  source('../src/participant/FirstLoginOnboarding.tsx'),
  ]);
  assert.match(premium,/const account=user\?'\/participant':'\/login'/);
  assert.match(premium,/adminPath=\{adminPath\}/);
@@ -36,7 +37,10 @@ test('public staff, member and admin navigation coexist, with independent button
  assert.match(premium,/usd-header-admin-shortcut/);
  assert.match(app,/path\)\|\|\(path\.startsWith\('\/admin'\)&&!hasAdminPanelAccess\(user\)\)/);
  assert.match(app,/onGoAdmin=\{\(\)=>go\('\/admin'\)\}/);
- assert.match(app,/className="profile-match-staff-entry"/);
+ assert.match(app,/canAccessAdmin=\{hasAdminPanelAccess\(user\)\}/);
+ assert.match(onboarding,/canAccessAdmin&&/);
+ assert.match(onboarding,/onGoAdmin/);
+ assert.match(onboarding,/Админ-панель/);
  assert.match(adminShell,/Вернуться на сайт/);
  assert.match(adminShell,/Мой кабинет/);
  assert.match(styles,/public-nav-admin/);

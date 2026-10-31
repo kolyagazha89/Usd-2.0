@@ -108,6 +108,22 @@ async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=fa
   const cookieNotice=page.getByRole('button',{name:'Понятно',exact:true});
   if(await cookieNotice.isVisible())await cookieNotice.click();
   const security=page.locator('.participant-account-security');
+  if(!linked){
+    const onboarding=page.locator('.profile-match-page.usd-member');
+    await onboarding.getByRole('heading',{name:/Все ваши выступления/}).waitFor();
+    assert.equal(await security.count(),0,'unlinked participants should see the identity onboarding, not account security');
+    assert.equal(state.calls.some(call=>call.path==='/auth/sessions'),false,'no session settings request before identity association');
+    const layout=await page.evaluate(()=>({
+      overflow:document.documentElement.scrollWidth>innerWidth+1,
+      backdrop:getComputedStyle(document.querySelector('.profile-match-page.usd-member')).backgroundColor,
+    }));
+    assert.equal(layout.overflow,false,`${kind} unlinked ${width}: onboarding overflows viewport`);
+    assert.ok(['rgb(7, 9, 13)','rgb(8, 11, 16)'].includes(layout.backdrop),'first-login backdrop must be dark');
+    const screenshot=`${kind.toLowerCase()}-unlinked-${width}-onboarding.png`;
+    await page.screenshot({path:path.join(output,screenshot)});
+    report.pages.push({width,role:kind,linked:false,securityHidden:true,screenshot,...layout});
+    return {context,page,security,state};
+  }
   await security.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
   await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
   assert.equal(await security.locator('.account-security-current-label').count(),markCurrent?1:0,'label only a server-proven current device');
