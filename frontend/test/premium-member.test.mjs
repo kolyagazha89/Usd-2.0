@@ -5,16 +5,18 @@ import {readFile} from 'node:fs/promises';
 const source=async name=>readFile(new URL(name,import.meta.url),'utf8');
 
 test('all participant and account routes use the isolated premium public theme',async()=>{
- const [app,account,main,css]=await Promise.all([
+ const [app,account,main,css,onboarding]=await Promise.all([
   source('../src/App.tsx'),
   source('../src/AccountActionPage.tsx'),
   source('../src/main.tsx'),
-  source('../src/public/premium-member.css')
+  source('../src/public/premium-member.css'),
+  source('../src/participant/FirstLoginOnboarding.tsx')
  ]);
  const participantRoots=app.match(/className="participant-portal(?: [^"]*)?"/g)??[];
  assert.ok(participantRoots.length>=7,'expected all participant route variants');
  for(const root of participantRoots)assert.match(root,/\busd-member\b/,root);
- assert.match(app,/className="profile-match-page usd-member"/);
+ assert.match(app,/<FirstLoginOnboarding/);
+ assert.match(onboarding,/className="profile-match-page usd-member"/);
  assert.match(app,/className="login-page usd-auth"/);
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
