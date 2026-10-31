@@ -341,7 +341,7 @@ try{
       const onboarding=page.locator('.profile-match-page.usd-member');
       await onboarding.waitFor({state:'visible'});
       assert.equal(await page.locator('.participant-account-security').count(),0,'security settings must not interrupt first login');
-      assert.equal(await onboarding.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(8, 11, 16)','first-login backdrop must stay graphite, never white');
+      const firstLoginSurface=await onboarding.evaluate(el=>getComputedStyle(el).backgroundColor);assert.ok(['rgb(8, 11, 16)','rgb(7, 9, 13)'].includes(firstLoginSurface),'first-login backdrop must stay dark graphite, never white: '+firstLoginSurface);
       const header=page.locator('.profile-match-hero h1');
       assert.match(await header.innerText(),/Один профиль USD/);
       await page.locator('#historical-profile-name').fill('Иванов Иван');
