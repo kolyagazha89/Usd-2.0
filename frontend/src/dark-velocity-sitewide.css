@@ -949,3 +949,109 @@ body .app-shell .user-mini :is(strong, small) {
 @media (prefers-reduced-motion: reduce) {
   body .app-shell .sidebar .section-chevron { transition: none; }
 }
+
+/* Race Control: neutral graphite instead of the old blue-edged sidebar.
+   Preserve a distinct branded focus ring for keyboard navigation. */
+body .app-shell .sidebar {
+  border-right: 1px solid #25252a !important;
+  box-shadow: 8px 0 24px rgba(0,0,0,.16) !important;
+}
+body .app-shell .sidebar > nav {
+  scrollbar-gutter: auto;
+  scrollbar-color: #4c4c52 #0b0b0d;
+}
+body .app-shell .sidebar > nav::-webkit-scrollbar { width: 5px; }
+body .app-shell .sidebar > nav::-webkit-scrollbar-track {
+  background: #0b0b0d !important;
+  border: 0 !important;
+}
+body .app-shell .sidebar > nav::-webkit-scrollbar-thumb {
+  background: #4c4c52 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+}
+body .app-shell .sidebar > nav::-webkit-scrollbar-thumb:hover { background: #85858e !important; }
+body .app-shell .sidebar .nav-item,
+body .app-shell .sidebar .sidebar-section-toggle {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+body .app-shell .sidebar .nav-item:hover,
+body .app-shell .sidebar .sidebar-section-toggle:hover {
+  background: #1e1e23 !important;
+  border-color: #303038 !important;
+  color: #fff !important;
+  transform: none !important;
+}
+body .app-shell .sidebar .nav-item.active,
+body .app-shell .sidebar .nav-item[aria-current="page"] {
+  background: #31171c !important;
+  background-image: none !important;
+  color: #ffe8ed !important;
+  border: 1px solid #5f2c36 !important;
+  border-left: 3px solid #ef2744 !important;
+  padding-left: 9px !important;
+  box-shadow: none !important;
+}
+body .app-shell .sidebar :is(.nav-item,.sidebar-section-toggle,.brand-button,.logout-button,.mobile-close):focus-visible {
+  outline: 2px solid #ef2744 !important;
+  outline-offset: -2px !important;
+  border-radius: 10px;
+}
+body .app-shell .sidebar-section-toggle[aria-expanded="true"] { color: #f5e7ea !important; }
+
+/* Event-day workspaces must occupy the complete content box, without a blank
+   right rail. Wide tables scroll inside their white card, not the page. */
+body .app-shell .main .content:has(> .page.event-ops-page) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 22px clamp(14px,2.1vw,26px) 38px !important;
+  box-sizing: border-box !important;
+}
+body .app-shell .main .content > .page.event-ops-page {
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  /* Legacy 1024/760/600px .page rules add 18/12/10px !important
+     padding on top of .content padding and cause the empty right strip. */
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+body .app-shell .main .event-ops-page > :is(.page-heading,.admin-page-guide,.stage-picker,.event-ops-overview,.event-ops-inspection-metrics,.event-ops-inspection-progress,.event-ops-search,.event-ops-toolbar,.event-ops-results,.resource-editor-page) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body .app-shell .main .event-ops-page .event-ops-results {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+@media (min-width: 761px) {
+  body .app-shell .main .event-ops-page .event-ops-results .data-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 750px;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table :is(th,td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table th:last-child { width: 122px; }
+}
+@media (max-width: 800px) {
+  body .app-shell .main .content:has(> .page.event-ops-page) {
+    padding: 18px clamp(10px,3vw,18px) 30px !important;
+  }
+}
+@media (max-width: 760px) {
+  body .app-shell .main .event-ops-page .event-ops-results {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table { min-width: 0 !important; }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table tbody tr { width: 100%; }
+}
