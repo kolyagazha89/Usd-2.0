@@ -1,0 +1,56 @@
+name: Daily backup safety
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/home-pc/**'
+      - 'backend/**'
+      - '.github/workflows/daily-backup-safety.yml'
+  pull_request:
+    paths:
+      - 'deploy/home-pc/**'
+      - 'backend/**'
+      - '.github/workflows/daily-backup-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local fixture transport
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+      - name: Run root-owned synthetic policies and inert installer fixtures
+        run: sudo python3 -B deploy/home-pc/test-daily-backup.py -v
+      - name: Check syntax and systemd unit parsing
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n deploy/home-pc/install-daily-backup.sh
+          bash -n deploy/home-pc/test-daily-backup-docker.sh
+          python3 -B -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/home-pc/daily-backup.py").read_text())'
+          # Use an existing executable only for offline unit parsing; do not
+          # install or activate the real service in this job.
+          units="$(mktemp -d)"
+          trap 'rm -rf "$units"' EXIT
+          sed 's|ExecStart=/usr/local/sbin/usd-daily-backup|ExecStart=/usr/bin/true|' deploy/home-pc/usd-daily-backup.service > "$units/usd-daily-backup.service"
+          cp deploy/home-pc/usd-daily-backup.timer "$units/"
+          printf '[Service]\nType=oneshot\nExecStart=/usr/bin/true\n' > "$units/docker.service"
+          systemd-analyze verify "$units/usd-daily-backup.service" "$units/usd-daily-backup.timer" "$units/docker.service"
+
+  synthetic-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local fixture transport
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+      - name: Build current API image for isolated restore rehearsal
+        run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-daily-backup-ci:${{ github.sha }} ./backend
+      - name: Restore real synthetic PostgreSQL 18 and media fixtures
+        run: USD_DAILY_BACKUP_DISPOSABLE_TEST=1 bash deploy/home-pc/test-daily-backup-docker.sh usd-daily-backup-ci:${{ github.sha }}

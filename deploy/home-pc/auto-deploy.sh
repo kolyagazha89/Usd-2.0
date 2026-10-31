@@ -83,6 +83,17 @@ for image in api frontend; do
     "ghcr.io/kolyagazha89/usd-2.0-$image:$SHA")"
   [[ "$revision" == "$SHA" ]] || { echo "Image revision does not match $SHA: $image" >&2; exit 1; }
 done
+IMAGE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
+[[ -f "$IMAGE_VERIFIER" && -x "$IMAGE_VERIFIER" && ! -L "$IMAGE_VERIFIER" &&
+   "$(stat -c %u "$IMAGE_VERIFIER")" == 0 ]] &&
+  (( (8#$(stat -c %a "$IMAGE_VERIFIER") & 022) == 0 )) ||
+  { echo 'Missing or untrusted image signature verifier' >&2; exit 1; }
+for service in api frontend; do
+  if ! "$IMAGE_VERIFIER" "$service" "$SHA" >/dev/null; then
+    echo 'Published signatures not verified; leaving deployment untouched until next poll' >&2
+    exit 0
+  fi
+done
 # Preserve the existing release helper's state-file contract, but only after
 # BOTH downloads and their source labels have been verified.
 printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"

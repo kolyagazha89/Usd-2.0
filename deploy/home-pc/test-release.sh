@@ -17,6 +17,7 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+SIGNATURE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
 PUBLIC_VERIFIER=/usr/local/libexec/usd-verify-prerelease
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
@@ -25,6 +26,8 @@ LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing mock fixture" >&2; exit 1; }
 [[ ! -e "$LOCAL_VERIFIER" && ! -L "$LOCAL_VERIFIER" ]] || { echo "Local verifier exists in disposable runner" >&2; exit 1; }
+[[ ! -e "$SIGNATURE_VERIFIER" && ! -L "$SIGNATURE_VERIFIER" ]] ||
+  { echo 'Signature verifier exists; refusing disposable fixture' >&2; exit 1; }
 [[ ! -e "$PUBLIC_VERIFIER" && ! -L "$PUBLIC_VERIFIER" ]] ||
   { echo "Public verifier exists; refusing disposable fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
@@ -58,7 +61,7 @@ cleanup() {
     "$STATE/deployed-sha" "$STATE/failed-release-sha" /etc/usd-release-approved
   rm -f -- "$STATE/initial-preflight"
   rm -f -- "$TEST_BACKUP_DIR"/release-"$NEW".*.dump
-  rm -f -- "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
+  rm -f -- "$SIGNATURE_VERIFIER" "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY" "$LOCAL_VERIFIER"
   rm -rf -- "$TRUSTED_DIR" "$WORK"
 }
 trap cleanup EXIT
@@ -76,6 +79,13 @@ diagnose_failure() {
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
 mkdir -p "$ROOT" "$STATE" "$WORK/bin" /usr/local/libexec
+cat > "$SIGNATURE_VERIFIER" <<'SIGNATURE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${USD_TEST_FAIL_SIGNATURE:-0}" != 1 ]] || exit 1
+printf '{"id":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}\n'
+SIGNATURE
+chmod 0755 "$SIGNATURE_VERIFIER"
 cat > "$PUBLIC_VERIFIER" <<'PUBLIC'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -86,7 +96,7 @@ chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == "ghcr.io/kolyagazha89/usd-2.0-api:2222222222222222222222222222222222222222" ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" == "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ]] || exit 1
 [[ "${USD_TEST_FAIL_RESTORE_REHEARSAL:-0}" != 1 ]] || exit 1
 RESTORE
 chmod 0700 "$RESTORE_VERIFIER"
@@ -132,7 +142,18 @@ printf '%s\n' "$NEW" > /etc/usd-release-approved
 cat > "$WORK/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then exit 0; fi
+if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then
+  if [[ "$*" == *'{{.Id}}'* ]]; then
+    identity=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    [[ "${USD_TEST_ROLLBACK_TAG_ID_MISMATCH:-0}" != 1 ]] || identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    printf 'sha256:%s\n' "$identity"
+  fi
+  exit 0
+fi
+if [[ "${1:-}" == image && "${2:-}" == tag ]]; then
+  if [[ "${USD_TEST_MISSING_VERIFIED_CANDIDATE:-0}" == 1 && "$4" == *":$USD_TEST_NEW" ]]; then exit 1; fi
+  exit 0
+fi
 if [[ "${1:-}" == ps ]]; then
   case "$*" in
     *service=api*) echo mock-api ;;
@@ -170,6 +191,13 @@ if [[ "${1:-}" == inspect ]]; then
     fi
     exit 0
   fi
+  if [[ "$*" == *'{{.Image}}'* ]]; then
+    identity=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    if [[ "${USD_TEST_IMAGE_ID_MISMATCH_AFTER:-0}" == 1 ]] && grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; fi
+    if [[ "${USD_TEST_ROLLBACK_IMAGE_ID_MISMATCH:-0}" == 1 && -f "$USD_TEST_ROLLBACK_MARKER" ]]; then identity=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; fi
+    printf 'sha256:%s\n' "$identity"
+    exit 0
+  fi
   if [[ "$*" == *'.Config.Image'* ]]; then
     service=api
     [[ "$*" != *mock-frontend* ]] || service=frontend
@@ -193,7 +221,7 @@ if [[ "${1:-}" == compose ]]; then
     *" config --quiet"*)
       [[ "${USD_TEST_FAIL_CONFIG:-0}" != 1 ]] || exit 1
       exit 0 ;;
-    *" up -d --no-deps api frontend"*)
+    *" up -d --no-deps api frontend"*|*" up -d --pull never --no-deps api frontend"*)
       current_tag="$(sed -n 's/^USD_IMAGE_TAG=//p' /home/usd/usd-deploy/deploy/home-pc/.env)"
       if [[ "$current_tag" == "$USD_TEST_NEW" ]]; then
         rm -f "$USD_TEST_ROLLBACK_MARKER"
@@ -523,6 +551,26 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/public-verifier-untru
 grep -q 'Untrusted public prerelease verifier' "$WORK/public-verifier-untrusted.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 chmod 0755 "$PUBLIC_VERIFIER"
+# A mutable SHA tag must not substitute another image after signature approval.
+rm -f "$USD_TEST_ROLLBACK_MARKER"
+before_pruned_candidate="$(wc -l < "$USD_TEST_LOG")"
+if USD_TEST_MISSING_VERIFIED_CANDIDATE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/pruned-candidate.log" 2>&1; then exit 1; fi
+[[ "$(wc -l < "$USD_TEST_LOG")" == "$before_pruned_candidate" ]]
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+if USD_TEST_ROLLBACK_TAG_ID_MISMATCH=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-rollback-tag.log" 2>&1; then exit 1; fi
+grep -q 'Rollback tag does not identify' "$WORK/wrong-rollback-tag.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 USD_TEST_ROLLBACK_IMAGE_ID_MISMATCH=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-rollback-image.log" 2>&1; then exit 1; fi
+grep -q 'CRITICAL: previous API/frontend image tags do not match rollback target' "$WORK/wrong-rollback-image.log"
+if grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/wrong-rollback-image.log"; then exit 1; fi
+rm -f "$USD_TEST_ROLLBACK_MARKER"
+if USD_TEST_IMAGE_ID_MISMATCH_AFTER=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/wrong-signed-image.log" 2>&1; then exit 1; fi
+grep -q 'New API/frontend image tags do not match' "$WORK/wrong-signed-image.log"
+grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/wrong-signed-image.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+if USD_TEST_FAIL_SIGNATURE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/invalid-signature.log" 2>&1; then exit 1; fi
+grep -q 'Candidate API signature not verified' "$WORK/invalid-signature.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 # A candidate with HTTP 200 but no API-to-database connectivity must
 # roll back to the previous healthy image, not pass the readiness gate.
 export USD_TEST_FAIL_NEW_DB_CONNECTIVITY=1

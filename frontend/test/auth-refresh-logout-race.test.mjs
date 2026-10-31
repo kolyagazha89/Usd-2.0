@@ -44,7 +44,8 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     await loggingOut;
     assert.equal(localStorage.getItem('usd_refresh_token'),null);
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/refresh')).length,1);
-    assert.equal(calls.filter(c=>c.url.endsWith('/auth/logout')).length,1);
+    assert.deepEqual(calls.filter(c=>c.url.endsWith('/auth/logout')).map(c=>JSON.parse(c.init.body).refreshToken).sort(),
+      ['initial-token','stale-refresh'],'logout must revoke the captured session and the discarded rotated token');
 
     // An old refresh must not block a new session from refreshing after logout.
     localStorage.setItem('usd_refresh_token','new-login-token');
@@ -67,6 +68,51 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     };
     await api.logout();
     assert.equal(localStorage.getItem('usd_refresh_token'),null,'offline logout must remain local logout');
+    // A protected response that arrives after logout must not be accepted as
+    // data belonging to the next user, even if the old HTTP request succeeded.
+    let releaseProtected;
+    const pendingProtected=new Promise(resolve=>{releaseProtected=resolve});
+    globalThis.fetch=async(url,init)=>{
+      if(url.endsWith('/auth/login'))return new Response(JSON.stringify({accessToken:'old-access',refreshToken:'old-refresh',user:{id:'old-user',role:'ADMIN'}}),{headers:{'Content-Type':'application/json'}});
+      if(url.endsWith('/auth/me'))return pendingProtected;
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      throw Error('Unexpected request: '+url);
+    };
+    await api.login('old@example.test','synthetic-password');
+    const oldMe=api.me();
+    await api.logout();
+    releaseProtected(new Response(JSON.stringify({id:'old-user',email:'old@example.test',role:'ADMIN'}),{status:200,headers:{'Content-Type':'application/json'}}));
+    await assert.rejects(oldMe,/Сеанс завершён/,'a stale successful response must not be exposed after logout');
+    // Private image downloads are also authenticated and must not expose
+    // a previous account's media after a session switch.
+    let releaseMedia;
+    const pendingMedia=new Promise(resolve=>{releaseMedia=resolve});
+    globalThis.fetch=async(url)=>{
+      if(url.endsWith('/auth/login'))return new Response(JSON.stringify({accessToken:'media-access',refreshToken:'media-token',user:{id:'old-user',role:'PARTICIPANT'}}),{status:200,headers:{'Content-Type':'application/json'}});
+      if(url.includes('/media/private-file/'))return pendingMedia;
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      throw Error('Unexpected request: '+url);
+    };
+    await api.login('media@example.test','test-password');
+    const staleMedia=api.getPrivateMediaObjectUrl('PARTICIPANT_PHOTO','old-user');
+    await api.logout();
+    releaseMedia(new Response(new Blob(['old-photo']),{status:200}));
+    await assert.rejects(staleMedia,/Сеанс завершён/,'private media from a logged-out account must be rejected');
+    // An unauthorized request must never retry under a different session.
+    let releaseUnauthorized;
+    const unauthorized=new Promise(resolve=>{releaseUnauthorized=resolve});
+    let protectedRequests=0;
+    globalThis.fetch=async(url)=>{
+      if(url.endsWith('/auth/me')){protectedRequests++;return unauthorized;}
+      if(url.endsWith('/auth/logout'))return new Response('{}',{status:200});
+      if(url.endsWith('/auth/refresh'))throw Error('Unexpected refresh of old account');
+      throw Error('Unexpected request: '+url);
+    };
+    const oldUnauthorized=api.me();
+    await api.logout();
+    releaseUnauthorized(new Response(JSON.stringify({message:'Unauthorized'}),{status:401,headers:{'Content-Type':'application/json'}}));
+    await assert.rejects(oldUnauthorized,/Сеанс завершён/);
+    assert.equal(protectedRequests,1,'no protected retry may cross a logout boundary');
 
   }finally{
     for(const [key,descriptor]of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}

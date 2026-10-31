@@ -12,12 +12,15 @@ RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
 DB_OFFSITE_POLICY=/etc/usd-deployer/db-backup.conf
 MEDIA_POLICY=/etc/usd-deployer/media-backup.conf
+SIGNATURE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
 PUBLIC_VERIFIER=/usr/local/libexec/usd-verify-prerelease
 MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 [[ ! -e "$DB_OFFSITE_VERIFIER" && ! -L "$DB_OFFSITE_VERIFIER" && ! -e "$DB_OFFSITE_POLICY" && ! -L "$DB_OFFSITE_POLICY" ]] ||
   { echo 'Existing off-host PostgreSQL policy/helper; refusing Docker fixture' >&2; exit 1; }
 [[ ! -e "$MEDIA_POLICY" && ! -L "$MEDIA_POLICY" && ! -e "$MEDIA_VERIFIER" && ! -L "$MEDIA_VERIFIER" ]] ||
   { echo "Existing media policy/helper; refusing Docker fixture" >&2; exit 1; }
+[[ ! -e "$SIGNATURE_VERIFIER" && ! -L "$SIGNATURE_VERIFIER" ]] ||
+  { echo 'Signature verifier exists; refusing disposable fixture' >&2; exit 1; }
 [[ ! -e "$PUBLIC_VERIFIER" && ! -L "$PUBLIC_VERIFIER" ]] ||
   { echo "Public verifier exists; refusing disposable fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
@@ -45,7 +48,7 @@ cleanup() {
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
     docker volume rm "$volume" >/dev/null || true
   fi
-  rm -f -- "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
+  rm -f -- "$SIGNATURE_VERIFIER" "$PUBLIC_VERIFIER" "$RESTORE_VERIFIER" "$DB_OFFSITE_VERIFIER" "$DB_OFFSITE_POLICY" "$MEDIA_VERIFIER" "$MEDIA_POLICY"
   rm -rf "$TRUSTED_DIR" "$WORK"
   exit "$status"
 }
@@ -69,6 +72,13 @@ mkdir -p "$ROOT" "$STATE" "$WORK/api" /usr/local/libexec
 # release archive into a separate disposable database and checks real rows;
 # the production Prisma-enabled isolated-volume helper is exercised separately
 # against the actual API Dockerfile by Home PC safety checks.
+cat > "$SIGNATURE_VERIFIER" <<'SIGNATURE'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${USD_TEST_FAIL_SIGNATURE:-0}" != 1 ]] || exit 1
+docker image inspect --format '{"id":"{{.Id}}"}' "ghcr.io/kolyagazha89/usd-2.0-$1:$2"
+SIGNATURE
+chmod 0755 "$SIGNATURE_VERIFIER"
 cat > "$PUBLIC_VERIFIER" <<'PUBLIC'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -79,7 +89,7 @@ chmod 0755 "$PUBLIC_VERIFIER"
 cat > "$RESTORE_VERIFIER" <<'RESTORE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$#" == 2 && -s "$1" && "$2" == ghcr.io/kolyagazha89/usd-2.0-api:* ]] || exit 1
+[[ "$#" == 2 && -s "$1" && "$2" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
 root=/home/usd/usd-deploy/deploy/home-pc
 compose=(docker compose --env-file "$root/.env" -f "$root/compose.yaml")
 name="release_rehearsal_${BASHPID}"

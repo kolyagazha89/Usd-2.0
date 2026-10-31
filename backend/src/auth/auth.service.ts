@@ -514,12 +514,20 @@ export class AuthService {
     }
 
     const tokenHash = this.hashToken(refreshToken);
+    const identity = await this.prisma.refreshSession.findUnique({
+      where: { tokenHash },
+      select: { familyId: true, userId: true },
+    });
+    if (!identity) throw new UnauthorizedException('Недействительная refresh-сессия');
 
     const newRefreshToken = this.generateToken();
     const newRefreshTokenHash = this.hashToken(newRefreshToken);
 
     const result = await this.prisma.$transaction(
       async (tx) => {
+        // READ COMMITTED takes a fresh snapshot after this lock is acquired.
+        // Logout uses the same lock, so it cannot miss a rotating successor.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_AUTH_SESSION_FAMILY'), hashtext(${identity.familyId}))::text AS locked`;
         const session =
           await tx.refreshSession.findUnique({
             where: { tokenHash },
@@ -536,6 +544,7 @@ export class AuthService {
           await tx.refreshSession.updateMany({
             where: {
               familyId: session.familyId,
+              userId: identity.userId,
               revokedAt: null,
             },
             data: {
@@ -543,9 +552,7 @@ export class AuthService {
             },
           });
 
-          throw new UnauthorizedException(
-            'Обнаружено повторное использование refresh token',
-          );
+          return { replayed: true as const };
         }
 
         if (
@@ -578,6 +585,7 @@ export class AuthService {
           await tx.refreshSession.updateMany({
             where: {
               familyId: session.familyId,
+              userId: identity.userId,
               revokedAt: null,
             },
             data: {
@@ -585,9 +593,7 @@ export class AuthService {
             },
           });
 
-          throw new UnauthorizedException(
-            'Обнаружено повторное использование refresh token',
-          );
+          return { replayed: true as const };
         }
 
         await tx.refreshSession.create({
@@ -601,31 +607,34 @@ export class AuthService {
           },
         });
 
-        return session.user;
+        return { replayed: false as const, user: session.user };
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
       },
     );
+    // Throw outside the transaction so replay revocation is committed.
+    if (result.replayed) throw new UnauthorizedException('Обнаружено повторное использование refresh token');
+    const user = result.user;
 
     const newAccessToken = await this.createAccessToken({
-      id: result.id,
-      email: result.email,
-      role: result.role,
+      id: user.id,
+      email: user.email,
+      role: user.role,
     });
 
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       user: {
-        id: result.id,
-        email: result.email,
-        name: result.name,
-        role: result.role,
-        emailVerifiedAt: result.emailVerifiedAt,
-        participantId: result.participantId,
-        customRoleId: result.customRoleId,
-        customRole: result.customRole,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerifiedAt: user.emailVerifiedAt,
+        participantId: user.participantId,
+        customRoleId: user.customRoleId,
+        customRole: user.customRole,
       },
     };
   }
@@ -1186,13 +1195,10 @@ export class AuthService {
     return this.adminGetUser(targetUserId);
   }
 
-  async listMySessions(userId: string) {
-    return this.prisma.refreshSession.findMany({
-      where: {
-        userId,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
+  async listMySessions(userId: string, currentRefreshToken?: string) {
+    const activeSession = { userId, revokedAt: null, expiresAt: { gt: new Date() } };
+    const sessions = await this.prisma.refreshSession.findMany({
+      where: activeSession,
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
@@ -1204,6 +1210,17 @@ export class AuthService {
         expiresAt: true,
       },
     });
+
+    // Identification is optional presentation data, never authorization. Keep
+    // hashes out of the list query/response and require a same-user active match.
+    if (typeof currentRefreshToken !== 'string' || !/^[a-f0-9]{64}$/i.test(currentRefreshToken)) {
+      return sessions;
+    }
+    const current = await this.prisma.refreshSession.findFirst({
+      where: { ...activeSession, tokenHash: this.hashToken(currentRefreshToken) },
+      select: { id: true },
+    });
+    return sessions.map((session) => current?.id === session.id ? { ...session, isCurrent: true } : session);
   }
 
   async revokeMySession(userId: string, sessionId: string) {
@@ -1288,16 +1305,18 @@ export class AuthService {
       };
     }
 
-    await this.prisma.refreshSession.updateMany({
-      where: {
-        tokenHash:
-          this.hashToken(refreshToken),
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
+    const identity = await this.prisma.refreshSession.findUnique({
+      where: { tokenHash: this.hashToken(refreshToken) },
+      select: { familyId: true, userId: true },
     });
+    if (!identity) return { success: true };
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('USD_AUTH_SESSION_FAMILY'), hashtext(${identity.familyId}))::text AS locked`;
+      await tx.refreshSession.updateMany({
+        where: { familyId: identity.familyId, userId: identity.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
 
     return {
       success: true,
