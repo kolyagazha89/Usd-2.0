@@ -483,3 +483,11 @@ Do not copy secret-bearing host logs into GitHub issues. See
 docs/UBUNTU_RELEASE_ACCEPTANCE.md for supervised release criteria. GitHub CI,
 a local-HDD backup and the first public release do not prove off-host recovery
 or a second unattended SHA deployment.
+
+## Supervised push schema release gate — 2026-11-01
+
+Public Ubuntu prerelease last verified at `49998d27fd179ef50c61d7e115516734b546f7b9`. The newer main Prisma tree `b251982efe8265a31d52743437db063fdf76de6d` adds only the `20261030061000_push_subscriptions` migration: three push tables with indexes and foreign keys; no existing participant/history data is deliberately modified. The supervised helper pins that full tree, exact Git SQL blob `25406638e0b76e6eb52f2a19c0cdf23d4f17aaa3`, previous live API image `49998d27...`, and exactly this one pending migration. Missing team history, changed SQL or other pending migrations fail closed.
+
+**Code/CI approval is not live migration approval.** The root-owned supervised release path still requires a fresh verified second-disk database backup, an isolated PostgreSQL 18 restore/migration rehearsal, matching signed candidate image and source, exclusive deployment lock and private `initial-preflight` receipt tied to the exact candidate SHA / deployed source / DB container, with post-upgrade row-count preservation and no live database replacement. The installed root helper must be updated and checked by the trusted operator before any use. Never use `prisma migrate resolve`, `migrate reset`, or manual changes to `/etc/usd-auto-release-schema` as a shortcut.
+
+A successful isolated CI fixture **cannot** prove that an actual Ubuntu migration, push delivery, second unattended release, backups, or physical iOS/Android acceptance occurred. Keep `app.usd-russia.ru` as the only prerelease site; do not touch `usd-russia.ru`, DNS or production data without separate approval. Local second-disk copies remain at risk from failure of the same computer.

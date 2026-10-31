@@ -39,6 +39,11 @@ REVIEWED_TEAM_TREE = "a22c242dd0c6dfa9554f179cf705b39499a68967"
 REVIEWED_TEAM_MIGRATION = "20261030060000_team_commanders"
 REVIEWED_TEAM_MIGRATION_BLOB = "8a4a598f9b52a46d59d3e2e4934a30136fbcf753"
 REVIEWED_TEAM_SOURCE = "e0c244bad7f77f576f1889abe36bf1dc0a9db735"
+# Exact source/SQL/tree allowlist for a supervised (not automatic) push upgrade.
+REVIEWED_PUSH_TREE = "b251982efe8265a31d52743437db063fdf76de6d"
+REVIEWED_PUSH_MIGRATION = "20261030061000_push_subscriptions"
+REVIEWED_PUSH_MIGRATION_BLOB = "25406638e0b76e6eb52f2a19c0cdf23d4f17aaa3"
+REVIEWED_PUSH_SOURCE = "49998d27fd179ef50c61d7e115516734b546f7b9"
 
 
 
@@ -65,20 +70,32 @@ def pending_migrations(expected: dict[str, str], history: list[dict],
 
 
 def reviewed_pending_migrations(tree: str, team_blob: str, expected: dict[str, str],
-                                rows: list[dict], old_image: str) -> tuple[list[str], set[str]]:
+                                rows: list[dict], old_image: str,
+                                push_blob: str = "") -> tuple[list[str], set[str]]:
     """Fail closed unless the exact source, SQL and previous live image were reviewed."""
-    if tree not in (REVIEWED_TREE, REVIEWED_TEAM_TREE):
+    if tree not in (REVIEWED_TREE, REVIEWED_TEAM_TREE, REVIEWED_PUSH_TREE):
         raise ValueError("Candidate Prisma tree is not an explicitly reviewed additive upgrade")
     allowed = set(REVIEWED_ADDITIONS)
     if tree == REVIEWED_TEAM_TREE:
         if team_blob != REVIEWED_TEAM_MIGRATION_BLOB or REVIEWED_TEAM_MIGRATION not in expected:
             raise ValueError("Reviewed team migration bytes have changed")
         allowed.add(REVIEWED_TEAM_MIGRATION)
+    elif tree == REVIEWED_PUSH_TREE:
+        if push_blob != REVIEWED_PUSH_MIGRATION_BLOB or REVIEWED_PUSH_MIGRATION not in expected:
+            raise ValueError("Reviewed push migration bytes have changed")
+        # The pinned Prisma tree covers preceding SQL too; live migration
+        # history must prove the team schema is already installed.
+        allowed.update((REVIEWED_TEAM_MIGRATION, REVIEWED_PUSH_MIGRATION))
     pending = pending_migrations(expected, rows, allowed)
     if pending:
         if tree == REVIEWED_TEAM_TREE:
-            if old_image != "ghcr.io/kolyagazha89/usd-2.0-api:" + REVIEWED_TEAM_SOURCE or pending != [REVIEWED_TEAM_MIGRATION]:
+            if (old_image != "ghcr.io/kolyagazha89/usd-2.0-api:" + REVIEWED_TEAM_SOURCE
+                    or pending != [REVIEWED_TEAM_MIGRATION]):
                 raise ValueError("Team migration needs the verified deployed source and only its one pending additive migration")
+        elif tree == REVIEWED_PUSH_TREE:
+            if (old_image != "ghcr.io/kolyagazha89/usd-2.0-api:" + REVIEWED_PUSH_SOURCE
+                    or pending != [REVIEWED_PUSH_MIGRATION]):
+                raise ValueError("Push migration needs the verified deployed source and only its one pending additive migration")
         elif old_image != "ghcr.io/kolyagazha89/usd-2.0-api:" + BASELINE:
             raise ValueError("Nullable upgrade requires the verified e8b5b0f deployment")
     return pending, allowed
@@ -188,12 +205,16 @@ def main(argv: list[str]) -> int:
     expected = {p.parent.name: hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in (SOURCE / "backend/prisma/migrations").glob("*/migration.sql")}
     team_blob = ""
+    push_blob = ""
     if tree == REVIEWED_TEAM_TREE:
         path = "backend/prisma/migrations/" + REVIEWED_TEAM_MIGRATION + "/migration.sql"
         team_blob = command("git", "-C", str(SOURCE), "rev-parse", sha + ":" + path)
+    elif tree == REVIEWED_PUSH_TREE:
+        path = "backend/prisma/migrations/" + REVIEWED_PUSH_MIGRATION + "/migration.sql"
+        push_blob = command("git", "-C", str(SOURCE), "rev-parse", sha + ":" + path)
     api, db = container("api"), container("db")
     old_image = command("docker", "inspect", "-f", "{{.Config.Image}}", api)
-    pending, allowed = reviewed_pending_migrations(tree, team_blob, expected, history(db), old_image)
+    pending, allowed = reviewed_pending_migrations(tree, team_blob, expected, history(db), old_image, push_blob)
     print("Reviewed pending migrations: " + (", ".join(pending) or "none"))
     if argv[1] == "--check" or not pending:
         return 0
@@ -204,7 +225,8 @@ def main(argv: list[str]) -> int:
     trusted(receipt)
     # The preflight receipt must be bound to the actual old image: nullable
     # baseline and later team-table upgrades have different approved sources.
-    approved_source = REVIEWED_TEAM_SOURCE if tree == REVIEWED_TEAM_TREE else BASELINE
+    approved_source = (REVIEWED_PUSH_SOURCE if tree == REVIEWED_PUSH_TREE else
+                       REVIEWED_TEAM_SOURCE if tree == REVIEWED_TEAM_TREE else BASELINE)
     if time.time() - receipt.stat().st_mtime > 7200 or receipt.read_text().splitlines() != [sha, approved_source, db]:
         raise ValueError("Fresh successful backup/restore receipt for this live DB is required")
     image = "ghcr.io/kolyagazha89/usd-2.0-api:" + sha

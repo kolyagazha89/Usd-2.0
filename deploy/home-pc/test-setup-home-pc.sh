@@ -68,9 +68,11 @@ esac
 SH
 chmod 755 "$WORK/bin/git"
 TEAM_BASE=e0c244bad7f77f576f1889abe36bf1dc0a9db735
+PUSH_BASE=49998d27fd179ef50c61d7e115516734b546f7b9
 LEGACY_BASE=e8b5b0f22780a61e79765b8fd92167e241df82a2
 INITIAL_TREE=4d9fa43dafd01e58354c3d22ead2cafe45152044
 TEAM_TREE=a22c242dd0c6dfa9554f179cf705b39499a68967
+PUSH_TREE=b251982efe8265a31d52743437db063fdf76de6d
 NEW_SHA=1b6c6e3a7eb72a634da0f97a471f2ecc5e078080
 check_schema_gate() {
   local old_sha="$1" old_tree="$2" new_tree="$3" expected="$4" exit_code
@@ -92,9 +94,14 @@ check_schema_gate() {
 }
 check_schema_gate "$TEAM_BASE" "$INITIAL_TREE" "$INITIAL_TREE" 77
 check_schema_gate "$TEAM_BASE" "$INITIAL_TREE" "$TEAM_TREE" 77
+check_schema_gate "$PUSH_BASE" "$TEAM_TREE" "$PUSH_TREE" 77
+check_schema_gate "$PUSH_BASE" "$TEAM_TREE" "$TEAM_TREE" 77
 check_schema_gate "$LEGACY_BASE" "$INITIAL_TREE" "$INITIAL_TREE" 77
 check_schema_gate "$TEAM_BASE" "$INITIAL_TREE" cccccccccccccccccccccccccccccccccccccccc 1
 check_schema_gate "$LEGACY_BASE" "$INITIAL_TREE" "$TEAM_TREE" 1
+check_schema_gate "$TEAM_BASE" "$TEAM_TREE" "$PUSH_TREE" 1
+check_schema_gate "$PUSH_BASE" "$TEAM_TREE" "$INITIAL_TREE" 1
+check_schema_gate "$PUSH_BASE" "$TEAM_TREE" cccccccccccccccccccccccccccccccccccccccc 1
 check_schema_gate ffffffffffffffffffffffffffffffffffffffff "$INITIAL_TREE" "$TEAM_TREE" 1
-echo 'PASS: same-schema bootstrap, pinned team upgrade and unreviewed schema refusal'
+echo 'PASS: same-schema bootstrap, pinned team/push upgrades and unreviewed schema refusal'
 

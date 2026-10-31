@@ -34,6 +34,69 @@ class InitialSchemaTests(unittest.TestCase):
                              "finished": True, "rolled_back": False})
         self.assertEqual(module.pending_migrations(self.expected, self.history, approved), [])
 
+    def push_case(self):
+        expected = {**self.expected, module.REVIEWED_TEAM_MIGRATION: "b" * 64,
+                    module.REVIEWED_PUSH_MIGRATION: "c" * 64}
+        rows = [self.history[0]] + [
+            {"migration_name": name, "checksum": digest,
+             "finished": True, "rolled_back": False}
+            for name, digest in module.REVIEWED_ADDITIONS.items()
+        ]
+        rows.append({"migration_name": module.REVIEWED_TEAM_MIGRATION,
+                     "checksum": "b" * 64, "finished": True, "rolled_back": False})
+        old = "ghcr.io/kolyagazha89/usd-2.0-api:" + module.REVIEWED_PUSH_SOURCE
+        return expected, rows, old
+
+    def test_push_release_exact_tree_blob_source_pins(self):
+        for value in (module.REVIEWED_PUSH_TREE, module.REVIEWED_PUSH_MIGRATION_BLOB,
+                      module.REVIEWED_PUSH_SOURCE):
+            self.assertRegex(value, r"^[a-f0-9]{40}$")
+        self.assertNotEqual(module.REVIEWED_PUSH_TREE, module.REVIEWED_TEAM_TREE)
+
+    def test_push_upgrade_only_one_migration_from_49998d2(self):
+        expected, rows, old = self.push_case()
+        args = (module.REVIEWED_PUSH_TREE, "", expected, rows, old,
+                module.REVIEWED_PUSH_MIGRATION_BLOB)
+        pending, approved = module.reviewed_pending_migrations(*args)
+        self.assertEqual(pending, [module.REVIEWED_PUSH_MIGRATION])
+        self.assertEqual(approved, set(module.REVIEWED_ADDITIONS) |
+                         {module.REVIEWED_TEAM_MIGRATION, module.REVIEWED_PUSH_MIGRATION})
+        rows.append({"migration_name": module.REVIEWED_PUSH_MIGRATION,
+                     "checksum": "c" * 64, "finished": True, "rolled_back": False})
+        self.assertEqual(module.reviewed_pending_migrations(*args)[0], [])
+
+    def test_push_upgrade_rejects_wrong_tree_blob_and_deployed_image(self):
+        expected, rows, old = self.push_case()
+        for tree, blob, source in [
+            ("f" * 40, module.REVIEWED_PUSH_MIGRATION_BLOB, old),
+            (module.REVIEWED_PUSH_TREE, "e" * 40, old),
+            (module.REVIEWED_PUSH_TREE, "", old),
+            (module.REVIEWED_PUSH_TREE, module.REVIEWED_PUSH_MIGRATION_BLOB,
+             "ghcr.io/kolyagazha89/usd-2.0-api:" + module.REVIEWED_TEAM_SOURCE),
+        ]:
+            with self.subTest(tree=tree, blob=blob, source=source), self.assertRaises(ValueError):
+                module.reviewed_pending_migrations(tree, "", expected, rows, source, blob)
+
+    def test_push_upgrade_rejects_unapplied_team_failed_history_future_sql(self):
+        expected, rows, old = self.push_case()
+        invalid = [
+            (expected, rows[:-1]),
+            (expected, rows + [dict(rows[-1], finished=False)]),
+            ({**expected, "20261101_unreviewed": "e" * 64}, rows),
+            ({k: v for k, v in expected.items() if k != module.REVIEWED_PUSH_MIGRATION}, rows),
+        ]
+        for candidate, history in invalid:
+            with self.subTest(candidate=candidate, history=history), self.assertRaises(ValueError):
+                module.reviewed_pending_migrations(module.REVIEWED_PUSH_TREE, "",
+                    candidate, history, old, module.REVIEWED_PUSH_MIGRATION_BLOB)
+
+    def test_push_upgrade_refuses_changed_nullable_sql(self):
+        expected, rows, old = self.push_case()
+        expected[sorted(module.REVIEWED_ADDITIONS)[0]] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "Reviewed migration content"):
+            module.reviewed_pending_migrations(module.REVIEWED_PUSH_TREE, "",
+                expected, rows, old, module.REVIEWED_PUSH_MIGRATION_BLOB)
+
     def test_team_allowlist_does_not_approve_other_schema_changes(self):
         self.expected[module.REVIEWED_TEAM_MIGRATION] = "b" * 64
         self.expected["future_destructive_migration"] = "c" * 64
