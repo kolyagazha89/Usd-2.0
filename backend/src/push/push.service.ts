@@ -20,6 +20,11 @@ import type {
 } from './push.dto';
 
 type Category = 'registrationOpen' | 'reminders' | 'announcements';
+function calendarDaysUntil(date: Date, now: Date) {
+  const day = (value: Date) =>
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
+  return Math.round((day(date) - day(now)) / 86400000);
+}
 const publicSubscription = {
   id: true,
   registrationOpen: true,
@@ -346,21 +351,8 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     });
     for (const stage of stages) {
       if (stage.registrationOpen) await this.registrationOpened(stage.id);
-      const today = Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-      );
       const date = stage.date;
-      const days = Math.round(
-        (Date.UTC(
-          date.getUTCFullYear(),
-          date.getUTCMonth(),
-          date.getUTCDate(),
-        ) -
-          today) /
-          86400000,
-      );
+      const days = calendarDaysUntil(date, now);
       if (days !== 1 && days !== 3) continue;
       await this.enqueue({
         eventKey:
@@ -439,8 +431,15 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
             status: { in: ['PUBLISHED', 'COMPLETED'] },
           },
         });
+        const reminderDays = stage ? calendarDaysUntil(stage.date, now) : null;
+        const currentReminder =
+          stage?.status === 'PUBLISHED' &&
+          (reminderDays === 1 || reminderDays === 3) &&
+          row.message.eventKey ===
+            `reminder:${stage.id}:${stage.date.toISOString().slice(0, 10)}:${reminderDays}`;
         if (
           !stage ||
+          (category === 'reminders' && !currentReminder) ||
           (category === 'registrationOpen' &&
             (stage.status !== 'PUBLISHED' ||
               !stage.registrationOpen ||
