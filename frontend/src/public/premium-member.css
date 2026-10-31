@@ -208,15 +208,8 @@ body .usd-member .config-editor-actions button{min-height:48px}
 body .usd-member .config-empty{background:#0c1921!important}
 body .usd-member .config-create-button{border:1px dashed #7d5663!important;background:#21131c!important;border-radius:7px!important}
 body .usd-member .config-create-button:hover{border-color:#e45b76!important;background:#2e1521!important}
-body .usd-member.profile-match-page{padding:0 clamp(16px,4vw,38px) 60px!important}
-body .usd-member .profile-match-shell{max-width:960px}
-body .usd-member .profile-match-brand{border-color:#344751!important;color:#a7b8c1!important}
-body .usd-member .profile-match-brand .brand-mark{background:#201119!important;border:1px solid #ac3348;color:#fff!important}
-body .usd-member .profile-match-hero,body .usd-member .profile-match-results{
- background:linear-gradient(140deg,#14212a,#0b151c)!important;border:1px solid #374b56!important;
- border-radius:8px!important;color:#f4f7f9!important}
-body .usd-member .historical-match-card{border:1px solid #3b4d58!important;background:#0f1d25!important;border-radius:6px!important}
-body .usd-member .profile-match-hero p,body .usd-member .profile-match-results p{color:#b8c7d0!important}
+/* Premium first-login pages are styled exclusively in
+ * participant/first-login-onboarding.css; no legacy !important geometry. */
 body .usd-auth{width:100%;min-height:100svh!important;overflow-x:clip!important;
  display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(370px,500px)!important;
  align-content:center;justify-content:center;place-items:stretch!important;
