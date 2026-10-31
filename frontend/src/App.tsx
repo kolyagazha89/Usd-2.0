@@ -318,7 +318,7 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
   hasSearchedProfiles={hasSearchedProfiles} confirmNewProfile={confirmNewProfile}
   newLastName={newLastName} newFirstName={newFirstName} newMiddleName={newMiddleName} error={error}
   onGoSite={()=>go('/')} onGoAdmin={()=>go('/admin')} onLogout={onLogout}
-  onSearchNameChange={value=>{profileSearchRequest.current++;setLoading(false);setName(value);setHasSearchedProfiles(false);setConfirmNewProfile(false);setCandidates([]);if(error)setError('')}}
+  onSearchNameChange={value=>{profileSearchRequest.current++;setLoading(false);setName(value);setHasSearchedProfiles(false);setConfirmNewProfile(false);setNewLastName('');setNewFirstName('');setNewMiddleName('');setCandidates([]);if(error)setError('')}}
   onSearch={()=>void search()} onLink={id=>void link(id)}
   onCreate={()=>void create()} onCancelCreate={()=>setConfirmNewProfile(false)}
   onNewLastNameChange={setNewLastName} onNewFirstNameChange={setNewFirstName}
