@@ -73,10 +73,4 @@ jobs:
           USD_DIGEST: ${{ steps.build.outputs.digest }}
           USD_SOURCE_SHA: ${{ github.sha }}
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          [[ "$USD_DIGEST" =~ ^sha256:[a-f0-9]{64}$ && "$USD_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
-          cosign sign --yes -a "git_sha=$USD_SOURCE_SHA" "$USD_IMAGE@$USD_DIGEST"
-          cosign verify --certificate-identity 'https://github.com/kolyagazha89/Usd-2.0/.github/workflows/publish-home-pc-images.yml@refs/heads/main' \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            -a "git_sha=$USD_SOURCE_SHA" "$USD_IMAGE@$USD_DIGEST" >/dev/null
+        run: bash deploy/home-pc/sign-published-image.sh
