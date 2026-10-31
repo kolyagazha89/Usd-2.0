@@ -93,7 +93,7 @@ const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:['/admin','/admin/registrations','/admin/inspections','/admin/data-quality','/admin/site-settings']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -313,6 +313,28 @@ try{
        row.mobileAdminNavigation='passed';
        await page.goto(base+route,{waitUntil:'networkidle'});
       }
+     }
+     if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
+      const root=page.locator('.event-ops-page');
+      await root.waitFor();
+      const geometry=await root.evaluate(el=>({right:el.getBoundingClientRect().right,viewport:innerWidth,scroll:document.documentElement.scrollWidth}));
+      assert.ok(geometry.right<=geometry.viewport+1,'event operations must not leave a viewport-overhanging right strip '+JSON.stringify(geometry));
+      assert.ok(geometry.scroll<=geometry.viewport+1,'event operations cannot horizontally scroll the page '+JSON.stringify(geometry));
+      await page.locator('.event-ops-results .data-table tbody tr').first().waitFor();
+      if(width<=760){
+       const display=await page.locator('.event-ops-results .data-table tbody tr').first().evaluate(el=>getComputedStyle(el).display);
+       assert.equal(display,'block','event registrations/inspections must render mobile cards, not wide desktop tables');
+      }
+      if(route==='/admin/registrations'){
+       assert.match(await page.locator('.event-ops-metrics').innerText(),/всего записей/);
+       assert.equal(await page.locator('.event-ops-search [role="status"]').innerText(),'1 из 1');
+      }else{
+       assert.equal(await page.locator('.event-ops-inspection-metrics button[aria-pressed="true"]').count(),1);
+       assert.equal(await page.getByRole('button',{name:/Сформировать итоговый список/}).isDisabled(),true,'cannot export roster with pending entrants');
+       await page.getByRole('button',{name:/ожидают/i}).click();
+       assert.equal(await page.locator('.event-ops-results .data-table tbody tr').count(),1,'pending queue includes unchecked registrations');
+      }
+      row.adminEventOperations='full-width responsive roster and status controls';
      }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
