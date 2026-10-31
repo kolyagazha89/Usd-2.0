@@ -97,6 +97,7 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
   readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
  ]);
  assert.match(css,/\.content:has\(> \.page\.event-ops-page\)/,'no static page width cap or blank right rail on event workspaces');
+ assert.match(css,/padding: 0 !important;/,'event pages must not double-inset at mobile/tablet breakpoints');
  assert.match(css,/scrollbar-gutter: auto/,'navigation must not reserve a side stripe');
  assert.match(css,/scrollbar-color: #4c4c52 #0b0b0d/,'dark neutral scrollbar replaces blue-gray');
  assert.match(css,/\.sidebar \.nav-item\[aria-current="page"\]/,'active navigation has a distinct dark red state');
