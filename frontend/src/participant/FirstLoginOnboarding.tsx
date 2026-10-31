@@ -53,7 +53,7 @@ export default function FirstLoginOnboarding({
   <div className="profile-match-shell">
    <header className="profile-match-brand">
     <button type="button" className="profile-match-logo" onClick={onGoSite} aria-label="Перейти на официальный сайт USD">
-     <img src={portalLogo||'/usd/usd-original.png'} alt="USD"/>
+     <img src={portalLogo||'/usd/usd-original.png'} alt="USD" onError={e=>{if(!e.currentTarget.src.endsWith('/usd/usd-original.png'))e.currentTarget.src='/usd/usd-original.png'}}/>
      <span><strong>USD</strong><small>ЛИЧНЫЙ КАБИНЕТ</small></span>
     </button>
     <div className="profile-match-header-actions">
@@ -76,10 +76,10 @@ export default function FirstLoginOnboarding({
       </div>
      </div>
      <aside className="profile-match-hero-journey" aria-label="Как начать пользоваться USD">
-      <div className="profile-match-journey-head"><span>ПЕРВЫЙ ВХОД</span><strong>01 <i>/ 02</i></strong></div>
+      <div className="profile-match-journey-head"><span>ПЕРВЫЙ ВХОД</span><strong>{searched?'02':'01'} <i>/ 02</i></strong></div>
       <ol className="profile-match-onboarding-steps">
-       <li className="is-current"><span className="profile-match-step-number">01</span><div><strong>Найти свой профиль</strong><small>По имени или фамилии</small></div><CheckCircle2 size={19} aria-hidden="true"/></li>
-       <li><span className="profile-match-step-number">02</span><div><strong>Подтвердить или создать</strong><small>Чтобы сохранить вашу историю</small></div><ArrowRight size={18} aria-hidden="true"/></li>
+       <li className={searched?'is-complete':'is-current'} aria-current={!searched?'step':undefined}><span className="profile-match-step-number">01</span><div><strong>Найти свой профиль</strong><small>По имени или фамилии</small></div><CheckCircle2 size={19} aria-hidden="true"/></li>
+       <li className={searched?'is-current':undefined} aria-current={searched?'step':undefined}><span className="profile-match-step-number">02</span><div><strong>Подтвердить или создать</strong><small>Чтобы сохранить вашу историю</small></div><ArrowRight size={18} aria-hidden="true"/></li>
       </ol>
       <div className="profile-match-journey-note"><ShieldCheck size={17} aria-hidden="true"/><span>История выступлений привязывается только к владельцу профиля.</span></div>
      </aside>
