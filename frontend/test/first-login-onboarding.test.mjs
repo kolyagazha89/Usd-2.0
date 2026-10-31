@@ -51,10 +51,12 @@ test('protected historical identities remain unselectable without admin review',
 });
 
 test('onboarding is a premium DARK page with responsive controls and no legacy white form',async()=>{
- const [css,base,main]=await Promise.all([
+ const [css,base,main,memberTheme,sharedUi]=await Promise.all([
   read('../src/participant/first-login-onboarding.css'),
   read('../src/styles.css'),
   read('../src/main.tsx'),
+  read('../src/public/premium-member.css'),
+  read('../src/premium-ui.css'),
  ]);
  assert.match(css,/body \.profile-match-page\.usd-member/);
  assert.match(css,/background:\s*#080b10/);
@@ -66,5 +68,7 @@ test('onboarding is a premium DARK page with responsive controls and no legacy w
  assert.match(css,/prefers-reduced-motion/);
  assert.doesNotMatch(base,/\/\* Historical profile matching \*\//,'legacy white onboarding CSS must be deleted');
  assert.doesNotMatch(base,/\.profile-match-page\{min-height:100vh;background:/,'do not restore the old white canvas');
+ assert.doesNotMatch(memberTheme,/profile-match/,'old scoped member overrides must not win with !important');
+ assert.doesNotMatch(sharedUi,/profile-match-empty/,'new empty state must own its geometry');
  assert.match(main,/import '\.\/participant-ui-polish\.css'/);
 });
