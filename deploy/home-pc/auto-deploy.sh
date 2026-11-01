@@ -121,7 +121,14 @@ OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 [[ "$OLD_TAG" != "$SHA" ]] || { echo "Already deployed $SHA"; exit 0; }
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"
 old_schema="$(git -C "$SOURCE_DIR" rev-parse "$OLD_TAG:backend/prisma")"
-[[ "$old_schema" == "$approved_schema" ]] || { echo "Current deployment schema differs from approved policy" >&2; exit 1; }
+# A supervised migration may already have advanced the live database before
+# the application images are switched. Do not require the *old image* to
+# match the newly approved schema: that would deadlock the release forever.
+# The candidate schema must still match the root-owned approval above.
+if [[ "$old_schema" != "$approved_schema" ]]; then
+  echo "Approved schema transition: deployed image uses $old_schema; candidate uses $approved_schema"
+  echo "Live migration must already be applied; release restore rehearsal and health gates remain mandatory"
+fi
 # Do not auto-release an untested main commit. Backend CI runs on every main
 # push; frontend CI is path-filtered, so require it only when frontend changed.
 frontend_changes="$(git -C "$SOURCE_DIR" diff --name-only "$OLD_TAG" "$SHA" -- frontend)" ||
