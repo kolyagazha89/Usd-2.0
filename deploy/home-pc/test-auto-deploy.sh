@@ -107,6 +107,7 @@ if [[ "${2:-}" == "--preflight-only" ]]; then
 fi
 echo "$1" >> "$USD_TEST_WORK/releases.log"
 [[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
+[[ "${USD_TEST_FAIL_PRE_SWITCH:-0}" != 1 ]] || exit 76
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
 SH
 cat > "$WORK/safe-schema-migration" <<'SH'
@@ -264,7 +265,17 @@ grep -q "retrying on next poll" "$WORK/lock-contention.log"
 [[ ! -f "$WORK/state/failed-release-sha" ]]
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
 unset USD_TEST_BUSY_RELEASE
-# Failed releases are quarantined instead of retrying the same broken SHA forever.
+# The release helper returns 76 when no image/config switch occurred. A
+# failed backup or isolated restore must remain retryable (with the gates
+# checked again), rather than poisoning the current SHA forever.
+export USD_TEST_FAIL_PRE_SWITCH=1
+lines="$(wc -l < "$WORK/releases.log")"
+bash "$WORK/builder" > "$WORK/preswitch-retry.log"
+grep -q 'USD_DEPLOY_RETRYABLE' "$WORK/preswitch-retry.log"
+[[ ! -f "$WORK/state/failed-release-sha" ]]
+[[ "$(wc -l < "$WORK/releases.log")" -eq "$((lines+1))" ]]
+unset USD_TEST_FAIL_PRE_SWITCH
+# Failed releases AFTER a switch remain quarantined to prevent oscillation.
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
 export USD_TEST_FAIL_RELEASE=1
 if bash "$WORK/builder" > "$WORK/failed.log" 2>&1; then exit 1; fi
