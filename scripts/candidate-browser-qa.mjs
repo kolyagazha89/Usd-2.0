@@ -84,17 +84,18 @@ function dataFor(url,role){
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
+ if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
  return [];
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/assistant'];
+const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/data-quality','/admin/site-settings']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -142,6 +143,53 @@ try{
       const heading=document.querySelector('main h1,.content h1,h1');
       return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&!e.closest('.sidebar')&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
      }));
+     if(role==='ADMIN'){
+      const shell=await page.evaluate(()=>{
+       const bounds=selector=>{const rect=document.querySelector(selector)?.getBoundingClientRect();return rect?{x:rect.x,width:rect.width,right:rect.right}:null};
+       const sidebar=document.querySelector('.app-shell > .sidebar');
+       const content=document.querySelector('.app-shell .main > .content');
+       const style=content?getComputedStyle(content):null;
+       const available=content?content.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight):null;
+       return {viewportClient:document.documentElement.clientWidth,
+        root:bounds('.app-shell'),main:bounds('.app-shell > .main'),
+        content:bounds('.app-shell .main > .content'),topbar:bounds('.app-shell .main > .topbar'),
+        page:bounds('.app-shell .main .content > .page, .app-shell .main .content > .admin-configurations-shell'),
+        availableWidth:available,
+        sidebarBorder:sidebar?getComputedStyle(sidebar).borderRightColor:null,
+        sidebarBackground:sidebar?getComputedStyle(sidebar).backgroundImage:null};
+      });
+      row.adminShell=shell;
+      const expected=width<=800?shell.viewportClient:shell.viewportClient-268;
+      assert.ok(Math.abs(shell.root.width-shell.viewportClient)<=1,'admin root fills viewport '+JSON.stringify(shell));
+      for(const key of ['main','content','topbar']){
+       assert.ok(shell[key]&&Math.abs(shell[key].width-expected)<=1,
+        'admin '+key+' fills work area '+JSON.stringify({route,width,expected,shell}));
+      }
+      if(shell.page)assert.ok(Math.abs(shell.page.width-shell.availableWidth)<=1,
+       'admin page fills work area '+JSON.stringify({route,width,expected,shell}));
+      if(route.startsWith('/admin/cars/configurations'))assert.ok(shell.page,
+       'standalone configuration editor must fill admin workspace');
+      assert.equal(shell.sidebarBorder,'rgb(44, 44, 49)','sidebar must be graphite, not navy');
+      if(width<=800&&['/admin/notifications','/admin/registrations','/admin/inspections'].includes(route)){
+       await page.getByRole('button',{name:'Меню',exact:true}).click();
+       await page.locator('.sidebar.open').waitFor();
+       const drawer=await page.locator('.sidebar.open').evaluate(element=>{
+        const rect=element.getBoundingClientRect();
+        const active=element.querySelector('.nav-item[aria-current="page"]');
+        return {x:rect.x,right:rect.right,width:rect.width,
+         activeBackground:active?getComputedStyle(active).backgroundColor:null};
+       });
+       assert.ok(Math.abs(drawer.x)<=1&&drawer.width<=Math.min(320,width-48)+1,
+        'drawer stays on left without resizing page '+JSON.stringify(drawer));
+       assert.equal(drawer.activeBackground,'rgb(50, 24, 30)','active menu stays dark red');
+       const stillFull=await page.locator('.app-shell > .main').evaluate(element=>element.getBoundingClientRect().width);
+       assert.ok(Math.abs(stillFull-shell.viewportClient)<=1,'opening drawer never narrows main');
+       await page.screenshot({path:path.join(output,'ADMIN-'+width+'-'+route.replaceAll('/','_')+'-drawer.png')});
+       await page.locator('.sidebar.open .mobile-close').click();
+       await page.locator('.sidebar.open').waitFor({state:'detached'});
+       row.adminDrawer='open/close, graphite, no shell shrink';
+      }
+     }
      assert.ok(row.documentWidth<=width+1,'document overflow '+JSON.stringify(row.overflowing));
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
@@ -311,9 +359,9 @@ try{
        const button=active&&getComputedStyle(active);
        return {scrollbarColor:css.scrollbarColor,scrollbarGutter:css.scrollbarGutter,activeBackground:button?.backgroundColor,activeImage:button?.backgroundImage};
       });
-      assert.ok(menuTheme.scrollbarColor.includes('rgb(76, 76, 82)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
+      assert.ok(menuTheme.scrollbarColor.includes('rgb(86, 86, 94)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
       assert.equal(menuTheme.scrollbarGutter,'auto','sidebar does not reserve a permanent right-hand scrollbar stripe');
-      assert.equal(menuTheme.activeBackground,'rgb(49, 23, 28)','active menu link is dark graphite/red, not bright blue/white');
+      assert.equal(menuTheme.activeBackground,'rgb(50, 24, 30)','active menu link is dark graphite/red, not bright blue/white');
       assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
