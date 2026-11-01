@@ -17,6 +17,7 @@ test('one last-loaded admin layout contract owns all admin routes', async () => 
   assert.match(shell,/className="content"/);
   assert.match(layout,/body \.app-shell > \.main\s*\{/);
   assert.match(layout,/body \.app-shell \.main \.content > \.page\s*\{/);
+  assert.match(layout,/\.admin-configurations-shell > \.participant-portal-main/);
   assert.match(layout,/max-inline-size: none !important;/,
     'all admin PageFrame routes must use the complete work area');
 });
