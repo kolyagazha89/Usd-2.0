@@ -270,7 +270,7 @@ unset USD_TEST_BUSY_RELEASE
 # checked again), rather than poisoning the current SHA forever.
 export USD_TEST_FAIL_PRE_SWITCH=1
 lines="$(wc -l < "$WORK/releases.log")"
-bash "$WORK/builder" > "$WORK/preswitch-retry.log"
+bash "$WORK/builder" > "$WORK/preswitch-retry.log" 2>&1
 grep -q 'USD_DEPLOY_RETRYABLE' "$WORK/preswitch-retry.log"
 [[ ! -f "$WORK/state/failed-release-sha" ]]
 [[ "$(wc -l < "$WORK/releases.log")" -eq "$((lines+1))" ]]
