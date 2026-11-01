@@ -38,7 +38,7 @@ const label=(value:unknown):string=>{
 const normalize=(value:string)=>value.toLocaleLowerCase('ru').replace(/ё/g,'е').trim();
 const compactPlate=(value:string)=>normalize(value).replace(/[\s\-–—]/g,'');
 const inspectionStatus=(row:OperationsRow)=>row.inspection?.status??row.stageInspection?.status??'';
-export const isPendingInspection=(row:OperationsRow):boolean=>!['PASSED','FAILED'].includes(inspectionStatus(row));
+export const isPendingInspection=(row:OperationsRow):boolean=>row.status==='ACTIVE'&&!['PASSED','FAILED'].includes(inspectionStatus(row));
 
 export function operationsSearchText(row:OperationsRow):string {
   const person=row.participant,car=row.car;
@@ -76,7 +76,7 @@ export function summarizeInspections(rows:readonly OperationsRow[]){
   return {
     total:rows.length,
     passed:rows.filter(r=>r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED').length,
-    failed:rows.filter(r=>inspectionStatus(r)==='FAILED').length,
+    failed:rows.filter(r=>r.status==='ACTIVE'&&inspectionStatus(r)==='FAILED').length,
     pending:rows.filter(isPendingInspection).length,
   };
 }
@@ -86,7 +86,7 @@ export function filterInspections<T extends OperationsRow>(
 ):T[]{
   return rows.filter(r=>(status==='ALL'
     ||(status==='PASSED'&&r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED')
-    ||(status==='FAILED'&&inspectionStatus(r)==='FAILED')
+    ||(status==='FAILED'&&r.status==='ACTIVE'&&inspectionStatus(r)==='FAILED')
     ||(status==='PENDING'&&isPendingInspection(r)))
     &&matchesOperationsSearch(r,query));
 }
