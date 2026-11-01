@@ -255,7 +255,7 @@ A successful rehearsal **does not** prove that a live migration is safe:
 compare data counts and application invariants, review migration SQL for
 destructive operations, take a second off-host DB backup, and verify that
 all media/S3 objects can be restored independently. Do not enable automatic
-schema changes: `auto-deploy.sh` deliberately refuses Prisma tree changes.
+schema changes: `auto-deploy.sh` refuses unsafe tree changes and delegates narrowly additive migrations to the receipt-gated root helper.
 The real migration remains a separately approved, supervised operation with
 a recovery window. GitHub Actions tests this helper with a disposable
 PostgreSQL 18 fixture, **not** with the actual home-server database.
@@ -384,7 +384,7 @@ The installer takes the same exclusive deployment lock as the builder and releas
 3. Run both rehearsal scripts **only on a disposable runner**: they contain isolated Docker mocks and test-only host fixtures. Then rehearse real Docker update and rollback on a disposable stack, never the live DB.
 4. Install the helpers from the reviewed commit using `sudo bash deploy/home-pc/install-local-deployer.sh`. It does not start any service.
 5. Verify the actual deployed commit exists in the trusted source checkout, compare its Prisma schema/migration state to the live DB, then obtain its schema tree with `git -C /opt/usd-release-source rev-parse '<verified-deployed-sha>:backend/prisma'`. Store exactly that output in `/etc/usd-auto-release-schema` as root, mode 0600. Do not approve a tree from an unverified candidate.
-6. After a supervised build, backup, release and rollback rehearsal, create the root-owned build switch and enable the timer. Future reviewed main changes with the same approved Prisma tree can then release automatically. Changed schema requires a separately reviewed migration, successful backup/restore checks and renewed policy.
+6. After a supervised build, backup, release and rollback rehearsal, create the root-owned build switch and enable the timer. Future reviewed main changes with the same approved Prisma tree release automatically; additive-only migrations meeting the strict SQL/history policy also release automatically after a fresh restored-backup rehearsal. Unsafe schema modifications still require separate supervised review.
 7. Verify externally at `app.usd-russia.ru` and `api.usd-russia.ru`; inspect `journalctl -u usd-auto-deploy.service`. Leave `usd-russia.ru` unchanged.
 
 **Current evidence:** shell tests cover build-only default, cached-image release, schema refusal, untrusted policy rejection, failed-SHA quarantine, failed/invalid backup refusal, running-image mismatch refusal, successful release, interrupted release, healthy rollback and unhealthy rollback. The mocks additionally cover a failed baseline readiness check and a database that becomes unhealthy during the backup; both must refuse a release before replacing containers. They also assert that the builder retains its exclusive lock through the release call and that a forged inherited-lock flag is rejected. The CI gate tests verify that a newer failed/pending workflow run cannot be masked by an older successful rerun. These mocks do not prove the real Ubuntu host, Docker images, public ingress, database restore or live deployment. Do not enable production automation until those host gates pass.
