@@ -55,11 +55,11 @@ jobs:
               fi
             fi
             if command -v df >/dev/null; then
-              available_kb="$(df -Pk /var/lib/docker 2>/dev/null | awk 'NR==2 {print $4}' || true)"
+              available_kb="$(df -Pk /var/lib 2>/dev/null | awk 'NR==2 {print $4}' || true)"
               if [[ "$available_kb" =~ ^[0-9]+$ ]]; then
-                echo "Docker free space (KiB): $available_kb"
+                echo "Host /var/lib free space (KiB): $available_kb"
               else
-                echo 'Docker storage capacity: unavailable'
+                echo 'Host /var/lib free space: unavailable'
               fi
             fi
             if command -v journalctl >/dev/null; then
