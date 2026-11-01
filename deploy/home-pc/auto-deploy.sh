@@ -98,8 +98,9 @@ done
 # BOTH downloads and their source labels have been verified.
 printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"
 
-# Existing installations stay build-only until the operator pins the schema
-# they have actually verified on the host. Schema changes always stop here.
+# Existing installations remain build-only until the operator pins the live
+# schema. Future strictly additive SQL migrations may advance this pin ONLY
+# after main CI, fresh second-disk backup and disposable restore rehearsal.
 POLICY=/etc/usd-auto-release-schema
 if [[ ! -f "$POLICY" ]]; then
   echo "Images built for $SHA; automatic release policy is not enabled"
@@ -112,7 +113,8 @@ fi
 approved_schema="$(cat "$POLICY")"
 [[ "$approved_schema" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid approved Prisma tree SHA" >&2; exit 1; }
 schema="$(git -C "$SOURCE_DIR" rev-parse "$SHA:backend/prisma")"
-[[ "$schema" == "$approved_schema" ]] || { echo "Schema changed; supervised migration and new schema approval required" >&2; exit 1; }
+schema_change=0
+[[ "$schema" == "$approved_schema" ]] || schema_change=1
 DEPLOY_ENV=/home/usd/usd-deploy/deploy/home-pc/.env
 [[ -f "$DEPLOY_ENV" && ! -L "$DEPLOY_ENV" ]] || { echo "Missing deployment environment" >&2; exit 1; }
 (( (8#$(stat -c %a "$DEPLOY_ENV") & 077) == 0 )) || { echo "Deployment environment must not be readable by group or other users" >&2; exit 1; }
@@ -121,13 +123,16 @@ OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 [[ "$OLD_TAG" != "$SHA" ]] || { echo "Already deployed $SHA"; exit 0; }
 git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"
 old_schema="$(git -C "$SOURCE_DIR" rev-parse "$OLD_TAG:backend/prisma")"
-# A supervised migration may already have advanced the live database before
-# the application images are switched. Do not require the *old image* to
-# match the newly approved schema: that would deadlock the release forever.
-# The candidate schema must still match the root-owned approval above.
-if [[ "$old_schema" != "$approved_schema" ]]; then
-  echo "Approved schema transition: deployed image uses $old_schema; candidate uses $approved_schema"
-  echo "Live migration must already be applied; release restore rehearsal and health gates remain mandatory"
+# When the candidate schema changed, the old tree MUST be the approved
+# live baseline. Arbitrary drift is not an automatic migration authorisation.
+# A prior supervised migration can legitimately have advanced the pin, so
+# the old image mismatch alone does not block an unchanged candidate tree.
+if [[ "$schema_change" == 1 && "$old_schema" != "$approved_schema" ]]; then
+  echo "Schema transition not based on approved live source; supervised review required" >&2
+  exit 1
+fi
+if [[ "$schema_change" == 0 && "$old_schema" != "$approved_schema" ]]; then
+  echo "Approved schema transition from older running image"
 fi
 # Do not auto-release an untested main commit. Backend CI runs on every main
 # push; frontend CI is path-filtered, so require it only when frontend changed.
@@ -197,8 +202,31 @@ if [[ ! "$latest_main" =~ ^[0-9a-f]{40}$ || "$latest_main" != "$SHA" ]]; then
   echo "Main moved or became unverifiable during media backup; deferring stale release" >&2
   exit 0
 fi
+# Before approving changed schemas, require strict additive SQL, unchanged
+# historical migrations and correct live Prisma checksums. The helper never
+# edits the policy during --check.
+SAFE_MIGRATOR=/usr/local/libexec/usd-safe-schema-migration
+if [[ "$schema_change" == 1 ]]; then
+  [[ -f "$SAFE_MIGRATOR" && -x "$SAFE_MIGRATOR" && ! -L "$SAFE_MIGRATOR" &&
+     "$(stat -c %u "$SAFE_MIGRATOR")" == 0 ]] &&
+    (( (8#$(stat -c %a "$SAFE_MIGRATOR") & 022) == 0 )) ||
+    { echo "Trusted additive-only migration helper not installed; supervised review required" >&2; exit 1; }
+  USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --check "$SHA" "$OLD_TAG" "$approved_schema" ||
+    { echo "Migration is not automatically safe; supervised review required" >&2; exit 1; }
+fi
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
+if [[ "$schema_change" == 1 ]]; then
+  # The SAME release helper performs an independent, full PG18 restore of a
+  # FRESH production dump copied to /dev/sdb1. Its receipt binds candidate,
+  # deployed source and DB container ID. No live schema is changed until PASS.
+  USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only ||
+    { echo "Automatic schema backup/restore preflight failed" >&2; exit 1; }
+  # A migration failure is quarantined by the builder's existing policy.
+  # Do NOT reset/restore live DB; migrations are forward-only and additive.
+  USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --apply "$SHA" "$OLD_TAG" "$approved_schema" ||
+    { echo "Automatic additive migration failed; release halted without database rollback" >&2; exit 1; }
+fi
 # Keep the SAME lock continuously across build, CI approval and release.
 # Unlocking here allowed a second builder to replace built-sha between
 # approval and release, spuriously quarantining an otherwise healthy commit.
