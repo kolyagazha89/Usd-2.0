@@ -1,0 +1,198 @@
+/* USD admin layout contract.
+ * This is deliberately imported after legacy and Dark Velocity styles.
+ * AdminShell owns the sidebar + main geometry; page modules own only their content.
+ * Avoid new layout overrides in styles.css, ui-consistency.css or premium-ui.css.
+ */
+
+/* The viewport is not 86vw just because the mobile drawer is 86vw. */
+body:has(.app-shell) { overflow-x: clip; }
+body .app-shell {
+  display: block !important;
+  inline-size: 100% !important;
+  max-inline-size: 100% !important;
+  min-inline-size: 0 !important;
+  min-height: 100svh;
+  overflow-x: clip;
+  background: #f3f5f8;
+}
+body .app-shell > .main {
+  display: block;
+  position: relative;
+  margin-inline-start: 268px !important;
+  inline-size: calc(100% - 268px) !important;
+  max-inline-size: calc(100% - 268px) !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box;
+  overflow-x: clip;
+  background: #f3f5f8 !important;
+}
+body .app-shell .main > .topbar,
+body .app-shell .main > .content {
+  inline-size: 100% !important;
+  max-inline-size: 100% !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box !important;
+}
+body .app-shell .main > .content {
+  min-height: calc(100svh - 74px);
+  padding: 26px clamp(16px, 2.2vw, 32px) 44px !important;
+}
+body .app-shell .main .content > .page {
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .app-shell .main .content > .page > * {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+body .app-shell .main .content :is(
+  .panel,.admin-card,.stat-card,.metric-card,.notification-overview,
+  .notification-composer,.notification-history,.resource-editor-page,
+  .entity-detail-workspace,.detail-grid,.toolbar,.resource-toolbar,
+  .inspection-toolbar,.page-heading,.page-heading-actions,
+  .event-ops-overview,.event-ops-results,.event-ops-toolbar
+) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+body .app-shell .main .content :is(.table-wrap,.data-table-wrap,.smart-table-wrap) {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+body .app-shell .main .content :is(.page-heading,.page-heading-actions,.toolbar,.resource-toolbar) {
+  flex-wrap: wrap;
+}
+body .app-shell .main .content :is(input,select,textarea) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/* One neutral graphite menu instead of the older navy/blue variants.
+   Red is kept for active routes and visible keyboard focus. */
+body .app-shell > .sidebar {
+  box-sizing: border-box !important;
+  inline-size: 268px !important;
+  max-inline-size: 268px !important;
+  background: linear-gradient(180deg,#111114,#080809) !important;
+  color: #f5f5f6 !important;
+  border-right: 1px solid #2c2c31 !important;
+  box-shadow: 12px 0 30px rgba(0,0,0,.22) !important;
+  overflow: hidden;
+}
+body .app-shell > .sidebar > nav {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #56565e transparent;
+}
+body .app-shell > .sidebar > nav::-webkit-scrollbar-track { background: transparent !important; }
+body .app-shell > .sidebar > nav::-webkit-scrollbar-thumb { background: #56565e !important; }
+body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle) {
+  box-shadow: none !important;
+  border: 1px solid transparent !important;
+  color: #c6c6cd !important;
+}
+body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover {
+  background: #202024 !important;
+  color: #fff !important;
+  border-color: #34343b !important;
+}
+body .app-shell > .sidebar .nav-item[aria-current="page"],
+body .app-shell > .sidebar .nav-item.active {
+  background: #32181e !important;
+  background-image: none !important;
+  border: 1px solid #70323f !important;
+  border-left: 3px solid #e72642 !important;
+  color: #fff0f2 !important;
+  box-shadow: none !important;
+  padding-left: 9px !important;
+}
+body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle,.brand-button,.logout-button,.mobile-close):focus-visible {
+  outline: 2px solid #ef2744 !important;
+  outline-offset: -2px !important;
+}
+body .app-shell > .sidebar .sidebar-section-toggle[aria-expanded="true"] {
+  color: #f5e7ea !important;
+}
+body .app-shell > .sidebar .mobile-close {
+  background: #202024 !important;
+  border-color: #3c3c43 !important;
+  color: #fff !important;
+}
+body .app-shell .main .topbar :is(.icon-button,.admin-site-switch,.admin-member-switch) {
+  border-color: #d5d5da !important;
+}
+body .app-shell .main .topbar :is(button,a):focus-visible {
+  outline: 2px solid #d71f39 !important;
+  outline-offset: 2px !important;
+}
+body .app-shell .main .topbar-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* AdminShell opens the drawer at <=800px; CSS uses exactly the same breakpoint.
+   The scrim may dim the page but must never determine its layout width. */
+@media (max-width: 800px) {
+  body .app-shell > .main {
+    margin-inline-start: 0 !important;
+    inline-size: 100% !important;
+    max-inline-size: 100% !important;
+    min-inline-size: 0 !important;
+  }
+  body .app-shell .main > .content {
+    inline-size: 100% !important;
+    padding: 18px clamp(10px, 3.2vw, 18px) 34px !important;
+  }
+  body .app-shell .main > .topbar {
+    inline-size: 100% !important;
+    padding: 12px clamp(10px, 3.2vw, 18px) !important;
+    gap: 8px;
+  }
+  body .app-shell > .sidebar {
+    inline-size: min(320px, calc(100vw - 48px)) !important;
+    max-inline-size: calc(100vw - 48px) !important;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+    z-index: 30;
+  }
+  body .app-shell > .sidebar.open { transform: translateX(0) !important; }
+  body .app-shell > .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,.72) !important;
+    border: 0 !important;
+    z-index: 25;
+  }
+  body .app-shell .main .content .page-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  body .app-shell .main .content :is(.panel,.notification-overview,.notification-composer,.notification-history) {
+    padding: clamp(15px, 4vw, 20px) !important;
+  }
+}
+@media (max-width: 360px) {
+  body .app-shell .main > .content { padding-inline: 10px !important; }
+  body .app-shell .main .topbar-actions { gap: 4px !important; }
+  body .app-shell .main .topbar :is(.admin-site-switch,.admin-member-switch) {
+    min-width: 40px;
+    padding-inline: 9px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .app-shell > .sidebar { transition: none !important; }
+}
