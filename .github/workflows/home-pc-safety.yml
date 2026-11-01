@@ -213,6 +213,12 @@ jobs:
           installer = Path('deploy/home-pc/install-runner-trigger.sh').read_text()
           for expected in ('workflow_run:', 'Publish self-hosted USD images', "github.event.workflow_run.name == 'Publish self-hosted USD images'", "vars.USD_HOME_PC_HOST_APPROVED == 'true'", "github.event.workflow_run.event == 'push'", "github.event.workflow_run.conclusion == 'success'", 'runs-on: [self-hosted, linux, x64, usd-home-pc]', 'permissions: {}', 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'):
               assert expected in workflow, expected
+          # Do not regress to a one-shot trigger that exits before main CI finishes.
+          trigger = 'sudo -n /usr/bin/systemctl start usd-auto-deploy.service'
+          assert workflow.count(trigger) == 1
+          assert workflow.index('while (( SECONDS < usd_verify_deadline )); do') < workflow.index(trigger)
+          assert 'usd_verify_deadline=$((SECONDS+1200))' in workflow
+          assert 'sleep 60' in workflow
           assert 'pull_request:' not in workflow
           assert 'actions/checkout' not in workflow
           assert 'secrets.' not in workflow
