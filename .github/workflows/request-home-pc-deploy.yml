@@ -16,8 +16,8 @@ on:
 permissions: {}
 
 concurrency:
-  # Only the image publication workflow can request a host deployment.
-  # Keep a single active host operation; never cancel it halfway through.
+  # Image publication is the sole trigger, instead of every successful CI.
+  # Keep an active root-owned host release running to completion.
   group: usd-home-pc-deploy-trigger
   cancel-in-progress: false
 
