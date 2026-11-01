@@ -54,6 +54,9 @@ test('inspection counters and real queue filters never mistake failed for pendin
  assert.equal(isPendingInspection(rows[0]),false);
  assert.equal(isPendingInspection(rows[1]),false);
  assert.equal(isPendingInspection(rows[2]),true);
+ const cancelledPassed={status:'CANCELLED',inspection:{status:'PASSED'}};
+ assert.equal(summarizeInspections([...rows,cancelledPassed]).passed,1);
+ assert.equal(filterInspections([...rows,cancelledPassed],'PASSED','').length,1);
 });
 
 test('operations UI preserves stage deep links and real mobile width',async()=>{
@@ -95,4 +98,13 @@ test('admitted list is displayed in app without CSV export',async()=>{
  assert.match(inspection,/Итоговый список допущенных/);
  assert.match(inspection,/setSelectedFilter\("PASSED"\)/);
  assert.doesNotMatch(inspection,/exportAdmitted|text\/csv|\.csv|buildAdmittedRosterCsv/);
+});
+
+test('notification test is device-only and cannot enqueue messages for subscribers',async()=>{
+ const source=await readFile(new URL('../src/admin/NotificationsPage.tsx',import.meta.url),'utf8');
+ assert.match(source,/Тест уведомлений/);
+ assert.match(source,/Notification\.requestPermission\(\)/);
+ assert.match(source,/new Notification\("USD · Тест уведомления"/);
+ assert.match(source,/не доставки push через сервер/);
+ assert.match(source,/canCreate && \(/);
 });
