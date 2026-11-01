@@ -31,7 +31,9 @@ export default function NotificationsPage({
     [stages, setStages] = useState<Array<{ id: string; name: string }>>([]),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [testBusy, setTestBusy] = useState(false),
+    [testMessage, setTestMessage] = useState("");
   const [title, setTitle] = useState(""),
     [body, setBody] = useState(""),
     [path, setPath] = useState("/participant"),
@@ -51,6 +53,30 @@ export default function NotificationsPage({
       .then((value) => setStages(listData(value)))
       .catch(() => {});
   }, []);
+  const testOnThisDevice = async () => {
+    setTestBusy(true);
+    setTestMessage("");
+    try {
+      if (!("Notification" in window) || !window.isSecureContext) {
+        throw new Error("Этот браузер не поддерживает уведомления или страница открыта без HTTPS.");
+      }
+      const permission = Notification.permission === "default"
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      if (permission !== "granted") {
+        throw new Error("Разрешите уведомления для этого сайта в настройках браузера.");
+      }
+      new Notification("USD · Тест уведомления", {
+        body: "Проверка показа уведомлений на этом устройстве. Другим пользователям ничего не отправлено.",
+        tag: "usd-admin-local-test",
+      });
+      setTestMessage("Тестовое уведомление создано на этом устройстве. Это проверка разрешений и отображения, не доставки push через сервер.");
+    } catch (error) {
+      setTestMessage(error instanceof Error ? error.message : "Не удалось показать тестовое уведомление.");
+    } finally {
+      setTestBusy(false);
+    }
+  };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy || !confirmed || !canCreate) return;
@@ -128,6 +154,15 @@ export default function NotificationsPage({
               Обновить сводку
             </button>
           </div>
+        )}
+        {canCreate && (
+          <section className="panel notification-composer" aria-label="Тест уведомлений">
+            <h2>Тест уведомлений</h2>
+            <p>Проверьте разрешение браузера и показ уведомления только на текущем устройстве. Подписчикам USD ничего не отправляется.</p>
+            <button type="button" className="secondary-button compact" disabled={testBusy} onClick={() => void testOnThisDevice()}>{testBusy ? "Проверяем…" : "Показать тестовое уведомление"}</button>
+            {testMessage && <p role="status" className="notification-notice">{testMessage}</p>}
+            <small>На iPhone системные уведомления доступны для установленного на экран «Домой» веб-приложения. Для проверки реальной доставки push потребуется отдельный серверный тест.</small>
+          </section>
         )}
         {canCreate && (
           <form
