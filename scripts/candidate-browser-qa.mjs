@@ -150,7 +150,8 @@ try{
        const content=document.querySelector('.app-shell .main > .content');
        const style=content?getComputedStyle(content):null;
        const available=content?content.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight):null;
-       return {root:bounds('.app-shell'),main:bounds('.app-shell > .main'),
+       return {viewportClient:document.documentElement.clientWidth,
+        root:bounds('.app-shell'),main:bounds('.app-shell > .main'),
         content:bounds('.app-shell .main > .content'),topbar:bounds('.app-shell .main > .topbar'),
         page:bounds('.app-shell .main .content > .page, .app-shell .main .content > .admin-configurations-shell'),
         availableWidth:available,
@@ -158,8 +159,8 @@ try{
         sidebarBackground:sidebar?getComputedStyle(sidebar).backgroundImage:null};
       });
       row.adminShell=shell;
-      const expected=width<=800?width:width-268;
-      assert.ok(Math.abs(shell.root.width-width)<=1,'admin root fills viewport '+JSON.stringify(shell));
+      const expected=width<=800?shell.viewportClient:shell.viewportClient-268;
+      assert.ok(Math.abs(shell.root.width-shell.viewportClient)<=1,'admin root fills viewport '+JSON.stringify(shell));
       for(const key of ['main','content','topbar']){
        assert.ok(shell[key]&&Math.abs(shell[key].width-expected)<=1,
         'admin '+key+' fills work area '+JSON.stringify({route,width,expected,shell}));
@@ -182,7 +183,7 @@ try{
         'drawer stays on left without resizing page '+JSON.stringify(drawer));
        assert.equal(drawer.activeBackground,'rgb(50, 24, 30)','active menu stays dark red');
        const stillFull=await page.locator('.app-shell > .main').evaluate(element=>element.getBoundingClientRect().width);
-       assert.ok(Math.abs(stillFull-width)<=1,'opening drawer never narrows main');
+       assert.ok(Math.abs(stillFull-shell.viewportClient)<=1,'opening drawer never narrows main');
        await page.screenshot({path:path.join(output,'ADMIN-'+width+'-'+route.replaceAll('/','_')+'-drawer.png')});
        await page.getByRole('button',{name:'Закрыть меню',exact:true}).click();
        await page.locator('.sidebar.open').waitFor({state:'detached'});
