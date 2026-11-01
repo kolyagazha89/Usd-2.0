@@ -450,6 +450,16 @@ rollback() {
   [[ -z "$db_snapshot_tmp" ]] || rm -f -- "$db_snapshot_tmp"
   # A failed Compose validation must not leave a private .env copy behind.
   [[ -z "$tmp" ]] || rm -f -- "$tmp"
+  # Nothing was switched before 'changed=1': the running services and their
+  # image tags are still the reviewed baseline. A transient backup, DNS,
+  # storage or readiness failure must not permanently quarantine this SHA.
+  # Post-switch errors keep their original nonzero status and stay quarantined.
+  # Never convert an interrupted release's status until the original private
+  # environment snapshot has been cleaned up.
+  if [[ "$changed" == 0 && "$status" != 75 ]]; then
+    echo "USD_DEPLOY_PRE_SWITCH_FAILURE: no application image replaced; safe to recheck on the next timer" >&2
+    status=76
+  fi
   exit "$status"
 }
 trap rollback ERR

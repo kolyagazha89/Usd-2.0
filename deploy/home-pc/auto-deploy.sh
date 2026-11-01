@@ -247,7 +247,14 @@ else
   # The helper acquires its own lock after we release ours. A competing
   # builder/release can win that hand-off; do not quarantine a healthy SHA.
   if [[ "$status" == 75 ]]; then
-    echo "Another USD deployment acquired the lock; retrying on next poll" >&2
+    echo "Another USD deployment acquired the lock or main advanced; retrying on next poll" >&2
+    exit 0
+  fi
+  if [[ "$status" == 76 ]]; then
+    # The root-owned release helper confirmed that its production .env
+    # was NEVER switched. Re-evaluate signatures, CI and all backup gates
+    # next timer tick. Post-switch failure remains quarantined below.
+    echo "USD_DEPLOY_RETRYABLE: protected pre-switch failure; no quarantine, next timer will recheck" >&2
     exit 0
   fi
   printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"

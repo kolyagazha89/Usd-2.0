@@ -428,7 +428,10 @@ done
 # Do not update a broken baseline: an unhealthy old API/frontend cannot be
 # assumed to be a safe rollback target.
 export USD_TEST_FAIL_BASELINE_READINESS=1
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/baseline-unhealthy.log" 2>&1; then exit 1; fi
+baseline_exit=0
+bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/baseline-unhealthy.log" 2>&1 || baseline_exit=$?
+[[ "$baseline_exit" == 76 ]] || { echo "Healthy baseline preflight failure must return retryable 76, got $baseline_exit" >&2; exit 1; }
+grep -q 'USD_DEPLOY_PRE_SWITCH_FAILURE' "$WORK/baseline-unhealthy.log"
 grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-unhealthy.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
@@ -467,6 +470,7 @@ if USD_TEST_FAIL_RESTORE_REHEARSAL=1 bash deploy/home-pc/release-approved.sh "$N
   exit 1
 fi
 grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-rehearsal-failure.log"
+grep -q 'USD_DEPLOY_PRE_SWITCH_FAILURE' "$WORK/restore-rehearsal-failure.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
 # First-run schema setup may verify backup/restore without replacing apps.
@@ -543,6 +547,10 @@ if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 bash deploy/home-pc/release-approved.sh "$N
 fi
 grep -q 'Public prerelease acceptance failed' "$WORK/public-acceptance-failed.log"
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/public-acceptance-failed.log"
+if grep -q 'USD_DEPLOY_PRE_SWITCH_FAILURE' "$WORK/public-acceptance-failed.log"; then
+  echo 'A post-switch failure must never be misclassified as retryable preflight' >&2
+  exit 1
+fi
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -f "$STATE/deployed-sha" ]]
 # Do not execute a verifier writable by an unprivileged local account.
