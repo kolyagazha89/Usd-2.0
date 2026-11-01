@@ -225,7 +225,7 @@ if [[ "${1:-}" == inspect ]]; then
   elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 3 && "$*" == *mock-frontend* ]]; then
     echo "/etc/usd-deployer/compose/compose.yaml"
   elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 4 && "$*" == *mock-frontend* ]]; then
-    echo "/etc/usd-deployer/compose/compose.yaml,/tmp/unreviewed-compose.local.yaml"
+    echo "/etc/usd-deployer/compose/compose.yaml,/tmp/compose.local.yaml"
   elif [[ "${USD_TEST_LEGACY_SOURCE:-0}" == 1 ]]; then
     echo "/home/usd/usd-src/deploy/home-pc/compose.yaml,/home/usd/usd-src/deploy/home-pc/compose.local.yaml"
   else
