@@ -46,15 +46,18 @@ test('operations search supports name, class, team, car plate, stage number and 
 });
 
 test('inspection counters and real queue filters never mistake failed for pending',()=>{
- assert.deepEqual(summarizeInspections(rows),{total:4,passed:1,failed:1,pending:2});
+ assert.deepEqual(summarizeInspections(rows),{total:4,passed:1,failed:1,pending:1});
  assert.deepEqual(filterInspections(rows,'PASSED','').map(r=>r.id),['a']);
  assert.deepEqual(filterInspections(rows,'FAILED','').map(r=>r.id),['b']);
- assert.deepEqual(filterInspections(rows,'PENDING','').map(r=>r.id),['c','d']);
+ assert.deepEqual(filterInspections(rows,'PENDING','').map(r=>r.id),['d']);
  assert.deepEqual(filterInspections(rows,'PENDING','Семён').map(r=>r.id),['d']);
  assert.equal(isPendingInspection(rows[0]),false);
  assert.equal(isPendingInspection(rows[1]),false);
- assert.equal(isPendingInspection(rows[2]),true);
+ assert.equal(isPendingInspection(rows[2]),false);
  const cancelledPassed={status:'CANCELLED',inspection:{status:'PASSED'}};
+ const cancelledFailed={status:'CANCELLED',inspection:{status:'FAILED'}};
+ assert.equal(summarizeInspections([...rows,cancelledFailed]).failed,1);
+ assert.deepEqual(filterInspections([...rows,cancelledFailed],'FAILED','').map(r=>r.id),['b']);
  assert.equal(summarizeInspections([...rows,cancelledPassed]).passed,1);
  assert.equal(filterInspections([...rows,cancelledPassed],'PASSED','').length,1);
 });
