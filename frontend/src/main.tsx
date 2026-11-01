@@ -13,6 +13,7 @@ import './public/premium-member.css';
 import './public/premium-configurator.css';
 import './participant/member-experience.css';
 import './dark-velocity-sitewide.css';
+import './admin/admin-shell-layout.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
