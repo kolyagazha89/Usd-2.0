@@ -44,12 +44,29 @@ jobs:
             # No more privileges: only public systemd state and known benign
             # messages, not arbitrary journals or deployment credentials.
             echo '::error::USD root-owned deployment service failed. Current release was not accepted.' >&2
-            systemctl show usd-auto-deploy.service --property=Result --property=ExecMainStatus --no-pager 2>/dev/null || true
+            systemctl show usd-auto-deploy.service --property=Result --property=ExecMainStatus --property=ExecMainCode --property=ActiveState --no-pager 2>/dev/null || true
+            # Print only fixed, non-sensitive health signals. The runner may
+            # not inspect root's production .env, Docker socket or secrets.
+            if command -v findmnt >/dev/null; then
+              if [[ "$(findmnt -n -o SOURCE --mountpoint /srv/usd-s3 2>/dev/null || true)" == /dev/sdb1 ]]; then
+                echo 'Second-disk mount: expected /dev/sdb1'
+              else
+                echo 'Second-disk mount: missing or unexpected'
+              fi
+            fi
+            if command -v df >/dev/null; then
+              available_kb="$(df -Pk /var/lib/docker 2>/dev/null | awk 'NR==2 {print $4}' || true)"
+              if [[ "$available_kb" =~ ^[0-9]+$ ]]; then
+                echo "Docker free space (KiB): $available_kb"
+              else
+                echo 'Docker storage capacity: unavailable'
+              fi
+            fi
             if command -v journalctl >/dev/null; then
               journalctl --no-pager --quiet --output=cat -u usd-auto-deploy.service -n 100 2>/dev/null |
                 # Exact complete, operator-safe messages ONLY. Never send raw
                 # journal entries or environment/path fragments to GitHub.
-                grep -Ex '(Schema changed; supervised migration and new schema approval required|Current deployment schema differs from approved policy|Insufficient memory or Docker storage for image preparation and restore rehearsal|Main CI gate refused automatic release|Main CI not verified yet; leaving current deployment untouched|Second-disk risk acceptance missing; build-only mode|Dedicated second disk not mounted; release deferred|Second-disk media snapshot failed; release deferred|Missing or untrusted image signature verifier|Missing deployment environment|This SHA already failed release; inspect logs before explicitly clearing failed-release-sha|Cannot compare frontend trees for CI policy|Cannot recheck main branch after CI; deferring release)' |
+                grep -Ex '(Schema changed; supervised migration and new schema approval required|Current deployment schema differs from approved policy|Insufficient memory or Docker storage for image preparation and restore rehearsal|Main CI gate refused automatic release|Main CI not verified yet; leaving current deployment untouched|Second-disk risk acceptance missing; build-only mode|Dedicated second disk not mounted; release deferred|Second-disk media snapshot failed; release deferred|Missing or untrusted image signature verifier|Missing deployment environment|This SHA already failed release; inspect logs before explicitly clearing failed-release-sha|Cannot compare frontend trees for CI policy|Cannot recheck main branch after CI; deferring release|USD_DEPLOY_PRE_SWITCH_FAILURE: no application image replaced; safe to recheck on the next timer|USD_DEPLOY_RETRYABLE: protected pre-switch failure; no quarantine, next timer will recheck|Fresh PostgreSQL restore/migration rehearsal failed; refusing release|Second disk PostgreSQL copy failed; refusing release|New API/frontend failed readiness checks|Public prerelease acceptance failed; rolling back application images|Previous API/frontend passed readiness after rollback|Existing API/frontend failed pre-release readiness; refusing automatic replacement|Root-owned release approval for this SHA missing)' |
                 tail -n 12 || true
             fi
             echo 'Ubuntu: sudo journalctl -u usd-auto-deploy.service -n 120 --no-pager' >&2
