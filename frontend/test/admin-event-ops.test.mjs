@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {
   operationsSearchText,matchesOperationsSearch,
   summarizeRegistrations,filterRegistrations,
-  summarizeInspections,filterInspections,isPendingInspection,buildAdmittedRosterCsv,
+  summarizeInspections,filterInspections,isPendingInspection,
 } from '../src/admin/event-ops-model.ts';
 
 const rows=[
@@ -38,6 +38,7 @@ test('operations search supports name, class, team, car plate, stage number and 
   assert.deepEqual(filterRegistrations(rows,'ALL',q).map(r=>r.id),['a'],q);
  }
  assert.deepEqual(filterRegistrations(rows,'ALL','семен').map(r=>r.id),['d']);
+ assert.deepEqual(filterRegistrations(rows,'ALL','А001-УР 001').map(r=>r.id),['a']);
  assert.equal(matchesOperationsSearch(rows[1],'петр тойота'),false);
  assert.equal(matchesOperationsSearch(rows[1],'пётр camry'),true);
  assert.equal(matchesOperationsSearch(rows[1],'петр camry'),true);
@@ -72,24 +73,6 @@ test('operations UI preserves stage deep links and real mobile width',async()=>{
  assert.match(css,/\.event-ops-results \.data-table/);
 });
 
-test('admitted roster export includes only passed active participants, escapes CSV and formulas',()=>{
- const inputs=[
-  ...rows,
-  {id:'e',status:'CANCELLED',inspection:{status:'PASSED'},participantNumber:6,participant:{lastName:'Отменён'}},
-  {id:'f',status:'ACTIVE',inspection:{status:'PASSED'},participantNumber:7,
-   participant:{lastName:'=1+1',firstName:'"Имя";'},car:{brand:'@cmd',registrationNumber:'А111АА77'}}
- ];
- const csv=buildAdmittedRosterCsv(inputs);
- const lines=csv.split('\r\n');
- assert.equal(lines.length,3,'one header and two passed active records');
- assert.match(csv,/Иванов Иван/);
- assert.match(csv,/А001УР001/);
- assert.doesNotMatch(csv,/Отменён|Петров|Семенов|Сидоров/);
- assert.match(csv,/'=1\+1/);
- assert.match(csv,/'@cmd/);
- assert.match(csv,/""Имя"";/);
-});
-
 test('event-day layouts fill their content pane and navigation stays graphite/red',async()=>{
  const [css,shell,inspection]=await Promise.all([
   readFile(new URL('../src/dark-velocity-sitewide.css',import.meta.url),'utf8'),
@@ -105,4 +88,11 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
  assert.match(shell,/aria-current=\{active\?'page':undefined\}/,'active route is announced');
  assert.match(inspection,/classIds\.length>5/,'inspection editor enforces API class limit');
  assert.match(inspection,/не более 5 классов/,'inspection editor explains the maximum');
+});
+
+test('admitted list is displayed in app without CSV export',async()=>{
+ const inspection=await readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8');
+ assert.match(inspection,/Итоговый список допущенных/);
+ assert.match(inspection,/setSelectedFilter\("PASSED"\)/);
+ assert.doesNotMatch(inspection,/exportAdmitted|text\/csv|\.csv|buildAdmittedRosterCsv/);
 });
