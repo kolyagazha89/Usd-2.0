@@ -38,6 +38,7 @@ test('operations search supports name, class, team, car plate, stage number and 
   assert.deepEqual(filterRegistrations(rows,'ALL',q).map(r=>r.id),['a'],q);
  }
  assert.deepEqual(filterRegistrations(rows,'ALL','семен').map(r=>r.id),['d']);
+ assert.deepEqual(filterRegistrations(rows,'ALL','А001-УР 001').map(r=>r.id),['a'],'gate staff may type plates with spaces and hyphens');
  assert.equal(matchesOperationsSearch(rows[1],'петр тойота'),false);
  assert.equal(matchesOperationsSearch(rows[1],'пётр camry'),true);
  assert.equal(matchesOperationsSearch(rows[1],'петр camry'),true);
@@ -76,6 +77,7 @@ test('admitted roster export includes only passed active participants, escapes C
  const inputs=[
   ...rows,
   {id:'e',status:'CANCELLED',inspection:{status:'PASSED'},participantNumber:6,participant:{lastName:'Отменён'}},
+  {id:'g',status:'PENDING',inspection:{status:'PASSED'},participantNumber:8,participant:{lastName:'Не подтверждён'}},
   {id:'f',status:'ACTIVE',inspection:{status:'PASSED'},participantNumber:7,
    participant:{lastName:'=1+1',firstName:'"Имя";'},car:{brand:'@cmd',registrationNumber:'А111АА77'}}
  ];
@@ -84,7 +86,7 @@ test('admitted roster export includes only passed active participants, escapes C
  assert.equal(lines.length,3,'one header and two passed active records');
  assert.match(csv,/Иванов Иван/);
  assert.match(csv,/А001УР001/);
- assert.doesNotMatch(csv,/Отменён|Петров|Семенов|Сидоров/);
+ assert.doesNotMatch(csv,/Отменён|Не подтверждён|Петров|Семенов|Сидоров/);
  assert.match(csv,/'=1\+1/);
  assert.match(csv,/'@cmd/);
  assert.match(csv,/""Имя"";/);
@@ -105,4 +107,9 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
  assert.match(shell,/aria-current=\{active\?'page':undefined\}/,'active route is announced');
  assert.match(inspection,/classIds\.length>5/,'inspection editor enforces API class limit');
  assert.match(inspection,/не более 5 классов/,'inspection editor explains the maximum');
+});
+
+test('admitted roster neutralizes formula prefixes hidden behind zero-width characters',()=>{
+ const csv=buildAdmittedRosterCsv([{status:'ACTIVE',inspection:{status:'PASSED'},participant:{lastName:'\u200B=HYPERLINK(1)'}}]);
+ assert.match(csv,/"'\u200B=HYPERLINK\(1\)"/);
 });
