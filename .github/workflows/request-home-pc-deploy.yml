@@ -55,23 +55,30 @@ jobs:
             echo 'Ubuntu: sudo journalctl -u usd-auto-deploy.service -n 120 --no-pager' >&2
             echo 'Never bypass Prisma schema, backup or rollback approval to clear this error.' >&2
           }
-          if ! sudo -n /usr/bin/systemctl start usd-auto-deploy.service; then
-            diagnose_service
-            exit 1
-          fi
-          result="$(systemctl show usd-auto-deploy.service --property=Result --value)"
-          if [[ "$result" != success ]]; then
-            diagnose_service
-            exit 1
-          fi
-          usd_verify_deadline=$((SECONDS+600))
+          # Publication can finish before all exact-SHA main CI jobs. In that
+          # case the root service safely defers, so re-request it periodically
+          # rather than only polling a public revision that cannot change yet.
+          # Each invocation enforces the same root-owned CI, signature, schema,
+          # backup and rollback gates; the runner gains no additional privilege.
+          usd_verify_deadline=$((SECONDS+1200))
           while (( SECONDS < usd_verify_deadline )); do
+            if ! sudo -n /usr/bin/systemctl start usd-auto-deploy.service; then
+              diagnose_service
+              exit 1
+            fi
+            result="$(systemctl show usd-auto-deploy.service --property=Result --value)"
+            if [[ "$result" != success ]]; then
+              diagnose_service
+              exit 1
+            fi
             usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"
             if /usr/local/libexec/usd-verify-prerelease "$usd_latest_sha"; then
-              echo "Public prerelease accepted after the host service: $usd_latest_sha"
+              echo "Public prerelease accepted after CI-gated host release: $usd_latest_sha"
               exit 0
             fi
-            sleep 10
+            # CI may still be pending, or a prior poll may have raced the next
+            # timer tick. Wait before another read-only/CI-gated host request.
+            sleep 60
           done
-          echo 'Host service returned, but public release acceptance is still missing' >&2
+          echo 'Host release was requested repeatedly, but public acceptance is still missing' >&2
           exit 1
