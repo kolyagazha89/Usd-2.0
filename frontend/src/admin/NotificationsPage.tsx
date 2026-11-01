@@ -66,10 +66,20 @@ export default function NotificationsPage({
       if (permission !== "granted") {
         throw new Error("Разрешите уведомления для этого сайта в настройках браузера.");
       }
-      new Notification("USD · Тест уведомления", {
+      const notificationOptions = {
         body: "Проверка показа уведомлений на этом устройстве. Другим пользователям ничего не отправлено.",
         tag: "usd-admin-local-test",
-      });
+      };
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration?.showNotification) {
+          await registration.showNotification("USD · Тест уведомления", notificationOptions);
+        } else {
+          new Notification("USD · Тест уведомления", notificationOptions);
+        }
+      } else {
+        new Notification("USD · Тест уведомления", notificationOptions);
+      }
       setTestMessage("Тестовое уведомление создано на этом устройстве. Это проверка разрешений и отображения, не доставки push через сервер.");
     } catch (error) {
       setTestMessage(error instanceof Error ? error.message : "Не удалось показать тестовое уведомление.");
