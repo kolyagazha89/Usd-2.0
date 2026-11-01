@@ -184,9 +184,11 @@ new_frontend_id="$("$IMAGE_VERIFIER" frontend "$NEW_TAG" | python3 -c 'import js
 [[ "$new_api_id" =~ ^sha256:[a-f0-9]{64}$ && "$new_frontend_id" =~ ^sha256:[a-f0-9]{64}$ ]] ||
   { echo 'Invalid verified candidate image identity' >&2; exit 1; }
 
-# Use the *exact* Compose overlays used by the running API, including the tunnel
-# overlay if present. Reject unfamiliar files rather than accidentally replacing
-# a container with an incomplete or different configuration.
+# Use the exact reviewed Compose overlay SEQUENCE for each running service.
+# The API may carry deploy-worktree paths while the frontend already carries
+# root-owned snapshot paths from an earlier supervised restart. Reconcile those
+# labels ONLY after validating both sources against the SAME trusted snapshots.
+# Never execute a service's user-writable Compose source as root.
 api_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=api")"
 front_id="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=frontend")"
 [[ -n "$api_id" && -n "$front_id" && "$api_id" != *$'\n'* && "$front_id" != *$'\n'* ]] ||
@@ -206,16 +208,36 @@ for service in api frontend; do
 done
 api_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$api_id")"
 front_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$front_id")"
-[[ -n "$api_files" && "$api_files" == "$front_files" ]] ||
-  { echo "API and frontend use different Compose files" >&2; exit 1; }
-IFS=',' read -r -a active_files <<< "$api_files"
+[[ -n "$api_files" && -n "$front_files" ]] ||
+  { echo "Missing API/frontend Compose labels" >&2; exit 1; }
+# A separate Compose project-directory can silently resolve relative volumes,
+# env_file and build contexts differently, even with identical YAML contents.
+api_work_dir="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$api_id")"
+front_work_dir="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$front_id")"
+[[ "$api_work_dir" == "$DEPLOY_DIR" && "$front_work_dir" == "$DEPLOY_DIR" ]] ||
+  { echo "API/frontend Compose working directories are not the approved deployment directory" >&2; exit 1; }
+IFS=',' read -r -a api_active_files <<< "$api_files"
+IFS=',' read -r -a front_active_files <<< "$front_files"
+[[ "${#api_active_files[@]}" -eq "${#front_active_files[@]}" &&
+   "${#api_active_files[@]}" -ge 1 && "${#api_active_files[@]}" -le 2 ]] ||
+  { echo "API/frontend Compose overlay counts differ or exceed approved scope" >&2; exit 1; }
+for i in "${!api_active_files[@]}"; do
+  [[ "${api_active_files[i]##*/}" == "${front_active_files[i]##*/}" ]] ||
+    { echo "API/frontend Compose overlay order or names differ" >&2; exit 1; }
+done
 compose_args=()
 has_base=0
 [[ -d "$TRUSTED_DIR" && ! -L "$TRUSTED_DIR" && "$(stat -c %u "$TRUSTED_DIR")" == 0 ]] ||
   { echo "Missing or untrusted root-owned Compose directory" >&2; exit 1; }
 (( (8#$(stat -c %a "$TRUSTED_DIR") & 022) == 0 )) ||
   { echo "Trusted Compose directory must not be group/world writable" >&2; exit 1; }
-for file in "${active_files[@]}"; do
+for compose_origin in api frontend; do
+  if [[ "$compose_origin" == api ]]; then
+    active_files=("${api_active_files[@]}")
+  else
+    active_files=("${front_active_files[@]}")
+  fi
+  for file in "${active_files[@]}"; do
   case "$file" in
     "$DEPLOY_DIR/compose.yaml"|"$TRUSTED_DIR/compose.yaml") has_base=1 ;;
     "$DEPLOY_DIR/compose.local.yaml"|"$TRUSTED_DIR/compose.local.yaml") ;;
@@ -266,7 +288,10 @@ PY
     cmp -s "$file" "$trusted_file" ||
       { echo "Running Compose config differs from reviewed root-owned snapshot: $file" >&2; exit 1; }
   fi
-  compose_args+=(-f "$trusted_file")
+  # Both running services MUST independently pass file/symlink/content checks.
+  # Compose is invoked with the single canonical root-owned snapshot sequence.
+  [[ "$compose_origin" != api ]] || compose_args+=(-f "$trusted_file")
+  done
 done
 [[ "$has_base" == 1 ]] || { echo "Base Compose file absent" >&2; exit 1; }
 db_before="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=db")"
