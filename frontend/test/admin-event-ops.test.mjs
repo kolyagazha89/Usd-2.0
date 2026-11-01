@@ -96,7 +96,7 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
 test('admitted list is displayed in app without CSV export',async()=>{
  const inspection=await readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8');
  assert.match(inspection,/Итоговый список допущенных/);
- assert.match(inspection,/setSelectedFilter\("PASSED"\)/);
+ assert.match(inspection,/setFilter\("PASSED"\)/);
  assert.doesNotMatch(inspection,/exportAdmitted|text\/csv|\.csv|buildAdmittedRosterCsv/);
 });
 
