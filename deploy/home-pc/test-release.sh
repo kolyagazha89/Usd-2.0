@@ -198,6 +198,14 @@ if [[ "${1:-}" == inspect ]]; then
     printf 'sha256:%s\n' "$identity"
     exit 0
   fi
+  if [[ "$*" == *'com.docker.compose.project.working_dir'* ]]; then
+    if [[ "${USD_TEST_WRONG_COMPOSE_WORKDIR:-0}" == 1 && "$*" == *mock-frontend* ]]; then
+      echo /home/usd/usd-src/deploy/home-pc
+    else
+      echo /home/usd/usd-deploy/deploy/home-pc
+    fi
+    exit 0
+  fi
   if [[ "$*" == *'.Config.Image'* ]]; then
     service=api
     [[ "$*" != *mock-frontend* ]] || service=frontend
@@ -209,6 +217,15 @@ if [[ "${1:-}" == inspect ]]; then
   fi
   if [[ "${USD_TEST_UNKNOWN_OVERLAY:-0}" == 1 ]]; then
     echo "/home/usd/usd-deploy/deploy/home-pc/compose.yaml,/home/usd/usd-deploy/deploy/home-pc/compose.unknown.yaml"
+  elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 1 && "$*" == *mock-frontend* ]]; then
+    # The real host's API has deploy-worktree labels; frontend has trusted-root labels.
+    echo "/etc/usd-deployer/compose/compose.yaml,/etc/usd-deployer/compose/compose.local.yaml"
+  elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 2 && "$*" == *mock-frontend* ]]; then
+    echo "/etc/usd-deployer/compose/compose.local.yaml,/etc/usd-deployer/compose/compose.yaml"
+  elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 3 && "$*" == *mock-frontend* ]]; then
+    echo "/etc/usd-deployer/compose/compose.yaml"
+  elif [[ "${USD_TEST_MIXED_COMPOSE_FILES:-0}" == 4 && "$*" == *mock-frontend* ]]; then
+    echo "/etc/usd-deployer/compose/compose.yaml,/tmp/unreviewed-compose.local.yaml"
   elif [[ "${USD_TEST_LEGACY_SOURCE:-0}" == 1 ]]; then
     echo "/home/usd/usd-src/deploy/home-pc/compose.yaml,/home/usd/usd-src/deploy/home-pc/compose.local.yaml"
   else
@@ -408,6 +425,22 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/unsupported-overlay.l
 grep -q 'Unknown active Compose file' "$WORK/unsupported-overlay.log"
 export USD_TEST_UNKNOWN_OVERLAY=0
 [[ ! -s "$USD_TEST_LOG" ]]
+# Distinct Compose origins are allowed only when both label lists resolve to
+# the identical ordered root-reviewed YAML, with identical project directories.
+for scenario in 2 3 4; do
+  if USD_TEST_MIXED_COMPOSE_FILES="$scenario" bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/mixed-rejected-$scenario.log" 2>&1; then
+    echo "Accepted unsafe API/frontend Compose labels: $scenario" >&2; exit 1
+  fi
+  case "$scenario" in
+    2) grep -q 'overlay order or names differ' "$WORK/mixed-rejected-$scenario.log" ;;
+    3) grep -q 'overlay counts differ' "$WORK/mixed-rejected-$scenario.log" ;;
+    4) grep -q 'Unknown active Compose file' "$WORK/mixed-rejected-$scenario.log" ;;
+  esac
+  [[ ! -s "$USD_TEST_LOG" ]]
+done
+if USD_TEST_MIXED_COMPOSE_FILES=1 USD_TEST_WRONG_COMPOSE_WORKDIR=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/mixed-wrong-workdir.log" 2>&1; then exit 1; fi
+grep -q 'working directories are not the approved' "$WORK/mixed-wrong-workdir.log"
+[[ ! -s "$USD_TEST_LOG" ]]
 export USD_TEST_DB_UNHEALTHY_BEFORE=1
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/db-unhealthy-before.log" 2>&1; then exit 1; fi
 grep -q "Production DB is not healthy" "$WORK/db-unhealthy-before.log"
@@ -473,6 +506,11 @@ grep -q 'Fresh PostgreSQL restore/migration rehearsal failed' "$WORK/restore-reh
 grep -q 'USD_DEPLOY_PRE_SWITCH_FAILURE' "$WORK/restore-rehearsal-failure.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
+# The exact mixed-origin labels found on the Ubuntu host must pass complete
+# backup/restore preflight with trusted root-owned snapshot config files.
+USD_TEST_MIXED_COMPOSE_FILES=1 bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/mixed-trusted-preflight.log" 2>&1
+grep -q 'backup, independent download and isolated restore verified' "$WORK/mixed-trusted-preflight.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 # First-run schema setup may verify backup/restore without replacing apps.
 touch "$USD_TEST_LOG"
 before_preflight="$(wc -l < "$USD_TEST_LOG")"
@@ -657,7 +695,9 @@ grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
 export USD_TEST_FAIL_ROLLBACK_COPY=0
 export USD_TEST_FAIL_READINESS=0
-bash deploy/home-pc/release-approved.sh "$NEW"
+# Exercise the real release transaction against mixed but byte-identical
+# Compose origins. The DB must not be recreated by application-only switch.
+USD_TEST_MIXED_COMPOSE_FILES=1 bash deploy/home-pc/release-approved.sh "$NEW"
 grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 [[ "$(cat "$STATE/deployed-sha")" == "$NEW" ]]
 [[ ! -f /etc/usd-release-approved ]]
