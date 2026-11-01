@@ -75,7 +75,7 @@ export function filterRegistrations<T extends OperationsRow>(
 export function summarizeInspections(rows:readonly OperationsRow[]){
   return {
     total:rows.length,
-    passed:rows.filter(r=>inspectionStatus(r)==='PASSED').length,
+    passed:rows.filter(r=>r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED').length,
     failed:rows.filter(r=>inspectionStatus(r)==='FAILED').length,
     pending:rows.filter(isPendingInspection).length,
   };
@@ -85,7 +85,7 @@ export function filterInspections<T extends OperationsRow>(
   rows:readonly T[],status:InspectionFilter,query:string,
 ):T[]{
   return rows.filter(r=>(status==='ALL'
-    ||(status==='PASSED'&&inspectionStatus(r)==='PASSED')
+    ||(status==='PASSED'&&r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED')
     ||(status==='FAILED'&&inspectionStatus(r)==='FAILED')
     ||(status==='PENDING'&&isPendingInspection(r)))
     &&matchesOperationsSearch(r,query));
