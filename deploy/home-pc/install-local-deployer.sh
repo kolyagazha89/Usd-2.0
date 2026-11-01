@@ -15,6 +15,8 @@ docker compose version >/dev/null
 for script in auto-deploy.sh release-approved.sh rehearse-schema-on-backup.sh verify-media-backup.sh verify-db-offsite-backup.sh setup-home-pc.sh prepare-runner-launcher.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read_text())'
+python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("safe-schema-migration.py").read_text())'
+python3 test-safe-schema-migration.py -v
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-prerelease.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("s3/verify-local-hdd-snapshot.py").read_text())'
@@ -27,6 +29,7 @@ install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 verify-image-signature.py /usr/local/libexec/usd-verify-image-signature
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema
+install -o root -g root -m 0750 safe-schema-migration.py /usr/local/libexec/usd-safe-schema-migration
 install -o root -g root -m 0755 verify-prerelease.py /usr/local/libexec/usd-verify-prerelease
 install -o root -g root -m 0750 rehearse-schema-on-backup.sh /usr/local/libexec/usd-rehearse-schema-on-backup
 install -o root -g root -m 0750 verify-media-backup.sh /usr/local/libexec/usd-verify-media-backup

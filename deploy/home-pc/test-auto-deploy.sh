@@ -37,6 +37,7 @@ for old,new in {
  '/etc/usd-deployer/local-second-disk-approved':work+'/local-policy',
  '/usr/local/libexec/usd-verify-second-disk-db-backup':work+'/db-verify',
  '/usr/local/libexec/usd-verify-second-disk-media-backup':work+'/media-verify',
+ '/usr/local/libexec/usd-safe-schema-migration':work+'/safe-schema-migration',
  '/home/usd/usd-deploy/deploy/home-pc/.env':work+'/deploy.env',
  '/usr/local/sbin/usd-release-approved':work+'/release',
  '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
@@ -99,9 +100,25 @@ if flock -n 10; then echo 'Builder released its lock before handoff' >&2; exit 1
 [[ "$(cat "$USD_TEST_WORK/state/schema-approved-sha")" == "$1" ]]
 [[ "$(cat "$USD_TEST_WORK/state/release-approved-sha")" == "$1" ]]
 [[ "${USD_TEST_BUSY_RELEASE:-0}" != 1 ]] || exit 75
+if [[ "${2:-}" == "--preflight-only" ]]; then
+  touch "$USD_TEST_WORK/ready-to-migrate"
+  echo "preflight:$1" >> "$USD_TEST_WORK/migration.log"
+  exit 0
+fi
 echo "$1" >> "$USD_TEST_WORK/releases.log"
 [[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
+SH
+cat > "$WORK/safe-schema-migration" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]] || exit 1
+[[ "${USD_TEST_FAIL_SAFE_MIGRATION:-0}" != 1 ]] || exit 1
+echo "$1:$2:$3" >> "$USD_TEST_WORK/migration.log"
+if [[ "$1" == "--apply" ]]; then
+  [[ -f "$USD_TEST_WORK/ready-to-migrate" ]] || exit 1
+  git -C "$USD_TEST_WORK/source" rev-parse "$2:backend/prisma" > "$USD_TEST_WORK/policy"
+fi
 SH
 cat > "$WORK/media-verify" <<'SH'
 #!/usr/bin/env bash
@@ -122,7 +139,7 @@ cat > "$WORK/bin/findmnt" <<'SH'
 #!/usr/bin/env bash
 printf '/dev/sdb1\n'
 SH
-chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci" "$WORK/media-verify"
+chmod +x "$WORK/bin/"* "$WORK/release" "$WORK/verify-ci" "$WORK/media-verify" "$WORK/safe-schema-migration"
 export PATH="$WORK/bin:$PATH"
 # A missing operator switch must not build or release anything.
 mv "$WORK/enabled" "$WORK/disabled"
@@ -259,7 +276,7 @@ unset USD_TEST_FAIL_RELEASE
 # A changed Prisma tree must never invoke the release helper.
 printf '%040d\n' 1 > "$WORK/policy"
 if bash "$WORK/builder" > "$WORK/schema.log" 2>&1; then exit 1; fi
-grep -q 'Schema changed' "$WORK/schema.log"
+grep -q 'Schema transition not based on approved' "$WORK/schema.log"
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
 printf '%s\n' "$SCHEMA" > "$WORK/policy"
 # An overly permissive production environment must never reach the release helper.
@@ -283,4 +300,32 @@ export USD_TEST_MAIN_SHA="$NEWER"
 bash "$WORK/builder" > "$WORK/frontend-change.log"
 grep -q "^$NEWER 1$" "$WORK/ci.log"
 grep -q "^$NEWER$" "$WORK/releases.log"
-echo 'Published image pulls, partial-download refusal, revision checks, release policies, schema and quarantine tests passed'
+# Schema change is automatically approved ONLY after CI and full preflight;
+# the root-owned migrator is expected to enforce additive SQL and live history.
+printf 'USD_IMAGE_TAG=%s\n' "$NEWER" > "$WORK/deploy.env"
+printf '%s\n' "$SCHEMA" > "$WORK/policy"
+mkdir -p "$WORK/source/backend/prisma/migrations/20261101120000_nullable"
+printf 'CREATE TABLE "AutoSafe" ("id" TEXT NOT NULL, CONSTRAINT "AutoSafe_pkey" PRIMARY KEY ("id"));\n' > "$WORK/source/backend/prisma/migrations/20261101120000_nullable/migration.sql"
+printf 'schema-v2\n' > "$WORK/source/backend/prisma/schema.prisma"
+"$REAL_GIT" -C "$WORK/source" add backend/prisma
+"$REAL_GIT" -C "$WORK/source" -c user.name=QA -c user.email=qa@example.org commit -qm additive
+MIGRATED="$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD)"
+printf '%s\n' "$MIGRATED" > "$WORK/source/.git/FETCH_HEAD"
+export USD_TEST_MAIN_SHA="$MIGRATED"
+rm -f "$WORK/ready-to-migrate"
+bash "$WORK/builder" > "$WORK/automatic-migration.log"
+grep -q "^preflight:$MIGRATED$" "$WORK/migration.log"
+grep -q "^--check:$MIGRATED:$NEWER$" "$WORK/migration.log"
+grep -q "^--apply:$MIGRATED:$NEWER$" "$WORK/migration.log"
+[[ "$(tail -n 1 "$WORK/releases.log")" == "$MIGRATED" ]]
+[[ "$(cat "$WORK/policy")" == "$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD:backend/prisma)" ]]
+# A failed safe-schema policy must refuse to back up/migrate or publish.
+printf 'USD_IMAGE_TAG=%s\n' "$NEWER" > "$WORK/deploy.env"
+printf '%s\n' "$SCHEMA" > "$WORK/policy"
+export USD_TEST_FAIL_SAFE_MIGRATION=1
+before="$(wc -l < "$WORK/releases.log")"
+if bash "$WORK/builder" > "$WORK/rejected-migration.log" 2>&1; then exit 1; fi
+grep -q 'Migration is not automatically safe' "$WORK/rejected-migration.log"
+[[ "$(wc -l < "$WORK/releases.log")" == "$before" ]]
+unset USD_TEST_FAIL_SAFE_MIGRATION
+echo 'Published image pulls, schema transition backup/restore/migrate, refusal and quarantine tests passed'
