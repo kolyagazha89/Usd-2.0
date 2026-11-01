@@ -861,3 +861,10 @@ body .field-mode .main .content > .page.event-ops-page {
 @media(prefers-reduced-motion:reduce){
  .event-ops-inspection-metrics .inspection-stat{transition:none}
 }
+
+/* Event operations must fill the admin content column, without a phantom right gutter. */
+body .app-shell .main .content:has(.event-ops-page){min-width:0;width:100%;max-width:none}
+body .app-shell .main .content .event-ops-page{display:block;min-width:0;width:100%;max-width:none;box-sizing:border-box}
+body .app-shell .main .content .event-ops-page > :is(.panel,.toolbar,.event-ops-overview,.event-ops-results){min-width:0;max-width:100%;box-sizing:border-box}
+body .app-shell .main .content .event-ops-page .event-ops-toolbar{width:100%;min-width:0;box-sizing:border-box}
+body .app-shell .main .content .event-ops-page .event-ops-results{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
