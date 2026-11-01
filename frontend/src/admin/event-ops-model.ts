@@ -36,8 +36,9 @@ const label=(value:unknown):string=>{
   return typeof value==='string'||typeof value==='number'?String(value):'';
 };
 const normalize=(value:string)=>value.toLocaleLowerCase('ru').replace(/ё/g,'е').trim();
+const compactPlate=(value:string)=>normalize(value).replace(/[\s\-–—]/g,'');
 const inspectionStatus=(row:OperationsRow)=>row.inspection?.status??row.stageInspection?.status??'';
-export const isPendingInspection=(row:OperationsRow):boolean=>!['PASSED','FAILED'].includes(inspectionStatus(row));
+export const isPendingInspection=(row:OperationsRow):boolean=>row.status==='ACTIVE'&&!['PASSED','FAILED'].includes(inspectionStatus(row));
 
 export function operationsSearchText(row:OperationsRow):string {
   const person=row.participant,car=row.car;
@@ -56,7 +57,8 @@ export function matchesOperationsSearch(row:OperationsRow,query:string):boolean 
   const terms=normalize(query).split(/\s+/).filter(Boolean);
   if(!terms.length)return true;
   const source=operationsSearchText(row);
-  return terms.every(term=>source.includes(term));
+  const compactSource=compactPlate(source);
+  return terms.every(term=>source.includes(term)||compactSource.includes(compactPlate(term)));
 }
 
 export function summarizeRegistrations(rows:readonly OperationsRow[]){
@@ -73,8 +75,8 @@ export function filterRegistrations<T extends OperationsRow>(
 export function summarizeInspections(rows:readonly OperationsRow[]){
   return {
     total:rows.length,
-    passed:rows.filter(r=>inspectionStatus(r)==='PASSED').length,
-    failed:rows.filter(r=>inspectionStatus(r)==='FAILED').length,
+    passed:rows.filter(r=>r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED').length,
+    failed:rows.filter(r=>r.status==='ACTIVE'&&inspectionStatus(r)==='FAILED').length,
     pending:rows.filter(isPendingInspection).length,
   };
 }
@@ -83,33 +85,9 @@ export function filterInspections<T extends OperationsRow>(
   rows:readonly T[],status:InspectionFilter,query:string,
 ):T[]{
   return rows.filter(r=>(status==='ALL'
-    ||(status==='PASSED'&&inspectionStatus(r)==='PASSED')
-    ||(status==='FAILED'&&inspectionStatus(r)==='FAILED')
+    ||(status==='PASSED'&&r.status==='ACTIVE'&&inspectionStatus(r)==='PASSED')
+    ||(status==='FAILED'&&r.status==='ACTIVE'&&inspectionStatus(r)==='FAILED')
     ||(status==='PENDING'&&isPendingInspection(r)))
     &&matchesOperationsSearch(r,query));
 }
 
-/** CSV for the post-inspection admitted roster. No pending or failed entries. */
-export function buildAdmittedRosterCsv(rows:readonly OperationsRow[]):string {
-  const safe=(value:unknown):string=>{
-    const raw=String(value??'').trim();
-    // Spreadsheet applications can interpret user-provided names as formulas.
-    const neutral=/^[\s\u0000-\u001f]*[=+@-]/.test(raw)?"'"+raw:raw;
-    return '"'+neutral.replace(/"/g,'""')+'"';
-  };
-  const headers=['Номер','ФИО','Команда','Автомобиль','Госномер','Классы'];
-  const admitted=rows.filter(r=>r.status!=='CANCELLED'&&inspectionStatus(r)==='PASSED');
-  const items=admitted.map(r=>{
-    const participant=r.participant,car=r.car;
-    const numbers=(r.numbers??[]).map(n=>label(n.number)).filter(Boolean);
-    const fullName=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ');
-    const classNames=(r.classes??[]).map(c=>[c.class?.name,c.number?.number?('№'+c.number.number):''].filter(Boolean).join(' ')).join(', ');
-    return [
-      numbers.join(', ')||label(r.participantNumber),
-      fullName,label(participant?.team),
-      [label(car?.brand)||label(car?.make),label(car?.model)].filter(Boolean).join(' '),
-      label(car?.registrationNumber),classNames,
-    ].map(safe).join(';');
-  });
-  return [headers.map(safe).join(';'),...items].join('\r\n');
-}
