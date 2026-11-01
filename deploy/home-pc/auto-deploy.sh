@@ -212,7 +212,8 @@ if [[ "$schema_change" == 1 ]]; then
     (( (8#$(stat -c %a "$SAFE_MIGRATOR") & 022) == 0 )) ||
     { echo "Trusted additive-only migration helper not installed; supervised review required" >&2; exit 1; }
   USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --check "$SHA" "$OLD_TAG" "$approved_schema" ||
-    { echo "Migration is not automatically safe; supervised review required" >&2; exit 1; }
+    { printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
+      echo "Migration is not automatically safe; supervised review required" >&2; exit 1; }
 fi
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
@@ -222,10 +223,18 @@ if [[ "$schema_change" == 1 ]]; then
   # deployed source and DB container ID. No live schema is changed until PASS.
   USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only ||
     { echo "Automatic schema backup/restore preflight failed" >&2; exit 1; }
-  # A migration failure is quarantined by the builder's existing policy.
-  # Do NOT reset/restore live DB; migrations are forward-only and additive.
+  # A newer main SHA after the slow backup/restore must not authorize
+  # migrating a stale candidate. This is a read-only ref check.
+  post_preflight_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" ||
+    { echo "Cannot recheck main after schema preflight; migration deferred" >&2; exit 0; }
+  post_preflight_sha="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$post_preflight_main")"
+  [[ "$post_preflight_sha" == "$SHA" ]] ||
+    { echo "Main advanced during schema preflight; migration deferred" >&2; exit 0; }
+  # Never attempt database rollback: migrations are forward-only. An apply
+  # error needs operator review rather than an unattended repeated mutation.
   USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --apply "$SHA" "$OLD_TAG" "$approved_schema" ||
-    { echo "Automatic additive migration failed; release halted without database rollback" >&2; exit 1; }
+    { printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
+      echo "Automatic additive migration failed; release halted without database rollback" >&2; exit 1; }
 fi
 # Keep the SAME lock continuously across build, CI approval and release.
 # Unlocking here allowed a second builder to replace built-sha between
