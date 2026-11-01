@@ -45,6 +45,23 @@ body .app-shell .main .content > .page {
   margin: 0 !important;
   padding: 0 !important;
 }
+body .app-shell .main .content > * {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+body .app-shell .main .content > :is(.admin-configurations-shell,.resource-editor-page,.entity-detail-workspace) {
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box !important;
+}
+body .app-shell .main .content > .admin-configurations-shell > .participant-portal-main {
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box !important;
+}
 body .app-shell .main .content > .page > * {
   min-inline-size: 0;
   max-inline-size: 100%;
