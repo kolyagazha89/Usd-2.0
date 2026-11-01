@@ -147,9 +147,13 @@ try{
       const shell=await page.evaluate(()=>{
        const bounds=selector=>{const rect=document.querySelector(selector)?.getBoundingClientRect();return rect?{x:rect.x,width:rect.width,right:rect.right}:null};
        const sidebar=document.querySelector('.app-shell > .sidebar');
+       const content=document.querySelector('.app-shell .main > .content');
+       const style=content?getComputedStyle(content):null;
+       const available=content?content.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight):null;
        return {root:bounds('.app-shell'),main:bounds('.app-shell > .main'),
         content:bounds('.app-shell .main > .content'),topbar:bounds('.app-shell .main > .topbar'),
         page:bounds('.app-shell .main .content > .page, .app-shell .main .content > .admin-configurations-shell'),
+        availableWidth:available,
         sidebarBorder:sidebar?getComputedStyle(sidebar).borderRightColor:null,
         sidebarBackground:sidebar?getComputedStyle(sidebar).backgroundImage:null};
       });
@@ -160,7 +164,7 @@ try{
        assert.ok(shell[key]&&Math.abs(shell[key].width-expected)<=1,
         'admin '+key+' fills work area '+JSON.stringify({route,width,expected,shell}));
       }
-      if(shell.page)assert.ok(Math.abs(shell.page.width-expected)<=1,
+      if(shell.page)assert.ok(Math.abs(shell.page.width-shell.availableWidth)<=1,
        'admin page fills work area '+JSON.stringify({route,width,expected,shell}));
       if(route.startsWith('/admin/cars/configurations'))assert.ok(shell.page,
        'standalone configuration editor must fill admin workspace');
