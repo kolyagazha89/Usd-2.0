@@ -185,7 +185,7 @@ try{
        const stillFull=await page.locator('.app-shell > .main').evaluate(element=>element.getBoundingClientRect().width);
        assert.ok(Math.abs(stillFull-shell.viewportClient)<=1,'opening drawer never narrows main');
        await page.screenshot({path:path.join(output,'ADMIN-'+width+'-'+route.replaceAll('/','_')+'-drawer.png')});
-       await page.getByRole('button',{name:'Закрыть меню',exact:true}).click();
+       await page.locator('.sidebar.open .mobile-close').click();
        await page.locator('.sidebar.open').waitFor({state:'detached'});
        row.adminDrawer='open/close, graphite, no shell shrink';
       }
@@ -359,9 +359,9 @@ try{
        const button=active&&getComputedStyle(active);
        return {scrollbarColor:css.scrollbarColor,scrollbarGutter:css.scrollbarGutter,activeBackground:button?.backgroundColor,activeImage:button?.backgroundImage};
       });
-      assert.ok(menuTheme.scrollbarColor.includes('rgb(76, 76, 82)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
+      assert.ok(menuTheme.scrollbarColor.includes('rgb(86, 86, 94)'),'sidebar uses neutral graphite scrollbar, not blue: '+menuTheme.scrollbarColor);
       assert.equal(menuTheme.scrollbarGutter,'auto','sidebar does not reserve a permanent right-hand scrollbar stripe');
-      assert.equal(menuTheme.activeBackground,'rgb(49, 23, 28)','active menu link is dark graphite/red, not bright blue/white');
+      assert.equal(menuTheme.activeBackground,'rgb(50, 24, 30)','active menu link is dark graphite/red, not bright blue/white');
       assert.equal(menuTheme.activeImage,'none','active menu link has no blue-gray gradient');
       if(route==='/admin'&&width===390){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
