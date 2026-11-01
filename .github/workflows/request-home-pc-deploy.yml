@@ -8,12 +8,6 @@ on:
   workflow_run:
     workflows:
       - Publish self-hosted USD images
-      - Home PC deployment safety checks
-      - Backend CI
-      - Frontend CI
-      - Competition journey, archive replay and permanent deletion
-      - Public browser QA
-      - Web push on PostgreSQL 18
     types:
       - completed
     branches:
@@ -22,6 +16,8 @@ on:
 permissions: {}
 
 concurrency:
+  # Image publication is the sole trigger, instead of every successful CI.
+  # Keep an active root-owned host release running to completion.
   group: usd-home-pc-deploy-trigger
   cancel-in-progress: false
 
@@ -33,6 +29,7 @@ jobs:
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.name == 'Publish self-hosted USD images' &&
           github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: [self-hosted, linux, x64, usd-home-pc]
     timeout-minutes: 150
