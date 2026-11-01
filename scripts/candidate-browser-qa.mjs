@@ -149,17 +149,21 @@ try{
        const sidebar=document.querySelector('.app-shell > .sidebar');
        return {root:bounds('.app-shell'),main:bounds('.app-shell > .main'),
         content:bounds('.app-shell .main > .content'),topbar:bounds('.app-shell .main > .topbar'),
-        page:bounds('.app-shell .main .content > .page'),
+        page:bounds('.app-shell .main .content > .page, .app-shell .main .content > .admin-configurations-shell'),
         sidebarBorder:sidebar?getComputedStyle(sidebar).borderRightColor:null,
         sidebarBackground:sidebar?getComputedStyle(sidebar).backgroundImage:null};
       });
       row.adminShell=shell;
       const expected=width<=800?width:width-268;
       assert.ok(Math.abs(shell.root.width-width)<=1,'admin root fills viewport '+JSON.stringify(shell));
-      for(const key of ['main','content','topbar','page']){
+      for(const key of ['main','content','topbar']){
        assert.ok(shell[key]&&Math.abs(shell[key].width-expected)<=1,
         'admin '+key+' fills work area '+JSON.stringify({route,width,expected,shell}));
       }
+      if(shell.page)assert.ok(Math.abs(shell.page.width-expected)<=1,
+       'admin page fills work area '+JSON.stringify({route,width,expected,shell}));
+      if(route.startsWith('/admin/cars/configurations'))assert.ok(shell.page,
+       'standalone configuration editor must fill admin workspace');
       assert.equal(shell.sidebarBorder,'rgb(44, 44, 49)','sidebar must be graphite, not navy');
       if(width<=800&&['/admin/notifications','/admin/registrations','/admin/inspections'].includes(route)){
        await page.getByRole('button',{name:'Меню',exact:true}).click();
