@@ -359,7 +359,7 @@ try{
        assert.equal(await page.locator('.event-ops-search [role="status"]').innerText(),'1 из 1');
       }else{
        assert.equal(await page.locator('.event-ops-inspection-metrics button[aria-pressed="true"]').count(),1);
-       assert.equal(await page.getByRole('button',{name:/Сформировать итоговый список/}).isDisabled(),true,'cannot export roster with pending entrants');
+       assert.equal(await page.getByRole('button',{name:/Итоговый список допущенных/}).isDisabled(),true,'cannot finalize roster with pending entrants');
        await page.getByRole('button',{name:/ожидают/i}).click();
        assert.equal(await page.locator('.event-ops-results .data-table tbody tr').count(),1,'pending queue includes unchecked registrations');
       }
