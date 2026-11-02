@@ -32,7 +32,7 @@ export default function PublicNavigation({items,route,go,accountPath='/login',ac
   window.addEventListener('resize',responsive);
   return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',keys);window.removeEventListener('resize',responsive)};
  },[open]);
- return <>{open&&createPortal(<button type="button" className="public-nav-scrim" aria-label="Закрыть открытое меню" onClick={()=>{setOpen(false);toggle.current?.focus()}}/>,document.body)}<nav ref={nav} className="public-nav" aria-label="Основная навигация">
+ return <>{open&&createPortal(<button type="button" className="public-nav-scrim" aria-label="Закрыть открытое меню" onClick={()=>{setOpen(false);toggle.current?.focus()}}/>,nav.current?.closest('.usd-live')??document.body)}<nav ref={nav} className="public-nav" aria-label="Основная навигация">
   <button ref={toggle} type="button" className="public-nav-toggle" aria-label={open?'Закрыть меню':'Открыть меню'} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(value=>!value)}>{open?<X size={21}/>:<Menu size={21}/>}</button>
   <div id={id} className="public-nav-links" data-open={open}>{items.map(([href,label])=><InternalLink key={href} href={href} go={go} onNavigate={()=>setOpen(false)} aria-current={(route===href||(href!=='/'&&route.startsWith(href+'/')))?'page':undefined}>{label}</InternalLink>)}
    {adminPath&&<InternalLink className="public-nav-admin" href={adminPath} go={go} onNavigate={()=>setOpen(false)}>Админ-панель<ArrowUpRight size={15} aria-hidden="true"/></InternalLink>}
