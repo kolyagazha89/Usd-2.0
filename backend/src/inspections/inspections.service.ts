@@ -481,6 +481,18 @@ export class InspectionsService {
     // No post-publication retroactive attribution: even a late inspection
     // correction must not invent a team for an already published stage.
     if (!current || current.teamAffiliationCapturedAt || current.stage.resultsPublishedAt) return;
+    // Unpublishing results clears resultsPublishedAt. The audit trail still
+    // records an earlier publication, so never use a temporary unpublish
+    // window to fabricate historical team membership.
+    const previouslyPublished = await tx.auditLog.findFirst({
+      where: {
+        entity: 'Stage',
+        entityId: registration.stageId,
+        action: 'STAGE_RESULTS_PUBLISHED',
+      },
+      select: { id: true },
+    });
+    if (previouslyPublished) return;
     // Multiple vehicles of one participant must retain ONE event affiliation.
     // Reuse the earliest frozen registration, even if the participant later
     // joins, leaves or renames a team between vehicle inspections.
