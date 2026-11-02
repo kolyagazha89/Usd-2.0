@@ -288,3 +288,319 @@ body .app-shell .main .content input[type="radio"] {accent-color:var(--usd-admin
 @media(prefers-reduced-motion:reduce){
   body .app-shell .main .content :is(.primary-button,.secondary-button){transition:none}
 }
+
+
+/* USD event-day command desk — full-width, pearl admin, graphite/red navigation.
+ * Shared only by registration & inspection; no public or member overrides.
+ * Keep admin shell sidebar geometry above as the only source of truth. */
+body .app-shell .main .content .page.event-ops-page {
+  inline-size:100%!important;
+  max-inline-size:100%!important;
+  min-inline-size:0!important;
+  overflow:visible;
+}
+body .app-shell .main .event-ops-page :is(.stage-picker,.event-ops-overview,.event-ops-toolbar,.event-ops-search,.event-ops-results,.resource-editor-page) {
+  min-inline-size:0;
+  max-inline-size:100%;
+  box-sizing:border-box;
+}
+body .app-shell .main .event-ops-page .event-ops-workflow {
+  display:grid;
+  grid-template-columns:minmax(210px,.8fr) minmax(0,1.6fr);
+  gap:0;
+  min-inline-size:0;
+  margin:0 0 20px;
+  overflow:hidden;
+  border:1px solid #dcdee4;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 12px 28px rgba(15,18,25,.045);
+}
+body .app-shell .main .event-ops-workflow-context {
+  display:grid;
+  align-content:center;
+  gap:7px;
+  min-inline-size:0;
+  padding:clamp(18px,2.2vw,28px);
+  background:linear-gradient(126deg,#17191e,#0c0d10);
+  color:#fff;
+  border-right:3px solid #ed2638;
+}
+body .app-shell .main .event-ops-workflow-kicker {
+  font-size:10px;
+  font-weight:800;
+  line-height:1.4;
+  letter-spacing:.15em;
+  color:#ff6479;
+}
+body .app-shell .main .event-ops-workflow-context strong {
+  font-size:clamp(16px,1.8vw,21px);
+  line-height:1.25;
+  letter-spacing:-.025em;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .event-ops-workflow-context small {
+  font-size:12px;
+  line-height:1.45;
+  color:#c3c5cb;
+}
+body .app-shell .main .event-ops-workflow-steps {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  min-inline-size:0;
+  align-items:stretch;
+}
+body .app-shell .main .event-ops-workflow-step {
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  min-inline-size:0;
+  min-height:104px;
+  width:100%;
+  padding:18px clamp(12px,1.65vw,22px);
+  border:0;
+  border-right:1px solid #ecedf0;
+  border-bottom:4px solid transparent;
+  border-radius:0;
+  background:#fff;
+  color:#51555e;
+  box-shadow:none!important;
+  cursor:pointer;
+  transition:background-color .2s,border-color .2s,color .2s;
+}
+body .app-shell .main .event-ops-workflow-step:last-child {border-right:0}
+body .app-shell .main .event-ops-workflow-step.is-active {
+  border-bottom-color:#ed2638;
+  background:#fff6f7;
+  color:#b51935;
+  cursor:default;
+}
+body .app-shell .main .event-ops-workflow-step:hover:not(.is-active):not(:disabled) {
+  background:#f7f7f9;
+  color:#191c23;
+}
+body .app-shell .main .event-ops-workflow-step:focus-visible {
+  outline:3px solid #ed2638!important;
+  outline-offset:-4px!important;
+  z-index:1;
+}
+body .app-shell .main .event-ops-workflow-step:disabled {
+  opacity:.6;
+  cursor:not-allowed;
+}
+body .app-shell .main .event-ops-workflow-step>svg {
+  flex-shrink:0;
+  color:currentColor;
+}
+body .app-shell .main .event-ops-workflow-number {
+  position:absolute;
+  top:10px;
+  right:12px;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.1em;
+  color:#a9abb2;
+}
+body .app-shell .main .event-ops-workflow-copy {
+  display:grid;
+  min-width:0;
+  gap:5px;
+}
+body .app-shell .main .event-ops-workflow-copy strong {
+  font-size:14px;
+  line-height:1.35;
+  font-weight:800;
+  color:#1e2026;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .event-ops-workflow-step.is-active .event-ops-workflow-copy strong {color:#ad1730}
+body .app-shell .main .event-ops-workflow-copy small {
+  font-size:11px;
+  line-height:1.5;
+  color:#717580;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .event-ops-workflow-arrow {
+  margin-left:auto;
+  flex-shrink:0;
+}
+body .app-shell .main .event-ops-page :is(.event-ops-overview,.event-ops-toolbar,.stage-picker,.event-ops-inspection-progress) {
+  border-color:#e0e2e7;
+  box-shadow:0 9px 26px rgba(17,20,26,.035);
+}
+body .app-shell .main .event-ops-page .event-ops-overview {
+  background:linear-gradient(114deg,#fff 0%,#fff 54%,#fff2f4 100%);
+  border-left-color:#ed2638;
+}
+body .app-shell .main .event-ops-page .event-ops-intro h2 {color:#1b1d23}
+body .app-shell .main .event-ops-page .event-ops-intro p {color:#676c76}
+body .app-shell .main .event-ops-page .stage-picker :is(select,.filter-select) {
+  color:#1d2026;
+  background-color:#fafafc;
+  border-color:#d9dce3;
+  min-height:46px;
+  font-size:16px!important;
+}
+body .app-shell .main .event-ops-page .event-ops-search {
+  border-color:#dfe2e7;
+  background:#fff;
+}
+body .app-shell .main .event-ops-page .event-ops-search:focus-within {
+  border-color:#ed2638;
+  box-shadow:0 0 0 3px rgba(237,38,56,.11);
+}
+body .app-shell .main .event-ops-page .event-ops-search :is(input,button) {min-width:0}
+body .app-shell .main .event-ops-page .event-ops-results {
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  border-color:#e0e2e7;
+  scrollbar-color:#bcbfc8 transparent;
+  overscroll-behavior-inline:contain;
+}
+body .app-shell .main .event-ops-page .event-ops-results .data-table thead {
+  background:#f5f5f7;
+}
+body .app-shell .main .event-ops-page .event-ops-results .data-table th {
+  color:#565b65;
+  font-size:11px;
+  letter-spacing:.055em;
+}
+body .app-shell .main .event-ops-page .event-ops-results .data-table td {
+  color:#20232b;
+  font-size:13px;
+  vertical-align:middle;
+}
+body .app-shell .main .event-ops-page .event-ops-results .data-table tbody tr:hover {background:#fff9fa}
+body .app-shell .main .event-ops-page .event-ops-results .data-table tbody tr:focus-visible {
+  outline:2px solid #ed2638;
+  outline-offset:-2px;
+}
+body .app-shell .main .event-ops-page .event-ops-results .event-ops-open {
+  min-height:40px;
+  border:1px solid #dfe0e5;
+  border-radius:9px;
+  color:#32363e;
+  background:#fff;
+  box-shadow:none;
+  display:inline-flex;
+  gap:6px;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+body .app-shell .main .event-ops-page .event-ops-results .event-ops-open:hover {
+  border-color:#ed2638;
+  color:#bd1c37;
+  background:#fff5f7;
+}
+body .app-shell .main .event-ops-page .event-ops-results .row-actions {
+  gap:8px;
+  flex-wrap:wrap;
+  min-width:0;
+}
+body .app-shell .main .event-ops-page .event-ops-results .row-actions .inline-confirm-actions {
+  max-width:100%;
+  flex-wrap:wrap;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-metrics .inspection-stat {
+  border-color:#e2e4e9;
+  background:#fff;
+  color:#1e222a;
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-metrics .inspection-stat.good[aria-pressed="true"] {
+  border-color:#33855a;background:#f2faf4;
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-metrics .inspection-stat.bad[aria-pressed="true"] {
+  border-color:#d52842;background:#fff3f5;
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-metrics .inspection-stat.pending[aria-pressed="true"] {
+  border-color:#b27624;background:#fffaf0;
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-metrics .inspection-stat[aria-pressed="true"] {
+  box-shadow:0 0 0 2px rgba(237,38,56,.09);
+}
+body .app-shell .main .event-ops-page .event-ops-inspection-progress progress {accent-color:#ed2638}
+body .app-shell .main .event-ops-page .resource-editor-page {
+  width:100%;
+  max-width:none;
+  padding:clamp(16px,2.3vw,28px);
+  margin:0;
+  border-radius:18px;
+  background:#fff;
+  color:#20232b;
+}
+body .app-shell .main .event-ops-page .resource-editor-page .resource-editor-heading,
+body .app-shell .main .event-ops-page .resource-editor-page .detail-grid {
+  min-width:0;
+  max-width:100%;
+}
+body .app-shell .main .event-ops-page .resource-editor-page :is(.registration-profile-choice,.inspection-direction-editor,.inspection-class-editor-panel,.inspection-confirm-box) {
+  border-radius:13px;
+  box-shadow:0 5px 18px rgba(17,20,26,.035);
+}
+body .app-shell .main .event-ops-page .resource-editor-page :is(input,select,textarea) {
+  min-width:0;
+  max-width:100%;
+  font-size:16px;
+}
+@media(max-width:1100px) {
+  body .app-shell .main .event-ops-page .event-ops-workflow {grid-template-columns:1fr}
+  body .app-shell .main .event-ops-workflow-context {
+    border-right:0;
+    border-bottom:3px solid #ed2638;
+    padding:18px 22px;
+  }
+  body .app-shell .main .event-ops-workflow-step {min-height:90px}
+}
+@media(max-width:760px) {
+  body .app-shell .main .event-ops-page .event-ops-workflow {margin-bottom:14px;border-radius:14px}
+  body .app-shell .main .event-ops-workflow-context {padding:15px 16px}
+  body .app-shell .main .event-ops-workflow-context small {font-size:11px}
+  body .app-shell .main .event-ops-workflow-step {min-height:86px;padding:20px 12px 12px;gap:8px}
+  body .app-shell .main .event-ops-workflow-step>svg {width:17px;height:17px}
+  body .app-shell .main .event-ops-workflow-copy strong {font-size:12px}
+  body .app-shell .main .event-ops-workflow-copy small {font-size:10px}
+  body .app-shell .main .event-ops-page .event-ops-results {
+    overflow-x:visible!important;
+    overflow-y:visible!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table tbody tr {
+    background:#fff;
+    border:1px solid #e3e5ea;
+    border-left:3px solid #ed2638;
+    border-radius:13px;
+    box-shadow:0 8px 24px rgba(17,20,26,.045);
+    overflow:hidden;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table tbody td {
+    font-size:13px!important;
+    grid-template-columns:minmax(85px,35%) minmax(0,1fr);
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .data-table tbody td.row-actions {
+    justify-content:flex-start;
+    padding:12px;
+    gap:8px;
+  }
+  body .app-shell .main .event-ops-page .event-ops-results .row-actions :is(.secondary-button,.danger-button) {
+    min-height:44px;
+  }
+}
+@media(max-width:410px) {
+  body .app-shell .main .event-ops-workflow-copy small {display:none}
+  body .app-shell .main .event-ops-workflow-step {min-height:72px}
+  body .app-shell .main .event-ops-workflow-number {top:5px;right:8px}
+  body .app-shell .main .event-ops-page .event-ops-results .data-table tbody td {
+    grid-template-columns:minmax(72px,34%) minmax(0,1fr);
+    gap:8px;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  body .app-shell .main .event-ops-workflow-step {transition:none}
+}
