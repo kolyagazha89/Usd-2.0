@@ -11,32 +11,34 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 2724,
-    "brands": 19,
+    "rows": 3005,
+    "brands": 21,
     "fields": [
       "бренд",
       "модель",
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 694,
-      "AUDIO_COMPONENT": 1121,
-      "SUBWOOFER": 801,
+      "AMPLIFIER": 784,
+      "AUDIO_COMPONENT": 1220,
+      "SUBWOOFER": 893,
       "HEAD_UNIT": 74,
       "DSP": 34
     },
     "counts_by_brand": {
-      "Apocalypse": 107,
+      "Apocalypse": 174,
       "Aura": 178,
+      "Avatar": 96,
       "B2 Audio": 62,
+      "Black Hydra": 26,
       "DD Audio": 392,
-      "Deaf Bonce": 9,
+      "Deaf Bonce": 16,
       "DL Audio": 197,
       "EDGE": 99,
       "Fi Car Audio": 31,
       "Ground Zero": 291,
-      "Hannibal": 36,
-      "Machete": 91,
+      "Hannibal": 51,
+      "Machete": 161,
       "Pride": 287,
       "Resilient Sounds": 43,
       "Rockford Fosgate": 231,
@@ -115,6 +117,18 @@
     {
       "manufacturer": "resilient_sounds",
       "rows": 43
+    },
+    {
+      "name": "deafbonce_speakers",
+      "rows": 203
+    },
+    {
+      "name": "deafbonce_subwoofers",
+      "rows": 138
+    },
+    {
+      "name": "deafbonce_amplifiers",
+      "rows": 183
     }
   ],
   "validation": {
