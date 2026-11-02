@@ -1,0 +1,370 @@
+/* USD 2026 — one visual system across the public site, member garage and
+ * light administration. Imported after legacy page layers and before the admin
+ * geometry contract. No page copy, access policy or backend state lives here. */
+:root {
+ --usd-brand:#ed2638;
+ --usd-brand-bright:#ff5067;
+ --usd-brand-soft:rgba(237,38,56,.14);
+ --usd-graphite:#0b0d11;
+ --usd-night:#06090d;
+ --usd-paper:#fff;
+ --usd-ink:#1e2027;
+ --usd-stroke-dark:rgba(202,212,227,.17);
+ --usd-stroke-light:#e2e4e9;
+ --usd-glide:cubic-bezier(.22,1,.36,1);
+ --usd-round-lg:20px;
+ --usd-round-md:14px;
+}
+body :is(.usd-live,.usd-member,.app-shell) {
+ -webkit-tap-highlight-color:transparent;
+ text-rendering:optimizeLegibility;
+}
+body :is(.usd-live,.usd-member,.app-shell) :is(h1,h2,h3,h4) {
+ overflow-wrap:break-word;
+}
+body :is(.usd-live,.usd-member,.app-shell) :is(a,button,input,select,textarea):focus-visible {
+ outline:2px solid var(--usd-brand-bright);
+ outline-offset:3px;
+}
+body :is(.usd-live,.usd-member,.app-shell) :is(input:not([type=checkbox]):not([type=radio]),textarea,select) {
+ min-width:0;
+ max-width:100%;
+ box-sizing:border-box;
+}
+body :is(.usd-live,.usd-member,.app-shell) :is(button,input,select,textarea) {
+ touch-action:manipulation;
+}
+body :is(.usd-live,.usd-member,.app-shell) :is(img,video,iframe) {max-inline-size:100%}
+body :is(.usd-live,.usd-member,.app-shell) :is(.page,.panel,.u-container,.participant-section) {min-inline-size:0}
+body .usd-live {
+ --usd-background:#06090d;
+ --usd-card:#0e151c;
+ --usd-card-elevated:#151c25;
+ --usd-muted:#b0b8c4;
+ --usd-border:var(--usd-stroke-dark);
+ background:var(--usd-background)!important;
+ color:#f5f6f8;
+}
+body .usd-live .p-public-header {
+ border-bottom:1px solid rgba(226,229,236,.11);
+ background-color:rgba(7,9,13,.96);
+ -webkit-backdrop-filter:blur(18px);
+ backdrop-filter:blur(18px);
+}
+body .usd-live .p-public-header :is(a,button):focus-visible {
+ outline:2px solid var(--usd-brand-bright)!important;
+ outline-offset:4px;
+}
+body .usd-live .p-home-main {
+ min-width:0;
+ isolation:isolate;
+}
+body .usd-live .p-home-main.is-ready {
+ animation:usd-home-entrance .65s var(--usd-glide) both;
+}
+@keyframes usd-home-entrance {
+ from {opacity:.78;transform:translate3d(0,12px,0)}
+ to {opacity:1;transform:none}
+}
+body .usd-live .p-inner-page {
+ width:min(100% - clamp(24px,5vw,72px),1360px)!important;
+ max-width:1360px!important;
+ margin-inline:auto!important;
+ min-width:0;
+}
+body .usd-live .public-page-heading {
+ margin:0 0 clamp(22px,3.6vw,44px);
+ padding:clamp(14px,3vw,28px) 0;
+ border-bottom:1px solid var(--usd-stroke-dark);
+}
+body .usd-live .public-page-kicker {
+ display:block;
+ font-size:11px;
+ font-weight:850;
+ letter-spacing:.17em;
+ text-transform:uppercase;
+ color:var(--usd-brand-bright);
+}
+body .usd-live .public-page-heading h1 {
+ font-size:clamp(36px,6vw,70px)!important;
+ line-height:1.02!important;
+ letter-spacing:-.045em!important;
+ margin:10px 0 0!important;
+ color:#f7f8fa;
+ max-width:1100px;
+}
+body .usd-live .public-page-error {
+ padding:16px 18px;
+ margin-bottom:20px;
+ border:1px solid #973d4d;
+ border-left:4px solid var(--usd-brand);
+ border-radius:var(--usd-round-md);
+ background:#230e15;
+ color:#ffd2d9;
+}
+body .usd-live :is(.p-empty,.p-error,.u-panel,.p-news-card,.public-stage-card,.public-record-card,.public-result-card,.p-person-card,.p-car-card,.p-team-card,.p-profile-banner,.p-document-intro,.p-contact-story,.p-about-hero) {
+ border-color:var(--usd-stroke-dark)!important;
+ border-radius:var(--usd-round-md)!important;
+}
+body .usd-live :is(.p-empty,.p-error) {box-shadow:0 15px 40px rgba(0,0,0,.13)}
+body .usd-live :is(.u-panel,.p-news-card,.public-stage-card,.public-record-card,.public-result-card,.p-person-card,.p-car-card,.p-team-card) {
+ background-color:var(--usd-card);
+ box-shadow:0 15px 46px rgba(0,0,0,.16);
+}
+body .usd-live :is(.p-news-card,.public-stage-card,.public-result-card,.public-record-card,.p-person-card,.p-car-card,.p-team-card) {
+ transition:transform .32s var(--usd-glide),border-color .26s ease,box-shadow .32s ease;
+}
+@media(hover:hover) and (pointer:fine) {
+ body .usd-live :is(.p-news-card,.public-stage-card,.public-result-card,.public-record-card,.p-person-card,.p-car-card,.p-team-card):hover {
+  transform:translate3d(0,-4px,0);
+  border-color:rgba(248,67,96,.5)!important;
+  box-shadow:0 24px 52px rgba(0,0,0,.30);
+ }
+}
+body .usd-live :is(.u-grid,.p-stage-grid,.p-person-grid,.p-car-grid,.public-stage-list,.public-results-grid,.public-records-grid) {min-inline-size:0}
+body .usd-live :is(.p-news-card,.p-car-card,.p-person-card,.public-stage-card,.public-result-card) :is(img,video) {
+ display:block;
+ max-width:100%;
+ object-fit:cover;
+}
+body .usd-live .u-panel-heading {
+ min-width:0;
+ gap:12px;
+ align-items:center;
+}
+body .usd-live .u-panel-heading :is(h2,h3) {
+ line-height:1.13;
+ overflow-wrap:anywhere;
+}
+body .usd-live .u-panel-heading>a {
+ color:#f4f5f7;
+ text-decoration:none;
+ transition:color .2s;
+}
+body .usd-live .u-panel-heading>a:hover {color:var(--usd-brand-bright)}
+body .usd-live :is(.u-btn,.u-watch-button,.public-nav-login) {
+ transition:transform .23s var(--usd-glide),border-color .2s,background-color .2s,box-shadow .2s;
+}
+@media(hover:hover) and (pointer:fine) {
+ body .usd-live :is(.u-btn,.u-watch-button):hover {transform:translateY(-2px)}
+}
+body .usd-live :is(input,textarea,select) {
+ color-scheme:dark;
+}
+body .usd-live :is(input,textarea,select):focus-visible {
+ outline-color:var(--usd-brand-bright)!important;
+ box-shadow:0 0 0 4px rgba(237,38,56,.13)!important;
+}
+body .usd-live :is(.public-stage-season-filter,.public-stage-select) {
+ min-width:0;
+}
+body .usd-live :is(.public-stage-season-filter,.public-stage-select) select {
+ max-width:100%;
+ min-height:46px;
+ font-size:16px!important;
+}
+body .usd-live .p-next-poster {
+ width:100%;
+ height:100%;
+ object-fit:cover;
+}
+body .usd-live .u-event-mini {isolation:isolate}
+body .usd-live .u-cinema-hero {isolation:isolate}
+body .usd-live .u-cinema-copy {min-width:0}
+body .usd-live .u-cinema-copy .u-actions {flex-wrap:wrap}
+body .usd-live :is(.u-next-event,.u-home-dashboard,.usd-broadcast-center,.u-home-partners,.u-home-news,.u-home-bottom) {
+ min-width:0;
+ max-width:100%;
+}
+body .usd-live :is(.usd-broadcast-panel-header,.usd-broadcast-panel-footer,.usd-broadcast-heading) {
+ min-width:0;
+ gap:12px;
+}
+body .usd-live .usd-broadcast-frame {
+ display:block;
+ width:100%;
+ aspect-ratio:16 / 9;
+ border:0;
+}
+body .usd-live .u-footer {
+ border-top:1px solid var(--usd-stroke-dark);
+ background:linear-gradient(180deg,#0a0d12,#05070a);
+}
+body .usd-live .u-footer :is(a,button):focus-visible {outline-offset:4px}
+body .usd-live .u-mobile-dock {
+ background:rgba(8,11,16,.96);
+ border-top:1px solid var(--usd-stroke-dark);
+ backdrop-filter:blur(16px);
+ -webkit-backdrop-filter:blur(16px);
+}
+/* Member garage and registration wizard retain the graphite language but
+ * use a less cramped grid and stronger hierarchy throughout. */
+body .usd-member {
+ --usd-member-card:#0d141b;
+ --usd-member-outline:rgba(200,216,234,.18);
+ --usd-member-muted:#bac2cd;
+ background:#06090d!important;
+ color:#f4f5f8;
+}
+body .usd-member .participant-portal-main {
+ min-width:0;
+ max-width:100%;
+}
+body .usd-member :is(.participant-section,.participant-journey li,.participant-car-card,.registration-card,.participant-registration-detail-card,.configuration-details-page,.configuration-editor-page,.config-direction-workspace) {
+ min-width:0;
+ max-width:100%;
+ box-sizing:border-box;
+ border-color:var(--usd-member-outline)!important;
+ box-shadow:0 16px 40px rgba(0,0,0,.19);
+}
+body .usd-member :is(.participant-section-head,.participant-page-intro,.registration-hero) :is(h1,h2) {
+ line-height:1.12;
+ letter-spacing:-.035em;
+}
+body .usd-member :is(.participant-section-head,.participant-page-intro,.registration-hero) p {
+ max-width:72ch;
+ color:var(--usd-member-muted);
+}
+body .usd-member :is(.participant-journey li,.participant-car-card,.registration-card,.participant-section) {
+ transition:border-color .24s ease,box-shadow .25s ease;
+}
+body .usd-member :is(.participant-journey li,.participant-car-card,.registration-card):hover {
+ border-color:rgba(237,38,56,.5)!important;
+}
+body .usd-member :is(.participant-portal-header,.participant-tabs,.participant-navigation) {
+ min-width:0;
+}
+body .usd-member :is(.participant-tabs,.participant-navigation) :is(a,button)[aria-current="page"] {
+ color:#fff;
+ border-color:var(--usd-brand);
+}
+body .usd-member :is(.participant-registration-main,.participant-registration-number-groups,.config-editor-actions,.configuration-editor-page,.participant-profile-form) {
+ min-width:0;
+ max-width:100%;
+}
+body .usd-member :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select) {
+ background:#0d151d!important;
+ color:#f3f5f8!important;
+ border-color:#46525f!important;
+ font-size:16px!important;
+}
+body .usd-member :is(input,textarea,select):focus-visible {
+ border-color:var(--usd-brand-bright)!important;
+ outline-color:var(--usd-brand-bright)!important;
+ box-shadow:0 0 0 4px rgba(237,38,56,.15)!important;
+}
+body .usd-member :is(.registration-class-option,.registration-step,.config-section,.configuration-direction-card) {min-width:0;max-width:100%}
+body .usd-member :is(.participant-registration-list,.participant-car-grid,.configuration-section-grid) {
+ min-width:0;
+}
+body .usd-member .participant-header-actions {min-width:0;flex-wrap:wrap}
+body .usd-member .participant-header-actions>span {
+ overflow-wrap:anywhere;
+ min-width:0;
+}
+/* Admin is purposefully WHITE; the only black surface is the sidebar.
+ * Explicit scope prevents stale public CSS from leaking into staff pages. */
+body .app-shell {
+ --usd-admin-canvas:#f3f5f8;
+ --usd-admin-text:#20232c;
+ --usd-admin-muted:#68717f;
+ --usd-admin-border:#e0e2e8;
+ color-scheme:light;
+}
+body .app-shell .main {background:#f3f5f8!important;color:var(--usd-admin-text)}
+body .app-shell .main .content {
+ min-width:0;
+ max-width:100%;
+ box-sizing:border-box;
+}
+body .app-shell .main .content :is(.panel,.admin-card,.metric-card,.stat-card,.notification-overview,.notification-composer,.notification-history,.resource-editor-page) {
+ border-color:var(--usd-admin-border);
+ border-radius:var(--usd-round-md);
+ background-color:#fff;
+ color:var(--usd-admin-text);
+ box-shadow:0 12px 38px rgba(17,24,35,.045);
+}
+body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.admin-page-guide) {
+ min-width:0;
+ max-width:100%;
+}
+body .app-shell .main .content .page-heading h1 {
+ line-height:1.14;
+ letter-spacing:-.035em;
+}
+body .app-shell .main .content :is(.toolbar,.stage-picker,.page-actions,.page-heading-actions) {
+ min-width:0;
+ max-width:100%;
+ flex-wrap:wrap;
+}
+body .app-shell .main .content :is(.table-wrap,.smart-table-wrap,.data-table-wrap) {
+ max-width:100%;
+ min-width:0;
+ scrollbar-color:#babdc5 transparent;
+ overscroll-behavior-x:contain;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) th {
+ background:#f5f6f8;
+ color:#545c68;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) tbody tr:hover {
+ background:#fff5f6;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select) {
+ color-scheme:light;
+ background:#fff;
+ color:#252933;
+ border-color:#d6dae1;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select):focus-visible {
+ border-color:var(--usd-brand)!important;
+ outline-color:var(--usd-brand)!important;
+ box-shadow:0 0 0 4px rgba(237,38,56,.12)!important;
+}
+body .app-shell .main .content :is(.badge,.class-number-chip) {max-width:100%;overflow-wrap:anywhere}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button) {
+ min-height:40px;
+ border-radius:9px;
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button):focus-visible {
+ outline-color:var(--usd-brand)!important;
+}
+body .app-shell .main .content :is(.error-panel,.notice,.form-error) {
+ min-width:0;
+ max-width:100%;
+ overflow-wrap:anywhere;
+}
+@media(max-width:800px) {
+ body .usd-live .p-inner-page {
+  padding-block:22px 50px!important;
+ }
+ body .usd-live .public-page-heading {
+  padding:12px 0 20px;
+  margin-bottom:22px;
+ }
+ body .usd-live .public-page-heading h1 {
+  font-size:clamp(30px,8vw,46px)!important;
+  letter-spacing:-.04em!important;
+ }
+ body .usd-live :is(.p-profile-banner,.p-document-intro,.p-contact-story,.p-about-hero) {min-width:0;max-width:100%}
+ body .usd-member .participant-portal-main {padding-inline:clamp(12px,3vw,22px)}
+ body .usd-member .participant-header-actions {max-width:100%}
+ body .app-shell .main .content .page-heading h1 {font-size:clamp(24px,6vw,34px)}
+ body .app-shell .main .content :is(.panel,.resource-editor-page,.notification-overview,.notification-composer,.notification-history) {border-radius:12px}
+}
+@media(max-width:480px) {
+ body .usd-live .p-inner-page {width:calc(100% - 24px)!important}
+ body .usd-live .public-page-heading h1 {overflow-wrap:anywhere}
+ body .usd-live .u-panel-heading {flex-wrap:wrap}
+ body .usd-live .u-cinema-copy .u-actions>* {max-width:100%}
+ body .usd-member .participant-portal-main {padding-inline:12px}
+ body .usd-member .participant-journey li {min-width:0}
+ body .app-shell .main .content :is(.toolbar,.stage-picker,.page-heading-actions) {max-width:100%}
+}
+@media(prefers-reduced-motion:reduce) {
+ body .usd-live .p-home-main.is-ready {animation:none!important}
+ body :is(.usd-live,.usd-member,.app-shell) :is(.p-news-card,.public-stage-card,.public-result-card,.public-record-card,.p-person-card,.p-car-card,.p-team-card,.participant-journey li,.participant-car-card,.registration-card) {
+  transition:none!important;
+  transform:none!important;
+ }
+}
