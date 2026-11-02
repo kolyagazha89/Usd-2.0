@@ -106,12 +106,11 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
       <div className="email-preview-canvas">
        <div className="email-preview-paper">
         <header className="email-preview-masthead">
-         <span className="email-preview-overline">ОФИЦИАЛЬНОЕ УВЕДОМЛЕНИЕ</span>
          <div className="email-preview-logo">USD<span>.</span></div>
          <span className="email-preview-tagline">ULTIMATE SOUND DESTRUCTION</span>
         </header>
         <div className="email-preview-content">
-         <span className="email-preview-eyebrow">ВАШ АККАУНТ USD</span>
+         <span className="email-preview-eyebrow">АККАУНТ USD · СЕРВИСНОЕ ПИСЬМО</span>
          <h3>{selected.variableTexts?.heading?.trim()||triggers.find(t=>t.value===selected.trigger)?.label||'Уведомление USD'}</h3>
          <div className="email-preview-body">{preview}</div>
          <span className="email-preview-cta">{selected.buttonLabel||'Открыть USD'}</span>
