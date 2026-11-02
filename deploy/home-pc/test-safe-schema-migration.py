@@ -94,6 +94,75 @@ class SafeSqlTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         module.migration_state("a" * 40, "b" * 40, "db")
 
+    def test_reconcile_applied_migration_never_replays_sql(self):
+        """Restore previous release after Prisma succeeded but policy pin did not."""
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "initial-preflight"
+            receipt.write_text("test receipt")
+            with patch.object(module, "RECEIPT", receipt), \
+                 patch.object(module, "run_migration") as migrate, \
+                 patch.object(module, "migration_state", return_value=([], {})) as history, \
+                 patch.object(module, "container", return_value="known-db"), \
+                 patch.object(module, "run", return_value="healthy"), \
+                 patch.object(module, "row_counts", return_value={"Registration": 42}), \
+                 patch.object(module, "promote_schema") as promote:
+                module.apply_or_reconcile("old", "new", "old-api", "known-db",
+                                          "candidate-image", "db-url",
+                                          {"Registration": 42}, "approved-new-tree", [])
+            migrate.assert_not_called()
+            history.assert_called_once_with("old", "new", "known-db")
+            promote.assert_called_once_with("approved-new-tree")
+            self.assertFalse(receipt.exists())
+
+    def test_pending_migration_applies_once_then_verifies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "initial-preflight"
+            receipt.write_text("test receipt")
+            with patch.object(module, "RECEIPT", receipt), \
+                 patch.object(module, "run_migration") as migrate, \
+                 patch.object(module, "migration_state", return_value=([], {})), \
+                 patch.object(module, "container", return_value="known-db"), \
+                 patch.object(module, "run", return_value="healthy"), \
+                 patch.object(module, "row_counts", return_value={"TeamPost": 5}), \
+                 patch.object(module, "promote_schema") as promote:
+                module.apply_or_reconcile("old", "new", "old-api", "known-db",
+                                          "new-image", "db-url",
+                                          {"TeamPost": 5}, "new-tree", ["photo-gallery"])
+            migrate.assert_called_once_with("new-image", "old-api", "db-url")
+            promote.assert_called_once_with("new-tree")
+
+    def test_incomplete_history_never_promotes_schema(self):
+        with patch.object(module, "run_migration") as migrate, \
+             patch.object(module, "migration_state", return_value=(["pending-migration"], {})), \
+             patch.object(module, "promote_schema") as promote:
+            with self.assertRaisesRegex(ValueError, "still contains pending"):
+                module.apply_or_reconcile("old", "new", "api", "db", "image",
+                                          "db-url", {}, "tree", [])
+        migrate.assert_not_called()
+        promote.assert_not_called()
+
+    def test_row_loss_or_unhealthy_db_blocks_schema_pin(self):
+        for rows, health in (({"Registration": 0}, "healthy"),
+                             ({"Registration": 1}, "unhealthy")):
+            with self.subTest(rows=rows, health=health):
+                with patch.object(module, "migration_state", return_value=([], {})), \
+                     patch.object(module, "container", return_value="db"), \
+                     patch.object(module, "run", return_value=health), \
+                     patch.object(module, "row_counts", return_value=rows), \
+                     patch.object(module, "promote_schema") as promote:
+                    with self.assertRaisesRegex(ValueError, "rows|unhealthy"):
+                        module.apply_or_reconcile("old", "new", "api", "db", "image",
+                                                  "db-url", {"Registration": 1}, "tree", [])
+                promote.assert_not_called()
+
+    def test_post_migration_subprocess_failures_have_safe_phase_names(self):
+        with patch.object(module, "migration_state", side_effect=OSError("sensitive underlying path")), \
+             patch.object(module, "promote_schema") as promote:
+            with self.assertRaisesRegex(ValueError, "Post-migration Prisma checksum/history verification failed"):
+                module.apply_or_reconcile("old", "new", "api", "db", "image",
+                                          "db-url", {}, "tree", [])
+        promote.assert_not_called()
+
     def test_policy_update_is_private_and_atomic(self):
         with tempfile.TemporaryDirectory() as d:
             policy = Path(d) / "policy"
