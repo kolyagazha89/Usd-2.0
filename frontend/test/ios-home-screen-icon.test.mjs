@@ -30,6 +30,9 @@ test('PWA manifest and browser icon point at accessible, correctly sized brand P
  const manifest = JSON.parse(manifestText);
  assert.equal(manifest.short_name, 'USD');
  assert.equal(manifest.display, 'standalone');
+ assert.equal(manifest.id, '/', 'App identity stays stable when changing launch route');
+ assert.equal(manifest.start_url, '/', 'Installed USD must open the public homepage, not a private profile');
+ assert.equal(manifest.scope, '/');
  assert.match(html, /<link rel="icon" type="image\/png" sizes="192x192" href="\/usd\/pwa-192\.png\?v=\d+"\s*\/>/);
  for(const icon of manifest.icons) {
   assert.equal(icon.type, 'image/png');

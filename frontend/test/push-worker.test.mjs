@@ -50,11 +50,11 @@ test("push worker never intercepts private requests and constrains notification 
       }),
     },
   });
-  assert.equal(shown[0][1].data.path, "/participant");
+  assert.equal(shown[0][1].data.path, "/");
   await emit("notificationclick", {
     notification: { data: { path: "https://evil.test/steal" }, close() {} },
   });
-  assert.deepEqual(opened, ["https://usd.test/participant"]);
+  assert.deepEqual(opened, ["https://usd.test/"]);
   assert.equal(focused.length, 1);
   await emit("notificationclick", {
     notification: { data: { path: "/stages/123" }, close() {} },
@@ -72,10 +72,11 @@ test("push worker never intercepts private requests and constrains notification 
     "/news/%2e%2e/admin",
     "/participant/../../admin",
     "/admin",
+    "//evil.example",
     "/stages\\evil",
     "/news?x=1\n",
   ]) {
     await emit("push", { data: { json: () => ({ path }) } });
-    assert.equal(shown.at(-1)[1].data.path, "/participant");
+    assert.equal(shown.at(-1)[1].data.path, "/");
   }
 });

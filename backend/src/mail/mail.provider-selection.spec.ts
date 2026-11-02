@@ -1,4 +1,5 @@
 import {jest} from '@jest/globals';
+import {BadGatewayException, ServiceUnavailableException} from '@nestjs/common';
 import {MailService} from './mail.service';
 
 describe('USD mail provider selection and safe diagnostics',()=>{
@@ -32,6 +33,55 @@ describe('USD mail provider selection and safe diagnostics',()=>{
    expect(mail.getDeliveryStatus().ready).toBe(false);
    await expect((mail as any).sendMessage({to:'r@test.invalid',subject:'test',text:'test',html:'test'})).rejects.toThrow('SMTP delivery requires SMTP_EGRESS_ALLOWED=true');
    expect(smtp).not.toHaveBeenCalled();
+ });
+ it('shows a useful 503 for disabled Yandex SMTP instead of leaking an internal 500', async()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.SMTP_HOST='smtp.yandex.com';
+   process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='DO_NOT_LEAK_APP_PASSWORD';
+   process.env.SMTP_FROM='USD <usd-russia@yandex.com>';
+   process.env.SMTP_EGRESS_ALLOWED='false';
+   const mail=new MailService();
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail');
+   let failure:unknown;
+   try { await mail.sendTestEmail('test@example.com'); } catch(error) { failure=error; }
+   expect(failure).toBeInstanceOf(ServiceUnavailableException);
+   const response=(failure as ServiceUnavailableException).getResponse();
+   expect(JSON.stringify(response)).toContain('SMTP_EGRESS_ALLOWED=true');
+   expect(JSON.stringify(response)).not.toContain('DO_NOT_LEAK');
+   expect(smtp).not.toHaveBeenCalled();
+ });
+ it('maps an SMTP password rejection to a safe 502 without logging provider secrets',async()=>{
+   process.env.MAIL_PROVIDER='smtp';process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.com';process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='DO_NOT_LEAK_APP_PASSWORD';
+   process.env.SMTP_FROM='USD <usd-russia@yandex.com>';
+   const mail=new MailService();
+   const warning=jest.spyOn((mail as any).logger,'warn').mockImplementation(()=>undefined);
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail')
+     .mockRejectedValue(Object.assign(new Error('SMTP SECRET DO_NOT_LEAK_APP_PASSWORD'),{code:'EAUTH',responseCode:535}) as never);
+   let failure:unknown;
+   try { await mail.sendTestEmail('test@example.com'); } catch(error) { failure=error; }
+   expect(failure).toBeInstanceOf(BadGatewayException);
+   const response=JSON.stringify((failure as BadGatewayException).getResponse());
+   expect(response).toContain('MAIL_AUTH_FAILED');
+   expect(response).toContain('пароль приложения');
+   expect(response).not.toContain('DO_NOT_LEAK');
+   expect(JSON.stringify(warning.mock.calls)).not.toContain('DO_NOT_LEAK');
+   expect(smtp).toHaveBeenCalledTimes(1);
+ });
+ it('maps SMTP network timeout to connection instructions without retrying a message',async()=>{
+   process.env.MAIL_PROVIDER='smtp';process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.com';process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='test-password';
+   process.env.SMTP_FROM='usd-russia@yandex.com';
+   const mail=new MailService();
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail')
+     .mockRejectedValue(Object.assign(new Error('socket failure'),{code:'ETIMEDOUT'}) as never);
+   await expect(mail.runAdminMailTest(()=>mail.sendNotificationEmail({
+     to:'test@example.com',subject:'USD test',text:'test',html:'test',
+   }))).rejects.toMatchObject({status:502,response:expect.objectContaining({code:'MAIL_CONNECTION_FAILED'})});
+   expect(smtp).toHaveBeenCalledTimes(1);
  });
  it('identifies incomplete Gmail mail configuration without exposing secret values',()=>{
    process.env.GMAIL_REFRESH_TOKEN='DO_NOT_LEAK_REFRESH_TOKEN';

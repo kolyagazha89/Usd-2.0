@@ -39,14 +39,14 @@ export class MailController {
     if (!allowed.includes(String(body?.type))) throw new BadRequestException('Выберите поддерживаемый триггер письма');
     const type = String(body.type);
     if (process.env.MAIL_ACCOUNT_ONLY === 'true' && !type.startsWith('AUTH_')) {
-      throw new BadRequestException('В релизном режиме письма отправляются только для аккаунтов. Уведомления об этапах работают через PUSH.');
-    }
-    if (type.startsWith('AUTH_')) {
-      return this.mailService.sendTestAuthTemplate(email, type as 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE');
+      throw new BadRequestException('В релизном режиме почта используется только для аккаунтов USD. Уведомления об этапах работают через PUSH.');
     }
     const stageId = typeof body?.stageId === 'string' ? body.stageId.trim() : undefined;
     if (stageId && stageId.length > 100) throw new BadRequestException('Некорректный идентификатор этапа');
-    return this.emailNotifications.sendTestTrigger(type, email, stageId || undefined);
+    if (type.startsWith('AUTH_')) {
+      return this.mailService.runAdminMailTest(() => this.mailService.sendTestAuthTemplate(email, type as 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE'));
+    }
+    return this.mailService.runAdminMailTest(() => this.emailNotifications.sendTestTrigger(type, email, stageId || undefined));
   }
 
   @Roles('ADMIN')

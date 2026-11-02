@@ -90,4 +90,9 @@ describe('push click destination boundary', () => {
   ])('rejects %s', (path) => expect(() => safePushPath(path)).toThrow());
   it('keeps allowed app paths and query parameters', () =>
     expect(safePushPath('/stages/123?tab=info')).toBe('/stages/123?tab=info'));
+  it('allows exactly the public homepage for a safe announcement click', () => {
+    expect(safePushPath('/')).toBe('/');
+    expect(() => safePushPath('//evil.test')).toThrow();
+    expect(() => safePushPath('/admin')).toThrow();
+  });
 });

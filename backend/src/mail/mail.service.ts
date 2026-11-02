@@ -1,9 +1,11 @@
 import {
+  BadGatewayException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
-  ServiceUnavailableException,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
 import * as nodemailer from 'nodemailer';
@@ -317,54 +319,6 @@ export class MailService {
     await this.sendMessage(message);
   }
 
-  /**
-   * Safe, administrator-only diagnostics. SMTP errors sometimes contain server
-   * responses or addresses, so only a fixed public code/message leave the API.
-   */
-  private adminMailFailure(error: unknown): never {
-    const detail = error as { code?: unknown; responseCode?: unknown } | null;
-    const smtpCode = typeof detail?.code === 'string' ? detail.code : '';
-    const smtpResponse = typeof detail?.responseCode === 'number' ? detail.responseCode : 0;
-    const status = this.getDeliveryStatus();
-    let code = 'MAIL_PROVIDER_REJECTED';
-    let message = 'Почтовый провайдер не принял письмо. Проверьте журнал API на Ubuntu и повторите тест.';
-    if (!status.ready) {
-      code = 'MAIL_NOT_CONFIGURED';
-      message = 'Почта USD не настроена. Проверьте отсутствующие параметры в статусе канала и настройки API на Ubuntu.';
-    } else if (smtpCode === 'EAUTH' || smtpResponse === 535 || smtpResponse === 534) {
-      code = 'MAIL_AUTH_FAILED';
-      message = 'SMTP отклонил авторизацию. Проверьте логин Яндекса и пароль приложения в окружении API на Ubuntu.';
-    } else if (['ETIMEDOUT', 'ECONNECTION', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH', 'ESOCKET'].includes(smtpCode)) {
-      code = 'MAIL_NETWORK_UNAVAILABLE';
-      message = 'Не удалось подключиться к почтовому серверу. Проверьте исходящее соединение Ubuntu с smtp.yandex.com:465.';
-    }
-    this.logger.warn('Admin mail diagnostic failed: ' + code + (smtpCode ? ' (' + smtpCode + ')' : ''));
-    throw new ServiceUnavailableException({ code, message });
-  }
-
-  private async sendAdminMessage(message: { to: string; subject: string; html: string; text: string }): Promise<void> {
-    if (!this.getDeliveryStatus().ready) this.adminMailFailure({ code: 'NOT_CONFIGURED' });
-    try {
-      await this.sendMessage(message);
-    } catch (error) {
-      this.adminMailFailure(error);
-    }
-  }
-
-  async checkConnection(): Promise<{ success: true; connected: boolean; deliveryConfirmed: false; message: string }> {
-    const status = this.getDeliveryStatus();
-    if (!status.ready) this.adminMailFailure({ code: 'NOT_CONFIGURED' });
-    if (!status.provider.includes('SMTP')) {
-      return { success: true, connected: false, deliveryConfirmed: false, message: 'Для HTTPS-провайдера доступна проверка только реальным тестовым письмом.' };
-    }
-    try {
-      await this.transporter.verify();
-      return { success: true, connected: true, deliveryConfirmed: false, message: 'SMTP-соединение и авторизация успешны. Теперь отправьте тестовое письмо и проверьте его получение.' };
-    } catch (error) {
-      this.adminMailFailure(error);
-    }
-  }
-
   async sendTestAuthTemplate(email: string, type: 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE'): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; type: string; message: string }> {
     const configs = {
       AUTH_EMAIL_VERIFICATION: { subject: 'Подтверждение email — USD', heading: 'Подтверждение email', actionLabel: 'Подтвердить email' },
@@ -383,7 +337,7 @@ export class MailService {
       note: 'Тестовая ссылка ведёт только на сайт. Настоящий токен аккаунта не создавался.',
       frontendUrl: this.frontendUrl,
     });
-    await this.sendAdminMessage({ to: email, ...message });
+    await this.sendMessage({ to: email, ...message });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
   }
 
@@ -434,6 +388,75 @@ export class MailService {
     return {provider:isYandex?'Яндекс Почта (SMTP)':'SMTP',ready:!missing.length,missing,note:(missing.length?'Для отправки настройте SMTP в окружении API и проверьте доступность порта с Ubuntu.':'SMTP-настройки присутствуют; проверьте фактическую доставку тестом в админке USD.')+(process.env.MAIL_ACCOUNT_ONLY==='true'?' Автоматические письма об этапах отключены; используйте PUSH.':'')};
   }
 
+  /**
+   * ADMIN-only mail-test boundary: never expose SMTP, OAuth or provider
+   * exceptions verbatim. An incomplete server configuration is actionable
+   * (503), while a rejected connection/authentication is a gateway error
+   * (502). No automatic retry or transport fallback: either can duplicate
+   * messages already accepted by the provider.
+   */
+  async runAdminMailTest<T>(send: () => Promise<T>): Promise<T> {
+    const status = this.getDeliveryStatus();
+    if (!status.ready) {
+      this.logger.warn('Mail test blocked: incomplete server mail configuration.');
+      throw new ServiceUnavailableException({
+        code: 'MAIL_CONFIGURATION_INCOMPLETE',
+        message: 'Почта не настроена на сервере. Проверьте: ' + status.missing.join(', ') + '.',
+      });
+    }
+    try {
+      return await send();
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      const mailError = error as { code?: unknown; responseCode?: unknown } | null;
+      const code = typeof mailError?.code === 'string' ? mailError.code.toUpperCase() : '';
+      const responseCode = typeof mailError?.responseCode === 'number' ? mailError.responseCode : 0;
+      let kind = 'MAIL_PROVIDER_REJECTED';
+      let message = 'Почтовый сервер не принял тестовое письмо. Проверьте настройки Яндекс Почты и журнал API на Ubuntu.';
+      if (code === 'EAUTH' || [530, 534, 535, 538].includes(responseCode)) {
+        kind = 'MAIL_AUTH_FAILED';
+        message = 'Яндекс Почта отклонила авторизацию. Проверьте SMTP_USER, пароль приложения SMTP_PASSWORD и разрешение почтовых программ.';
+      } else if (['ECONNECTION', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ENETUNREACH', 'EHOSTUNREACH', 'EAI_AGAIN', 'ENOTFOUND', 'ESOCKET'].includes(code)) {
+        kind = 'MAIL_CONNECTION_FAILED';
+        message = 'Нет соединения с почтовым сервером. Проверьте SMTP_HOST, порт 465 и доступность исходящего SMTP с Ubuntu.';
+      } else if (['ETLS', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT'].includes(code)) {
+        kind = 'MAIL_TLS_FAILED';
+        message = 'Не удалось установить защищённое TLS-соединение с SMTP. Проверьте SMTP_HOST, SMTP_PORT и SMTP_SECURE.';
+      }
+      // Provider errors may contain auth details, raw URLs and recipient data.
+      // Only log the fixed diagnostic category and safe SMTP status code.
+      this.logger.warn('Administrative email test failed: ' + kind +
+        (responseCode >= 400 && responseCode <= 599 ? ', smtpStatus=' + responseCode : ''));
+      throw new BadGatewayException({ code: kind, message });
+    }
+  }
+
+  /**
+   * ADMIN-only connection verification. No message is sent and neither SMTP
+   * acceptance nor connection readiness proves an inbox delivery.
+   * runAdminMailTest keeps SMTP/OAuth details and credentials out of the API.
+   */
+  async checkConnection(): Promise<{ success: true; connected: boolean; deliveryConfirmed: false; message: string }> {
+    const provider = this.getDeliveryStatus().provider;
+    return this.runAdminMailTest(async () => {
+      if (!provider.includes('SMTP')) {
+        return {
+          success: true,
+          connected: false,
+          deliveryConfirmed: false,
+          message: 'Для HTTPS-провайдера используйте отправку контрольного письма.',
+        };
+      }
+      await this.transporter.verify();
+      return {
+        success: true,
+        connected: true,
+        deliveryConfirmed: false,
+        message: 'SMTP-соединение и авторизация успешны. Теперь отправьте тестовое письмо и проверьте его получение.',
+      };
+    });
+  }
+
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
     const sentAt = new Date().toISOString();
     const message = renderBrandedEmail({
@@ -445,13 +468,15 @@ export class MailService {
       note: 'Время запроса: ' + sentAt + '. Ответ почтового провайдера не является подтверждением доставки.',
       frontendUrl: this.frontendUrl,
     });
-    await this.sendAdminMessage({ to: email, ...message });
-    return {
-      success: true,
-      providerAccepted: true,
-      deliveryConfirmed: false,
-      message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
-    };
+    return this.runAdminMailTest(async () => {
+      await this.sendMessage({ to: email, ...message });
+      return {
+        success: true as const,
+        providerAccepted: true as const,
+        deliveryConfirmed: false as const,
+        message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
+      };
+    });
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
@@ -471,7 +496,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}). Check the configured mail provider and its credentials.`);
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name : 'UnknownError'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
     }
   }
@@ -492,7 +517,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.');
     }
   }
@@ -513,7 +538,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо для изменения email. Проверьте настройки почтового сервиса.');
     }
   }

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 describe('USD release SMTP diagnostics', () => {
@@ -46,11 +46,11 @@ describe('USD release SMTP diagnostics', () => {
       Object.assign(new Error('private provider response'), { code: 'EAUTH', responseCode: 535 }) as never,
     );
     try {
-      await service.sendTestAuthTemplate('admin@example.com', 'AUTH_PASSWORD_RESET');
+      await service.runAdminMailTest(() => service.sendTestAuthTemplate('admin@example.com', 'AUTH_PASSWORD_RESET'));
       throw new Error('Expected mail diagnostic to reject');
     } catch (error) {
-      expect(error).toBeInstanceOf(ServiceUnavailableException);
-      const result = (error as ServiceUnavailableException).getResponse();
+      expect(error).toBeInstanceOf(BadGatewayException);
+      const result = (error as BadGatewayException).getResponse();
       expect(result).toMatchObject({ code: 'MAIL_AUTH_FAILED' });
       expect(JSON.stringify(result)).not.toContain('private provider response');
       expect(JSON.stringify(result)).not.toContain('test-app-password');
