@@ -88,7 +88,7 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
@@ -143,6 +143,45 @@ try{
       const heading=document.querySelector('main h1,.content h1,h1');
       return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&!e.closest('.sidebar')&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
      }));
+     if(role===null&&route==='/'){
+      await page.locator('.p-home-main.is-ready').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
+      assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
+      row.sitewideHome='no late content replacement after boot';
+     }
+     if(role===null&&['/stages','/records','/rules','/privacy','/teams','/participants'].includes(route)){
+      const pageHeading=page.locator('.public-page-heading');
+      await pageHeading.waitFor({state:'visible'});
+      assert.equal(await pageHeading.locator('h1').count(),1,'shared premium page title on every public inner route');
+      assert.equal(await pageHeading.locator('.public-page-kicker').count(),1,'shared official site kicker');
+      const tone=await pageHeading.locator('h1').evaluate(el=>getComputedStyle(el).color);
+      assert.equal(tone,'rgb(247, 248, 250)','public inner heading stays light on dark graphite');
+      row.sitewideInnerPages='shared graphite header and CMS body';
+     }
+     if(role==='PARTICIPANT'&&route.startsWith('/participant?tab=profile')){
+      const selector=page.locator('.participant-profile-nav');
+      await selector.waitFor({state:'visible'});
+      assert.equal(await selector.locator('a').count(),4,'four separate account settings destinations');
+      const currentSection=new URL('https://usd.test'+route).searchParams.get('section')||'personal';
+      assert.equal(await selector.locator('[aria-current="page"]').count(),1);
+      assert.ok((await selector.locator('[aria-current="page"]').getAttribute('href')).endsWith('section='+currentSection));
+      if(currentSection==='personal')assert.equal(await page.locator('.participant-account-security').count(),0);
+      if(currentSection==='security'){
+       await page.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
+       assert.equal(await page.locator('.account-security-sessions').count(),0);
+      }
+      if(currentSection==='sessions'){
+       await page.locator('#account-security-heading').getByText('Сеансы входа',{exact:true}).waitFor();
+       assert.equal(await page.locator('#account-current-password').count(),0);
+      }
+      if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),1);
+      row.profileSections='separate personal, credentials, devices and notification screens';
+     }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
+      const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.ok(['rgb(6, 9, 13)','rgb(8, 11, 15)'].includes(surface),'member account stays graphite dark on all profile pages: '+surface);
+      row.sitewideMember='graphite account and consistent form design';
+     }
      if(role==='ADMIN'){
       const shell=await page.evaluate(()=>{
        const bounds=selector=>{const rect=document.querySelector(selector)?.getBoundingClientRect();return rect?{x:rect.x,width:rect.width,right:rect.right}:null};

@@ -20,9 +20,9 @@ const fill=async(id:string,value:string)=>fillInput(document.getElementById(id) 
 const submit=async(id:string)=>{const form=document.getElementById(id)!;assert.ok(form);await act(async()=>{form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}))});await flush()};
 const writes=()=>calls.filter(c=>c.method!=='GET'&&c.path!=='/auth/refresh');
 
-async function mount(role='PARTICIPANT',linked=true,judge=false){
+async function mount(role='PARTICIPANT',linked=true,judge=false,section='security'){
   if(root)await act(async()=>root!.unmount());
-  history.replaceState({},'','/participant?tab=profile');
+  history.replaceState({},'','/participant?tab=profile&section='+section);
   localStorage.clear();calls=[];
   const user={id:'fixture-user',email:'fixture@example.test',role,participantId:linked?'fixture-participant':null,
     ...(judge?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
@@ -54,7 +54,7 @@ export async function runAccountSecurity(){
       if(linked){
         assert.match(section().textContent??'',/Безопасность аккаунта/);
         assert.match(section().textContent??'',/fixture@example.test/);
-        assert.ok(calls.some(c=>c.path==='/auth/sessions'));
+        assert.equal(calls.some(c=>c.path==='/auth/sessions'),false,'credentials page must not fetch device history');
       }else{
         assert.ok(document.querySelector('.profile-match-page.usd-member'),'new account must start in the profile selection journey');
         assert.equal(document.querySelector('.participant-account-security'),null,'security forms must not overwhelm the first-login page');
@@ -130,7 +130,7 @@ export async function runAccountSecurity(){
     mutation=async()=>({success:true});await fill('account-new-email','available@example.test');await submit('account-email-form');
     assert.match(section().querySelector('[role="status"]')?.textContent??'',/available@example.test/);
 
-    await mount();
+    await mount('PARTICIPANT',true,false,'sessions');
     assert.match(section().textContent??'',/Chrome on Android/);assert.match(section().textContent??'',/Неизвестное устройство/);
     assert.equal(section().querySelectorAll('.account-security-current-label').length,0,'a client without server proof must not label a current device');
     const revoke=section().querySelector<HTMLButtonElement>('[aria-label="Завершить сеанс: Chrome on Android"]')!;
@@ -160,7 +160,7 @@ export async function runAccountSecurity(){
 
     // Bulk session revocation is committed server-side even if the subsequent
     // remote logout endpoint is unavailable; the browser must still sign out.
-    await mount();
+    await mount('PARTICIPANT',true,false,'sessions');
     failLogout=true;
     await click('Завершить все сеансы');
     await click('Да, завершить все и выйти');
@@ -168,7 +168,7 @@ export async function runAccountSecurity(){
     assert.equal(localStorage.getItem('usd_refresh_token'),null,'bulk revoke must clear local auth despite remote logout failure');
     assert.match(document.querySelector('h1')?.textContent??'',/С возвращением/);
 
-    await mount();
+    await mount('PARTICIPANT',true,false,'sessions');
     const racingRevoke=section().querySelector<HTMLButtonElement>('[aria-label="Завершить сеанс: Chrome on Android"]')!;
     await act(async()=>racingRevoke.click());await flush();
     let finishStaleList:(value:any)=>void=()=>{};
@@ -179,7 +179,7 @@ export async function runAccountSecurity(){
     assert.equal(Boolean(section().querySelector('[aria-label="Завершить сеанс: Chrome on Android"]')),false,'a GET started before successful revocation must not restore the revoked session');
     assert.match(section().textContent??'',/Неизвестное устройство/,'remaining sessions must be visible after revocation');
 
-    await mount();
+    await mount('PARTICIPANT',true,false,'sessions');
     listSessions=async()=>[{...sessions[0],isCurrent:true},sessions[1]];await click('Обновить сеансы');
     assert.equal(section().querySelectorAll('.account-security-current-label').length,1);
     assert.equal(section().querySelector('.account-security-current-label')?.textContent,'Это устройство');
@@ -205,7 +205,7 @@ export async function runAccountSecurity(){
     assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh','old logout must not clear a subsequent successful login');
     assert.ok(section());
 
-    await mount();
+    await mount('PARTICIPANT',true,false,'sessions');
     let finishList:(value:any)=>void=()=>{};
     listSessions=()=>new Promise(resolve=>{finishList=resolve});
     await click('Обновить сеансы');

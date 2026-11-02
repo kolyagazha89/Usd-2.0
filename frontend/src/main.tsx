@@ -14,6 +14,7 @@ import './public/premium-configurator.css';
 import './participant/member-experience.css';
 import './dark-velocity-sitewide.css';
 import './sitewide-finish.css';
+import './sitewide-premium-2026.css';
 import './admin/admin-shell-layout.css';
 
 createRoot(document.getElementById('root')!).render(

@@ -58,7 +58,7 @@ async function captureFocused(page,locator,name){
   assert.ok(geometry.rect.top>=0&&geometry.rect.bottom<=geometry.viewport.height,name+': focused control outside viewport '+JSON.stringify(geometry));
   assert.equal(geometry.hit,true,name+': focused control is obscured '+JSON.stringify(geometry));
 }
-async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=false){
+async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=false,section='security'){
   const user={id:'fixture-user',email:'fixture@example.test',role:kind==='ADMIN'?'ADMIN':'PARTICIPANT',participantId:linked?participant.id:null,
     ...(kind==='JUDGE'?{customRoleId:'judge',customRole:{id:'judge',key:'judge',name:'Судья',permissions:{results:['view']}}}:{})};
   const context=await browser.newContext({viewport:{width,height:1000}});
@@ -104,7 +104,7 @@ async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=fa
   });
   const page=await context.newPage();
   page.on('pageerror',error=>report.failures.push(error.message));
-  await page.goto(base+'/participant?tab=profile');
+  await page.goto(base+'/participant?tab=profile&section='+section);
   const cookieNotice=page.getByRole('button',{name:'Понятно',exact:true});
   if(await cookieNotice.isVisible())await cookieNotice.click();
   const security=page.locator('.participant-account-security');
@@ -124,9 +124,14 @@ async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=fa
     report.pages.push({width,role:kind,linked:false,securityHidden:true,screenshot,...layout});
     return {context,page,security,state};
   }
-  await security.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
-  await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
-  assert.equal(await security.locator('.account-security-current-label').count(),markCurrent?1:0,'label only a server-proven current device');
+  await security.locator('#account-security-heading').waitFor();
+  assert.equal(await security.locator('#account-security-heading').innerText(),section==='sessions'?'Сеансы входа':'Безопасность аккаунта');
+  if(section==='sessions'){
+    await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
+    assert.equal(await security.locator('.account-security-current-label').count(),markCurrent?1:0,'label only a server-proven current device');
+  }else{
+    assert.equal(await security.locator('.account-security-sessions').count(),0,'device access is a separate route');
+  }
   const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+1,inputSizes:[...document.querySelectorAll('.participant-account-security input')].map(input=>parseFloat(getComputedStyle(input).fontSize)),dark:getComputedStyle(document.querySelector('.account-security-card')).backgroundImage,titleBackgrounds:[...document.querySelectorAll('.account-security-card-title,.account-security-card-title h3')].map(element=>({tag:element.tagName,background:getComputedStyle(element).backgroundColor}))}));
   assert.equal(layout.overflow,false,`${kind} ${width}: horizontal overflow`);
   assert.ok(layout.inputSizes.every(size=>size>=16),'iOS inputs must be at least 16px');
@@ -169,6 +174,8 @@ try{
     await security.getByRole('status').filter({hasText:'new.address@example.test'}).waitFor();
     assert.deepEqual(writes().at(-1).body,{email:'new.address@example.test',currentPassword:'Synthetic-current-password'});
     assert.equal(await page.locator('#account-email-password').inputValue(),'');
+    await page.goto(base+'/participant?tab=profile&section=sessions');
+    await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
     state.listError=true;
     await security.getByRole('button',{name:'Обновить сеансы'}).click();
     await security.getByRole('alert').filter({hasText:'Список временно недоступен'}).waitFor();
@@ -213,7 +220,7 @@ try{
     report.actions.push({width,scenario:'judge password mismatch, confirmation, error/retry and sign-out'});
     await password.context.close();
 
-    const current=await scenario(width,'PARTICIPANT',true,false,true);
+    const current=await scenario(width,'PARTICIPANT',true,false,true,'sessions');
     const badge=current.security.getByText('Это устройство',{exact:true});
     await badge.evaluate(element=>element.scrollIntoView({block:'center',behavior:'instant'}));await settleViewport(current.page);
     await current.page.screenshot({path:path.join(output,`participant-${width}-proven-current.png`)});
@@ -236,12 +243,12 @@ try{
     await current.page.getByRole('button',{name:'Входим…',exact:true}).waitFor();
     assert.equal(current.state.calls.filter(call=>call.path==='/auth/login').length,0,'new login must wait for pending cookie cleanup');
     current.state.releaseLogout();
-    await current.page.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
+    await current.page.getByRole('navigation',{name:'Разделы личного кабинета'}).waitFor();
     assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),'synthetic-new-refresh','completed old cleanup must not erase new credentials');
     report.actions.push({width,scenario:'proven current-device label, revoke confirmation, failure/retry, immediate local sign-out and safe relogin during pending cookie cleanup'});
     await current.context.close();
 
-    const currentFailure=await scenario(width,'PARTICIPANT',true,false,true);
+    const currentFailure=await scenario(width,'PARTICIPANT',true,false,true,'sessions');
     currentFailure.state.logoutError=true;
     await currentFailure.security.getByRole('button',{name:'Завершить сеанс: '+sessionFixtures[0].userAgent,exact:true}).click();
     await currentFailure.security.getByRole('button',{name:'Да, завершить и выйти',exact:true}).click();
@@ -253,7 +260,7 @@ try{
 
     // The server may revoke sessions / rotate the password while the separate
     // logout request fails. Verify both successful mutations still sign out.
-    const bulkFailure=await scenario(width,'PARTICIPANT');
+    const bulkFailure=await scenario(width,'PARTICIPANT',true,false,false,'sessions');
     bulkFailure.state.logoutError=true;
     await bulkFailure.security.getByRole('button',{name:'Завершить все сеансы',exact:true}).click();
     await bulkFailure.security.getByRole('button',{name:'Да, завершить все и выйти',exact:true}).click();

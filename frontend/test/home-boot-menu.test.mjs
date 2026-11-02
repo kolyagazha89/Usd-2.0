@@ -11,7 +11,7 @@ test('initial USD splash persists until all home data matches the current site s
  assert.match(app,/liveReady\?\.stages!==stages/);
  assert.match(app,/liveReady\?\.settings!==settings/);
  assert.match(app,/peopleReady!==settings/);
- assert.match(app,/!brandReady\|\|loading/);
+ assert.match(app,/!brandReady\|\|!homeVisualReady\|\|loading/);
  assert.match(app,/setHomeMinDelayPassed\(true\),650/);
  assert.match(app,/className="usd-home-boot-overlay"/);
  assert.match(app,/<Splash fixedLogo\/>/);

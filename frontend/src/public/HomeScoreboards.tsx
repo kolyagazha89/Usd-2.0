@@ -36,7 +36,13 @@ export function LiveClassCarousel({rows}:{rows:any[]}){
    <div><small>{group.direction||'НАПРАВЛЕНИЕ USD'}</small><h3>{group.name}</h3><span>{group.rows.length} {group.rows.length===1?'результат':group.rows.length<5?'результата':'результатов'}</span></div>
    {groups.length>1&&<div className="usd-carousel-controls"><span>{index%groups.length+1} / {groups.length}</span><button type="button" aria-label={paused?'Возобновить смену классов':'Приостановить смену классов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={18}/>:<Pause size={18}/>}</button><button type="button" aria-label="Предыдущий класс" onClick={()=>{setPaused(true);setIndex(i=>(i-1+groups.length)%groups.length)}}><ChevronLeft size={18}/></button><button type="button" aria-label="Следующий класс" onClick={()=>{setPaused(true);setIndex(i=>(i+1)%groups.length)}}><ChevronRight size={18}/></button></div>}
   </div>
-  <div className="usd-live-class-entries" key={group.key} onScroll={()=>setPaused(true)}>{group.rows.map((r:any,i:number)=><HomeResultRow key={r.id??i} row={r}/>)}</div>
+  <div className="usd-carousel-viewport" aria-label="Табло результатов по классам">
+   <div className="usd-carousel-track" style={{transform:`translate3d(-${index%groups.length*100}%,0,0)`}}>
+    {groups.map(g=><div key={g.key} className="usd-carousel-slide" aria-hidden={g.key!==group.key} inert={g.key!==group.key}>
+     <div className="usd-live-class-entries" onScroll={()=>setPaused(true)}>{g.rows.map((r:any,i:number)=><HomeResultRow key={r.id??i} row={r}/>)}</div>
+    </div>)}
+   </div>
+  </div>
   {groups.length>1&&<div className="usd-carousel-dots" role="group" aria-label="Выбор класса">{groups.map((g,i)=><button type="button" key={g.key} aria-label={'Показать класс '+g.name} aria-pressed={i===index%groups.length} onClick={()=>{setPaused(true);setIndex(i)}}/>)}</div>}
  </div>;
 }
@@ -53,10 +59,12 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
  },[keys,total,paused]);
  const current=page%Math.max(1,total);
  return <div className="usd-record-carousel">
-  <div className="u-record-minis" aria-label="Другие рекорды USD">{records.slice(current*3,current*3+3).map(r=>{
+  <div className="usd-record-viewport" aria-label="Другие рекорды USD">
+   <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
+    {Array.from({length:total},(_,slide)=><div key={slide} className="u-record-minis usd-record-slide" aria-hidden={slide!==current} inert={slide!==current}>{records.slice(slide*3,slide*3+3).map(r=>{
    const cls=resultClass(r);
    return <Link key={r.id} to="/records"><b>{publicResultValue(r.value)}<small> {publicResultUnit(cls.unit??r.unit,cls)}</small></b><span>{cls.name||'Класс не указан'}</span><small>{cls.direction?.name}</small></Link>;
-  })}</div>
+  })}</div>)}</div></div>
   {total>1&&<div className="usd-record-controls"><button type="button" onClick={()=>{setPaused(true);setPage(p=>(p-1+total)%total)}} aria-label="Предыдущие рекорды"><ChevronLeft size={17}/></button><span>{current+1} / {total}</span><button type="button" aria-label={paused?'Возобновить ротацию рекордов':'Приостановить ротацию рекордов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={17}/>:<Pause size={17}/>}</button><button type="button" onClick={()=>{setPaused(true);setPage(p=>(p+1)%total)}} aria-label="Следующие рекорды"><ChevronRight size={17}/></button></div>}
  </div>;
 }
