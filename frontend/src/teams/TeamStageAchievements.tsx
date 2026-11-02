@@ -33,7 +33,7 @@ export default function TeamStageAchievements({teamId}:{teamId:string}) {
      <header><h4>{stage.name}</h4><p>{[stage.city,new Date(stage.date).toLocaleDateString('ru-RU')].filter(Boolean).join(' · ')}</p></header>
      <ul>{stage.performances.map(result=><li key={result.id}>
       <div><strong>{result.participant.lastName} {result.participant.firstName}</strong><span>{result.direction} · {result.className}</span></div>
-      <div className="team-achievement-measure"><strong>{result.value} {result.unit==='DB'?'дБ':result.unit}</strong>{result.place&&result.place>0?<span>{result.place}-е место</span>:<span>Результат опубликован</span>}</div>
+      <div className="team-achievement-measure"><strong>{result.value} {result.unit==='DB'?'дБ':result.unit==='MPS'?'м/с':result.unit}</strong>{result.place&&result.place>0?<span>{result.place}-е место</span>:<span>Результат опубликован</span>}</div>
      </li>)}</ul>
     </article>)}</div>
     {data.truncated&&<p className="team-achievement-disclaimer">Показаны первые 500 результатов текущего состава. Полный исторический архив доступен в разделе результатов USD.</p>}
