@@ -8,7 +8,7 @@ test('mail editor previews the complete server-branded layout, not a plain text 
   const [editor, css, mail] = await Promise.all([
     source('../src/admin/EmailTemplatesPage.tsx'),
     source('../src/admin/mail-preview.css'),
-    source('../../backend/src/mail/mail.service.ts'),
+    source('../../backend/src/mail/mail-brand-layout.ts'),
   ]);
   assert.match(editor, /import '\.\/mail-preview\.css'/);
   for (const token of [
@@ -26,10 +26,10 @@ test('mail editor previews the complete server-branded layout, not a plain text 
   assert.match(editor, /Стиль получателя/);
   assert.match(editor, /selected\.variableTexts\?\.heading/);
   assert.doesNotMatch(editor, /<button[^>]+email-preview-cta/);
-  assert.match(mail, /export function renderBrandedEmail/);
-  assert.match(mail, /background:#0d0e11/);
+  assert.match(mail, /export function renderUsdMailShell/);
+  assert.match(mail, /background-color:#0b0b0d/);
   assert.match(mail, /border-bottom:4px solid #ed2638/);
-  assert.match(css, /background:\s*#0d0e11/);
+  assert.match(css, /background:\s*#0b0b0d/);
   assert.match(css, /border-bottom:\s*4px solid #ed2638/);
 });
 
