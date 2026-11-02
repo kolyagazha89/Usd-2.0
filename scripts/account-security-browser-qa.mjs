@@ -124,7 +124,8 @@ async function scenario(width,kind,linked=true,checkFocused=false,markCurrent=fa
     report.pages.push({width,role:kind,linked:false,securityHidden:true,screenshot,...layout});
     return {context,page,security,state};
   }
-  await security.getByRole('heading',{name:section==='sessions'?'Сеансы входа':'Безопасность аккаунта'}).waitFor();
+  await security.locator('#account-security-heading').waitFor();
+  assert.equal(await security.locator('#account-security-heading').innerText(),section==='sessions'?'Сеансы входа':'Безопасность аккаунта');
   if(section==='sessions'){
     await security.getByText('Неизвестное устройство',{exact:true}).waitFor();
     assert.equal(await security.locator('.account-security-current-label').count(),markCurrent?1:0,'label only a server-proven current device');
