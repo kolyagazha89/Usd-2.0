@@ -1,3 +1,4 @@
+import {HOMEPAGE_COPY_FIELDS} from '../public/homepage-copy';
 /** Read-only progress hints for the USD CMS editor.
  * These are counts of filled editorial fields, not server validation or approval.
  * Existing display fallbacks intentionally do not count as manually configured.
@@ -56,9 +57,12 @@ export function homeEditorProgress(home:any,step:HomeEditorStep){
   return {done,total:fields.length};
  }
  if(step==='copy'){
-  const content=Object.values(home?.copy??{}).filter(filled).length;
-  const cards=Array.isArray(home?.valuesCards)?home.valuesCards.filter((x:any)=>filled(x.heading)&&filled(x.description)).length:0;
-  return {done:content+cards,total:Math.max(content,1)+Math.max(home?.valuesCards?.length??0,1)};
+  const textKeys=['communityTitle','communitySubtitle','communityButtonLabel','documentsDescription','documentsButtonLabel','teamsEmptyTitle','teamsEmptyDescription','valuesTitle','valuesSubtitle'];
+  const textFilled=textKeys.filter(key=>filled(home?.[key])).length;
+  const copied=HOMEPAGE_COPY_FIELDS.filter(field=>filled(home?.copy?.[field.key])).length;
+  const cards=Array.isArray(home?.valuesCards)?home.valuesCards:[];
+  const cardFilled=cards.filter((x:any)=>filled(x.heading)&&filled(x.description)).length;
+  return {done:copied+textFilled+cardFilled,total:HOMEPAGE_COPY_FIELDS.length+textKeys.length+cards.length};
  }
  const blocks=Array.isArray(home?.blocks)?home.blocks:[];
  return {done:blocks.filter((x:any)=>typeof x.enabled==='boolean').length,total:blocks.length};
