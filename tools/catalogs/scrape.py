@@ -86,6 +86,12 @@ def drom(f):
    brand_slug=m[1]
    label=tidy(re.sub(r"\s+(?:б\.у\.|новые)$","",a.get_text(" ",strip=True),flags=re.I))
    brand=brands.get(brand_slug)
+   if not brand:
+    expected=brand_slug.replace("_"," ").replace("-"," ")
+    n=len(expected.split())
+    prefix=" ".join(label.split()[:n])
+    if key(prefix)==key(expected):
+     brand=prefix;brands[brand_slug]=brand
    if brand and label.lower().startswith(brand.lower()+" "):
     model=tidy(label[len(brand):])
     if model:rows.add((brand,model))
@@ -99,7 +105,7 @@ def drom(f):
    if m and m[1]==slug and u.netloc.endswith("drom.ru"):
     model=tidy(a.get_text(" ",strip=True))
     if model and len(model)<90 and key(model)!=key(brand):rows.add((brand,model))
-  if len(brands)%20==0:print("Drom",slug,len(rows),flush=True)
+  if len(rows)%200==0:print("Drom",slug,len(rows),flush=True)
  return rows, len(brands)
 
 def sitemap_urls(f,base,limit=1500):
