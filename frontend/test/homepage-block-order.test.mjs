@@ -31,7 +31,7 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   assert.match(hidden,/data-home-block="teams" style="order:2"/,'hiding records must not remove the team block');
   const winners=Array.from({length:6},(_,index)=>({id:'winner-'+index,place:1,value:150+index,participant:{id:'p'+index,firstName:'Тест',lastName:'Участник'},registrationClass:{class:{name:'SPL '+index,direction:{name:'SPL'},unit:'DB'}},car:{brand:'Lada',model:'Vesta'}}));
   const winnersHtml=render(blocks,winners);
-  assert.equal((winnersHtml.match(/class="u-medal"/g)??[]).length,6,'all six selected winners must appear on the homepage');
+  assert.equal((winnersHtml.match(/class="usd-score-row"/g)??[]).length,6,'all six selected winners must appear on the homepage');
   const withPartners=[...blocks,{id:'partners',enabled:true}];
   const draftOnly=render(withPartners,[],[{id:'draft',name:'Draft partner',isActive:true,isPublished:false}]);
   assert.doesNotMatch(draftOnly,/u-home-partners/,'unpublished partners must not create an empty homepage section');
