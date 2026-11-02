@@ -1117,3 +1117,28 @@ body .app-shell .modal-backdrop .modal :is(input,select,textarea){
    justify-content:space-between!important;margin-top:7px!important;
  }
 }
+
+/* Keep the entire homepage behind the USD boot screen until all initial public
+   data sets for the same site configuration have settled. The page stays mounted
+   for accessible navigation but never flashes skeletons or half-filled cards. */
+body .usd-live .usd-home-boot-overlay{
+ position:fixed;inset:0;z-index:1000;isolation:isolate;
+ display:grid;place-items:center;width:100%;height:100dvh;
+ background:#07090d;color:#f5f7f9;pointer-events:auto;
+}
+body .usd-live .usd-home-boot-overlay>.splash{
+ min-height:100%;width:100%;padding:24px;box-sizing:border-box;
+ background:radial-gradient(ellipse at 50% 44%,rgba(196,25,57,.11),transparent 52%),#07090d;
+}
+body .usd-live .usd-home-boot-overlay .splash-brand img{
+ height:clamp(80px,18vw,140px);max-width:min(290px,72vw);
+ filter:drop-shadow(0 0 30px rgba(229,9,34,.20));
+}
+body .usd-live .p-home-main.is-ready{animation:usd-home-boot-reveal .35s ease-out both}
+@keyframes usd-home-boot-reveal{
+ from{opacity:0;transform:translateY(6px)}
+ to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+ body .usd-live .p-home-main.is-ready{animation:none}
+}
