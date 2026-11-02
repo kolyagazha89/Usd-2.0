@@ -25,7 +25,7 @@ test('no unexpected account security forms on the very first page',async()=>{
  const [app,view]=await Promise.all([read('../src/App.tsx'),read('../src/participant/FirstLoginOnboarding.tsx')]);
  assert.doesNotMatch(view,/ParticipantAccountSecurity|account-security/);
  assert.equal((app.match(/<ParticipantAccountSecurity/g)??[]).length,1);
- assert.match(app,/\{tab==='profile'&&<ParticipantAccountSecurity email=\{user\.email\}/);
+ assert.match(app,/\{tab==='profile'&&\(profileSection==='security'\|\|profileSection==='sessions'\)&&<ParticipantAccountSecurity/);
  assert.match(view,/Настройки аккаунта будут доступны в личном кабинете после выбора профиля/);
 });
 
