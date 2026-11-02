@@ -4,7 +4,7 @@ function appPath(value) {
   if (typeof value !== 'string' || value.length > 300 || /[\\\x00-\x20]/.test(value) || (value !== '/' && !/^\/(?:participant|stages|news)(?:[/?#]|$)/.test(value))) return '/';
   try {
     const url = new URL(value, self.location.origin);
-    return url.origin === self.location.origin && (url.pathname === '/' || /^\/(?:participant|stages|news)(?:\/|$)/.test(url.pathname)) ? url.pathname + url.search + url.hash : '/participant';
+    return url.origin === self.location.origin && (url.pathname === '/' || /^\/(?:participant|stages|news)(?:\/|$)/.test(url.pathname)) ? url.pathname + url.search + url.hash : '/';
   } catch { return '/'; }
 }
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
