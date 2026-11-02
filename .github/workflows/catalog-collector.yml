@@ -1,12 +1,8 @@
 name: USD catalogs collector
 on:
-  pull_request:
-    paths:
-      - 'tools/catalogs/**'
-      - '.github/workflows/catalog-collector.yml'
   workflow_dispatch:
 concurrency:
-  group: usd-catalog-pr-${{ github.event.pull_request.number || github.ref }}
+  group: usd-catalog-manual-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
