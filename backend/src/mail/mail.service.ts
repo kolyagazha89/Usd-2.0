@@ -470,7 +470,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}). Check the configured mail provider and its credentials.`);
+      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name : 'UnknownError'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
     }
   }
@@ -491,7 +491,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.');
     }
   }
@@ -512,7 +512,7 @@ export class MailService {
     try {
       await this.sendMessage({ to: email, ...message });
     } catch (error) {
-      this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
+      this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо для изменения email. Проверьте настройки почтового сервиса.');
     }
   }
