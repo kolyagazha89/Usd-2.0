@@ -380,7 +380,7 @@ export class MailService {
       !this.yandexSenderMatchesAccount()&&'SMTP_FROM (должен совпадать с адресом Яндекс Почты)',
     ].filter((v):v is string=>Boolean(v));
     const isYandex=process.env.SMTP_HOST?.trim().toLowerCase()==='smtp.yandex.ru';
-    return {provider:isYandex?'Яндекс Почта (SMTP)':'SMTP',ready:!missing.length,missing,note:missing.length?'Для отправки настройте SMTP в окружении API и проверьте доступность порта с Ubuntu.':'SMTP-настройки присутствуют; проверьте фактическую доставку тестом в админке USD.'};
+    return {provider:isYandex?'Яндекс Почта (SMTP)':'SMTP',ready:!missing.length,missing,note:(missing.length?'Для отправки настройте SMTP в окружении API и проверьте доступность порта с Ubuntu.':'SMTP-настройки присутствуют; проверьте фактическую доставку тестом в админке USD.')+(process.env.MAIL_ACCOUNT_ONLY==='true'?' Автоматические письма об этапах отключены; используйте PUSH.':'')};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
