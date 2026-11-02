@@ -1,8 +1,8 @@
 /* USD — final cohesion layer. Imported last. Scoped surfaces preserve the
  * graphite public/member and pearl admin contrast without global overrides. */
 :root {
-  --usd-finish-red: #e51c3b;
-  --usd-finish-red-hover: #ff3655;
+  --usd-finish-red: #ed2638;
+  --usd-finish-red-hover: #ff5268;
   --usd-finish-radius: 16px;
   --usd-finish-smooth: cubic-bezier(.2,.75,.25,1);
 }
@@ -60,7 +60,7 @@ body .usd-member :is(.participant-section,.registration-card,.participant-regist
 }
 /* Administration: bright neutral workspace without vestigial blue accents. */
 body .app-shell>.main{
-  background: #f5f5f7!important;
+  background: var(--usd-admin-canvas,#f3f5f8)!important;
   color: #1d2025;
 }
 body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,.notification-overview,.notification-composer,.notification-history){
