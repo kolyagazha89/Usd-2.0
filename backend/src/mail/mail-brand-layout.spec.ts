@@ -17,7 +17,7 @@ describe('premium USD email shell', () => {
     expect(html).toContain('max-width:620px');
     expect(html).toContain('width="600"');
     expect(html).toContain('border-bottom:4px solid #ed2638');
-    expect(html).toContain('ULTIMATE<br>SOUND<br>DESTRUCTION');
+    expect(html).toContain('ULTIMATE SOUND DESTRUCTION');
     expect(html).toContain('Подтверждение email');
     expect(html).toContain('Подтвердить адрес');
     expect(html).toContain('href="https://app.usd-russia.ru/verify-email?token=fixture"');
