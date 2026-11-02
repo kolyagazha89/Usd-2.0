@@ -1,7 +1,7 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useState} from 'react';
 import SiteSettingsJourney from './SiteSettingsJourney';
 import {normalizeHomeEditorStep,normalizeSiteSection,type HomeEditorStep,type SiteSettingSection} from './site-settings-progress';
-import {Activity,AlertTriangle,Check,ClipboardCheck,FileClock,Flag,Image as ImageIcon,LayoutDashboard,Loader2,Search,Settings2,Trophy,Users} from 'lucide-react';
+import {Activity,AlertTriangle,Check,ClipboardCheck,Image as ImageIcon,LayoutDashboard,Loader2,Settings2,Trophy} from 'lucide-react';
 import {apiGet,getMediaUrl,getSiteSettings,listData,updateSiteSettings,uploadSiteAsset} from '../api';
 import {validateImageUpload} from './upload-validation';
 import NavigationSettings from './NavigationSettings';
