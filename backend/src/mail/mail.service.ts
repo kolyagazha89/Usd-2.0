@@ -192,9 +192,33 @@ export class MailService {
     this.logger.log(`Gmail API accepted email (id=${messageId}); inbox delivery is not confirmed by API acceptance.`);
   }
 
+  /**
+   * Explicit mail routing takes precedence over stale credentials left by the
+   * previous provider. Without MAIL_PROVIDER, preserve historical selection
+   * order for existing installations.
+   */
+  private requestedMailProvider(): '' | 'smtp' | 'gmail' | 'resend' {
+    const value = (process.env.MAIL_PROVIDER ?? '').trim().toLowerCase();
+    if (value && value !== 'smtp' && value !== 'gmail' && value !== 'resend') {
+      throw new Error('MAIL_PROVIDER must be smtp, gmail or resend');
+    }
+    return value as '' | 'smtp' | 'gmail' | 'resend';
+  }
+
+  private yandexSenderMatchesAccount(): boolean {
+    if (process.env.SMTP_HOST?.trim().toLowerCase() !== 'smtp.yandex.ru') return true;
+    const login = process.env.SMTP_USER?.trim().toLowerCase() ?? '';
+    const expected = login.includes('@') ? login : login ? login + '@yandex.ru' : '';
+    const from = (this.from ?? '').trim();
+    const sender = (from.match(/<([^<>]+)>\s*$/)?.[1] ?? from).trim().toLowerCase();
+    return Boolean(expected && sender === expected);
+  }
+
   private async sendMessage(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
+    const requestedProvider = this.requestedMailProvider();
     const apiKey = process.env.RESEND_API_KEY?.trim();
-    if (apiKey) {
+    if (requestedProvider === 'resend' || (!requestedProvider && apiKey)) {
+      if (!apiKey) throw new Error('RESEND_API_KEY is required when MAIL_PROVIDER=resend');
       const from = process.env.RESEND_FROM_EMAIL?.trim();
       if (!from) {
         throw new Error('RESEND_FROM_EMAIL must be configured when RESEND_API_KEY is set');
@@ -248,14 +272,14 @@ export class MailService {
     );
     const smtpConfigured=Boolean(process.env.SMTP_HOST?.trim()&&process.env.SMTP_USER?.trim()
       &&process.env.SMTP_PASSWORD?.trim()&&this.from?.trim());
-    if (gmailConfigured) {
+    if (requestedProvider === 'gmail' || (!requestedProvider && gmailConfigured)) {
       await this.sendViaGmailApi(message);
       return;
     }
     // An incomplete Gmail API setup must not hijack a previously configured
     // and working SMTP transport. Never fall back after an actual send error:
     // retrying can create duplicates at the recipient.
-    if(gmailPartiallyConfigured&&!smtpConfigured) {
+    if(!requestedProvider&&gmailPartiallyConfigured&&!smtpConfigured) {
       throw new Error('Gmail API email configuration is incomplete. Set GMAIL_REFRESH_TOKEN and GMAIL_SENDER_EMAIL or configure a complete SMTP/Resend provider.');
     }
     // домашнем сервере USD may block outbound SMTP. Keep the explicit opt-in, even when
@@ -265,6 +289,11 @@ export class MailService {
     }
     if (!smtpConfigured) {
       throw new Error('No complete email transport: configure Resend, Gmail API OAuth or SMTP_HOST/SMTP_USER/SMTP_PASSWORD.');
+    }
+    // A personal Yandex mailbox can only send with its own From address.
+    // Reject misconfiguration before opening a connection or risking a bounce.
+    if (!this.yandexSenderMatchesAccount()) {
+      throw new Error('Yandex SMTP_FROM must match the authenticated Yandex mailbox');
     }
 
     const result = await this.transporter.sendMail({
@@ -309,9 +338,17 @@ export class MailService {
 
   /** Administrative, credential-safe mail channel report; never exposes secrets. */
   getDeliveryStatus(): { provider: string; ready: boolean; missing: string[]; note: string } {
-    const resend=Boolean(process.env.RESEND_API_KEY?.trim());
+    let requestedProvider: '' | 'smtp' | 'gmail' | 'resend';
+    try { requestedProvider = this.requestedMailProvider(); }
+    catch {
+      return {provider:'MAIL_PROVIDER',ready:false,missing:['MAIL_PROVIDER=smtp|gmail|resend'],note:'Указан неизвестный почтовый провайдер; отправка заблокирована.'};
+    }
+    const resend=requestedProvider==='resend'||(!requestedProvider&&Boolean(process.env.RESEND_API_KEY?.trim()));
     if(resend) {
-      const missing=process.env.RESEND_FROM_EMAIL?.trim()?[]:['RESEND_FROM_EMAIL'];
+      const missing=[
+        !process.env.RESEND_API_KEY?.trim()&&'RESEND_API_KEY',
+        !process.env.RESEND_FROM_EMAIL?.trim()&&'RESEND_FROM_EMAIL',
+      ].filter((v):v is string=>Boolean(v));
       return {provider:'Resend HTTPS',ready:missing.length===0,missing,note:missing.length?'Нужно указать подтверждённый адрес отправителя Resend.':'Настройки заданы. Для подтверждения доставки отправьте тестовое письмо.'};
     }
     const gmailRequested=Boolean(
@@ -325,7 +362,7 @@ export class MailService {
     );
     const smtpReady=Boolean(process.env.SMTP_HOST?.trim()&&process.env.SMTP_USER?.trim()
       &&process.env.SMTP_PASSWORD?.trim()&&this.from?.trim());
-    if(gmailRequested&&(gmailReady||!smtpReady)) {
+    if(requestedProvider==='gmail'||(!requestedProvider&&gmailRequested&&(gmailReady||!smtpReady))) {
       const missing=[
         !((process.env.GMAIL_CLIENT_ID??process.env.GOOGLE_CLIENT_ID)?.trim())&&'GMAIL_CLIENT_ID (или GOOGLE_CLIENT_ID)',
         !((process.env.GMAIL_CLIENT_SECRET??process.env.GOOGLE_CLIENT_SECRET)?.trim())&&'GMAIL_CLIENT_SECRET (или GOOGLE_CLIENT_SECRET)',
@@ -340,8 +377,10 @@ export class MailService {
       !process.env.SMTP_PASSWORD?.trim()&&'SMTP_PASSWORD',
       !this.from?.trim()&&'SMTP_FROM',
       process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
+      !this.yandexSenderMatchesAccount()&&'SMTP_FROM (должен совпадать с адресом Яндекс Почты)',
     ].filter((v):v is string=>Boolean(v));
-    return {provider:'SMTP',ready:!missing.length,missing,note:missing.length?'Нет полного SMTP-подключения либо оно не включено для отправки с сервера. Укажите Gmail API/Resend или настройте SMTP.':'SMTP-настройки присутствуют. Доступность исходящего порта на сервере USD подтвердит тестовое письмо; если соединение блокируется, используйте HTTPS-провайдер.'};
+    const isYandex=process.env.SMTP_HOST?.trim().toLowerCase()==='smtp.yandex.ru';
+    return {provider:isYandex?'Яндекс Почта (SMTP)':'SMTP',ready:!missing.length,missing,note:(missing.length?'Для отправки настройте SMTP в окружении API и проверьте доступность порта с Ubuntu.':'SMTP-настройки присутствуют; проверьте фактическую доставку тестом в админке USD.')+(process.env.MAIL_ACCOUNT_ONLY==='true'?' Автоматические письма об этапах отключены; используйте PUSH.':'')};
   }
 
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {

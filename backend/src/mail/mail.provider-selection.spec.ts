@@ -2,7 +2,7 @@ import {jest} from '@jest/globals';
 import {MailService} from './mail.service';
 
 describe('USD mail provider selection and safe diagnostics',()=>{
- const keys=['RESEND_API_KEY','RESEND_FROM_EMAIL','GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN','GMAIL_SENDER_EMAIL','GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','SMTP_EGRESS_ALLOWED','SMTP_HOST','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'];
+ const keys=['MAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL','GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN','GMAIL_SENDER_EMAIL','GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','SMTP_EGRESS_ALLOWED','SMTP_HOST','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'];
  const prior:Record<string,string|undefined>={};
  beforeEach(()=>{
    for(const key of keys){prior[key]=process.env[key];delete process.env[key]}
@@ -51,4 +51,77 @@ describe('USD mail provider selection and safe diagnostics',()=>{
    expect(status.missing).toContain('RESEND_FROM_EMAIL');
    expect(JSON.stringify(status)).not.toContain('secret-test');
  });
+ it('chooses the personal Yandex SMTP mailbox even with complete legacy Gmail and Resend credentials',async()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.RESEND_API_KEY='old-resend-secret';
+   process.env.RESEND_FROM_EMAIL='old@resend.test';
+   process.env.GMAIL_CLIENT_ID='old-gmail-client';
+   process.env.GMAIL_CLIENT_SECRET='old-gmail-secret';
+   process.env.GMAIL_REFRESH_TOKEN='old-gmail-refresh';
+   process.env.GMAIL_SENDER_EMAIL='old@gmail.test';
+   process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.ru';
+   process.env.SMTP_PORT='465';
+   process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='fake-yandex-app-password';
+   process.env.SMTP_FROM='USD <usd-russia@yandex.ru>';
+   const mail=new MailService();
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail').mockResolvedValue({accepted:['recipient@test.invalid'],rejected:[],messageId:'yandex-test'} as never);
+   const gmail=jest.spyOn(mail as any,'sendViaGmailApi');
+   const status=mail.getDeliveryStatus();
+   expect(status).toMatchObject({provider:'Яндекс Почта (SMTP)',ready:true,missing:[]});
+   expect(JSON.stringify(status)).not.toContain('fake-yandex-app-password');
+   expect((mail as any).transporter.options.secure).toBe(true);
+   await (mail as any).sendMessage({to:'recipient@test.invalid',subject:'test',html:'<p>USD</p>',text:'USD'});
+   expect(smtp).toHaveBeenCalledWith(expect.objectContaining({from:'USD <usd-russia@yandex.ru>'}));
+   expect(gmail).not.toHaveBeenCalled();
+ });
+ it('blocks a mismatched personal Yandex From address before contacting SMTP',async()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.ru';
+   process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='fake-yandex-app-password';
+   process.env.SMTP_FROM='USD <notify@usd-russia.ru>';
+   const mail=new MailService();
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail');
+   expect(mail.getDeliveryStatus()).toMatchObject({provider:'Яндекс Почта (SMTP)',ready:false});
+   expect(mail.getDeliveryStatus().missing.join(' ')).toContain('SMTP_FROM');
+   await expect((mail as any).sendMessage({to:'recipient@test.invalid',subject:'test',html:'test',text:'test'})).rejects.toThrow('Yandex SMTP_FROM must match');
+   expect(smtp).not.toHaveBeenCalled();
+ });
+ it('explicit provider does not fall back after a Yandex SMTP send error',async()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.RESEND_API_KEY='old-resend-secret';
+   process.env.GMAIL_REFRESH_TOKEN='old-gmail-refresh';
+   process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.ru';
+   process.env.SMTP_USER='usd-russia@yandex.ru';
+   process.env.SMTP_PASSWORD='fake-yandex-app-password';
+   process.env.SMTP_FROM='usd-russia@yandex.ru';
+   const mail=new MailService();
+   const smtp=jest.spyOn((mail as any).transporter,'sendMail').mockRejectedValue(new Error('connection refused') as never);
+   const gmail=jest.spyOn(mail as any,'sendViaGmailApi');
+   await expect((mail as any).sendMessage({to:'recipient@test.invalid',subject:'test',html:'test',text:'test'})).rejects.toThrow('connection refused');
+   expect(smtp).toHaveBeenCalledTimes(1);
+   expect(gmail).not.toHaveBeenCalled();
+ });
+ it('blocks unknown MAIL_PROVIDER values without leaking the environment',async()=>{
+   process.env.MAIL_PROVIDER='smtp-or-gmail';
+   process.env.SMTP_HOST='smtp.yandex.ru';
+   const mail=new MailService();
+   expect(mail.getDeliveryStatus()).toMatchObject({ready:false,provider:'MAIL_PROVIDER'});
+   await expect((mail as any).sendMessage({to:'recipient@test.invalid',subject:'test',html:'test',text:'test'})).rejects.toThrow('MAIL_PROVIDER must be smtp, gmail or resend');
+ });
+ it('reports disabled egress for a complete Yandex setup',()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.SMTP_HOST='smtp.yandex.ru';
+   process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='fake-yandex-app-password';
+   process.env.SMTP_FROM='USD <usd-russia@yandex.ru>';
+   const mail=new MailService();
+   expect(mail.getDeliveryStatus()).toMatchObject({ready:false,provider:'Яндекс Почта (SMTP)'});
+   expect(mail.getDeliveryStatus().missing).toContain('SMTP_EGRESS_ALLOWED=true');
+ });
+
 });
