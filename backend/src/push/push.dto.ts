@@ -34,3 +34,8 @@ export class PushAnnouncementDto {
   @Equals(true) confirmed: boolean;
   @IsOptional() @IsUUID() stageId?: string;
 }
+
+/** Only the authenticated ADMIN's previously consented browser can be tested. */
+export class PushDeviceTestDto {
+  @IsString() @MaxLength(2048) endpoint: string;
+}
