@@ -36,7 +36,7 @@ export default function NotificationsPage({
     [testMessage, setTestMessage] = useState("");
   const [title, setTitle] = useState(""),
     [body, setBody] = useState(""),
-    [path, setPath] = useState("/participant"),
+    [path, setPath] = useState("/"),
     [stageId, setStageId] = useState(""),
     [confirmed, setConfirmed] = useState(false);
   const request = useRef({ signature: "", key: "" });
@@ -245,7 +245,7 @@ export default function NotificationsPage({
                 }}
               />
               <small>
-                Страница этапа (/stages/…), новостей (/news/…) или личного
+                Главная (/), страница этапа (/stages/…), новостей (/news/…) или личного
                 кабинета (/participant).
               </small>
             </label>
