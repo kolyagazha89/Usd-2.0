@@ -33,7 +33,9 @@ export default function NotificationsPage({
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [testBusy, setTestBusy] = useState(false),
-    [testMessage, setTestMessage] = useState("");
+    [testMessage, setTestMessage] = useState(""),
+    [serverTestBusy, setServerTestBusy] = useState(false),
+    [serverTestMessage, setServerTestMessage] = useState("");
   const [title, setTitle] = useState(""),
     [body, setBody] = useState(""),
     [path, setPath] = useState("/"),
@@ -85,6 +87,30 @@ export default function NotificationsPage({
       setTestMessage(error instanceof Error ? error.message : "Не удалось показать тестовое уведомление.");
     } finally {
       setTestBusy(false);
+    }
+  };
+  const testRealPushDelivery = async () => {
+    if (serverTestBusy) return;
+    setServerTestBusy(true);
+    setServerTestMessage("");
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        throw new Error("Этот браузер не поддерживает получение Web Push.");
+      }
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) {
+        throw new Error("Этот браузер ещё не подписан на PUSH. Сначала подключите уведомления в личном кабинете USD.");
+      }
+      const response = await apiPost<{ providerAccepted: boolean; deliveryConfirmed: boolean; message: string }>(
+        "/push/admin/test-device",
+        { endpoint: subscription.endpoint },
+      );
+      setServerTestMessage(response.message);
+    } catch (error) {
+      setServerTestMessage(error instanceof Error ? error.message : "Не удалось отправить тестовое PUSH-сообщение.");
+    } finally {
+      setServerTestBusy(false);
     }
   };
   const submit = async (e: React.FormEvent) => {
@@ -171,7 +197,12 @@ export default function NotificationsPage({
             <p>Проверьте разрешение браузера и показ уведомления только на текущем устройстве. Подписчикам USD ничего не отправляется.</p>
             <button type="button" className="secondary-button compact" disabled={testBusy} onClick={() => void testOnThisDevice()}>{testBusy ? "Проверяем…" : "Показать тестовое уведомление"}</button>
             {testMessage && <p role="status" className="notification-notice">{testMessage}</p>}
-            <small>На iPhone системные уведомления доступны для установленного на экран «Домой» веб-приложения. Для проверки реальной доставки push потребуется отдельный серверный тест.</small>
+            <p>Проверка реальной доставки: сервер отправит одно уведомление только на это устройство, через браузерный PUSH-сервис. Участникам ничего не отправляется.</p>
+            <button type="button" className="secondary-button compact" disabled={serverTestBusy || !summary?.enabled} onClick={() => void testRealPushDelivery()}>
+              {serverTestBusy ? "Отправляем через сервер…" : "Отправить реальный тест PUSH на это устройство"}
+            </button>
+            {serverTestMessage && <p role="status" className="notification-notice">{serverTestMessage}</p>}
+            <small>На iPhone нужен установленный на экран «Домой» сайт. Для реального теста сначала включите подписку на этом устройстве в <a href="/participant?tab=profile">личном кабинете</a>. Ответ сервера подтверждает только приём запроса провайдером, не показ уведомления.</small>
           </section>
         )}
         {canCreate && (
