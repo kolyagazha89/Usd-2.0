@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,005 | 21 brand labels, including 524 indexed Deaf Bonce product pages |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 2,906 | 21 brand/series choices from 20 official Deaf Bonce product-section and manufacturer source fragments |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -25,7 +25,7 @@ These are reference product **types**, not the FRONT/REAR/SUB vehicle installati
 
 Source fragments are in [data/fragments](data/fragments), grouped by manufacturer website. For Deaf Bonce, original brand/series labels (Machete, Apocalypse, Avatar, Hannibal, Black Hydra) are separate brand choices. See [coverage.json](data/coverage.json) for per-brand counts and incomplete sources.
 
-The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Manufacturer accessories and kits were filtered where identified; a final manual inspection is still advisable before enabling strict-only choice validation for participants.
+The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified; a final manual inspection is still advisable before enabling strict-only choice validation for participants.
 
 **Known gaps:** Kicx and Dynamic State could not be reached reliably from the extraction runner; Hertz's product pages and SounDigital's model catalog rejected automated requests. These brands need a sanctioned export or alternate reachable manufacturer endpoint before the list can be considered complete. Current and discontinued historical product coverage varies by manufacturer.
 
