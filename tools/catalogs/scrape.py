@@ -29,6 +29,10 @@ AUDIO={
 "Hertz":("https://hertz-audio.com",["/"]),
 "Fi Car Audio":("https://www.ficaraudio.com",["/"]),
 "Resilient Sounds":("https://www.resilientsounds.com",["/"]),
+"EDGE":("https://edgecaraudio.com",["/collections/subwoofers","/collections/amplifiers","/collections/speakers"]),
+"AMP":("https://ampcaraudio.com",["/"]),
+"SP Audio":("https://spaudio.it",["/"]),
+"SounDigital":("https://www.soundigital.com",["/en/"]),
 }
 GOOD=re.compile(r"subwoofer|speaker|woofer|tweeter|midrange|midbass|amplifier|monoblock|horn|head.unit|receiver|акустик|сабвуфер|усилител|динамик|рупор|магнитол",re.I)
 BAD=re.compile(r"shirt|hoodie|gift.card|sticker|hat|merch|repair|recone|dust.cap|cable|fuse|mounting|enclosure|box|accessor|terminal|basket|magnet",re.I)
@@ -139,7 +143,7 @@ def classify(hint, path=""):
  if re.search(r"midbass|mid.?bass|мидбас",t):return "AUDIO_COMPONENT"
  if re.search(r"midrange|mid.?range|среднечастот|сч.?динамик",t):return "AUDIO_COMPONENT"
  if re.search(r"tweeter|horn|compression.driver|высокочастот|рупор|пищалк|вч.?динамик",t):return "AUDIO_COMPONENT"
- if re.search(r"speaker|loudspeaker|driver|акустик|динамик",t) or re.search(r"/speakers?/",p):return "AUDIO_COMPONENT"
+ if re.search(r"speaker|loudspeaker|driver|acoustic|акустик|динамик",t) or re.search(r"/speakers?/",p):return "AUDIO_COMPONENT"
  return None
 
 def product_type(soup):
@@ -186,7 +190,7 @@ def scrape_audio_brand(f,brand,base,listings,max_pages=1400):
   for p in products:
    name=p.get("title","");category=p.get("product_type","")
    if BAD.search(category+" "+name):continue
-   kind=classify(category)
+   kind=classify(category+" "+name)
    if kind:add_audio(results,review,brand,name,kind)
    elif GOOD.search(category+" "+name):add_audio(results,review,brand,name,None)
   if len(products)<250:break
@@ -201,7 +205,7 @@ def scrape_audio_brand(f,brand,base,listings,max_pages=1400):
     name=BeautifulSoup(p.get("name",""),"html.parser").get_text(" ",strip=True)
     cats=" ".join(c.get("name","") for c in p.get("categories",[]) if isinstance(c,dict))
     if BAD.search(cats+" "+name):continue
-    kind=classify(cats)
+    kind=classify(cats+" "+name)
     if kind:add_audio(results,review,brand,name,kind)
     elif GOOD.search(cats+" "+name):add_audio(results,review,brand,name,None)
    if len(products)<100:break
