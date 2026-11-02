@@ -129,17 +129,17 @@ export function safePushPath(value: unknown): string {
   if (
     typeof value !== 'string' ||
     value.length > 300 ||
-    !/^\/(?:participant|stages|news)(?:[/?#]|$)/.test(value) ||
+    (value !== '/' && !/^\/(?:participant|stages|news)(?:[/?#]|$)/.test(value)) ||
     value.includes('\\') ||
     hasUnsafeCharacters(value)
   )
     throw new BadRequestException(
-      'Выберите ссылку на этап, новость или личный кабинет USD',
+      'Выберите главную страницу, этап, новость или личный кабинет USD',
     );
   const url = new URL(value, 'https://push.invalid');
   if (
     url.origin !== 'https://push.invalid' ||
-    !/^\/(?:participant|stages|news)(?:\/|$)/.test(url.pathname)
+    !(url.pathname === '/' || /^\/(?:participant|stages|news)(?:\/|$)/.test(url.pathname))
   )
     throw new BadRequestException('Некорректная ссылка USD');
   return url.pathname + url.search + url.hash;

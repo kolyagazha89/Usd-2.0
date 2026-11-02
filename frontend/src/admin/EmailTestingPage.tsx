@@ -26,7 +26,7 @@ function isPlausibleEmail(value:string){
 
 export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>}){
  const[mailStatus,setMailStatus]=useState<{provider:string;ready:boolean;missing:string[];note:string}|null>(null),[mailStatusError,setMailStatusError]=useState(false),[mailStatusLoading,setMailStatusLoading]=useState(false);
- const[email,setEmail]=useState(''),[type,setType]=useState(triggerTypes[0].value),[stageId,setStageId]=useState(''),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[lastResult,setLastResult]=useState<any>(null);
+ const[email,setEmail]=useState(''),[type,setType]=useState('AUTH_EMAIL_VERIFICATION'),[stageId,setStageId]=useState(''),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[lastResult,setLastResult]=useState<any>(null);
  useEffect(()=>{let active=true;apiGet<any>('/stages').then(r=>{if(active)setStages(listData(r).filter((s:any)=>!s.isDeleted))}).catch(()=>{if(active)setStages([])}).finally(()=>{if(active)setLoadingStages(false)});return()=>{active=false}},[]);
  const checkMailChannel=async()=>{setMailStatusLoading(true);setMailStatusError(false);try{const info=await apiGet<{provider:string;ready:boolean;missing:string[];note:string}>('/mail/status');if(!info||typeof info.provider!=='string'||!Array.isArray(info.missing)||typeof info.note!=='string')throw new Error('Некорректный ответ диагностики почты');setMailStatus(info)}catch{setMailStatus(null);setMailStatusError(true)}finally{setMailStatusLoading(false)}};
  useEffect(()=>{void checkMailChannel()},[]);
@@ -52,6 +52,7 @@ export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React
     {mailStatus&&<><p>{mailStatus.note}</p>{mailStatus.missing.length>0&&<p><b>Нужно настроить на сервере:</b> {mailStatus.missing.join(', ')}</p>}</>}
     {mailStatusError&&<p>Диагностика почтового канала сейчас недоступна. Возможно, новая версия API ещё не опубликована.</p>}
     {mailStatus?.ready&&<small>Готовность означает только наличие параметров, а не успешную доставку. Запустите тест ниже.</small>}
+    {mailStatus&&!mailStatus.ready&&<small>Отправка заблокирована до устранения перечисленных настроек. Пароль приложения вводится только в окружении Ubuntu, не в браузере.</small>}
    </div>
    <p className="settings-help">Письмо отправляется только на указанный адрес. Эта проверка не регистрирует участников и не запускает массовую рассылку. Ответ провайдера подтверждает принятие запроса, но не фактическую доставку.</p>
    <div className="settings-form-grid">
@@ -62,15 +63,15 @@ export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React
    {error&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
    {notice&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{notice}</span></div>}
    {lastResult&&<div className="mail-test-result"><strong>Статус запроса</strong><p>Тип: {selected.label}</p><p>Получатель: {normalizedEmail}</p><p>Провайдер принял запрос: {lastResult.providerAccepted?'да':'нет'}</p><p>Доставка подтверждена системой: {lastResult.deliveryConfirmed?'да':'нет'}</p></div>}
-   <div className="button-row"><button className="primary-button" onClick={()=>void send()} disabled={sending||!emailValid}>{sending?<><span className="spin">◌</span> Отправляем…</>:<><Send size={15}/> Отправить тестовое письмо</>}</button></div>
+   <div className="button-row"><button className="primary-button" onClick={()=>void send()} disabled={sending||!emailValid||mailStatus?.ready===false}>{sending?<><span className="spin">◌</span> Отправляем…</>:<><Send size={15}/> Отправить тестовое письмо</>}</button></div>
   </div>
   <div className="settings-section">
    <PanelTitle title="Как проверить автоматические триггеры" icon={Clock3}/>
    <ol className="mail-test-steps">
     <li><strong>Сначала проверьте шаблоны выше.</strong> Это безопасная отправка на ваш адрес, без писем участникам.</li>
-    <li><strong>Триггеры по датам проверяются автоматически.</strong> Фоновая проверка выполняется при старте backend и далее каждые 15 минут. Напоминания отправляются при совпадении календарной даты этапа с датой «через 3 дня» или «через 1 день».</li>
+    <li><strong>Обычная Яндекс Почта — только письма аккаунта.</strong> При MAIL_ACCOUNT_ONLY=true автоматические письма об этапах и напоминания отключены: для них используются PUSH. Ручное тестирование шаблонов выше по-прежнему доступно. Если администратор отдельно включит полноценную почтовую рассылку, напоминания проверяются фоновым процессом раз в 15 минут.</li>
     <li><strong>Для проверки даты используйте только отдельный тестовый этап.</strong> Изменение даты реального этапа может отправить письма всем зарегистрированным участникам; открытие регистрации может затронуть пользователей с активным согласием на новости. Не меняйте даты боевого этапа ради теста.</li>
-    <li><strong>После изменения даты подождите до 15 минут</strong> и проверьте журнал провайдера и почтовые ящики тестовых участников. Для точного теста напоминаний на тестовом этапе нужны тестовые регистрации с контролируемыми адресами.</li>
+    <li><strong>Не изменяйте реальный этап ради проверки.</strong> Для рассылки по датам после её отдельного включения используйте тестовый этап и тестовые регистрации с контролируемыми адресами. При MAIL_ACCOUNT_ONLY=true отправок по датам не будет.</li>
    </ol>
    <div className="notice"><ShieldAlert size={16}/><span>Системная защита от повторов сохраняется. Повторная отправка одного и того же автоматического события не гарантируется, если его ключ уже записан в журнале.</span></div>
   </div>
