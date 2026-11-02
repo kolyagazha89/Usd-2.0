@@ -139,6 +139,7 @@ def classify(hint, path=""):
  if re.search(r"midbass|mid.?bass|мидбас",t):return "AUDIO_COMPONENT"
  if re.search(r"midrange|mid.?range|среднечастот|сч.?динамик",t):return "AUDIO_COMPONENT"
  if re.search(r"tweeter|horn|compression.driver|высокочастот|рупор|пищалк|вч.?динамик",t):return "AUDIO_COMPONENT"
+ if re.search(r"speaker|loudspeaker|driver|акустик|динамик",t) or re.search(r"/speakers?/",p):return "AUDIO_COMPONENT"
  return None
 
 def product_type(soup):
