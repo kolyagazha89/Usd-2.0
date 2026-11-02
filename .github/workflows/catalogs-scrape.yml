@@ -1,0 +1,61 @@
+name: USD free catalog scrape
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - data/catalogs-free-scrape-20261102
+    paths:
+      - scripts/catalogs_scrape.py
+      - .github/workflows/catalogs-scrape.yml
+permissions:
+  contents: write
+concurrency:
+  group: usd-catalogs-scrape
+  cancel-in-progress: false
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install free parser dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Parse official Drom and car audio brand/model catalog pages
+        run: python -u scripts/catalogs_scrape.py
+      - name: Verify CSV structure and uniqueness
+        run: |
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          for name,fields in [('cars.csv',['марка','модель']),('audio.csv',['бренд','модель'])]:
+              with (Path('data/catalogs')/name).open(encoding='utf-8-sig',newline='') as f:
+                  reader=csv.DictReader(f)
+                  assert reader.fieldnames==fields,(name,reader.fieldnames)
+                  records=list(reader)
+              assert len(records)==len({tuple(r.values()) for r in records}),name
+              assert all(all(r.values()) for r in records),name
+              print(name,len(records))
+          report=json.loads(Path('data/catalogs/coverage.json').read_text())
+          print('Coverage complete:',report['complete'])
+          PY
+      - name: Commit reference data to this feature branch (never main)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/catalogs/cars.csv data/catalogs/audio.csv data/catalogs/coverage.json
+          if ! git diff --cached --quiet; then
+            git commit -m "data(catalogs): import source-based vehicle and audio names"
+            git push origin HEAD:data/catalogs-free-scrape-20261102
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: usd-reference-catalogs
+          path: data/catalogs/
+          if-no-files-found: ignore
+          retention-days: 14
