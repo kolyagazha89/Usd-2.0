@@ -14,7 +14,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(classify("Type: Coaxial", "/speakers/model"), "AUDIO_COMPONENT")
         self.assertEqual(classify("Car Audio Receiver"), "HEAD_UNIT")
         self.assertIsNone(classify("", "/speakers/unknown-model"))
-        self.assertIsNone(classify("gift card, amplifier"), "/products/gift-card"))
+        self.assertIsNone(classify("gift card, amplifier", "/products/gift-card"))
 
     def test_series_are_brands_and_unknowns_reviewed(self):
         rows, review = set(), set()
