@@ -173,7 +173,24 @@ function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|n
  const [liveReady,setLiveReady]=useState<{stages:any[];settings:any}|null>(null);
  const [peopleReady,setPeopleReady]=useState<any>(null);
  const [brandReady,setBrandReady]=useState(false);
+ const [homeVisualReady,setHomeVisualReady]=useState(false);
  useEffect(()=>{const timer=window.setTimeout(()=>setHomeMinDelayPassed(true),650);return()=>window.clearTimeout(timer)},[]);
+ // Avoid font and hero-poster layout shifts after the initial USD splash.
+ // A finite fallback prevents slow external media from blocking the site.
+ useEffect(()=>{
+  if(path.split('?')[0]!=='/'||loading)return;
+  let active=true;
+  const done=()=>{if(active)setHomeVisualReady(true)};
+  const assets:Promise<unknown>[]=[];
+  if(document.fonts?.ready)assets.push(document.fonts.ready);
+  const hero=settings.homepage?.heroImageUrl;
+  if(typeof hero==='string'&&(/^(https?:\/\/|\/)/i).test(hero)){
+   assets.push(new Promise(resolve=>{const image=new Image();image.onload=resolve;image.onerror=resolve;image.src=hero}));
+  }
+  const timeout=window.setTimeout(done,2600);
+  void Promise.allSettled(assets).then(()=>{window.clearTimeout(timeout);done()});
+  return()=>{active=false;window.clearTimeout(timeout)};
+ },[path,loading,settings.homepage?.heroImageUrl]);
  const [stageSeason,setStageSeason]=useState(()=>{try{return new URLSearchParams(location.search).get('season')??'LATEST'}catch{return'LATEST'}}); const [stages,setStages]=useState<any[]>([]),[records,setRecords]=useState<any[]>([]),[results,setResults]=useState<any[]>([]),[latestResults,setLatestResults]=useState<any[]>([]),[liveResultsRows,setLiveResultsRows]=useState<any[]>([]),[participants,setParticipants]=useState<any[]>([]),[settings,setSettings]=useState<any>({}),[loading,setLoading]=useState(true),[resultsLoading,setResultsLoading]=useState(false),[error,setError]=useState(''),[selectedStageId,setSelectedStageId]=useState(()=>{try{return new URLSearchParams(location.search).get('stageId')??''}catch{return ''}}),[autoDiscoverResults,setAutoDiscoverResults]=useState(()=>{try{return !new URLSearchParams(location.search).has('stageId')}catch{return true}}),[stageDetailLoading,setStageDetailLoading]=useState(false),[stageDetailError,setStageDetailError]=useState(''),[stageDetailRetry,setStageDetailRetry]=useState(0),[stageDetailData,setStageDetailData]=useState<any>(null);const [publicLogoUrl,setPublicLogoUrl]=useState(''),[logoOverride,setLogoOverride]=useState(''),[logoFailed,setLogoFailed]=useState(false),[failedLogoUrls,setFailedLogoUrls]=useState<string[]>([]);
  useEffect(()=>{if(path.split('?')[0]==='/stages'){const query=new URLSearchParams(path.split('?')[1]??'');setStageSeason(query.get('season')??'LATEST')}},[path]);
  useEffect(()=>{if(path.split('?')[0]!=='/results')return;const query=new URLSearchParams(path.split('?')[1]??'');setSelectedStageId(query.get('stageId')??'');setAutoDiscoverResults(!query.has('stageId'))},[path]);
@@ -194,11 +211,11 @@ function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|n
  const pageTitle=page==='usd-id'?'Постоянный USD ID':page==='community'?communityTitle(route.split('/')[1]):page==='not-found'?'Страница не найдена':page==='stages'?'Этапы чемпионата':page==='stage-detail'?'Карточка этапа':page==='results'?'Результаты соревнований':page==='records'?'Рекорды USD':page==='rules'?'Правила и документы':page==='privacy'?'Политика обработки персональных данных':page==='terms'?'Пользовательское соглашение':page==='consent'?'Согласие на обработку персональных данных':'Звук. Мощность. Характер.';
  const publicLogo=logoOverride||settings.branding?.logoUrl||publicLogoUrl;
  const streamUrl=String(settings.stream?.embedUrl||'').trim();let safeStreamUrl='';try{const parsed=new URL(streamUrl);if(parsed.protocol==='https:'&&parsed.hostname&&!parsed.hostname.endsWith('.workers.dev')&&!parsed.hostname.endsWith('.up.railway.app'))safeStreamUrl=parsed.href}catch{}
- const showHomeSplash=page==='home'&&(!homeMinDelayPassed||!brandReady||loading||winnersReady?.stages!==stages||winnersReady?.settings!==settings||liveReady?.stages!==stages||liveReady?.settings!==settings||peopleReady!==settings);
+ const showHomeSplash=page==='home'&&(!homeMinDelayPassed||!brandReady||!homeVisualReady||loading||winnersReady?.stages!==stages||winnersReady?.settings!==settings||liveReady?.stages!==stages||liveReady?.settings!==settings||peopleReady!==settings);
  return <PremiumProvider go={go} placeholders={settings.branding?.placeholders}><div className="usd usd-live">{showHomeSplash&&<div className="usd-home-boot-overlay" role="status" aria-label="Загружается USD"><Splash fixedLogo/></div>}<PublicMetadata path={path} settings={settings} title={pageTitle}/><PremiumHeader route={route} go={go} user={user} items={navItems} settings={settings}/>
-  {page==='home'?<main id="public-content" tabIndex={-1} className={"p-home-main"+(showHomeSplash?" is-booting":" is-ready")} style={showHomeSplash?{visibility:"hidden"}:undefined}>{error&&<div className="u-container p-error" role="alert">{error}</div>}<PremiumHome settings={settings} stages={stages} results={latestResults} records={records} participants={participants} liveResults={liveResultsRows} loading={loading}/></main>:<main id="public-content" tabIndex={-1} className={"u-container public-page p-inner-page public-page-"+page}>
-   <div style={{color:'#ed2638',fontSize:11,letterSpacing:2,fontWeight:850}}>USD · ОФИЦИАЛЬНЫЙ САЙТ</div><h1 style={{fontSize:'clamp(36px,6vw,62px)',letterSpacing:-2.5,margin:'10px 0 30px',lineHeight:1.02}}>{pageTitle}</h1>
-   {error&&<div role="alert" style={{border:'1px solid #74313a',padding:14,borderRadius:8,color:'#ff8b96',marginBottom:20}}>{error}</div>}
+  {page==='home'?<main id="public-content" tabIndex={-1} className={"p-home-main"+(showHomeSplash?" is-booting":" is-ready")} aria-busy={showHomeSplash} inert={showHomeSplash} style={showHomeSplash?{visibility:"hidden"}:undefined}>{error&&<div className="u-container p-error" role="alert">{error}</div>}<PremiumHome settings={settings} stages={stages} results={latestResults} records={records} participants={participants} liveResults={liveResultsRows} loading={loading}/></main>:<main id="public-content" tabIndex={-1} className={"u-container public-page p-inner-page public-page-"+page}>
+   <div className="public-page-heading"><span className="public-page-kicker">USD · ОФИЦИАЛЬНЫЙ САЙТ</span><h1>{pageTitle}</h1></div>
+   {error&&<div role="alert" className="public-page-error">{error}</div>}
    {page==='usd-id'&&<UsdIdLanding token={route.split('/')[2]} user={user} go={go}/>}
    {page==='community'&&<PublicCommunity key={path.split('?')[0]} path={path} settings={settings}/>}
    {page==='not-found'&&<div className="p-empty"><p>Проверьте адрес страницы или вернитесь к календарю соревнований.</p><button className="u-btn" onClick={()=>go('/stages')}>Все этапы ↗</button></div>}
