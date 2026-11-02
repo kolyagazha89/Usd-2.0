@@ -1,5 +1,5 @@
 /* Class-by-class LIVE scoreboard, results portraits and rotating record strip. */
-.usd-live .usd-score-row{display:grid;grid-template-columns:47px 48px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px;border:1px solid #34434e;border-radius:13px;background:linear-gradient(115deg,#141c24,#0c1118);min-width:0;color:#f3f6f9;text-decoration:none}
+.usd-live .usd-score-row,.usd-live .u-mini-results .usd-score-row{display:grid;grid-template-columns:47px 48px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px;border:1px solid #34434e;border-radius:13px;background:linear-gradient(115deg,#141c24,#0c1118);min-width:0;color:#f3f6f9;text-decoration:none}
 .usd-live .usd-score-row:hover,.usd-live .usd-score-row:focus-visible{border-color:#fc4967;background:#1c202a}
 .usd-live .usd-score-place{display:grid;justify-items:center;gap:3px;white-space:nowrap}
 .usd-live .usd-score-place b{display:grid;place-items:center;border:1px solid #8795a1;background:#28333d;border-radius:50%;height:38px;width:38px;font:800 19px 'Roboto Condensed',sans-serif}
@@ -14,13 +14,14 @@
 .usd-live .u-mini-results{gap:9px}
 .usd-live .u-mini-results .usd-score-row{min-height:88px}
 .usd-live .usd-live-carousel{min-width:0}
-.usd-live .usd-live-class-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:18px 18px 13px;border-bottom:1px solid #303e49}
+.usd-live .usd-live-class-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:15px;padding:18px 18px 13px;border-bottom:1px solid #303e49}
 .usd-live .usd-live-class-heading>div:first-child{min-width:0}
 .usd-live .usd-live-class-heading small{display:block;font-size:10px;letter-spacing:.1em;color:#f05a78;font-weight:800}
 .usd-live .usd-live-class-heading h3{font-size:clamp(19px,3vw,27px);margin:4px 0;color:#fff;overflow-wrap:anywhere}
 .usd-live .usd-live-class-heading span{color:#a4b0bb;font-size:11px}
 .usd-live .usd-carousel-controls,.usd-live .usd-record-controls{display:flex;align-items:center;gap:9px;flex-shrink:0}
 .usd-live .usd-carousel-controls button,.usd-live .usd-record-controls button{display:grid;place-items:center;width:36px;height:36px;border:1px solid #435260;background:#17212b;color:#e6edf3;border-radius:9px;cursor:pointer}
+.usd-live .usd-carousel-controls button:focus-visible,.usd-live .usd-record-controls button:focus-visible{outline:2px solid #ff4967;outline-offset:2px}
 .usd-live .usd-carousel-controls button:hover,.usd-live .usd-record-controls button:hover{border-color:#fb486a;color:#fff}
 .usd-live .usd-live-class-entries{display:grid;gap:9px;max-height:540px;overflow-y:auto;overscroll-behavior:contain;padding:15px 18px;animation:usd-class-slide .3s ease-out}
 @keyframes usd-class-slide{from{opacity:.55;transform:translateY(7px)}to{opacity:1;transform:none}}

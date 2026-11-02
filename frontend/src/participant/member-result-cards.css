@@ -1,6 +1,6 @@
 /* Consistent full-width result cards for the member overview on iOS and desktop. */
 body .participant-portal.usd-member .member-result-feed{display:grid;gap:12px;min-width:0}
-body .participant-portal.usd-member .member-result-feed article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:18px!important;border:1px solid #34414f!important;border-left:3px solid #fb4265!important;border-radius:12px!important;background:linear-gradient(115deg,#18222c,#0e151d)!important;min-width:0}
+body .participant-portal.usd-member .member-result-feed article{display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:18px!important;border:1px solid #34414f!important;border-left:3px solid #fb4265!important;border-radius:12px!important;background:linear-gradient(115deg,#18222c,#0e151d)!important;min-width:0}
 body .participant-portal.usd-member .member-result-feed article>div{min-width:0;display:grid;gap:8px}
 body .participant-portal.usd-member .member-result-feed .member-result-stage{color:#b0bdca;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
 body .participant-portal.usd-member .member-result-feed h3{font-size:19px!important;line-height:1.3!important;margin:0!important;color:#fff!important;overflow-wrap:anywhere}
