@@ -70,7 +70,7 @@ test('USD finishing layer is last and preserves dark public/member with light ad
  assert.match(styles,/body \.usd-live :is\(/);
  assert.match(styles,/body \.usd-member :is\(/);
  assert.match(styles,/body \.app-shell>\.main\{/);
- assert.match(styles,/background: #f5f5f7!important/);
+ assert.match(styles,/background: var\(--usd-admin-canvas,#f3f5f8\)!important/);
  assert.match(styles,/prefers-reduced-motion:reduce/);
  assert.doesNotMatch(styles,/body\s*\{\s*background:/);
 });
