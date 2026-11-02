@@ -61,7 +61,7 @@ export function renderUsdMailShell(options: UsdMailShellOptions): string {
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background-color:#ebedf0"><tr><td align="center" class="usd-email-outer" style="padding:38px 16px 45px">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="usd-email-inner" width="600" style="width:600px;max-width:100%;border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #dadde1;border-radius:18px;overflow:hidden">
 <tr><td class="usd-email-head" style="padding:30px 36px 28px;background-color:#0b0b0d;border-bottom:4px solid #ed2638;color:#ffffff">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td align="left" valign="middle">${logo}</td><td align="right" valign="middle" style="color:#9ca0a8;font-size:10px;font-weight:700;letter-spacing:2px">ULTIMATE<br>SOUND<br>DESTRUCTION</td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td align="left" valign="middle">${logo}</td><td align="right" valign="middle" style="color:#9ca0a8;font-size:10px;font-weight:700;letter-spacing:1.4px;line-height:1.5;max-width:118px">ULTIMATE SOUND DESTRUCTION</td></tr></table>
 </td></tr>
 <tr><td class="usd-email-main" style="padding:42px 42px 34px;background:#ffffff">
 <p style="margin:0 0 13px;color:#c71c39;font-size:10px;line-height:1.5;font-weight:800;letter-spacing:2px;text-transform:uppercase">${eyebrow}</p>
