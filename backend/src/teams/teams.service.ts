@@ -388,6 +388,111 @@ export class TeamsService {
       return post;
     });
   }
+  /**
+   * Published stage performances of the team CURRENTLY approved and publicly
+   * visible members. This is intentionally not an historical team medal ledger:
+   * membership can change, and importing old results must not fabricate the
+   * team to which a participant belonged at the time of that stage.
+   */
+  async publicStageAchievements(teamId: string) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      select: {
+        id: true, name: true,
+        memberships: {
+          where: { status: 'APPROVED', participant: { isPublic: true } },
+          select: { participantId: true },
+        },
+      },
+    });
+    if (!team) throw new NotFoundException('Команда не найдена');
+    const memberIds = team.memberships.map(row => row.participantId);
+    if (!memberIds.length) return {
+      teamId: team.id, teamName: team.name, scope: 'CURRENT_PUBLIC_MEMBERS',
+      total: 0, truncated: false, stages: [],
+      summary: { participants: 0, podiums: 0, firstPlaces: 0, directions: [] },
+    };
+    const limit = 500;
+    const results = await this.prisma.result.findMany({
+      where: {
+        registration: {
+          participantId: { in: memberIds },
+          status: 'ACTIVE',
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
+          participant: { isPublic: true },
+        },
+      },
+      select: {
+        id: true, place: true, value: true, unit: true,
+        registration: {
+          select: {
+            participant: { select: { id: true, firstName: true, lastName: true } },
+            stage: { select: { id: true, name: true, city: true, date: true } },
+          },
+        },
+        registrationClass: {
+          select: {
+            class: { select: { id: true, name: true, direction: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: [{ registration: { stage: { date: 'desc' } } }, { place: 'asc' }, { id: 'asc' }],
+      take: limit + 1,
+    });
+    const truncated = results.length > limit;
+    // Counters cover at most 500 individual performances of current public
+    // members, never official historical team medals or team championship points.
+    const performers = new Set<string>();
+    const directions = new Map<string, number>();
+    let podiums = 0;
+    let firstPlaces = 0;
+    const stageMap = new Map<string, {
+      id: string; name: string; city: string | null; date: Date;
+      performances: {
+        id: string; participant: { id: string; firstName: string; lastName: string };
+        direction: string; className: string; value: string; unit: string; place: number | null;
+      }[];
+    }>();
+    for (const result of results.slice(0, limit)) {
+      const stage = result.registration.stage;
+      performers.add(result.registration.participant.id);
+      const direction = result.registrationClass.class.direction.name;
+      directions.set(direction, (directions.get(direction) ?? 0) + 1);
+      if (result.place !== null && result.place >= 1 && result.place <= 3) podiums++;
+      if (result.place === 1) firstPlaces++;
+      const item = stageMap.get(stage.id) ?? {
+        id: stage.id, name: stage.name, city: stage.city, date: stage.date,
+        performances: [],
+      };
+      item.performances.push({
+        id: result.id,
+        participant: result.registration.participant,
+        direction: result.registrationClass.class.direction.name,
+        className: result.registrationClass.class.name,
+        value: result.value.toString(),
+        unit: result.unit,
+        place: result.place,
+      });
+      stageMap.set(stage.id, item);
+    }
+    return {
+      teamId: team.id,
+      teamName: team.name,
+      scope: 'CURRENT_PUBLIC_MEMBERS',
+      total: results.length > limit ? limit : results.length,
+      truncated,
+      stages: [...stageMap.values()],
+      summary: {
+        participants: performers.size,
+        podiums,
+        firstPlaces,
+        directions: [...directions.entries()]
+          .sort(([a], [b]) => a.localeCompare(b, 'ru'))
+          .map(([name, performances]) => ({ name, performances })),
+      },
+    };
+  }
+
   async publicTeams() {
     const [teams, people] = await Promise.all([
       this.prisma.team.findMany({

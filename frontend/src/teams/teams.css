@@ -3,3 +3,35 @@
 @media(max-width:600px){.team-admin-intro,.team-archive,.team-team-list,.team-admin-detail{padding:18px}.team-create-form,.team-member-list li,.team-archive li{align-items:stretch;flex-direction:column}.team-team-list ul,.team-public-directory,.team-public-members{grid-template-columns:1fr}.team-actions>button{flex:1}.team-section-heading{gap:10px}.team-member-list li{gap:12px}.team-actions{gap:8px}.team-public h3{font-size:22px}}
 
 @media(max-width:760px){body .participant-portal.usd-member .participant-tabs.participant-tabs-with-team{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important}body .participant-portal.usd-member .participant-tabs.participant-tabs-with-team a{min-width:0;text-align:center}}
+
+/* Read-only published performances: never imply the current roster is a historical team medal ledger. */
+.team-stage-achievements{min-width:0}
+.team-achievement-disclaimer{max-width:76ch;color:#87919c;font-size:13px;line-height:1.6}
+.team-achievements-total{font-size:13px;font-weight:700;color:inherit}
+.team-stage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:16px;margin-top:18px}
+.team-stage-card{min-width:0;padding:18px;border:1px solid #454950;border-radius:16px;background:#171a20;color:#f2f2f2;box-sizing:border-box}
+.team-stage-card header h4{margin:0 0 5px;font-size:17px;overflow-wrap:anywhere}
+.team-stage-card header p{margin:0 0 16px;color:#a2a7ae;font-size:12px}
+.team-stage-card ul{list-style:none;margin:0;padding:0;display:grid;gap:11px}
+.team-stage-card li{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:11px;border-top:1px solid #373b43}
+.team-stage-card li>div:first-child{display:grid;gap:4px;min-width:0;flex:1 1 150px}
+.team-stage-card li strong{overflow-wrap:anywhere}
+.team-stage-card li span{font-size:12px;color:#aeb6c0}
+.team-achievement-measure{text-align:right;display:grid;gap:3px;align-items:start}
+.team-achievement-measure strong{white-space:nowrap;color:#f3f5f8}
+@media(max-width:520px){.team-stage-card{padding:14px}.team-stage-grid{grid-template-columns:minmax(0,1fr)}.team-achievement-measure{text-align:left}}
+
+/* Readable team analytics in both dark public and participant sections. */
+.team-achievement-overview{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:18px 0}
+.team-achievement-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;flex:1 1 480px}
+.team-achievement-stats p{display:grid;gap:6px;align-content:center;margin:0;padding:14px;border:1px solid #484d55;border-radius:12px;background:#1c2027;color:#e4e9ef}
+.team-achievement-stats strong{font-size:26px;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+.team-achievement-stats span{color:#b6bec8;font-size:12px;line-height:1.4}
+.team-achievement-filter{display:grid;gap:7px;font-size:13px;min-width:min(100%,210px)}
+.team-achievement-filter select{width:100%;max-width:100%;padding:10px;border:1px solid #686d75;border-radius:9px;background:#20242c;color:#fff;font:inherit}
+.team-achievement-filter select:focus-visible{outline:2px solid #fa3957;outline-offset:2px}
+.team-review-queue{margin-bottom:24px}
+.team-review-list{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:12px 0 0;padding:0}
+.team-review-list button{min-height:44px;padding:12px 16px;border:1px solid #b91c36;border-radius:10px;background:#fff5f6;color:#652132;text-align:left;overflow-wrap:anywhere}
+.team-review-list button:focus-visible{outline:2px solid #b91c36;outline-offset:3px}
+@media(max-width:520px){.team-achievement-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.team-achievement-stats p:last-child{grid-column:1/-1}.team-achievement-filter{width:100%}.team-review-list{display:grid;grid-template-columns:minmax(0,1fr)}}

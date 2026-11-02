@@ -27,6 +27,11 @@ export class TeamsController {
   publicTeams() {
     return this.service.publicTeams();
   }
+  @Public()
+  @Get('public/:teamId/achievements')
+  publicStageAchievements(@Param('teamId') teamId: string) {
+    return this.service.publicStageAchievements(teamId);
+  }
   @Roles('ADMIN')
   @Get('admin')
   @Header('Cache-Control', 'no-store')

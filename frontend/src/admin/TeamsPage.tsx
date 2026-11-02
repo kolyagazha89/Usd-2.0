@@ -13,10 +13,20 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
  useEffect(()=>{void refresh()},[]);
  const create=async()=>{setBusy(true);setError('');try{const team=await apiPost<Team>('/teams',{name:name.trim()});setName('');await load();setSelected(team.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать команду')}finally{setBusy(false)}};
  const filtered=teams.filter(t=>t.name.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))),current=teams.find(t=>t.id===selected);
+ const pendingReviews=teams.flatMap(team=>(team.posts??[])
+   .filter(post=>post.status==='IN_REVIEW')
+   .map(post=>({teamId:team.id,teamName:team.name,postId:post.id,title:post.title})));
  return <PageFrame title="Команды" subtitle="Составы, командиры и публикации USD" action={<button className="secondary-button" disabled={loading||busy} onClick={()=>void refresh()}>Обновить</button>}>
  {error&&<ErrorPanel message={error} retry={refresh}/>}
  <section className="panel team-admin-intro"><h2>Управление командами</h2><p>Создайте команду, назначьте командира и проверяйте материалы перед публикацией. Назначение действует только внутри выбранной команды.</p><form className="team-create-form" onSubmit={e=>{e.preventDefault();void create()}}><label>Название новой команды<input aria-label="Название новой команды" value={name} maxLength={120} required onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()}>Создать команду</button></form></section>
- {loading?<LoadingPage/>:<div className="team-admin-layout"><section className="panel team-team-list"><label>Найти команду<input aria-label="Найти команду" value={query} onChange={e=>setQuery(e.target.value)}/></label>{filtered.length?<ul>{filtered.map(t=><li key={t.id}><button className={selected===t.id?'is-selected':''} aria-pressed={selected===t.id} onClick={()=>setSelected(t.id)}><strong>{t.name}</strong><span>{t.isActive?'Активна':'В архиве'} · {t.memberships?.filter(m=>m.status==='PENDING').length??0} заявок</span></button></li>)}</ul>:<Empty text={query?'Команды не найдены':'Создайте первую команду'}/>}</section><section className="panel team-admin-detail">{current?<TeamWorkspace key={current.id} team={current} users={users} admin onChanged={load}/>:<Empty text="Выберите команду для управления составом и публикациями"/>}</section></div>}
+ {!loading&&<section className="panel team-review-queue" aria-label="Очередь публикаций команд на проверке">
+  <h2>Материалы на проверке · {pendingReviews.length}</h2>
+  <p>Откройте команду, проверьте текст и только затем опубликуйте материал. Командир не может публиковать самостоятельно.</p>
+  {pendingReviews.length?<ul className="team-review-list">{pendingReviews.map(post=><li key={post.postId}><button type="button" onClick={()=>{setQuery('');setSelected(post.teamId)}}>
+   <strong>{post.teamName}</strong> · {post.title}
+  </button></li>)}</ul>:<p>Нет материалов, ожидающих решения администратора.</p>}
+ </section>}
+ {loading?<LoadingPage/>:<div className="team-admin-layout"><section className="panel team-team-list"><label>Найти команду<input aria-label="Найти команду" value={query} onChange={e=>setQuery(e.target.value)}/></label>{filtered.length?<ul>{filtered.map(t=><li key={t.id}><button className={selected===t.id?'is-selected':''} aria-pressed={selected===t.id} onClick={()=>setSelected(t.id)}><strong>{t.name}</strong><span>{t.isActive?'Активна':'В архиве'} · {t.memberships?.filter(m=>m.status==='PENDING').length??0} заявок · {t.posts?.filter(p=>p.status==='IN_REVIEW').length??0} публикаций на проверке</span></button></li>)}</ul>:<Empty text={query?'Команды не найдены':'Создайте первую команду'}/>}</section><section className="panel team-admin-detail">{current?<TeamWorkspace key={current.id} team={current} users={users} admin onChanged={load}/>:<Empty text="Выберите команду для управления составом и публикациями"/>}</section></div>}
  <section className="panel team-archive"><h2>Архивные названия</h2><p>История выступлений сохранена. Архивные связи не означают подтверждённое текущее членство.</p>{legacy.length?<ul>{legacy.map(t=><li key={t.name}><strong>{t.name}</strong><span>{t.historicalMembers.length} публичных участников в архиве</span></li>)}</ul>:<p>Отдельных архивных названий нет.</p>}</section>
  </PageFrame>;
 }
