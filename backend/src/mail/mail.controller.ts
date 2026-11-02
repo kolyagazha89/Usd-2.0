@@ -25,6 +25,12 @@ export class MailController {
   }
 
   @Roles('ADMIN')
+  @Post('check-connection')
+  checkConnection() {
+    return this.mailService.checkConnection();
+  }
+
+  @Roles('ADMIN')
   @Post('test-trigger')
   async sendTestTrigger(@Body() body: { email?: string; type?: string; stageId?: string }) {
     const email = this.normalizeEmail(body?.email);
@@ -32,6 +38,9 @@ export class MailController {
     this.validateEmail(email);
     if (!allowed.includes(String(body?.type))) throw new BadRequestException('Выберите поддерживаемый триггер письма');
     const type = String(body.type);
+    if (process.env.MAIL_ACCOUNT_ONLY === 'true' && !type.startsWith('AUTH_')) {
+      throw new BadRequestException('В релизном режиме письма отправляются только для аккаунтов. Уведомления об этапах работают через PUSH.');
+    }
     if (type.startsWith('AUTH_')) {
       return this.mailService.sendTestAuthTemplate(email, type as 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE');
     }

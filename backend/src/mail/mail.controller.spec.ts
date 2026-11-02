@@ -47,4 +47,23 @@ describe('MailController', () => {
     expect(emailNotifications.sendTestTrigger).toHaveBeenCalledWith('STAGE_REGISTRATION_OPEN', 'admin@example.com', undefined);
   });
 
+  it('only allows safe account-template tests in release account-only mode', async () => {
+    const previous = process.env.MAIL_ACCOUNT_ONLY;
+    process.env.MAIL_ACCOUNT_ONLY = 'true';
+    try {
+      const mailService = { sendTestAuthTemplate: jest.fn().mockResolvedValue({ success: true }), checkConnection: jest.fn().mockResolvedValue({ connected: true }) };
+      const notifications = { sendTestTrigger: jest.fn() };
+      const controller = new MailController(mailService as any, notifications as any);
+      await expect(controller.sendTestTrigger({ email: 'admin@example.com', type: 'STAGE_REMINDER_1D' })).rejects.toThrow(BadRequestException);
+      expect(notifications.sendTestTrigger).not.toHaveBeenCalled();
+      await expect(controller.sendTestTrigger({ email: 'admin@example.com', type: 'AUTH_PASSWORD_RESET' })).resolves.toEqual({ success: true });
+      expect(mailService.sendTestAuthTemplate).toHaveBeenCalledWith('admin@example.com', 'AUTH_PASSWORD_RESET');
+      await expect(controller.checkConnection()).resolves.toEqual({ connected: true });
+      expect(Reflect.getMetadata(ROLES_KEY, MailController.prototype.checkConnection)).toEqual(['ADMIN']);
+    } finally {
+      if (previous === undefined) delete process.env.MAIL_ACCOUNT_ONLY;
+      else process.env.MAIL_ACCOUNT_ONLY = previous;
+    }
+  });
+
 });

@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
   Optional,
 } from '@nestjs/common';
 
@@ -316,6 +317,54 @@ export class MailService {
     await this.sendMessage(message);
   }
 
+  /**
+   * Safe, administrator-only diagnostics. SMTP errors sometimes contain server
+   * responses or addresses, so only a fixed public code/message leave the API.
+   */
+  private adminMailFailure(error: unknown): never {
+    const detail = error as { code?: unknown; responseCode?: unknown } | null;
+    const smtpCode = typeof detail?.code === 'string' ? detail.code : '';
+    const smtpResponse = typeof detail?.responseCode === 'number' ? detail.responseCode : 0;
+    const status = this.getDeliveryStatus();
+    let code = 'MAIL_PROVIDER_REJECTED';
+    let message = 'Почтовый провайдер не принял письмо. Проверьте журнал API на Ubuntu и повторите тест.';
+    if (!status.ready) {
+      code = 'MAIL_NOT_CONFIGURED';
+      message = 'Почта USD не настроена. Проверьте отсутствующие параметры в статусе канала и настройки API на Ubuntu.';
+    } else if (smtpCode === 'EAUTH' || smtpResponse === 535 || smtpResponse === 534) {
+      code = 'MAIL_AUTH_FAILED';
+      message = 'SMTP отклонил авторизацию. Проверьте логин Яндекса и пароль приложения в окружении API на Ubuntu.';
+    } else if (['ETIMEDOUT', 'ECONNECTION', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH', 'ESOCKET'].includes(smtpCode)) {
+      code = 'MAIL_NETWORK_UNAVAILABLE';
+      message = 'Не удалось подключиться к почтовому серверу. Проверьте исходящее соединение Ubuntu с smtp.yandex.com:465.';
+    }
+    this.logger.warn('Admin mail diagnostic failed: ' + code + (smtpCode ? ' (' + smtpCode + ')' : ''));
+    throw new ServiceUnavailableException({ code, message });
+  }
+
+  private async sendAdminMessage(message: { to: string; subject: string; html: string; text: string }): Promise<void> {
+    if (!this.getDeliveryStatus().ready) this.adminMailFailure({ code: 'NOT_CONFIGURED' });
+    try {
+      await this.sendMessage(message);
+    } catch (error) {
+      this.adminMailFailure(error);
+    }
+  }
+
+  async checkConnection(): Promise<{ success: true; connected: boolean; deliveryConfirmed: false; message: string }> {
+    const status = this.getDeliveryStatus();
+    if (!status.ready) this.adminMailFailure({ code: 'NOT_CONFIGURED' });
+    if (!status.provider.includes('SMTP')) {
+      return { success: true, connected: false, deliveryConfirmed: false, message: 'Для HTTPS-провайдера доступна проверка только реальным тестовым письмом.' };
+    }
+    try {
+      await this.transporter.verify();
+      return { success: true, connected: true, deliveryConfirmed: false, message: 'SMTP-соединение и авторизация успешны. Теперь отправьте тестовое письмо и проверьте его получение.' };
+    } catch (error) {
+      this.adminMailFailure(error);
+    }
+  }
+
   async sendTestAuthTemplate(email: string, type: 'AUTH_EMAIL_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_EMAIL_CHANGE'): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; type: string; message: string }> {
     const configs = {
       AUTH_EMAIL_VERIFICATION: { subject: 'Подтверждение email — USD', heading: 'Подтверждение email', actionLabel: 'Подтвердить email' },
@@ -334,7 +383,7 @@ export class MailService {
       note: 'Тестовая ссылка ведёт только на сайт. Настоящий токен аккаунта не создавался.',
       frontendUrl: this.frontendUrl,
     });
-    await this.sendMessage({ to: email, ...message });
+    await this.sendAdminMessage({ to: email, ...message });
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
   }
 
@@ -396,18 +445,13 @@ export class MailService {
       note: 'Время запроса: ' + sentAt + '. Ответ почтового провайдера не является подтверждением доставки.',
       frontendUrl: this.frontendUrl,
     });
-    try {
-      await this.sendMessage({ to: email, ...message });
-      return {
-        success: true,
-        providerAccepted: true,
-        deliveryConfirmed: false,
-        message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
-      };
-    } catch (error) {
-      this.logger.error(`Test email send failed (${error instanceof Error ? error.name + ': ' + error.message : 'unknown mail error'}).`);
-      throw new InternalServerErrorException('Почтовый провайдер не принял тестовое письмо. Проверьте конфигурацию почты в домашнем сервере USD.');
-    }
+    await this.sendAdminMessage({ to: email, ...message });
+    return {
+      success: true,
+      providerAccepted: true,
+      deliveryConfirmed: false,
+      message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
+    };
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {

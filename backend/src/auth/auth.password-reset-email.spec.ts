@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 
 describe('AuthService.requestPasswordReset email delivery feedback', () => {
   const genericMessage =
-    'Если аккаунт существует, запрос на восстановление обработан. Этот ответ не подтверждает доставку письма; проверьте папку «Спам» и попробуйте позже.';
+    'Если адрес привязан к подтверждённому аккаунту USD, мы попробуем отправить ссылку для восстановления пароля. Проверьте «Входящие» и «Спам».';
 
   it('returns a generic response when the mail provider fails', async () => {
     const user = {
