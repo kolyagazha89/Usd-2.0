@@ -11,15 +11,15 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 2906,
-    "brands": 21,
+    "rows": 2952,
+    "brands": 22,
     "fields": [
       "бренд",
       "модель",
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 766,
+      "AMPLIFIER": 812,
       "AUDIO_COMPONENT": 1177,
       "SUBWOOFER": 866,
       "HEAD_UNIT": 74,
@@ -31,24 +31,25 @@
       "Avatar": 96,
       "B2 Audio": 62,
       "Black Hydra": 26,
-      "DD Audio": 392,
+      "DD Audio": 361,
       "Deaf Bonce": 16,
       "DL Audio": 197,
-      "EDGE": 99,
+      "EDGE": 96,
       "Fi Car Audio": 31,
       "Ground Zero": 291,
       "Hannibal": 51,
       "Machete": 161,
-      "Pride": 287,
-      "Resilient Sounds": 43,
+      "Pride": 242,
+      "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
-      "SP Audio": 106,
+      "SounDigital": 46,
+      "SP Audio": 95,
       "Stetsom": 74,
       "Sundown Audio": 279,
       "Taramps": 42,
-      "Урал": 169
+      "Урал": 161
     },
-    "brand_count_note": "21 distinct brand/series labels (including Deaf Bonce series as separate choices)"
+    "brand_count_note": "22 distinct brands/series as separate selectors"
   },
   "fragment_coverage": [
     {
@@ -130,6 +131,11 @@
     {
       "name": "deafbonce_amplifiers",
       "rows": 183
+    },
+    {
+      "name": "soundigital",
+      "rows": 46,
+      "source_method": "free public site text index, official product slugs"
     }
   ],
   "validation": {
@@ -140,10 +146,9 @@
     "cleaned_marketing_labels": true
   },
   "missing_manufacturers": [
-    "Kicx (unreachable origin)",
-    "Dynamic State (unreachable origin)",
-    "SounDigital (catalog pages block automated access)",
-    "Hertz (product pages blocked)"
+    "Kicx (official host timeouts even through free gateways)",
+    "Dynamic State (official host timeouts/DNS failures)",
+    "Hertz (product pages blocked by CAPTCHA)"
   ],
   "completeness": "partial; comprehensive within reachable catalogs, not certified all current and historical models",
   "production_import": false
