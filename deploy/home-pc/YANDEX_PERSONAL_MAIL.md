@@ -1,6 +1,6 @@
 # USD — подключение обычной Яндекс Почты
 
-Согласованный отправитель: **usd-russia@yandex.ru** (личный бесплатный ящик, не Яндекс 360 для бизнеса).
+Согласованный отправитель: **usd-russia@yandex.com** (личный бесплатный ящик, не Яндекс 360 для бизнеса).
 
 Статус: код и пример переменных подготовлены. **Доставка писем не считается
 настроенной**, пока в защищённом окружении Ubuntu не введён пароль приложения,
@@ -8,7 +8,7 @@
 
 ## 1. Подготовить аккаунт Яндекса
 
-1. Открыть один раз [Яндекс Почту](https://mail.yandex.ru/) и принять условия сервиса.
+1. Открыть один раз [Яндекс Почту](https://mail.yandex.com/) и принять условия сервиса.
 2. В настройках Почты → «Почтовые программы» разрешить доступ через почтовые клиенты
    и «Пароли приложений и OAuth-токены» (если это требуется аккаунтом).
 3. В [Яндекс ID → Пароли приложений](https://id.yandex.ru/security/app-passwords)
@@ -16,9 +16,9 @@
    Этот пароль показывается только один раз. **Не пересылать его в чат, GitHub
    или журнал GitHub Actions.** Основной пароль Яндекс ID использовать нельзя.
 
-Официальные параметры SMTP: `smtp.yandex.ru`, SSL/TLS, порт `465`.
+Официальные параметры SMTP: `smtp.yandex.com`, SSL/TLS, порт `465`.
 Для личного ящика Яндекс указывает логин до символа `@`: `usd-russia`.
-Смотрите [инструкцию Яндекса](https://www.yandex.ru/support/yandex-360/customers/mail/ru/mail-clients/others).
+Смотрите [инструкцию Яндекса](https://yandex.com/support/yandex-360/customers/mail/en/mail-clients/others).
 
 ## 2. Проверить соединение с Ubuntu
 
@@ -28,7 +28,7 @@
 python3 - <<'PY'
 import socket
 try:
-    with socket.create_connection(("smtp.yandex.ru", 465), timeout=8):
+    with socket.create_connection(("smtp.yandex.com", 465), timeout=8):
         print("TCP 465: доступен")
 except OSError as exc:
     print("TCP 465: недоступен; не включайте SMTP_EGRESS_ALLOWED:", type(exc).__name__)
@@ -42,23 +42,29 @@ PY
 
 ## 3. Ввести секрет только на Ubuntu
 
-После подтверждения доступа к `smtp.yandex.ru:465` открыть существующий файл
-`/home/usd/usd-deploy/deploy/home-pc/.env`:
+После подтверждения доступа к `smtp.yandex.com:465` зайти в терминал Ubuntu
+через SSH (или консоль VM) и открыть существующий файл настроек:
 
 ```bash
-sudoedit /home/usd/usd-deploy/deploy/home-pc/.env
+sudo nano /home/usd/usd-deploy/deploy/home-pc/.env
 ```
+
+В редакторе Nano стрелками найти строку `SMTP_PASSWORD=` (либо добавить её
+в конец файла). **Вставить пароль приложения после знака `=` только здесь**,
+не в терминальную команду и не в чат. На Linux в большинстве терминалов вставка
+в Nano — **Ctrl+Shift+V** либо контекстное меню Paste. Сохранить — **Ctrl+O**,
+**Enter**; выйти — **Ctrl+X**.
 
 Добавить/обновить **ровно по одному** экземпляру каждого ключа:
 
 ```dotenv
 MAIL_PROVIDER=smtp
-SMTP_HOST=smtp.yandex.ru
+SMTP_HOST=smtp.yandex.com
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=usd-russia
-SMTP_FROM="USD <usd-russia@yandex.ru>"
-SMTP_PASSWORD=ПАРОЛЬ_ПРИЛОЖЕНИЯ_ИЗ_ЯНДЕКС_ID
+SMTP_FROM="USD <usd-russia@yandex.com>"
+SMTP_PASSWORD=ВСТАВИТЬ_НА_UBUNTU_ПАРОЛЬ_ПРИЛОЖЕНИЯ
 SMTP_EGRESS_ALLOWED=true
 # Personal mailbox: account auth only; stage notices go through PUSH.
 MAIL_ACCOUNT_ONLY=true
@@ -71,7 +77,14 @@ MAIL_ACCOUNT_ONLY=true
 
 ```bash
 sudo chmod 600 /home/usd/usd-deploy/deploy/home-pc/.env
+sudo stat -c '%a %U:%G' /home/usd/usd-deploy/deploy/home-pc/.env
 ```
+
+Команда `stat` показывает только права и владельца, **не пароль**.
+Не используйте `cat .env`, `docker compose config` без редактирования
+вывода или `printenv` для отправки скриншота — это может раскрыть секрет.
+В случае нескольких строк одного и того же ключа оставьте одну корректную.
+**До завершения штатных проверок релиза не перезапускайте API вручную.**
 
 `MAIL_ACCOUNT_ONLY=true` отключает автоматические письма по событиям этапов,
 регистрационным заявкам и расписанию напоминаний. **Останутся письма аккаунта**
