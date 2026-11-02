@@ -9,7 +9,7 @@ const message=(cause:unknown,fallback:string)=>cause instanceof Error?cause.mess
 const validPassword=(value:string)=>value.length>=8&&value.length<=128;
 const date=(value:string)=>{const parsed=new Date(value);return Number.isFinite(parsed.getTime())?parsed.toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'}):'Не указано'};
 
-export default function ParticipantAccountSecurity({email,onLogout}:{email:string;onLogout:()=>Promise<void>}){
+export default function ParticipantAccountSecurity({email,onLogout,section='all'}:{email:string;onLogout:()=>Promise<void>;section?:'security'|'sessions'|'all'}){
   const [currentPassword,setCurrentPassword]=useState('');
   const [newPassword,setNewPassword]=useState('');
   const [passwordConfirmation,setPasswordConfirmation]=useState('');
@@ -50,7 +50,7 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
       setSessionState('error');setSessionError(message(cause,'Не удалось загрузить сеансы. Повторите запрос.'));
     }
   }
-  useEffect(()=>{void loadSessions();return()=>{sessionRequest.current++}},[]);
+  useEffect(()=>{if(section==='security')return;void loadSessions();return()=>{sessionRequest.current++}},[section]);
 
   function confirm(next:Confirmation){cancelFocus.current=document.activeElement as HTMLElement|null;setConfirmation(next)}
   function cancel(){restoreFocus.current=true;setConfirmation(null)}
@@ -119,8 +119,8 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
   const error=(text:string)=>text&&<p className="account-security-feedback is-error" role="alert"><AlertTriangle size={17}/><span>{text}</span></p>;
 
   return <section className="participant-account-security" aria-labelledby="account-security-heading">
-    <header className="account-security-heading"><span className="account-security-mark"><ShieldCheck size={24}/></span><div><span className="eyebrow">ДОСТУП К USD</span><h2 id="account-security-heading">Безопасность аккаунта</h2><p>Управляйте входом, почтой и устройствами в одном месте.</p></div></header>
-    <div className="account-security-grid">
+    <header className="account-security-heading"><span className="account-security-mark"><ShieldCheck size={24}/></span><div><span className="eyebrow">ДОСТУП К USD</span><h2 id="account-security-heading">{section==='sessions'?'Сеансы входа':'Безопасность аккаунта'}</h2><p>{section==='sessions'?'Проверяйте устройства и завершайте активные сеансы.':'Защитите вход: смените пароль или электронную почту.'}</p></div></header>
+    {section!=='sessions'&&<div className="account-security-grid">
       <article className="account-security-card">
         <div className="account-security-card-title"><KeyRound size={20}/><h3>Пароль</h3></div>
         <p className="account-security-copy">После смены пароля вы выйдете из аккаунта на этом устройстве. На остальных устройствах текущий доступ может сохраняться до 15 минут. Затем потребуется повторный вход.</p>
@@ -150,8 +150,8 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
           <button type="submit" className="secondary-button" disabled={busy!==null}>{busy==='email'?'Отправляем…':'Запросить смену email'}</button>
         </form>
       </article>
-    </div>
-    <article className="account-security-card account-security-sessions">
+    </div>}
+    {section!=='security'&&<article className="account-security-card account-security-sessions">
       <div className="account-security-sessions-heading"><div className="account-security-card-title"><Smartphone size={20}/><h3>Сеансы входа</h3></div><button type="button" className="secondary-button compact" onClick={()=>void loadSessions()} disabled={busy!==null||sessionState==='loading'}><RefreshCw size={15}/>Обновить сеансы</button></div>
       <p className="account-security-copy">Проверьте устройства, с которых выполнен вход. {currentIdentified?'Текущее устройство отмечено по подтверждённому сеансу.':'Без подтверждения текущего входа любой сеанс в списке может относиться к этому устройству.'} На других устройствах текущий доступ может сохраняться до 15 минут после завершения сеанса.</p>
       {sessionState==='loading'&&<p className="account-security-loading" role="status"><Loader2 size={18} className="spin"/>Загружаем сеансы…</p>}
@@ -160,6 +160,6 @@ export default function ParticipantAccountSecurity({email,onLogout}:{email:strin
       {sessionState==='ready'&&(sessions.length?<ul className="account-security-session-list">{sessions.map(session=><li key={session.id}><div className="account-security-session-device"><Smartphone size={19}/><div><strong>{session.userAgent||'Неизвестное устройство'}</strong>{session.isCurrent===true&&<span className="account-security-current-label">Это устройство</span>}<span>IP: {session.ipAddress||'Не указан'}</span></div></div><dl><div><dt>Последняя активность</dt><dd>{date(session.updatedAt)}</dd></div><div><dt>Вход выполнен</dt><dd>{date(session.createdAt)}</dd></div><div><dt>Действует до</dt><dd>{date(session.expiresAt)}</dd></div></dl><button type="button" className="secondary-button compact" aria-label={'Завершить сеанс: '+(session.userAgent||'Неизвестное устройство')} disabled={busy!==null} onClick={()=>{setSessionError('');confirm({kind:'session',session})}}>Завершить сеанс</button></li>)}</ul>:<div className="account-security-empty"><ShieldCheck size={24}/><strong>Активных сеансов нет</strong><p>При следующем входе здесь появится устройство.</p></div>)}
       {confirmation&&confirmation.kind!=='password'&&<div className="account-security-confirm" role="group" aria-label="Подтверждение завершения сеансов"><strong>{confirmation.kind==='all'?'Завершить все сеансы и выйти?':revokingCurrent?'Завершить сеанс и выйти с этого устройства?':'Завершить выбранный сеанс?'}</strong><p>{confirmation.kind==='all'||revokingCurrent?'Вы сразу выйдете из аккаунта на этом устройстве. Подготовьте пароль для повторного входа.':`Устройство: ${confirmation.kind==='session'?(confirmation.session.userAgent||'Неизвестное устройство'):''}. Текущий доступ на выбранном устройстве может сохраняться до 15 минут. Затем потребуется повторный вход.`}</p><div><button type="button" className="secondary-button" disabled={busy!==null} onClick={cancel}>Отмена</button><button ref={confirmationButton} type="button" className="primary-button" disabled={busy!==null} onClick={()=>void revokeSessions(confirmation)}>{busy==='session'?'Завершаем…':confirmation.kind==='all'?'Да, завершить все и выйти':revokingCurrent?'Да, завершить и выйти':'Да, завершить сеанс'}</button></div></div>}
       <div className="account-security-session-footer"><p>Не узнаёте устройство? Завершите его сеанс и смените пароль.</p><button type="button" className="secondary-button" disabled={busy!==null||sessionState!=='ready'||sessions.length===0} onClick={()=>{setSessionError('');confirm({kind:'all'})}}>Завершить все сеансы</button></div>
-    </article>
+    </article>}
   </section>;
 }
