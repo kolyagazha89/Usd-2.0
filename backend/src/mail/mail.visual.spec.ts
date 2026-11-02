@@ -18,7 +18,7 @@ describe('USD transactional mail — premium client-safe layout', () => {
     expect(html).toContain('width="600"');
     expect(html).toContain('border-bottom:4px solid #ed2638');
     expect(html).toContain('ULTIMATE SOUND DESTRUCTION');
-    expect(html).toContain('background:#0d0e11');
+    expect(html).toContain('background-color:#0b0b0d');
     expect(html).toContain('@media only screen and (max-width:620px)');
     expect(html).toContain('name="color-scheme" content="light"');
     expect(html).toContain('href="https://app.usd-russia.ru"');
