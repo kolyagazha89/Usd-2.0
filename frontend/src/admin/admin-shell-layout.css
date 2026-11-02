@@ -220,7 +220,7 @@ body .app-shell .main .topbar-actions {
  * surfaces, actionable focus and mobile field semantics below. */
 body .app-shell {
   --usd-admin-paper:#ffffff;
-  --usd-admin-canvas:#f2f3f6;
+  --usd-admin-canvas:#f3f5f8;
   --usd-admin-ink:#20232a;
   --usd-admin-muted:#646b77;
   --usd-admin-line:#dfe2e7;
