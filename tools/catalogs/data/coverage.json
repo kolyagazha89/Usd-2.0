@@ -11,7 +11,7 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3005,
+    "rows": 2906,
     "brands": 21,
     "fields": [
       "бренд",
@@ -19,11 +19,11 @@
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 784,
-      "AUDIO_COMPONENT": 1220,
-      "SUBWOOFER": 893,
+      "AMPLIFIER": 766,
+      "AUDIO_COMPONENT": 1177,
+      "SUBWOOFER": 866,
       "HEAD_UNIT": 74,
-      "DSP": 34
+      "DSP": 23
     },
     "counts_by_brand": {
       "Apocalypse": 174,
@@ -47,7 +47,8 @@
       "Sundown Audio": 279,
       "Taramps": 42,
       "Урал": 169
-    }
+    },
+    "brand_count_note": "21 distinct brand/series labels (including Deaf Bonce series as separate choices)"
   },
   "fragment_coverage": [
     {
@@ -135,7 +136,8 @@
     "deduped_by": "casefolded brand and model",
     "rejected": 2,
     "category_conflicts": 0,
-    "conflict_samples": []
+    "conflict_samples": [],
+    "cleaned_marketing_labels": true
   },
   "missing_manufacturers": [
     "Kicx (unreachable origin)",
