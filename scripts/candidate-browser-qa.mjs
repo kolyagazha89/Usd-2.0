@@ -88,7 +88,7 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
@@ -157,6 +157,25 @@ try{
       const tone=await pageHeading.locator('h1').evaluate(el=>getComputedStyle(el).color);
       assert.equal(tone,'rgb(247, 248, 250)','public inner heading stays light on dark graphite');
       row.sitewideInnerPages='shared graphite header and CMS body';
+     }
+     if(role==='PARTICIPANT'&&route.startsWith('/participant?tab=profile')){
+      const selector=page.locator('.participant-profile-nav');
+      await selector.waitFor({state:'visible'});
+      assert.equal(await selector.locator('a').count(),4,'four separate account settings destinations');
+      const currentSection=new URL('https://usd.test'+route).searchParams.get('section')||'personal';
+      assert.equal(await selector.locator('[aria-current="page"]').count(),1);
+      assert.ok((await selector.locator('[aria-current="page"]').getAttribute('href')).endsWith('section='+currentSection));
+      if(currentSection==='personal')assert.equal(await page.locator('.participant-account-security').count(),0);
+      if(currentSection==='security'){
+       await page.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
+       assert.equal(await page.locator('.account-security-sessions').count(),0);
+      }
+      if(currentSection==='sessions'){
+       await page.getByRole('heading',{name:'Сеансы входа'}).waitFor();
+       assert.equal(await page.locator('#account-current-password').count(),0);
+      }
+      if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),1);
+      row.profileSections='separate personal, credentials, devices and notification screens';
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
