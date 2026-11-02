@@ -396,7 +396,16 @@ export class MailService {
    * messages already accepted by the provider.
    */
   async runAdminMailTest<T>(send: () => Promise<T>): Promise<T> {
-    const status = this.getDeliveryStatus();
+    let status: ReturnType<MailService['getDeliveryStatus']>;
+    try {
+      status = this.getDeliveryStatus();
+    } catch {
+      this.logger.error('Administrative email test readiness check failed.');
+      throw new ServiceUnavailableException({
+        code: 'MAIL_STATUS_UNAVAILABLE',
+        message: 'Не удалось проверить настройки почты. Проверьте журнал API и конфигурацию почтового сервиса.',
+      });
+    }
     if (!status.ready) {
       this.logger.warn('Mail test blocked: incomplete server mail configuration.');
       throw new ServiceUnavailableException({
