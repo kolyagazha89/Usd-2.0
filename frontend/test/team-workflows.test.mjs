@@ -14,7 +14,7 @@ test('team management renders real join, commander, moderation and archive workf
   for(const [k,v] of Object.entries(values))Object.defineProperty(globalThis,k,{configurable:true,writable:true,value:v});
   const outfile=path.join(scratch,'workflows.mjs');
   await build({entryPoints:[path.join(base,'fixtures/team-workflows.tsx')],bundle:true,format:'esm',platform:'node',jsx:'automatic',packages:'external',outfile,
-   plugins:[{name:'synthetic-team-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:`export const apiGet=path=>globalThis.__teamApi('GET',path); export const apiPost=(path,body)=>globalThis.__teamApi('POST',path,body); export const apiPatch=(path,body)=>globalThis.__teamApi('PATCH',path,body); export const listData=x=>Array.isArray(x)?x:[];`}))}}]});
+   plugins:[{name:'synthetic-team-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:`export const apiGet=path=>globalThis.__teamApi('GET',path); export const apiPost=(path,body)=>globalThis.__teamApi('POST',path,body); export const apiPatch=(path,body)=>globalThis.__teamApi('PATCH',path,body); export const uploadTeamPostPhoto=async()=> 'team-post-synthetic'; export const getTeamPostPhotoUrl=id=>'/mock/gallery/'+id; export const getPrivateMediaObjectUrl=async(_type,id)=>'/mock/private/'+id; export const releasePrivateMediaUrl=()=>{}; export const listData=x=>Array.isArray(x)?x:[];`}))}}]});
   await (await import(pathToFileURL(outfile).href)).runTeamWorkflows();
  }finally{dom.window.close();for(const [k,v] of old){if(v)Object.defineProperty(globalThis,k,v);else delete globalThis[k]}await rm(scratch,{recursive:true,force:true})}
 });

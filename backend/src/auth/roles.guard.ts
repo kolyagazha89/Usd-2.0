@@ -104,10 +104,13 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
   return false;
  }
  if(name==='MediaController') {
-  if(path==='/media/prepare'&&method==='POST')return ['PARTICIPANT_PHOTO','CAR_PHOTO'].includes(String(request.body?.targetType??''));
+  if(path==='/media/prepare'&&method==='POST')return ['PARTICIPANT_PHOTO','CAR_PHOTO'].includes(String(request.body?.targetType??'')) ||
+    (request.body?.targetType==='SITE_ASSET'&&String(request.body?.targetId??'').startsWith('team-post-'));
+
   if(path==='/media/complete'&&method==='POST')return true;
   if(path==='/media/upload'&&method==='PUT')return true;
   if(/^\/media\/view\/(PARTICIPANT_PHOTO|CAR_PHOTO)\/[^/]+$/.test(path)&&method==='GET')return true;
+  if(/^\/media\/private-file\/SITE_ASSET\/team-post-[^/]+$/.test(path)&&method==='GET')return true;
   return false;
  }
  return false;

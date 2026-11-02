@@ -263,6 +263,25 @@ export async function uploadSiteAsset(assetKey:string,file:File){
 }
 export async function getPublicSiteAsset(assetKey:string){return {success:true,url:`${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(assetKey)}`};}
 
+/** Private RustFS team gallery upload, scoped to one existing post.
+ * Do not expose a draft image on the public site until ADMIN publishes.
+ */
+export async function uploadTeamPostPhoto(postId:string,file:File):Promise<string>{
+  const allowed=['image/jpeg','image/png','image/webp'];
+  if(!/^[0-9a-f-]{36}$/i.test(postId))throw new Error('Сначала сохраните публикацию');
+  if(!allowed.includes(file.type))throw new Error('Разрешены только JPG, PNG и WebP');
+  if(file.size<=0||file.size>10*1024*1024)throw new Error('Размер фотографии: не более 10 МБ');
+  const slot=crypto.randomUUID();
+  const targetId='team-post-'+postId+'-'+slot;
+  const prepared=await apiPost<{uploadToken:string}>('/media/prepare',{targetType:'SITE_ASSET',targetId,contentType:file.type});
+  if(!prepared.uploadToken)throw new Error('Сервер не подготовил загрузку');
+  await request('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
+  return targetId;
+}
+export function getTeamPostPhotoUrl(targetId:string):string{
+  return `${API_BASE}/media/public-file/SITE_ASSET/${encodeURIComponent(targetId)}`;
+}
+
 export async function uploadEntityPhoto(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOTO',targetId:string,file:File){
   const allowed=['image/jpeg','image/png','image/webp'];
   if(!allowed.includes(file.type))throw new Error('Разрешены только JPG, PNG и WebP');

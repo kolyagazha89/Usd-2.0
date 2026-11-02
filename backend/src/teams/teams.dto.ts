@@ -1,5 +1,7 @@
 import {
   IsBoolean,
+  IsArray,
+  ArrayMaxSize,
   IsIn,
   IsOptional,
   IsString,
@@ -24,6 +26,7 @@ export class TeamPostDto {
   @IsString() @Length(1, 10000) body!: string;
   @IsIn(['DRAFT', 'IN_REVIEW', 'PUBLISHED']) status!:
     'DRAFT' | 'IN_REVIEW' | 'PUBLISHED';
+  @IsOptional() @IsArray() @ArrayMaxSize(8) @IsString({each:true}) @MaxLength(100,{each:true}) images?: string[];
 }
 export class MembershipDecisionDto {
   @IsIn(['APPROVED', 'REJECTED', 'LEFT']) status!:

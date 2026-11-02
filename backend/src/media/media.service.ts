@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
+import { teamPostIdFromAssetKey, teamPhotoKeys } from '../teams/team-photo-keys';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -113,7 +114,23 @@ export class MediaService {
     return url.toString();
   }
 
-  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false, allowReviewPreview = false) {
+    // Team photos share the SITE_ASSET storage infrastructure, but never its
+    // broad CMS permission model. Each photo slot belongs to one real team post.
+    if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')) {
+      const postId = teamPostIdFromAssetKey(targetId);
+      if (!postId) throw new BadRequestException('Некорректный идентификатор фотографии команды');
+      const post = await this.prisma.teamPost.findUnique({
+        where: { id: postId },
+        select: { status: true, team: { select: { commanderUserId: true, isActive: true } } },
+      });
+      if (!post) throw new NotFoundException('Публикация команды не найдена');
+      if (role !== 'ADMIN' && (!post.team.isActive || post.team.commanderUserId !== userId ||
+          (post.status !== 'DRAFT' && !(allowReviewPreview && post.status === 'IN_REVIEW')))) {
+        throw new ForbiddenException('Загружать фотографии можно только в собственный черновик команды');
+      }
+      return;
+    }
     if (targetType === MediaTargetType.SITE_ASSET) {
       if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на управление файлами сайта');
       return;
@@ -129,6 +146,10 @@ export class MediaService {
   }
 
   async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string, canManageSiteAssets = false) {
+    if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-') &&
+        !ALLOWED_IMAGE_TYPES.has(contentType.toLowerCase())) {
+      throw new BadRequestException('Для фотографий команды разрешены только JPG, PNG и WebP');
+    }
     if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
     await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
     const token = crypto.randomBytes(32).toString('hex');
@@ -157,6 +178,15 @@ export class MediaService {
   }
 
   private async isPublishedRulesDocument(targetId: string) {
+    if (targetId.startsWith('team-post-')) {
+      const postId = teamPostIdFromAssetKey(targetId);
+      if (!postId) return false;
+      const post = await this.prisma.teamPost.findFirst({
+        where: { id: postId, status: 'PUBLISHED' },
+        select: { images: true },
+      });
+      return post ? teamPhotoKeys(post.images).includes(targetId) : false;
+    }
     if (targetId.startsWith('legal-document-')) {
       const row = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } });
       const legal = row?.legal as Record<string, any> | null;
@@ -174,6 +204,9 @@ export class MediaService {
   }
 
   async getSignedPublicMediaUrl(targetType: MediaTargetType, targetId: string) {
+    // A presigned S3 URL cannot be revoked immediately if a team moderator
+    // removes the publication. Public team photos must use the checked proxy.
+    if (targetId.startsWith('team-post-')) throw new ForbiddenException('Для фото команды используется защищённая выдача');
     if (targetType !== MediaTargetType.SITE_ASSET) {
       throw new ForbiddenException('Публичная выдача разрешена только для файлов сайта');
     }
@@ -191,8 +224,11 @@ export class MediaService {
   async getPrivateMediaFile(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     // Private site assets may include unpublished legal documents; require ADMIN.
-    if (targetType === MediaTargetType.SITE_ASSET && role !== 'ADMIN') throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
-    await this.ensureTargetAccess(userId, role, targetType, targetId, false);
+    if (targetType === MediaTargetType.SITE_ASSET && role !== 'ADMIN' && !targetId.startsWith('team-post-'))
+      throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
+    // Read-only preview remains available during moderation. Upload/complete
+    // always requires a DRAFT, so reviewed photos cannot be swapped.
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false, true);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
@@ -240,6 +276,8 @@ export class MediaService {
   }
 
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    // Even draft previews stay behind authenticated /media/private-file.
+    if (targetId.startsWith('team-post-')) throw new ForbiddenException('Фото черновиков доступны только через защищённую выдачу');
     await this.ensureTargetAccess(userId, role, targetType, targetId);
 
     const upload = await this.prisma.mediaUpload.findFirst({
@@ -346,6 +384,10 @@ export class MediaService {
       }
     };
     scan(settings);
+    // Protect even unpublished team galleries from admin media-library deletion
+    // until an editor deliberately detaches each image from its post.
+    const posts = await this.prisma.teamPost.findMany({ select: { images: true } });
+    for (const post of posts) for (const key of teamPhotoKeys(post.images)) referenced.add(key);
     return referenced;
   }
 

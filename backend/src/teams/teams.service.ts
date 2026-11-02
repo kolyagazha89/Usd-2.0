@@ -9,6 +9,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
+import { teamPostIdFromAssetKey } from './team-photo-keys';
 import type {
   CreateTeamDto,
   UpdateTeamDto,
@@ -367,11 +368,36 @@ export class TeamsService {
         throw new ForbiddenException(
           'Опубликованный материал сначала должен вернуть в черновик ADMIN',
         );
+      // An IN_REVIEW post is frozen for the commander. Otherwise photos can
+      // be swapped after an admin opens the review but before publication.
+      if (existing?.status === 'IN_REVIEW' && user.role !== 'ADMIN' &&
+          input.status !== 'DRAFT')
+        throw new ForbiddenException('Для редактирования сначала отзовите материал с проверки');
+      // Withdrawing a post invalidates an administrator's old approval screen.
+      if (input.status === 'PUBLISHED' && existing?.status !== 'IN_REVIEW')
+        throw new ConflictException('Публиковать можно только материал, ожидающий проверки');
+      const images = input.images;
+      if (images !== undefined) {
+        if (!Array.isArray(images) || images.length > 8 ||
+            new Set(images).size !== images.length ||
+            (!existing && images.length > 0) ||
+            (existing && images.some(key => teamPostIdFromAssetKey(key) !== existing.id))) {
+          throw new BadRequestException('Фотографии должны принадлежать этой публикации (не более восьми)');
+        }
+        const verified = images.length ? await db.mediaUpload.findMany({
+          where: { targetType: 'SITE_ASSET', targetId: { in: images }, completedAt: { not: null } },
+          select: { targetId: true },
+        }) : [];
+        if (new Set(verified.map(row => row.targetId)).size !== images.length) {
+          throw new BadRequestException('Сначала загрузите фотографии в защищённое хранилище');
+        }
+      }
       const data = {
         kind: input.kind,
         title,
         body,
         status: input.status,
+        ...(images !== undefined ? { images } : {}),
         publishedAt:
           input.status === 'PUBLISHED'
             ? (existing?.publishedAt ?? new Date())
@@ -515,6 +541,7 @@ export class TeamsService {
               kind: true,
               title: true,
               body: true,
+              images: true,
               publishedAt: true,
             },
           },

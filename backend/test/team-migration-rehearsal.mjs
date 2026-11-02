@@ -27,8 +27,13 @@ try{
  await db.query(`INSERT INTO "Participant" (id,"firstName","lastName",team,"updatedAt") VALUES ('teams-rehearsal-sentinel','Synthetic','Migration','  Historic Team Unchanged  ',now())`);
  const before=(await db.query('SELECT row_to_json(p) AS data FROM "Participant" p')).rows;
  await db.query(await readFile(path.join(migrations,target,'migration.sql'),'utf8'));
+ // Rehearse the new strictly nullable team-photo column on the same PG18 DB.
+ await db.query(await readFile(path.join(migrations,'20261102134500_team_post_photo_gallery','migration.sql'),'utf8'));
+ const galleryColumn=await db.query(`SELECT attnotnull FROM pg_attribute WHERE attrelid='"TeamPost"'::regclass AND attname='images' AND NOT attisdropped`);
+ assert.equal(galleryColumn.rows.length,1,'TeamPost gallery column must exist');
+ assert.equal(galleryColumn.rows[0].attnotnull,false,'Gallery migration must remain nullable for old posts');
  assert.deepEqual((await db.query('SELECT row_to_json(p) AS data FROM "Participant" p')).rows,before,'Existing participant fields must be byte-for-byte unchanged');
  for(const table of ['Team','TeamMembership','TeamPost'])assert.equal((await db.query(`SELECT count(*) FROM "${table}"`)).rows[0].count,'0','No linking or backfill during migration');
  await assert.rejects(db.query(`INSERT INTO "Team" (id,name,"nameKey","updatedAt") VALUES ('invalid','','',now())`));
- console.log('PostgreSQL 18 baseline → team migration passed; sentinel unchanged, three empty tables, storage constraints enforced.');
+ console.log('PostgreSQL 18 baseline → team migration passed; sentinel unchanged, three empty tables, nullable image column and storage constraints enforced.');
 }finally{await db.end()}
