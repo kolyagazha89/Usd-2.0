@@ -15,7 +15,7 @@ test('registration and inspection share one stage-aware command desk with preser
  assert.match(nav,/disabled=\{!stageId\}/,'no navigation without selecting a stage');
  assert.match(nav,/aria-current=\{active\?'page':undefined\}/);
  assert.match(nav,/if\(!active&&stageId\)go/,'current section does not trigger navigation');
- assert.match(nav,/Этап/);
+ assert.match(nav,/Сначала выберите этап/);
  assert.match(registrations,/EventOperationsNavigation current="registrations"/);
  assert.match(inspections,/EventOperationsNavigation current="inspections"/);
  assert.match(registrations,/stageName=\{selectedStage\?\.name\}/);
