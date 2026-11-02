@@ -21,8 +21,9 @@ test('all participant and account routes use the isolated premium public theme',
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
  const cssImports=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line));
- assert.equal(cssImports.at(-3),"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
- assert.equal(cssImports.at(-2),"import './dark-velocity-sitewide.css';",'Dark Velocity must be the final public visual layer');
+ assert.equal(cssImports.at(-4),"import './participant/member-experience.css';",'participant experience styling must follow base member and configurator themes');
+ assert.equal(cssImports.at(-3),"import './dark-velocity-sitewide.css';",'Dark Velocity must be the final public visual layer');
+ assert.equal(cssImports.at(-2),"import './sitewide-finish.css';",'shared finishing palette follows Dark Velocity');
  assert.equal(cssImports.at(-1),"import './admin/admin-shell-layout.css';",'the admin-only layout contract loads after public themes');
  assert.ok(main.indexOf("import './public/premium-member.css'")<main.indexOf("import './public/premium-configurator.css'"));
  assert.match(css,/body \.usd-member \.participant-tabs/);
