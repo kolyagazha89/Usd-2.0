@@ -140,6 +140,7 @@ model TeamPost {
   body          String   @db.VarChar(10000)
   status        String   @default("DRAFT") @db.VarChar(16)
   publishedAt   DateTime? @db.Timestamptz(3)
+  images        Json?
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
   team          Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)

@@ -85,7 +85,11 @@ export class MediaController {
       response.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '"');
     }
     response.setHeader('Content-Length', String(media.body.length));
-    response.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+    // Revoking a team publication must not leave an unapproved photo in
+    // browser or intermediary caches for another five minutes.
+    response.setHeader('Cache-Control', targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')
+      ? 'no-store' : 'public, max-age=300, s-maxage=300');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.send(media.body);
   }
 
