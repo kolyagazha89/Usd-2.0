@@ -369,3 +369,55 @@ body .app-shell .main .content :is(.error-panel,.notice,.form-error) {
   transform:none!important;
  }
 }
+
+
+/* Authentication and first-login identity matching use the same Dark Velocity
+ * materials as the public site; they must never inherit admin-white forms. */
+body .login-page.usd-auth {
+ min-height:100dvh;
+ background:radial-gradient(ellipse at 80% 4%,rgba(237,38,56,.12),transparent 52%),linear-gradient(160deg,#0d1016,#05070b)!important;
+ color:#f6f7fa;
+}
+body .login-page.usd-auth :is(.login-card,.auth-card) {
+ min-width:0;
+ max-width:100%;
+ border:1px solid rgba(206,217,232,.2)!important;
+ border-radius:var(--usd-round-lg)!important;
+ background:linear-gradient(145deg,#151c25,#090e15)!important;
+ box-shadow:0 30px 70px rgba(0,0,0,.32);
+ color:#f6f7f9;
+}
+body .login-page.usd-auth :is(input,select,textarea) {
+ color-scheme:dark;
+ min-width:0;
+ background:#121a23!important;
+ color:#fff!important;
+ border-color:#4c5865!important;
+ font-size:16px!important;
+}
+body .login-page.usd-auth :is(input,select,textarea):focus-visible {
+ outline:2px solid var(--usd-brand-bright)!important;
+ outline-offset:2px;
+ box-shadow:0 0 0 4px rgba(237,38,56,.14)!important;
+}
+body .login-page.usd-auth :is(button,a):focus-visible {
+ outline:2px solid var(--usd-brand-bright)!important;
+ outline-offset:3px;
+}
+body .usd-member.profile-match-page :is(.profile-match-card,.profile-match-panel,.profile-search-card) {
+ min-width:0;
+ max-width:100%;
+ border-color:rgba(202,214,230,.2)!important;
+ background-color:#0d151d!important;
+ color:#f5f6f8;
+}
+body .usd-member.profile-match-page :is(input,select,textarea) {
+ font-size:16px!important;
+ color-scheme:dark;
+}
+@media(max-width:480px) {
+ body .login-page.usd-auth :is(.login-card,.auth-card) {border-radius:15px!important}
+}
+@media(prefers-reduced-motion:reduce) {
+ body .login-page.usd-auth :is(.login-card,.auth-card) {transition:none!important}
+}
