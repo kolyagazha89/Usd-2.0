@@ -6,6 +6,10 @@ on:
     paths:
       - 'tools/catalogs/**'
       - '.github/workflows/catalog-collector.yml'
+  pull_request:
+    paths:
+      - 'tools/catalogs/**'
+      - '.github/workflows/catalog-collector.yml'
   workflow_dispatch:
 permissions:
   contents: read
