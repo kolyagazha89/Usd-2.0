@@ -22,7 +22,13 @@ function escapeHtml(value: unknown): string {
   })[char] ?? char);
 }
 
-function renderBrandedEmail(input: {
+/**
+ * Shared email visual language: graphite masthead, USD red, pearl content.
+ * Tables, inline styles and a plain-text alternative work in Yandex, Gmail,
+ * Outlook and mobile mail clients; no remote images, fonts or tracking pixels.
+ * Template values are untrusted CMS text and must always be HTML-escaped.
+ */
+export function renderBrandedEmail(input: {
   heading: string;
   intro: string;
   actionLabel: string;
@@ -32,7 +38,8 @@ function renderBrandedEmail(input: {
   subject?: string;
   template?: Record<string, any>;
 }): { html: string; text: string; subject: string } {
-  const variableTexts = (input.template?.variableTexts && typeof input.template.variableTexts === 'object' ? input.template.variableTexts : {}) as Record<string, unknown>;
+  const variableTexts = (input.template?.variableTexts && typeof input.template.variableTexts === 'object'
+    ? input.template.variableTexts : {}) as Record<string, unknown>;
   const headingValue = String(variableTexts.heading ?? '').trim() || input.heading;
   const introValue = String(variableTexts.intro ?? '').trim() || input.intro;
   const detailsBefore = String(variableTexts.detailsBefore ?? '').trim();
@@ -55,7 +62,9 @@ function renderBrandedEmail(input: {
   const bodyHtml = bodyTemplate.split(/(\{\{(?:heading|intro|details)\}\})/g).map((part) => {
     if (part === '{{heading}}') return escapeHtml(headingValue);
     if (part === '{{intro}}') return escapeHtml(introValue);
-    if (part === '{{details}}') return '<div style="border-left:3px solid #ed2638;padding:10px 14px;background:#f8f8f9;color:#626269;font-size:12px;line-height:1.6">' + escapeHtml(detailsValue).replace(/\n/g, '<br>') + '</div>';
+    if (part === '{{details}}') return detailsValue
+      ? '<div style="border-left:3px solid #ed2638;padding:13px 16px;background:#f4f4f6;color:#43444b;font-size:13px;line-height:1.65;margin-top:18px">' + escapeHtml(detailsValue).replace(/\n/g, '<br>') + '</div>'
+      : '';
     return escapeHtml(part).replace(/\n/g, '<br>');
   }).join('');
   const text = [
@@ -70,7 +79,47 @@ function renderBrandedEmail(input: {
     '',
     'Открыть сайт: ' + input.frontendUrl,
   ].join('\n');
-  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingValue) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 24px">' + bodyHtml + '</div><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + escapeHtml(buttonValue) + '</a></p><p style="font-size:12px;line-height:1.6;color:#777;margin:0">' + escapeHtml(footerValue).replace(/\n/g, '<br>') + '</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777"><a href="' + frontendUrl + '" style="color:#777">Открыть сайт USD</a></footer></div></div></body></html>';
+
+  // The presentation stays readable when a mail client strips <style>:
+  // mobile uses a fluid outer table, while Outlook has an explicit 600px cell.
+  const html = [
+    '<!doctype html><html lang="ru"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">',
+    '<style>@media only screen and (max-width:620px){.usd-mail-pad{padding:24px 20px!important}.usd-mail-title{font-size:25px!important}.usd-mail-shell{padding:12px 8px!important}.usd-mail-cta a{display:block!important;text-align:center!important}}</style>',
+    '</head><body style="margin:0;padding:0;background:#ededf0;color:#1d1d21;font-family:Arial,Helvetica,sans-serif">',
+    '<div style="display:none;font-size:1px;line-height:1px;color:#ededf0;max-height:0;max-width:0;opacity:0;overflow:hidden">',
+    escapeHtml(introValue).slice(0, 160), '</div>',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:#ededf0">',
+    '<tr><td align="center" class="usd-mail-shell" style="padding:32px 12px">',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #dedee3">',
+    '<tr><td class="usd-mail-pad" style="background:#0d0e11;border-bottom:4px solid #ed2638;padding:30px 36px 28px;color:#fff">',
+    '<div style="font-size:12px;font-weight:700;letter-spacing:3px;color:#c4c4ca;text-transform:uppercase">ОФИЦИАЛЬНОЕ УВЕДОМЛЕНИЕ</div>',
+    '<div style="margin-top:12px;font-size:44px;line-height:1;letter-spacing:-3px;font-weight:900;color:#fff">USD<span style="color:#ed2638">.</span></div>',
+    '<div style="margin-top:8px;font-size:10px;line-height:1.5;letter-spacing:2.2px;color:#b7b7bd">ULTIMATE SOUND DESTRUCTION</div>',
+    '</td></tr>',
+    '<tr><td class="usd-mail-pad" style="padding:40px 36px 36px;background:#fff">',
+    '<div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#b92039;text-transform:uppercase;margin-bottom:16px">ВАШ АККАУНТ USD</div>',
+    '<h1 class="usd-mail-title" style="font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-.8px;color:#18191e;margin:0 0 20px">',
+    escapeHtml(headingValue), '</h1>',
+    '<div style="font-size:16px;line-height:1.75;color:#41434b;overflow-wrap:anywhere;margin:0 0 28px">',
+    bodyHtml, '</div>',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="usd-mail-cta" style="border-collapse:separate;border-spacing:0">',
+    '<tr><td bgcolor="#ed2638" style="background:#ed2638;border-radius:9px">',
+    '<a href="', actionUrl, '" style="display:inline-block;background:#ed2638;border-radius:9px;padding:16px 24px;font-size:15px;line-height:1.3;font-weight:700;text-decoration:none;color:#ffffff">',
+    escapeHtml(buttonValue), '</a></td></tr></table>',
+    '<div style="margin:30px 0 0;padding-top:22px;border-top:1px solid #e9e9ee;color:#676a73;font-size:12px;line-height:1.7;overflow-wrap:anywhere">',
+    escapeHtml(footerValue).replace(/\n/g, '<br>'), '</div>',
+    '</td></tr>',
+    '<tr><td class="usd-mail-pad" style="padding:20px 36px;background:#f6f6f8;border-top:1px solid #e7e7eb">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>',
+    '<td style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#303139">USD</td>',
+    '<td align="right" style="font-size:12px"><a href="', frontendUrl, '" style="color:#b92039;text-decoration:underline">Открыть сайт USD</a></td>',
+    '</tr></table></td></tr></table>',
+    '<div style="max-width:600px;margin:16px auto 0;font-size:11px;color:#777982;line-height:1.5;text-align:center">',
+    'Это сервисное письмо USD. Если действие не запрашивали вы, не нажимайте кнопку.',
+    '</div></td></tr></table></body></html>',
+  ].join('');
   return { html, text, subject: subjectValue };
 }
 
