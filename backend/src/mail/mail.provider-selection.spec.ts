@@ -12,6 +12,25 @@ describe('USD mail provider selection and safe diagnostics',()=>{
    for(const key of keys){if(prior[key]===undefined)delete process.env[key];else process.env[key]=prior[key]}
    jest.restoreAllMocks();
  });
+ it('turns upstream template HTTP 500 into safe actionable 503',async()=>{
+   process.env.MAIL_PROVIDER='smtp';
+   process.env.SMTP_EGRESS_ALLOWED='true';
+   process.env.SMTP_HOST='smtp.yandex.com';
+   process.env.SMTP_USER='usd-russia';
+   process.env.SMTP_PASSWORD='test-secret';
+   process.env.SMTP_FROM='usd-russia@yandex.com';
+   const mail=new MailService();
+   const {InternalServerErrorException}=await import('@nestjs/common');
+   await expect(mail.runAdminMailTest(async()=>{
+     throw new InternalServerErrorException('sensitive-path-and-db-details');
+   })).rejects.toMatchObject({status:503,response:expect.objectContaining({code:'MAIL_TEST_DEPENDENCY_FAILED'})});
+ });
+ it('returns safe 503 if readiness diagnostics unexpectedly fail',async()=>{
+   const mail=new MailService();
+   jest.spyOn(mail,'getDeliveryStatus').mockImplementation(()=>{throw new Error('sensitive-status-details')});
+   await expect(mail.runAdminMailTest(async()=>({sent:true})))
+     .rejects.toMatchObject({status:503,response:expect.objectContaining({code:'MAIL_STATUS_UNAVAILABLE'})});
+ });
  it('does not mistake Google login OAuth client for Gmail mail transport',async()=>{
   process.env.GOOGLE_CLIENT_ID='web-login-client';process.env.GOOGLE_CLIENT_SECRET='web-login-secret';
   process.env.SMTP_EGRESS_ALLOWED='true';process.env.SMTP_HOST='smtp.test.invalid';
