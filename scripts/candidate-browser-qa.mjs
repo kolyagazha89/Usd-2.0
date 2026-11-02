@@ -143,6 +143,26 @@ try{
       const heading=document.querySelector('main h1,.content h1,h1');
       return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&!e.closest('.sidebar')&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
      }));
+     if(role===null&&route==='/'){
+      await page.locator('.p-home-main.is-ready').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
+      assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
+      row.sitewideHome='no late content replacement after boot';
+     }
+     if(role===null&&['/stages','/records','/rules','/privacy','/teams','/participants'].includes(route)){
+      const pageHeading=page.locator('.public-page-heading');
+      await pageHeading.waitFor({state:'visible'});
+      assert.equal(await pageHeading.locator('h1').count(),1,'shared premium page title on every public inner route');
+      assert.equal(await pageHeading.locator('.public-page-kicker').count(),1,'shared official site kicker');
+      const tone=await pageHeading.locator('h1').evaluate(el=>getComputedStyle(el).color);
+      assert.equal(tone,'rgb(247, 248, 250)','public inner heading stays light on dark graphite');
+      row.sitewideInnerPages='shared graphite header and CMS body';
+     }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
+      const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.equal(surface,'rgb(6, 9, 13)','member account keeps same dark theme on all pages');
+      row.sitewideMember='graphite account and consistent form design';
+     }
      if(role==='ADMIN'){
       const shell=await page.evaluate(()=>{
        const bounds=selector=>{const rect=document.querySelector(selector)?.getBoundingClientRect();return rect?{x:rect.x,width:rect.width,right:rect.right}:null};
