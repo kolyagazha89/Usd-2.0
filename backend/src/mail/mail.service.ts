@@ -206,9 +206,11 @@ export class MailService {
   }
 
   private yandexSenderMatchesAccount(): boolean {
-    if (process.env.SMTP_HOST?.trim().toLowerCase() !== 'smtp.yandex.ru') return true;
+    const host = process.env.SMTP_HOST?.trim().toLowerCase();
+    if (host !== 'smtp.yandex.ru' && host !== 'smtp.yandex.com') return true;
     const login = process.env.SMTP_USER?.trim().toLowerCase() ?? '';
-    const expected = login.includes('@') ? login : login ? login + '@yandex.ru' : '';
+    const domain = host === 'smtp.yandex.com' ? 'yandex.com' : 'yandex.ru';
+    const expected = login.includes('@') ? login : login ? login + '@' + domain : '';
     const from = (this.from ?? '').trim();
     const sender = (from.match(/<([^<>]+)>\s*$/)?.[1] ?? from).trim().toLowerCase();
     return Boolean(expected && sender === expected);
@@ -379,7 +381,7 @@ export class MailService {
       process.env.SMTP_EGRESS_ALLOWED!=='true'&&'SMTP_EGRESS_ALLOWED=true',
       !this.yandexSenderMatchesAccount()&&'SMTP_FROM (должен совпадать с адресом Яндекс Почты)',
     ].filter((v):v is string=>Boolean(v));
-    const isYandex=process.env.SMTP_HOST?.trim().toLowerCase()==='smtp.yandex.ru';
+    const isYandex=['smtp.yandex.com','smtp.yandex.ru'].includes(process.env.SMTP_HOST?.trim().toLowerCase()??'');
     return {provider:isYandex?'Яндекс Почта (SMTP)':'SMTP',ready:!missing.length,missing,note:(missing.length?'Для отправки настройте SMTP в окружении API и проверьте доступность порта с Ubuntu.':'SMTP-настройки присутствуют; проверьте фактическую доставку тестом в админке USD.')+(process.env.MAIL_ACCOUNT_ONLY==='true'?' Автоматические письма об этапах отключены; используйте PUSH.':'')};
   }
 
