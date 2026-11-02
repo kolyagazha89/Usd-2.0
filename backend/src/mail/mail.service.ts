@@ -12,6 +12,7 @@ import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { renderUsdMailShell } from './mail-brand-layout';
 
 // Prefer IPv4 on домашнем сервере USD, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -70,7 +71,16 @@ function renderBrandedEmail(input: {
     '',
     'Открыть сайт: ' + input.frontendUrl,
   ].join('\n');
-  const html = '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f2f2f3;font-family:Arial,Helvetica,sans-serif;color:#171719"><div style="padding:18px 10px"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e5e7;border-radius:14px;overflow:hidden"><header style="background:#0b0b0d;padding:24px 28px;border-bottom:4px solid #ed2638;color:#fff"><div style="font-size:28px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div><div style="font-size:10px;letter-spacing:2px;color:#bdbdc2;margin-top:4px">ULTIMATE SOUND DESTRUCTION</div></header><main style="padding:30px 28px"><h1 style="font-size:24px;line-height:1.25;margin:0 0 14px">' + escapeHtml(headingValue) + '</h1><div style="font-size:15px;line-height:1.7;margin:0 0 24px">' + bodyHtml + '</div><p style="margin:0 0 24px"><a href="' + actionUrl + '" style="display:inline-block;background:#ed2638;color:#fff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:8px">' + escapeHtml(buttonValue) + '</a></p><p style="font-size:12px;line-height:1.6;color:#777;margin:0">' + escapeHtml(footerValue).replace(/\n/g, '<br>') + '</p></main><footer style="padding:16px 28px;background:#f8f8f9;border-top:1px solid #e5e5e7;font-size:11px;color:#777"><a href="' + frontendUrl + '" style="color:#777">Открыть сайт USD</a></footer></div></div></body></html>';
+  const html = renderUsdMailShell({
+    heading: headingValue,
+    bodyHtml,
+    actionUrl: input.actionUrl,
+    actionLabel: buttonValue,
+    frontendUrl: input.frontendUrl,
+    footerHtml: escapeHtml(footerValue).replace(/\n/g, '<br>'),
+    preheader: introValue,
+    eyebrow: 'АККАУНТ USD · СЕРВИСНОЕ ПИСЬМО',
+  });
   return { html, text, subject: subjectValue };
 }
 
