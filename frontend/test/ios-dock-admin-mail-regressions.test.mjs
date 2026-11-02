@@ -63,3 +63,14 @@ test('installed USD app opens home rather than profile-pinned iOS shortcut on co
  assert.match(app,/usd-pwa-launched/);
  assert.match(app,/history\.replaceState\(\{\},'', '\/'\)/);
 });
+
+test('USD finishing layer is last and preserves dark public/member with light admin',async()=>{
+ const [entry,styles]=await Promise.all([source('../src/main.tsx'),source('../src/sitewide-finish.css')]);
+ assert.ok(entry.lastIndexOf("import './sitewide-finish.css'") > entry.indexOf("import './admin/admin-shell-layout.css'"));
+ assert.match(styles,/body \.usd-live :is\(/);
+ assert.match(styles,/body \.usd-member :is\(/);
+ assert.match(styles,/body \.app-shell>\.main\{/);
+ assert.match(styles,/background: #f5f5f7!important/);
+ assert.match(styles,/prefers-reduced-motion:reduce/);
+ assert.doesNotMatch(styles,/body\s*\{\s*background:/);
+});
