@@ -8,7 +8,7 @@ Apocalypse,AAB-15900.1D,AMPLIFIER
 Apocalypse,AAB-1800.2D,AMPLIFIER
 Apocalypse,AAB-19800.1D,AMPLIFIER
 Apocalypse,AAB-2000.1D Atom,AMPLIFIER
-Apocalypse,AAB-2400.2D (нет код),AMPLIFIER
+Apocalypse,AAB-2400.2D,AMPLIFIER
 Apocalypse,AAB-2800.1D,AMPLIFIER
 Apocalypse,AAB-2900.1D,AMPLIFIER
 Apocalypse,AAB-300.4D Atom,AMPLIFIER
@@ -2752,7 +2752,7 @@ Taramps,TS 800X4,AMPLIFIER
 Урал,Bulava 12 V.2,SUBWOOFER
 Урал,Bulava 15 V.2,SUBWOOFER
 Урал,DDB AS-D1741,AUDIO_COMPONENT
-Урал,"RU/MP3-223SA Радиоприемник с USB проигрывателем, с функцией Bluetooth стереофонический автомобильный",HEAD_UNIT
+Урал,"RU/MP3-223SA",HEAD_UNIT
 Урал,Symphony 10,SUBWOOFER
 Урал,Symphony 12,SUBWOOFER
 Урал,TTZ 1.1000,AMPLIFIER
