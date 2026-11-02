@@ -1,0 +1,97 @@
+/* Light control center: separate screens, not an endless settings sidebar. */
+body .app-shell .main .content .usd-editor-journey-head{
+ display:flex;justify-content:space-between;gap:20px;align-items:center;
+ padding:clamp(18px,3vw,28px);margin-bottom:14px;
+ background:linear-gradient(120deg,#fff,#f9fafb);
+ border:1px solid #e0e3e9;border-radius:18px;
+}
+body .app-shell .main .content .usd-editor-journey-head h2{
+ margin:5px 0 8px;font-size:clamp(21px,2.6vw,30px);
+ letter-spacing:-.04em;color:#20222b
+}
+body .app-shell .main .content .usd-editor-journey-head p{
+ max-width:64ch;margin:0;color:#596170;font-size:13px;
+}
+body .app-shell .main .content .usd-editor-save-state{
+ display:flex;align-items:center;gap:8px;flex-shrink:0;
+ border:1px solid #c7d5cc;border-radius:999px;padding:10px 14px;
+ background:#f3faf5;color:#305b3b;font-size:12px;font-weight:700;
+}
+body .app-shell .main .content .usd-editor-save-state.has-changes{
+ border-color:#f3c8aa;background:#fff6ea;color:#924f19;
+}
+body .app-shell .main .content .usd-editor-section-nav{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+ gap:8px;margin:0 0 16px;padding:0;
+}
+body .app-shell .main .content .usd-editor-section-link{
+ appearance:none;display:flex;align-items:flex-start;gap:9px;
+ min-width:0;min-height:70px;padding:12px;
+ text-align:left;color:#2a2d35;
+ background:#fff;border:1px solid #e1e4e9;
+ border-radius:12px;cursor:pointer;transition:border-color .2s,box-shadow .2s;
+}
+body .app-shell .main .content .usd-editor-section-link.is-active{
+ border-color:#e92840;box-shadow:inset 0 3px #ed2638,0 10px 30px rgba(23,27,35,.06);
+ background:#fff9fa;
+}
+body .app-shell .main .content .usd-editor-section-link:hover{border-color:#da5368}
+body .app-shell .main .content .usd-editor-section-link:focus-visible{outline:2px solid #ed2638;outline-offset:2px}
+body .app-shell .main .content .usd-editor-section-index{
+ font-size:11px;font-weight:900;letter-spacing:-.02em;color:#ed2638;padding-top:3px;
+}
+body .app-shell .main .content .usd-editor-section-text{display:grid;gap:6px;min-width:0;flex:1}
+body .app-shell .main .content .usd-editor-section-text strong{font-size:12px;line-height:1.3;color:#20222b}
+body .app-shell .main .content .usd-editor-section-text small{font-size:10px;color:#7a818f;overflow-wrap:anywhere}
+body .app-shell .main .content .usd-editor-verified{flex-shrink:0;color:#237b42}
+body .app-shell .main .content .usd-home-step-nav{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:10px;margin:0 0 18px;
+}
+body .app-shell .main .content .usd-home-step{
+ appearance:none;display:flex;align-items:flex-start;gap:12px;
+ border:1px solid #dfe3e9;border-radius:14px;
+ padding:16px 14px;background:#fff;color:#222832;text-align:left;
+ min-width:0;min-height:96px;cursor:pointer;
+}
+body .app-shell .main .content .usd-home-step.is-active{border-color:#ed2638;background:#fff8f9}
+body .app-shell .main .content .usd-home-step-index{
+ width:32px;height:32px;flex:0 0 32px;
+ display:grid;place-items:center;
+ border-radius:50%;border:1px solid #e4e5e9;background:#f0f1f4;
+ font-size:13px;font-weight:850;color:#5c6470;
+}
+body .app-shell .main .content .usd-home-step.is-active .usd-home-step-index{
+ background:#ed2638;color:#fff;border-color:#ed2638;
+}
+body .app-shell .main .content .usd-home-step>span:last-child{display:grid;min-width:0;gap:5px}
+body .app-shell .main .content .usd-home-step strong{font-size:14px}
+body .app-shell .main .content .usd-home-step small{color:#6b7280;font-size:11px;line-height:1.4}
+body .app-shell .main .content .usd-home-step em{font-size:10px;color:#9b273c;font-style:normal;font-weight:750}
+body .app-shell .main .content .usd-editor-journey-foot{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ margin:18px 0 10px;color:#717987;font-size:12px;
+}
+body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav){display:block!important;max-width:100%;min-width:0}
+body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .settings-content{min-width:0;width:100%;max-width:100%}
+body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .settings-section{min-width:0;max-width:100%}
+body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .block-sort-row{min-width:0;max-width:100%;grid-template-columns:30px minmax(100px,1fr) minmax(120px,2fr) auto auto auto}
+@media(max-width:840px){
+ body .app-shell .main .content .usd-editor-journey-head{align-items:flex-start;flex-wrap:wrap}
+ body .app-shell .main .content .usd-editor-section-nav{grid-template-columns:repeat(3,minmax(0,1fr))}
+ body .app-shell .main .content .usd-home-step-nav{grid-template-columns:1fr}
+ body .app-shell .main .content .usd-home-step{min-height:0}
+ body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .block-sort-row{display:flex;flex-wrap:wrap}
+ body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .block-sort-row>input{min-width:180px;flex:1 1 160px}
+}
+@media(max-width:480px){
+ body .app-shell .main .content .usd-editor-section-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body .app-shell .main .content .usd-editor-section-link{min-height:65px;padding:10px;gap:7px}
+ body .app-shell .main .content .usd-editor-journey-head{padding:16px}
+ body .app-shell .main .content .usd-editor-save-state{white-space:normal}
+ body .app-shell .main .content .usd-editor-journey-foot{align-items:stretch;flex-wrap:wrap}
+ body .app-shell .main .content .usd-editor-journey-foot button{max-width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+ body .app-shell .main .content .usd-editor-section-link{transition:none}
+}
