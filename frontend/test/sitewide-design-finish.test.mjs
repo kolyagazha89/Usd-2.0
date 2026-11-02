@@ -43,7 +43,7 @@ test('admin finish stays WHITE without touching sidebar and mobile pane geometry
   ]);
   assert.match(css,/USD light-premium admin finish/);
   assert.match(css,/--usd-admin-paper:#ffffff/);
-  assert.match(css,/--usd-admin-canvas:#f2f3f6/);
+  assert.match(css,/--usd-admin-canvas:#f3f5f8/);
   assert.match(css,/body \.app-shell > \.main,/);
   assert.match(css,/body \.app-shell \.main \.content :is\(\.primary-button,\.secondary-button\)/);
   assert.match(css,/body \.app-shell \.main \.content :is\(button,a,input,textarea,select\):focus-visible/);
