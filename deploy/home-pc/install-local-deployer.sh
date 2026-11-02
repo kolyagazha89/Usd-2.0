@@ -129,7 +129,7 @@ if [[ "$review_retry" == 1 ]]; then
     new_flags="${new_flags%% *}"
     [[ "$new_flags" != *i* ]] && cmp -s "$PIN" "$LEGACY_PIN" ||
       { echo 'Reviewed schema pin cannot be made writable without changing content' >&2; exit 1; }
-    install -o root -g root -m 0600 /dev/null "$STATE/reviewed-immutable-schema-pin-$failed_sha"
+    install -o root -g root -m 0600 /dev/null "/var/lib/usd-deployer/reviewed-immutable-schema-pin-$failed_sha"
     echo 'Reviewed immutable schema pin unlocked for the existing CI/backup/restore gates.'
   fi
   if [[ "$failed_sha" != "$local_main" ]]; then
