@@ -191,7 +191,8 @@ body .usd-live .u-footer {
  background:linear-gradient(180deg,#0a0d12,#05070a);
 }
 body .usd-live .u-footer :is(a,button):focus-visible {outline-offset:4px}
-body .usd-live .u-mobile-dock {
+/* The public dock is portaled to document.body, outside .usd-live. */
+body > .u-mobile-dock {
  background:rgba(8,11,16,.96);
  border-top:1px solid var(--usd-stroke-dark);
  backdrop-filter:blur(16px);
