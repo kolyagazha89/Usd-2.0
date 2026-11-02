@@ -441,17 +441,17 @@ export class MailService {
     return this.runAdminMailTest(async () => {
       if (!provider.includes('SMTP')) {
         return {
-          success: true,
+          success: true as const,
           connected: false,
-          deliveryConfirmed: false,
+          deliveryConfirmed: false as const,
           message: 'Для HTTPS-провайдера используйте отправку контрольного письма.',
         };
       }
       await this.transporter.verify();
       return {
-        success: true,
+        success: true as const,
         connected: true,
-        deliveryConfirmed: false,
+        deliveryConfirmed: false as const,
         message: 'SMTP-соединение и авторизация успешны. Теперь отправьте тестовое письмо и проверьте его получение.',
       };
     });
