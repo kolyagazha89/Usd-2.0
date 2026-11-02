@@ -109,6 +109,29 @@ if [[ "$review_retry" == 1 ]]; then
   remote_sha="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
   [[ "$remote_sha" == "$local_main" ]] ||
     { echo "Pull and review latest main before supervising a release" >&2; exit 1; }
+  # A previous root-owned pin may be immutable/append-only on ext4. That makes
+  # os.replace() fail AFTER Prisma history and the full restore passed.
+  # Repair only on this explicitly requested supervised recovery path, never
+  # in the timer, and only while the original approved pin is unchanged.
+  command -v lsattr >/dev/null || { echo 'Cannot inspect schema pin filesystem attributes' >&2; exit 1; }
+  pin_flags="$(lsattr -d "$PIN" 2>/dev/null)" ||
+    { echo 'Cannot inspect schema pin filesystem attributes' >&2; exit 1; }
+  pin_flags="${pin_flags%% *}"
+  if [[ "$pin_flags" == *i* || "$pin_flags" == *a* ]]; then
+    [[ -f "$LEGACY_PIN" && ! -L "$LEGACY_PIN" && "$(stat -c %u "$LEGACY_PIN")" == 0 ]] &&
+      (( (8#$(stat -c %a "$LEGACY_PIN") & 077) == 0 )) &&
+      cmp -s "$PIN" "$LEGACY_PIN" ||
+      { echo 'Immutable schema pin differs from initial approved baseline; manual review required' >&2; exit 1; }
+    command -v chattr >/dev/null || { echo 'Cannot repair immutable pin: chattr missing' >&2; exit 1; }
+    chattr -ia "$PIN" || { echo 'Cannot clear immutable flag on reviewed schema pin' >&2; exit 1; }
+    new_flags="$(lsattr -d "$PIN" 2>/dev/null)" ||
+      { echo 'Cannot recheck schema pin filesystem attributes' >&2; exit 1; }
+    new_flags="${new_flags%% *}"
+    [[ "$new_flags" != *i* && "$new_flags" != *a* ]] && cmp -s "$PIN" "$LEGACY_PIN" ||
+      { echo 'Reviewed schema pin cannot be made writable without changing content' >&2; exit 1; }
+    install -o root -g root -m 0600 /dev/null "/var/lib/usd-deployer/reviewed-immutable-schema-pin-$failed_sha"
+    echo 'Reviewed immutable schema pin unlocked for the existing CI/backup/restore gates.'
+  fi
   if [[ "$failed_sha" != "$local_main" ]]; then
     # The old failed SHA is already excluded from an entirely new main
     # release. Retain its quarantine audit marker without bypassing anything.

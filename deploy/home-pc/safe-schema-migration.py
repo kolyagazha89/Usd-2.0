@@ -273,17 +273,36 @@ def run_migration(image: str, api: str, runtime_url: str) -> None:
 
 
 def promote_schema(tree: str) -> None:
+    """Atomically advance the reviewed pin, reporting only safe failure metadata.
+
+    A successful live Prisma migration can leave the previous pin behind if
+    the filesystem rejects replacement (for example an immutable pin). Do not
+    hide the OS errno: without it, every retry looks like a migration failure.
+    Never print exception strings, filenames or database credentials.
+    """
     private(POLICY)
-    fd, path = tempfile.mkstemp(prefix=".usd-auto-schema.", dir=POLICY.parent)
+    phase = "create"
+    path = None
     try:
+        fd, path = tempfile.mkstemp(prefix=".usd-auto-schema.", dir=POLICY.parent)
+        phase = "write"
         with os.fdopen(fd, "w") as f:
             f.write(tree + "\n")
             f.flush()
             os.fsync(f.fileno())
+        phase = "chmod"
         os.chmod(path, 0o600)
+        phase = "rename"
         os.replace(path, POLICY)
+        path = None  # os.replace consumed the temporary file
+    except OSError as exc:
+        raise ValueError(
+            "Verified live schema, but atomic schema-policy promotion failed "
+            f"during {phase} (errno {exc.errno}, {type(exc).__name__})"
+        ) from exc
     finally:
-        Path(path).unlink(missing_ok=True)
+        if path is not None:
+            Path(path).unlink(missing_ok=True)
 
 
 def apply_or_reconcile(
