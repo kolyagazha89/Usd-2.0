@@ -62,7 +62,7 @@ body .app-shell .main .content .email-preview-subject strong {
 }
 body .app-shell .main .content .email-preview-canvas {
   padding: clamp(16px, 3.8vw, 30px);
-  background: #ededf0;
+  background: #ebedf0;
   display: flex;
   justify-content: center;
   min-width: 0;
@@ -78,10 +78,12 @@ body .app-shell .main .content .email-preview-paper {
 body .app-shell .main .content .email-preview-masthead {
   padding: clamp(24px, 4vw, 36px);
   color: #fff;
-  background: #0d0e11;
+  background: #0b0b0d;
   border-bottom: 4px solid #ed2638;
-  display: grid;
-  gap: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
 body .app-shell .main .content .email-preview-overline {
   font-size: 10px;
@@ -168,17 +170,18 @@ body .app-shell .main .content .email-preview-end {
   align-items: center;
   gap: 12px;
   padding: 20px clamp(20px, 4vw, 36px);
-  border-top: 1px solid #e7e7eb;
-  background: #f6f6f8;
+  border-top: 1px solid #2c3038;
+  background: #0f1115;
   font-size: 12px;
 }
 body .app-shell .main .content .email-preview-end strong {
   letter-spacing: 1.2px;
-  color: #303139;
+  color: #fff;
 }
 body .app-shell .main .content .email-preview-end span {
   text-decoration: underline;
-  color: #b92039;
+  color: #f5f5f6;
+  text-decoration-color: #ed2638;
 }
 body .app-shell .main .content .email-preview-disclaimer {
   padding: 16px clamp(16px, 3vw, 24px);
