@@ -101,7 +101,9 @@ printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"
 # Existing installations remain build-only until the operator pins the live
 # schema. Future strictly additive SQL migrations may advance this pin ONLY
 # after main CI, fresh second-disk backup and disposable restore rehearsal.
-POLICY=/etc/usd-auto-release-schema
+# The root-owned StateDirectory is writable despite ProtectSystem=full.
+# The legacy /etc pin is only an immutable one-time bootstrap input.
+POLICY="$STATE_DIR/schema-pin"
 if [[ ! -f "$POLICY" ]]; then
   echo "Images built for $SHA; automatic release policy is not enabled"
   exit 0

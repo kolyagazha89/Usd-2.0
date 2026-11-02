@@ -13,6 +13,25 @@ spec.loader.exec_module(module)
 
 
 class SafeSqlTests(unittest.TestCase):
+    def test_schema_pin_is_atomic_in_systemd_writable_root_state(self):
+        service = Path(__file__).with_name("usd-auto-deploy.service").read_text()
+        builder = Path(__file__).with_name("auto-deploy.sh").read_text()
+        installer = Path(__file__).with_name("install-local-deployer.sh").read_text()
+        self.assertIn("ProtectSystem=full", service)
+        self.assertIn("StateDirectory=usd-deployer", service)
+        self.assertEqual(module.POLICY, module.STATE / "schema-pin")
+        self.assertIn('POLICY="$STATE_DIR/schema-pin"', builder)
+        self.assertIn('PIN=/var/lib/usd-deployer/schema-pin', installer)
+        self.assertIn('LEGACY_PIN=/etc/usd-auto-release-schema', installer)
+        self.assertIn('[[ ! -e "$PIN" && ! -L "$PIN"', installer)
+        self.assertNotIn('POLICY=/etc/usd-auto-release-schema', builder)
+        # Quarantine is never silently removed: only an explicitly requested,
+        # audited, SHA-pinned and main-verified recovery is permitted.
+        self.assertIn('--review-quarantined-schema-release', installer)
+        self.assertIn('remote_main=', installer)
+        self.assertIn('reviewed-failed-release-$failed_sha', installer)
+        self.assertNotIn('rm -f "$marker"', installer)
+
     def test_existing_push_migration_is_recognized(self):
         sql = (Path(__file__).parents[2] /
                "backend/prisma/migrations/20261030061000_push_subscriptions/migration.sql").read_text()
