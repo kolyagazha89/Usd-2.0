@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from scrape import add_audio, classify, drom, write
+from merge import merge
 
 class CatalogTests(unittest.TestCase):
     def test_audio_section_is_primary(self):
@@ -39,6 +40,31 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(rows[0], ["бренд", "модель", "категория"])
             self.assertEqual(rows[1], ["Avatar", "STU-1246 D1/D2", "SUBWOOFER"])
             self.assertEqual(len(rows), 2)
+
+    def test_merge_keeps_two_csv_files_and_approved_categories(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "fragments"
+            (root / "cars").mkdir(parents=True)
+            (root / "audio").mkdir()
+            write(root / "cars" / "cars.csv", ["марка", "модель"], [
+                ("Toyota", "Camry"), ("TOYOTA", "CAMRY")
+            ])
+            write(root / "audio" / "audio.csv", ["бренд", "модель", "категория"], [
+                ("Deaf Bonce", "Atom 900.2", "AMPLIFIER"),
+                ("Deaf Bonce", "Atom 900.2", "AMPLIFIER"),
+                ("Machete", "MM-50L", "AUDIO_COMPONENT"),
+            ])
+            out = Path(temp) / "out"
+            merge(root, out)
+            self.assertEqual(sorted(f.name for f in out.glob("*.csv")), ["usd_audio.csv", "usd_cars.csv"])
+            with (out / "usd_audio.csv").open(encoding="utf-8-sig", newline="") as stream:
+                items = list(csv.reader(stream))
+            self.assertEqual(len(items), 3)
+            self.assertEqual(len(items[0]), 3)
+            with (out / "usd_cars.csv").open(encoding="utf-8-sig", newline="") as stream:
+                items = list(csv.reader(stream))
+            self.assertEqual(len(items), 2)
+            self.assertEqual(len(items[0]), 2)
 
     def test_drom_catalog_links_only(self):
         class FakeReply:
