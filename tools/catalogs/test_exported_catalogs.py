@@ -32,7 +32,7 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertGreater(len(self.audio), 2600)
         self.assertGreater(len({r[0] for r in self.audio}), 16)
         self.assertTrue({r[2] for r in self.audio}.issubset(AUDIO_TYPES))
-        self.assertIn(["Apocalypse", "DB-SA415 D1/D2", "SUBWOOFER"], self.audio)
+        self.assertIn(["Apocalypse", "AAB-1200.2D", "AMPLIFIER"], self.audio)
 
     def test_no_blank_values_or_year_only_car_models(self):
         for make, model in self.cars:
