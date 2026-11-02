@@ -5,6 +5,9 @@ on:
       - 'tools/catalogs/**'
       - '.github/workflows/catalog-collector.yml'
   workflow_dispatch:
+concurrency:
+  group: usd-catalog-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -75,6 +78,35 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: usd-audio-${{ matrix.group }}
+          path: catalog-output/
+          if-no-files-found: warn
+          retention-days: 30
+
+  merge:
+    name: Merge and audit source catalogs
+    needs: [cars, audio]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download car fragment
+        uses: actions/download-artifact@v4
+        with:
+          name: usd-cars-drom
+          path: collected/cars/
+      - name: Download manufacturer fragments
+        uses: actions/download-artifact@v4
+        with:
+          pattern: usd-audio-*
+          path: collected/audio/
+          merge-multiple: false
+      - name: Merge unique models and audit coverage
+        run: python tools/catalogs/merge.py --input collected --output catalog-output
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usd-reference-catalogs
           path: catalog-output/
           if-no-files-found: warn
           retention-days: 30
