@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {CheckCircle2,CopyPlus,Mail,Save,Send,Trash2} from 'lucide-react';
 import {apiGet,apiPost,updateSiteSettings} from '../api';
+import './mail-preview.css';
 
 type EmailVariableTexts={heading:string;intro:string;detailsBefore:string;detailsAfter:string};
 type EmailTemplate={id:string;name:string;trigger:string;enabled:boolean;subject:string;body:string;footer:string;buttonLabel:string;variableTexts?:Partial<EmailVariableTexts>};
@@ -96,7 +97,30 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
       <label><span className="field-label">Текст кнопки</span><input value={selected.buttonLabel} maxLength={80} onChange={e=>updateSelected({buttonLabel:e.target.value})}/></label>
       <label className="email-template-wide"><span className="field-label">Подвал письма</span><textarea rows={4} value={selected.footer} onChange={e=>updateSelected({footer:e.target.value})}/><small className="field-help">Системная ссылка действия формируется сервером отдельно от текста шаблона.</small></label>
      </div>
-     <div className="email-template-preview"><h3>Предпросмотр тела</h3><div className="email-preview-subject"><strong>Тема:</strong> {selected.subject.replace(/\{\{heading\}\}/g,(selected.variableTexts?.heading?.trim()||'Пример уведомления USD')).replace(/\{\{intro\}\}/g,'Текст вступления').replace(/\{\{stageName\}\}/g,'USD Winter Cup Краснодар')}</div><div className="email-preview-body">{preview}</div><button type="button" className="primary-button email-preview-cta">{selected.buttonLabel||'Открыть USD'}</button><div className="email-preview-footer">{selected.footer}</div></div>
+     <section className="email-template-preview" aria-label="Предпросмотр письма USD">
+      <div className="email-preview-chrome">
+       <div><strong>Предпросмотр письма</strong><small>Стиль получателя · пример без секретных ссылок</small></div>
+       <span className="email-preview-device">Адаптивный макет</span>
+      </div>
+      <div className="email-preview-subject"><strong>Тема письма</strong><span>{selected.subject.replace(/\{\{heading\}\}/g,(selected.variableTexts?.heading?.trim()||'Пример уведомления USD')).replace(/\{\{intro\}\}/g,'Текст вступления').replace(/\{\{stageName\}\}/g,'USD Winter Cup Краснодар')}</span></div>
+      <div className="email-preview-canvas">
+       <div className="email-preview-paper">
+        <header className="email-preview-masthead">
+         <div className="email-preview-logo">USD<span>.</span></div>
+         <span className="email-preview-tagline">ULTIMATE SOUND DESTRUCTION</span>
+        </header>
+        <div className="email-preview-content">
+         <span className="email-preview-eyebrow">АККАУНТ USD · СЕРВИСНОЕ ПИСЬМО</span>
+         <h3>{selected.variableTexts?.heading?.trim()||triggers.find(t=>t.value===selected.trigger)?.label||'Уведомление USD'}</h3>
+         <div className="email-preview-body">{preview}</div>
+         <span className="email-preview-cta">{selected.buttonLabel||'Открыть USD'}</span>
+         <div className="email-preview-footer">{selected.footer}</div>
+        </div>
+        <footer className="email-preview-end"><strong>USD</strong><span>Открыть сайт USD</span></footer>
+       </div>
+      </div>
+      <p className="email-preview-disclaimer">Это визуальный образец. Ссылка действия, защищённые параметры и точные данные формируются сервером при отправке. Для проверки отображения в почтовом клиенте отправьте тестовое письмо.</p>
+     </section>
      <div className="email-template-actions"><label><span className="field-label">Email для тестового письма</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/></label><div className="button-row"><button className="secondary-button" onClick={()=>void test()} disabled={testing}><Send size={15}/>{testing?'Отправляем…':'Отправить тест этого триггера'}</button><button className="secondary-button" onClick={removeTemplate} disabled={starterTemplates.some(t=>t.id===selected.id)}><Trash2 size={15}/> Удалить добавленный шаблон</button></div></div>
     </div>}
    </div>

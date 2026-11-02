@@ -23,7 +23,7 @@ function escapeHtml(value: unknown): string {
   })[char] ?? char);
 }
 
-function renderBrandedEmail(input: {
+export function renderBrandedEmail(input: {
   heading: string;
   intro: string;
   actionLabel: string;
