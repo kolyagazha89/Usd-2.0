@@ -371,24 +371,50 @@ def main(argv: list[str]) -> int:
     print("Additive-only migration review passed; pending: " + (", ".join(pending) or "none"))
     if mode == "--check":
         return 0
-    private(RECEIPT)
-    if time.time() - RECEIPT.stat().st_mtime > 7200 or RECEIPT.read_text().splitlines() != [new, old, db]:
+    # Every pre-apply refusal must identify its phase without exposing the
+    # connection URL, Docker environment, filesystem details or credentials.
+    try:
+        private(RECEIPT)
+    except OSError as exc:
+        raise ValueError("Preflight receipt unavailable: " + type(exc).__name__) from exc
+    try:
+        valid_receipt = (
+            time.time() - RECEIPT.stat().st_mtime <= 7200
+            and RECEIPT.read_text().splitlines() == [new, old, db]
+        )
+    except OSError as exc:
+        raise ValueError("Preflight receipt unreadable: " + type(exc).__name__) from exc
+    if not valid_receipt:
         raise ValueError("Fresh full-backup restore receipt does not match live DB")
     image_tag = "ghcr.io/kolyagazha89/usd-2.0-api:" + new
-    if run("docker", "image", "inspect", "--format",
-           '{{index .Config.Labels "org.opencontainers.image.revision"}}', image_tag) != new:
+    try:
+        image_revision = run("docker", "image", "inspect", "--format",
+                             '{{index .Config.Labels "org.opencontainers.image.revision"}}', image_tag)
+        image_id = run("docker", "image", "inspect", "--format", "{{.Id}}", image_tag)
+    except OSError as exc:
+        raise ValueError("Candidate image inspect unavailable: " + type(exc).__name__) from exc
+    if image_revision != new or not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
         raise ValueError("Migration image does not match approved source")
-    image_id = run("docker", "image", "inspect", "--format", "{{.Id}}", image_tag)
-    if not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
-        raise ValueError("Invalid authenticated image ID")
-    runtime = json.loads(run("docker", "inspect", "-f", "{{json .Config.Env}}", api))
+    try:
+        runtime_raw = run("docker", "inspect", "-f", "{{json .Config.Env}}", api)
+        runtime = json.loads(runtime_raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Live API environment metadata unreadable: " + type(exc).__name__) from exc
+    if not isinstance(runtime, list) or any(not isinstance(v, str) for v in runtime):
+        raise ValueError("Unexpected live API environment metadata")
     urls = [x[len("DATABASE_URL="):] for x in runtime if x.startswith("DATABASE_URL=")]
     if len(urls) != 1 or "\n" in urls[0] or "\r" in urls[0]:
         raise ValueError("Unsafe runtime database environment")
-    parsed = urlsplit(urls[0])
+    try:
+        parsed = urlsplit(urls[0])
+    except ValueError as exc:
+        raise ValueError("Invalid runtime database address") from exc
     if parsed.scheme not in ("postgres", "postgresql") or parsed.hostname != "db" or parsed.port != 5432:
         raise ValueError("Live migration must target local PostgreSQL")
-    original = row_counts(db)
+    try:
+        original = row_counts(db)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Production pre-migration row-count query failed: " + type(exc).__name__) from exc
     apply_or_reconcile(old, new, api, db, image_id, urls[0], original, new_tree, pending)
     return 0
 
@@ -402,7 +428,14 @@ if __name__ == "__main__":
     except (ValueError, OSError, subprocess.SubprocessError, UnicodeDecodeError,
             json.JSONDecodeError, InterruptedError) as exc:
         # Never print database URLs or Docker environment values.
-        print(str(exc) if isinstance(exc, ValueError) else
-              "Automatic schema migration refused; production rollback of database is never attempted",
-              file=sys.stderr)
+        # Root-only journal: a type/errno identifies the failure class
+        # without leaking secrets, database rows, paths or Docker env.
+        if isinstance(exc, ValueError):
+            message = str(exc)
+        elif isinstance(exc, OSError):
+            message = "Automatic schema migration OS failure: " + type(exc).__name__ + (
+                " (errno " + str(exc.errno) + ")" if exc.errno is not None else "")
+        else:
+            message = "Automatic schema migration failed: " + type(exc).__name__
+        print(message, file=sys.stderr)
         sys.exit(1)
