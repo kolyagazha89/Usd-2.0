@@ -244,10 +244,10 @@ class SafeSqlTests(unittest.TestCase):
         guarded = installer.split('if [[ "$review_retry" == 1 ]]; then', 1)[1]
         self.assertIn('pin_flags="$(lsattr -d "$PIN" 2>/dev/null)"', guarded)
         self.assertIn('cmp -s "$PIN" "$LEGACY_PIN"', guarded)
-        self.assertIn('chattr -i "$PIN"', guarded)
+        self.assertIn('chattr -ia "$PIN"', guarded)
         self.assertIn('reviewed-immutable-schema-pin-$failed_sha', guarded)
         self.assertNotIn('chattr -i', builder)
-        self.assertEqual(installer.count('chattr -i "$PIN"'), 1)
+        self.assertEqual(installer.count('chattr -ia "$PIN"'), 1)
 
     def test_policy_update_is_private_and_atomic(self):
         with tempfile.TemporaryDirectory() as d:
