@@ -90,7 +90,7 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
@@ -219,6 +219,22 @@ try{
        row.cmsDraft='three-step CMS navigation keeps unsaved work and surfaces save action';
       }
       row.cmsJourney='eleven sections, home editor 3 pages and saved-state overview';
+     }
+     if(role==='ADMIN'&&route==='/admin/stages/new'){
+      const form=page.locator('.entity-form-journey');
+      await form.waitFor({state:'visible'});
+      assert.equal(await form.locator('.entity-form-step').count(),2,'ten-field stage editor must split into 2 screens');
+      await form.getByRole('button',{name:/Продолжить/}).click();
+      await form.getByRole('alert').filter({hasText:'Номер этапа'}).waitFor();
+      await form.getByLabel('Номер этапа',{exact:true}).fill('2');
+      await form.getByLabel('Название этапа',{exact:true}).fill('Тестовый этап USD');
+      await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
+      await form.getByRole('button',{name:/Продолжить/}).click();
+      assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
+      assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'3','required field progress survives next-screen transition');
+      await form.getByRole('button',{name:/Назад/}).click();
+      assert.equal(await form.getByLabel('Название этапа',{exact:true}).inputValue(),'Тестовый этап USD');
+      row.dynamicFormJourney='long stage form splits into 2 pages; preserves values, validates before advancement';
      }
      if(role==='ADMIN'&&route==='/admin/cars/new'){
       const flow=page.locator('.usd-car-editor-journey');
