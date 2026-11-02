@@ -414,7 +414,7 @@ export class TeamsService {
         registration: {
           participantId: { in: memberIds },
           status: 'ACTIVE',
-          stage: { isDeleted: false, resultsPublishedAt: { not: null } },
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
           participant: { isPublic: true },
         },
       },
