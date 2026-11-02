@@ -206,6 +206,49 @@ class SafeSqlTests(unittest.TestCase):
         migrate.assert_not_called()
         promote.assert_not_called()
 
+    def test_failed_atomic_pin_rename_reports_phase_and_errno_not_paths(self):
+        # Reproduces a restored/migrated production database whose root-owned
+        # schema-pin is immutable: rename fails, but no SQL must be rerun and
+        # the original approved pin must remain untouched.
+        with tempfile.TemporaryDirectory() as d:
+            policy = Path(d) / "schema-pin"
+            policy.write_text("a" * 40 + "\n")
+            policy.chmod(0o600)
+            secret_path = "/root/secret/connection-password"
+            failure = PermissionError(1, "Operation not permitted", secret_path)
+            with patch.object(module, "POLICY", policy), \
+                 patch.object(module, "private"), \
+                 patch.object(module.os, "replace", side_effect=failure):
+                with self.assertRaises(ValueError) as raised:
+                    module.promote_schema("b" * 40)
+            msg = str(raised.exception)
+            self.assertIn("during rename", msg)
+            self.assertIn("errno 1", msg)
+            self.assertNotIn(secret_path, msg)
+            self.assertEqual(policy.read_text(), "a" * 40 + "\n")
+            self.assertFalse(list(Path(d).glob(".usd-auto-schema.*")))
+
+    def test_schema_pin_temp_creation_failure_is_diagnosed_safely(self):
+        failure = PermissionError(13, "Cannot create", "/root/private/path")
+        with patch.object(module, "private"), \
+             patch.object(module.tempfile, "mkstemp", side_effect=failure):
+            with self.assertRaisesRegex(ValueError, r"during create.*errno 13") as raised:
+                module.promote_schema("b" * 40)
+        self.assertNotIn("/root/private/path", str(raised.exception))
+
+    def test_immutable_pin_repair_requires_explicit_review_and_unchanged_baseline(self):
+        installer = Path(__file__).with_name("install-local-deployer.sh").read_text()
+        builder = Path(__file__).with_name("auto-deploy.sh").read_text()
+        self.assertIn('--review-quarantined-schema-release', installer)
+        self.assertIn('if [[ "$review_retry" == 1 ]]; then', installer)
+        guarded = installer.split('if [[ "$review_retry" == 1 ]]; then', 1)[1]
+        self.assertIn('pin_flags="$(lsattr -d "$PIN" 2>/dev/null)"', guarded)
+        self.assertIn('cmp -s "$PIN" "$LEGACY_PIN"', guarded)
+        self.assertIn('chattr -i "$PIN"', guarded)
+        self.assertIn('reviewed-immutable-schema-pin-$failed_sha', guarded)
+        self.assertNotIn('chattr -i', builder)
+        self.assertEqual(installer.count('chattr -i "$PIN"'), 1)
+
     def test_policy_update_is_private_and_atomic(self):
         with tempfile.TemporaryDirectory() as d:
             policy = Path(d) / "policy"
