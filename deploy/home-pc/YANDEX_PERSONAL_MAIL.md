@@ -60,6 +60,8 @@ SMTP_USER=usd-russia
 SMTP_FROM="USD <usd-russia@yandex.ru>"
 SMTP_PASSWORD=ПАРОЛЬ_ПРИЛОЖЕНИЯ_ИЗ_ЯНДЕКС_ID
 SMTP_EGRESS_ALLOWED=true
+# Personal mailbox: account auth only; stage notices go through PUSH.
+MAIL_ACCOUNT_ONLY=true
 ```
 
 `SMTP_PASSWORD` заменить на секрет из Яндекса в редакторе. Не вставлять его
@@ -70,6 +72,11 @@ SMTP_EGRESS_ALLOWED=true
 ```bash
 sudo chmod 600 /home/usd/usd-deploy/deploy/home-pc/.env
 ```
+
+`MAIL_ACCOUNT_ONLY=true` отключает автоматические письма по событиям этапов,
+регистрационным заявкам и расписанию напоминаний. **Останутся письма аккаунта**
+(верификация, восстановление, смена email) и адресные ручные тесты в админке.
+Для участников уведомления об этапах должны приходить через PUSH.
 
 `MAIL_PROVIDER=smtp` выбран специально: старые переменные `GMAIL_*` и
 `RESEND_*` не смогут перехватить новые обязательные письма. Настройки
