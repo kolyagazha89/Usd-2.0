@@ -79,6 +79,27 @@ def drom(f):
    m=DROM_BRAND.fullmatch(u.path)
    name=tidy(a.get_text(" ",strip=True))
    if m and u.netloc.endswith("drom.ru") and name and len(name)<60 and name.lower() not in ("легковые авто","каталог"):brands[m[1]]=name
+ # Drom publishes canonical catalog-firms and catalog-models sitemap indexes
+ # in robots.txt. Use these before relying on the landing page selection.
+ firms_index=f.get("https://www.drom.ru/sitemaps/catalog/generated/catalog_firms_index.xml")
+ if firms_index:
+  try:
+   index=ET.fromstring(firms_index.content)
+   for loc in index.iter():
+    if not loc.tag.endswith("loc") or not loc.text:continue
+    sitemap_url=loc.text.strip()
+    if not sitemap_url.startswith("https://www.drom.ru/sitemaps/catalog/"):continue
+    child=f.get(sitemap_url)
+    if not child:continue
+    try:page=ET.fromstring(child.content)
+    except ET.ParseError:continue
+    for item in page.iter():
+     if not item.tag.endswith("loc") or not item.text:continue
+     p=urlparse(item.text.strip());m=DROM_BRAND.fullmatch(p.path)
+     if m and p.netloc=="www.drom.ru" and m[1] not in brands:
+      # Verify display case from the actual brand page in the next pass.
+      brands[m[1]]=m[1].replace("_"," ").replace("-"," ").title()
+  except ET.ParseError:f.errors.append("Drom firms sitemap malformed")
  # Sitemap of model names may expose brands omitted by the landing page.
  for i in range(1,11):
   r=f.get(f"https://www.drom.ru/sitemap/html/sales_firm_model_{i}.html")
