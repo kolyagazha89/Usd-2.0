@@ -1,3 +1,4 @@
+import './car-editor-journey.css';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,ChevronLeft,ChevronRight,Loader2,Plus,RefreshCw,Search} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,listData,type User} from '../api';
@@ -39,13 +40,48 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
  const [v,setV]=useState<any>({participantId:value.participantId??'',brand:value.brand??'',model:value.model??'',registrationCountry:value.registrationCountry??'RU',registrationNumber:value.registrationNumber??'',color:value.color??'',isPublic:value.isPublic??true});
  const [validationError,setValidationError]=useState('');
  const name=(p:any)=>[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ');
- return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">АВТОПАРК · КАРТОЧКА АВТОМОБИЛЯ</span><h2>{value.id?'Редактировать автомобиль':'Новый автомобиль'}</h2><p>Изменения сохраняются в карточке автомобиля участника.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>К списку</button></div>{(error||validationError)&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}<form className="form" onSubmit={e=>{e.preventDefault();setValidationError('');if(v.registrationNumber&&!isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber))){setValidationError('Госномер не соответствует формату выбранной страны.');return}void onSubmit(clean(v))}}>
- {!value.id&&<label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
- <div className="form-grid-2"><label>Марка<input value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} required/></label><label>Модель<input value={v.model} onChange={e=>setV({...v,model:e.target.value})} required/></label></div>
- <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={9} autoCapitalize="characters" required/></label></div>
- <label>Цвет<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label><label className="checkbox-row"><input type="checkbox" checked={!!v.isPublic} onChange={e=>setV({...v,isPublic:e.target.checked})}/>Показывать автомобиль публично</label>
- <button className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить автомобиль'}</button>
- </form></section>
+ const [step,setStep]=useState<0|1|2>(0);
+ const identityReady=Boolean((value.id||v.participantId)&&String(v.brand??'').trim()&&String(v.model??'').trim());
+ const plateReady=Boolean(String(v.registrationNumber??'').trim()&&isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber)));
+ const completeSteps=[identityReady,plateReady,true];
+ const stages=[{name:'Автомобиль и владелец',hint:'Участник, марка и модель'},{name:'Регистрация',hint:'Страна, номер и цвет'},{name:'Публикация',hint:'Проверка и сохранение'}];
+ const validate=()=>{
+  if(!identityReady)return 'Сначала выберите участника и укажите марку и модель.';
+  if(!plateReady)return 'Укажите корректный госномер для выбранной страны.';
+  return '';
+ };
+ const advance=(event:React.FormEvent<HTMLFormElement>)=>{
+  event.preventDefault();setValidationError('');
+  if(step===0&&!identityReady){setValidationError('Выберите участника, марку и модель автомобиля.');return}
+  if(step===1&&!plateReady){setValidationError('Госномер не соответствует формату выбранной страны.');return}
+  if(step<2){setStep((step+1) as 0|1|2);return}
+  const invalid=validate();if(invalid){setValidationError(invalid);setStep(!identityReady?0:1);return}
+  void onSubmit(clean(v));
+ };
+ return <section className="panel resource-editor-page usd-car-editor-journey">
+  <div className="resource-editor-heading"><div><span className="eyebrow">АВТОПАРК · КАРТОЧКА АВТОМОБИЛЯ</span><h2>{value.id?'Редактировать автомобиль':'Новый автомобиль'}</h2><p>Три коротких шага вместо одной длинной формы. До сохранения данные остаются черновиком.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>К списку</button></div>
+  <nav className="usd-car-editor-steps" aria-label="Этапы заполнения автомобиля">{stages.map((item,index)=><button key={item.name} type="button" aria-current={step===index?'step':undefined} className={'usd-car-editor-step'+(step===index?' is-active':'')+(completeSteps[index]?' is-complete':'')} disabled={index===1&&!identityReady||index===2&&(!identityReady||!plateReady)} onClick={()=>{setStep(index as 0|1|2);setValidationError('')}}><span className="usd-car-editor-step-number">{index+1}</span><span><strong>{item.name}</strong><small>{completeSteps[index]?'Заполнено':item.hint}</small></span></button>)}</nav>
+  <div className="usd-car-editor-progress"><div role="progressbar" aria-label="Заполнение карточки автомобиля" aria-valuemin={0} aria-valuemax={2} aria-valuenow={Number(identityReady)+Number(plateReady)} style={{width:((Number(identityReady)+Number(plateReady))/2*100)+'%'}}/></div>
+  {(error||validationError)&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}
+  <form className="form usd-car-editor-form" onSubmit={advance} noValidate>
+   {step===0&&<div className="usd-car-editor-panel" aria-label="Основные данные автомобиля">
+    <h3>Кому принадлежит автомобиль?</h3><p>Укажите владельца и модель. Эти данные будут использоваться в регистрациях и протоколах USD.</p>
+    {!value.id&&<label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
+    <div className="form-grid-2"><label>Марка<input value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} autoComplete="off" required/></label><label>Модель<input value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div>
+   </div>}
+   {step===1&&<div className="usd-car-editor-panel" aria-label="Регистрационные данные">
+    <h3>Госномер и внешний вид</h3><p>Номер проверяется по правилам страны регистрации. Цвет указывать необязательно.</p>
+    <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value,registrationNumber:''})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={16} autoCapitalize="characters" required/></label></div>
+    <label>Цвет автомобиля<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label>
+   </div>}
+   {step===2&&<div className="usd-car-editor-panel" aria-label="Проверка и публикация">
+    <h3>Проверьте карточку</h3><p>После сохранения автомобиль появится в гараже владельца. Изменить данные можно будет позже.</p>
+    <dl className="usd-car-editor-summary"><div><dt>Автомобиль</dt><dd>{v.brand} {v.model}</dd></div><div><dt>Госномер</dt><dd>{v.registrationCountry} · {v.registrationNumber}</dd></div><div><dt>Цвет</dt><dd>{v.color||'Не указан'}</dd></div></dl>
+    <label className="checkbox-row"><input type="checkbox" checked={!!v.isPublic} onChange={e=>setV({...v,isPublic:e.target.checked})}/>Показывать автомобиль в публичной части USD</label>
+   </div>}
+   <div className="usd-car-editor-actions">{step>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>{setStep((step-1) as 0|1|2);setValidationError('')}}><ChevronLeft size={15}/>Назад</button>}<button type="submit" className="primary-button" disabled={saving}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:step===2?'Сохранить автомобиль':<>Продолжить <ChevronRight size={15}/></>}</button></div>
+  </form>
+ </section>;
 }
 
 export default CarsPage;
