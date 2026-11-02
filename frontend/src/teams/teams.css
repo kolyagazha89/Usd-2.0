@@ -3,3 +3,20 @@
 @media(max-width:600px){.team-admin-intro,.team-archive,.team-team-list,.team-admin-detail{padding:18px}.team-create-form,.team-member-list li,.team-archive li{align-items:stretch;flex-direction:column}.team-team-list ul,.team-public-directory,.team-public-members{grid-template-columns:1fr}.team-actions>button{flex:1}.team-section-heading{gap:10px}.team-member-list li{gap:12px}.team-actions{gap:8px}.team-public h3{font-size:22px}}
 
 @media(max-width:760px){body .participant-portal.usd-member .participant-tabs.participant-tabs-with-team{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important}body .participant-portal.usd-member .participant-tabs.participant-tabs-with-team a{min-width:0;text-align:center}}
+
+/* Read-only published performances: never imply the current roster is a historical team medal ledger. */
+.team-stage-achievements{min-width:0}
+.team-achievement-disclaimer{max-width:76ch;color:#87919c;font-size:13px;line-height:1.6}
+.team-achievements-total{font-size:13px;font-weight:700;color:inherit}
+.team-stage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:16px;margin-top:18px}
+.team-stage-card{min-width:0;padding:18px;border:1px solid #454950;border-radius:16px;background:#171a20;color:#f2f2f2;box-sizing:border-box}
+.team-stage-card header h4{margin:0 0 5px;font-size:17px;overflow-wrap:anywhere}
+.team-stage-card header p{margin:0 0 16px;color:#a2a7ae;font-size:12px}
+.team-stage-card ul{list-style:none;margin:0;padding:0;display:grid;gap:11px}
+.team-stage-card li{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:11px;border-top:1px solid #373b43}
+.team-stage-card li>div:first-child{display:grid;gap:4px;min-width:0;flex:1 1 150px}
+.team-stage-card li strong{overflow-wrap:anywhere}
+.team-stage-card li span{font-size:12px;color:#aeb6c0}
+.team-achievement-measure{text-align:right;display:grid;gap:3px;align-items:start}
+.team-achievement-measure strong{white-space:nowrap;color:#f3f5f8}
+@media(max-width:520px){.team-stage-card{padding:14px}.team-stage-grid{grid-template-columns:minmax(0,1fr)}.team-achievement-measure{text-align:left}}
