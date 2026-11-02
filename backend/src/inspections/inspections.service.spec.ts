@@ -44,7 +44,7 @@ describe('InspectionsService', () => {
         create: jest.fn().mockResolvedValue({ id: 'number-new', number: 7, isPrimary: false }),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
-      registration: { findUnique: jest.fn().mockResolvedValue(registration), findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({count:1}) },
+      registration: { findUnique: jest.fn().mockResolvedValue(registration), findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({count:1}) },
       participantStageInspection: {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockImplementation(async ({ data }) => ({ ...existing, ...data, id: 'inspection-new', registrations: [] })),
@@ -56,7 +56,8 @@ describe('InspectionsService', () => {
         update: jest.fn().mockImplementation(async ({ data }) => ({ ...existing, ...data })),
         delete: jest.fn().mockResolvedValue(existing),
       },
-      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+      teamMembership: { findUnique: jest.fn().mockResolvedValue(null) },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }), findFirst: jest.fn().mockResolvedValue(null) },
     };
     prisma = {
       participantStageInspection: { findUnique: jest.fn().mockResolvedValue({ ...existing, registrations: [] }) },
@@ -89,6 +90,118 @@ describe('InspectionsService', () => {
     }));
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: 'VEHICLE_INSPECTION_CREATED', entityId: 'inspection-new' }),
+    }));
+  });
+
+  it('captures the approved team name and ID on the first passed inspection',async()=>{
+    tx.teamMembership.findUnique.mockResolvedValue({
+      status:'APPROVED', team:{id:'team-1',name:'Team First',isActive:true},
+    });
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.teamMembership.findUnique).toHaveBeenCalledWith({
+      where:{participantId:registration.participantId}, select:expect.any(Object),
+    });
+    expect(tx.registration.updateMany).toHaveBeenCalledWith({
+      where:{id:registration.id,teamAffiliationCapturedAt:null},
+      data:expect.objectContaining({
+        teamIdAtInspection:'team-1',teamNameAtInspection:'Team First',
+        teamAffiliationCapturedAt:expect.any(Date),
+      }),
+    });
+  });
+
+  it('freezes absence of a team and does not rewrite it when the participant joins later',async()=>{
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.registration.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({teamIdAtInspection:null,teamNameAtInspection:null}),
+    }));
+    tx.registration.findUnique.mockImplementation(async ({select}:any)=>
+      select?.teamAffiliationCapturedAt
+        ? {teamAffiliationCapturedAt:new Date()} : registration);
+    tx.teamMembership.findUnique.mockResolvedValue({
+      status:'APPROVED',team:{id:'team-later',name:'Team Later',isActive:true},
+    });
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.registration.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.teamMembership.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses the same team for two cars inspected at the same stage despite a later team switch',async()=>{
+    tx.registration.findFirst.mockResolvedValue({
+      teamIdAtInspection:'team-first',teamNameAtInspection:'Team First',
+      teamAffiliationCapturedAt:new Date('2026-10-30T10:00:00Z'),
+    });
+    tx.teamMembership.findUnique.mockResolvedValue({
+      status:'APPROVED',team:{id:'team-second',name:'Team Second',isActive:true},
+    });
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.registration.findFirst).toHaveBeenCalledWith({
+      where:{
+        stageId:registration.stageId,participantId:registration.participantId,
+        id:{not:registration.id},teamAffiliationCapturedAt:{not:null},
+      },
+      orderBy:[{teamAffiliationCapturedAt:'asc'},{id:'asc'}],
+      select:expect.any(Object),
+    });
+    expect(tx.teamMembership.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data:{
+        teamIdAtInspection:'team-first',teamNameAtInspection:'Team First',
+        teamAffiliationCapturedAt:new Date('2026-10-30T10:00:00Z'),
+      },
+    }));
+  });
+
+  it('never attributes a new team when an old published stage was temporarily unpublished',async()=>{
+    tx.auditLog.findFirst.mockResolvedValue({id:'publication-audit'});
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.auditLog.findFirst).toHaveBeenCalledWith({
+      where:{
+        entity:'Stage',entityId:registration.stageId,
+        action:'STAGE_RESULTS_PUBLISHED',
+      },
+      select:{id:true},
+    });
+    expect(tx.teamMembership.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('never fabricates team membership when official results are already published',async()=>{
+    tx.registration.findUnique.mockResolvedValue({
+      ...registration,
+      stage:{...registration.stage,resultsPublishedAt:new Date()},
+      teamAffiliationCapturedAt:null,
+    });
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.teamMembership.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not attribute pending or archived team members to an event',async()=>{
+    tx.teamMembership.findUnique.mockResolvedValue({
+      status:'PENDING',team:{id:'team-pending',name:'Pending team',isActive:true},
+    });
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.registration.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({teamIdAtInspection:null,teamNameAtInspection:null}),
+    }));
+  });
+
+  it('does not attribute a team for FAILED or unchanged historical PASSED inspections',async()=>{
+    await service.create({registrationId:registration.id,status:'FAILED',notes:'Не закреплён аккумулятор'},actor);
+    await service.update('inspection-1',{status:'PASSED'},actor);
+    expect(tx.teamMembership.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('captures team at the FIRST transition from FAILED to PASSED',async()=>{
+    prisma.inspection.findUnique.mockResolvedValue({
+      ...existing,status:'FAILED',
+      registration:{...existing.registration,id:registration.id,stageId:registration.stageId,participantId:registration.participantId},
+    });
+    await service.update('inspection-1',{status:'PASSED'},actor);
+    expect(tx.registration.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({teamAffiliationCapturedAt:expect.any(Date)}),
     }));
   });
 

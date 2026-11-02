@@ -98,3 +98,40 @@ describe('team current-roster analytics boundaries',()=>{
     expect(db.result.findMany).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('inspection-frozen historical team affiliation',()=>{
+ const db:any={team:{findUnique:jest.fn()},result:{findMany:jest.fn()}};
+ const service=new TeamsService(db);
+ beforeEach(()=>{
+  jest.clearAllMocks();
+  db.team.findUnique.mockResolvedValue({id:'original-team',name:'Original Team'});
+  db.result.findMany.mockResolvedValue([published('r1','stage-1',1)]);
+ });
+ it('requires archived affiliation, current public profile and officially published results',async()=>{
+  const data=await service.publicInspectedStageAchievements('original-team');
+  expect(db.team.findUnique).toHaveBeenCalledWith({
+   where:{id:'original-team'},select:{id:true,name:true},
+  });
+  expect(db.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
+   where:{registration:expect.objectContaining({
+    teamIdAtInspection:'original-team',
+    teamAffiliationCapturedAt:{not:null},
+    participant:{isPublic:true},
+    status:'ACTIVE',
+    stage:{isDeleted:false,status:{in:['PUBLISHED','COMPLETED']},resultsPublishedAt:{not:null}},
+   })},
+   take:501,
+  }));
+  expect(data).toMatchObject({scope:'FIRST_PASSED_INSPECTION',total:1,summary:{participants:1,firstPlaces:1,podiums:1}});
+ });
+ it('never attributes historical results without a frozen record',async()=>{
+  db.result.findMany.mockResolvedValue([]);
+  const data=await service.publicInspectedStageAchievements('original-team');
+  expect(data).toMatchObject({scope:'FIRST_PASSED_INSPECTION',total:0,stages:[]});
+ });
+ it('never leaks team data when the team is not found',async()=>{
+  db.team.findUnique.mockResolvedValue(null);
+  await expect(service.publicInspectedStageAchievements('unknown')).rejects.toBeInstanceOf(NotFoundException);
+  expect(db.result.findMany).not.toHaveBeenCalled();
+ });
+});

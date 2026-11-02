@@ -9,10 +9,12 @@ test('a public team page loads published stage results only for real USD teams',
   readFile(new URL('../src/teams/teams.css',import.meta.url),'utf8'),
   readFile(new URL('../src/participant/MyTeamPage.tsx',import.meta.url),'utf8'),
  ]);
- assert.match(page,/team\.id&&<TeamStageAchievements teamId=\{team\.id\}\/>/);
+ assert.match(page,/team\.id&&<><TeamStageAchievements teamId=\{team\.id\} mode="inspected"\/>/);
+ assert.match(page,/<TeamStageAchievements teamId=\{team\.id\}\/>/);
  assert.match(mine,/member\?\.status==='APPROVED'&&member\.team\?\.id/);
  assert.match(mine,/TeamStageAchievements teamId=/);
- assert.match(component,/apiGet<TeamStageAchievementResponse>\('\/teams\/public\/'\+encodeURIComponent\(teamId\)\+'\/achievements'\)/);
+ assert.match(component,/apiGet<TeamStageAchievementResponse>\('\/teams\/public\/'\+encodeURIComponent\(teamId\)/);
+ assert.match(component,/inspected\?'\/inspected-achievements':'\/achievements'/);
  assert.match(component,/Показаны опубликованные результаты участников, состоящих в команде сейчас/);
  assert.match(component,/Это не исторический командный зачёт/);
  assert.match(component,/new Date\(stage\.date\)\.toLocaleDateString\('ru-RU'\)/);

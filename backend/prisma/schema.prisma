@@ -489,6 +489,11 @@ model Registration {
   configurationSnapshot Json
 
   participantNumber Int
+  // Frozen on the first PASSED vehicle inspection. Existing historical
+  // registrations remain NULL and do not acquire invented team history.
+  teamIdAtInspection String?
+  teamNameAtInspection String? @db.VarChar(120)
+  teamAffiliationCapturedAt DateTime? @db.Timestamptz(3)
   rulesAcceptedAt DateTime? @db.Timestamptz(3)
   rulesVersion String?
   privacyConsentAt DateTime? @db.Timestamptz(3)
