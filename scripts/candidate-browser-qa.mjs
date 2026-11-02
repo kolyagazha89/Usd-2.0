@@ -205,6 +205,19 @@ try{
        }
        if(step==='blocks')assert.equal(await page.locator('.block-sort-list').count(),1);
       }
+      if(route==='/admin/site-settings'){
+       await journey.getByRole('button',{name:/Главная/}).click();
+       await page.locator('.usd-home-step-nav').waitFor({state:'visible'});
+       const editor=page.getByLabel('Заголовок',{exact:true});
+       await editor.fill('Тест черновика USD');
+       await page.getByText('Есть несохранённые изменения',{exact:true}).waitFor();
+       await page.locator('.usd-home-step-nav').getByRole('button',{name:/Тексты и карточки/}).click();
+       assert.equal(await page.locator('.homepage-hero-upload').count(),0);
+       await page.locator('.usd-home-step-nav').getByRole('button',{name:/Первый экран/}).click();
+       assert.equal(await page.getByLabel('Заголовок',{exact:true}).inputValue(),'Тест черновика USD','unsaved CMS edits survive screen transitions');
+       assert.equal(await page.getByRole('button',{name:/Сохранить изменения/}).isEnabled(),true,'user can explicitly publish edits');
+       row.cmsDraft='three-step CMS navigation keeps unsaved work and surfaces save action';
+      }
       row.cmsJourney='eleven sections, home editor 3 pages and saved-state overview';
      }
      if(role==='ADMIN'&&route==='/admin/cars/new'){
