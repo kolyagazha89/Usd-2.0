@@ -14,23 +14,71 @@ on:
 permissions:
   contents: read
 jobs:
-  collect:
+  test:
+    name: Offline catalog parser tests
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install free parser dependencies
-        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
-      - name: Build two-column catalogs
-        run: python tools/catalogs/scrape.py --output catalog-output --delay 0.5
-      - name: Upload catalogs and coverage regardless of partial failures
-        if: always()
+      - run: pip install requests beautifulsoup4
+      - run: python -m unittest discover -s tools/catalogs -p "test_*.py" -v
+  cars:
+    name: Drom car makes and models
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4
+      - run: python tools/catalogs/scrape.py --cars-only --output catalog-output --delay 0.5
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: usd-reference-catalogs
+          name: usd-cars-drom
+          path: catalog-output/
+          if-no-files-found: warn
+          retention-days: 30
+  audio:
+    name: SPL audio catalog (${{ matrix.group }})
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: ru-1
+            brands: "Deaf Bonce,Pride,Aura"
+          - group: ru-2
+            brands: "DL Audio,Ural,Kicx"
+          - group: ru-3
+            brands: "Dynamic State,DD Audio,Ground Zero"
+          - group: us-1
+            brands: "Sundown Audio,Skar Audio,B2 Audio"
+          - group: us-2
+            brands: "Rockford Fosgate,Hertz,Fi Car Audio"
+          - group: us-3
+            brands: "Taramps,Stetsom,Resilient Sounds"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4
+      - name: Extract brand, model, category only
+        env:
+          AUDIO_BRANDS: ${{ matrix.brands }}
+        run: python tools/catalogs/scrape.py --audio-only --brands "$AUDIO_BRANDS" --output catalog-output --delay 0.5
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usd-audio-${{ matrix.group }}
           path: catalog-output/
           if-no-files-found: warn
           retention-days: 30
