@@ -71,3 +71,36 @@ test('car editor is a three-screen journey with actual car identity and plate va
  assert.match(css,/\.usd-car-editor-summary/);
  assert.match(css,/background:#fff/);
 });
+
+test('generic long admin resource forms are progressively grouped with required-field completeness',async()=>{
+ const bundle=await build({entryPoints:[path.resolve(here,'../src/admin/form-journey-model.ts')],bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
+ const logic=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+ const fields=[{name:'name',label:'Название',required:true},{name:'year',label:'Год',type:'number',required:true},{name:'city',label:'Город'},{name:'date',label:'Дата',required:true},{name:'status',label:'Статус'},{name:'open',label:'Открыта',type:'checkbox'},{name:'place',label:'Площадка'},{name:'address',label:'Адрес'},{name:'notes',label:'Описание'},{name:'seasonId',label:'Сезон',required:true}];
+ const grouped=logic.groupFormFields(fields,5);
+ assert.equal(grouped.length,2);
+ assert.deepEqual(grouped.map(x=>x.length),[5,5]);
+ assert.equal(logic.groupFormFields(fields.slice(0,6),5).length,1,'short forms stay on one page');
+ assert.equal(logic.isJourneyFieldFilled(fields[1],0),true,'zero can be meaningful numeric input');
+ assert.equal(logic.isJourneyFieldFilled(fields[5],false),false,'an unchecked required consent never counts');
+ assert.equal(logic.missingJourneyField(fields,{}).name,'name');
+ assert.deepEqual(logic.journeyRequiredProgress(fields,{name:'USD',year:2026,date:'2026-11-03',seasonId:'s1'}),{done:4,total:4});
+});
+
+test('the generic resource editor preserves existing field types and validates each page before final save',async()=>{
+ const [form,css,resource]=await Promise.all([source('../src/admin/FormComponents.tsx'),source('../src/admin/form-journey.css'),source('../src/admin/ResourcePage.tsx')]);
+ assert.match(form,/groupFormFields\(fields,5\)/);
+ assert.match(form,/missingJourneyField\(visible,v\)/);
+ assert.match(form,/journeyRequiredProgress\(fields,v\)/);
+ assert.match(form,/aria-label="Этапы заполнения формы"/);
+ assert.match(form,/role="progressbar"/);
+ assert.match(form,/setStep\(activeStep\+1\)/);
+ assert.match(form,/void onSubmit\(clean\(v\)\)/);
+ assert.match(form,/f\.type==='checkbox'/);
+ assert.match(form,/f\.type==='textarea'/);
+ assert.match(form,/f\.optionsPath/);
+ assert.match(form,/isValidInternationalPhone/);
+ assert.match(form,/isValidPlate/);
+ assert.match(resource,/<EntityForm key=\{modal\.id\?\?'new-record'\}/);
+ assert.match(css,/@media\(max-width:600px\)/);
+ assert.match(css,/\.entity-form-step-nav/);
+});
