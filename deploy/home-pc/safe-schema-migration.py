@@ -284,6 +284,67 @@ def promote_schema(tree: str) -> None:
         Path(path).unlink(missing_ok=True)
 
 
+def apply_or_reconcile(
+    old: str, new: str, api: str, db: str, image_id: str, runtime_url: str,
+    original: dict[str, int], new_tree: str, pending: list[str],
+) -> None:
+    """Complete a previously applied migration without rerunning its SQL.
+
+    A container can finish Prisma migrate deploy successfully while a later
+    verification, cleanup or policy-write step fails. The root deployer will
+    quarantine that release; a NEW, CI-verified main release may resume only
+    after an independent fresh backup/restore receipt and exact live-history
+    verification. No migrate resolve/reset and no blind pin updates.
+    """
+    if pending:
+        print("Live migration required; Prisma will apply: " + ", ".join(pending), flush=True)
+        try:
+            run_migration(image_id, api, runtime_url)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ValueError(
+                "Prisma execution or migration-container cleanup failed; "
+                "inspect read-only live migration history before retrying"
+            ) from exc
+    else:
+        print(
+            "All candidate Prisma migrations already recorded on live DB; "
+            "verify integrity and reconcile the schema pin without replaying SQL",
+            flush=True,
+        )
+    try:
+        pending_after, _ = migration_state(old, new, db)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError("Post-migration Prisma checksum/history verification failed") from exc
+    if pending_after:
+        raise ValueError("Migration history still contains pending migrations")
+    print("Post-migration checksums and live history verified", flush=True)
+    try:
+        unchanged_db = container("db") == db
+        healthy = run("docker", "inspect", "-f", "{{.State.Health.Status}}", db) == "healthy"
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError("Post-migration PostgreSQL container/health query failed") from exc
+    if not unchanged_db or not healthy:
+        raise ValueError("Production DB changed or became unhealthy")
+    try:
+        current = row_counts(db)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError("Post-migration PostgreSQL row-count query failed") from exc
+    if any(table not in current or current[table] < count for table, count in original.items()):
+        raise ValueError("Live migration removed a table or reduced stored rows")
+    print("Post-migration PostgreSQL health and existing row counts verified", flush=True)
+    try:
+        promote_schema(new_tree)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError("Verified live schema, but atomic schema-policy promotion failed") from exc
+    # A stale receipt cannot authorize another SQL execution. The schema pin
+    # is already promoted; if unlink fails, report the precise post-pin phase.
+    try:
+        RECEIPT.unlink()
+    except OSError as exc:
+        raise ValueError("Live schema policy promoted, but preflight receipt cleanup failed") from exc
+    print("Additive live schema and root-owned schema pin reconciled; DB preserved", flush=True)
+
+
 def main(argv: list[str]) -> int:
     if (len(argv) != 5 or argv[1] not in ("--check", "--apply") or
             not all(SHA.fullmatch(value) for value in argv[2:])):
@@ -328,19 +389,7 @@ def main(argv: list[str]) -> int:
     if parsed.scheme not in ("postgres", "postgresql") or parsed.hostname != "db" or parsed.port != 5432:
         raise ValueError("Live migration must target local PostgreSQL")
     original = row_counts(db)
-    if pending:
-        run_migration(image_id, api, urls[0])
-    pending_after, _ = migration_state(old, new, db)
-    if pending_after:
-        raise ValueError("Migration history still contains pending migrations")
-    if container("db") != db or run("docker", "inspect", "-f", "{{.State.Health.Status}}", db) != "healthy":
-        raise ValueError("Production DB changed or became unhealthy")
-    current = row_counts(db)
-    if any(table not in current or current[table] < count for table, count in original.items()):
-        raise ValueError("Live migration removed a table or reduced stored rows")
-    promote_schema(new_tree)
-    RECEIPT.unlink()
-    print("Additive live schema applied and root-owned schema pin advanced; DB preserved")
+    apply_or_reconcile(old, new, api, db, image_id, urls[0], original, new_tree, pending)
     return 0
 
 
