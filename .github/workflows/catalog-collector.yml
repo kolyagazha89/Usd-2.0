@@ -1,11 +1,5 @@
 name: USD catalogs collector
 on:
-  push:
-    branches:
-      - data/catalog-scrapers-20261102
-    paths:
-      - 'tools/catalogs/**'
-      - '.github/workflows/catalog-collector.yml'
   pull_request:
     paths:
       - 'tools/catalogs/**'
