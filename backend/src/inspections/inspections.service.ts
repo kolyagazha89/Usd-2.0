@@ -462,6 +462,61 @@ export class InspectionsService {
     return { success: true, id };
   }
 
+  /**
+   * Freeze team identity at the first successful vehicle inspection.
+   * Even a missing/unenrolled team is frozen explicitly; subsequent changes
+   * cannot transfer yesterday's published performance to a new team.
+   */
+  private async captureTeamAtFirstPass(
+    tx: Prisma.TransactionClient,
+    registration: { id: string; stageId: string; participantId: string },
+  ) {
+    const current = await tx.registration.findUnique({
+      where: { id: registration.id },
+      select: {
+        teamAffiliationCapturedAt: true,
+        stage: { select: { resultsPublishedAt: true } },
+      },
+    });
+    // No post-publication retroactive attribution: even a late inspection
+    // correction must not invent a team for an already published stage.
+    if (!current || current.teamAffiliationCapturedAt || current.stage.resultsPublishedAt) return;
+    // Multiple vehicles of one participant must retain ONE event affiliation.
+    // Reuse the earliest frozen registration, even if the participant later
+    // joins, leaves or renames a team between vehicle inspections.
+    const prior = await tx.registration.findFirst({
+      where: {
+        stageId: registration.stageId,
+        participantId: registration.participantId,
+        id: { not: registration.id },
+        teamAffiliationCapturedAt: { not: null },
+      },
+      orderBy: [{ teamAffiliationCapturedAt: 'asc' }, { id: 'asc' }],
+      select: {
+        teamIdAtInspection: true,
+        teamNameAtInspection: true,
+        teamAffiliationCapturedAt: true,
+      },
+    });
+    const membership = prior ? null : await tx.teamMembership.findUnique({
+      where: { participantId: registration.participantId },
+      select: {
+        status: true,
+        team: { select: { id: true, name: true, isActive: true } },
+      },
+    });
+    const team = membership?.status === 'APPROVED' && membership.team.isActive
+      ? membership.team : null;
+    await tx.registration.updateMany({
+      where: { id: registration.id, teamAffiliationCapturedAt: null },
+      data: {
+        teamIdAtInspection: prior ? prior.teamIdAtInspection : (team?.id ?? null),
+        teamNameAtInspection: prior ? prior.teamNameAtInspection : (team?.name ?? null),
+        teamAffiliationCapturedAt: prior?.teamAffiliationCapturedAt ?? new Date(),
+      },
+    });
+  }
+
   async create(
     data: { registrationId: string; status: InspectionStatus; notes?: string },
     actor: Actor,
@@ -496,6 +551,7 @@ export class InspectionsService {
         },
         include: inspectionInclude,
       });
+      if (data.status === 'PASSED') await this.captureTeamAtFirstPass(tx, registration);
       await tx.auditLog.create({
         data: {
           userId: actor.userId,
@@ -539,6 +595,8 @@ export class InspectionsService {
           },
           include: inspectionInclude,
         });
+        if (vehicleInspection.status !== 'PASSED' && updated.status === 'PASSED')
+          await this.captureTeamAtFirstPass(tx, vehicleInspection.registration);
         await tx.auditLog.create({
           data: {
             userId: actor.userId,
