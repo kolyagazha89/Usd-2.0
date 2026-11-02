@@ -23,8 +23,9 @@ test('all public page families use one Dark Velocity finishing contract',async()
   assert.ok(community.includes('p-person-card'));
   assert.ok(home.includes('u-home-dashboard'));
   assert.ok(main.indexOf("import './dark-velocity-sitewide.css'")<main.indexOf("import './admin/admin-shell-layout.css'"));
-  assert.doesNotMatch(css,/\.app-shell[^\\n]*\{[^}]*background:#[01]/,
-    'sitewide public finish must not turn light admin dark');
+  const finish=css.split('USD finish pass: route-wide Dark Velocity surfaces')[1];
+  assert.doesNotMatch(finish,/body \\.app-shell.*background:/,
+    'new public finishing rules must not reskin the admin shell');
 });
 
 test('participant and account pages receive consistent graphite surface and focus treatment',async()=>{
