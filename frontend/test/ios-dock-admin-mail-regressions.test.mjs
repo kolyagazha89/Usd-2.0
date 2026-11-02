@@ -41,9 +41,14 @@ test('admin mail screen reports configured provider readiness without secrets',a
   source('../../backend/src/mail/mail.controller.ts'),
   source('../../backend/src/mail/mail.service.ts'),
  ]);
- assert.match(page,/apiGet<\{provider:string;ready:boolean;missing:string\[\];note:string\}>\('\/mail\/status'\)/);
+ assert.match(page,/type MailStatus=\{provider:string;ready:boolean;missing:string\[\];note:string\}/);
+ assert.match(page,/apiGet<MailStatus>\('\/mail\/status'\)/);
+ assert.match(page,/apiPost<\{message:string\}>\('\/mail\/check-connection'/);
+ assert.doesNotMatch(page,/STAGE_REMINDER_3D|STAGE_REMINDER_1D|stageId:/);
  assert.match(page,/mail-channel-status/);
  assert.match(controller,/@Get\('status'\)/);
+ assert.match(controller,/@Post\('check-connection'\)/);
+ assert.match(controller,/MAIL_ACCOUNT_ONLY === 'true'/);
  assert.match(mail,/getDeliveryStatus\(\)/);
  assert.doesNotMatch(mail,/process\.env\.GOOGLE_CLIENT_ID \|\| process\.env\.GOOGLE_CLIENT_SECRET[\s\S]{0,80}process\.env\.GMAIL_REFRESH_TOKEN/);
 });
