@@ -57,7 +57,7 @@ describe('InspectionsService', () => {
         delete: jest.fn().mockResolvedValue(existing),
       },
       teamMembership: { findUnique: jest.fn().mockResolvedValue(null) },
-      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }), findFirst: jest.fn().mockResolvedValue(null) },
     };
     prisma = {
       participantStageInspection: { findUnique: jest.fn().mockResolvedValue({ ...existing, registrations: [] }) },
@@ -150,6 +150,20 @@ describe('InspectionsService', () => {
         teamAffiliationCapturedAt:new Date('2026-10-30T10:00:00Z'),
       },
     }));
+  });
+
+  it('never attributes a new team when an old published stage was temporarily unpublished',async()=>{
+    tx.auditLog.findFirst.mockResolvedValue({id:'publication-audit'});
+    await service.create({registrationId:registration.id,status:'PASSED'},actor);
+    expect(tx.auditLog.findFirst).toHaveBeenCalledWith({
+      where:{
+        entity:'Stage',entityId:registration.stageId,
+        action:'STAGE_RESULTS_PUBLISHED',
+      },
+      select:{id:true},
+    });
+    expect(tx.teamMembership.findUnique).not.toHaveBeenCalled();
+    expect(tx.registration.updateMany).not.toHaveBeenCalled();
   });
 
   it('never fabricates team membership when official results are already published',async()=>{
