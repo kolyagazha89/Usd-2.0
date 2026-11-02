@@ -67,7 +67,7 @@ function initialInstalledPath():string {
    (window.navigator as Navigator & {standalone?:boolean}).standalone===true;
  if(!standalone)return current;
  try {
-   if(/^\/participant(?:\/|\?|$)/.test(current) && !sessionStorage.getItem('usd-pwa-launched')){
+   if(location.pathname==='/participant' && !sessionStorage.getItem('usd-pwa-launched')){
      sessionStorage.setItem('usd-pwa-launched','1');
      history.replaceState({},'', '/');
      return '/';
