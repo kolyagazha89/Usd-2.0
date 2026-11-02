@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  GoneException,
   Injectable,
   Logger,
   NotFoundException,
@@ -210,6 +211,79 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     });
     return { success: true };
   }
+  /**
+   * An actual Web Push network test, never a broadcast. The request is bound
+   * to the current authenticated ADMIN's own consented browser subscription.
+   * This bypasses the announcement queue intentionally: it must not touch
+   * subscribers or their topic preferences and is never auto-retried.
+   */
+  private readonly recentDeviceTests = new Map<string, number>();
+  async testCurrentDevice(userId: string, endpoint: string) {
+    if (!this.transport.configured())
+      throw new ServiceUnavailableException('Серверная отправка PUSH пока не настроена');
+    if (typeof endpoint !== 'string' || endpoint.length > 2048 || !endpoint.startsWith('https://'))
+      throw new BadRequestException('Некорректный адрес браузерной подписки');
+    const subscription = await this.db.pushSubscription.findFirst({
+      where: {
+        userId,
+        endpoint,
+        user: { isActive: true, emailVerifiedAt: { not: null } },
+      },
+      select: { id: true, endpoint: true, p256dh: true, auth: true },
+    });
+    if (!subscription)
+      throw new BadRequestException('Этот браузер не подключён к PUSH вашего аккаунта USD. Сначала включите уведомления в личном кабинете.');
+    const now = Date.now();
+    const last = this.recentDeviceTests.get(userId) ?? 0;
+    if (now - last < 30000)
+      throw new HttpException('Повторить тест доставки можно через 30 секунд', 429);
+    // Set before asynchronous sending: overlapping clicks cannot fan out.
+    this.recentDeviceTests.set(userId, now);
+    if (this.recentDeviceTests.size > 1000) {
+      for (const [id, timestamp] of this.recentDeviceTests) {
+        if (now - timestamp > 60000) this.recentDeviceTests.delete(id);
+      }
+    }
+    try {
+      const status = await this.transport.send(
+        {
+          endpoint: subscription.endpoint,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+        },
+        {
+          title: 'USD · Проверка PUSH',
+          body: 'Сервер USD отправил тест только на это устройство.',
+          path: '/',
+          tag: 'usd-admin-device-test',
+        },
+      );
+      // Provider acceptance is not a guarantee of device display.
+      void this.audit.log({
+        userId,
+        action: 'PUSH_DEVICE_TEST_ACCEPTED',
+        entity: 'PushSubscription',
+        entityId: subscription.id,
+        metadata: { providerStatus: status },
+      }).catch(() => this.logger.warn('Push device test audit unavailable'));
+      return {
+        success: true,
+        providerAccepted: true,
+        deliveryConfirmed: false,
+        message: 'PUSH-сервис принял запрос. Проверьте уведомление на этом устройстве; показ не гарантирован.',
+      };
+    } catch (error) {
+      const code = (error as { statusCode?: unknown })?.statusCode;
+      if (code === 404 || code === 410) {
+        await this.db.pushSubscription.deleteMany({
+          where: { id: subscription.id, userId },
+        });
+        throw new GoneException('Подписка браузера устарела. Подключите PUSH снова в личном кабинете.');
+      }
+      this.logger.warn('Push test provider rejected request; details suppressed');
+      throw new ServiceUnavailableException('Не удалось доставить тест в PUSH-сервис. Проверьте сеть сервера и настройки VAPID.');
+    }
+  }
+
   private async enqueue(input: {
     eventKey: string;
     category: Category;
