@@ -66,7 +66,7 @@ test('installed USD app opens home rather than profile-pinned iOS shortcut on co
 
 test('USD finishing layer is last and preserves dark public/member with light admin',async()=>{
  const [entry,styles]=await Promise.all([source('../src/main.tsx'),source('../src/sitewide-finish.css')]);
- assert.ok(entry.lastIndexOf("import './sitewide-finish.css'") > entry.indexOf("import './admin/admin-shell-layout.css'"));
+ assert.ok(entry.indexOf("import './sitewide-finish.css'") > entry.indexOf("import './dark-velocity-sitewide.css'") && entry.lastIndexOf("import './admin/admin-shell-layout.css'") > entry.indexOf("import './sitewide-finish.css'"));
  assert.match(styles,/body \.usd-live :is\(/);
  assert.match(styles,/body \.usd-member :is\(/);
  assert.match(styles,/body \.app-shell>\.main\{/);
