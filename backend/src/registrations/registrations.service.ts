@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -11,6 +12,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
+import { isValidRegistrationPlate } from '../participants/profile-validation';
+import { configurationStillPending } from './pending-configuration';
+import type { CreateOnSiteProfileDto, CreateOnSiteCarDto } from './dto/create-registration.dto';
+
 
 type RegistrationSource =
   | 'PRE_REGISTRATION'
@@ -234,7 +239,297 @@ export class RegistrationsService {
     return registration;
   }
 
-    // ==========================================
+    private async requireGateCreationAccess(request: AuthenticatedRequest): Promise<void> {
+    if (request.user.role !== 'ADMIN') {
+      if (!request.user.customRoleId) {
+        throw new BadRequestException('Только сотрудник соревнований может создать профиль на въезде');
+      }
+      const actor = await this.prisma.user.findUnique({
+        where: { id: request.user.sub },
+        select: { isActive: true, emailVerifiedAt: true, customRoleId: true },
+      });
+      if (!actor?.isActive || !actor.emailVerifiedAt || actor.customRoleId !== request.user.customRoleId) {
+        throw new BadRequestException('Учётная запись сотрудника недоступна');
+      }
+      const role = await this.prisma.role.findUnique({
+        where: { id: request.user.customRoleId },
+        select: { permissions: true },
+      });
+      const permissions = (role?.permissions ?? {}) as Record<string, unknown>;
+      const module = permissions.registrations;
+      const allowed = Array.isArray(module)
+        ? module.includes('create') || module.includes('*')
+        : Boolean(module && typeof module === 'object' && ((module as Record<string, unknown>).create === true || (module as Record<string, unknown>).create === '*'));
+      if (!allowed) {
+        throw new BadRequestException('Недостаточно прав на регистрацию на месте');
+      }
+    }
+  }
+
+  /** Create an unlinked profile and its car in one transaction for on-site staff.
+   * A colliding name or plate is never silently claimed; the judge must inspect
+   * the existing profile. This operation is not a stage registration.
+   */
+  async createOnSiteProfile(request: AuthenticatedRequest, body: CreateOnSiteProfileDto) {
+    await this.requireGateCreationAccess(request);
+    if (body.privacyConsent !== true || body.termsAccepted !== true) {
+      throw new BadRequestException('Для создания профиля на месте необходимо согласие участника на обработку данных и условия');
+    }
+    const site = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { legal: true, contacts: true, footer: true },
+    });
+    const legal = (site?.legal ?? {}) as Record<string, unknown>;
+    const contactEmail = (site?.contacts as Record<string, unknown> | null)?.email ??
+      (site?.footer as Record<string, unknown> | null)?.email;
+    if (legal.legalApproved !== true || !String(legal.legalVersion ?? '').trim()
+        || !String(legal.ipName ?? '').trim()
+        || !String(contactEmail ?? '').trim() || !String(legal.privacyText ?? '').trim()
+        || !String(legal.termsText ?? '').trim() || !String(legal.consentText ?? '').trim()) {
+      throw new BadRequestException('Регистрация недоступна: юридические документы не утверждены');
+    }
+    const lastName = String(body.lastName ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+    const firstName = String(body.firstName ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+    const middleName = String(body.middleName ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ') || null;
+    const brand = String(body.brand ?? '').normalize('NFKC').trim();
+    const model = String(body.model ?? '').normalize('NFKC').trim();
+    const country = body.registrationCountry;
+    let number = String(body.registrationNumber ?? '').normalize('NFKC').trim().toLocaleUpperCase('ru-RU');
+    if (country === 'RU') {
+      const chars: Record<string, string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+      number = [...number].map(char => /[|\s.\-_/\\]/.test(char) ? '' : chars[char] ?? char).join('');
+    } else {
+      number = number.replace(/\s+/g, ' ');
+    }
+    if (!firstName || !lastName || !brand || !model ||
+      firstName.length > 120 || lastName.length > 120 || (middleName?.length ?? 0) > 120 ||
+      brand.length > 80 || model.length > 120 || !isValidRegistrationPlate(country, number)) {
+      throw new BadRequestException('Укажите корректные ФИО, марку, модель и госномер автомобиля');
+    }
+    const plateKey = country + ':' + number.replace(/[^\p{L}\p{N}]/gu, '');
+    return this.prisma.$transaction(async tx => {
+      // Serialise both the identity check and plate check for concurrent gate
+      // operators. Without the name lock, two different cars could generate
+      // duplicate participant profiles from simultaneous check-ins.
+      const nameKey = 'gate-name:' + lastName.toLocaleLowerCase('ru-RU') + ':' + firstName.toLocaleLowerCase('ru-RU');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${nameKey}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateKey}))`;
+      const sameName = await tx.participant.findFirst({
+        where: { firstName: { equals: firstName, mode: 'insensitive' },
+                 lastName: { equals: lastName, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (sameName) {
+        throw new ConflictException('Профиль с таким ФИО уже существует. Проверьте найденного участника перед созданием.');
+      }
+      const cars = await tx.car.findMany({
+        where: { registrationCountry: country },
+        select: { id: true, registrationNumber: true },
+      });
+      const canonical = (value: string) => {
+        let normalized = value.normalize('NFKC').toLocaleUpperCase('ru-RU');
+        if (country === 'RU') {
+          const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+          normalized = [...normalized].map(char => lookalikes[char] ?? char).join('');
+        }
+        return normalized.replace(/[^\p{L}\p{N}]/gu, '');
+      };
+      if (cars.some(car => canonical(car.registrationNumber) === canonical(number))) {
+        throw new ConflictException('Автомобиль с таким госномером уже существует. Выберите существующий профиль.');
+      }
+      const participant = await tx.participant.create({
+        data: { firstName, lastName, middleName, isPublic: false },
+        select: { id: true },
+      });
+      const car = await tx.car.create({
+        data: { participantId: participant.id, brand, model, registrationCountry: country,
+                registrationNumber: number, isPublic: false },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: { userId: request.user.sub, action: 'ON_SITE_PROFILE_CREATED',
+                entity: 'Participant', entityId: participant.id,
+                metadata: { carId: car.id, participantConsentRecorded: true, legalVersion: String(legal.legalVersion), consentConfirmedAt: new Date().toISOString() } },
+      });
+      return { participantId: participant.id, carId: car.id };
+    });
+  }
+
+  /** Staff-only intake for an existing entrant driving a previously unseen car.
+   * Never reassign someone else's plate or silently change the participant owner.
+   */
+  async createOnSiteCar(request: AuthenticatedRequest, body: CreateOnSiteCarDto) {
+    await this.requireGateCreationAccess(request);
+    if (body.privacyConsent !== true || body.termsAccepted !== true) {
+      throw new BadRequestException('Для добавления автомобиля на месте подтвердите согласия участника');
+    }
+    const legalRow = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' }, select: { legal: true, contacts: true, footer: true },
+    });
+    const legal = (legalRow?.legal ?? {}) as Record<string, unknown>;
+    const contactEmail = (legalRow?.contacts as Record<string, unknown> | null)?.email ??
+      (legalRow?.footer as Record<string, unknown> | null)?.email;
+    if (legal.legalApproved !== true || !String(legal.legalVersion ?? '').trim() ||
+        !String(legal.ipName ?? '').trim() || !String(contactEmail ?? '').trim() ||
+        !String(legal.privacyText ?? '').trim() || !String(legal.termsText ?? '').trim() ||
+        !String(legal.consentText ?? '').trim()) {
+      throw new BadRequestException('Регистрация недоступна: юридические документы не утверждены');
+    }
+    const brand = String(body.brand ?? '').normalize('NFKC').trim();
+    const model = String(body.model ?? '').normalize('NFKC').trim();
+    const country = body.registrationCountry;
+    let number = String(body.registrationNumber ?? '').normalize('NFKC').trim().toLocaleUpperCase('ru-RU');
+    const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+    if (country === 'RU') number = [...number].map(char => /[|\s.\-_/\\]/.test(char) ? '' : lookalikes[char] ?? char).join('');
+    else number = number.replace(/\s+/g, ' ');
+    if (!body.participantId || !brand || !model || brand.length > 80 || model.length > 120 ||
+        !isValidRegistrationPlate(country, number)) {
+      throw new BadRequestException('Укажите участника, марку, модель и корректный госномер автомобиля');
+    }
+    const canonical = (plate: string) => {
+      let normalized = plate.normalize('NFKC').toLocaleUpperCase('ru-RU');
+      if (country === 'RU') normalized = [...normalized].map(char => lookalikes[char] ?? char).join('');
+      return normalized.replace(/[^\p{L}\p{N}]/gu, '');
+    };
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${country + ':' + canonical(number)}))`;
+      const participant = await tx.participant.findUnique({
+        where: { id: body.participantId },
+        select: { id: true },
+      });
+      if (!participant) throw new NotFoundException('Участник не найден');
+      const cars = await tx.car.findMany({
+        where: { registrationCountry: country }, select: { id: true, registrationNumber: true },
+      });
+      if (cars.some(car => canonical(car.registrationNumber) === canonical(number))) {
+        throw new ConflictException('Автомобиль с таким госномером уже существует. Проверьте существующую запись.');
+      }
+      const car = await tx.car.create({
+        data: {
+          participantId: participant.id, brand, model,
+          registrationCountry: country, registrationNumber: number,
+          isPublic: false,
+        },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub, action: 'ON_SITE_CAR_CREATED',
+          entity: 'Car', entityId: car.id, metadata: {
+            participantId: participant.id, consentConfirmed: true, legalVersion: String(legal.legalVersion), consentConfirmedAt: new Date().toISOString(),
+          },
+        },
+      });
+      return { participantId: participant.id, carId: car.id };
+    });
+  }
+
+  /** Complete an entrance-only draft with a real, immutable equipment snapshot.
+   * No registration number, stage, class or historic result is ever rewritten.
+   */
+  async confirmOnSiteConfiguration(
+    request: AuthenticatedRequest, registrationId: string, versionId: string,
+  ) {
+    if (!versionId || !/^[a-f0-9-]{36}$/i.test(versionId)) {
+      throw new BadRequestException('Укажите действительную версию конфигурации');
+    }
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${registrationId}))`;
+      const registration = await tx.registration.findUnique({
+        where: { id: registrationId },
+        include: {
+          stage: { select: { status: true, isDeleted: true } },
+          classes: { include: { class: { include: { direction: true } } } },
+          results: { select: { id: true } },
+        },
+      });
+      if (!registration) throw new NotFoundException('Регистрация не найдена');
+      if (request.user.role !== 'ADMIN') {
+        const own = request.user.participantId === registration.participantId;
+        if (!own) {
+          if (!request.user.customRoleId) throw new ForbiddenException('Недостаточно прав на изменение регистрации');
+          const actor = await this.prisma.user.findUnique({
+            where: { id: request.user.sub },
+            select: { isActive: true, customRoleId: true, emailVerifiedAt: true },
+          });
+          if (!actor?.isActive || !actor.emailVerifiedAt || actor.customRoleId !== request.user.customRoleId) {
+            throw new ForbiddenException('Учётная запись сотрудника недоступна');
+          }
+          const role = await this.prisma.role.findUnique({
+            where: { id: request.user.customRoleId },
+            select: { permissions: true },
+          });
+          const entry = ((role?.permissions ?? {}) as Record<string, unknown>).registrations;
+          const allowed = Array.isArray(entry)
+            ? entry.includes('update') || entry.includes('*')
+            : Boolean(entry && typeof entry === 'object' &&
+              ((entry as Record<string, unknown>).update === true || (entry as Record<string, unknown>).update === '*'));
+          if (!allowed) throw new ForbiddenException('Нет прав на изменение регистраций');
+        }
+      }
+      if (registration.source !== 'ON_SITE' || registration.status !== 'ACTIVE' ||
+          !configurationStillPending(registration.configurationSnapshot)) {
+        throw new ConflictException('Подтверждение доступно только для незаполненной регистрации на месте');
+      }
+      // The participant can complete the equipment record AFTER the stage,
+      // including after results have been entered. Historic event-day snapshots
+      // must not be overwritten by documentation supplied retrospectively.
+      if (registration.stage.isDeleted) {
+        throw new ConflictException('Удалённый этап недоступен для дополнения конфигурации');
+      }
+      const config = await tx.carConfigurationVersion.findFirst({
+        where: { id: versionId, configuration: { carId: registration.carId, isActive: true } },
+        include: {
+          configuration: true, headUnits: true, audioComponents: true,
+          amplifiers: { include: { componentLinks: true } },
+          batteries: true, generators: true,
+        },
+      });
+      if (!config || config.additionalDescription === 'USD_ON_SITE_DRAFT_PENDING') {
+        throw new BadRequestException('Выберите заполненную конфигурацию этого автомобиля');
+      }
+      for (const row of registration.classes) {
+        const missing = this.getMissingConfigurationRequirement(row, config);
+        if (missing) throw new BadRequestException(missing);
+      }
+      // Append documentary evidence, never alter equipment recorded on event day.
+      const original = registration.configurationSnapshot as Record<string, unknown>;
+      const documentedAt = new Date().toISOString();
+      const snapshot = {
+        ...original,
+        postStageCompletion: {
+          versionId: config.id,
+          configurationId: config.configurationId,
+          configurationName: config.configuration.name,
+          version: config.version,
+          documentedAt,
+          documentedByUserId: request.user.sub,
+          vibrationIsolation: config.vibrationIsolation,
+          additionalDescription: config.additionalDescription,
+          headUnits: config.headUnits,
+          audioComponents: config.audioComponents,
+          amplifiers: config.amplifiers,
+          batteries: config.batteries,
+          generators: config.generators,
+        },
+      };
+      await tx.registration.update({
+        where: { id: registrationId },
+        data: { configurationSnapshot: snapshot },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          action: 'ON_SITE_CONFIGURATION_CONFIRMED',
+          entity: 'Registration', entityId: registrationId,
+          metadata: { oldConfigurationVersionId: registration.configurationVersionId, newConfigurationVersionId: config.id },
+        },
+      });
+      return { id: registrationId, configurationVersionId: config.id, configurationPending: false };
+    });
+  }
+
+  // ==========================================
   // СОЗДАНИЕ РЕГИСТРАЦИИ
   // ==========================================
 
@@ -245,7 +540,7 @@ export class RegistrationsService {
       participantId?: string;
       carId: string;
       classIds: string[];
-      configurationVersionId: string;
+      configurationVersionId?: string;
       source?: RegistrationSource;
       rulesAccepted?: boolean;
       privacyConsent?: boolean;
@@ -281,7 +576,7 @@ export class RegistrationsService {
       );
     }
 
-    if (!configurationVersionId) {
+    if (!configurationVersionId && source !== 'ON_SITE') {
       throw new BadRequestException(
         'Для регистрации необходимо выбрать версию конфигурации автомобиля',
       );
@@ -388,9 +683,9 @@ export class RegistrationsService {
       );
     }
 
-    if (classIds.length > 32) {
+    if (classIds.length > 5) {
       throw new BadRequestException(
-        'В одной регистрации нельзя выбрать более 32 классов',
+        'В одной регистрации нельзя выбрать более 5 классов',
       );
     }
 
@@ -497,6 +792,31 @@ export class RegistrationsService {
           throw new NotFoundException(
             'Участник не найден',
           );
+        }
+
+        // The first on-site competition must never be blocked by missing
+        // hardware. Only a DIFFERENT stage after the previous event has taken
+        // place requires the participant to document that event's equipment.
+        // Same-stage registrations (additional cars/classes) remain possible.
+        if (source !== 'IMPORT') {
+          const prior = await tx.registration.findMany({
+            where: {
+              participantId,
+              status: 'ACTIVE',
+              stageId: { not: stageId },
+              stage: { isDeleted: false, date: { lt: now } },
+              configurationSnapshot: { path: ['configurationPending'], equals: true },
+            },
+            select: { id: true, configurationSnapshot: true },
+          });
+          const missing = prior.find(item => configurationStillPending(item.configurationSnapshot));
+          if (missing) {
+            throw new ConflictException({
+              code: 'PREVIOUS_CONFIGURATION_REQUIRED',
+              message: 'Перед регистрацией на следующий этап заполните конфигурацию автомобиля с прошлого этапа',
+              registrationId: missing.id,
+            });
+          }
         }
 
         // 3. Проверяем дисквалификацию.
@@ -681,11 +1001,27 @@ export class RegistrationsService {
           throw new ConflictException('Этот автомобиль уже зарегистрирован на этапе');
         }
 
-        // 8. Выбираем только явно указанную версию конфигурации.
+        // On-site intake is allowed without an equipment list. Persist an
+        // explicitly marked empty draft version to retain the existing FK and
+        // immutable registration snapshot; never invent hardware details.
+        let chosenVersionId = configurationVersionId;
+        let isOnSiteDraft = false;
+        if (source === 'ON_SITE' && !chosenVersionId) {
+          const draft = await tx.carConfiguration.create({
+            data: {
+              carId,
+              name: 'Запись на месте · конфигурация ожидает заполнения',
+              versions: { create: { version: 1, additionalDescription: 'USD_ON_SITE_DRAFT_PENDING' } },
+            },
+            include: { versions: { select: { id: true } } },
+          });
+          chosenVersionId = draft.versions[0].id;
+          isOnSiteDraft = true;
+        }
         const configurationVersion =
           await tx.carConfigurationVersion.findFirst({
             where: {
-              id: configurationVersionId,
+              id: chosenVersionId,
               configuration: {
                 carId,
               },
@@ -710,15 +1046,24 @@ export class RegistrationsService {
           );
         }
 
+        // Internal gate placeholders are not real audio configurations. Only
+        // the draft created atomically for THIS on-site registration may use
+        // one; never let a client reuse a different event's placeholder.
+        if (!isOnSiteDraft && configurationVersion.additionalDescription === 'USD_ON_SITE_DRAFT_PENDING') {
+          throw new BadRequestException('Служебный черновик конфигурации нельзя использовать для новой регистрации');
+        }
+
         // Configuration completeness is a hard admission rule. Validate on the
         // server so the checks cannot be bypassed by sending a direct API request.
-        for (const stageClass of stageClasses) {
-          const missingRequirement = this.getMissingConfigurationRequirement(
-            stageClass,
-            configurationVersion,
-          );
-          if (missingRequirement) {
-            throw new BadRequestException(missingRequirement);
+        if (!isOnSiteDraft) {
+          for (const stageClass of stageClasses) {
+            const missingRequirement = this.getMissingConfigurationRequirement(
+              stageClass,
+              configurationVersion,
+            );
+            if (missingRequirement) {
+              throw new BadRequestException(missingRequirement);
+            }
           }
         }
 
@@ -780,6 +1125,7 @@ export class RegistrationsService {
           carId,
           configurationVersionId: configurationVersion.id,
           configurationSnapshot: {
+            configurationPending: isOnSiteDraft,
             configurationId: configurationVersion.configurationId,
             configurationName: configurationVersion.configuration.name,
             version: configurationVersion.version,

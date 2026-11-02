@@ -100,6 +100,8 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  if(name==='RegistrationsController') {
   if(path==='/registrations/me')return method==='GET'||method==='POST';
   if(/^\/registrations\/me\/[^/]+$/.test(path))return method==='DELETE';
+  // Custom-role judges also participate: server verifies actual ownership.
+  if(/^\/registrations\/[^/]+\/configuration$/.test(path))return method==='PATCH';
   if(/^\/registrations\/[^/]+$/.test(path))return method==='GET';
   return false;
  }
