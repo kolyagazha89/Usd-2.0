@@ -247,8 +247,23 @@ if [[ "$usd_host_approved" != true ]]; then
   [[ "$(gh variable list --repo kolyagazha89/Usd-2.0 --json name,value --jq '.[] | select(.name == "USD_HOME_PC_HOST_APPROVED") | .value')" == true ]] ||
     { echo 'GitHub host approval was not persisted; refusing unverified automatic test' >&2; exit 1; }
 fi
-git -C "$SOURCE" rev-parse "$SHA:backend/prisma" > /etc/usd-auto-release-schema
+# This is a one-time supervised schema approval. A rerun must never
+# downgrade a state pin already advanced by verified additive migrations.
+new_schema_tree="$(git -C "$SOURCE" rev-parse "$SHA:backend/prisma")"
+if [[ -e "$STATE/schema-pin" || -L "$STATE/schema-pin" ]]; then
+  [[ -f "$STATE/schema-pin" && ! -L "$STATE/schema-pin" &&
+     "$(stat -c %u "$STATE/schema-pin")" == 0 &&
+     "$(cat "$STATE/schema-pin")" == "$new_schema_tree" ]] ||
+    { echo "Existing schema pin differs; supervised setup cannot overwrite a verified schema transition" >&2; exit 1; }
+fi
+printf '%s\n' "$new_schema_tree" > /etc/usd-auto-release-schema
 chmod 0600 /etc/usd-auto-release-schema
+# Initial supervised bootstrap only; subsequent automatic additive migration
+# promotes the STATE pin atomically. Never write under /etc from systemd.
+install -d -o root -g root -m 0700 "$STATE"
+if [[ ! -f "$STATE/schema-pin" ]]; then
+  install -o root -g root -m 0600 /etc/usd-auto-release-schema "$STATE/schema-pin"
+fi
 install -o root -g root -m 0600 /dev/null /etc/usd-deploy-enabled
 flock -u 9
 systemctl daemon-reload

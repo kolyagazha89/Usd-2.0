@@ -28,7 +28,9 @@ from urllib.parse import urlsplit
 
 SOURCE = Path("/opt/usd-release-source")
 STATE = Path("/var/lib/usd-deployer")
-POLICY = Path("/etc/usd-auto-release-schema")
+POLICY = STATE / "schema-pin"
+# ProtectSystem=full mounts /etc read-only. Copy the original operator
+# approval once, then atomically advance only the root-owned StateDirectory.
 RECEIPT = STATE / "initial-preflight"
 LOCK = "/run/lock/usd-home-deploy.lock"
 SHA = re.compile(r"^[0-9a-f]{40}$")

@@ -33,7 +33,6 @@ for old,new in {
  '/opt/usd-release-source':work+'/source',
  '/var/lib/usd-deployer':work+'/state',
  '/etc/usd-deploy-enabled':work+'/enabled',
- '/etc/usd-auto-release-schema':work+'/policy',
  '/etc/usd-deployer/local-second-disk-approved':work+'/local-policy',
  '/usr/local/libexec/usd-verify-second-disk-db-backup':work+'/db-verify',
  '/usr/local/libexec/usd-verify-second-disk-media-backup':work+'/media-verify',
@@ -118,7 +117,7 @@ set -euo pipefail
 echo "$1:$2:$3" >> "$USD_TEST_WORK/migration.log"
 if [[ "$1" == "--apply" ]]; then
   [[ -f "$USD_TEST_WORK/ready-to-migrate" ]] || exit 1
-  git -C "$USD_TEST_WORK/source" rev-parse "$2:backend/prisma" > "$USD_TEST_WORK/policy"
+  git -C "$USD_TEST_WORK/source" rev-parse "$2:backend/prisma" > "$USD_TEST_WORK/state/schema-pin"
 fi
 SH
 cat > "$WORK/media-verify" <<'SH'
@@ -182,8 +181,8 @@ if bash "$WORK/builder" > "$WORK/wrong-cached-revision.log" 2>&1; then exit 1; f
 grep -q 'Image revision does not match' "$WORK/wrong-cached-revision.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_IMAGE_REVISION
-printf '%s\n' "$SCHEMA" > "$WORK/policy"
-chmod 600 "$WORK/policy"
+printf '%s\n' "$SCHEMA" > "$WORK/state/schema-pin"
+chmod 600 "$WORK/state/schema-pin"
 # A pending or failed main push CI must not release even a locally built SHA.
 export USD_TEST_CI_STATUS=75
 bash "$WORK/builder" > "$WORK/pending-ci.log" 2>&1
@@ -285,22 +284,22 @@ if bash "$WORK/builder" > "$WORK/quarantine.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
 unset USD_TEST_FAIL_RELEASE
 # A changed Prisma tree must never invoke the release helper.
-printf '%040d\n' 1 > "$WORK/policy"
+printf '%040d\n' 1 > "$WORK/state/schema-pin"
 if bash "$WORK/builder" > "$WORK/schema.log" 2>&1; then exit 1; fi
 grep -q 'Schema transition not based on approved' "$WORK/schema.log"
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
-printf '%s\n' "$SCHEMA" > "$WORK/policy"
+printf '%s\n' "$SCHEMA" > "$WORK/state/schema-pin"
 # An overly permissive production environment must never reach the release helper.
 chmod 644 "$WORK/deploy.env"
 if bash "$WORK/builder" > "$WORK/env-permissions.log" 2>&1; then exit 1; fi
 grep -q "must not be readable by group or other users" "$WORK/env-permissions.log"
 [[ "$(wc -l < "$WORK/releases.log")" == "$lines" ]]
 chmod 600 "$WORK/deploy.env"
-chmod 666 "$WORK/policy"
-if bash "$WORK/builder" > "$WORK/policy.log" 2>&1; then exit 1; fi
-grep -q 'group/world writable' "$WORK/policy.log"
+chmod 666 "$WORK/state/schema-pin"
+if bash "$WORK/builder" > "$WORK/state/schema-pin.log" 2>&1; then exit 1; fi
+grep -q 'group/world writable' "$WORK/state/schema-pin.log"
 # A frontend change must require BOTH main CI workflows, not backend only.
-chmod 600 "$WORK/policy"
+chmod 600 "$WORK/state/schema-pin"
 mkdir -p "$WORK/source/frontend"
 printf 'frontend-v3\n' > "$WORK/source/frontend/app.txt"
 "$REAL_GIT" -C "$WORK/source" add frontend/app.txt
@@ -314,7 +313,7 @@ grep -q "^$NEWER$" "$WORK/releases.log"
 # Schema change is automatically approved ONLY after CI and full preflight;
 # the root-owned migrator is expected to enforce additive SQL and live history.
 printf 'USD_IMAGE_TAG=%s\n' "$NEWER" > "$WORK/deploy.env"
-printf '%s\n' "$SCHEMA" > "$WORK/policy"
+printf '%s\n' "$SCHEMA" > "$WORK/state/schema-pin"
 mkdir -p "$WORK/source/backend/prisma/migrations/20261101120000_nullable"
 printf 'CREATE TABLE "AutoSafe" ("id" TEXT NOT NULL, CONSTRAINT "AutoSafe_pkey" PRIMARY KEY ("id"));\n' > "$WORK/source/backend/prisma/migrations/20261101120000_nullable/migration.sql"
 printf 'schema-v2\n' > "$WORK/source/backend/prisma/schema.prisma"
@@ -329,10 +328,10 @@ grep -q "^preflight:$MIGRATED$" "$WORK/migration.log"
 grep -q "^--check:$MIGRATED:$NEWER$" "$WORK/migration.log"
 grep -q "^--apply:$MIGRATED:$NEWER$" "$WORK/migration.log"
 [[ "$(tail -n 1 "$WORK/releases.log")" == "$MIGRATED" ]]
-[[ "$(cat "$WORK/policy")" == "$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD:backend/prisma)" ]]
+[[ "$(cat "$WORK/state/schema-pin")" == "$("$REAL_GIT" -C "$WORK/source" rev-parse HEAD:backend/prisma)" ]]
 # A failed safe-schema policy must refuse to back up/migrate or publish.
 printf 'USD_IMAGE_TAG=%s\n' "$NEWER" > "$WORK/deploy.env"
-printf '%s\n' "$SCHEMA" > "$WORK/policy"
+printf '%s\n' "$SCHEMA" > "$WORK/state/schema-pin"
 export USD_TEST_FAIL_SAFE_MIGRATION=1
 before="$(wc -l < "$WORK/releases.log")"
 if bash "$WORK/builder" > "$WORK/rejected-migration.log" 2>&1; then exit 1; fi
