@@ -61,9 +61,27 @@ const BRAND_LOGO_CACHE='usd_brand_logo';
 function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}catch{return''}}
 function cacheBrandLogo(url:string){try{localStorage.setItem(BRAND_LOGO_CACHE,url)}catch{}}
 function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;const img=new Image();img.decoding='async';img.onload=()=>onReady(url);img.onerror=()=>{};img.src=url}
+function initialInstalledPath():string {
+ const current=location.pathname+location.search;
+ const standalone=window.matchMedia?.('(display-mode: standalone)').matches ||
+   (window.navigator as Navigator & {standalone?:boolean}).standalone===true;
+ if(!standalone)return current;
+ try {
+   if(location.pathname==='/participant' && !sessionStorage.getItem('usd-pwa-launched')){
+     sessionStorage.setItem('usd-pwa-launched','1');
+     history.replaceState({},'', '/');
+     return '/';
+   }
+   sessionStorage.setItem('usd-pwa-launched','1');
+ } catch {
+   // Storage can be unavailable in private/locked-down Safari. Never block
+   // the installed application because its navigation marker is unavailable.
+ }
+ return current;
+}
 function App(){
- const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(location.pathname+location.search),[mobileOpen,setMobileOpen]=useState(false);
- useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
+ // iOS Safari can pin /participant even when the manifest starts at /.
+ const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(()=>initialInstalledPath()),[mobileOpen,setMobileOpen]=useState(false); useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
  useEffect(()=>{const route=path.split('?')[0];if(!/^\/(?:admin|participant|login|reset-password|confirm-email-change|verify-email)(?:\/|$)/.test(route))return;document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  useEffect(()=>{const onExpired=()=>{setUser(null);const current=location.pathname+location.search;if(/^\/(?:admin|participant)(?:\/|\?|$)/.test(current)){const target='/login?next='+encodeURIComponent(current);history.replaceState({},'',target);setPath(target)}};window.addEventListener('usd:session-expired',onExpired);return()=>window.removeEventListener('usd:session-expired',onExpired)},[]);

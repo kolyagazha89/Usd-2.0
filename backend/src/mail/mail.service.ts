@@ -396,7 +396,16 @@ export class MailService {
    * messages already accepted by the provider.
    */
   async runAdminMailTest<T>(send: () => Promise<T>): Promise<T> {
-    const status = this.getDeliveryStatus();
+    let status: ReturnType<MailService['getDeliveryStatus']>;
+    try {
+      status = this.getDeliveryStatus();
+    } catch {
+      this.logger.error('Administrative email test readiness check failed.');
+      throw new ServiceUnavailableException({
+        code: 'MAIL_STATUS_UNAVAILABLE',
+        message: 'Не удалось проверить настройки почты. Проверьте журнал API и конфигурацию почтового сервиса.',
+      });
+    }
     if (!status.ready) {
       this.logger.warn('Mail test blocked: incomplete server mail configuration.');
       throw new ServiceUnavailableException({
@@ -407,7 +416,18 @@ export class MailService {
     try {
       return await send();
     } catch (error) {
-      if (error instanceof HttpException) throw error;
+      if (error instanceof HttpException) {
+        // Preserve actionable 4xx validation and the already-sanitized
+        // transport diagnostics. Never leak an unrelated 500 from a template
+        // lookup, driver or downstream integration to the admin mail screen.
+        if (error.getStatus() < 500 || error instanceof BadGatewayException ||
+            error instanceof ServiceUnavailableException) throw error;
+        this.logger.warn('Administrative mail test dependency returned HTTP 5xx.');
+        throw new ServiceUnavailableException({
+          code: 'MAIL_TEST_DEPENDENCY_FAILED',
+          message: 'Тест письма не выполнен из-за ошибки сервиса шаблонов. Проверьте журнал API на Ubuntu.',
+        });
+      }
       const mailError = error as { code?: unknown; responseCode?: unknown } | null;
       const code = typeof mailError?.code === 'string' ? mailError.code.toUpperCase() : '';
       const responseCode = typeof mailError?.responseCode === 'number' ? mailError.responseCode : 0;

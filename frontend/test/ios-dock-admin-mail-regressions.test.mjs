@@ -52,3 +52,14 @@ test('admin mail screen reports configured provider readiness without secrets',a
  assert.match(mail,/getDeliveryStatus\(\)/);
  assert.doesNotMatch(mail,/process\.env\.GOOGLE_CLIENT_ID \|\| process\.env\.GOOGLE_CLIENT_SECRET[\s\S]{0,80}process\.env\.GMAIL_REFRESH_TOKEN/);
 });
+
+test('installed USD app opens home rather than profile-pinned iOS shortcut on cold launch',async()=>{
+ const [app,manifest]=await Promise.all([source('../src/App.tsx'),source('../public/manifest.webmanifest')]);
+ const pwa=JSON.parse(manifest);
+ assert.equal(pwa.start_url,'/');
+ assert.equal(pwa.scope,'/');
+ assert.match(app,/display-mode: standalone/);
+ assert.match(app,/navigator as Navigator & \{standalone\?:boolean\}/);
+ assert.match(app,/usd-pwa-launched/);
+ assert.match(app,/history\.replaceState\(\{\},'', '\/'\)/);
+});
