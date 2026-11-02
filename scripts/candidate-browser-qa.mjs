@@ -411,6 +411,21 @@ try{
        await page.getByRole('button',{name:/ожидают/i}).click();
        assert.equal(await page.locator('.event-ops-results .data-table tbody tr').count(),1,'pending queue includes unchecked registrations');
       }
+      const workflow=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
+      await workflow.waitFor({state:'visible'});
+      assert.match(await workflow.innerText(),/Кубок USD/,'both desks show the selected stage');
+      const activeLabel=route==='/admin/registrations'?'Регистрации':'Инспекция въезда';
+      const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';
+      const nextPath=route==='/admin/registrations'?'/admin/inspections':'/admin/registrations';
+      assert.equal(await workflow.locator('[aria-current="page"]').getAttribute('aria-label'),activeLabel);
+      assert.equal(await workflow.locator('button').count(),2,'one accessible control per stage operation');
+      await workflow.getByRole('button',{name:nextLabel,exact:true}).click();
+      await page.waitForURL(url=>url.pathname===nextPath&&url.searchParams.get('stageId')==='stage1');
+      await page.locator('.event-ops-workflow-step.is-active').waitFor();
+      assert.equal(await page.locator('.event-ops-workflow-step.is-active').getAttribute('aria-label'),nextLabel);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'workflow switching preserves mobile width');
+      row.adminEventWorkflow='stage ID deep-link and active step preserved';
+      await page.goto(base+route,{waitUntil:'networkidle'});
       row.adminEventOperations='full-width responsive roster and status controls';
      }
      if(role==='ONBOARDING'&&route==='/participant'){
