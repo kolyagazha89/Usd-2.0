@@ -1,0 +1,216 @@
+{
+  "cars": {
+    "rows": 5291,
+    "brands": 205,
+    "brand_pages": 205
+  },
+  "audio": {
+    "rows": 1326,
+    "brands": 12,
+    "sites": {
+      "Deaf Bonce": {
+        "new_models": 395,
+        "product_pages": 280,
+        "sitemap_product_urls": 280
+      },
+      "Pride": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Aura": {
+        "new_models": 399,
+        "product_pages": 280,
+        "sitemap_product_urls": 280
+      },
+      "DL Audio": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Ural": {
+        "new_models": 6,
+        "product_pages": 3,
+        "sitemap_product_urls": 3
+      },
+      "Kicx": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Dynamic State": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Sundown Audio": {
+        "new_models": 289,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Skar Audio": {
+        "new_models": 156,
+        "product_pages": 169,
+        "sitemap_product_urls": 169
+      },
+      "DD Audio": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Ground Zero": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "B2 Audio": {
+        "new_models": 80,
+        "product_pages": 18,
+        "sitemap_product_urls": 18
+      },
+      "Taramps": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Stetsom": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Rockford Fosgate": {
+        "new_models": 1,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Hertz": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Fi Car Audio": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      },
+      "Resilient Sounds": {
+        "new_models": 0,
+        "product_pages": 0,
+        "sitemap_product_urls": 0
+      }
+    }
+  },
+  "requests": {
+    "https://www.drom.ru": 215,
+    "https://deafbonce.com": 286,
+    "https://pridecaraudio.com": 6,
+    "https://www.aurael.ru": 295,
+    "https://ural-auto.ru": 9,
+    "https://sundownaudio.com": 14,
+    "https://www.skaraudio.com": 176,
+    "https://ddaudio.com": 6,
+    "https://www.ground-zero-audio.com": 14,
+    "https://b2audio.com": 6,
+    "https://www.b2audio.com": 30,
+    "https://www.taramps.com.br": 6,
+    "https://stetsom.com.br": 20,
+    "https://rockfordfosgate.com": 6,
+    "https://hertz-audio.com": 6,
+    "https://www.ficaraudio.com": 6,
+    "https://www.resilientsounds.com": 8
+  },
+  "errors": [
+    "HTTP 404 https://deafbonce.com/products.json?limit=250&page=1",
+    "HTTP 404 https://deafbonce.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://pridecaraudio.com/products.json?limit=250&page=1",
+    "HTTP 404 https://pridecaraudio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://pridecaraudio.com/sitemap.xml",
+    "HTTP 404 https://pridecaraudio.com/sitemap_index.xml",
+    "HTTP 404 https://pridecaraudio.com/product-sitemap.xml",
+    "HTTP 404 https://pridecaraudio.com/products/",
+    "HTTP 404 https://www.aurael.ru/products.json?limit=250&page=1",
+    "HTTP 404 https://www.aurael.ru/sitemap_index.xml",
+    "HTTP 404 https://www.aurael.ru/product-sitemap.xml",
+    "ROBOTS https://dlaudio.ru/products.json?limit=250&page=1",
+    "ROBOTS https://dlaudio.ru/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "ROBOTS https://dlaudio.ru/sitemap.xml",
+    "ROBOTS https://dlaudio.ru/sitemap_index.xml",
+    "ROBOTS https://dlaudio.ru/product-sitemap.xml",
+    "ROBOTS https://dlaudio.ru/catalog/",
+    "HTTP 404 https://ural-auto.ru/products.json?limit=250&page=1",
+    "HTTP 404 https://ural-auto.ru/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://ural-auto.ru/sitemap_index.xml",
+    "HTTP 404 https://ural-auto.ru/product-sitemap.xml",
+    "ROBOTS https://kicx.ru/products.json?limit=250&page=1",
+    "ROBOTS https://kicx.ru/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "ROBOTS https://kicx.ru/sitemap.xml",
+    "ROBOTS https://kicx.ru/sitemap_index.xml",
+    "ROBOTS https://kicx.ru/product-sitemap.xml",
+    "ROBOTS https://kicx.ru/catalog/",
+    "ROBOTS https://dynamicstatetech.ru/products.json?limit=250&page=1",
+    "ROBOTS https://dynamicstatetech.ru/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "ROBOTS https://dynamicstatetech.ru/sitemap.xml",
+    "ROBOTS https://dynamicstatetech.ru/sitemap_index.xml",
+    "ROBOTS https://dynamicstatetech.ru/product-sitemap.xml",
+    "ROBOTS https://dynamicstatetech.ru/catalog/",
+    "HTTP 400 https://sundownaudio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://sundownaudio.com/sitemap_index.xml",
+    "HTTP 404 https://sundownaudio.com/product-sitemap.xml",
+    "HTTP 400 https://sundownaudio.com/sitemap_products_1.xml",
+    "HTTP 400 https://sundownaudio.com/sitemap_pages_1.xml",
+    "HTTP 400 https://sundownaudio.com/sitemap_collections_1.xml",
+    "HTTP 404 https://sundownaudio.com/collections/subwoofers",
+    "HTTP 404 https://sundownaudio.com/collections/amplifiers",
+    "HTTP 404 https://www.skaraudio.com/products.json?limit=250&page=1",
+    "HTTP 403 https://www.skaraudio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://www.skaraudio.com/sitemap_index.xml",
+    "HTTP 404 https://www.skaraudio.com/product-sitemap.xml",
+    "HTTP 404 https://www.skaraudio.com/collections/subwoofers",
+    "HTTP 404 https://www.skaraudio.com/collections/amplifiers",
+    "HTTP 403 https://ddaudio.com/products.json?limit=250&page=1",
+    "HTTP 403 https://ddaudio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 403 https://ddaudio.com/sitemap.xml",
+    "HTTP 403 https://ddaudio.com/sitemap_index.xml",
+    "HTTP 403 https://ddaudio.com/product-sitemap.xml",
+    "HTTP 403 https://ddaudio.com/products/",
+    "HTTP 404 https://www.ground-zero-audio.com/products.json?limit=250&page=1",
+    "HTTP 404 https://www.ground-zero-audio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://www.ground-zero-audio.com/sitemap_index.xml",
+    "HTTP 404 https://www.ground-zero-audio.com/product-sitemap.xml",
+    "HTTP 404 https://www.ground-zero-audio.com/products/",
+    "HTTP 404 https://b2audio.com/products.json?limit=250&page=1",
+    "HTTP 404 https://b2audio.com/sitemap.xml",
+    "HTTP 404 https://b2audio.com/collections/",
+    "HTTP 403 https://www.taramps.com.br/products.json?limit=250&page=1",
+    "HTTP 403 https://www.taramps.com.br/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 403 https://www.taramps.com.br/sitemap.xml",
+    "HTTP 403 https://www.taramps.com.br/sitemap_index.xml",
+    "HTTP 403 https://www.taramps.com.br/product-sitemap.xml",
+    "HTTP 403 https://www.taramps.com.br/produtos/",
+    "HTTP 404 https://stetsom.com.br/products.json?limit=250&page=1",
+    "HTTP 404 https://stetsom.com.br/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://stetsom.com.br/product-sitemap.xml",
+    "HTTP 404 https://rockfordfosgate.com/products.json?limit=250&page=1",
+    "HTTP 404 https://rockfordfosgate.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://rockfordfosgate.com/sitemap_index.xml",
+    "HTTP 404 https://rockfordfosgate.com/product-sitemap.xml",
+    "HTTP 202 https://hertz-audio.com/products.json?limit=250&page=1",
+    "HTTP 202 https://hertz-audio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 202 https://hertz-audio.com/sitemap.xml",
+    "HTTP 202 https://hertz-audio.com/sitemap_index.xml",
+    "HTTP 202 https://hertz-audio.com/product-sitemap.xml",
+    "HTTP 202 https://hertz-audio.com/product/",
+    "HTTP 404 https://www.ficaraudio.com/products.json?limit=250&page=1",
+    "HTTP 404 https://www.ficaraudio.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 404 https://www.ficaraudio.com/sitemap.xml",
+    "HTTP 404 https://www.ficaraudio.com/sitemap_index.xml",
+    "HTTP 404 https://www.ficaraudio.com/product-sitemap.xml",
+    "HTTP 404 https://www.ficaraudio.com/collections/",
+    "HTTP 400 https://www.resilientsounds.com/products.json?limit=250&page=1",
+    "HTTP 404 https://www.resilientsounds.com/wp-json/wc/store/v1/products?per_page=100&page=1",
+    "HTTP 400 https://www.resilientsounds.com/sitemap_index.xml",
+    "HTTP 404 https://www.resilientsounds.com/product-sitemap.xml",
+    "HTTP 404 https://www.resilientsounds.com/collections/"
+  ],
+  "complete": false
+}
