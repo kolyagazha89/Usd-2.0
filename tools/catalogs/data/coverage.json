@@ -1,0 +1,134 @@
+{
+  "generated_at": "2026-11-03",
+  "sources": "Manufacturer official websites and Drom (factual names only)",
+  "cars": {
+    "rows": 4347,
+    "brands": 308,
+    "fields": [
+      "марка",
+      "модель"
+    ],
+    "origin": "https://www.drom.ru/catalog/"
+  },
+  "audio": {
+    "rows": 2724,
+    "brands": 19,
+    "fields": [
+      "бренд",
+      "модель",
+      "категория"
+    ],
+    "categories": {
+      "AMPLIFIER": 694,
+      "AUDIO_COMPONENT": 1121,
+      "SUBWOOFER": 801,
+      "HEAD_UNIT": 74,
+      "DSP": 34
+    },
+    "counts_by_brand": {
+      "Apocalypse": 107,
+      "Aura": 178,
+      "B2 Audio": 62,
+      "DD Audio": 392,
+      "Deaf Bonce": 9,
+      "DL Audio": 197,
+      "EDGE": 99,
+      "Fi Car Audio": 31,
+      "Ground Zero": 291,
+      "Hannibal": 36,
+      "Machete": 91,
+      "Pride": 287,
+      "Resilient Sounds": 43,
+      "Rockford Fosgate": 231,
+      "SP Audio": 106,
+      "Stetsom": 74,
+      "Sundown Audio": 279,
+      "Taramps": 42,
+      "Урал": 169
+    }
+  },
+  "fragment_coverage": [
+    {
+      "manufacturer": "deafbonce",
+      "rows": 243
+    },
+    {
+      "manufacturer": "sundown_audio",
+      "rows": 279
+    },
+    {
+      "manufacturer": "edge",
+      "rows": 99
+    },
+    {
+      "manufacturer": "sp_audio",
+      "rows": 106
+    },
+    {
+      "manufacturer": "dd_audio",
+      "rows": 392
+    },
+    {
+      "manufacturer": "b2_audio",
+      "rows": 62
+    },
+    {
+      "manufacturer": "aura",
+      "rows": 178
+    },
+    {
+      "manufacturer": "pride",
+      "rows": 152
+    },
+    {
+      "manufacturer": "pride_archive",
+      "rows": 143
+    },
+    {
+      "manufacturer": "dl_audio",
+      "rows": 197
+    },
+    {
+      "manufacturer": "ural",
+      "rows": 169
+    },
+    {
+      "manufacturer": "fi_car_audio",
+      "rows": 31
+    },
+    {
+      "manufacturer": "ground_zero",
+      "rows": 291
+    },
+    {
+      "manufacturer": "rockford_fosgate",
+      "rows": 231
+    },
+    {
+      "manufacturer": "stetsom",
+      "rows": 74
+    },
+    {
+      "manufacturer": "taramps",
+      "rows": 42
+    },
+    {
+      "manufacturer": "resilient_sounds",
+      "rows": 43
+    }
+  ],
+  "validation": {
+    "deduped_by": "casefolded brand and model",
+    "rejected": 2,
+    "category_conflicts": 0,
+    "conflict_samples": []
+  },
+  "missing_manufacturers": [
+    "Kicx (unreachable origin)",
+    "Dynamic State (unreachable origin)",
+    "SounDigital (catalog pages block automated access)",
+    "Hertz (product pages blocked)"
+  ],
+  "completeness": "partial; comprehensive within reachable catalogs, not certified all current and historical models",
+  "production_import": false
+}
