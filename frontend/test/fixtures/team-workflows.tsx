@@ -13,6 +13,7 @@ export async function runTeamWorkflows(){
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
+  if(path==='/teams/public/t1/achievements')return {teamId:'t1',teamName:'First team',scope:'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,stages:[]};
   if(path==='/teams/admin')return malformedAdmin?[]:{teams:[team],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
