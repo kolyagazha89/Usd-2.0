@@ -431,6 +431,32 @@ export class MailService {
     }
   }
 
+  /**
+   * ADMIN-only connection verification. No message is sent and neither SMTP
+   * acceptance nor connection readiness proves an inbox delivery.
+   * runAdminMailTest keeps SMTP/OAuth details and credentials out of the API.
+   */
+  async checkConnection(): Promise<{ success: true; connected: boolean; deliveryConfirmed: false; message: string }> {
+    const provider = this.getDeliveryStatus().provider;
+    return this.runAdminMailTest(async () => {
+      if (!provider.includes('SMTP')) {
+        return {
+          success: true as const,
+          connected: false,
+          deliveryConfirmed: false as const,
+          message: 'Для HTTPS-провайдера используйте отправку контрольного письма.',
+        };
+      }
+      await this.transporter.verify();
+      return {
+        success: true as const,
+        connected: true,
+        deliveryConfirmed: false as const,
+        message: 'SMTP-соединение и авторизация успешны. Теперь отправьте тестовое письмо и проверьте его получение.',
+      };
+    });
+  }
+
   async sendTestEmail(email: string): Promise<{ success: true; providerAccepted: true; deliveryConfirmed: false; message: string }> {
     const sentAt = new Date().toISOString();
     const message = renderBrandedEmail({

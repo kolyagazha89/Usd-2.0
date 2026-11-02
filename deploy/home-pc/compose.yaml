@@ -35,6 +35,10 @@ services:
       PORT: "3000"
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
       AUTH_COOKIE_SECURE: "true"
+      # Release policy: never auto-send stage mail from the personal mailbox.
+      # Fail closed if an old .env still contains Gmail/Resend settings.
+      MAIL_PROVIDER: smtp
+      MAIL_ACCOUNT_ONLY: "true"
       CORS_ORIGINS: https://${APP_DOMAIN:?set APP_DOMAIN}
       CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
       TRUST_PROXY_HOPS: "1"

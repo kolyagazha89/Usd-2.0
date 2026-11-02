@@ -65,4 +65,30 @@ describe('MailController', () => {
     expect(emailNotifications.sendTestTrigger).toHaveBeenCalledWith('STAGE_REGISTRATION_OPEN', 'admin@example.com', undefined);
   });
 
+  it('restricts manual stage-email tests in release mode but keeps account templates and connection check', async () => {
+    const original = process.env.MAIL_ACCOUNT_ONLY;
+    process.env.MAIL_ACCOUNT_ONLY = 'true';
+    try {
+      const mail = {
+        runAdminMailTest: jest.fn(async (work: () => Promise<unknown>) => work()),
+        sendTestAuthTemplate: jest.fn().mockResolvedValue({ success: true }),
+        checkConnection: jest.fn().mockResolvedValue({ success: true, connected: true }),
+      };
+      const notifications = { sendTestTrigger: jest.fn() };
+      const controller = new MailController(mail as any, notifications as any);
+      await expect(controller.sendTestTrigger({ email: 'test@example.com', type: 'STAGE_REMINDER_3D' }))
+        .rejects.toThrow(BadRequestException);
+      expect(notifications.sendTestTrigger).not.toHaveBeenCalled();
+      await expect(controller.sendTestTrigger({ email: 'test@example.com', type: 'AUTH_PASSWORD_RESET' }))
+        .resolves.toEqual({ success: true });
+      expect(mail.sendTestAuthTemplate).toHaveBeenCalledWith('test@example.com', 'AUTH_PASSWORD_RESET');
+      expect(mail.runAdminMailTest).toHaveBeenCalledTimes(1);
+      await expect(controller.checkConnection()).resolves.toMatchObject({ connected: true });
+      expect(Reflect.getMetadata(ROLES_KEY, MailController.prototype.checkConnection)).toEqual(['ADMIN']);
+    } finally {
+      if (original === undefined) delete process.env.MAIL_ACCOUNT_ONLY;
+      else process.env.MAIL_ACCOUNT_ONLY = original;
+    }
+  });
+
 });

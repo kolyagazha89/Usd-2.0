@@ -338,3 +338,7 @@ body .usd-auth-simple .login-card{justify-self:center}
  body .usd-member .participant-portal-header .public-brand>span:last-child{overflow:hidden}
  body .usd-member .participant-portal-header .public-brand strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+/* Anonymous password-reset acknowledgement is informational, not verified mail delivery. */
+body .usd-auth .notice.auth-recovery-notice{background:#202936!important;border-color:#445365!important;color:#cedae6!important}
+body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!important}

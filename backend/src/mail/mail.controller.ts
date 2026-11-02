@@ -25,6 +25,12 @@ export class MailController {
   }
 
   @Roles('ADMIN')
+  @Post('check-connection')
+  checkConnection() {
+    return this.mailService.checkConnection();
+  }
+
+  @Roles('ADMIN')
   @Post('test-trigger')
   async sendTestTrigger(@Body() body: { email?: string; type?: string; stageId?: string }) {
     const email = this.normalizeEmail(body?.email);
@@ -32,6 +38,9 @@ export class MailController {
     this.validateEmail(email);
     if (!allowed.includes(String(body?.type))) throw new BadRequestException('Выберите поддерживаемый триггер письма');
     const type = String(body.type);
+    if (process.env.MAIL_ACCOUNT_ONLY === 'true' && !type.startsWith('AUTH_')) {
+      throw new BadRequestException('В релизном режиме почта используется только для аккаунтов USD. Уведомления об этапах работают через PUSH.');
+    }
     const stageId = typeof body?.stageId === 'string' ? body.stageId.trim() : undefined;
     if (stageId && stageId.length > 100) throw new BadRequestException('Некорректный идентификатор этапа');
     if (type.startsWith('AUTH_')) {

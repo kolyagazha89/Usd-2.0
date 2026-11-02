@@ -1,18 +1,13 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,CheckCircle2,Clock3,Mail,Send,ShieldAlert} from 'lucide-react';
-import {apiGet,apiPost,listData} from '../api';
+import {AlertTriangle,CheckCircle2,Mail,Send,ShieldCheck} from 'lucide-react';
+import {apiGet,apiPost} from '../api';
 
-const triggerTypes=[
- {value:'STAGE_REGISTRATION_OPEN',label:'Открытие регистрации',description:'Письмо о том, что регистрация на опубликованный этап открыта.'},
- {value:'REGISTRATION_CONFIRMED',label:'Подтверждение регистрации',description:'Подтверждение заявки участника на этап.'},
- {value:'STAGE_REMINDER_3D',label:'Напоминание за 3 дня',description:'Автоматическое письмо участникам за три календарных дня до этапа.'},
- {value:'STAGE_REMINDER_1D',label:'Напоминание за 1 день',description:'Автоматическое письмо участникам за один календарный день до этапа.'},
- {value:'AUTH_EMAIL_VERIFICATION',label:'Подтверждение email аккаунта',description:'Системное письмо для подтверждения адреса при создании аккаунта.'},
- {value:'AUTH_PASSWORD_RESET',label:'Восстановление пароля',description:'Системное письмо со ссылкой для восстановления доступа к аккаунту.'},
- {value:'AUTH_EMAIL_CHANGE',label:'Подтверждение нового email',description:'Системное письмо для подтверждения смены адреса электронной почты.'},
+type MailStatus={provider:string;ready:boolean;missing:string[];note:string};
+const templates=[
+ {value:'AUTH_EMAIL_VERIFICATION',label:'Подтверждение email',description:'Тест без настоящей ссылки подтверждения и без регистрации аккаунта.'},
+ {value:'AUTH_PASSWORD_RESET',label:'Восстановление пароля',description:'Тест без настоящего токена и без изменения пароля.'},
+ {value:'AUTH_EMAIL_CHANGE',label:'Смена email',description:'Тест без изменения адреса аккаунта.'},
 ];
-
-// Remove invisible formatting characters that can be introduced by copying an address.
 function normalizeEmail(value:string){return value.replace(/[\u200B-\u200D\uFEFF]/g,'').trim();}
 function isPlausibleEmail(value:string){
  if(!value||value.length>254||/\s/.test(value)||/[<>(),;:"\\]/.test(value)||value.includes('[')||value.includes(']'))return false;
@@ -25,55 +20,72 @@ function isPlausibleEmail(value:string){
 }
 
 export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>}){
- const[mailStatus,setMailStatus]=useState<{provider:string;ready:boolean;missing:string[];note:string}|null>(null),[mailStatusError,setMailStatusError]=useState(false),[mailStatusLoading,setMailStatusLoading]=useState(false);
- const[email,setEmail]=useState(''),[type,setType]=useState('AUTH_EMAIL_VERIFICATION'),[stageId,setStageId]=useState(''),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[lastResult,setLastResult]=useState<any>(null);
- useEffect(()=>{let active=true;apiGet<any>('/stages').then(r=>{if(active)setStages(listData(r).filter((s:any)=>!s.isDeleted))}).catch(()=>{if(active)setStages([])}).finally(()=>{if(active)setLoadingStages(false)});return()=>{active=false}},[]);
- const checkMailChannel=async()=>{setMailStatusLoading(true);setMailStatusError(false);try{const info=await apiGet<{provider:string;ready:boolean;missing:string[];note:string}>('/mail/status');if(!info||typeof info.provider!=='string'||!Array.isArray(info.missing)||typeof info.note!=='string')throw new Error('Некорректный ответ диагностики почты');setMailStatus(info)}catch{setMailStatus(null);setMailStatusError(true)}finally{setMailStatusLoading(false)}};
- useEffect(()=>{void checkMailChannel()},[]);
- const selected=triggerTypes.find(t=>t.value===type)??triggerTypes[0];
- const normalizedEmail=normalizeEmail(email);
- const emailValid=isPlausibleEmail(normalizedEmail);
+ const[status,setStatus]=useState<MailStatus|null>(null),[statusError,setStatusError]=useState(false),[checking,setChecking]=useState(false);
+ const[email,setEmail]=useState(''),[type,setType]=useState(templates[0].value),[sending,setSending]=useState(false),[connecting,setConnecting]=useState(false);
+ const[error,setError]=useState(''),[notice,setNotice]=useState(''),[connectionNotice,setConnectionNotice]=useState(''),[lastResult,setLastResult]=useState<any>(null);
+ const refreshStatus=async()=>{
+  setChecking(true);setStatusError(false);
+  try{
+   const info=await apiGet<MailStatus>('/mail/status');
+   if(!info||typeof info.provider!=='string'||!Array.isArray(info.missing)||typeof info.note!=='string')throw new Error('Некорректный ответ');
+   setStatus(info);
+  }catch{setStatus(null);setStatusError(true)}
+  finally{setChecking(false)}
+ };
+ useEffect(()=>{void refreshStatus()},[]);
+ const selected=templates.find(t=>t.value===type)??templates[0];
+ const normalizedEmail=normalizeEmail(email),emailValid=isPlausibleEmail(normalizedEmail);
+ const checkConnection=async()=>{
+  setError('');setConnectionNotice('');setConnecting(true);
+  try{
+   const result=await apiPost<{message:string}>('/mail/check-connection',{});
+   setConnectionNotice(result.message);
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось проверить SMTP-соединение')}
+  finally{setConnecting(false);void refreshStatus()}
+ };
  const send=async()=>{
-  if(!emailValid){setError('Проверьте адрес: введите email в формате name@example.com без пробелов.');return;}
+  if(!emailValid){setError('Введите корректный email без пробелов.');return}
   setSending(true);setError('');setNotice('');setLastResult(null);
   try{
-   const result=await apiPost<any>('/mail/test-trigger',{email:normalizedEmail,type,stageId:stageId||undefined});
-   setLastResult(result);setNotice(result?.message||'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам».');
-  }catch(e){
-   const message=e instanceof Error?e.message:'Не удалось отправить тестовый шаблон';
-   setError(message.includes('корректный email')?'Сервер отклонил адрес. Проверьте, нет ли скрытых символов или пробелов, и попробуйте ввести email вручную.':message);
-  }finally{setSending(false);void checkMailChannel();}
+   const result=await apiPost<any>('/mail/test-trigger',{email:normalizedEmail,type});
+   setLastResult(result);
+   setNotice(result?.message||'Провайдер принял запрос. Проверьте почту.');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось отправить тестовое письмо')}
+  finally{setSending(false);void refreshStatus()}
  };
- return <PageFrame title="Тестирование писем" subtitle="Отдельная рабочая страница для проверки почтового провайдера и шаблонов уведомлений USD">
+ return <PageFrame title="Тестирование писем" subtitle="Релизный почтовый канал USD · только обязательные письма аккаунта">
   <div className="settings-section">
-   <PanelTitle title="Отправка тестового шаблона" icon={Mail}/>
-   <div className={'mail-channel-status '+(mailStatus?.ready?'ready':mailStatus?'needs-setup':'unknown')} role="status">
-    <div><strong>Почтовый канал: {mailStatus?.provider??'проверяем'}</strong><button className="secondary-button compact" type="button" disabled={mailStatusLoading} onClick={()=>void checkMailChannel()}>{mailStatusLoading?'Проверяем…':'Проверить настройки'}</button></div>
-    {mailStatus&&<><p>{mailStatus.note}</p>{mailStatus.missing.length>0&&<p><b>Нужно настроить на сервере:</b> {mailStatus.missing.join(', ')}</p>}</>}
-    {mailStatusError&&<p>Диагностика почтового канала сейчас недоступна. Возможно, новая версия API ещё не опубликована.</p>}
-    {mailStatus?.ready&&<small>Готовность означает только наличие параметров, а не успешную доставку. Запустите тест ниже.</small>}
-    {mailStatus&&!mailStatus.ready&&<small>Отправка заблокирована до устранения перечисленных настроек. Пароль приложения вводится только в окружении Ubuntu, не в браузере.</small>}
+   <PanelTitle title="Яндекс Почта — состояние подключения" icon={Mail}/>
+   <div className={'mail-channel-status '+(status?.ready?'ready':status?'needs-setup':'unknown')} role="status">
+    <div><strong>{status?.provider??'Проверяем почту'}</strong><button type="button" className="secondary-button compact" disabled={checking} onClick={()=>void refreshStatus()}>{checking?'Проверяем…':'Обновить статус'}</button></div>
+    {status&&<><p>{status.note}</p>{status.missing.length>0&&<p><b>Нужно настроить на Ubuntu:</b> {status.missing.join(', ')}</p>}</>}
+    {statusError&&<p>Диагностика недоступна. Проверьте API и опубликованную версию.</p>}
+    {status?.ready&&<small>Настройки заполнены, но соединение с SMTP и доставка писем пока не проверены.</small>}
    </div>
-   <p className="settings-help">Письмо отправляется только на указанный адрес. Эта проверка не регистрирует участников и не запускает массовую рассылку. Ответ провайдера подтверждает принятие запроса, но не фактическую доставку.</p>
+   <p className="settings-help">В релизе через почту отправляем только подтверждение email, восстановление пароля и смену адреса. Анонсы, напоминания и события этапов отправляются через PUSH, без массовых email-рассылок.</p>
+   <div className="button-row"><button type="button" className="secondary-button" disabled={!status?.ready||connecting} onClick={()=>void checkConnection()}><ShieldCheck size={16}/>{connecting?'Проверяем SMTP…':'Проверить SMTP и пароль приложения'}</button></div>
+   {connectionNotice&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{connectionNotice}</span></div>}
+  </div>
+  <div className="settings-section">
+   <PanelTitle title="Безопасное тестовое письмо" icon={Send}/>
+   <p className="settings-help">Тест можно отправить на любой ваш почтовый ящик, даже если аккаунта USD с таким адресом нет. Тест не создаёт токены и не меняет данные аккаунтов. Для проверки настоящего восстановления используйте подтверждённый аккаунт USD.</p>
    <div className="settings-form-grid">
-    <label><span className="field-label">Тестовый email</span><input type="email" autoComplete="email" maxLength={300} required aria-invalid={Boolean(email)&&!emailValid} value={email} onChange={e=>{setEmail(e.target.value);setError('');setNotice('')}} placeholder="Укажите свой почтовый ящик"/><small className="field-help">{email&&!emailValid?'Введите адрес в формате name@example.com без пробелов.':'После отправки проверьте «Входящие», «Спам» и журнал почтового провайдера.'}</small></label>
-    <label><span className="field-label">Тип письма</span><select value={type} onChange={e=>{setType(e.target.value);setError('');setNotice('')}}>{triggerTypes.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select><small className="field-help">{selected.description}</small></label>
-    <label><span className="field-label">Этап для примера в письме</span><select value={stageId} onChange={e=>setStageId(e.target.value)} disabled={loadingStages}><option value="">Без выбранного этапа</option>{stages.map((s:any)=><option key={s.id} value={s.id}>{s.name||('Этап №'+s.stageNumber)} · {s.city||'город не указан'}</option>)}</select><small className="field-help">Выбор этапа влияет только на текст тестового письма.</small></label>
+    <label><span className="field-label">Тестовый email</span><input type="email" autoComplete="email" maxLength={254} value={email} aria-invalid={Boolean(email)&&!emailValid} onChange={e=>{setEmail(e.target.value);setError('');setNotice('')}} placeholder="Ваш почтовый адрес"/><small className="field-help">После отправки проверьте «Входящие» и «Спам».</small></label>
+    <label><span className="field-label">Тип письма</span><select value={type} onChange={e=>{setType(e.target.value);setError('');setNotice('')}}>{templates.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select><small className="field-help">{selected.description}</small></label>
    </div>
    {error&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
    {notice&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{notice}</span></div>}
-   {lastResult&&<div className="mail-test-result"><strong>Статус запроса</strong><p>Тип: {selected.label}</p><p>Получатель: {normalizedEmail}</p><p>Провайдер принял запрос: {lastResult.providerAccepted?'да':'нет'}</p><p>Доставка подтверждена системой: {lastResult.deliveryConfirmed?'да':'нет'}</p></div>}
-   <div className="button-row"><button className="primary-button" onClick={()=>void send()} disabled={sending||!emailValid||mailStatus?.ready===false}>{sending?<><span className="spin">◌</span> Отправляем…</>:<><Send size={15}/> Отправить тестовое письмо</>}</button></div>
+   {lastResult&&<div className="mail-test-result"><strong>Результат проверки</strong><p>Получатель: {normalizedEmail}</p><p>Провайдер принял запрос: {lastResult.providerAccepted?'да':'нет'}</p><p>Доставка подтверждена: {lastResult.deliveryConfirmed?'да':'нет — проверьте почтовый ящик'}</p></div>}
+   <div className="button-row"><button type="button" className="primary-button" onClick={()=>void send()} disabled={sending||!emailValid||!status?.ready}>{sending?'Отправляем…':<><Send size={15}/> Отправить тест</>}</button></div>
   </div>
   <div className="settings-section">
-   <PanelTitle title="Как проверить автоматические триггеры" icon={Clock3}/>
+   <PanelTitle title="Проверка перед релизом" icon={ShieldCheck}/>
    <ol className="mail-test-steps">
-    <li><strong>Сначала проверьте шаблоны выше.</strong> Это безопасная отправка на ваш адрес, без писем участникам.</li>
-    <li><strong>Обычная Яндекс Почта — только письма аккаунта.</strong> При MAIL_ACCOUNT_ONLY=true автоматические письма об этапах и напоминания отключены: для них используются PUSH. Ручное тестирование шаблонов выше по-прежнему доступно. Если администратор отдельно включит полноценную почтовую рассылку, напоминания проверяются фоновым процессом раз в 15 минут.</li>
-    <li><strong>Для проверки даты используйте только отдельный тестовый этап.</strong> Изменение даты реального этапа может отправить письма всем зарегистрированным участникам; открытие регистрации может затронуть пользователей с активным согласием на новости. Не меняйте даты боевого этапа ради теста.</li>
-    <li><strong>Не изменяйте реальный этап ради проверки.</strong> Для рассылки по датам после её отдельного включения используйте тестовый этап и тестовые регистрации с контролируемыми адресами. При MAIL_ACCOUNT_ONLY=true отправок по датам не будет.</li>
+    <li>Проверьте настройки канала и включённый SMTP_EGRESS_ALLOWED.</li>
+    <li>Проверьте соединение и пароль приложения — это не гарантирует доставку.</li>
+    <li>Отправьте тестовое письмо и убедитесь, что оно действительно пришло.</li>
+    <li>Проверьте регистрацию нового аккаунта, подтверждение email и настоящее восстановление пароля для существующего подтверждённого аккаунта.</li>
    </ol>
-   <div className="notice"><ShieldAlert size={16}/><span>Системная защита от повторов сохраняется. Повторная отправка одного и того же автоматического события не гарантируется, если его ключ уже записан в журнале.</span></div>
   </div>
  </PageFrame>;
 }
