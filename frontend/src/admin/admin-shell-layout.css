@@ -213,3 +213,78 @@ body .app-shell .main .topbar-actions {
 @media (prefers-reduced-motion: reduce) {
   body .app-shell > .sidebar { transition: none !important; }
 }
+
+
+/* USD light-premium admin finish.
+ * Sidebar and content geometry above are authoritative; only apply visual
+ * surfaces, actionable focus and mobile field semantics below. */
+body .app-shell {
+  --usd-admin-paper:#ffffff;
+  --usd-admin-canvas:#f3f5f8;
+  --usd-admin-ink:#20232a;
+  --usd-admin-muted:#646b77;
+  --usd-admin-line:#dfe2e7;
+  --usd-admin-accent:#d81f3b;
+  color-scheme:light;
+}
+body .app-shell > .main,
+body .app-shell .main > .content {background:var(--usd-admin-canvas)!important}
+body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,
+  .notification-overview,.notification-composer,.notification-history,.settings-section) {
+  border-color:var(--usd-admin-line);
+  background-color:var(--usd-admin-paper);
+  box-shadow:0 8px 28px rgba(22,26,38,.045);
+}
+body .app-shell .main .content :is(.page-heading h1,.panel-title h2) {
+  color:var(--usd-admin-ink);
+  text-wrap:balance;
+  letter-spacing:-.025em;
+}
+body .app-shell .main .content :is(.page-heading p,.field-help,.settings-help) {
+  color:var(--usd-admin-muted);
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button) {
+  min-height:42px;
+  border-radius:10px;
+  font-weight:700;
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+body .app-shell .main .content .primary-button {
+  background:#d81f3b;
+  border-color:#c71934;
+  color:#fff;
+  box-shadow:0 6px 18px rgba(216,31,59,.14);
+}
+body .app-shell .main .content .primary-button:hover:not(:disabled) {
+  background:#bd1934;
+  border-color:#ae1730;
+}
+body .app-shell .main .content :is(button,a,input,textarea,select):focus-visible {
+  outline:2px solid var(--usd-admin-accent);
+  outline-offset:2px;
+}
+body .app-shell .main .content :is(.data-table,.table) {
+  border-color:var(--usd-admin-line);
+}
+body .app-shell .main .content :is(.data-table,.table) thead {
+  background:#f5f6f8;
+  color:#4c5360;
+}
+body .app-shell .main .content :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  background:#ffffff;
+  color:var(--usd-admin-ink);
+}
+body .app-shell .main .content :is(input,select,textarea):disabled {
+  background:#f0f1f3;
+  color:#767b84;
+}
+body .app-shell .main .content input[type="checkbox"],
+body .app-shell .main .content input[type="radio"] {accent-color:var(--usd-admin-accent)}
+@media(max-width:800px){
+  body .app-shell .main .content :is(input,select,textarea){font-size:16px}
+  body .app-shell .main .content :is(.page-heading h1,.panel-title h2) {overflow-wrap:break-word}
+  body .app-shell .main .content :is(.primary-button,.secondary-button){white-space:normal;text-align:center}
+}
+@media(prefers-reduced-motion:reduce){
+  body .app-shell .main .content :is(.primary-button,.secondary-button){transition:none}
+}
