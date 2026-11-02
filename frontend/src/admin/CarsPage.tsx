@@ -1,5 +1,5 @@
 import './car-editor-journey.css';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,type FormEvent} from 'react';
 import {AlertTriangle,ChevronLeft,ChevronRight,Loader2,Plus,RefreshCw,Search} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {formatPlateInput,isValidPlate} from '../profile-validation';
@@ -50,7 +50,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
   if(!plateReady)return 'Укажите корректный госномер для выбранной страны.';
   return '';
  };
- const advance=(event:React.FormEvent<HTMLFormElement>)=>{
+ const advance=(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();setValidationError('');
   if(step===0&&!identityReady){setValidationError('Выберите участника, марку и модель автомобиля.');return}
   if(step===1&&!plateReady){setValidationError('Госномер не соответствует формату выбранной страны.');return}
