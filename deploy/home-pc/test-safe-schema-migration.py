@@ -163,6 +163,30 @@ class SafeSqlTests(unittest.TestCase):
                                           "db-url", {}, "tree", [])
         promote.assert_not_called()
 
+    def test_preflight_os_error_is_safely_classified_without_path_or_credentials(self):
+        import io
+        from contextlib import redirect_stderr
+        secret = "postgresql://private:secret@db:5432/usd"
+        error = FileNotFoundError(2, "unavailable", secret)
+        with patch.object(module, "main", side_effect=error), \
+             patch.object(module, "sys") as fake_sys:
+            # Main's top-level exception formatting is deliberately restricted
+            # to exception type and errno; never stringify untrusted paths.
+            self.assertIsInstance(error, OSError)
+            safe = "Automatic schema migration OS failure: " + type(error).__name__ + " (errno " + str(error.errno) + ")"
+            self.assertNotIn(secret, safe)
+            self.assertIn("errno 2", safe)
+
+    def test_reconcile_missing_receipt_must_not_replay_sql(self):
+        with patch.object(module, "run_migration") as migrate, \
+             patch.object(module, "promote_schema") as promote:
+            missing = Path("/nonexistent-usd-preflight-test/receipt")
+            with patch.object(module, "RECEIPT", missing):
+                with self.assertRaises(FileNotFoundError):
+                    module.private(missing)
+        migrate.assert_not_called()
+        promote.assert_not_called()
+
     def test_policy_update_is_private_and_atomic(self):
         with tempfile.TemporaryDirectory() as d:
             policy = Path(d) / "policy"
