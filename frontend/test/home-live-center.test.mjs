@@ -14,7 +14,9 @@ test('homepage provides visible, editable video and LIVE scoreboard space even w
  assert.match(home,/usd-broadcast-standby/);
  assert.match(home,/usd-broadcast-empty/);
  assert.match(home,/liveStage=stages\.find/);
- assert.match(home,/liveRows\.slice\(0,5\)/);
+ assert.match(home,/<LiveClassCarousel rows=\{liveRows\}/);
+  assert.doesNotMatch(home,/liveRows\.slice\(0,5\)/);
+  assert.match(home,/<RecordMinis rows=\{records\}/);
  assert.doesNotMatch(home,/settings\.liveResults\?\.enabled!==false&&liveResults\.length>0&&<section/);
  assert.match(admin,/Медиацентр USD LIVE/);
  assert.match(admin,/showLiveStream:e\.target\.checked/);
