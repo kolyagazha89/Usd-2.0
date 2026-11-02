@@ -16,6 +16,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PushService } from './push.service';
 import {
   PushAnnouncementDto,
+  PushDeviceTestDto,
   PushPreferencesDto,
   PushSubscribeDto,
 } from './push.dto';
@@ -59,5 +60,11 @@ export class PushAdminController {
     @Body() body: PushAnnouncementDto,
   ) {
     return this.service.announce(req.user.sub, body);
+  }
+  @Roles('ADMIN') @Post('test-device') testCurrentDevice(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: PushDeviceTestDto,
+  ) {
+    return this.service.testCurrentDevice(req.user.sub, body.endpoint);
   }
 }
