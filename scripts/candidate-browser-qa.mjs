@@ -74,6 +74,7 @@ function dataFor(url,role){
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
  if(p==='/seasons'||p==='/seasons/public')return [season];
  if(p==='/directions')return [klass.direction];
+ if(p==='/admin/participants')return [participant];
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return car;
@@ -89,13 +90,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -181,6 +182,48 @@ try{
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
       assert.ok(['rgb(6, 9, 13)','rgb(8, 11, 15)'].includes(surface),'member account stays graphite dark on all profile pages: '+surface);
       row.sitewideMember='graphite account and consistent form design';
+     }
+     if(role==='ADMIN'&&route.startsWith('/admin/site-settings')){
+      const journey=page.locator('.usd-editor-section-nav');
+      await journey.waitFor({state:'visible'});
+      assert.equal(await journey.locator('button').count(),11,'site CMS editor must split eleven independent screens');
+      const expected=new URL('https://usd.test'+route).searchParams.get('section')||'branding';
+      const selected=journey.locator('[aria-current="step"]');
+      assert.equal(await selected.count(),1,'only current CMS screen is selected');
+      if(expected==='homepage'){
+       assert.equal(await page.locator('.usd-home-step-nav button').count(),3,'home editor has three short step pages');
+       const step=new URL('https://usd.test'+route).searchParams.get('step')||'hero';
+       const title=await page.locator('.usd-home-step-nav [aria-current="step"]').innerText();
+       assert.ok(title.includes(({hero:'Первый экран',copy:'Тексты и карточки',blocks:'Блоки и LIVE'})[step]),'homepage displays correct step');
+       if(step==='hero'){
+        assert.equal(await page.locator('.homepage-hero-upload').count(),1);
+        assert.equal(await page.locator('.block-sort-list').count(),0);
+       }
+       if(step==='copy'){
+        assert.equal(await page.locator('.homepage-hero-upload').count(),0);
+        assert.equal(await page.locator('.block-sort-list').count(),0);
+       }
+       if(step==='blocks')assert.equal(await page.locator('.block-sort-list').count(),1);
+      }
+      row.cmsJourney='eleven sections, home editor 3 pages and saved-state overview';
+     }
+     if(role==='ADMIN'&&route==='/admin/cars/new'){
+      const flow=page.locator('.usd-car-editor-journey');
+      await flow.waitFor({state:'visible'});
+      assert.equal(await flow.locator('.usd-car-editor-step').count(),3,'car form must be 3 distinct pages');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      await flow.getByRole('alert').filter({hasText:'марку и модель'}).waitFor();
+      await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
+      await flow.getByLabel('Марка',{exact:true}).fill('Lada');
+      await flow.getByLabel('Модель',{exact:true}).fill('Vesta');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      assert.equal(await flow.getByLabel('Госномер',{exact:true}).count(),1);
+      await flow.getByLabel('Госномер',{exact:true}).fill('А123АА72');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      await flow.getByRole('heading',{name:'Проверьте карточку'}).waitFor();
+      assert.equal(await flow.getByRole('button',{name:'Сохранить автомобиль'}).count(),1);
+      assert.equal(await flow.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'2');
+      row.carWizard='identity validation, registration number, final review without backend mutation';
      }
      if(role==='ADMIN'){
       const shell=await page.evaluate(()=>{
