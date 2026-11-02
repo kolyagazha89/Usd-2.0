@@ -131,13 +131,14 @@ def classify(hint, path=""):
  """Classify by the manufacturer's section, product type or explicit spec, never by a bare code."""
  p=path.lower();t=tidy(hint).lower()
  if BAD.search(t+" "+p):return None
- if re.search(r"/subwoofers?/",p) or re.search(r"sub[- ]?woofer|сабвуфер|сабвуф|саб ",t):return "SUB"
+ if re.search(r"/subwoofers?/",p) or re.search(r"sub[- ]?woofer|сабвуфер|сабвуф|саб ",t):return "SUBWOOFER"
  if re.search(r"/amplifiers?/",p) or re.search(r"amplifier|monoblock|mono[- ]?block|усилител|моноблок",t):return "AMPLIFIER"
  if re.search(r"head.?unit|receiver|car.?stereo|магнитол|головн.?.устройств",t):return "HEAD_UNIT"
- if re.search(r"coaxial|коаксиаль",t):return "COAXIAL"
- if re.search(r"midbass|mid.?bass|мидбас",t):return "MIDBASS"
- if re.search(r"midrange|mid.?range|среднечастот|сч.?динамик",t):return "MIDRANGE"
- if re.search(r"tweeter|horn|compression.driver|высокочастот|рупор|пищалк|вч.?динамик",t):return "TWEETER"
+ if re.search(r"signal.processor|audio.processor|\bdsp\b|процессор",t):return "DSP"
+ if re.search(r"coaxial|коаксиаль",t):return "AUDIO_COMPONENT"
+ if re.search(r"midbass|mid.?bass|мидбас",t):return "AUDIO_COMPONENT"
+ if re.search(r"midrange|mid.?range|среднечастот|сч.?динамик",t):return "AUDIO_COMPONENT"
+ if re.search(r"tweeter|horn|compression.driver|высокочастот|рупор|пищалк|вч.?динамик",t):return "AUDIO_COMPONENT"
  return None
 
 def product_type(soup):
