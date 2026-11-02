@@ -20,3 +20,18 @@
 .team-achievement-measure{text-align:right;display:grid;gap:3px;align-items:start}
 .team-achievement-measure strong{white-space:nowrap;color:#f3f5f8}
 @media(max-width:520px){.team-stage-card{padding:14px}.team-stage-grid{grid-template-columns:minmax(0,1fr)}.team-achievement-measure{text-align:left}}
+
+/* Readable team analytics in both dark public and participant sections. */
+.team-achievement-overview{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:18px 0}
+.team-achievement-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;flex:1 1 480px}
+.team-achievement-stats p{display:grid;gap:6px;align-content:center;margin:0;padding:14px;border:1px solid #484d55;border-radius:12px;background:#1c2027;color:#e4e9ef}
+.team-achievement-stats strong{font-size:26px;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+.team-achievement-stats span{color:#b6bec8;font-size:12px;line-height:1.4}
+.team-achievement-filter{display:grid;gap:7px;font-size:13px;min-width:min(100%,210px)}
+.team-achievement-filter select{width:100%;max-width:100%;padding:10px;border:1px solid #686d75;border-radius:9px;background:#20242c;color:#fff;font:inherit}
+.team-achievement-filter select:focus-visible{outline:2px solid #fa3957;outline-offset:2px}
+.team-review-queue{margin-bottom:24px}
+.team-review-list{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:12px 0 0;padding:0}
+.team-review-list button{min-height:44px;padding:12px 16px;border:1px solid #b91c36;border-radius:10px;background:#fff5f6;color:#652132;text-align:left;overflow-wrap:anywhere}
+.team-review-list button:focus-visible{outline:2px solid #b91c36;outline-offset:3px}
+@media(max-width:520px){.team-achievement-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.team-achievement-stats p:last-child{grid-column:1/-1}.team-achievement-filter{width:100%}.team-review-list{display:grid;grid-template-columns:minmax(0,1fr)}}

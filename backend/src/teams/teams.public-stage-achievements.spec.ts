@@ -44,7 +44,10 @@ describe('published team-stage performances',()=>{
    })},
    take:501,
   }));
-  expect(result).toMatchObject({scope:'CURRENT_PUBLIC_MEMBERS',total:3,truncated:false});
+  expect(result).toMatchObject({
+    scope:'CURRENT_PUBLIC_MEMBERS',total:3,truncated:false,
+    summary:{participants:1,podiums:2,firstPlaces:1,directions:[{name:'SPL',performances:3}]},
+  });
   expect(result.stages).toHaveLength(2);
   expect(result.stages[0].performances).toHaveLength(2);
   expect(result.stages[0].performances[0]).toMatchObject({id:'r1',value:'151.250',unit:'DB',place:1});
@@ -54,6 +57,7 @@ describe('published team-stage performances',()=>{
   db.team.findUnique.mockResolvedValue({id:'team-1',name:'Team USD',memberships:[]});
   await expect(service.publicStageAchievements('team-1')).resolves.toMatchObject({
    total:0,scope:'CURRENT_PUBLIC_MEMBERS',stages:[],
+   summary:{participants:0,podiums:0,firstPlaces:0,directions:[]},
   });
   expect(db.result.findMany).not.toHaveBeenCalled();
  });
@@ -70,5 +74,27 @@ describe('published team-stage performances',()=>{
   expect(data.total).toBe(500);
   expect(data.truncated).toBe(true);
   expect(data.stages[0].performances).toHaveLength(500);
+  expect(data.summary).toMatchObject({participants:1,podiums:500,firstPlaces:500});
  });
+});
+
+describe('team current-roster analytics boundaries',()=>{
+  it('counts distinct people and individual prize places without mixing incompatible units',async()=>{
+    const db:any={
+      team:{findUnique:jest.fn().mockResolvedValue({id:'t',name:'T',memberships:[{participantId:'p1'},{participantId:'p2'}]})},
+      result:{findMany:jest.fn()},
+    };
+    db.result.findMany.mockResolvedValue([
+      {...published('a','s1',1),registration:{...published('a','s1').registration,participant:{id:'p1',firstName:'A',lastName:'B'}}},
+      {...published('b','s1',3),registration:{...published('b','s1').registration,participant:{id:'p2',firstName:'C',lastName:'D'}},registrationClass:{class:{name:'Gate',direction:{name:'BFSPL'}}}},
+      {...published('c','s2',null),registration:{...published('c','s2').registration,participant:{id:'p2',firstName:'C',lastName:'D'}}},
+    ]);
+    const result=await new TeamsService(db).publicStageAchievements('t');
+    expect(result.summary).toEqual({
+      participants:2,podiums:2,firstPlaces:1,
+      directions:[{name:'BFSPL',performances:1},{name:'SPL',performances:2}],
+    });
+    expect(result.stages).toHaveLength(2);
+    expect(db.result.findMany).toHaveBeenCalledTimes(1);
+  });
 });

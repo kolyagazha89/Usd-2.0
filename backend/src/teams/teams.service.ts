@@ -407,7 +407,11 @@ export class TeamsService {
     });
     if (!team) throw new NotFoundException('Команда не найдена');
     const memberIds = team.memberships.map(row => row.participantId);
-    if (!memberIds.length) return { teamId: team.id, teamName: team.name, scope: 'CURRENT_PUBLIC_MEMBERS', total: 0, truncated: false, stages: [] };
+    if (!memberIds.length) return {
+      teamId: team.id, teamName: team.name, scope: 'CURRENT_PUBLIC_MEMBERS',
+      total: 0, truncated: false, stages: [],
+      summary: { participants: 0, podiums: 0, firstPlaces: 0, directions: [] },
+    };
     const limit = 500;
     const results = await this.prisma.result.findMany({
       where: {
@@ -436,6 +440,12 @@ export class TeamsService {
       take: limit + 1,
     });
     const truncated = results.length > limit;
+    // Counters cover at most 500 individual performances of current public
+    // members, never official historical team medals or team championship points.
+    const performers = new Set<string>();
+    const directions = new Map<string, number>();
+    let podiums = 0;
+    let firstPlaces = 0;
     const stageMap = new Map<string, {
       id: string; name: string; city: string | null; date: Date;
       performances: {
@@ -445,6 +455,11 @@ export class TeamsService {
     }>();
     for (const result of results.slice(0, limit)) {
       const stage = result.registration.stage;
+      performers.add(result.registration.participant.id);
+      const direction = result.registrationClass.class.direction.name;
+      directions.set(direction, (directions.get(direction) ?? 0) + 1);
+      if (result.place !== null && result.place >= 1 && result.place <= 3) podiums++;
+      if (result.place === 1) firstPlaces++;
       const item = stageMap.get(stage.id) ?? {
         id: stage.id, name: stage.name, city: stage.city, date: stage.date,
         performances: [],
@@ -467,6 +482,14 @@ export class TeamsService {
       total: results.length > limit ? limit : results.length,
       truncated,
       stages: [...stageMap.values()],
+      summary: {
+        participants: performers.size,
+        podiums,
+        firstPlaces,
+        directions: [...directions.entries()]
+          .sort(([a], [b]) => a.localeCompare(b, 'ru'))
+          .map(([name, performances]) => ({ name, performances })),
+      },
     };
   }
 
