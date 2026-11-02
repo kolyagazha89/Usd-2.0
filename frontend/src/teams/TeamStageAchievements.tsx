@@ -19,7 +19,7 @@ export default function TeamStageAchievements({teamId}:{teamId:string}) {
   let active=true;
   setLoading(true);setError('');
   apiGet<TeamStageAchievementResponse>('/teams/public/'+encodeURIComponent(teamId)+'/achievements')
-   .then(result=>{if(active)setData(result)})
+   .then(result=>{if(!result||!Array.isArray(result.stages))throw new Error('Ответ сервера не содержит выступлений команды');if(active)setData(result)})
    .catch(err=>{if(active)setError(err instanceof Error?err.message:'Не удалось загрузить выступления команды')})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
