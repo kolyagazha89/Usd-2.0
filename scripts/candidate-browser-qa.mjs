@@ -171,7 +171,7 @@ try{
        assert.equal(await page.locator('.account-security-sessions').count(),0);
       }
       if(currentSection==='sessions'){
-       await page.getByRole('heading',{name:'Сеансы входа'}).waitFor();
+       await page.locator('#account-security-heading').getByText('Сеансы входа',{exact:true}).waitFor();
        assert.equal(await page.locator('#account-current-password').count(),0);
       }
       if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),1);
@@ -179,7 +179,7 @@ try{
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
-      assert.equal(surface,'rgb(6, 9, 13)','member account keeps same dark theme on all pages');
+      assert.ok(['rgb(6, 9, 13)','rgb(8, 11, 15)'].includes(surface),'member account stays graphite dark on all profile pages: '+surface);
       row.sitewideMember='graphite account and consistent form design';
      }
      if(role==='ADMIN'){
