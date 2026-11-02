@@ -46,7 +46,7 @@ test('admin finish stays WHITE without touching sidebar and mobile pane geometry
   assert.match(css,/--usd-admin-canvas:#f2f3f6/);
   assert.match(css,/body \.app-shell > \.main,/);
   assert.match(css,/body \.app-shell \.main \.content :is\(\.primary-button,\.secondary-button\)/);
-  assert.match(css,/body \.app-shell \.main \.content :is\(input,select,textarea\):focus-visible/);
+  assert.match(css,/body \.app-shell \.main \.content :is\(button,a,input,textarea,select\):focus-visible/);
   assert.match(css,/font-size:16px/);
   assert.equal(main.match(/admin-shell-layout\.css/g)?.length,1);
   assert.ok(css.includes('inline-size: calc(100% - 268px) !important'));
