@@ -19,6 +19,10 @@ test('all three USD surfaces share the 2026 design system without turning admin 
  assert.match(css,/\.usd-member\s*\{[\s\S]*?background:#06090d!important;/);
  assert.match(css,/\.app-shell \.main \{background:#f3f5f8!important;/);
  assert.match(css,/color-scheme:light/);
+ assert.match(css,/\.login-page\.usd-auth/,'login and account recovery must use Dark Velocity');
+ assert.match(css,/\.usd-member\.profile-match-page/,'first-login page must be dark');
+ assert.match(css,/background:#121a23!important/,'no white auth inputs');
+ assert.match(css,/body > \.u-mobile-dock/,'portaled iOS dock must inherit the dark system');
  assert.match(admin,/body \.app-shell > \.main/);
  assert.match(publicCss,/\.usd-live\{/);
  assert.match(member,/body \.usd-member/);
