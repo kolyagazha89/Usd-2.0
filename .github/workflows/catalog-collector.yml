@@ -59,6 +59,8 @@ jobs:
             brands: "Rockford Fosgate,Hertz,Fi Car Audio"
           - group: us-3
             brands: "Taramps,Stetsom,Resilient Sounds"
+          - group: us-4
+            brands: "EDGE,AMP,SP Audio,SounDigital"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
