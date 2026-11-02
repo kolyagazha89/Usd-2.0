@@ -43,7 +43,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
  const [step,setStep]=useState<0|1|2>(0);
  const identityReady=Boolean((value.id||v.participantId)&&String(v.brand??'').trim()&&String(v.model??'').trim());
  const plateReady=Boolean(String(v.registrationNumber??'').trim()&&isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber)));
- const completeSteps=[identityReady,plateReady,true];
+ const completeSteps=[identityReady,plateReady,false];
  const stages=[{name:'Автомобиль и владелец',hint:'Участник, марка и модель'},{name:'Регистрация',hint:'Страна, номер и цвет'},{name:'Публикация',hint:'Проверка и сохранение'}];
  const validate=()=>{
   if(!identityReady)return 'Сначала выберите участника и укажите марку и модель.';
@@ -60,7 +60,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
  };
  return <section className="panel resource-editor-page usd-car-editor-journey">
   <div className="resource-editor-heading"><div><span className="eyebrow">АВТОПАРК · КАРТОЧКА АВТОМОБИЛЯ</span><h2>{value.id?'Редактировать автомобиль':'Новый автомобиль'}</h2><p>Три коротких шага вместо одной длинной формы. До сохранения данные остаются черновиком.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>К списку</button></div>
-  <nav className="usd-car-editor-steps" aria-label="Этапы заполнения автомобиля">{stages.map((item,index)=><button key={item.name} type="button" aria-current={step===index?'step':undefined} className={'usd-car-editor-step'+(step===index?' is-active':'')+(completeSteps[index]?' is-complete':'')} disabled={index===1&&!identityReady||index===2&&(!identityReady||!plateReady)} onClick={()=>{setStep(index as 0|1|2);setValidationError('')}}><span className="usd-car-editor-step-number">{index+1}</span><span><strong>{item.name}</strong><small>{completeSteps[index]?'Заполнено':item.hint}</small></span></button>)}</nav>
+  <nav className="usd-car-editor-steps" aria-label="Этапы заполнения автомобиля">{stages.map((item,index)=><button key={item.name} type="button" aria-current={step===index?'step':undefined} className={'usd-car-editor-step'+(step===index?' is-active':'')+(completeSteps[index]?' is-complete':'')} disabled={index===1&&!identityReady||index===2&&(!identityReady||!plateReady)} onClick={()=>{setStep(index as 0|1|2);setValidationError('')}}><span className="usd-car-editor-step-number">{index+1}</span><span><strong>{item.name}</strong><small>{index===2?'Проверьте данные':completeSteps[index]?'Заполнено':item.hint}</small></span></button>)}</nav>
   <div className="usd-car-editor-progress"><div role="progressbar" aria-label="Заполнение карточки автомобиля" aria-valuemin={0} aria-valuemax={2} aria-valuenow={Number(identityReady)+Number(plateReady)} style={{width:((Number(identityReady)+Number(plateReady))/2*100)+'%'}}/></div>
   {(error||validationError)&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{validationError||error}</span></div>}
   <form className="form usd-car-editor-form" onSubmit={advance} noValidate>
