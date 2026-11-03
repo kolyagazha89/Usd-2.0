@@ -2,6 +2,7 @@
 These tests do not touch production databases or external sites.
 """
 import csv
+import json
 import unittest
 from pathlib import Path
 
@@ -52,6 +53,24 @@ class ExportedCatalogTests(unittest.TestCase):
         for rows in (self.cars, self.audio):
             keys = [(normalize(r[0]), normalize(r[1])) for r in rows]
             self.assertEqual(len(keys), len(set(keys)))
+
+    def test_coverage_manifest_agrees_with_actual_exports(self):
+        report = json.loads((DATA / "coverage.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["cars"]["rows"], len(self.cars))
+        self.assertEqual(report["cars"]["brands"], len({row[0] for row in self.cars}))
+        self.assertEqual(report["audio"]["rows"], len(self.audio))
+        self.assertEqual(report["audio"]["brands"], len({row[0] for row in self.audio}))
+        for category, count in report["audio"]["categories"].items():
+            self.assertEqual(count, sum(row[2] == category for row in self.audio))
+        for brand, count in report["audio"]["counts_by_brand"].items():
+            self.assertEqual(count, sum(row[0] == brand for row in self.audio))
+        self.assertFalse(report["production_import"])
+
+    def test_no_csv_formula_injection_at_the_start_of_fields(self):
+        for rows in (self.cars, self.audio):
+            for row in rows:
+                for field in row:
+                    self.assertFalse(field.startswith(("=", "+", "@", "\\t", "\\r")), row)
 
     def test_source_fragments_have_the_same_audio_header(self):
         files = sorted((DATA / "fragments").glob("*.csv"))
