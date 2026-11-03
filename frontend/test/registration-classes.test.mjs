@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
 
-test('participant can choose at most five classes while preserving primary class order',()=>{
+test('participant limits primary-direction classes to five without limiting BassRace',()=>{
  assert.equal(MAX_REGISTRATION_CLASSES,5);
  const selected=['a','b','c','d','e'];
  assert.deepEqual(nextRegistrationClassIds(selected,'f',true),selected);
@@ -11,6 +11,9 @@ test('participant can choose at most five classes while preserving primary class
  assert.deepEqual(nextRegistrationClassIds(selected,'a',false),['b','c','d','e']);
  assert.deepEqual(nextRegistrationClassIds(['b','c','d','e'],'f',true),['b','c','d','e','f']);
  assert.deepEqual(selected,['a','b','c','d','e'],'selection must be immutable');
+ assert.deepEqual(nextRegistrationClassIds(selected,'br1',true,true,5),['a','b','c','d','e','br1']);
+ assert.deepEqual(nextRegistrationClassIds(['a','b','c','d','e','br1'],'br2',true,true,5),['a','b','c','d','e','br1','br2']);
+ assert.deepEqual(nextRegistrationClassIds(['a','b','c','d','e','br1'],'f',true,false,5),['a','b','c','d','e','br1']);
 });
 test('unchecking a class removes it and duplicate clicks do not add it twice',()=>{
  assert.deepEqual(nextRegistrationClassIds(['a','b'],'b',false),['a']);
@@ -30,8 +33,8 @@ test('returning competitor must review configuration before moving to classes',(
 test('registration screen wires the class cap and returning-vehicle question',async()=>{
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
  const flow=await readFile(new URL('../src/participant/RegistrationFlow.tsx',import.meta.url),'utf8');
- assert.match(app,/nextRegistrationClassIds\(ids,id,e\.target\.checked\)/);
- assert.match(app,/registerClassIds\.length>=MAX_REGISTRATION_CLASSES/);
+ assert.match(app,/nextRegistrationClassIds\(ids,id,e\.target\.checked,bass,/);
+ assert.match(app,/!checked&&!bass&&registerClassIds\.filter/);
  assert.match(app,/repeatVehicle=\{Boolean\(registerCarId/);
  assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
  assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
