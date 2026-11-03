@@ -90,4 +90,8 @@ test('all staff-only paint is defined once in the final admin sheet; shared fini
  assert.ok(pos>entry.indexOf("import './sitewide-finish.css'"));
  assert.ok(!finish.includes('body .app-shell .main'));
  assert.ok(!premium.includes('body .app-shell .main'));
+ const commandDesk=rules(admin,'admin/admin-shell-layout.css').find(rule=>rule.selector.trim()==='body .app-shell .main .event-ops-workflow-context');
+ assert.ok(commandDesk,'event day desk still exists in the admin-only stylesheet');
+ assert.match(propertyBlock(commandDesk,'background')??'',/#ffffff.*#f8f9fb/,'judge workflow intro uses pearly-white background, not black fields');
+ assert.equal(propertyBlock(commandDesk,'color'),'#232730','judge workflow label remains graphite');
 });
