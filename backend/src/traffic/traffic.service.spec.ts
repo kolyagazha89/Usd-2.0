@@ -1,3 +1,4 @@
+import {jest} from '@jest/globals';
 import {BadRequestException,ForbiddenException} from '@nestjs/common';
 import {TrafficService,normalizeTrafficPath,trafficDevice,summarizeTrafficRows} from './traffic.service';
 
