@@ -315,3 +315,14 @@ export async function approveComponentCatalogRequest(id:string,adminNote?:string
 export async function rejectComponentCatalogRequest(id:string,adminNote?:string){return apiPatch<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/reject',{adminNote});}
 
 export async function retryComponentCatalogRequestEmail(id:string){return apiPost<any>('/component-catalog-requests/'+encodeURIComponent(id)+'/retry-email',{});}
+
+// This endpoint carries NO auth token/cookie and only a broad route category.
+// Consent and throttle checks happen in public/traffic-tracking.ts.
+export async function trackPublicTrafficView(path:string):Promise<void>{
+ const response=await fetch(API_BASE+'/traffic/view',{
+  method:'POST',credentials:'omit',mode:'cors',keepalive:true,
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({path}),
+ });
+ if(!response.ok)throw new Error('Traffic endpoint unavailable');
+}
