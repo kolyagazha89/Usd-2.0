@@ -124,3 +124,30 @@
  }
  .usd-live .usd-carousel-dots button {transition:none}
 }
+
+
+/* USD 04.11.2026: latest results are horizontal cards on desktop.
+ * The CMS section is a standalone full-width panel, so the previous
+ * single-column .u-mini-results layout must not control its cards. */
+body .usd-live [data-home-block="latest-results"] .u-mini-results {
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:14px;
+ min-width:0;
+}
+body .usd-live [data-home-block="latest-results"] .u-mini-results > .usd-score-row {
+ min-width:0;
+ width:100%;
+ box-sizing:border-box;
+}
+@media(max-width:1120px){
+ body .usd-live [data-home-block="latest-results"] .u-mini-results {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+}
+@media(max-width:650px){
+ body .usd-live [data-home-block="latest-results"] .u-mini-results {
+  grid-template-columns:minmax(0,1fr);
+  gap:9px;
+ }
+}
