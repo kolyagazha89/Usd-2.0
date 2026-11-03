@@ -53,7 +53,8 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
   return()=>{active=false};
  },[]);
  const entries=useMemo(()=>data?findOfflineEntries(data,query):[],[data,query]);
- const drafts=new Map((data?.drafts??[]).map(d=>[d.registrationId,d]));
+ const carByRegistration=new Map((data?.entries??[]).map(entry=>[entry.id,entry.carId]));
+ const drafts=new Map((data?.drafts??[]).map(d=>[carByRegistration.get(d.registrationId)??d.registrationId,d]));
  const unlock=async()=>{
   if(!raw||busy)return;setBusy(true);setError('');setNotice('');
   try{
@@ -138,7 +139,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
     <div className="usd-offline-section-heading"><h2>Регистрации и осмотр</h2><span>Только просмотр и сохранение локальных черновиков</span></div>
     <label className="usd-offline-search"><Search size={17}/><input type="search" aria-label="Поиск по локальному списку" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Номер, ФИО, госномер, автомобиль, класс…"/></label>
     <div className="usd-offline-list">{entries.map(entry=>{
-     const draft=drafts.get(entry.id);
+     const draft=drafts.get(entry.carId);
      return <article className="usd-offline-entry" key={entry.id}>
       <div className="usd-offline-entry-head"><strong>№ {entry.number??'—'} · {entry.participantName}</strong><span>{entry.status==='CANCELLED'?'Отменена':draft?'ЛОКАЛЬНЫЙ ЧЕРНОВИК':entry.inspection.status==='PASSED'?'Допущен на момент загрузки':entry.inspection.status==='FAILED'?'Не прошёл на момент загрузки':'Без инспекции'}</span></div>
       <p>{entry.car}{entry.registrationNumber?' · '+entry.registrationNumber:''}</p>
