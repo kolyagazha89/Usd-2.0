@@ -53,7 +53,7 @@ test('offline search supports exact number, Cyrillic and plate while excluding p
 test('drafts are immutable, reject cancelled/existing inspected registrations, duplicate submissions and blank failure notes',()=>{
  const p=make();
  assert.throws(()=>recordOfflineInspection(p,'reg-cancelled','PASSED','',now),/отменена/);
- assert.throws(()=>recordOfflineInspection(p,'reg-inspected','PASSED','',now),/уже была/);
+ assert.throws(()=>recordOfflineInspection(p,'reg-inspected','PASSED','',now),/уже есть инспекция/);
  assert.throws(()=>recordOfflineInspection(p,'reg-active','FAILED',' ',now),/причину/);
  const draft=recordOfflineInspection(p,'reg-active','FAILED','  Ошибка корпуса  ',now,'op-1');
  assert.equal(p.drafts.length,0);
