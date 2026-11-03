@@ -45,7 +45,7 @@ this scaffold with real participant data or as the active judging authority.
    provisioning, then a separate IAM service account restricted to the venue
    bucket for the USD API. Never reuse Ubuntu production keys, snapshots,
    participant exports, SMTP configuration or Tailscale access tokens.
-4. Run `python3 test-preflight.py` and `python3 preflight.py` from
+4. Run `python3 -m unittest discover -s . -p 'test_*.py' -v` and `python3 preflight.py` from
    `deploy/venue-lan/`; inspect `docker compose config` and ensure only
    the laptop LAN IPv4 appears on 443.
 5. For a disposable environment only, `docker compose up -d db rustfs`

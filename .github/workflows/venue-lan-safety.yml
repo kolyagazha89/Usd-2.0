@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate RFC1918-only hub and independent credentials
-        run: python3 -m unittest discover -s deploy/venue-lan -p 'test-*.py' -v
+        run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |
