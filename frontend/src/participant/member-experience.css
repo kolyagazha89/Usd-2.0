@@ -60,7 +60,7 @@ body .participant-portal.usd-member{
  --ui-bg:#080b0f;--ui-panel:#141920;--ui-raised:#1c232c;--ui-line:#2a313c;
  --ui-line-strong:#424b58;--ui-text:#f5f6f8;--ui-muted:#919ba9;--ui-soft:#1c232c;
  --ui-accent:#ff4053;--ui-accent-strong:#e52d42;--ui-accent-text:#ff596a;--ui-focus:#ff596a;
- background:#080b0f!important;font-family:Arial,Helvetica,sans-serif!important;color:#f5f6f8!important;
+ background:#0d131b!important;font-family:Arial,Helvetica,sans-serif!important;color:#f5f6f8!important;
 }
 body .participant-portal.usd-member :is(h1,h2,h3,h4,button,input,select,textarea){font-family:Arial,Helvetica,sans-serif!important}
 body .participant-portal.usd-member :is(h1,h2,h3){font-weight:700!important;letter-spacing:-.025em!important}
