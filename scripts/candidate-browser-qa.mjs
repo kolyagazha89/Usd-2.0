@@ -354,7 +354,7 @@ try{
       const isLight=c=>{
        // RGB first-channel checks accidentally accepted deep burgundy/black cards.
        // Use perceptual luminance instead; transparent containers inherit paper.
-       const channels=c.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)$/);
+       const channels=c.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
        if(!channels)return true;
        if(channels[4]!==undefined&&Number(channels[4])===0)return true;
        const [r,g,b]=channels.slice(1,4).map(Number);
