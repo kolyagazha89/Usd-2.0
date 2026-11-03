@@ -49,7 +49,7 @@ export function renameComponentBrand(c:ComponentCatalog,id:string,rawName:string
 export function editComponentModel(c:ComponentCatalog,id:string,rawName:string,targetBrand:string):ComponentCatalog {
  const item=ensureModel(c,id),name=validName(rawName,160);
  const brand=c.componentBrands.find(b=>b.category===item.category&&key(b.name)===key(targetBrand));
- if(!brand||brand.isArchived||brand.isActive===false)throw new Error('Выберите действующую марку.');
+ if(!brand||brand.isArchived||(brand.isActive===false&&key(brand.name)!==key(item.brand)))throw new Error('Выберите действующую марку.');
  ensureUniqueModel(c,name,item.category,brand.name,id);
  return {...c,componentModels:c.componentModels.map(m=>m.id===id?{...m,model:name,brand:brand.name}:m)};
 }
