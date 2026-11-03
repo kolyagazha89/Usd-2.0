@@ -66,13 +66,13 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
   <form className="form usd-car-editor-form" onSubmit={advance} noValidate>
    {step===0&&<div className="usd-car-editor-panel" aria-label="Основные данные автомобиля">
     <h3>Кому принадлежит автомобиль?</h3><p>Укажите владельца и модель. Эти данные будут использоваться в регистрациях и протоколах USD.</p>
-    {!value.id&&<label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
-    <div className="form-grid-2"><label>Марка<input value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} autoComplete="off" required/></label><label>Модель<input value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div>
+    {!value.id&&<label>Участник<select aria-label="Участник" value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
+    <div className="form-grid-2"><label>Марка<input aria-label="Марка" value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} autoComplete="off" required/></label><label>Модель<input aria-label="Модель" value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div>
    </div>}
    {step===1&&<div className="usd-car-editor-panel" aria-label="Регистрационные данные">
     <h3>Госномер и внешний вид</h3><p>Номер проверяется по правилам страны регистрации. Цвет указывать необязательно.</p>
-    <div className="form-grid-2"><label>Страна регистрации<select value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value,registrationNumber:''})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={16} autoCapitalize="characters" required/></label></div>
-    <label>Цвет автомобиля<input value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label>
+    <div className="form-grid-2"><label>Страна регистрации<select aria-label="Страна регистрации" value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value,registrationNumber:''})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input aria-label="Госномер" value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={16} autoCapitalize="characters" required/></label></div>
+    <label>Цвет автомобиля<input aria-label="Цвет автомобиля" value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label>
    </div>}
    {step===2&&<div className="usd-car-editor-panel" aria-label="Проверка и публикация">
     <h3>Проверьте карточку</h3><p>После сохранения автомобиль появится в гараже владельца. Изменить данные можно будет позже.</p>
