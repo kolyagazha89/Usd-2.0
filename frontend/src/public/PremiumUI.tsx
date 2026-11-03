@@ -1,7 +1,7 @@
 import {createContext,useContext,useState,type ReactNode} from 'react';
 import InternalLink from '../navigation/InternalLink';
 import {initials,stageDate} from './premium-model';
-import {isPrivateMediaUrl} from '../api';
+import {isPrivateMediaUrl} from '../private-media-urls';
 import {safePhotoSource} from './photo-source';
 export const PremiumNavigation=createContext<(path:string)=>void>(()=>{});
 export function Link({to,children,className='',...rest}:{to:string;children:ReactNode;className?:string;[key:string]:any}){const go=useContext(PremiumNavigation);return <InternalLink href={to} go={go} className={className} {...rest}>{children}</InternalLink>}

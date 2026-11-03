@@ -1,3 +1,4 @@
+import {registerPrivateMediaUrl} from './private-media-urls';
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? '';
 const API_BASE = configuredApiBase
   ? (/^https?:\/\//i.test(configuredApiBase)
@@ -171,9 +172,7 @@ export async function apiPatch<T=any>(path:string,body:any){return request<T>(pa
 export async function apiPut<T=any>(path:string,body:any){return request<T>(path,{method:'PUT',body:JSON.stringify(body)});}
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
-const privateMediaObjectUrls = new Set<string>();
-export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.delete(url))URL.revokeObjectURL(url);}
-export function isPrivateMediaUrl(url:string){return privateMediaObjectUrls.has(url);}
+export {releasePrivateMediaUrl} from './private-media-urls';
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
@@ -192,7 +191,7 @@ export async function getPrivateMediaObjectUrl(targetType:string,targetId:string
     const blob=await response.blob();
     if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     const url=URL.createObjectURL(blob);
-    privateMediaObjectUrls.add(url);
+    registerPrivateMediaUrl(url);
     return url;
   };
   if(!accessToken){
