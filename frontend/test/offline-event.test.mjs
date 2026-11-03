@@ -66,6 +66,20 @@ test('drafts are immutable, reject cancelled/existing inspected registrations, d
  assertOfflinePackage(draft,now);
 });
 
+test('multiple competition numbers on the same car cannot produce duplicate offline inspections',()=>{
+ const sameCarRows=[
+  {...rows[0],carId:'car-1',car:{...rows[0].car,id:'car-1'}},
+  {...rows[0],id:'reg-second-number',carId:'car-1',participantNumber:8,car:{...rows[0].car,id:'car-1'}},
+ ];
+ const data=buildOfflineEventPackage({stage:{id:'stage1',name:'USD',city:'Казань'},actor:{id:'judge-id',role:'JUDGE'},rows:sameCarRows,now});
+ assert.equal(data.entries[0].carId,data.entries[1].carId);
+ const saved=recordOfflineInspection(data,'reg-active','PASSED','',now,'offline-op');
+ assert.throws(()=>recordOfflineInspection(saved,'reg-second-number','FAILED','Причина',now),/уже сохранён черновик/);
+ const inspected=buildOfflineEventPackage({stage:{id:'stage1',name:'USD'},actor:{id:'judge-id',role:'JUDGE'},
+  rows:[sameCarRows[0],{...sameCarRows[1],stageInspection:{id:'inspection-existing',status:'PASSED'}}],now});
+ assert.throws(()=>recordOfflineInspection(inspected,'reg-active','PASSED','',now),/уже есть инспекция/);
+});
+
 test('expired packages and wrong device time never enable offline writes',()=>{
  const p=make();
  assert.throws(()=>assertOfflinePackage(p,now+OFFLINE_MAX_AGE_MS+1),/Срок действия/);
