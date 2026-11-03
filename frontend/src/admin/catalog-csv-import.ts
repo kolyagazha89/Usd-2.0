@@ -88,14 +88,14 @@ export function planAudioCatalogImport(
   const brandKey=key(row.category)+'|'+key(row.brand);
   const modelKey=brandKey+'|'+key(row.model);
   if(knownModels.has(modelKey)){unchangedModels++;continue}
-  const existingBrand=knownBrands.get(brandKey);
+  let existingBrand=knownBrands.get(brandKey);
   if(existingBrand?.isActive===false)
    throw new Error('Марка '+row.brand+' отключена в '+row.category+'. Сначала включите её вручную.');
   if(!existingBrand){
    const added={id:makeId(),category:row.category,name:row.brand,isActive:true};
-   brands.push(added);knownBrands.set(brandKey,added);addedBrands++;
+   brands.push(added);knownBrands.set(brandKey,added);existingBrand=added;addedBrands++;
   }
-  models.push({id:makeId(),category:row.category,brand:row.brand,model:row.model,
+  models.push({id:makeId(),category:row.category,brand:String(existingBrand.name),model:row.model,
    isActive:true,lifecycle:'UNKNOWN',sourceType:'CSV_IMPORT'});
   knownModels.add(modelKey);addedModels++;
  }
