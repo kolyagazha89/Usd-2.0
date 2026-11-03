@@ -65,12 +65,12 @@ test('installed USD app opens home rather than profile-pinned iOS shortcut on co
 });
 
 test('USD finishing layer is last and preserves dark public/member with light admin',async()=>{
- const [entry,styles]=await Promise.all([source('../src/main.tsx'),source('../src/sitewide-finish.css')]);
+ const [entry,styles,admin]=await Promise.all([source('../src/main.tsx'),source('../src/sitewide-finish.css'),source('../src/admin/admin-shell-layout.css')]);
  assert.ok(entry.indexOf("import './sitewide-finish.css'") > entry.indexOf("import './dark-velocity-sitewide.css'") && entry.lastIndexOf("import './admin/admin-shell-layout.css'") > entry.indexOf("import './sitewide-finish.css'"));
  assert.match(styles,/body \.usd-live :is\(/);
  assert.match(styles,/body \.usd-member :is\(/);
- assert.match(styles,/body \.app-shell>\.main\{/);
- assert.match(styles,/background: var\(--usd-admin-canvas,#f3f5f8\)!important/);
+ assert.match(admin,/body \.app-shell > \.main/);
+ assert.match(admin,/background:var\(--usd-admin-canvas\)!important/);
  assert.match(styles,/prefers-reduced-motion:reduce/);
  assert.doesNotMatch(styles,/body\s*\{\s*background:/);
 });
