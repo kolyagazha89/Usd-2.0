@@ -21,6 +21,18 @@
 html{scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 body:has(.usd-live),body:has(.usd-member),body:has(.usd-auth){background:var(--dv-ink)}
+body:has(.usd-live),body:has(.usd-member),body:has(.usd-auth){
+ scrollbar-color:#505866 #0a0e14;
+ scrollbar-width:thin;
+}
+body :is(.usd-live,.usd-member,.usd-auth){
+ color-scheme:dark;
+ scrollbar-color:#505866 #0a0e14;
+}
+body :is(.usd-live,.usd-member,.usd-auth) :is(nav,.u-panel,.participant-section,.public-rules-document,.u-container){
+ scrollbar-color:#505866 #0a0e14;
+}
+
 body .usd-live {
   --bg:var(--dv-ink);
   --panel:var(--dv-surface);
