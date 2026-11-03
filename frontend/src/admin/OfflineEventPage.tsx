@@ -1,6 +1,6 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowLeft,CheckCircle2,ClipboardCheck,HardDrive,Lock,LockKeyhole,Search,ShieldCheck,Trash2,Wifi,WifiOff} from 'lucide-react';
-import {findOfflineEntries,markOfflineInspectionSync,recordOfflineInspection,type OfflineEventPackage} from './offline-event-model';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {AlertTriangle,ArrowLeft,CheckCircle2,ClipboardCheck,HardDrive,Lock,LockKeyhole,ScanQrCode,Search,ShieldCheck,Trash2,Wifi,WifiOff} from 'lucide-react';
+import {findOfflineEntries,markOfflineInspectionSync,recordOfflineInspection,resolveOfflineRegistrationQr,type OfflineEventPackage} from './offline-event-model';
 import {apiPost,refresh} from '../api';
 import {deleteOfflineVault,loadEncryptedVault,unsealOfflinePackage,updateOfflineVault,type EncryptedEventVault} from './offline-event-vault';
 import './offline-event.css';
@@ -15,6 +15,9 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
  const [revision,setRevision]=useState('');
  const [passphrase,setPassphrase]=useState('');
  const [query,setQuery]=useState('');
+ const [qrInput,setQrInput]=useState(''),[qrSelected,setQrSelected]=useState(''),[qrError,setQrError]=useState('');
+ const [cameraActive,setCameraActive]=useState(false);
+ const cameraRef=useRef<HTMLVideoElement|null>(null),streamRef=useRef<MediaStream|null>(null),frameRef=useRef<number|null>(null),detectingRef=useRef(false);
  const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const [connected,setConnected]=useState(()=>typeof navigator!=='undefined'&&navigator.onLine);
@@ -53,12 +56,64 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
   void check().catch(()=>{if(active)setWorkerReady(false)});
   return()=>{active=false};
  },[]);
- const entries=useMemo(()=>data?findOfflineEntries(data,query):[],[data,query]);
+ const entries=useMemo(()=>data?(qrSelected?data.entries.filter(entry=>entry.id===qrSelected):findOfflineEntries(data,query)):[],[data,query,qrSelected]);
  const carByRegistration=new Map((data?.entries??[]).map(entry=>[entry.id,entry.carId]));
  const drafts=new Map((data?.drafts??[]).map(d=>[carByRegistration.get(d.registrationId)??d.registrationId,d]));
  const pendingCount=data?.drafts.filter(d=>d.state==='LOCAL_ONLY').length??0;
  const acceptedCount=data?.drafts.filter(d=>d.state==='ACKNOWLEDGED').length??0;
  const conflictCount=data?.drafts.filter(d=>d.state==='CONFLICT').length??0;
+ const stopCamera=()=>{
+  detectingRef.current=false;
+  if(frameRef.current!==null)cancelAnimationFrame(frameRef.current);
+  frameRef.current=null;
+  streamRef.current?.getTracks().forEach(track=>track.stop());
+  streamRef.current=null;
+  if(cameraRef.current){cameraRef.current.pause();cameraRef.current.srcObject=null;}
+  setCameraActive(false);
+ };
+ useEffect(()=>()=>{detectingRef.current=false;
+  if(frameRef.current!==null)cancelAnimationFrame(frameRef.current);
+  streamRef.current?.getTracks().forEach(track=>track.stop());
+ },[]);
+ const readRegistrationQr=(rawValue:string)=>{
+  if(!data)return;
+  setQrError('');
+  try{
+   const entry=resolveOfflineRegistrationQr(data,rawValue,window.location.origin);
+   setQrSelected(entry.id);setQuery('');setQrInput('');setDraftFor('');
+   setNotice('Регистрация найдена в защищённом офлайн-пакете. Сервер не запрашивался.');
+  }catch(e){setQrError(e instanceof Error?e.message:'QR не найден в этом пакете')}
+ };
+ const startCamera=async()=>{
+  if(!data||cameraActive||busy)return;
+  type Detector=new(options:{formats:string[]})=>{detect:(video:HTMLVideoElement)=>Promise<Array<{rawValue:string}>>};
+  const QR=(window as Window&{BarcodeDetector?:Detector}).BarcodeDetector;
+  if(!QR||!navigator.mediaDevices?.getUserMedia){
+   setQrError('Этот браузер не поддерживает офлайн-распознавание QR камерой. Вставьте содержимое QR или найдите номер вручную.');
+   return;
+  }
+  try{
+   setQrError('');
+   const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+   streamRef.current=stream;
+   const video=cameraRef.current;
+   if(!video)throw new Error('Не удалось запустить камеру в этом браузере.');
+   video.srcObject=stream;
+   await video.play();
+   setCameraActive(true);
+   detectingRef.current=true;
+   const detector=new QR({formats:['qr_code']});
+   const scan=async()=>{
+    if(!detectingRef.current)return;
+    try{
+     const codes=await detector.detect(video);
+     if(codes[0]?.rawValue){stopCamera();readRegistrationQr(codes[0].rawValue);return}
+    }catch{/* A frame may be unreadable; the next frame is still safe. */}
+    if(detectingRef.current)frameRef.current=requestAnimationFrame(()=>{void scan()});
+   };
+   frameRef.current=requestAnimationFrame(()=>{void scan()});
+  }catch(e){stopCamera();setQrError(e instanceof Error?e.message:'Камера недоступна')}
+ };
  const unlock=async()=>{
   if(!raw||busy)return;setBusy(true);setError('');setNotice('');
   try{
@@ -68,6 +123,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
   finally{setBusy(false)}
  };
  const lock=()=>{
+  stopCamera();setQrSelected('');setQrInput('');setQrError('');
   setData(null);setPassphrase('');setRevision('');setDraftFor('');setNotes('');
   setConfirmDelete(false);setNotice('Данные заблокированы. Для повторного доступа потребуется пароль.');
  };
@@ -131,6 +187,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
  const remove=async()=>{
   if(!raw||!confirmDelete||busy)return;setBusy(true);setError('');
   try{
+   stopCamera();setQrSelected('');setQrInput('');setQrError('');
    await deleteOfflineVault(revision||raw.revision);setData(null);setPassphrase('');setRevision('');
    setRaw(null);setConfirmDelete(false);setNotice('Локальный пакет удалён. Это не изменяет результаты на сервере.');
   }catch(e){setError(e instanceof Error?e.message:'Не удалось удалить пакет')}
@@ -189,7 +246,19 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    </section>
    <section className="usd-offline-panel">
     <div className="usd-offline-section-heading"><h2>Регистрации и осмотр</h2><span>Только просмотр и сохранение локальных черновиков</span></div>
-    <label className="usd-offline-search"><Search size={17}/><input type="search" aria-label="Поиск по локальному списку" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Номер, ФИО, госномер, автомобиль, класс…"/></label>
+    <div className="usd-offline-qr">
+     <div><h3><ScanQrCode size={19}/>QR регистрации без интернета</h3>
+      <p>Сканируйте камерой, если браузер поддерживает QR, либо вставьте ссылку из QR-кода участника. Поиск выполняется только в локальном зашифрованном списке.</p></div>
+     <form className="usd-offline-qr-form" onSubmit={e=>{e.preventDefault();stopCamera();readRegistrationQr(qrInput)}}>
+      <label>QR регистрации или ID<input type="text" autoComplete="off" value={qrInput} maxLength={2048} onChange={e=>setQrInput(e.target.value)} placeholder="https://app.usd-russia.ru/admin/inspections?…"/></label>
+      <button type="submit" className="usd-offline-button" disabled={!qrInput.trim()}><ScanQrCode size={16}/>Найти по QR</button>
+      <button type="button" className="usd-offline-button secondary" disabled={busy} onClick={()=>void (cameraActive?stopCamera():startCamera())}>{cameraActive?'Остановить камеру':'Открыть камеру'}</button>
+     </form>
+     <video ref={cameraRef} className={'usd-offline-qr-camera'+(cameraActive?' is-active':'')} autoPlay playsInline muted aria-label="Камера QR"/>
+     {qrError&&<p className="usd-offline-alert" role="alert"><AlertTriangle size={16}/>{qrError}</p>}
+     {qrSelected&&<div className="usd-offline-qr-selected"><CheckCircle2 size={17}/>Показана регистрация из QR <button type="button" className="usd-offline-button secondary" onClick={()=>{setQrSelected('');setQrError('')}}>Сбросить QR-поиск</button></div>}
+    </div>
+    <label className="usd-offline-search"><Search size={17}/><input type="search" aria-label="Поиск по локальному списку" value={query} onChange={e=>{setQrSelected('');setQuery(e.target.value)}} placeholder="Номер, ФИО, госномер, автомобиль, класс…"/></label>
     <div className="usd-offline-list">{entries.map(entry=>{
      const draft=drafts.get(entry.carId);
      return <article className="usd-offline-entry" key={entry.id}>

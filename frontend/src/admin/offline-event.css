@@ -95,3 +95,18 @@
 .usd-offline-draft.is-acknowledged{color:#aeefcb!important;border-color:rgba(99,212,156,.35)!important}
 .usd-offline-draft.is-conflict{color:#ffd4ad!important;border-color:rgba(255,167,80,.5)!important}
 .usd-offline-metrics{flex-wrap:wrap}
+
+/* QR lookup is independent of the public API; camera is a progressive enhancement. */
+.usd-offline-qr{display:grid;gap:12px;margin:0 0 16px;padding:16px;
+ border:1px solid #4d4853;background:linear-gradient(130deg,#22252e,#181d26);border-radius:14px}
+.usd-offline-qr h3{display:flex;align-items:center;gap:8px;margin:0 0 7px;font-size:18px}
+.usd-offline-qr p{margin:0;color:#c0c6d0;font-size:13px;line-height:1.6}
+.usd-offline-qr-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.usd-offline-qr-form label{flex:1 1 min(100%,300px)}
+.usd-offline-qr-camera{display:none;width:min(100%,480px);max-height:320px;aspect-ratio:4/3;
+ object-fit:cover;border-radius:12px;border:1px solid #626777;background:#161a22}
+.usd-offline-qr-camera.is-active{display:block}
+.usd-offline-qr-selected{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+ padding:10px 12px;border:1px solid #467c64;background:#172d24;border-radius:10px;color:#c1f5d7}
+.usd-offline-qr-selected .usd-offline-button{min-height:37px}
+@media(max-width:650px){.usd-offline-qr-form .usd-offline-button{flex:1 1 100%}.usd-offline-qr{padding:12px}}

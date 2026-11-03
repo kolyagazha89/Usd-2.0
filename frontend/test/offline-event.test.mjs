@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {buildOfflineEventPackage,assertOfflinePackage,recordOfflineInspection,markOfflineInspectionSync,findOfflineEntries,OFFLINE_MAX_AGE_MS} from '../src/admin/offline-event-model.ts';
+import {buildOfflineEventPackage,assertOfflinePackage,recordOfflineInspection,markOfflineInspectionSync,resolveOfflineRegistrationQr,findOfflineEntries,OFFLINE_MAX_AGE_MS} from '../src/admin/offline-event-model.ts';
 import {sealOfflinePackage,unsealOfflinePackage} from '../src/admin/offline-event-vault.ts';
 globalThis.crypto??=webcrypto;
 
@@ -156,4 +156,31 @@ test('offline sync is explicitly initiated, authenticated, and preserves conflic
  assert.match(page,/updateOfflineVault\(updated,passphrase,activeRevision\)/);
  assert.match(service,/pg_advisory_xact_lock/);
  assert.match(service,/OFFLINE_INSPECTION_SYNCED/);
+});
+
+test('QR lookup works fully offline with exact same-origin stage and registration',()=>{
+ const current=make(),registrationId='1c7c9b22-69bd-4fa9-9f42-02f06b453f0a';
+ current.entries[0].id=registrationId;
+ const origin='https://app.usd-russia.ru';
+ const qr=origin+'/admin/inspections?stageId=stage-1&registrationId='+registrationId;
+ assert.equal(resolveOfflineRegistrationQr(current,qr,origin,now).participantName,'Иванов Иван');
+ assert.equal(resolveOfflineRegistrationQr(current,registrationId.toUpperCase(),origin,now).number,7);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,qr.replace('stage-1','stage-2'),origin,now),/другому сайту или этапу/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,qr.replace(origin,'https://other.example'),origin,now),/другому сайту или этапу/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,qr+'&admin=true',origin,now),/другому сайту или этапу/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,origin+'/admin/inspections?stageId=stage-1&registrationId=1c7c9b22-69bd-4fa9-9f42-02f06b453f0b',origin,now),/Регистрации нет/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,'javascript:alert(1)',origin,now),/другому сайту или этапу/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,'https://app.usd-russia.ru/admin/inspections?stageId=stage-1&registrationId=invalid',origin,now),/корректный ID/);
+ assert.throws(()=>resolveOfflineRegistrationQr(current,qr,origin,now+OFFLINE_MAX_AGE_MS+1),/Срок действия/);
+});
+
+test('the offline QR scanner never leaks roster data before unlocking, and camera is optional',async()=>{
+ const page=await readFile(new URL('../src/admin/OfflineEventPage.tsx',import.meta.url),'utf8');
+ assert.match(page,/resolveOfflineRegistrationQr\(data,rawValue,window\.location\.origin\)/);
+ assert.match(page,/window as Window&\{BarcodeDetector\?/);
+ assert.match(page,/getUserMedia/);
+ assert.match(page,/streamRef\.current\?\.getTracks\(\)/);
+ assert.match(page,/QR регистрации без интернета/);
+ assert.match(page,/Сбросить QR-поиск/);
+ assert.match(page,/этот браузер|Этот браузер/);
 });
