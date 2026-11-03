@@ -17,7 +17,6 @@ import './dark-velocity-sitewide.css';
 import './sitewide-finish.css';
 import './sitewide-premium-2026.css';
 import './admin/admin-shell-layout.css';
-import './admin/event-ops-tablet.css';
 
 // Handle CSS/chunk requests that race a SHA-pinned frontend image switch.
 installAssetPreloadRecovery();
