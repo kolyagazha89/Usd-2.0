@@ -491,10 +491,12 @@ export class TeamsService {
   ) {
     const actor = await this.actor(request);
     await this.managed(actor, teamId);
-    if (input.status === 'PUBLISHED')
+    if (input.status === 'PUBLISHED') {
+      this.admin(actor);
       throw new BadRequestException(
         'Для публикации используйте отдельное подтверждение материала на проверке.',
       );
+    }
     if (
       !['DRAFT', 'IN_REVIEW', 'PUBLISHED'].includes(input.status) ||
       !['NEWS', 'ACHIEVEMENT'].includes(input.kind)
