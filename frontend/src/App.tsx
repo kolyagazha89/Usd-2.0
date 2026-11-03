@@ -36,6 +36,7 @@ import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} f
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
 import AdminShell from './admin/AdminShell';
 import AdminRoutes from './admin/AdminRoutes';
+import OfflineEventPage from './admin/OfflineEventPage';
 import {validateImageUpload} from './admin/upload-validation';
 import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
 import './catalog.css';
@@ -114,6 +115,9 @@ function App(){
  const accountAction=path.split('?')[0];
  if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
  if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ // The offline desk is protected by its own passphrase, not by a stale JWT.
+ // It must render even when auth/refresh cannot reach the central API.
+ if(path.split('?')[0]==='/offline-event')return <OfflineEventPage onGoOnline={()=>go('/admin/event-day')}/>;
  if(!user){if(/^\/participant(?:\/|\?|$)/.test(path))return <Splash/>;if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(accountLanding(loggedInUser,next,path.startsWith('/admin')))}}/>;return <PublicSite path={path} go={go} user={user}/>;}
  if(/^\/participant(?:\/|\?|$)/.test(path)||(path.startsWith('/admin')&&!hasAdminPanelAccess(user)))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{const signingOut=logout();setUser(null);await signingOut}}/>;
  // Public routes must remain public even when an ADMIN or custom-role session is active.
