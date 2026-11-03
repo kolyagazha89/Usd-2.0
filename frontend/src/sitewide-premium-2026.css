@@ -487,3 +487,25 @@ body .participant-portal.usd-member :is(.member-vehicle-image>.p-photo-fallback,
   min-width:0;max-width:100%;
  }
 }
+
+/* Cookie preferences stay accessible from the public footer even after
+ * declining optional analytics. Scope separately from light admin controls. */
+body .usd-live .usd-footer-cookie-settings{
+ appearance:none;
+ background:transparent;
+ border:0;
+ box-shadow:none;
+ color:#cdd2da;
+ font:inherit;
+ font-size:12px;
+ text-decoration:underline;
+ text-underline-offset:3px;
+ padding:7px 3px;
+ cursor:pointer;
+}
+body .usd-live .usd-footer-cookie-settings:hover{color:#fff}
+body .usd-live .usd-footer-cookie-settings:focus-visible{
+ outline:2px solid var(--usd-brand-bright);
+ outline-offset:3px;
+ border-radius:4px;
+}
