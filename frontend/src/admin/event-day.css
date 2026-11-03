@@ -7,7 +7,7 @@
 .event-day-heading h2 {margin:6px 0 8px;font-size:clamp(23px,2.5vw,32px);line-height:1.15;letter-spacing:-.035em;color:#1b1c22}
 .event-day-heading p {max-width:650px;color:#5f6470;line-height:1.5;margin:0}
 .event-day-stage-picker {display:grid;gap:9px;flex:0 1 410px;min-width:min(100%,280px);font-size:13px;font-weight:700;color:#40424b}
-.event-day-stage-picker select {width:100%;min-width:0;max-width:100%;font-size:15px;min-height:45px}
+.event-day-stage-picker select {width:100%;min-width:0;max-width:100%;font-size:16px;min-height:45px}
 .event-day-stage-context {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 3px;color:#515562;font-size:14px}
 .event-day-stage-context strong {color:#242630}
 .event-day-read-only {display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid #f2d7b3;background:#fff6e9;border-radius:9px;color:#9a5c12;font-weight:700}
@@ -34,7 +34,7 @@
 .event-day-search {display:flex;align-items:center;gap:10px;min-width:0;margin:20px 0 14px;padding:0 12px;
  border:1px solid #dadddf;border-radius:12px;background:#fff;color:#5b606e}
 .event-day-search:focus-within {border-color:#aa2c3d;box-shadow:0 0 0 3px #a1233612}
-.event-day-search input {flex:1;min-width:0;padding:12px 0;min-height:44px;border:0!important;outline:0!important;background:transparent!important;color:#1c1e23}
+.event-day-search input {flex:1;min-width:0;padding:12px 0;min-height:44px;font-size:16px;border:0!important;outline:0!important;background:transparent!important;color:#1c1e23}
 .event-day-search button {flex-shrink:0}
 .event-day-filter-tabs {display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:0 0 13px;scrollbar-width:thin}
 .event-day-filter-tabs button {white-space:nowrap;min-height:37px;flex-shrink:0}
@@ -62,7 +62,7 @@
 .event-day-confirm {border:1px solid #ebc3c9;background:#fff5f5;border-radius:12px;padding:13px;display:grid;gap:10px}
 .event-day-confirm p {margin:0;font-size:13px;color:#552f35}
 .event-day-confirm label {display:grid;gap:7px;color:#4f3035;font-size:13px;font-weight:700}
-.event-day-confirm textarea {width:100%;min-width:0;resize:vertical;border-radius:9px;min-height:88px;padding:9px;background:#fff}
+.event-day-confirm textarea {width:100%;min-width:0;resize:vertical;border-radius:9px;min-height:88px;padding:9px;background:#fff;font-size:16px}
 .event-day-roster-footer {display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #e7e8ee;
  margin-top:18px;padding-top:15px;font-size:12px;color:#747986}
 .event-day-roster-footer span {display:inline-flex;align-items:center;gap:7px}
