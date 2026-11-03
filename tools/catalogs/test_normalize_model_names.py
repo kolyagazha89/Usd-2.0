@@ -25,6 +25,10 @@ class ModelNameNormalizationTests(unittest.TestCase):
         self.assertIsNone(normalize("SP Audio", "SP 0 AWG CCA Amplifier Wiring Kit", "AMPLIFIER"))
         self.assertIsNone(normalize("DD Audio", "DRMT-3: D Series Remote", "DSP"))
 
+    def test_accessory_product_titles_are_not_audio_components(self):
+        self.assertIsNone(normalize("Урал", "Патриот 2х1,5 мм2", "AUDIO_COMPONENT"))
+        self.assertIsNone(normalize("Pride", "Адаптер No 1 для твиттера", "AUDIO_COMPONENT"))
+
     def test_duplicate_model_keys_retain_one_entry(self):
         rows = process([
             ("Pride", "Apollo", "AMPLIFIER"),

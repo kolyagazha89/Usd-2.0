@@ -43,6 +43,11 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertIn(["Loud Level", "LL 1000D", "AMPLIFIER"], self.audio)
         self.assertIn(["Kicx", "ST D8 (version 1.1)", "DSP"], self.audio)
 
+    def test_audio_reference_does_not_include_wiring_or_adapters(self):
+        for brand, model, category in self.audio:
+            self.assertNotIn("мм2", model.casefold(), (brand, model, category))
+            self.assertFalse(model.casefold().startswith("адаптер"), (brand, model, category))
+
     def test_kicx_crossover_parts_do_not_appear_as_models(self):
         self.assertNotIn(["Kicx", "Кроссовер CR-96", "AUDIO_COMPONENT"], self.audio)
         self.assertNotIn(["Sound Civilization", "X6", "AUDIO_COMPONENT"], self.audio)

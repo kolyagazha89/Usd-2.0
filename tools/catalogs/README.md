@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,396 | 30 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,388 | 30 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -25,7 +25,7 @@ These are reference product **types**, not the FRONT/REAR/SUB vehicle installati
 
 Source fragments are in [data/fragments](data/fragments), grouped by manufacturer website. For Deaf Bonce, original brand/series labels (Machete, Apocalypse, Avatar, Hannibal, Black Hydra) are separate brand choices. See [coverage.json](data/coverage.json) for per-brand counts and incomplete sources.
 
-The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified; a final manual inspection is still advisable before enabling strict-only choice validation for participants.
+The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified (including five Ural wiring variants and three Pride adapters removed in the quality review); a final manual inspection is still advisable before enabling strict-only choice validation for participants.
 
 **Kicx and Dynamic State:** now 166 Kicx Sound group models (Kicx, Headshot, Loud Level, Phantom, Sound Civilization, Terza) and 168 Dynamic State models; Kicx group categories include 1 DSP. Manufacturer category pages were used to identify missing models, with index-backed records for pages that are not directly fetchable. Their official hosts also timed out on GitHub-hosted Ubuntu, including robots.txt requests. The separate optional crawler preserves failure reports and fails visibly when extraction was blocked. This method cannot certify full discontinued/historical product coverage. Hertz products were fetched through a public page-reading plugin; SounDigital links used a free text extraction gateway. For exhaustive historical Kicx / Dynamic State coverage, an official manufacturer export or reliably accessible product feed would still be needed. Do not claim 100% completeness on inaccessible old products. The dataset is useful as a strong seed and should not be described as literally complete.
 

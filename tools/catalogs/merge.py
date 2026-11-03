@@ -6,6 +6,7 @@ import argparse
 from collections import defaultdict
 from pathlib import Path
 from unicodedata import normalize
+from normalize_model_names import ACCESSORY
 
 AUDIO_CATEGORIES = {"SUBWOOFER", "AUDIO_COMPONENT", "AMPLIFIER", "HEAD_UNIT", "DSP"}
 
@@ -38,6 +39,9 @@ def merge(input_root, output):
             brand, model, category = (item[col].strip() for col in ("бренд", "модель", "категория"))
             if not (brand and model and 2 <= len(model) <= 120 and category in AUDIO_CATEGORIES):
                 conflicts.append({"reason": "invalid", "source": str(file), "row": item})
+                continue
+            if ACCESSORY.search(model):
+                conflicts.append({"reason": "non_equipment_accessory", "source": str(file), "row": item})
                 continue
             key = unique_key(brand), unique_key(model)
             existing = audio_rows.get(key)

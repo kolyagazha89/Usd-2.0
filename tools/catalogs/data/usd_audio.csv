@@ -1,9 +1,6 @@
 бренд,модель,категория
 Урал,"АК-3 ""Шаляпин""",AUDIO_COMPONENT
 Урал,"АК-7 ""Рахманинов""",AUDIO_COMPONENT
-Урал,"Патриот 2х1,5 мм2",AUDIO_COMPONENT
-Урал,"Патриот 2х2,5 мм2",AUDIO_COMPONENT
-Урал,"Патриот 4х2,5 мм2",AUDIO_COMPONENT
 Урал,"ПАТРИОТ 6,5",SUBWOOFER
 Урал,"ПМН-1 ""Черная Вдова""",SUBWOOFER
 Урал,"ПМН-2 ""Черная Вдова""",SUBWOOFER
@@ -81,8 +78,6 @@
 Урал,ПАТРИОТ 12,SUBWOOFER
 Урал,ПАТРИОТ 15 ГРОМ,SUBWOOFER
 Урал,ПАТРИОТ 15,SUBWOOFER
-Урал,Патриот 2х4 мм2,AUDIO_COMPONENT
-Урал,Патриот 4х4 мм2,AUDIO_COMPONENT
 Урал,ПАТРИОТ 8,SUBWOOFER
 Урал,ПАТРИОТ АС-ПТ 165.2 ГРОМ,AUDIO_COMPONENT
 Урал,ПАТРИОТ АС-ПТ200 ЭЛЕМЕНТ 4,AUDIO_COMPONENT
@@ -2370,9 +2365,6 @@ Pride,"Solo 60 car audio horn tweeters 3.2′′,",AUDIO_COMPONENT
 Pride,"SOLO EVO 6,5",AUDIO_COMPONENT
 Pride,25K,AMPLIFIER
 Pride,3K,AMPLIFIER
-Pride,Адаптер для замены PRIDE H1,AUDIO_COMPONENT
-Pride,Адаптер No 1 для твиттера,AUDIO_COMPONENT
-Pride,Адаптер No 2 для твиттера,AUDIO_COMPONENT
 Pride,Гаскет 6.5 (PONG-6.5),AUDIO_COMPONENT
 Pride,Гаскет 6.5 (RL-6.5),AUDIO_COMPONENT
 Pride,Гаскет 6.5 (RP.21-6.5 ABS),AUDIO_COMPONENT

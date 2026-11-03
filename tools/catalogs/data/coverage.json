@@ -11,7 +11,7 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3396,
+    "rows": 3388,
     "brands": 30,
     "fields": [
       "бренд",
@@ -20,7 +20,7 @@
     ],
     "categories": {
       "AMPLIFIER": 910,
-      "AUDIO_COMPONENT": 1397,
+      "AUDIO_COMPONENT": 1389,
       "SUBWOOFER": 989,
       "HEAD_UNIT": 74,
       "DSP": 26
@@ -40,7 +40,7 @@
       "Hannibal": 51,
       "Hertz": 110,
       "Machete": 161,
-      "Pride": 242,
+      "Pride": 239,
       "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
       "SounDigital": 46,
@@ -48,7 +48,7 @@
       "Stetsom": 74,
       "Sundown Audio": 279,
       "Taramps": 42,
-      "Урал": 161,
+      "Урал": 156,
       "Headshot": 48,
       "Kicx": 80,
       "Loud Level": 9,
@@ -57,7 +57,8 @@
       "Terza": 5,
       "Dynamic State": 168
     },
-    "brand_count_note": "30 brand/series labels, Kicx Sound subbrands separate"
+    "brand_count_note": "30 brand/series labels, Kicx Sound subbrands separate",
+    "review_note": "Eight wiring/adapter listings removed from the AUDIO_COMPONENT staging seed; manufacturer coverage remains non-exhaustive."
   },
   "fragment_coverage": [
     {
