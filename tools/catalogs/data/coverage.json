@@ -11,19 +11,19 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 2952,
-    "brands": 22,
+    "rows": 3062,
+    "brands": 23,
     "fields": [
       "бренд",
       "модель",
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 812,
-      "AUDIO_COMPONENT": 1177,
-      "SUBWOOFER": 866,
+      "AMPLIFIER": 828,
+      "AUDIO_COMPONENT": 1249,
+      "SUBWOOFER": 886,
       "HEAD_UNIT": 74,
-      "DSP": 23
+      "DSP": 25
     },
     "counts_by_brand": {
       "Apocalypse": 174,
@@ -38,6 +38,7 @@
       "Fi Car Audio": 31,
       "Ground Zero": 291,
       "Hannibal": 51,
+      "Hertz": 110,
       "Machete": 161,
       "Pride": 242,
       "Resilient Sounds": 42,
@@ -49,7 +50,7 @@
       "Taramps": 42,
       "Урал": 161
     },
-    "brand_count_note": "22 distinct brands/series as separate selectors"
+    "brand_count_note": "23 distinct manufacturer/series names as USD select options"
   },
   "fragment_coverage": [
     {
@@ -136,6 +137,11 @@
       "name": "soundigital",
       "rows": 46,
       "source_method": "free public site text index, official product slugs"
+    },
+    {
+      "name": "hertz",
+      "rows": 110,
+      "source": "official hertz-audio.com product collections and individual titles"
     }
   ],
   "validation": {
@@ -147,8 +153,7 @@
   },
   "missing_manufacturers": [
     "Kicx (official host timeouts even through free gateways)",
-    "Dynamic State (official host timeouts/DNS failures)",
-    "Hertz (product pages blocked by CAPTCHA)"
+    "Dynamic State (official host timeouts/DNS failures)"
   ],
   "completeness": "partial; comprehensive within reachable catalogs, not certified all current and historical models",
   "production_import": false
