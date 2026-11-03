@@ -74,7 +74,7 @@ test('mobile layout avoids blank rail, forced white member inputs and iOS zoom',
  assert.match(css,/font-size:16px!important/);
  assert.match(css,/\.usd-member :is\(input:not\(\[type=checkbox\]/);
  assert.match(css,/background:#0d151d!important/);
- assert.match(css,/color-scheme:light/);
+ assert.match(admin,/color-scheme:light/);
  assert.match(admin,/scrollbar-color:#babdc5 transparent/);
  assert.match(admin,/@media \(max-width: 800px\)/);
  assert.doesNotMatch(css,/body\s+\.usd-live\s+\.main\s+\.content/,'admin styling must not leak into public');
