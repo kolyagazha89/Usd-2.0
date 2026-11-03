@@ -59,7 +59,7 @@ test('light admin has white inputs and panels, public/member own dark color sche
  assert.ok(!baseCss.includes(':where(.app-shell,.page,.panel,.login-page'),'unscoped dark controls cannot leak into admin');
  assert.ok(!baseCss.includes('.app-shell:not(:has(.admin-records-page))'),'records page must not be excluded from light admin design');
  assert.ok(!baseCss.includes('.app-shell [class*="-card"]'),'no wildcard repaint of every card');
- assert.ok(!/\*\s*\{\s*scrollbar-width:auto/.test(baseCss),'no global white scrollbar forcing across dark site');
+ assert.ok(!rules(baseCss,'styles.css').some(rule=>rule.selector.split(',').some(part=>part.trim()==='*')&&rule.decls.some(d=>d.prop.startsWith('scrollbar'))),'no global white scrollbar forcing across dark site');
  assert.match(publicCss,/--usd-public-gutter:clamp\(12px,4vw,30px\)/,'shared public gutters defined');
  assert.match(publicCss,/color-scheme:dark/,'public/member dark control color scheme');
  assert.match(admin,/--usd-admin-paper:#ffffff/,'admin paper white');
