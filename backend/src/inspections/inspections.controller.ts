@@ -13,7 +13,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 import { InspectionsService } from './inspections.service';
-import { CreateInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
+import { CreateInspectionDto, SyncOfflineInspectionDto, UpdateInspectionDto } from './dto/inspection.dto';
 
 @Controller('inspections')
 @Roles('ADMIN')
@@ -34,6 +34,21 @@ export class InspectionsController {
   @Get('class/:registrationClassId')
   findByRegistrationClass(@Param('registrationClassId') registrationClassId: string) {
     return this.inspectionsService.findByRegistrationClass(registrationClassId);
+  }
+
+  // Offline operations are replayed only after fresh authentication and
+  // the normal inspections.create RBAC check. No public write endpoint.
+  @Post('offline/sync')
+  syncOfflineInspection(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: SyncOfflineInspectionDto,
+  ) {
+    return this.inspectionsService.syncOfflineInspection(body, {
+      userId: request.user.sub,
+      role: request.user.role,
+      customRoleId: request.user.customRoleId,
+      ipAddress: request.ip,
+    });
   }
 
   @Post('class')

@@ -7,6 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 
@@ -578,6 +579,139 @@ export class InspectionsService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (typeof this.emailNotifications?.inspectionChanged === 'function') await Promise.resolve(this.emailNotifications.inspectionChanged(saved.registrationId, saved.id, saved.status, saved.notes, null, saved.updatedAt)).catch(() => undefined);
     return saved;
+  }
+
+
+  /**
+   * Explicit, single-operation import of a previously saved offline decision.
+   * This endpoint does NOT trust a device's cached permissions or snapshot:
+   * registration status, stage, inspection and result constraints are re-read
+   * inside the central PostgreSQL transaction.
+   *
+   * The committed audit row is the durable idempotency receipt. An advisory
+   * transaction lock on the UUID serializes retries across API processes,
+   * without a new schema or a potentially unsafe production migration.
+   */
+  async syncOfflineInspection(
+    data: {
+      operationId: string; stageId: string; registrationId: string;
+      actorId: string; createdAt: string; baseInspectionId?: string | null;
+      status: InspectionStatus; notes?: string;
+    },
+    actor: Actor,
+  ) {
+    if (data.actorId !== actor.userId) {
+      throw new ForbiddenException('Операции другого судьи нельзя отправить из текущей учётной записи');
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.operationId)) {
+      throw new BadRequestException('Недопустимый идентификатор офлайн-операции');
+    }
+    const recordedAt = Date.parse(data.createdAt);
+    if (!Number.isFinite(recordedAt) || recordedAt > Date.now() + 5 * 60_000 ||
+        recordedAt < Date.now() - 72 * 60 * 60_000) {
+      throw new ConflictException('Автономный пакет устарел или время устройства неверно; нужна ручная сверка');
+    }
+    if (data.baseInspectionId) {
+      throw new ConflictException('Изменение уже существующей инспекции из офлайн-пакета запрещено');
+    }
+    this.validateNotes(data.status, data.notes);
+    const notes = data.status === 'FAILED' ? (data.notes ?? '').trim() : '';
+    if (notes.length > 2000) throw new BadRequestException('Комментарий превышает 2000 символов');
+    const payloadHash = createHash('sha256').update(JSON.stringify([
+      data.operationId, data.stageId, data.registrationId, data.actorId,
+      data.createdAt, data.status, notes, data.baseInspectionId ?? null,
+    ])).digest('hex');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Serialize concurrent retries for one immutable operation ID.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.operationId}))`;
+      const previous = await tx.auditLog.findFirst({
+        where: {
+          action: 'OFFLINE_INSPECTION_SYNCED',
+          entity: 'OfflineInspectionOperation',
+          entityId: data.operationId,
+        },
+        select: { userId: true, metadata: true },
+      });
+      if (previous) {
+        const metadata = previous.metadata as Record<string, unknown> | null;
+        if (previous.userId !== actor.userId || metadata?.payloadHash !== payloadHash ||
+            typeof metadata?.inspectionId !== 'string') {
+          throw new ConflictException('Этот идентификатор операции уже использован для других данных');
+        }
+        return {
+          success: true, operationId: data.operationId, registrationId: data.registrationId,
+          inspectionId: metadata.inspectionId, repeated: true,
+        };
+      }
+
+      const registration = await tx.registration.findUnique({
+        where: { id: data.registrationId },
+        include: {
+          stage: true, inspection: true, stageInspection: true,
+          results: { select: { id: true } },
+          classes: { select: { results: { select: { id: true } } } },
+        },
+      });
+      if (!registration || registration.stageId !== data.stageId) {
+        throw new ConflictException('Регистрация не принадлежит этапу из автономного пакета');
+      }
+      if (registration.status !== 'ACTIVE' || registration.stage.isDeleted ||
+          registration.stage.status === 'CANCELLED' || registration.stage.resultsPublishedAt) {
+        throw new ConflictException('Регистрация или этап уже закрыты для переноса инспекции');
+      }
+      if (registration.inspection || registration.stageInspection) {
+        throw new ConflictException('На сервере уже существует инспекция; нужна ручная сверка');
+      }
+      if (data.status === 'FAILED' && (
+        registration.results.length ||
+        registration.classes.some((item: { results: { id: string }[] }) => item.results.length)
+      )) {
+        throw new ConflictException('Для отказа уже есть результат; решение требует проверки администратора');
+      }
+      const created = await tx.inspection.create({
+        data: {
+          registrationId: registration.id, status: data.status,
+          notes: notes || null, checkedByUserId: actor.userId,
+          createdByUserId: actor.userId,
+        },
+        include: inspectionInclude,
+      });
+      if (data.status === 'PASSED') await this.captureTeamAtFirstPass(tx, registration);
+      await tx.auditLog.create({
+        data: {
+          userId: actor.userId, action: 'VEHICLE_INSPECTION_CREATED',
+          entity: 'Inspection', entityId: created.id, ipAddress: actor.ipAddress ?? null,
+          metadata: {
+            registrationId: registration.id, carId: registration.carId,
+            stageId: registration.stageId, status: data.status,
+            notes: notes || null, source: 'OFFLINE_SYNC',
+          },
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: actor.userId, action: 'OFFLINE_INSPECTION_SYNCED',
+          entity: 'OfflineInspectionOperation', entityId: data.operationId,
+          ipAddress: actor.ipAddress ?? null,
+          metadata: {
+            payloadHash, inspectionId: created.id,
+            registrationId: registration.id, stageId: registration.stageId,
+            deviceRecordedAt: data.createdAt,
+          },
+        },
+      });
+      return {
+        success: true, operationId: data.operationId, registrationId: data.registrationId,
+        inspectionId: created.id, repeated: false,
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (!result.repeated && typeof this.emailNotifications?.inspectionChanged === 'function') {
+      await Promise.resolve(this.emailNotifications.inspectionChanged(
+        data.registrationId, result.inspectionId, data.status, notes || null, null, new Date(),
+      )).catch(() => undefined);
+    }
+    return result;
   }
 
   async update(

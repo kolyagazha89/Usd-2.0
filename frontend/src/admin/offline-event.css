@@ -90,3 +90,8 @@
  .usd-offline-badges span {flex:1 1 auto}
 }
 @media(prefers-reduced-motion:reduce){.usd-offline-page .usd-offline-button {transition:none}}
+
+/* Distinguish immutable central acknowledgements from local-only decisions. */
+.usd-offline-draft.is-acknowledged{color:#aeefcb!important;border-color:rgba(99,212,156,.35)!important}
+.usd-offline-draft.is-conflict{color:#ffd4ad!important;border-color:rgba(255,167,80,.5)!important}
+.usd-offline-metrics{flex-wrap:wrap}

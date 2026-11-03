@@ -1,6 +1,6 @@
 # USD 2.0 — Offline operation and synchronization
 
-Status: **partial P0 implementation in PR #402 (2026-11-03); full offline-event readiness NOT achieved.**
+Status: **partial P0 implementation since PR #402; explicit authenticated inspection replay added in the follow-up; full offline-event readiness NOT achieved.**
 
 ### Implemented pilot — encrypted local inspection drafts
 
@@ -8,10 +8,11 @@ Status: **partial P0 implementation in PR #402 (2026-11-03); full offline-event 
 - A short-lived (max 72h) minimal stage package is encrypted with AES-GCM-256 / PBKDF2-SHA256 (310k iterations) and held in IndexedDB. The operator chooses a separate 14+ character passphrase; no password, auth token or private API response is stored in the service worker.
 - `/offline-event` is a separate, passphrase-protected page that remains usable after loss of public internet once a build-specific **static-only** service worker is installed. Its scope is limited to this route and does not displace the existing push worker.
 - A disconnected operator can find an entrant by number/name/car/class and save a durable, **LOCAL_ONLY** inspection draft with a mandatory failure reason. An existing inspected/cancelled registration cannot be silently changed; duplicate local drafts are rejected.
-- Drafts do **not** become official results; no backend sync or server acknowledgement is implemented. After reconnection each local entry must be reviewed against the latest state and entered through an authenticated operator screen.
+- Drafts do **not** become official results. After reconnection the original judge can explicitly import each decision into central inspections using `POST /inspections/offline/sync`. The server rechecks RBAC, actor, active registration, stage state, prior inspection and recorded results. Successful operations are written atomically with a durable audit receipt; replays with the same UUID and payload return the original acknowledgement, while conflicts stay encrypted locally.
+- The browser does not silently auto-send, auto-retry, or delete local drafts. Every accepted response is sealed back into IndexedDB before processing the next decision. Connection/authentication failures leave remaining operations pending, and changed server state becomes visible `CONFLICT` requiring manual review.
 - A new package cannot silently replace an existing vault and its pending drafts. Manual removal is an explicit destructive operation, after reviewing outstanding work.
 
-**Still open before event use:** signed/audited package export and revocation; role-bound/offline re-authentication and device incident handling; local QR lookup; robust central idempotent operation-sync protocol and conflict UI; multi-judge LAN venue hub; actual disconnected phone tests. Do not call offline mode ready for a real multi-judge event.
+**Still open before event use:** signed/audited package export and revocation; role-bound/offline re-authentication and device incident handling; local QR lookup; multi-judge LAN venue hub; independent device conflict reconciliation beyond per-inspection retries; field tests on disconnected iPhone/Android. The first central replay flow is NOT approval of full offline mode for a real multi-judge event.
 
 The architecture and acceptance requirements below remain authoritative, even when this first pilot has passed CI.
 

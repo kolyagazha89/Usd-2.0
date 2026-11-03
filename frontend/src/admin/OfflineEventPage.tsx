@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,ArrowLeft,CheckCircle2,ClipboardCheck,HardDrive,Lock,LockKeyhole,Search,ShieldCheck,Trash2,Wifi,WifiOff} from 'lucide-react';
-import {findOfflineEntries,recordOfflineInspection,type OfflineEventPackage} from './offline-event-model';
+import {findOfflineEntries,markOfflineInspectionSync,recordOfflineInspection,type OfflineEventPackage} from './offline-event-model';
+import {apiPost,refresh} from '../api';
 import {deleteOfflineVault,loadEncryptedVault,unsealOfflinePackage,updateOfflineVault,type EncryptedEventVault} from './offline-event-vault';
 import './offline-event.css';
 
@@ -55,6 +56,9 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
  const entries=useMemo(()=>data?findOfflineEntries(data,query):[],[data,query]);
  const carByRegistration=new Map((data?.entries??[]).map(entry=>[entry.id,entry.carId]));
  const drafts=new Map((data?.drafts??[]).map(d=>[carByRegistration.get(d.registrationId)??d.registrationId,d]));
+ const pendingCount=data?.drafts.filter(d=>d.state==='LOCAL_ONLY').length??0;
+ const acceptedCount=data?.drafts.filter(d=>d.state==='ACKNOWLEDGED').length??0;
+ const conflictCount=data?.drafts.filter(d=>d.state==='CONFLICT').length??0;
  const unlock=async()=>{
   if(!raw||busy)return;setBusy(true);setError('');setNotice('');
   try{
@@ -78,6 +82,52 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
   }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить локальный черновик')}
   finally{setBusy(false)}
  };
+ const syncDrafts=async()=>{
+  if(!data||busy||!connected||pendingCount===0)return;
+  setBusy(true);setError('');setNotice('');
+  let next=data,activeRevision=revision,accepted=0,conflicts=0;
+  try{
+   // A device's cached role is informational only. Re-authenticate and verify
+   // the original judge identity before sending any locally saved decision.
+   const session=await refresh();
+   if(!session?.user?.id)throw new Error('Войдите заново в USD как судья или администратор, затем повторите отправку.');
+   if(session.user.id!==data.actor.id)
+    throw new Error('Пакет подготовлен другим судьёй. Войдите под исходной учётной записью.');
+   for(const draft of data.drafts.filter(item=>item.state==='LOCAL_ONLY')){
+    try{
+     const response=await apiPost<{
+      success:boolean;operationId:string;registrationId:string;
+      inspectionId:string;repeated:boolean;
+     }>('/inspections/offline/sync',{
+      operationId:draft.id,stageId:data.stage.id,registrationId:draft.registrationId,
+      actorId:draft.actorId,createdAt:draft.createdAt,
+      baseInspectionId:draft.baseInspectionId,status:draft.status,notes:draft.notes,
+     });
+     if(!response?.success||response.operationId!==draft.id||
+        response.registrationId!==draft.registrationId||!response.inspectionId)
+      throw new Error('Некорректное подтверждение сервера. Сохраните пакет и проверьте журнал операций.');
+     const updated=markOfflineInspectionSync(next,draft.id,'ACKNOWLEDGED',
+      response.repeated?'Повтор подтверждён сервером':'Сохранено на центральном сервере',response.inspectionId);
+     // Durable local state first; if IndexedDB fails, retry is safe because
+     // the server stores an immutable receipt for this exact operation ID.
+     const savedRevision=await updateOfflineVault(updated,passphrase,activeRevision);
+     next=updated;activeRevision=savedRevision;setRevision(savedRevision);setData(updated);accepted++;
+    }catch(e){
+     const serverStatus=(e as {status?:number})?.status;
+     if(serverStatus===409){
+      const updated=markOfflineInspectionSync(next,draft.id,'CONFLICT',
+       e instanceof Error?e.message:'Конфликт данных на сервере');
+      const savedRevision=await updateOfflineVault(updated,passphrase,activeRevision);
+      next=updated;activeRevision=savedRevision;setRevision(savedRevision);setData(updated);conflicts++;
+     }else throw e;
+    }
+   }
+   setNotice(`Сервер подтвердил ${accepted} инспекций; конфликтов: ${conflicts}. Подтверждения сохранены в зашифрованном пакете.`);
+  }catch(e){
+   setError((e instanceof Error?e.message:'Не удалось синхронизировать инспекции')+
+    (accepted?' · Уже подтверждено: '+accepted+'. Данные сохранены на устройстве.':''));
+  }finally{setBusy(false)}
+ };
  const remove=async()=>{
   if(!raw||!confirmDelete||busy)return;setBusy(true);setError('');
   try{
@@ -91,7 +141,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
   <main className="usd-offline-container">
    <header className="usd-offline-header">
     <div><span className="usd-offline-kicker">USD / ЛОКАЛЬНЫЙ РЕЖИМ</span><h1>День соревнований</h1>
-     <p>Автономный пакет и черновики инспекции без доступа к интернету.</p></div>
+     <p>Автономный пакет, черновики инспекций и явная отправка после восстановления связи.</p></div>
     <button className="usd-offline-button secondary" type="button" onClick={()=>onGoOnline()}><ArrowLeft size={17}/>На сайт</button>
    </header>
    <div className="usd-offline-badges" aria-label="Состояние офлайн-приложения">
@@ -105,7 +155,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    :!raw?<section className="usd-offline-panel">
     <Lock size={28}/><h2>Пакет ещё не подготовлен</h2>
     <p>Авторизуйтесь как судья или администратор с доступом к инспекциям, откройте «День соревнований» и подготовьте защищённый пакет, пока API доступен.</p>
-    <p className="usd-offline-warning">Это пока автономный черновик для одного устройства, а не общий судейский сервер. Синхронизация с центральной БД не реализована.</p>
+    <p className="usd-offline-warning">Режим рассчитан на одно устройство: централизованная синхронизация появляется только после восстановления API и повторного входа. Общий судейский LAN-сервер ещё не реализован.</p>
     <button className="usd-offline-button" type="button" onClick={()=>onGoOnline()}>Вернуться к подготовке</button>
    </section>
    :!data?<section className="usd-offline-panel">
@@ -130,7 +180,9 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
     </div>
     <div className="usd-offline-metrics">
      <span><strong>{data.entries.length}</strong> регистраций</span>
-     <span><strong>{data.drafts.length}</strong> черновиков без отправки</span>
+     <span><strong>{pendingCount}</strong> ожидают отправки</span>
+     <span><strong>{acceptedCount}</strong> подтверждены сервером</span>
+     <span><strong>{conflictCount}</strong> требуют проверки</span>
      <span><strong>{data.actor.role}</strong> роль при подготовке</span>
     </div>
     <p className="usd-offline-warning"><AlertTriangle size={16}/>Это снимок этапа на момент подготовки. Данные могли измениться на сервере. Локальные решения не являются официальными допусками.</p>
@@ -144,8 +196,8 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
       <div className="usd-offline-entry-head"><strong>№ {entry.number??'—'} · {entry.participantName}</strong><span>{entry.status==='CANCELLED'?'Отменена':draft?'ЛОКАЛЬНЫЙ ЧЕРНОВИК':entry.inspection.status==='PASSED'?'Допущен на момент загрузки':entry.inspection.status==='FAILED'?'Не прошёл на момент загрузки':'Без инспекции'}</span></div>
       <p>{entry.car}{entry.registrationNumber?' · '+entry.registrationNumber:''}</p>
       <div className="usd-offline-classes">{entry.classes.map((name,i)=><span key={i}>{name}</span>)}</div>
-      {draft?<><p className="usd-offline-draft"><ClipboardCheck size={15}/>Локально: {draft.status==='PASSED'?'Допустить':'Отказать'}{draft.notes?' · '+draft.notes:''} · Не синхронизировано</p>
-       <button type="button" className="usd-offline-button secondary" disabled={!connected} onClick={()=>onGoOnline('/admin/inspections?stageId='+encodeURIComponent(data.stage.id)+'&registrationId='+encodeURIComponent(entry.id))}>Сверить и вручную внести на сервере</button></>
+      {draft?<><p className={'usd-offline-draft '+(draft.state==='ACKNOWLEDGED'?'is-acknowledged':draft.state==='CONFLICT'?'is-conflict':'')}><ClipboardCheck size={15}/>{draft.status==='PASSED'?'Допустить':'Отказать'}{draft.notes?' · '+draft.notes:''} · {draft.state==='ACKNOWLEDGED'?'Подтверждено сервером · '+draft.serverInspectionId:draft.state==='CONFLICT'?'КОНФЛИКТ · '+(draft.syncMessage??'Требуется ручная проверка'):'Сохранено локально, ожидает отправки'}</p>
+       {draft.state!=='ACKNOWLEDGED'&&<button type="button" className="usd-offline-button secondary" disabled={!connected} onClick={()=>onGoOnline('/admin/inspections?stageId='+encodeURIComponent(data.stage.id)+'&registrationId='+encodeURIComponent(entry.id))}>Сверить актуальную инспекцию в админке</button>}</>
       :entry.status==='ACTIVE'&&entry.inspection.status==='PENDING'
        &&<button className="usd-offline-button secondary" type="button" onClick={()=>{setDraftFor(entry.id);setStatus('PASSED');setNotes('')}} disabled={busy}>Создать черновик инспекции</button>}
       {draftFor===entry.id&&<form className="usd-offline-draft-form" onSubmit={e=>{e.preventDefault();void saveDraft()}}>
@@ -159,16 +211,17 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    </section>
    <section className="usd-offline-panel">
     <h2>Завершение локальной работы</h2>
-    <p>До очистки устройства проверьте каждый черновик в онлайн-админке и дождитесь подтверждения сохранения от сервера. Автоматической отправки и отметки «синхронизировано» пока нет.</p>
-    <div className="usd-offline-draft-actions"><button className="usd-offline-button secondary" type="button" onClick={()=>onGoOnline()}><Wifi size={15}/>Перейти в онлайн-админку</button>
+    <p>После восстановления сети войдите под той же учётной записью судьи, проверьте этап и отправьте решения. Каждая принятая операция получает отдельное подтверждение центральной БД. Конфликты сохраняются для ручной сверки, без перезаписи.</p>
+    <p className="usd-offline-warning">Полноценная многосудейская автономная работа пока не готова: нет общего LAN-хаба и независимой офлайн-проверки прав. Не удаляйте пакет, пока все операции не подтверждены или не разобраны.</p>
+    <div className="usd-offline-draft-actions"><button className="usd-offline-button" type="button" onClick={()=>void syncDrafts()} disabled={busy||!connected||pendingCount===0}><Wifi size={15}/>{busy?'Проверяем и отправляем…':'Отправить на сервер · '+pendingCount}</button><button className="usd-offline-button secondary" type="button" onClick={()=>onGoOnline()}><Wifi size={15}/>Перейти в онлайн-админку</button>
      <button className="usd-offline-button danger" type="button" onClick={()=>setConfirmDelete(true)} disabled={busy}><Trash2 size={15}/>Удалить локальный пакет</button></div>
     {confirmDelete&&<div className="usd-offline-confirm" role="group" aria-label="Подтверждение удаления пакета">
-     <p>Это необратимо удалит все {data.drafts.length} локальных черновиков. Убедитесь, что данные перенесены на сервер и подтверждены.</p>
+     <p>Безвозвратно удалятся {pendingCount} неподтверждённых решений, {conflictCount} конфликтов и {acceptedCount} подтверждённых записей. Удаляйте только после сверки с сервером!</p>
      <button className="usd-offline-button danger" type="button" onClick={()=>void remove()} disabled={busy}>Подтвердить удаление</button>
      <button className="usd-offline-button secondary" type="button" onClick={()=>setConfirmDelete(false)}>Отмена</button>
     </div>}
    </section></>}
-   <footer className="usd-offline-footer"><ShieldCheck size={15}/>Без доступа к API изменения доступны только этому устройству. Не используйте этот режим как замену общему локальному серверу этапа.</footer>
+   <footer className="usd-offline-footer"><ShieldCheck size={15}/>Офлайн-записи остаются только на устройстве до явного серверного подтверждения. Общий локальный сервер этапа остаётся отдельной задачей.</footer>
   </main>
  </div>;
 }
