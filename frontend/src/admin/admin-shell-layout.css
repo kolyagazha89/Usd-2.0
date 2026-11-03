@@ -98,6 +98,9 @@ body .app-shell > .sidebar {
  --usd-sidebar-paper:#17181d;
  --usd-sidebar-hover:#26282f;
  box-sizing:border-box!important;
+ position:fixed;
+ inset:0 auto 0 0;
+ z-index:30;
  inline-size:268px!important;
  max-inline-size:268px!important;
  height:100dvh;
@@ -120,8 +123,10 @@ body .app-shell > .sidebar :is(.sidebar-top,nav,.sidebar-section,.sidebar-bottom
 }
 body .app-shell > .sidebar .sidebar-top,
 body .app-shell > .sidebar .sidebar-bottom { flex:0 0 auto;min-width:0 }
-body .app-shell > .sidebar .sidebar-top {padding:8px 10px 18px}
+body .app-shell > .sidebar .sidebar-top {display:flex;align-items:center;justify-content:space-between;padding:8px 10px 18px}
 body .app-shell > .sidebar .brand-button {
+ display:flex;align-items:center;gap:10px;padding:0;
+ cursor:pointer;
  color:#f5f5f6!important;
  background:transparent!important;
  border:0!important;
@@ -173,6 +178,7 @@ body .app-shell > .sidebar .nav-item {
  width:100%;
  min-height:44px;
  display:flex;
+ position:relative;
  gap:10px;
  align-items:center;
  margin:2px 0;
@@ -189,6 +195,8 @@ body .app-shell > .sidebar .nav-item {
  transform:none!important;
 }
 body .app-shell > .sidebar .nav-item>span{min-width:0;overflow-wrap:anywhere}
+body .app-shell > .sidebar .nav-item svg{flex:0 0 auto}
+body .app-shell > .sidebar .nav-dot{margin-left:auto;width:7px;height:7px;background:#ed2638;border-radius:50%}
 body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover:not([aria-current="page"]) {
  background:var(--usd-sidebar-hover)!important;
  color:#fff!important;
@@ -211,10 +219,11 @@ body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle,.brand-button,.
  border-color:transparent!important;
 }
 body .app-shell > .sidebar .sidebar-bottom{
+ margin-top:auto;
  padding:12px 3px 0;
  border-top:1px solid #313239!important;
 }
-body .app-shell > .sidebar .user-mini{min-width:0}
+body .app-shell > .sidebar .user-mini{display:flex;align-items:center;gap:10px;padding:4px 6px 12px;min-width:0}
 body .app-shell > .sidebar .user-mini>div{min-width:0}
 body .app-shell > .sidebar .user-mini :is(strong,small){
  display:block;
@@ -224,8 +233,10 @@ body .app-shell > .sidebar .user-mini :is(strong,small){
 }
 body .app-shell > .sidebar .user-mini strong{color:#f4f5f6!important}
 body .app-shell > .sidebar .user-mini small{color:#aaaeb8!important}
-body .app-shell > .sidebar .avatar{background:#292b32!important;color:#fff!important}
+body .app-shell > .sidebar .avatar{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:9px;font-weight:900;font-size:12px;background:#292b32!important;color:#fff!important}
 body .app-shell > .sidebar .logout-button{
+ display:flex;align-items:center;gap:8px;
+ height:40px;padding:0 9px;border-radius:9px;
  width:100%;
  background:transparent!important;
  color:#d1d3d8!important;
@@ -236,6 +247,9 @@ body .app-shell > .sidebar .logout-button:hover{
  background:var(--usd-sidebar-hover)!important;
  color:#fff!important;
 }
+body .app-shell > .sidebar .sidebar-section-toggle{cursor:pointer}
+body .app-shell > .sidebar .section-chevron{transition:transform .18s ease}
+body .app-shell > .sidebar .section-chevron.open{transform:rotate(90deg)}
 body .app-shell > .sidebar .mobile-close{
  background:#26282f!important;
  border-color:#3c3d44!important;
@@ -281,6 +295,7 @@ body .app-shell .main .topbar-actions {
   }
   body .app-shell > .sidebar.open { transform: translateX(0) !important; }
   body .app-shell > .mobile-backdrop {
+    display:block;
     position: fixed;
     inset: 0;
     width: 100%;
