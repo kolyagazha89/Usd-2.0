@@ -260,6 +260,7 @@ try{
       const desk=page.locator('.event-day-page');
       await desk.getByRole('heading',{name:'Рабочая площадка'}).waitFor();
       await desk.getByRole('heading',{name:'Активные'}).waitFor();
+      await desk.locator('.event-day-person').first().waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
       await desk.getByRole('button',{name:'Допустить'}).click();
       const confirm=desk.getByRole('group',{name:/Подтверждение допуска/});
@@ -273,11 +274,13 @@ try{
       assert.equal(await failed.getByRole('button',{name:'Подтвердить отказ'}).isEnabled(),true);
       await failed.getByRole('button',{name:'Отмена'}).click();
       await desk.getByRole('button',{name:'Допущено'}).first().click();
+      await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
       await desk.getByRole('button',{name:'Активные'}).first().click();
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№7');
       assert.equal(await desk.locator('.event-day-person').count(),1,'operator finds exact participant number');
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№8');
+      await desk.locator('.event-day-person').first().waitFor({state:'detached'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'exact number search does not match another number');
       row.eventDay='integrated registration roster, admission, reason-required failure, final list, number search';
      }
