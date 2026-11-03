@@ -144,7 +144,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId)+'&scan=1')}><ScanQrCode size={15}/>QR / USD ID</button>}
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
-      {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>
+      {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
      </div>
     </section>
     <section className="panel event-day-roster" aria-label="Рабочий список участников">
