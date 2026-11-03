@@ -19,3 +19,12 @@ test('normal public images work and non-image schemes remain blocked',()=>{
  assert.equal(safePhotoSource('data:image/svg+xml,abc',nobody),'');
  assert.equal(safePhotoSource('mailto:attacker@example.com',nobody),'');
 });
+
+test('reloading a member gallery revokes stale authenticated object URLs without touching new photos',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.match(source,/const portalPhotoUrls=useRef<Set<string>>/);
+ assert.match(source,/!active\.has\(url\)\)releasePrivateMediaUrl\(url\)/);
+ assert.match(source,/portalPhotoUrls\.current\.clear\(\)/);
+ assert.match(source,/getMediaUrl\('CAR_PHOTO',car\.id\)/);
+});
