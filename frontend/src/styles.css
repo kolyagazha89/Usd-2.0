@@ -36,17 +36,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .form-error{display:flex;align-items:center;gap:8px;background:#3a171b;border:1px solid #713038;color:#ffb7bd;padding:12px;border-radius:10px;font-size:12px}
 .login-footer{display:flex;justify-content:space-between;border-top:1px solid #2b2e32;margin-top:30px;padding-top:18px;color:#80858b;font-size:10px;text-transform:uppercase;letter-spacing:.1em}
 
-.app-shell{min-height:100vh;display:flex}.sidebar{width:268px;position:fixed;inset:0 auto 0 0;background:var(--black);color:#fff;padding:17px 12px 14px;display:flex;flex-direction:column;z-index:30;box-shadow:12px 0 35px rgba(0,0,0,.08)}
-.sidebar-top{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 22px}.brand-button{border:0;background:none;color:#fff;display:flex;align-items:center;gap:10px;padding:0}
-.brand-title{font-size:17px;letter-spacing:-.04em}.brand-title b{color:#b7bbc0}
-.sidebar-label{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:#777c82;padding:0 13px 9px;font-weight:900}
-.app-shell > .sidebar > nav{display:grid;gap:4px;overflow:auto;padding-right:2px}.nav-item{min-height:43px;border:0;background:transparent;color:#aeb2b7;border-radius:10px;display:flex;align-items:center;gap:11px;padding:0 12px;text-align:left;font-size:12px;font-weight:700;position:relative;transition:.12s}
-.nav-item svg{flex:0 0 auto}.nav-item:hover{background:#181a1d;color:#fff}.nav-item.active{background:#fff;color:#111;border-left:4px solid var(--red);padding-left:8px;box-shadow:0 4px 14px rgba(0,0,0,.16)}
-.nav-dot{margin-left:auto;width:7px;height:7px;background:var(--red);border-radius:50%}
-.sidebar-bottom{margin-top:auto;border-top:1px solid #292c30;padding:14px 4px 0}.user-mini{display:flex;align-items:center;gap:10px;padding:4px 6px 12px}
-.avatar{width:34px;height:34px;border-radius:9px;background:#292c30;display:grid;place-items:center;font-weight:900;font-size:12px}
-.user-mini strong,.user-mini small{display:block}.user-mini strong{font-size:11px;color:#f0f1f2}.user-mini small{font-size:9px;color:#858a90;margin-top:3px}
-.logout-button{width:100%;height:38px;border:0;background:none;color:#9a9fa5;display:flex;align-items:center;gap:8px;padding:0 7px;font-size:11px;border-radius:8px}.logout-button:hover{color:#fff;background:#17191c}
+/* Core admin navigation lives in admin/admin-shell-layout.css. */
+.app-shell{min-height:100vh;display:flex}
 .main{margin-left:268px;min-width:0;width:calc(100% - 268px)}
 .topbar{height:68px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.96);display:flex;align-items:center;padding:0 30px;position:sticky;top:0;z-index:20}
 .breadcrumb{display:flex;align-items:center;gap:8px;color:#7b8087;font-size:11px}.breadcrumb strong{color:#17191c;font-weight:800}
@@ -115,7 +106,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .quality-summary{grid-template-columns:repeat(2,1fr)}.import-grid{grid-template-columns:1fr}
 }
 @media(max-width:800px){
-  .sidebar{transform:translateX(-100%);transition:transform .2s;box-shadow:20px 0 45px rgba(0,0,0,.22)}.sidebar.open{transform:translateX(0)}
   .main{margin-left:0;width:100%}.menu-button,.mobile-close{display:grid}.mobile-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.56);border:0;z-index:25}
   .topbar{padding:0 16px;height:62px}.breadcrumb span,.breadcrumb svg{display:none}.content{padding:20px 14px}.page-heading{align-items:flex-start}.page-heading h1{font-size:27px}.role-pill,.field-status{display:none}
   .dashboard-info-grid{grid-template-columns:1fr}.race-command{min-height:108px}.registration-total strong{font-size:34px}
@@ -135,7 +125,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 /* Large touch targets on field devices */
 @media(pointer:coarse){
-  .nav-item{min-height:48px}.icon-button{width:42px;height:42px}.secondary-button,.danger-button{min-height:44px}.search-box{height:46px}
+  .icon-button{width:42px;height:42px}.secondary-button,.danger-button{min-height:44px}.search-box{height:46px}
   .inspection-actions .secondary-button,.inspection-actions .danger-button{min-height:48px;padding:0 14px}.inspection-stat{min-height:100px}
 }
 
@@ -283,7 +273,7 @@ body{font-size:13px}
 .stage-class-card{box-shadow:0 2px 8px rgba(9,10,11,.025);transition:.12s}.stage-class-card:hover{border-color:#bfc5ca;box-shadow:0 5px 16px rgba(9,10,11,.05)}
 .stage-picker{align-items:center}.stage-picker label{font-size:11px}.stage-picker select{height:42px!important;min-width:320px;font-size:11px!important}
 .import-steps .import-step{font-size:11px!important}.import-row{padding:12px!important;border-color:#d7dade!important}.import-row:hover{border-color:#bfc5ca;box-shadow:0 2px 8px rgba(9,10,11,.04)}
-.field-mode .content{padding:26px 30px 44px}.field-mode .data-table td{font-size:14px;padding:17px 14px}.field-mode .data-table th{font-size:11px;padding:14px}.field-mode .nav-item{min-height:50px;font-size:13px}.field-mode .primary-button,.field-mode .secondary-button,.field-mode .danger-button{min-height:48px}.field-mode .search-box{height:48px}
+.field-mode .content{padding:26px 30px 44px}.field-mode .data-table td{font-size:14px;padding:17px 14px}.field-mode .data-table th{font-size:11px;padding:14px}.field-mode .primary-button,.field-mode .secondary-button,.field-mode .danger-button{min-height:48px}.field-mode .search-box{height:48px}
 @media(max-width:760px){
  .content{padding:20px 14px 34px}.page-heading{align-items:flex-start;flex-wrap:wrap}.page-heading h1{font-size:28px}.page-heading>button,.page-heading>.settings-save-actions{width:100%}
  .entity-fields{grid-template-columns:1fr}.entity-fields>.field-wrapper:last-child:nth-child(odd){grid-column:auto}
@@ -328,8 +318,6 @@ body{font-size:13px}
 .nav-group{display:grid;gap:3px;margin-bottom:13px}
 .nav-group-title{padding:5px 13px 4px;color:#666b72;font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
 .nav-group:first-child .nav-group-title{display:none}
-.nav-group .nav-item{min-height:41px}
-.sidebar nav{padding-bottom:8px}
 .topbar{gap:18px}
 .global-search-trigger{order:0}
 .breadcrumb{min-width:0}
@@ -354,7 +342,6 @@ body{font-size:13px}
  .admin-mini-stats{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:700px){
- .sidebar{width:286px}
  .topbar{padding:0 14px;gap:8px}
  .breadcrumb{display:none}
  .topbar-actions{gap:5px}
@@ -371,7 +358,6 @@ body{font-size:13px}
  --admin-shadow:0 8px 28px rgba(14,16,18,.055);
 }
 .app-shell{background:#f5f6f7}
-.brand-button{transition:transform .15s ease}.brand-button:hover{transform:translateY(-1px)}
 .main{min-width:0}
 .content{animation:adminPageIn .18s ease-out}
 @keyframes adminPageIn{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:none}}
@@ -1589,18 +1575,10 @@ html,body{
   background:#68717a;
   border-width:1px;
 }
-.sidebar nav::-webkit-scrollbar-track,
 .assistant-messages::-webkit-scrollbar-track,
 .stage-class-modal-list::-webkit-scrollbar-track,
 .config-list::-webkit-scrollbar-track{
   background:#151719;
-}
-.sidebar nav::-webkit-scrollbar-thumb{
-  background:#555b61;
-  border-color:#151719;
-}
-.sidebar nav::-webkit-scrollbar-thumb:hover{
-  background:#e21d2f;
 }
 .modal-backdrop{
   background:rgba(7,9,11,.52)!important;
@@ -1939,7 +1917,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-.sidebar-section-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;cursor:pointer}.section-chevron{transition:transform .18s ease}.section-chevron.open{transform:rotate(90deg)}.results-direction-row td{padding:12px 16px;background:var(--surface-2,#f5f5f5);border-top:1px solid var(--border,#e5e5e5)}.results-direction-row span{margin-left:10px;font-size:12px;color:var(--muted,#777);font-weight:500}
+.results-direction-row td{padding:12px 16px;background:var(--surface-2,#f5f5f5);border-top:1px solid var(--border,#e5e5e5)}.results-direction-row span{margin-left:10px;font-size:12px;color:var(--muted,#777);font-weight:500}
 /* USD 2.0 · car configurations */
 .config-modal{display:flex;flex-direction:column;gap:16px}
 .config-modal-hero{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:18px;background:linear-gradient(135deg,#fafafa,#f3f4f6)}
