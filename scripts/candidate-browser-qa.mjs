@@ -90,13 +90,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -120,7 +120,8 @@ try{
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{...stage,id:'outage'}])});
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
-     const data=registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
+     const judgingFlow=role==='ADMIN'&&request.frame().url().includes('/admin/results');
+     const data=judgingFlow&&url.pathname==='/registrations'?[{...registration,stageInspection:{status:'PASSED'}}]:judgingFlow&&url.pathname==='/results/admin/stage/stage1'?[]:registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
      return route.fulfill({status:data===null?401:200,contentType:'application/json',body:JSON.stringify(data??{message:'Anonymous fixture'})});
     }
     // Images, fonts and third-party embeds must never contact a live service.
@@ -582,6 +583,44 @@ try{
        await page.goto(base+route,{waitUntil:'networkidle'});
       }
      }
+     if(role==='ADMIN'&&route.startsWith('/admin/results')){
+      const board=page.locator('.judging-page');
+      await board.waitFor({state:'visible'});
+      const nav=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
+      await nav.waitFor({state:'visible'});
+      assert.equal(await nav.locator('button').count(),3,'three stage-scoped desk links');
+      assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
+      await page.locator('.judging-summary-card').first().waitFor();
+      assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
+      assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
+      if(route.includes('entry=1')){
+       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
+       assert.match(await page.locator('.judging-selected').innerText(),/Тестовый Иван/);
+       assert.equal(await page.locator('.judging-entry-step').count(),3,'inspection deep link starts three-step entry');
+       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('152.34');
+       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
+       row.judgeDeeplink='approved athlete preselected, correct class and value';
+      }else if(route.includes('?stageId=stage1')){
+       await page.getByRole('button',{name:'Внести результат'}).click();
+       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
+       await page.getByRole('searchbox',{name:'Поиск участника по номеру или ФИО'}).fill('7');
+       assert.equal(await page.locator('.judging-roster-item').count(),1,'exact stage participant number lookup');
+       await page.locator('.judging-roster-item').first().click();
+       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('151.1');
+       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
+       await page.getByRole('button',{name:'К протоколу'}).click();
+       row.judgeNewEntry='nameplate search, class validation and cancellation';
+      }
+      const surface=await board.evaluate(el=>({
+       documentWidth:document.documentElement.scrollWidth,viewport:innerWidth,
+       background:getComputedStyle(el.querySelector('.judging-summary-card')).backgroundColor,
+      }));
+      assert.equal(surface.background,'rgb(255, 255, 255)','admin judging cards stay white');
+      assert.ok(surface.documentWidth<=surface.viewport+1,'judging does not overflow '+JSON.stringify(surface));
+      row.judgeLayout='three connected desks, white admin and responsive controls';
+     }
      if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
       const root=page.locator('.event-ops-page');
       await root.waitFor();
@@ -616,7 +655,7 @@ try{
       const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';
       const nextPath=route==='/admin/registrations'?'/admin/inspections':'/admin/registrations';
       assert.equal(await workflow.locator('[aria-current="page"]').getAttribute('aria-label'),activeLabel);
-      assert.equal(await workflow.locator('button').count(),2,'one accessible control per stage operation');
+      assert.equal(await workflow.locator('button').count(),3,'three connected event-day steps');
       await workflow.getByRole('button',{name:nextLabel,exact:true}).click();
       await page.waitForURL(url=>url.pathname===nextPath&&url.searchParams.get('stageId')==='stage1');
       await page.locator('.event-ops-workflow-step.is-active').waitFor();

@@ -642,6 +642,7 @@ export class ResultsService {
             registration: {
               include: {
                 inspection: true,
+                stageInspection: true,
                 stage: true,
               },
             },
@@ -677,13 +678,19 @@ export class ResultsService {
           );
         }
 
-        if (!existing.registration.inspection) {
+        // Judging and later corrections must use the same authoritative
+        // stage inspection. A historical/legacy vehicle inspection is only a
+        // fallback when no participant-stage inspection has been recorded.
+        const inspection =
+          existing.registration.stageInspection ??
+          existing.registration.inspection;
+        if (!inspection) {
           throw new ConflictException(
             'Нельзя изменить результат без пройденной инспекции',
           );
         }
 
-        if (existing.registration.inspection.status !== 'PASSED') {
+        if (inspection.status !== 'PASSED') {
           throw new ConflictException(
             'Нельзя изменить результат участника, не допущенного к соревнованиям',
           );

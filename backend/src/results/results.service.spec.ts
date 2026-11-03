@@ -481,4 +481,56 @@ describe('ResultsService', () => {
       }),
     );
   });
+  function setupCorrectTx(stageInspection: any, inspection: any) {
+    const tx: any = {
+      result: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'r-1', value: {toString:()=> '151.25'}, unit:'DB',place:1,notes:null,
+          registration:{
+            status:'ACTIVE',participantId:'p-1',stageId:'stage-1',inspection,stageInspection,
+            stage:{id:'stage-1',status:'COMPLETED',isDeleted:false,seasonId:'season-1'},
+          },
+          registrationClass:{classId:'class-1',class:{id:'class-1',name:'Limited 2.0'}},
+        }),
+        update: jest.fn().mockResolvedValue({
+          id:'r-1',value:{toString:()=> '152.5'},unit:'DB',place:1,notes:'Correction',
+        }),
+      },
+      disqualification:{findMany:jest.fn().mockResolvedValue([])},
+      auditLog:{create:jest.fn().mockResolvedValue({id:'audit-1'})},
+    };
+    prisma.$transaction.mockImplementation(async (fn:any)=>fn(tx));
+    prisma.result.findUnique.mockResolvedValue({id:'r-1'});
+    return tx;
+  }
+
+  it('allows an ADMIN correction on a registration with only the shared PASSED inspection', async () => {
+    const tx=setupCorrectTx({status:'PASSED'},null);
+    await expect(service.update('r-1',{value:152.5,notes:'Correction'},adminRequest)).resolves.toBeDefined();
+    expect(tx.result.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      include:expect.objectContaining({registration:expect.objectContaining({
+        include:expect.objectContaining({stageInspection:true,inspection:true}),
+      })}),
+    }));
+    expect(tx.result.update).toHaveBeenCalledTimes(1);
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks correction when shared inspection FAILED, even if old vehicle inspection passed', async () => {
+    const tx=setupCorrectTx({status:'FAILED'}, {status:'PASSED'});
+    await expect(service.update('r-1',{value:152.5},adminRequest)).rejects.toThrow(
+      'Нельзя изменить результат участника, не допущенного к соревнованиям',
+    );
+    expect(tx.result.update).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('requires any passed inspection before correction, matching result creation', async () => {
+    const tx=setupCorrectTx(null,null);
+    await expect(service.update('r-1',{value:152.5},adminRequest)).rejects.toThrow(
+      'Нельзя изменить результат без пройденной инспекции',
+    );
+    expect(tx.result.update).not.toHaveBeenCalled();
+  });
+
 });
