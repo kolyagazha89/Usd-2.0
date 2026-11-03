@@ -34,9 +34,22 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:()=>void}){
   if(!('serviceWorker' in navigator)||!window.isSecureContext)return;
   if(import.meta.env.DEV)return;
   let active=true;
-  navigator.serviceWorker.register('/usd-offline-sw.js',{scope:'/offline-event'})
-   .then(reg=>{if(active)setWorkerReady(Boolean(reg.active||reg.waiting||reg.installing))})
-   .catch(()=>{if(active)setWorkerReady(false)});
+  const isOfflineWorker=(reg:ServiceWorkerRegistration|undefined)=>Boolean(
+   reg?.active?.scriptURL.endsWith('/usd-offline-sw.js')&&
+   new URL(reg.scope).pathname==='/offline-event');
+  const check=async()=>{
+   // The installed worker can serve the desk without Internet; a fresh
+   // register() request would fail disconnected and falsely report not-ready.
+   const prior=await navigator.serviceWorker.getRegistration('/offline-event');
+   if(active&&isOfflineWorker(prior))setWorkerReady(true);
+   if(!navigator.onLine)return;
+   const reg=await navigator.serviceWorker.register('/usd-offline-sw.js',{scope:'/offline-event'});
+   const refreshState=()=>{if(active&&isOfflineWorker(reg))setWorkerReady(true)};
+   refreshState();
+   reg.installing?.addEventListener('statechange',refreshState);
+   reg.waiting?.addEventListener('statechange',refreshState);
+  };
+  void check().catch(()=>{if(active)setWorkerReady(false)});
   return()=>{active=false};
  },[]);
  const entries=useMemo(()=>data?findOfflineEntries(data,query):[],[data,query]);
