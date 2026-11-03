@@ -39,7 +39,7 @@ const rulesBlocks=[
  {type:'heading',level:2,text:'Раздел Б'},
  {type:'list-item',ordered:true,level:0,text:'Новый список'},
 ];
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true}],batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[{id:'fixture-brand-alphard',category:'SUBWOOFER',name:'Alphard',isActive:true},{id:'fixture-brand-pride',category:'SUBWOOFER',name:'Pride',isActive:false}],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true},{id:'fixture-model-pride',category:'SUBWOOFER',brand:'Pride',model:'Black 15',isActive:false}],vehicleDirectory:{brands:[],models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false}]},batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 stage.rulesSnapshot={revisionId:'rules-fixture',publishedAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role:role==='ONBOARDING'?'PARTICIPANT':role,participantId:role==='PARTICIPANT'?'p1':null});
@@ -90,13 +90,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -220,6 +220,41 @@ try{
        row.cmsDraft='three-step CMS navigation keeps unsaved work and surfaces save action';
       }
       row.cmsJourney='eleven sections, home editor 3 pages and saved-state overview';
+     }
+     if(role==='ADMIN'&&route==='/admin/vehicle-catalog'){
+      const summary=page.locator('.vehicle-catalog-summary');
+      await summary.waitFor({state:'visible'});
+      await summary.getByText('308',{exact:true}).waitFor();
+      await summary.getByText('4347',{exact:true}).waitFor();
+      const brands=page.locator('.vehicle-catalog-brand-list .catalog-manage-row');
+      const models=page.locator('.vehicle-catalog-model-list .catalog-manage-row');
+      assert.equal(await brands.count(),308,'all seed makes are accessible');
+      assert.equal(await models.count(),60,'large model directory is paginated instead of rendering all 4,347 rows');
+      const first=brands.first();
+      await first.getByRole('button',{name:'Редактировать'}).click();
+      await first.getByLabel('Название марки').fill('QA only — unsaved');
+      await first.getByRole('button',{name:'Отмена'}).click();
+      assert.equal(await first.getByLabel('Название марки').count(),0,'editing never saves without confirmation');
+      const bulk=page.locator('.vehicle-catalog-bulk');
+      await bulk.getByRole('button',{name:/Включить все марки и модели/}).click();
+      await bulk.getByRole('group').getByText(/Подтвердить включение/).waitFor();
+      await bulk.getByRole('button',{name:'Отмена'}).click();
+      row.vehicleCatalog='308 makes and 4,347 models; pagination, inline edit/cancel, scoped bulk confirmation';
+     }
+     if(role==='ADMIN'&&route==='/admin/components'){
+      await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
+      const brands=page.locator('.catalog-two-column .panel').first().locator('.catalog-manage-row');
+      assert.equal(await brands.count(),2,'component catalog includes enabled and disabled brands');
+      const first=brands.first();
+      await first.getByRole('button',{name:'Редактировать'}).click();
+      await first.getByLabel('Название марки').fill('Fixture edit — unsaved');
+      await first.getByRole('button',{name:'Отмена'}).click();
+      assert.equal(await first.getByLabel('Название марки').count(),0);
+      const bulk=page.locator('.catalog-bulk-panel');
+      await bulk.getByRole('button',{name:/Включить все в категории/}).click();
+      await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
+      await bulk.getByRole('button',{name:'Отмена'}).click();
+      row.componentCatalog='brand/model management, disabled filters and bulk confirmation without writing';
      }
      if(role==='ADMIN'&&route==='/admin/stages/new'){
       const form=page.locator('.entity-form-journey');
