@@ -49,7 +49,7 @@ test('side navigation has exactly one stylesheet owner — no legacy multi-layer
  assert.ok(inner&&propertyBlock(inner,'background')?.includes('transparent'),'brand, nav, groups and footer use the same surface');
  const active=adminRules.find(rule=>rule.selector.includes('.nav-item[aria-current="page"]'));
  assert.ok(active&&propertyBlock(active,'background')?.includes('#32181e'),'active entry has quiet burgundy, not blue');
- assert.ok(!/\bnav\s*\{/.test(baseCss),'generic nav must never enforce a grid on public navigation');
+ assert.ok(!rules(baseCss,'styles.css').some(rule=>rule.selector.split(',').some(part=>part.trim()==='nav')),'generic nav must never enforce a grid on public navigation');
  assert.ok(!/\.sidebar\s*\{[\s\S]*?radial-gradient/.test(baseCss),'legacy red radial sidebar removed');
 });
 
