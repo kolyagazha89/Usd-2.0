@@ -1,0 +1,33 @@
+name: Official Kicx and Dynamic State catalog extraction
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install free site parser
+        run: pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Extract official manufacturer records without Firecrawl credits
+        id: crawl
+        continue-on-error: true
+        run: python tools/catalogs/crawl_kicx_dynamic.py --out catalog-site-output --delay 0.65 --max-products 900
+      - name: Export report even when manufacturer is unreachable
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicx-dynamic-site-crawl
+          path: catalog-site-output/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Do not claim success if manufacturer extraction failed
+        if: steps.crawl.outcome != 'success'
+        run: |
+          echo 'Official manufacturer source blocked or returned zero models; see source_coverage.json.'
+          exit 1

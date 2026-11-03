@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-11-03",
+  "sources": "Manufacturer official websites and Drom (factual names only)",
+  "cars": {
+    "rows": 4347,
+    "brands": 308,
+    "fields": [
+      "марка",
+      "модель"
+    ],
+    "origin": "https://www.drom.ru/catalog/"
+  },
+  "audio": {
+    "rows": 3388,
+    "brands": 30,
+    "fields": [
+      "бренд",
+      "модель",
+      "категория"
+    ],
+    "categories": {
+      "AMPLIFIER": 910,
+      "AUDIO_COMPONENT": 1389,
+      "SUBWOOFER": 989,
+      "HEAD_UNIT": 74,
+      "DSP": 26
+    },
+    "counts_by_brand": {
+      "Apocalypse": 174,
+      "Aura": 178,
+      "Avatar": 96,
+      "B2 Audio": 62,
+      "Black Hydra": 26,
+      "DD Audio": 361,
+      "Deaf Bonce": 16,
+      "DL Audio": 197,
+      "EDGE": 96,
+      "Fi Car Audio": 31,
+      "Ground Zero": 291,
+      "Hannibal": 51,
+      "Hertz": 110,
+      "Machete": 161,
+      "Pride": 239,
+      "Resilient Sounds": 42,
+      "Rockford Fosgate": 231,
+      "SounDigital": 46,
+      "SP Audio": 95,
+      "Stetsom": 74,
+      "Sundown Audio": 279,
+      "Taramps": 42,
+      "Урал": 156,
+      "Headshot": 48,
+      "Kicx": 80,
+      "Loud Level": 9,
+      "Phantom": 8,
+      "Sound Civilization": 16,
+      "Terza": 5,
+      "Dynamic State": 168
+    },
+    "brand_count_note": "30 brand/series labels, Kicx Sound subbrands separate",
+    "review_note": "Eight wiring/adapter listings removed from the AUDIO_COMPONENT staging seed; manufacturer coverage remains non-exhaustive."
+  },
+  "fragment_coverage": [
+    {
+      "manufacturer": "deafbonce",
+      "rows": 243
+    },
+    {
+      "manufacturer": "sundown_audio",
+      "rows": 279
+    },
+    {
+      "manufacturer": "edge",
+      "rows": 99
+    },
+    {
+      "manufacturer": "sp_audio",
+      "rows": 106
+    },
+    {
+      "manufacturer": "dd_audio",
+      "rows": 392
+    },
+    {
+      "manufacturer": "b2_audio",
+      "rows": 62
+    },
+    {
+      "manufacturer": "aura",
+      "rows": 178
+    },
+    {
+      "manufacturer": "pride",
+      "rows": 152
+    },
+    {
+      "manufacturer": "pride_archive",
+      "rows": 143
+    },
+    {
+      "manufacturer": "dl_audio",
+      "rows": 197
+    },
+    {
+      "manufacturer": "ural",
+      "rows": 169
+    },
+    {
+      "manufacturer": "fi_car_audio",
+      "rows": 31
+    },
+    {
+      "manufacturer": "ground_zero",
+      "rows": 291
+    },
+    {
+      "manufacturer": "rockford_fosgate",
+      "rows": 231
+    },
+    {
+      "manufacturer": "stetsom",
+      "rows": 74
+    },
+    {
+      "manufacturer": "taramps",
+      "rows": 42
+    },
+    {
+      "manufacturer": "resilient_sounds",
+      "rows": 43
+    },
+    {
+      "name": "deafbonce_speakers",
+      "rows": 203
+    },
+    {
+      "name": "deafbonce_subwoofers",
+      "rows": 138
+    },
+    {
+      "name": "deafbonce_amplifiers",
+      "rows": 183
+    },
+    {
+      "name": "soundigital",
+      "rows": 46,
+      "source_method": "free public site text index, official product slugs"
+    },
+    {
+      "name": "hertz",
+      "rows": 110,
+      "source": "official hertz-audio.com product collections and individual titles"
+    },
+    {
+      "name": "kicx",
+      "rows": 166,
+      "source_method": "official Kicx Sound group cached category pages and indexed manufacturer product pages; partial historical coverage"
+    },
+    {
+      "name": "dynamic_state",
+      "rows": 168,
+      "source_method": "official Dynamic State category pages and indexed manufacturer product pages; partial historical coverage"
+    }
+  ],
+  "validation": {
+    "deduped_by": "casefolded brand and model",
+    "rejected": 2,
+    "category_conflicts": 0,
+    "conflict_samples": [],
+    "cleaned_marketing_labels": true,
+    "import_schema_matched": true,
+    "source_fragment_headers_checked_by_ci": true,
+    "reference_csv_deduped_by_key": true
+  },
+  "completeness": "review-ready substantial official catalog seed; full historical product coverage not certified",
+  "production_import": false,
+  "partial_source_limitations": [
+    "Both Kicx and Dynamic State hosts time out on direct HTTP, including GitHub-hosted runner; official indexed product titles and cached official categories collected instead. Full historical coverage cannot be independently certified."
+  ]
+}
