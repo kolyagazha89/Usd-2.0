@@ -409,4 +409,79 @@ describe('InspectionsService', () => {
     expect(tx.registrationClass.deleteMany).not.toHaveBeenCalled();
   });
 
+  describe('offline inspection replay', () => {
+    const operationId = '56775125-66cf-4aac-9a9a-a5922c9ce660';
+    const draft = {
+      operationId, stageId:'stage-1', registrationId:'registration-1',
+      actorId:'judge-1', createdAt:new Date().toISOString(),
+      baseInspectionId:null, status:'FAILED' as const, notes:'Незакреплённый аккумулятор',
+    };
+
+    it('imports a fresh offline decision once and writes its durable receipt', async () => {
+      const result=await service.syncOfflineInspection(draft,actor);
+      expect(result).toMatchObject({
+        success:true, operationId, inspectionId:'inspection-new', repeated:false,
+      });
+      expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(tx.inspection.create).toHaveBeenCalledTimes(1);
+      expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          action:'OFFLINE_INSPECTION_SYNCED',entity:'OfflineInspectionOperation',
+          entityId:operationId,userId:actor.userId,
+        }),
+      }));
+    });
+
+    it('returns the same receipt after a lost response without creating another inspection', async () => {
+      const created=await service.syncOfflineInspection(draft,actor);
+      const receipt=(tx.auditLog.create as jest.Mock).mock.calls
+        .map(([arg]:any[])=>arg?.data).find((item:any)=>item?.action==='OFFLINE_INSPECTION_SYNCED');
+      tx.auditLog.findFirst.mockResolvedValue({
+        userId:actor.userId,metadata:receipt.metadata,
+      });
+      const retried=await service.syncOfflineInspection(draft,actor);
+      expect(retried).toMatchObject({
+        repeated:true,operationId,inspectionId:created.inspectionId,
+      });
+      expect(tx.inspection.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a tampered replay, a different judge, and a failed inspection without notes', async () => {
+      const created=await service.syncOfflineInspection(draft,actor);
+      const receipt=(tx.auditLog.create as jest.Mock).mock.calls
+        .map(([arg]:any[])=>arg?.data).find((item:any)=>item?.action==='OFFLINE_INSPECTION_SYNCED');
+      tx.auditLog.findFirst.mockResolvedValue({userId:actor.userId,metadata:receipt.metadata});
+      await expect(service.syncOfflineInspection({...draft,notes:'Совсем другая причина'},actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      await expect(service.syncOfflineInspection({...draft,actorId:'another-judge'},actor))
+        .rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.syncOfflineInspection({...draft,notes:' '},actor))
+        .rejects.toBeInstanceOf(BadRequestException);
+      expect(created.inspectionId).toBe('inspection-new');
+      expect(tx.inspection.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses conflicting central data and keeps the original inspection unchanged', async () => {
+      tx.registration.findUnique.mockResolvedValue({...registration,inspection:{id:'already-synced'}});
+      await expect(service.syncOfflineInspection(draft,actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      expect(tx.inspection.create).not.toHaveBeenCalled();
+      tx.registration.findUnique.mockResolvedValue({...registration,stageId:'another-stage'});
+      await expect(service.syncOfflineInspection(draft,actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      tx.registration.findUnique.mockResolvedValue({...registration,stage:{...registration.stage,resultsPublishedAt:new Date()}});
+      await expect(service.syncOfflineInspection(draft,actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses expired operations and unexpected baseline inspection IDs', async () => {
+      await expect(service.syncOfflineInspection({...draft,createdAt:'2020-01-01T00:00:00Z'},actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      await expect(service.syncOfflineInspection({...draft,baseInspectionId:'inspection-old'},actor))
+        .rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
 });
