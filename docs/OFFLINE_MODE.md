@@ -1,6 +1,19 @@
 # USD 2.0 — Offline operation and synchronization
 
-Status: architecture requirement. This document describes intended behavior; offline synchronization is not yet implemented.
+Status: **partial P0 implementation in PR #402 (2026-11-03); full offline-event readiness NOT achieved.**
+
+### Implemented pilot — encrypted local inspection drafts
+
+- Authorized ADMIN/judge with `inspections.create` opens **День соревнований → Подготовить автономный пакет** while the public API is available; only the current stage's display roster is included.
+- A short-lived (max 72h) minimal stage package is encrypted with AES-GCM-256 / PBKDF2-SHA256 (310k iterations) and held in IndexedDB. The operator chooses a separate 14+ character passphrase; no password, auth token or private API response is stored in the service worker.
+- `/offline-event` is a separate, passphrase-protected page that remains usable after loss of public internet once a build-specific **static-only** service worker is installed. Its scope is limited to this route and does not displace the existing push worker.
+- A disconnected operator can find an entrant by number/name/car/class and save a durable, **LOCAL_ONLY** inspection draft with a mandatory failure reason. An existing inspected/cancelled registration cannot be silently changed; duplicate local drafts are rejected.
+- Drafts do **not** become official results; no backend sync or server acknowledgement is implemented. After reconnection each local entry must be reviewed against the latest state and entered through an authenticated operator screen.
+- A new package cannot silently replace an existing vault and its pending drafts. Manual removal is an explicit destructive operation, after reviewing outstanding work.
+
+**Still open before event use:** signed/audited package export and revocation; role-bound/offline re-authentication and device incident handling; local QR lookup; robust central idempotent operation-sync protocol and conflict UI; multi-judge LAN venue hub; actual disconnected phone tests. Do not call offline mode ready for a real multi-judge event.
+
+The architecture and acceptance requirements below remain authoritative, even when this first pilot has passed CI.
 
 ## Goal
 
