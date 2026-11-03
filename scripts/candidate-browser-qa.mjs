@@ -156,7 +156,7 @@ try{
        const style=getComputedStyle(node);
        return {
         display:style.display,
-        columns:style.gridTemplateColumns.split(/\\s+/).filter(Boolean).length,
+        columns:style.gridTemplateColumns.split(/\s+/).filter(Boolean).length,
         cardCount:node.querySelectorAll('.usd-score-row').length,
         scrollWidth:node.scrollWidth,
         clientWidth:node.clientWidth,
