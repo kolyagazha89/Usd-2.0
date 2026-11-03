@@ -29,10 +29,13 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertNotIn(["каталог спецтехники", "Автомобили"], self.cars)
 
     def test_audio_has_full_import_categories_and_many_models(self):
-        self.assertGreater(len(self.audio), 2600)
-        self.assertGreater(len({r[0] for r in self.audio}), 16)
+        self.assertGreaterEqual(len(self.audio), 3200)
+        self.assertGreaterEqual(len({r[0] for r in self.audio}), 28)
         self.assertTrue({r[2] for r in self.audio}.issubset(AUDIO_TYPES))
         self.assertIn(["Apocalypse", "AAB-1200.2D", "AMPLIFIER"], self.audio)
+        self.assertIn(["Hertz", "CP 1.2K", "AMPLIFIER"], self.audio)
+        self.assertIn(["Dynamic State", "CUSTOM CA-100.6", "AMPLIFIER"], self.audio)
+        self.assertIn(["Kicx", "ST-12M", "SUBWOOFER"], self.audio)
 
     def test_no_blank_values_or_year_only_car_models(self):
         for make, model in self.cars:
@@ -40,6 +43,9 @@ class ExportedCatalogTests(unittest.TestCase):
             self.assertFalse(len(model) == 4 and model.isdigit() and 1880 <= int(model) <= 2100, (make, model))
         for brand, model, category in self.audio:
             self.assertTrue(brand.strip() and model.strip() and category.strip())
+            self.assertNotIn(" - официальный", model)
+            self.assertNotIn(", штука", model)
+            self.assertNotIn(", пара", model)
 
     def test_no_duplicate_brand_and_model_keys(self):
         normalize = lambda v: " ".join(v.casefold().replace("ё", "е").split())
