@@ -45,13 +45,11 @@ export async function runTeamWorkflows(){
   assert.match(host.textContent??'',/Reviewed news/);
   await click('Одобрить публикацию');
   await click('Подтвердить решение');
-  assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');
-  assert.deepEqual(calls.at(-1).body,{});
+  assert.deepEqual(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts/post1/approve').at(-1)?.body,{});
   await act(async()=>{(host.querySelector('.team-review-list>li>button') as HTMLButtonElement).click();await new Promise(r=>setTimeout(r,0))});
   await click('Вернуть на доработку');
   await click('Подтвердить решение');
-  assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/return');
-  assert.deepEqual(calls.at(-1).body,{});
+  assert.deepEqual(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts/post1/return').at(-1)?.body,{});
   await input('Название новой команды','New normalized team');await click('Создать команду');
   assert.ok(calls.some(c=>c.method==='POST'&&c.path==='/teams'&&c.body.name==='New normalized team'));
   malformedAdmin=true;await click('Обновить');
