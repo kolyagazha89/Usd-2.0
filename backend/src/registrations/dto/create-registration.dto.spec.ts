@@ -21,12 +21,9 @@ describe('CreateRegistrationDto', () => {
     await expect(validate(dto)).resolves.toHaveLength(0);
   });
 
-  it('rejects more than the supported maximum of 5 classes', async () => {
-    const dto = validDto(Array.from({ length: 6 }, (_, index) => uuid(index + 10)));
-
-    const errors = await validate(dto);
-    expect(errors.some((error) => error.property === 'classIds')).toBe(true);
-    expect(errors.find((error) => error.property === 'classIds')?.constraints).toHaveProperty('arrayMaxSize');
+  it('accepts six or more unique class IDs because the service limits classes per sticker', async () => {
+    const dto = validDto(Array.from({ length: 9 }, (_, index) => uuid(index + 10)));
+    await expect(validate(dto)).resolves.toHaveLength(0);
   });
   it('allows omitting configuration for an explicitly on-site intake (service enforces source)', async () => {
     const dto=validDto([uuid(10)]);
