@@ -68,3 +68,26 @@ test('light admin has white inputs and panels, public/member own dark color sche
  assert.match(admin,/\.record-visibility-panel/,'records fully normalized to light surfaces');
  assert.match(admin,/overflow-x:\s*clip/,'no body horizontal scrollbar in admin');
 });
+
+test('all staff-only paint is defined once in the final admin sheet; shared finish sheets cannot repaint staff screens',async()=>{
+ const [finish,premium,admin,entry]=await Promise.all([
+  read('sitewide-finish.css'),read('sitewide-premium-2026.css'),
+  read('admin/admin-shell-layout.css'),read('main.tsx'),
+ ]);
+ for(const [name,css] of [['sitewide-finish.css',finish],['sitewide-premium-2026.css',premium]]){
+  const leaked=rules(css,name).filter(rule=>/(?:body\\s+)?\\.app-shell(?:\\s|\\.|>|:)/.test(rule.selector));
+  assert.deepEqual(leaked.map(x=>x.selector),[],
+   name+' may keep shared :is(.usd-live,.usd-member,.app-shell) tokens but not staff-specific paint');
+ }
+ for(const selector of [
+  '.mail-channel-status', '.mail-test-result', '.settings-section',
+  '.data-table,.smart-table', '.page-heading h1',
+ ]){
+  assert.ok(admin.includes(selector),'final staff sheet owns '+selector);
+ }
+ const pos=entry.indexOf("import './admin/admin-shell-layout.css'");
+ assert.ok(pos>entry.indexOf("import './sitewide-premium-2026.css'"));
+ assert.ok(pos>entry.indexOf("import './sitewide-finish.css'"));
+ assert.ok(!finish.includes('body .app-shell .main'));
+ assert.ok(!premium.includes('body .app-shell .main'));
+});
