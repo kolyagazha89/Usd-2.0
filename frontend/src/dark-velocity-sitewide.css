@@ -679,46 +679,13 @@ body .usd-live .usd-partner-showcase--home .usd-partner-tier--premium .usd-partn
  body .usd-live .u-doc-call>div{max-width:100%}
  body .usd-live .u-doc-call p{max-width:180px}
 }
-/* Mobile settings tabs intentionally scroll within their own rail, not offscreen. */
-@media(max-width:900px){
- body .app-shell .settings-layout{min-width:0}
- body .app-shell .settings-tabs{
-  min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;
-  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
- }
- body .app-shell .settings-tabs button{flex:none;scroll-snap-align:start}
-}
+/* Admin CMS no longer has a horizontally scrolling legacy tab rail. */
 @media(prefers-reduced-motion:reduce){
  body .usd-live .usd-partner-card{transition:none!important}
 }
 
 
-/* Light admin: make partner levels scannable without compromising readability. */
-body .app-shell .admin-partner-identity{
- display:flex;align-items:center;gap:12px;min-width:0;
-}
-body .app-shell .admin-partner-identity img{
- width:56px;height:44px;flex:none;object-fit:contain;padding:5px;
- border:1px solid #e5e9f0;border-radius:9px;background:#f8fafc;
-}
-body .app-shell .admin-partner-identity strong{min-width:0;overflow-wrap:anywhere}
-body .app-shell .admin-partner-tier{
- display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
- font-size:11px;font-weight:800;border-radius:9px;padding:7px 10px;
-}
-body .app-shell .admin-partner-tier::before{
- content:'';width:6px;height:6px;border-radius:50%;background:currentColor;
-}
-body .app-shell .admin-partner-tier--general{
- color:#b90c32!important;background:#fff0f3!important;border:1px solid #ffc4cf!important;
-}
-body .app-shell .admin-partner-tier--premium{
- color:#8b5921!important;background:#fff6e8!important;border:1px solid #f3d8a9!important;
-}
-body .app-shell .admin-partner-tier--regular{
- color:#536276!important;background:#f0f3f8!important;border:1px solid #e0e6ee!important;
-}
-
+/* Admin partner tiers are styled in admin/admin-shell-layout.css. */
 /* CMS-managed headline and CTA copy: preserve intentional line breaks without overflow. */
 body .usd-live .u-cinema-copy .u-wordmark-title,
 body .usd-live .u-community-call h2 {
@@ -889,28 +856,14 @@ body .modal-backdrop{
  backdrop-filter:blur(8px) saturate(.72);
  overscroll-behavior:contain;
 }
-body .app-shell .modal-backdrop .modal{
- min-width:0;max-width:min(960px,100%)!important;
- max-height:calc(100dvh - 24px)!important;
- background:#fff!important;color:#17202d!important;
- border:1px solid #dfe4eb!important;
- border-radius:18px!important;
- box-shadow:0 35px 100px rgba(0,0,0,.44)!important;
-}
-body .app-shell .modal-backdrop .modal :is(input,select,textarea){
- background:#fff;color:#17202d;
- font-size:max(16px,1rem);
-}
-@media(max-width:640px){
- body .modal-backdrop{padding:9px!important}
- body .app-shell .modal-backdrop .modal{max-height:calc(100dvh - 18px)!important;border-radius:16px!important}
-}
+@media(max-width:640px){body .modal-backdrop{padding:9px!important}}
 @media(prefers-reduced-transparency:reduce){
- body .public-nav-scrim,body .app-shell .mobile-backdrop,body .modal-backdrop{
-   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:#0d0c0f!important;
+ body .public-nav-scrim,body .modal-backdrop{
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+  background:#0d0c0f!important;
  }
 }
-
 /* Mobile navigation: fixed-size panel aligned with the toggle, never a full-page grid. */
 @media(max-width:1100px){
  body .usd-live .p-public-header .public-nav-links[data-open="true"]{
