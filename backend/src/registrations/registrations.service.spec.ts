@@ -391,12 +391,13 @@ describe('RegistrationsService', () => {
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
-  it('allows up to five classes when multiple BassRace classes are included', async () => {
+  it('allows more than five total classes when BassRace gets separate sticker numbers', async () => {
     const bassRaceClasses = [
       { classId: 'br-129', name: 'BassRace 129.9' },
       { classId: 'br-139', name: 'BassRace 139.9' },
       { classId: 'br-149', name: 'BassRace 149.9' },
       { classId: 'br-159', name: 'BassRace 159.9' },
+      { classId: 'br-extra', name: 'BassRace Extra' },
     ];
     const tx = baseTx({
       stageClass: {
@@ -427,7 +428,7 @@ describe('RegistrationsService', () => {
       registrationNumber: {
         findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
-        createMany: jest.fn().mockResolvedValue({ count: 4 }),
+        createMany: jest.fn().mockResolvedValue({ count: 5 }),
         findMany: jest.fn()
           .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 })))
           .mockResolvedValue(bassRaceClasses.map((_, index) => ({
@@ -490,13 +491,6 @@ describe('RegistrationsService', () => {
     ).rejects.toThrow(
       'В одной регистрации нельзя выбрать несколько классов одного направления',
     );
-  });
-
-  it('rejects six classes before acquiring any DB transaction, including BassRace', async () => {
-    await expect(service.create(participantRequest, {
-      ...requestBody, classIds: ['spl-1','br-1','br-2','br-3','br-4','br-5'],
-    })).rejects.toThrow('более 5 классов');
-    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('does not let a client submit an old internal gate draft as a complete configuration', async () => {
