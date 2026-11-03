@@ -121,7 +121,7 @@ test('the registration desk enters the correct live stage and never offers walk-
  assert.match(inspection,/params\.set\('registrationId',registrationId\)/,'QR and history links retain the newly saved selection');
  assert.match(inspection,/const created=await apiPost<\{id:string\}>\('\/registrations'/,'use the saved registration ID from backend');
  assert.match(inspection,/Итоговый список допущенных доступен ниже/,'the admitted roster is viewed inside USD, not downloaded as CSV');
- assert.match(inspection,/classIds\.length>=5/,'a sixth class must be disabled at on-site registration');
+ assert.match(inspection,/!isBassRace\(x\)&&primaryClassCount>=5/,'only the sixth non-BassRace class must be disabled at the entrance');
  assert.match(inspection,/apiPost<\{participantId:string;carId:string\}>\('\/registrations\/on-site\/profile'/);
  assert.match(inspection,/privacyConsent,termsAccepted,/,'consent is sent before any new identity record is stored');
  assert.match(inspection,/const updated=await load\(\)/,'new registration must be reloaded from the server');
@@ -143,8 +143,8 @@ test('the registration desk enters the correct live stage and never offers walk-
  assert.match(inspection,/pendingCreatedCarId\.current=created\.carId/);
  assert.match(css,/\.event-ops-newcomer-fields/);
  assert.match(css,/@media\(max-width:620px\)/);
- assert.match(inspection,/if\(classIds\.length>5\)\{setError\('Можно выбрать не более 5 классов на регистрацию'\);return\}/);
- assert.match(inspection,/Выбрано классов: \{classIds\.length\} из 5/,'judge sees why further classes are unavailable');
+ assert.doesNotMatch(inspection,/classIds\.length>5/,'registration may include additional BassRace entries');
+ assert.match(inspection,/На основном номере: \{primaryClassCount\} из 5/,'judge sees capacity of the primary sticker');
  assert.match(inspection,/!isBassRace\(x\)&&selectedDirections\.has\(directionId\)/,'non-BassRace direction exclusivity is preserved');
  assert.match(css,/\.event-ops-quick-actions/);
  assert.match(css,/@media\(max-width:375px\)/);
@@ -182,7 +182,7 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
  assert.match(layout,/\.sidebar \.nav-item\[aria-current="page"\]/,'active navigation has a distinct dark red state');
  assert.match(layout,/\.sidebar :is\(\.nav-item,\.sidebar-section-toggle/,'keyboard focus is explicitly accessible');
  assert.match(shell,/aria-current=\{active\?'page':undefined\}/,'active route is announced');
- assert.match(inspection,/classIds\.length>5/,'inspection editor enforces API class limit');
+ assert.match(inspection,/Дополнительные BassRace/,'inspection editor permits separate numbers for BassRace');
  assert.match(inspection,/не более 5 классов/,'inspection editor explains the maximum');
 });
 
