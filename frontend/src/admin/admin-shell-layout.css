@@ -92,59 +92,154 @@ body .app-shell .main .content :is(input,select,textarea) {
   max-inline-size: 100%;
 }
 
-/* One neutral graphite menu instead of the older navy/blue variants.
-   Red is kept for active routes and visible keyboard focus. */
+/* Single source of truth: the navigation must be ONE graphite surface.
+ * No gradients, navy focus rings, black footer patches or stacked borders. */
 body .app-shell > .sidebar {
-  box-sizing: border-box !important;
-  inline-size: 268px !important;
-  max-inline-size: 268px !important;
-  background: linear-gradient(180deg,#111114,#080809) !important;
-  color: #f5f5f6 !important;
-  border-right: 1px solid #2c2c31 !important;
-  box-shadow: 12px 0 30px rgba(0,0,0,.22) !important;
-  overflow: hidden;
+ --usd-sidebar-paper:#17181d;
+ --usd-sidebar-hover:#26282f;
+ box-sizing:border-box!important;
+ inline-size:268px!important;
+ max-inline-size:268px!important;
+ height:100dvh;
+ max-height:100dvh;
+ display:flex;
+ flex-direction:column;
+ min-width:0;
+ padding:14px 11px max(12px,env(safe-area-inset-bottom));
+ background:#17181d!important;
+ background-image:none!important;
+ color:#f4f5f6!important;
+ border-right:1px solid #2c2c31!important;
+ box-shadow:8px 0 24px rgba(0,0,0,.09)!important;
+ overflow:hidden;
 }
+body .app-shell > .sidebar :is(.sidebar-top,nav,.sidebar-section,.sidebar-bottom){
+ background:transparent!important;
+ background-image:none!important;
+ box-shadow:none!important;
+}
+body .app-shell > .sidebar .sidebar-top,
+body .app-shell > .sidebar .sidebar-bottom { flex:0 0 auto;min-width:0 }
+body .app-shell > .sidebar .sidebar-top {padding:8px 10px 18px}
+body .app-shell > .sidebar .brand-button {
+ color:#f5f5f6!important;
+ background:transparent!important;
+ border:0!important;
+ box-shadow:none!important;
+}
+body .app-shell > .sidebar .brand-title {color:#fff;font-size:19px;font-weight:850;letter-spacing:-.04em}
+body .app-shell > .sidebar .brand-title b {color:#ed2638}
 body .app-shell > .sidebar > nav {
-  min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #56565e transparent;
+ flex:1 1 auto;
+ display:block!important;
+ min-height:0;
+ min-width:0;
+ overflow-x:hidden;
+ overflow-y:auto;
+ overscroll-behavior-y:contain;
+ padding:4px 5px 16px 1px;
+ scrollbar-gutter:stable;
+ scrollbar-width:thin;
+ scrollbar-color:#56565e transparent;
 }
-body .app-shell > .sidebar > nav::-webkit-scrollbar-track { background: transparent !important; }
-body .app-shell > .sidebar > nav::-webkit-scrollbar-thumb { background: #56565e !important; }
-body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle) {
-  box-shadow: none !important;
-  border: 1px solid transparent !important;
-  color: #c6c6cd !important;
+body .app-shell > .sidebar > nav::-webkit-scrollbar{width:5px}
+body .app-shell > .sidebar > nav::-webkit-scrollbar-track{background:transparent!important}
+body .app-shell > .sidebar > nav::-webkit-scrollbar-thumb{background:#56565e!important;border:0;border-radius:6px}
+body .app-shell > .sidebar .sidebar-section{min-width:0;padding:2px 0 10px}
+body .app-shell > .sidebar .sidebar-section-toggle{
+ appearance:none;
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ width:100%;
+ min-height:38px;
+ margin:0 0 3px;
+ padding:9px 11px;
+ background:transparent!important;
+ background-image:none!important;
+ border:1px solid transparent!important;
+ border-radius:9px;
+ box-shadow:none!important;
+ color:#a7acb6!important;
+ font-size:10px;
+ font-weight:750;
+ letter-spacing:.08em;
+ text-align:left;
 }
-body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover {
-  background: #202024 !important;
-  color: #fff !important;
-  border-color: #34343b !important;
+body .app-shell > .sidebar .sidebar-section-toggle[aria-expanded="true"]{color:#f5e7ea!important}
+body .app-shell > .sidebar .sidebar-section-toggle .section-chevron{flex:0 0 auto}
+body .app-shell > .sidebar .sidebar-label{background:transparent!important;color:#a7acb6!important}
+body .app-shell > .sidebar .nav-item {
+ width:100%;
+ min-height:44px;
+ display:flex;
+ gap:10px;
+ align-items:center;
+ margin:2px 0;
+ padding:9px 11px!important;
+ background:transparent!important;
+ background-image:none!important;
+ color:#d3d5db!important;
+ border:1px solid transparent!important;
+ border-radius:10px;
+ box-shadow:none!important;
+ font-size:12px;
+ line-height:1.45;
+ text-align:left;
+ transform:none!important;
+}
+body .app-shell > .sidebar .nav-item>span{min-width:0;overflow-wrap:anywhere}
+body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover:not([aria-current="page"]) {
+ background:var(--usd-sidebar-hover)!important;
+ color:#fff!important;
+ border-color:transparent!important;
+ box-shadow:none!important;
 }
 body .app-shell > .sidebar .nav-item[aria-current="page"],
 body .app-shell > .sidebar .nav-item.active {
-  background: #32181e !important;
-  background-image: none !important;
-  border: 1px solid #70323f !important;
-  border-left: 3px solid #e72642 !important;
-  color: #fff0f2 !important;
-  box-shadow: none !important;
-  padding-left: 9px !important;
+ background:#32181e!important;
+ background-image:none!important;
+ border:1px solid transparent!important;
+ border-left:3px solid #ed2638!important;
+ padding-left:9px!important;
+ color:#fff4f5!important;
+ box-shadow:none!important;
 }
 body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle,.brand-button,.logout-button,.mobile-close):focus-visible {
-  outline: 2px solid #ef2744 !important;
-  outline-offset: -2px !important;
+ outline:2px solid #ed2638!important;
+ outline-offset:2px!important;
+ border-color:transparent!important;
 }
-body .app-shell > .sidebar .sidebar-section-toggle[aria-expanded="true"] {
-  color: #f5e7ea !important;
+body .app-shell > .sidebar .sidebar-bottom{
+ padding:12px 3px 0;
+ border-top:1px solid #313239!important;
 }
-body .app-shell > .sidebar .mobile-close {
-  background: #202024 !important;
-  border-color: #3c3c43 !important;
-  color: #fff !important;
+body .app-shell > .sidebar .user-mini{min-width:0}
+body .app-shell > .sidebar .user-mini>div{min-width:0}
+body .app-shell > .sidebar .user-mini :is(strong,small){
+ display:block;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ white-space:nowrap;
+}
+body .app-shell > .sidebar .user-mini strong{color:#f4f5f6!important}
+body .app-shell > .sidebar .user-mini small{color:#aaaeb8!important}
+body .app-shell > .sidebar .avatar{background:#292b32!important;color:#fff!important}
+body .app-shell > .sidebar .logout-button{
+ width:100%;
+ background:transparent!important;
+ color:#d1d3d8!important;
+ box-shadow:none!important;
+ border:1px solid transparent!important;
+}
+body .app-shell > .sidebar .logout-button:hover{
+ background:var(--usd-sidebar-hover)!important;
+ color:#fff!important;
+}
+body .app-shell > .sidebar .mobile-close{
+ background:#26282f!important;
+ border-color:#3c3d44!important;
+ color:#fff!important;
 }
 body .app-shell .main .topbar :is(.icon-button,.admin-site-switch,.admin-member-switch) {
   border-color: #d5d5da !important;
