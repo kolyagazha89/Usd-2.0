@@ -54,7 +54,13 @@ cat > "$WORK/bin/git" <<'SH'
 #!/usr/bin/env bash
 case "$*" in
  *'remote get-url origin') echo https://github.com/kolyagazha89/Usd-2.0.git ;;
- *'fetch --no-tags --depth=1 origin '*) exit 0 ;;
+ *'fetch --no-tags --depth=1 origin main')
+   [[ "${USD_TEST_FAIL_FETCH_MAIN:-0}" != 1 ]] ;;
+ *'fetch --no-tags --depth=1 origin '*)
+   [[ "${USD_TEST_FAIL_FETCH_OLD:-0}" != 1 ]] ;;
+ *'cat-file -e '*)
+   [[ "${USD_TEST_FORCE_FETCH_OLD:-0}" != 1 ]] || exit 1
+   exec "$REAL_GIT" "$@" ;;
  *'ls-remote --exit-code origin refs/heads/main')
    if [[ -f "$USD_TEST_WORK/main-moved-during-media" ]]; then
      printf '%s\trefs/heads/main\n' "$USD_TEST_OLD_SHA"
@@ -194,6 +200,26 @@ grep -q 'Main CI gate refused' "$WORK/failed-ci.log"
 [[ ! -f "$WORK/releases.log" ]]
 unset USD_TEST_CI_STATUS
 grep -q "^$NEW 0$" "$WORK/ci.log"
+# A temporarily unreachable GitHub main ref is retryable and must not release
+# cached images or mark an otherwise healthy candidate as quarantined.
+export USD_TEST_FAIL_FETCH_MAIN=1
+bash "$WORK/builder" > "$WORK/github-main-offline.log" 2>&1
+grep -q 'GitHub main fetch unavailable; deferring release' "$WORK/github-main-offline.log"
+[[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
+unset USD_TEST_FAIL_FETCH_MAIN
+# If the old SHA is missing locally AND the network is down, fail closed.
+export USD_TEST_FORCE_FETCH_OLD=1 USD_TEST_FAIL_FETCH_OLD=1
+bash "$WORK/builder" > "$WORK/old-release-offline.log" 2>&1
+grep -q 'GitHub previous-release fetch unavailable; deferring release' "$WORK/old-release-offline.log"
+[[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
+unset USD_TEST_FORCE_FETCH_OLD USD_TEST_FAIL_FETCH_OLD
+# A prior release which disappeared from remote after force-push can still be
+# verified against its exact already-present, root-owned local Git object.
+export USD_TEST_FAIL_FETCH_OLD=1
+bash "$WORK/builder" > "$WORK/previous-release-local.log" 2>&1
+grep -q 'Second-disk risk acceptance missing; build-only mode' "$WORK/previous-release-local.log"
+[[ ! -f "$WORK/releases.log" && ! -f "$WORK/state/failed-release-sha" ]]
+unset USD_TEST_FAIL_FETCH_OLD
 # A main push arriving during the build must not release the stale SHA.
 export USD_TEST_REMOTE_SHA="$OLD"
 bash "$WORK/builder" > "$WORK/stale-main.log" 2>&1

@@ -78,8 +78,20 @@ jobs:
           # Each invocation enforces the same root-owned CI, signature, schema,
           # backup and rollback gates; the runner gains no additional privilege.
           usd_verify_deadline=$((SECONDS+1200))
+          usd_git_retries=0
           while (( SECONDS < usd_verify_deadline )); do
             if ! sudo -n /usr/bin/systemctl start usd-auto-deploy.service; then
+              # Older installed host helpers may still propagate git's
+              # transient HTTPS transport exit code (128). Retry only a
+              # bounded number of times; never override a failed release or
+              # bypass CI, image signatures, schema or backup gates.
+              service_code="$(systemctl show usd-auto-deploy.service --property=ExecMainStatus --value 2>/dev/null || true)"
+              if [[ "$service_code" == 128 && "$usd_git_retries" -lt 3 ]]; then
+                usd_git_retries=$((usd_git_retries + 1))
+                echo "Host Git operation returned 128; network retry $usd_git_retries/3 without bypassing release checks" >&2
+                sleep 60
+                continue
+              fi
               diagnose_service
               exit 1
             fi
@@ -88,7 +100,18 @@ jobs:
               diagnose_service
               exit 1
             fi
-            usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"
+            # A short GitHub outage must not make the self-hosted request fail
+            # after the root service safely deferred an otherwise valid release.
+            if ! usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"; then
+              echo 'GitHub main ref temporarily unreachable; retrying without changing the deployed release' >&2
+              sleep 60
+              continue
+            fi
+            if [[ ! "$usd_latest_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo 'GitHub main ref invalid or missing; retrying without changing the deployed release' >&2
+              sleep 60
+              continue
+            fi
             if /usr/local/libexec/usd-verify-prerelease "$usd_latest_sha"; then
               echo "Public prerelease accepted after CI-gated host release: $usd_latest_sha"
               exit 0
