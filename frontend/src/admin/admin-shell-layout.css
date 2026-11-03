@@ -1046,3 +1046,67 @@ body .app-shell .main .judging-class-warning{display:flex;align-items:flex-start
  body .app-shell .main .judging-selected{align-items:flex-start}
 }
 @media(prefers-reduced-motion:reduce){body .app-shell .main .judging-roster-item{transition:none!important}}
+
+
+/* Component directory: resilient action rows and explicit inline editing. */
+body .app-shell .main .content .catalog-bulk-panel,
+body .app-shell .main .content .catalog-manage-row {
+  min-width:0;
+}
+body .app-shell .main .content .catalog-bulk-panel .catalog-bulk-actions,
+body .app-shell .main .content .catalog-row-actions,
+body .app-shell .main .content .catalog-inline-confirm {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+}
+body .app-shell .main .content .catalog-bulk-panel .catalog-bulk-actions {margin-top:12px}
+body .app-shell .main .content .catalog-filter-bar {
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0;
+}
+body .app-shell .main .content .catalog-filter-label {
+  display:flex;gap:8px;align-items:center;color:#434c5c;font-weight:650;
+}
+body .app-shell .main .content .catalog-filter-label select {min-width:165px}
+body .app-shell .main .content .catalog-manage-row {
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;padding:14px;
+}
+body .app-shell .main .content .catalog-manage-row .catalog-list-select,
+body .app-shell .main .content .catalog-manage-row .catalog-model-label {
+  flex:1 1 170px;min-width:0;text-align:left;
+}
+body .app-shell .main .content .catalog-manage-row .catalog-list-select strong,
+body .app-shell .main .content .catalog-manage-row .catalog-model-label strong {
+  display:block;overflow-wrap:anywhere;
+}
+body .app-shell .main .content .catalog-manage-row .catalog-list-select small,
+body .app-shell .main .content .catalog-manage-row .catalog-model-label small {
+  display:block;overflow-wrap:anywhere;
+}
+body .app-shell .main .content .catalog-manage-row .catalog-row-actions {
+  flex:1 1 240px;justify-content:flex-end;min-width:0;
+}
+body .app-shell .main .content .catalog-inline-editor {
+  flex:1 1 100%;display:flex;flex-wrap:wrap;gap:12px;align-items:end;
+}
+body .app-shell .main .content .catalog-inline-editor label {
+  flex:1 1 180px;min-width:0;display:grid;gap:6px;
+  color:#4c5362;font-size:13px;font-weight:700;
+}
+body .app-shell .main .content .catalog-inline-editor input,
+body .app-shell .main .content .catalog-inline-editor select {width:100%;min-width:0}
+body .app-shell .main .content .catalog-inline-confirm {
+  margin-top:8px;padding:10px 12px;border:1px solid #f1c7ca;
+  background:#fff8f8;border-radius:12px;color:#60333b;
+}
+body .app-shell .main .content .catalog-inline-confirm span {flex:1 1 160px}
+body .app-shell .main .content .catalog-manage-row button {min-height:36px}
+@media(max-width:700px){
+ body .app-shell .main .content .catalog-two-column {grid-template-columns:minmax(0,1fr)}
+ body .app-shell .main .content .catalog-row-actions {justify-content:flex-start!important}
+ body .app-shell .main .content .catalog-bulk-actions button {width:100%;justify-content:center}
+ body .app-shell .main .content .catalog-filter-label {width:100%}
+ body .app-shell .main .content .catalog-filter-label select {flex:1;min-width:0}
+}

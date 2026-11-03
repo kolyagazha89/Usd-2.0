@@ -174,6 +174,33 @@ export class SiteSettingsService{
   private validateCatalogs(value:unknown){
     if(value===undefined)return;
     if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
+    const rawVehicle=(value as Record<string,unknown>).vehicleDirectory;
+    if(rawVehicle!==undefined){
+      if(!rawVehicle||typeof rawVehicle!=='object'||Array.isArray(rawVehicle))
+        throw new BadRequestException('Некорректные изменения справочника автомобилей.');
+      const directory=rawVehicle as Record<string,unknown>;
+      if(!Array.isArray(directory.brands)||!Array.isArray(directory.models)
+        ||directory.brands.length>10000||directory.models.length>10000)
+        throw new BadRequestException('Превышен лимит изменений справочника автомобилей.');
+      for(const [kind,entries] of [['brands',directory.brands],['models',directory.models]] as const){
+        const seen=new Set<string>();
+        for(const raw of entries){
+          if(!raw||typeof raw!=='object'||Array.isArray(raw))
+            throw new BadRequestException('Неверная запись справочника автомобилей.');
+          const entry=raw as Record<string,unknown>;
+          const id=entry.id,name=entry.name,brandId=entry.brandId;
+          if(typeof id!=='string'||!id||id.length>1024||seen.has(id)
+            ||typeof name!=='string'||!name.trim()||name.length>(kind==='brands'?100:120)
+            ||/[\u0000-\u001f\u007f]/.test(name)
+            ||typeof entry.isActive!=='boolean'
+            ||entry.isArchived!==undefined&&typeof entry.isArchived!=='boolean'
+            ||entry.isArchived===true&&entry.isActive===true
+            ||kind==='models'&&(typeof brandId!=='string'||!brandId||brandId.length>1024))
+            throw new BadRequestException('Неверные значения или дубли в справочнике автомобилей.');
+          seen.add(id);
+        }
+      }
+    }
     const types=(value as Record<string,unknown>).batteryTypes;
     if(types===undefined)return;
     if(!Array.isArray(types)||types.length>40)throw new BadRequestException('Некорректный справочник аккумуляторов.');

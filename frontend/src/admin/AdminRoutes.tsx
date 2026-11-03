@@ -26,6 +26,7 @@ import InspectionsPage from './InspectionsPage';
 import ResultsPage from './ResultsPage';
 import AuditPage from './AuditPage';
 import CatalogPage from './CatalogPage';
+import VehicleCatalogPage from './VehicleCatalogPage';
 import ParticipantsPage from './ParticipantsPage';
 import ConfigurationsPage from './ConfigurationsPage';
 import DashboardPage from './DashboardPage';
@@ -40,6 +41,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage user={user} ResourcePage={RoutedResourcePage} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
+  if(path.startsWith('/admin/vehicle-catalog'))return <VehicleCatalogPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/cars/new'))return <CarEditorPage user={user} carId="" go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} isValidPlate={isValidPlate} clean={clean}/>;
   if(path.startsWith('/admin/cars/edit')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();if(!carId)return <PageFrame title="Редактировать автомобиль" subtitle="Карточка автомобиля участника"><ErrorPanel message="Не указан идентификатор автомобиля"/></PageFrame>;return <CarEditorPage user={user} carId={carId} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} isValidPlate={isValidPlate} clean={clean}/>;}
   if(path.startsWith('/admin/cars/configurations')){const carId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('carId')??''}catch{return''}})();return <ConfigurationsPage carId={carId} go={go} admin LoadingPage={LoadingPage} displayCarName={displayCarName}/>;}

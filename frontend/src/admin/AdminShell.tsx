@@ -31,6 +31,7 @@ const nav=[
  // Справочники, используемые в регистрации и каталоге
  {section:'Справочники',label:'Сезоны',path:'/admin/seasons',icon:CalendarDays,roles:['ADMIN']},
  {section:'Справочники',label:'Классы',path:'/admin/classes',icon:Gauge,roles:['ADMIN']},
+ {section:'Справочники',label:'Справочник автомобилей',path:'/admin/vehicle-catalog',icon:CarFront,roles:['ADMIN']},
  {section:'Справочники',label:'Виброизоляция',path:'/admin/vibration',icon:Layers,roles:['ADMIN']},
  {section:'Справочники',label:'Комплектующие и запросы',path:'/admin/components',icon:Package,roles:['ADMIN']},
 
@@ -73,6 +74,7 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/google'))return 'integrations';
  if(path.startsWith('/admin/notifications'))return 'notifications';
  if(path.startsWith('/admin/email-testing')||path.startsWith('/admin/email-templates'))return 'siteSettings';
+ if(path.startsWith('/admin/vehicle-catalog'))return 'siteSettings';
  if(path.startsWith('/admin/legal-documents')||path.startsWith('/admin/site-settings')||path.startsWith('/admin/partners')||path.startsWith('/admin/news')||path.startsWith('/admin/rules')||path.startsWith('/admin/vibration')||path.startsWith('/admin/components'))return 'siteSettings';
  return '';
 }
