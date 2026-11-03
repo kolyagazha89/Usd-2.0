@@ -320,6 +320,8 @@ body .app-shell {
   --usd-admin-muted:#646b77;
   --usd-admin-line:#dfe2e7;
   --usd-admin-accent:#d81f3b;
+  --usd-admin-gap:clamp(12px,1.5vw,20px);
+  --usd-admin-radius:14px;
   color-scheme:light;
 }
 body .app-shell > .main,
@@ -330,6 +332,83 @@ body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,
   background-color:var(--usd-admin-paper);
   box-shadow:0 8px 28px rgba(22,26,38,.045);
 }
+/* Normalize real control surfaces rather than wildcard-painting every
+ * class containing "-card" or "-panel". Dark poster/media previews are exempt. */
+body .app-shell .main .content :is(
+ .dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.working-summary-link,
+ .normalization-audit-empty,.normalization-audit-note,.normalization-finding,
+ .admin-help-card,.role-permission-card,.role-editor,.roles-list,
+ .record-visibility-panel,.record-visibility-option,
+ .inspection-class-editor-panel,.inspection-confirm-box,
+ .form-intro,.registration-rules-consent,.searchable-select-menu
+){
+ background-color:var(--usd-admin-paper)!important;
+ background-image:none!important;
+ color:var(--usd-admin-ink)!important;
+ border-color:var(--usd-admin-line)!important;
+ box-shadow:0 6px 20px rgba(18,21,32,.035);
+}
+body .app-shell .main .content :is(.form-intro,.registration-rules-consent,.normalization-audit-note,.inspection-confirm-box){
+ background:#f8f9fb!important;
+ color:#4a5260!important;
+}
+body .app-shell .main .content .searchable-select-menu{
+ background:#fff!important;
+ color:#20232a!important;
+ box-shadow:0 18px 42px rgba(18,21,32,.12)!important;
+}
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]){
+ background:#fff!important;
+ color:#242831!important;
+}
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]):hover,
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]).is-active{
+ background:#fff2f4!important;
+ color:#bb1933!important;
+}
+body .app-shell .main .content :is(.dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.record-visibility-panel) :is(h1,h2,h3,strong){
+ color:var(--usd-admin-ink)!important;
+}
+body .app-shell .main .content :is(.dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.record-visibility-panel) :is(p,small,span){
+ color:#606b79;
+}
+body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.toolbar,.resource-toolbar){
+ gap:var(--usd-admin-gap);
+ min-inline-size:0;
+}
+body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,.resource-editor-page,
+ .notification-overview,.notification-composer,.notification-history){
+ border-radius:var(--usd-admin-radius);
+}
+body .app-shell .main .content :is(.form,.form-grid-2,.settings-form-grid,.entity-fields,
+ .detail-grid,.admin-metrics,.resource-grid) > *{
+ min-inline-size:0;
+ max-inline-size:100%;
+ box-sizing:border-box;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select){
+ min-height:44px;
+ font-size:max(14px,1rem);
+ border-radius:10px;
+}
+body .app-shell .main .content :is(.panel,.resource-editor-page,.data-table-wrap,.table-wrap,.detail-grid) {
+ overflow-wrap:break-word;
+}
+@media(max-width:800px){
+ body .app-shell .main .content :is(.panel,.resource-editor-page,.settings-section){
+  border-radius:12px;
+ }
+ body .app-shell .main .content :is(.form,.form-grid-2,.settings-form-grid,.entity-fields) {
+  min-inline-size:0;
+ }
+ body .app-shell .main .content :is(.panel,.resource-editor-page,.toolbar,.page-heading) {
+  margin-inline:0;
+ }
+}
+
 body .app-shell .main .content :is(.page-heading h1,.panel-title h2) {
   color:var(--usd-admin-ink);
   text-wrap:balance;
