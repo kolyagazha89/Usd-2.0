@@ -301,6 +301,52 @@ try{
        row.adminDrawer='open/close, graphite, no shell shrink';
       }
      }
+     // Screen-wide CSS cascade acceptance: same solid graphite throughout the
+     // admin menu, white editable panels and symmetric public page gutters.
+     const paint=await page.evaluate(()=>{
+      const pick=selector=>[...document.querySelectorAll(selector)].find(el=>el.getBoundingClientRect().width>0)??null;
+      const style=selector=>{const el=pick(selector);if(!el)return null;const c=getComputedStyle(el),r=el.getBoundingClientRect();return {background:c.backgroundColor,image:c.backgroundImage,color:c.color,x:r.x,right:r.right,width:r.width}};
+      const sidebar=style('.app-shell > .sidebar');
+      const header=style('.app-shell > .sidebar .sidebar-top');
+      const nav=style('.app-shell > .sidebar > nav');
+      const groups=style('.app-shell > .sidebar .sidebar-section');
+      const footer=style('.app-shell > .sidebar .sidebar-bottom');
+      const active=style('.app-shell > .sidebar .nav-item[aria-current="page"]');
+      const content=pick('.app-shell .main > .content');
+      const padding=content?getComputedStyle(content):null;
+      const fields=[...document.querySelectorAll('.app-shell .main .content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),.app-shell .main .content select,.app-shell .main .content textarea')]
+       .filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility==='visible')
+       .slice(0,50).map(el=>({tag:el.tagName,bg:getComputedStyle(el).backgroundColor}));
+      const surfaceSelectors=['.app-shell .main .content .panel','.app-shell .main .content .form-intro','.app-shell .main .content .dashboard-feature','.app-shell .main .content .record-visibility-panel','.app-shell .main .content .normalization-finding'];
+      const surfaces=surfaceSelectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>el.getBoundingClientRect().width>0).slice(0,10).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor})));
+      return {sidebar,header,nav,groups,footer,active,fields,surfaces,
+       publicContainer:style('.usd-live .u-container'),memberContent:style('.usd-member .participant-portal-main'),
+       padding:padding?{left:parseFloat(padding.paddingLeft),right:parseFloat(padding.paddingRight)}:null};
+     });
+     if(role==='ADMIN'){
+      assert.ok(paint.sidebar,'admin sidebar must exist');
+      assert.equal(paint.sidebar.background,'rgb(23, 24, 29)','admin menu has one graphite canvas, not uneven black or blue');
+      assert.equal(paint.sidebar.image,'none','sidebar has no gradient or pattern');
+      for(const key of ['header','nav','groups','footer']){
+       if(paint[key])assert.equal(paint[key].background,'rgba(0, 0, 0, 0)','menu '+key+' must share sidebar background');
+      }
+      if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
+      assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
+       'admin has balanced page gutters '+JSON.stringify(paint.padding));
+      const isLight=c=>{const rgb=c.match(/^rgb\\((\\d+)/);return !rgb||Number(rgb[1])>=185};
+      for(const field of paint.fields)assert.ok(isLight(field.bg),'dark admin form input: '+JSON.stringify(field));
+      for(const surface of paint.surfaces)assert.ok(isLight(surface.bg),'stray black admin panel: '+JSON.stringify(surface));
+      row.cssAudit={sidebar:paint.sidebar.background,innerTransparent:true,panelCount:paint.surfaces.length,fieldCount:paint.fields.length};
+     }else if(paint.publicContainer&&paint.publicContainer.width>0){
+      const box=paint.publicContainer;
+      assert.ok(box.x>=9&&box.right<=width-9,'public container fits consistent gutters '+JSON.stringify(box));
+      assert.ok(Math.abs(box.x-(width-box.right))<=3,'public container has centered horizontal spacing '+JSON.stringify(box));
+      row.cssAudit={gutter:Math.round(box.x),width:Math.round(box.width)};
+     }else if(paint.memberContent&&paint.memberContent.width>0){
+      const box=paint.memberContent;
+      assert.ok(box.x>=-1&&box.right<=width+1,'member screen fits viewport '+JSON.stringify(box));
+      row.cssAudit={memberWidth:Math.round(box.width)};
+     }
      assert.ok(row.documentWidth<=width+1,'document overflow '+JSON.stringify(row.overflowing));
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
