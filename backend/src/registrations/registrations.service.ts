@@ -683,12 +683,6 @@ export class RegistrationsService {
       );
     }
 
-    if (classIds.length > 5) {
-      throw new BadRequestException(
-        'В одной регистрации нельзя выбрать более 5 классов',
-      );
-    }
-
     if (
       new Set(classIds).size !== classIds.length
     ) {
@@ -946,6 +940,16 @@ export class RegistrationsService {
           );
         }
 
+        // Every non-BassRace class uses the primary sticker. Five is a
+        // limit per sticker, NOT per registration: additional BassRace
+        // entries are allowed and receive their own separate numbers.
+        const nonBassRaceCount = stageClasses.filter(
+          (item) => !this.isBassRaceClass(item.class.name, item.class.direction?.name),
+        ).length;
+        if (nonBassRaceCount > 5) {
+          throw new BadRequestException('На основном номере может быть не более 5 классов');
+        }
+
         // 6. В одной регистрации максимум один класс
         // из каждого направления, кроме BassRace.
         // BassRace специально допускает несколько классов
@@ -1080,7 +1084,10 @@ export class RegistrationsService {
         const bassRaceClassIds = stageClasses
           .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
           .map((item) => item.classId);
-        const requiredNumberCount = Math.max(1, bassRaceClassIds.length);
+        // One BassRace class can share the primary sticker if it has a free
+        // slot. All remaining BassRace entries get distinct extra stickers.
+        const bassOnPrimary = nonBassRaceCount < 5 && bassRaceClassIds.length > 0 ? 1 : 0;
+        const requiredNumberCount = 1 + bassRaceClassIds.length - bassOnPrimary;
         // Older class edits could leave non-primary sticker rows without
         // any class linked to them. Remove those stale reservations before
         // allocating numbers for a different registration.
@@ -1174,7 +1181,7 @@ export class RegistrationsService {
 
         const primaryNumber = createdNumbers.find((item) => item.isPrimary) ?? createdNumbers[0];
         const numberByClassId = new Map<string, string>();
-        let bassRaceIndex = 0;
+        let bassRaceIndex = bassOnPrimary ? 0 : 1;
 
         for (const classId of classIds) {
           const stageClass = stageClasses.find((item) => item.classId === classId)!;
