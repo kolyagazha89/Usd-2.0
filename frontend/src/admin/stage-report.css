@@ -1,0 +1,89 @@
+/* Stage reports belong to the light ADMIN design system only. */
+body .app-shell .main .content .usd-stage-report-page{min-width:0;max-width:100%;color:#1c2430}
+body .app-shell .main .content .usd-stage-report-page :is(.usd-report-picker,.usd-report-document,.usd-report-section){min-width:0;max-width:100%;box-sizing:border-box}
+.usd-report-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:9px}
+.usd-report-actions .primary-button{margin:0}
+body .app-shell .main .content .usd-report-picker{display:grid;gap:9px;margin-bottom:18px;background:#fff!important;border:1px solid #e1e4ea!important;border-radius:18px}
+.usd-report-picker label{font-size:13px;font-weight:800;color:#2a303a}
+.usd-report-picker select{width:100%;min-height:48px;max-width:720px;background:#fff;color:#222832;border:1px solid #cbd1db;border-radius:12px;padding:9px 14px;font-size:16px}
+.usd-report-picker small{font-size:12px;color:#636b77;line-height:1.55}
+body .app-shell .main .content .usd-report-document{display:grid;gap:20px;width:100%;overflow:hidden;background:#fff!important;border:1px solid #e1e4ea;border-radius:22px;padding:clamp(16px,2.4vw,32px);box-shadow:0 18px 55px rgba(20,24,35,.06);color:#242a33}
+.usd-report-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;min-width:0;padding:24px clamp(16px,2vw,30px);background:linear-gradient(115deg,#191b22,#29252c);border-radius:15px;color:#fff}
+.usd-report-hero>div{min-width:0}
+.usd-report-kicker{display:block;margin-bottom:11px;color:#ff657a;font-size:10px;font-weight:850;letter-spacing:.17em}
+.usd-report-hero h2{margin:0;max-width:820px;font-size:clamp(21px,2.1vw,34px);line-height:1.25;color:#fff;overflow-wrap:anywhere}
+.usd-report-hero p{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0;color:#d2d3d8;font-size:13px}
+.usd-report-hero-status{display:grid;justify-items:end;gap:9px;flex:0 0 auto;text-align:right}
+.usd-report-hero-status small{color:#bcc0c9;font-size:11px}
+.usd-report-status{display:inline-flex;min-height:28px;align-items:center;padding:5px 10px;border:1px solid #c58c9b;border-radius:999px;font-weight:800;font-size:11px;color:#fff2f4}
+.usd-report-status.is-published{border-color:#7abb9e;color:#cbffe1}
+.usd-report-warnings{padding:14px 17px;background:#fff9ed;border:1px solid #e7cba2;border-radius:13px;color:#60451f}
+.usd-report-warnings strong{display:flex;align-items:center;gap:8px;font-size:14px}
+.usd-report-warnings p{margin:7px 0 0;font-size:12px;line-height:1.55}
+.usd-report-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.usd-report-metric{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:5px 10px;min-width:0;padding:18px;background:#f8f9fb;border:1px solid #e9ebf0;border-radius:14px}
+.usd-report-metric svg{color:#c92142}.usd-report-metric strong{font-size:clamp(20px,2vw,30px);line-height:1.1;color:#1c2029}.usd-report-metric span{grid-column:1/-1;color:#6a6f79;font-size:12px;font-weight:700}
+.usd-report-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;min-width:0}
+.usd-report-section{padding:20px;background:#fff;border:1px solid #e3e6ec;border-radius:16px}
+.usd-report-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+.usd-report-heading h3{margin:0;font-size:16px;line-height:1.4;color:#222833;overflow-wrap:anywhere}
+.usd-report-heading>span{color:#77808d;font-size:12px;flex-shrink:0}
+.usd-report-section progress{width:100%;height:10px;accent-color:#cb2946}
+.usd-report-inspections{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.usd-report-inspections>div{display:grid;justify-items:center;gap:5px;text-align:center;padding:10px 5px;background:#f7f8fa;border-radius:11px}
+.usd-report-inspections svg{color:#d02846}.usd-report-inspections strong{font-size:20px;color:#222832}.usd-report-inspections span{font-size:11px;color:#666e79}
+.usd-report-direction-bars{display:grid;gap:11px}.usd-report-direction>div:first-child{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}
+.usd-report-direction strong{font-size:13px;color:#222832}.usd-report-direction span{font-size:11px;color:#707781}
+.usd-report-bar{width:100%;height:7px;border-radius:999px;background:#f0f1f5;overflow:hidden}.usd-report-bar i{display:block;height:100%;background:#d12b46;border-radius:inherit}
+.usd-report-table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.usd-report-table{width:100%;border-collapse:collapse;min-width:560px;font-size:13px;line-height:1.45}
+.usd-report-table th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;text-align:left;color:#6d7480;background:#f5f6f8}
+.usd-report-table :is(th,td){padding:13px 12px;border-bottom:1px solid #ecedf1;vertical-align:top}
+.usd-report-table tbody tr:last-child td{border-bottom:0}
+.usd-report-table td{color:#3a414d}.usd-report-table td strong{color:#1d2530}
+.usd-report-table td small{display:block;color:#747b84;margin-top:4px}
+.usd-report-podium-table td:first-child{min-width:170px}
+.usd-report-place{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:9px;font-weight:850;background:#eef1f6;color:#414d5b}
+.usd-report-place.p1{background:#fff3d7;color:#8b6100}.usd-report-place.p2{background:#e9ecf2;color:#586476}.usd-report-place.p3{background:#fae9df;color:#8e5233}
+.usd-report-team-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.usd-report-team{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px;border-radius:11px;background:#f9fafb;border:1px solid #e7e9ee;font-size:13px}
+.usd-report-team strong{overflow-wrap:anywhere}.usd-report-team span{flex-shrink:0;font-size:12px}
+.usd-report-help{font-size:12px;line-height:1.5;color:#69717f;margin:-4px 0 12px}
+.usd-report-empty{font-size:13px;color:#717984;margin:10px 0 0}
+.usd-report-followups{border-color:#ead8cb;background:#fffdfb}
+.usd-report-followup{padding:12px 0;border-top:1px solid #eee3da}.usd-report-followup:first-of-type{border-top:0}
+.usd-report-followup h4{font-size:13px;color:#71371e;margin:0 0 7px}.usd-report-followup p{font-size:12px;line-height:1.6;color:#524946;margin:0;overflow-wrap:anywhere}
+.usd-report-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;padding-top:14px;border-top:1px solid #e4e7ec;color:#7e8390;font-size:11px}.usd-report-footer span{font-weight:800;letter-spacing:.07em}
+@media(max-width:1050px){.usd-report-columns{grid-template-columns:1fr}.usd-report-hero{flex-wrap:wrap}.usd-report-hero-status{justify-items:start;text-align:left}}
+@media(max-width:700px){.usd-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.usd-report-hero{padding:19px}.usd-report-section{padding:14px}.usd-report-heading{flex-wrap:wrap}.usd-report-table{min-width:0}.usd-report-table thead{display:none}.usd-report-table tbody{display:grid;gap:10px}.usd-report-table tr{display:grid;gap:7px;padding:13px;border:1px solid #e5e7ec;border-radius:12px}.usd-report-table td{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:0;padding:0;text-align:right;min-width:0;overflow-wrap:anywhere}.usd-report-table td::before{content:attr(data-label);flex:0 0 36%;text-align:left;color:#747b84;font-size:11px;font-weight:750}.usd-report-team-list{grid-template-columns:1fr}.usd-report-footer{display:grid}.usd-report-actions{justify-content:flex-start}}
+@media(max-width:380px){.usd-report-inspections>div{padding:9px 2px}.usd-report-inspections span{font-size:10px}.usd-report-team{flex-wrap:wrap}}
+@media print{
+ @page{size:A4 portrait;margin:13mm}
+ html,body{background:#fff!important;color:#1c2430!important}
+ body:has(.usd-stage-report-page) .app-shell{display:block!important;min-height:0!important;background:#fff!important}
+ body:has(.usd-stage-report-page) .app-shell > .sidebar,
+ body:has(.usd-stage-report-page) .app-shell .main > .topbar,
+ body:has(.usd-stage-report-page) .usd-stage-report-page > :not(.usd-report-document),
+ body:has(.usd-stage-report-page) .cookie-notice{display:none!important}
+ body:has(.usd-stage-report-page) .app-shell .main,body:has(.usd-stage-report-page) .app-shell .main > .content{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;background:#fff!important;overflow:visible!important}
+ body:has(.usd-stage-report-page) .app-shell .main .content .usd-stage-report-page{width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}
+ body:has(.usd-stage-report-page) .app-shell .main .content .usd-report-document{padding:0!important;border:0!important;box-shadow:none!important;overflow:visible!important;gap:10px!important}
+ .usd-report-hero{background:#23242a!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .usd-report-metric,.usd-report-section{break-inside:avoid;page-break-inside:avoid}
+ .usd-report-table{min-width:0;font-size:10px}.usd-report-table :is(th,td){padding:6px 5px}
+ .usd-report-table tr{break-inside:avoid}.usd-report-table-wrap{overflow:visible!important}
+ .usd-report-table thead{display:table-header-group!important}
+ .usd-report-table tbody{display:table-row-group!important}
+ .usd-report-table tr{display:table-row!important;padding:0!important;border:0!important}
+ .usd-report-table td{display:table-cell!important;text-align:left!important;border-bottom:1px solid #ddd!important;padding:6px 5px!important}
+ .usd-report-table td::before{display:none!important}
+ .usd-report-team-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Reporting entrypoint shares the same white admin surface as statistics. */
+body .app-shell .main .content .statistics-stage-report{background:#fff!important;border:1px solid #e1e4ea!important}
+.usd-report-launch{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-top:14px}
+.usd-report-launch label{display:grid;gap:7px;min-width:min(320px,100%);flex:1;font-size:12px;font-weight:800;color:#353c48}
+.usd-report-launch select{display:block;width:100%;min-width:0;min-height:46px;padding:9px 12px;border:1px solid #cbd1db;border-radius:11px;background:#fff;color:#232831;font-size:16px}
+.usd-report-launch .primary-button{margin:0;min-height:46px}
+@media(max-width:580px){.usd-report-launch{display:grid;grid-template-columns:minmax(0,1fr)}.usd-report-launch label{min-width:0}.usd-report-launch .primary-button{width:100%}}

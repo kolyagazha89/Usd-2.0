@@ -10,6 +10,7 @@ import DisqualificationsPage from './DisqualificationsPage';
 import RecordsPage from './RecordsPage';
 import UsersPage from './UsersPage';
 import StatisticsPage from './StatisticsPage';
+import StageReportPage from './StageReportPage';
 import QualityPage from './QualityPage';
 import TeamsPage from './TeamsPage';
 import PartnersPage from './PartnersPage';
@@ -54,7 +55,8 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/import'))return <ImportPage path={path} go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/records'))return <RecordsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate}/>;
-  if(path.startsWith('/admin/statistics'))return <StatisticsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
+  if(path.startsWith('/admin/stage-report'))return <StageReportPage path={path} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
+  if(path.startsWith('/admin/statistics'))return <StatisticsPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/audit'))return <AuditPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} roleName={roleName}/>;

@@ -301,6 +301,16 @@ try{
        row.adminDrawer='open/close, graphite, no shell shrink';
       }
      }
+     if(role==='ADMIN'&&route.startsWith('/admin/stage-report')){
+      await page.locator('.usd-report-document').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-report-metric').count(),4,'report summary has four reliable KPIs');
+      assert.equal(await page.locator('.usd-report-table').count(),2,'class and podium details remain independent');
+      assert.match(await page.locator('.usd-report-hero').innerText(),/Этап №1/);
+      assert.match(await page.locator('.usd-report-warnings').innerText(),/Результаты не опубликованы/);
+      const bg=await page.locator('.usd-report-document').evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.equal(bg,'rgb(255, 255, 255)','printed stage report must not inherit dark public surfaces');
+      row.stageReport='read-only stage snapshot, print-ready, white surface';
+     }
      // Screen-wide CSS cascade acceptance: same solid graphite throughout the
      // admin menu, white editable panels and symmetric public page gutters.
      const paint=await page.evaluate(()=>{
