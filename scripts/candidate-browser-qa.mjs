@@ -702,6 +702,17 @@ try{
       if(width<=760){
        const display=await page.locator('.event-ops-results .data-table tbody tr').first().evaluate(el=>getComputedStyle(el).display);
        assert.equal(display,'block','event registrations/inspections must render mobile cards, not wide desktop tables');
+      }else if(width<1200){
+       const tablet=await page.locator('.event-ops-results .data-table').evaluate(el=>{
+        const row=el.querySelector('tbody tr');
+        return {display:getComputedStyle(el).display,minWidth:getComputedStyle(el).minWidth,
+         rowDisplay:row?getComputedStyle(row).display:null,
+         scrollWidth:el.scrollWidth,clientWidth:el.clientWidth};
+       });
+       assert.equal(tablet.display,'block','tablet event desk uses full-width cards '+JSON.stringify(tablet));
+       assert.equal(tablet.rowDisplay,'grid','tablet operator row is a card '+JSON.stringify(tablet));
+       assert.ok(tablet.scrollWidth<=tablet.clientWidth+1,'no horizontal tablet table scroll '+JSON.stringify(tablet));
+       row.eventDeskTablet='no sideways table scroll at '+width+'px';
       }
       if(route==='/admin/registrations'){
        assert.match(await page.locator('.event-ops-metrics').innerText(),/всего записей/);
