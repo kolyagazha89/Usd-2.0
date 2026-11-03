@@ -66,7 +66,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/email-templates'))return <EmailTemplatesPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
   if(path.startsWith('/admin/email-testing'))return <EmailTestingPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
   if(path.startsWith('/admin/legal-documents'))return <LegalDocumentsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
-  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
+  if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage routePath={path} go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
   if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
   if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user} PageFrame={PageFrame}/>;

@@ -1,0 +1,17 @@
+body .app-shell .main .content .entity-form-journey{min-width:0;max-width:100%}
+body .app-shell .main .content .entity-form-step-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:4px 0 17px}
+body .app-shell .main .content .entity-form-step{display:flex;flex-wrap:wrap;align-items:center;gap:8px;text-align:left;padding:12px;min-width:0;min-height:55px;border:1px solid #e1e4e9;border-radius:11px;background:#fff;color:#303542;cursor:pointer}
+body .app-shell .main .content .entity-form-step.is-active{border-color:#ed2638;background:#fff7f8;box-shadow:inset 3px 0 #ed2638}
+body .app-shell .main .content .entity-form-step:disabled{cursor:not-allowed;opacity:.55}
+body .app-shell .main .content .entity-form-step>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#e9edf1;color:#454f5e;font-size:11px;font-weight:850}
+body .app-shell .main .content .entity-form-step.is-active>span{background:#ed2638;color:#fff}
+body .app-shell .main .content .entity-form-step.is-complete:not(.is-active)>span{background:#e0f2e6;color:#286b40}
+body .app-shell .main .content .entity-form-step strong{font-size:12px}
+body .app-shell .main .content .entity-form-step small{width:100%;padding-left:36px;color:#6c7380;font-size:11px}
+body .app-shell .main .content .entity-form-journey-progress{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;margin:12px 0 20px;color:#596473;font-weight:700;font-size:11px}
+body .app-shell .main .content .entity-form-progress-track{width:100%;height:5px;border-radius:7px;background:#ebedf1;overflow:hidden}
+body .app-shell .main .content .entity-form-progress-track>div{height:100%;background:#ed2638;border-radius:7px;transition:width .24s ease}
+body .app-shell .main .content .entity-form-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+body .app-shell .main .content .entity-form-actions button{min-height:44px}
+@media(max-width:600px){body .app-shell .main .content .entity-form-step-nav{grid-template-columns:repeat(2,minmax(0,1fr))}body .app-shell .main .content .entity-form-step{padding:9px}body .app-shell .main .content .entity-form-actions button{flex:1 1 140px;justify-content:center}}
+@media(prefers-reduced-motion:reduce){body .app-shell .main .content .entity-form-progress-track>div{transition:none}}

@@ -232,7 +232,7 @@ async function scenario(width, mode = "participant", ios = false) {
     await page.goto(
       base +
         (mode === "participant"
-          ? "/participant?tab=profile"
+          ? "/participant?tab=profile&section=notifications"
           : "/admin/notifications"),
     );
     await page

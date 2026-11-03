@@ -74,6 +74,7 @@ function dataFor(url,role){
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
  if(p==='/seasons'||p==='/seasons/public')return [season];
  if(p==='/directions')return [klass.direction];
+ if(p==='/admin/participants')return [participant];
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return car;
@@ -88,14 +89,14 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
+const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/data-quality','/admin/site-settings']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/notifications','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -143,6 +144,116 @@ try{
       const heading=document.querySelector('main h1,.content h1,h1');
       return {heading:heading?.textContent??'',documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,smallControls:controls.filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>({tag:e.tagName,type:e.type,font:getComputedStyle(e).fontSize})),overflowing:[...document.body.querySelectorAll('*')].map(e=>({e,r:e.getBoundingClientRect()})).filter(({e,r})=>r.width>0&&(r.right>innerWidth+1||r.left< -1)&&!e.closest('.sidebar')&&getComputedStyle(e).position!=='fixed').slice(0,10).map(({e,r})=>({class:e.className,left:Math.round(r.left),right:Math.round(r.right),text:e.textContent?.slice(0,60)}))};
      }));
+     if(role===null&&route==='/'){
+      await page.locator('.p-home-main.is-ready').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
+      assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
+      row.sitewideHome='no late content replacement after boot';
+     }
+     if(role===null&&['/stages','/records','/rules','/privacy','/teams','/participants'].includes(route)){
+      const pageHeading=page.locator('.public-page-heading');
+      await pageHeading.waitFor({state:'visible'});
+      assert.equal(await pageHeading.locator('h1').count(),1,'shared premium page title on every public inner route');
+      assert.equal(await pageHeading.locator('.public-page-kicker').count(),1,'shared official site kicker');
+      const tone=await pageHeading.locator('h1').evaluate(el=>getComputedStyle(el).color);
+      assert.equal(tone,'rgb(247, 248, 250)','public inner heading stays light on dark graphite');
+      row.sitewideInnerPages='shared graphite header and CMS body';
+     }
+     if(role==='PARTICIPANT'&&route.startsWith('/participant?tab=profile')){
+      const selector=page.locator('.participant-profile-nav');
+      await selector.waitFor({state:'visible'});
+      assert.equal(await selector.locator('a').count(),4,'four separate account settings destinations');
+      const currentSection=new URL('https://usd.test'+route).searchParams.get('section')||'personal';
+      assert.equal(await selector.locator('[aria-current="page"]').count(),1);
+      assert.ok((await selector.locator('[aria-current="page"]').getAttribute('href')).endsWith('section='+currentSection));
+      if(currentSection==='personal')assert.equal(await page.locator('.participant-account-security').count(),0);
+      if(currentSection==='security'){
+       await page.getByRole('heading',{name:'Безопасность аккаунта'}).waitFor();
+       assert.equal(await page.locator('.account-security-sessions').count(),0);
+      }
+      if(currentSection==='sessions'){
+       await page.locator('#account-security-heading').getByText('Сеансы входа',{exact:true}).waitFor();
+       assert.equal(await page.locator('#account-current-password').count(),0);
+      }
+      if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),1);
+      row.profileSections='separate personal, credentials, devices and notification screens';
+     }
+     if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
+      const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.ok(['rgb(6, 9, 13)','rgb(8, 11, 15)'].includes(surface),'member account stays graphite dark on all profile pages: '+surface);
+      row.sitewideMember='graphite account and consistent form design';
+     }
+     if(role==='ADMIN'&&route.startsWith('/admin/site-settings')){
+      const journey=page.locator('.usd-editor-section-nav');
+      await journey.waitFor({state:'visible'});
+      assert.equal(await journey.locator('button').count(),11,'site CMS editor must split eleven independent screens');
+      const expected=new URL('https://usd.test'+route).searchParams.get('section')||'branding';
+      const selected=journey.locator('[aria-current="step"]');
+      assert.equal(await selected.count(),1,'only current CMS screen is selected');
+      if(expected==='homepage'){
+       assert.equal(await page.locator('.usd-home-step-nav button').count(),3,'home editor has three short step pages');
+       const step=new URL('https://usd.test'+route).searchParams.get('step')||'hero';
+       const title=await page.locator('.usd-home-step-nav [aria-current="step"]').innerText();
+       assert.ok(title.includes(({hero:'Первый экран',copy:'Тексты и карточки',blocks:'Блоки и LIVE'})[step]),'homepage displays correct step');
+       if(step==='hero'){
+        assert.equal(await page.locator('.homepage-hero-upload').count(),1);
+        assert.equal(await page.locator('.block-sort-list').count(),0);
+       }
+       if(step==='copy'){
+        assert.equal(await page.locator('.homepage-hero-upload').count(),0);
+        assert.equal(await page.locator('.block-sort-list').count(),0);
+       }
+       if(step==='blocks')assert.equal(await page.locator('.block-sort-list').count(),1);
+      }
+      if(route==='/admin/site-settings'){
+       await journey.getByRole('button',{name:/Главная/}).click();
+       await page.locator('.usd-home-step-nav').waitFor({state:'visible'});
+       const editor=page.getByLabel('Заголовок',{exact:true});
+       await editor.fill('Тест черновика USD');
+       await page.getByText('Есть несохранённые изменения',{exact:true}).waitFor();
+       await page.locator('.usd-home-step-nav').getByRole('button',{name:/Тексты и карточки/}).click();
+       assert.equal(await page.locator('.homepage-hero-upload').count(),0);
+       await page.locator('.usd-home-step-nav').getByRole('button',{name:/Первый экран/}).click();
+       assert.equal(await page.getByLabel('Заголовок',{exact:true}).inputValue(),'Тест черновика USD','unsaved CMS edits survive screen transitions');
+       assert.equal(await page.getByRole('button',{name:/Сохранить изменения/}).isEnabled(),true,'user can explicitly publish edits');
+       row.cmsDraft='three-step CMS navigation keeps unsaved work and surfaces save action';
+      }
+      row.cmsJourney='eleven sections, home editor 3 pages and saved-state overview';
+     }
+     if(role==='ADMIN'&&route==='/admin/stages/new'){
+      const form=page.locator('.entity-form-journey');
+      await form.waitFor({state:'visible'});
+      assert.equal(await form.locator('.entity-form-step').count(),2,'ten-field stage editor must split into 2 screens');
+      await form.getByRole('button',{name:/Продолжить/}).click();
+      await form.getByRole('alert').filter({hasText:'Номер этапа'}).waitFor();
+      await form.getByLabel('Номер этапа',{exact:true}).fill('2');
+      await form.getByLabel('Название этапа',{exact:true}).fill('Тестовый этап USD');
+      await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
+      await form.getByRole('button',{name:/Продолжить/}).click();
+      assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
+      assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'3','required field progress survives next-screen transition');
+      await form.getByRole('button',{name:/Назад/}).click();
+      assert.equal(await form.getByLabel('Название этапа',{exact:true}).inputValue(),'Тестовый этап USD');
+      row.dynamicFormJourney='long stage form splits into 2 pages; preserves values, validates before advancement';
+     }
+     if(role==='ADMIN'&&route==='/admin/cars/new'){
+      const flow=page.locator('.usd-car-editor-journey');
+      await flow.waitFor({state:'visible'});
+      assert.equal(await flow.locator('.usd-car-editor-step').count(),3,'car form must be 3 distinct pages');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      await flow.getByRole('alert').filter({hasText:'марку и модель'}).waitFor();
+      await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
+      await flow.getByLabel('Марка',{exact:true}).fill('Lada');
+      await flow.getByLabel('Модель',{exact:true}).fill('Vesta');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      assert.equal(await flow.getByLabel('Госномер',{exact:true}).count(),1);
+      await flow.getByLabel('Госномер',{exact:true}).fill('А123АА72');
+      await flow.getByRole('button',{name:/Продолжить/}).click();
+      await flow.getByRole('heading',{name:'Проверьте карточку'}).waitFor();
+      assert.equal(await flow.getByRole('button',{name:'Сохранить автомобиль'}).count(),1);
+      assert.equal(await flow.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'2');
+      row.carWizard='identity validation, registration number, final review without backend mutation';
+     }
      if(role==='ADMIN'){
       const shell=await page.evaluate(()=>{
        const bounds=selector=>{const rect=document.querySelector(selector)?.getBoundingClientRect();return rect?{x:rect.x,width:rect.width,right:rect.right}:null};
@@ -189,6 +300,83 @@ try{
        await page.locator('.sidebar.open').waitFor({state:'detached'});
        row.adminDrawer='open/close, graphite, no shell shrink';
       }
+     }
+     // Screen-wide CSS cascade acceptance: same solid graphite throughout the
+     // admin menu, white editable panels and symmetric public page gutters.
+     const paint=await page.evaluate(()=>{
+      const pick=selector=>[...document.querySelectorAll(selector)].find(el=>el.getBoundingClientRect().width>0)??null;
+      const style=selector=>{const el=pick(selector);if(!el)return null;const c=getComputedStyle(el),r=el.getBoundingClientRect();return {background:c.backgroundColor,image:c.backgroundImage,color:c.color,x:r.x,right:r.right,width:r.width}};
+      const sidebar=style('.app-shell > .sidebar');
+      const header=style('.app-shell > .sidebar .sidebar-top');
+      const nav=style('.app-shell > .sidebar > nav');
+      const groups=style('.app-shell > .sidebar .sidebar-section');
+      const footer=style('.app-shell > .sidebar .sidebar-bottom');
+      const eventDesk=style('.app-shell .main .event-ops-workflow-context');
+      const active=style('.app-shell > .sidebar .nav-item[aria-current="page"]');
+      const content=pick('.app-shell .main > .content');
+      const padding=content?getComputedStyle(content):null;
+      const fields=[...document.querySelectorAll('.app-shell .main .content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),.app-shell .main .content select,.app-shell .main .content textarea')]
+       .filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility==='visible')
+       .slice(0,50).map(el=>({tag:el.tagName,bg:getComputedStyle(el).backgroundColor}));
+      const surfaceSelectors=[
+       '.app-shell .main .content .panel',
+       '.app-shell .main .content .resource-editor-page',
+       '.app-shell .main .content .admin-card',
+       '.app-shell .main .content .stat-card',
+       '.app-shell .main .content .metric-card',
+       '.app-shell .main .content .settings-section',
+       '.app-shell .main .content .form-intro',
+       '.app-shell .main .content .dashboard-feature',
+       '.app-shell .main .content .dashboard-stage-card',
+       '.app-shell .main .content .notification-overview',
+       '.app-shell .main .content .notification-composer',
+       '.app-shell .main .content .notification-history',
+       '.app-shell .main .content .mail-channel-status',
+       '.app-shell .main .content .mail-test-result',
+       '.app-shell .main .content .role-permission-card',
+       '.app-shell .main .content .record-visibility-panel',
+       '.app-shell .main .content .normalization-finding',
+      ];
+      const surfaces=surfaceSelectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>el.getBoundingClientRect().width>0).slice(0,10).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor})));
+      return {sidebar,header,nav,groups,footer,eventDesk,active,fields,surfaces,
+       publicContainer:style('.usd-live .u-container'),memberContent:style('.usd-member .participant-portal-main'),
+       padding:padding?{left:parseFloat(padding.paddingLeft),right:parseFloat(padding.paddingRight)}:null};
+     });
+     if(role==='ADMIN'){
+      assert.ok(paint.sidebar,'admin sidebar must exist');
+      assert.equal(paint.sidebar.background,'rgb(23, 24, 29)','admin menu has one graphite canvas, not uneven black or blue');
+      assert.equal(paint.sidebar.image,'none','sidebar has no gradient or pattern');
+      for(const key of ['header','nav','groups','footer']){
+       if(paint[key])assert.equal(paint[key].background,'rgba(0, 0, 0, 0)','menu '+key+' must share sidebar background');
+      }
+      if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
+      if(paint.eventDesk){
+       assert.match(paint.eventDesk.image,/rgb\(255,\s*255,\s*255\)/,'event workflow context must be pearl, not a leftover black rectangle');
+       assert.equal(paint.eventDesk.color,'rgb(35, 39, 48)','event workflow context has readable graphite typography');
+      }
+      assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
+       'admin has balanced page gutters '+JSON.stringify(paint.padding));
+      const isLight=c=>{
+       // RGB first-channel checks accidentally accepted deep burgundy/black cards.
+       // Use perceptual luminance instead; transparent containers inherit paper.
+       const channels=c.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+       if(!channels)return true;
+       if(channels[4]!==undefined&&Number(channels[4])===0)return true;
+       const [r,g,b]=channels.slice(1,4).map(Number);
+       return .2126*r+.7152*g+.0722*b>=185;
+      };
+      for(const field of paint.fields)assert.ok(isLight(field.bg),'dark admin form input: '+JSON.stringify(field));
+      for(const surface of paint.surfaces)assert.ok(isLight(surface.bg),'stray black admin panel: '+JSON.stringify(surface));
+      row.cssAudit={sidebar:paint.sidebar.background,innerTransparent:true,panelCount:paint.surfaces.length,fieldCount:paint.fields.length};
+     }else if(paint.publicContainer&&paint.publicContainer.width>0){
+      const box=paint.publicContainer;
+      assert.ok(box.x>=9&&box.right<=width-9,'public container fits consistent gutters '+JSON.stringify(box));
+      assert.ok(Math.abs(box.x-(width-box.right))<=3,'public container has centered horizontal spacing '+JSON.stringify(box));
+      row.cssAudit={gutter:Math.round(box.x),width:Math.round(box.width)};
+     }else if(paint.memberContent&&paint.memberContent.width>0){
+      const box=paint.memberContent;
+      assert.ok(box.x>=-1&&box.right<=width+1,'member screen fits viewport '+JSON.stringify(box));
+      row.cssAudit={memberWidth:Math.round(box.width)};
      }
      assert.ok(row.documentWidth<=width+1,'document overflow '+JSON.stringify(row.overflowing));
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));

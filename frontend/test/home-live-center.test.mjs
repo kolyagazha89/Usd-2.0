@@ -21,8 +21,8 @@ test('homepage provides visible, editable video and LIVE scoreboard space even w
  assert.match(admin,/Медиацентр USD LIVE/);
  assert.match(admin,/showLiveStream:e\.target\.checked/);
  assert.match(admin,/showLiveResults:e\.target\.checked/);
- assert.match(admin,/setTab\('stream'\)/);
- assert.match(admin,/setTab\('live'\)/);
+ assert.match(admin,/navigate\('stream'\)/);
+ assert.match(admin,/navigate\('live'\)/);
  assert.match(css,/usd-broadcast-grid/);
  assert.match(css,/@media\(max-width:980px\)/);
  assert.match(css,/homepage-live-editor-grid/);

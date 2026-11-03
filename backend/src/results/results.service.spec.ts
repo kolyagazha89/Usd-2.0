@@ -169,6 +169,7 @@ describe('ResultsService', () => {
 
   function setupCreateTx(overrides: any = {}) {
     const tx: any = {
+      $executeRaw: jest.fn(),
       registration: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'registration-1',
@@ -248,6 +249,26 @@ describe('ResultsService', () => {
 
     return tx;
   }
+
+  it('allows judging with a pending on-site draft at a venue with no connection', async () => {
+    const tx = setupCreateTx();
+    tx.registration.findUnique.mockResolvedValue({
+      id: 'registration-1', participantId: 'participant-1', stageId: 'stage-1',
+      status: 'ACTIVE', source: 'ON_SITE',
+      configurationSnapshot: { configurationPending: true },
+      inspection: { status: 'PASSED' },
+      stage: { id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED', isDeleted: false },
+    });
+    prisma.result.findUnique.mockResolvedValue({ id: 'result-1' });
+    await service.create({
+      registrationId: 'registration-1', registrationClassId: 'registration-class-1',
+      value: 150.8, confirmed: true,
+    }, judgeRequest);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.result.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ registrationId: 'registration-1', value: 150.8 }),
+    }));
+  });
 
   it('rejects a result when inspection is FAILED', async () => {
     setupCreateTx({

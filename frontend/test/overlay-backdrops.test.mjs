@@ -29,7 +29,7 @@ test('admin drawer restores background scroll after dismissal, route change or e
 });
 
 test('floating menus are opaque; public, admin and modal backdrops cover the screen with the correct layer order',async()=>{
- const css=await read('../src/dark-velocity-sitewide.css');
+ const [css,admin]=await Promise.all([read('../src/dark-velocity-sitewide.css'),read('../src/admin/admin-shell-layout.css')]);
  const scrim=css.slice(css.indexOf('body .public-nav-scrim{'));
  assert.ok(scrim.length>0,'public scrim CSS required');
  assert.match(scrim,/position:fixed;inset:0;z-index:105/);
@@ -37,13 +37,13 @@ test('floating menus are opaque; public, admin and modal backdrops cover the scr
  assert.match(scrim,/\.p-public-header\{position:sticky;z-index:110!important/);
  assert.match(scrim,/\.public-nav-links\[data-open="true"\]\{/);
  assert.match(scrim,/background:#121316!important/);
- assert.match(scrim,/body \.app-shell \.mobile-backdrop\{/);
- assert.match(scrim,/background:rgba\(5,10,18,\.75\)!important/);
+ assert.match(admin,/body \.app-shell > \.mobile-backdrop\{/);
+ assert.match(admin,/background:rgba\(13,15,20,\.74\)!important/);
  assert.match(scrim,/body \.modal-backdrop\{/);
  assert.match(scrim,/z-index:500!important/);
  assert.match(scrim,/background:rgba\(5,10,20,\.74\)!important/);
- assert.match(scrim,/body \.app-shell \.modal-backdrop \.modal\{/);
- assert.match(scrim,/background:#fff!important;color:#17202d!important/);
+ assert.match(admin,/body \.app-shell \.modal-backdrop \.modal\{/);
+ assert.match(admin,/background:#fff!important;color:#17202d!important/);
  assert.match(scrim,/prefers-reduced-transparency:reduce/);
  assert.match(scrim,/@media\(max-width:480px\)/);
 });

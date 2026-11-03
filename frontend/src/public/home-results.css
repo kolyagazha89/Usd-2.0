@@ -52,3 +52,75 @@
  .usd-live .usd-score-identity b{font-size:13px}
 }
 @media(prefers-reduced-motion:reduce){.usd-live .usd-live-class-entries{animation:none}}
+
+
+/* Real horizontal slide motion. Keep DOM and scroll state intact during class
+ * rotation instead of replacing one list in place with a short fade. */
+.usd-live .usd-carousel-viewport,
+.usd-live .usd-record-viewport {
+ display:block;
+ width:100%;
+ min-width:0;
+ overflow:hidden;
+ position:relative;
+}
+.usd-live .usd-carousel-track,
+.usd-live .usd-record-track {
+ display:flex;
+ align-items:stretch;
+ width:100%;
+ min-width:0;
+ transition:transform .7s cubic-bezier(.22,1,.36,1);
+ will-change:transform;
+}
+.usd-live .usd-carousel-slide,
+.usd-live .usd-record-slide {
+ flex:0 0 100%;
+ width:100%;
+ min-width:0;
+ box-sizing:border-box;
+}
+.usd-live .usd-carousel-slide .usd-live-class-entries {
+ height:100%;
+ min-width:0;
+ animation:none;
+}
+.usd-live .usd-record-slide.u-record-minis {
+ display:grid;
+ align-content:start;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:10px;
+ margin:0;
+ padding:0;
+}
+.usd-live .usd-record-slide.u-record-minis>a {
+ min-width:0;
+ height:100%;
+ box-sizing:border-box;
+}
+.usd-live .usd-carousel-dots button {
+ transition:width .24s ease,background-color .24s ease;
+}
+@media(max-width:760px) {
+ .usd-live .usd-carousel-track,.usd-live .usd-record-track {transition-duration:.5s}
+ .usd-live .usd-record-slide.u-record-minis {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+ }
+ .usd-live .usd-record-slide.u-record-minis>a {
+  padding:12px 8px;
+  overflow-wrap:anywhere;
+ }
+ .usd-live .usd-carousel-slide .usd-live-class-entries {max-height:480px}
+}
+@media(max-width:420px) {
+ .usd-live .usd-record-slide.u-record-minis {grid-template-columns:minmax(0,1fr)}
+ .usd-live .usd-record-slide.u-record-minis>a {min-height:72px}
+}
+@media(prefers-reduced-motion:reduce) {
+ .usd-live .usd-carousel-track,.usd-live .usd-record-track {
+  transition:none!important;
+  will-change:auto;
+ }
+ .usd-live .usd-carousel-dots button {transition:none}
+}

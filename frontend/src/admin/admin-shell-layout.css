@@ -92,59 +92,168 @@ body .app-shell .main .content :is(input,select,textarea) {
   max-inline-size: 100%;
 }
 
-/* One neutral graphite menu instead of the older navy/blue variants.
-   Red is kept for active routes and visible keyboard focus. */
+/* Single source of truth: the navigation must be ONE graphite surface.
+ * No gradients, navy focus rings, black footer patches or stacked borders. */
 body .app-shell > .sidebar {
-  box-sizing: border-box !important;
-  inline-size: 268px !important;
-  max-inline-size: 268px !important;
-  background: linear-gradient(180deg,#111114,#080809) !important;
-  color: #f5f5f6 !important;
-  border-right: 1px solid #2c2c31 !important;
-  box-shadow: 12px 0 30px rgba(0,0,0,.22) !important;
-  overflow: hidden;
+ --usd-sidebar-paper:#17181d;
+ --usd-sidebar-hover:#26282f;
+ box-sizing:border-box!important;
+ position:fixed;
+ inset:0 auto 0 0;
+ z-index:30;
+ inline-size:268px!important;
+ max-inline-size:268px!important;
+ height:100dvh;
+ max-height:100dvh;
+ display:flex;
+ flex-direction:column;
+ min-width:0;
+ padding:14px 11px max(12px,env(safe-area-inset-bottom));
+ background:#17181d!important;
+ background-image:none!important;
+ color:#f4f5f6!important;
+ border-right:1px solid #2c2c31!important;
+ box-shadow:8px 0 24px rgba(0,0,0,.09)!important;
+ overflow:hidden;
 }
+body .app-shell > .sidebar :is(.sidebar-top,nav,.sidebar-section,.sidebar-bottom){
+ background:transparent!important;
+ background-image:none!important;
+ box-shadow:none!important;
+}
+body .app-shell > .sidebar .sidebar-top,
+body .app-shell > .sidebar .sidebar-bottom { flex:0 0 auto;min-width:0 }
+body .app-shell > .sidebar .sidebar-top {display:flex;align-items:center;justify-content:space-between;padding:8px 10px 18px}
+body .app-shell > .sidebar .brand-button {
+ display:flex;align-items:center;gap:10px;padding:0;
+ cursor:pointer;
+ color:#f5f5f6!important;
+ background:transparent!important;
+ border:0!important;
+ box-shadow:none!important;
+}
+body .app-shell > .sidebar .brand-title {color:#fff;font-size:19px;font-weight:850;letter-spacing:-.04em}
+body .app-shell > .sidebar .brand-title b {color:#ed2638}
 body .app-shell > .sidebar > nav {
-  min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #56565e transparent;
+ flex:1 1 auto;
+ display:block!important;
+ min-height:0;
+ min-width:0;
+ overflow-x:hidden;
+ overflow-y:auto;
+ overscroll-behavior-y:contain;
+ padding:4px 5px 16px 1px;
+ scrollbar-gutter:auto;
+ scrollbar-width:thin;
+ scrollbar-color:#56565e transparent;
 }
-body .app-shell > .sidebar > nav::-webkit-scrollbar-track { background: transparent !important; }
-body .app-shell > .sidebar > nav::-webkit-scrollbar-thumb { background: #56565e !important; }
-body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle) {
-  box-shadow: none !important;
-  border: 1px solid transparent !important;
-  color: #c6c6cd !important;
+body .app-shell > .sidebar > nav::-webkit-scrollbar{width:5px}
+body .app-shell > .sidebar > nav::-webkit-scrollbar-track{background:transparent!important}
+body .app-shell > .sidebar > nav::-webkit-scrollbar-thumb{background:#56565e!important;border:0;border-radius:6px}
+body .app-shell > .sidebar .sidebar-section{min-width:0;padding:2px 0 10px}
+body .app-shell > .sidebar .sidebar-section-toggle{
+ appearance:none;
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ width:100%;
+ min-height:38px;
+ margin:0 0 3px;
+ padding:9px 11px;
+ background:transparent!important;
+ background-image:none!important;
+ border:1px solid transparent!important;
+ border-radius:9px;
+ box-shadow:none!important;
+ color:#a7acb6!important;
+ font-size:10px;
+ font-weight:750;
+ letter-spacing:.08em;
+ text-align:left;
 }
-body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover {
-  background: #202024 !important;
-  color: #fff !important;
-  border-color: #34343b !important;
+body .app-shell > .sidebar .sidebar-section-toggle[aria-expanded="true"]{color:#f5e7ea!important}
+body .app-shell > .sidebar .sidebar-section-toggle .section-chevron{flex:0 0 auto}
+body .app-shell > .sidebar .sidebar-label{background:transparent!important;color:#a7acb6!important}
+body .app-shell > .sidebar .nav-item {
+ width:100%;
+ min-height:44px;
+ display:flex;
+ position:relative;
+ gap:10px;
+ align-items:center;
+ margin:2px 0;
+ padding:9px 11px!important;
+ background:transparent!important;
+ background-image:none!important;
+ color:#d3d5db!important;
+ border:1px solid transparent!important;
+ border-radius:10px;
+ box-shadow:none!important;
+ font-size:12px;
+ line-height:1.45;
+ text-align:left;
+ transform:none!important;
+}
+body .app-shell > .sidebar .nav-item>span{min-width:0;overflow-wrap:anywhere}
+body .app-shell > .sidebar .nav-item svg{flex:0 0 auto}
+body .app-shell > .sidebar .nav-dot{margin-left:auto;width:7px;height:7px;background:#ed2638;border-radius:50%}
+body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle):hover:not([aria-current="page"]) {
+ background:var(--usd-sidebar-hover)!important;
+ color:#fff!important;
+ border-color:transparent!important;
+ box-shadow:none!important;
 }
 body .app-shell > .sidebar .nav-item[aria-current="page"],
 body .app-shell > .sidebar .nav-item.active {
-  background: #32181e !important;
-  background-image: none !important;
-  border: 1px solid #70323f !important;
-  border-left: 3px solid #e72642 !important;
-  color: #fff0f2 !important;
-  box-shadow: none !important;
-  padding-left: 9px !important;
+ background:#32181e!important;
+ background-image:none!important;
+ border:1px solid transparent!important;
+ border-left:3px solid #ed2638!important;
+ padding-left:9px!important;
+ color:#fff4f5!important;
+ box-shadow:none!important;
 }
 body .app-shell > .sidebar :is(.nav-item,.sidebar-section-toggle,.brand-button,.logout-button,.mobile-close):focus-visible {
-  outline: 2px solid #ef2744 !important;
-  outline-offset: -2px !important;
+ outline:2px solid #ed2638!important;
+ outline-offset:2px!important;
+ border-color:transparent!important;
 }
-body .app-shell > .sidebar .sidebar-section-toggle[aria-expanded="true"] {
-  color: #f5e7ea !important;
+body .app-shell > .sidebar .sidebar-bottom{
+ margin-top:auto;
+ padding:12px 3px 0;
+ border-top:1px solid #313239!important;
 }
-body .app-shell > .sidebar .mobile-close {
-  background: #202024 !important;
-  border-color: #3c3c43 !important;
-  color: #fff !important;
+body .app-shell > .sidebar .user-mini{display:flex;align-items:center;gap:10px;padding:4px 6px 12px;min-width:0}
+body .app-shell > .sidebar .user-mini>div{min-width:0}
+body .app-shell > .sidebar .user-mini :is(strong,small){
+ display:block;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ white-space:nowrap;
+}
+body .app-shell > .sidebar .user-mini strong{color:#f4f5f6!important}
+body .app-shell > .sidebar .user-mini small{color:#aaaeb8!important}
+body .app-shell > .sidebar .avatar{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:9px;font-weight:900;font-size:12px;background:#292b32!important;color:#fff!important}
+body .app-shell > .sidebar .logout-button{
+ display:flex;align-items:center;gap:8px;
+ height:40px;padding:0 9px;border-radius:9px;
+ width:100%;
+ background:transparent!important;
+ color:#d1d3d8!important;
+ box-shadow:none!important;
+ border:1px solid transparent!important;
+}
+body .app-shell > .sidebar .logout-button:hover{
+ background:var(--usd-sidebar-hover)!important;
+ color:#fff!important;
+}
+body .app-shell > .sidebar .sidebar-section-toggle{cursor:pointer}
+body .app-shell > .sidebar .section-chevron{transition:transform .18s ease}
+body .app-shell > .sidebar .section-chevron.open{transform:rotate(90deg)}
+body .app-shell > .sidebar .mobile-close{
+ background:#26282f!important;
+ border-color:#3c3d44!important;
+ color:#fff!important;
 }
 body .app-shell .main .topbar :is(.icon-button,.admin-site-switch,.admin-member-switch) {
   border-color: #d5d5da !important;
@@ -186,6 +295,7 @@ body .app-shell .main .topbar-actions {
   }
   body .app-shell > .sidebar.open { transform: translateX(0) !important; }
   body .app-shell > .mobile-backdrop {
+    display:block;
     position: fixed;
     inset: 0;
     width: 100%;
@@ -225,6 +335,8 @@ body .app-shell {
   --usd-admin-muted:#646b77;
   --usd-admin-line:#dfe2e7;
   --usd-admin-accent:#d81f3b;
+  --usd-admin-gap:clamp(12px,1.5vw,20px);
+  --usd-admin-radius:14px;
   color-scheme:light;
 }
 body .app-shell > .main,
@@ -235,6 +347,83 @@ body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,
   background-color:var(--usd-admin-paper);
   box-shadow:0 8px 28px rgba(22,26,38,.045);
 }
+/* Normalize real control surfaces rather than wildcard-painting every
+ * class containing "-card" or "-panel". Dark poster/media previews are exempt. */
+body .app-shell .main .content :is(
+ .dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.working-summary-link,
+ .normalization-audit-empty,.normalization-audit-note,.normalization-finding,
+ .admin-help-card,.role-permission-card,.role-editor,.roles-list,
+ .record-visibility-panel,.record-visibility-option,
+ .inspection-class-editor-panel,.inspection-confirm-box,
+ .form-intro,.registration-rules-consent,.searchable-select-menu
+){
+ background-color:var(--usd-admin-paper)!important;
+ background-image:none!important;
+ color:var(--usd-admin-ink)!important;
+ border-color:var(--usd-admin-line)!important;
+ box-shadow:0 6px 20px rgba(18,21,32,.035);
+}
+body .app-shell .main .content :is(.form-intro,.registration-rules-consent,.normalization-audit-note,.inspection-confirm-box){
+ background:#f8f9fb!important;
+ color:#4a5260!important;
+}
+body .app-shell .main .content .searchable-select-menu{
+ background:#fff!important;
+ color:#20232a!important;
+ box-shadow:0 18px 42px rgba(18,21,32,.12)!important;
+}
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]){
+ background:#fff!important;
+ color:#242831!important;
+}
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]):hover,
+body .app-shell .main .content .searchable-select-menu :is(button,[role="option"]).is-active{
+ background:#fff2f4!important;
+ color:#bb1933!important;
+}
+body .app-shell .main .content :is(.dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.record-visibility-panel) :is(h1,h2,h3,strong){
+ color:var(--usd-admin-ink)!important;
+}
+body .app-shell .main .content :is(.dashboard-feature,.working-stage-summary,.working-summary-kpis>div,
+ .dashboard-stage-card,.record-visibility-panel) :is(p,small,span){
+ color:#606b79;
+}
+body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.toolbar,.resource-toolbar){
+ gap:var(--usd-admin-gap);
+ min-inline-size:0;
+}
+body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,.resource-editor-page,
+ .notification-overview,.notification-composer,.notification-history){
+ border-radius:var(--usd-admin-radius);
+}
+body .app-shell .main .content :is(.form,.form-grid-2,.settings-form-grid,.entity-fields,
+ .detail-grid,.admin-metrics,.resource-grid) > *{
+ min-inline-size:0;
+ max-inline-size:100%;
+ box-sizing:border-box;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select){
+ min-height:44px;
+ font-size:max(14px,1rem);
+ border-radius:10px;
+}
+body .app-shell .main .content :is(.panel,.resource-editor-page,.data-table-wrap,.table-wrap,.detail-grid) {
+ overflow-wrap:break-word;
+}
+@media(max-width:800px){
+ body .app-shell .main .content :is(.panel,.resource-editor-page,.settings-section){
+  border-radius:12px;
+ }
+ body .app-shell .main .content :is(.form,.form-grid-2,.settings-form-grid,.entity-fields) {
+  min-inline-size:0;
+ }
+ body .app-shell .main .content :is(.panel,.resource-editor-page,.toolbar,.page-heading) {
+  margin-inline:0;
+ }
+}
+
 body .app-shell .main .content :is(.page-heading h1,.panel-title h2) {
   color:var(--usd-admin-ink);
   text-wrap:balance;
@@ -290,6 +479,78 @@ body .app-shell .main .content input[type="radio"] {accent-color:var(--usd-admin
 }
 
 
+/* Remaining admin-only visual ownership: topbar, partner tiers and dialogs. */
+body .app-shell .main > .topbar{
+ background:rgba(255,255,255,.96)!important;
+ border-bottom:1px solid #e1e4e9!important;
+ backdrop-filter:blur(16px);
+ -webkit-backdrop-filter:blur(16px);
+}
+body .app-shell > .mobile-backdrop{
+ background:rgba(13,15,20,.74)!important;
+ -webkit-backdrop-filter:blur(6px);
+ backdrop-filter:blur(6px);
+ touch-action:none;
+}
+body .app-shell .main .content .admin-partner-identity{
+ display:flex;align-items:center;gap:12px;min-width:0;
+}
+body .app-shell .main .content .admin-partner-identity img{
+ width:56px;height:44px;flex:none;object-fit:contain;padding:5px;
+ border:1px solid #e5e9f0;border-radius:9px;background:#f8fafc;
+}
+body .app-shell .main .content .admin-partner-identity strong{min-width:0;overflow-wrap:anywhere}
+body .app-shell .main .content .admin-partner-tier{
+ display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+ font-size:11px;font-weight:800;border-radius:9px;padding:7px 10px;
+}
+body .app-shell .main .content .admin-partner-tier::before{
+ content:'';width:6px;height:6px;border-radius:50%;background:currentColor;
+}
+body .app-shell .main .content .admin-partner-tier--general{
+ color:#b90c32!important;background:#fff0f3!important;border:1px solid #ffc4cf!important;
+}
+body .app-shell .main .content .admin-partner-tier--premium{
+ color:#8b5921!important;background:#fff6e8!important;border:1px solid #f3d8a9!important;
+}
+body .app-shell .main .content .admin-partner-tier--regular{
+ color:#536276!important;background:#f0f3f8!important;border:1px solid #e0e6ee!important;
+}
+body .app-shell .modal-backdrop .modal{
+ min-width:0;max-width:min(960px,100%)!important;
+ max-height:calc(100dvh - 24px)!important;
+ background:#fff!important;color:#17202d!important;
+ border:1px solid #dfe4eb!important;border-radius:18px!important;
+ box-shadow:0 35px 100px rgba(0,0,0,.30)!important;
+}
+body .app-shell .modal-backdrop .modal :is(input,select,textarea){
+ background:#fff!important;color:#17202d!important;font-size:16px!important;
+}
+@media(max-width:640px){
+ body .app-shell .modal-backdrop .modal{
+  max-height:calc(100dvh - 18px)!important;border-radius:16px!important;
+ }
+}
+@media(prefers-reduced-transparency:reduce){
+ body .app-shell > .mobile-backdrop{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  background:rgba(13,15,20,.9)!important;
+ }
+ body .app-shell .main > .topbar{
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+ }
+}
+@media(min-width:761px){
+ body .app-shell .main .event-ops-page .event-ops-results .data-table{
+  table-layout:fixed;width:100%;min-width:750px;
+ }
+ body .app-shell .main .event-ops-page .event-ops-results .data-table :is(th,td){
+  min-width:0;overflow-wrap:anywhere;
+ }
+ body .app-shell .main .event-ops-page .event-ops-results .data-table th:last-child{width:122px}
+}
+
 /* USD event-day command desk — full-width, pearl admin, graphite/red navigation.
  * Shared only by registration & inspection; no public or member overrides.
  * Keep admin shell sidebar geometry above as the only source of truth. */
@@ -322,8 +583,8 @@ body .app-shell .main .event-ops-workflow-context {
   gap:7px;
   min-inline-size:0;
   padding:clamp(18px,2.2vw,28px);
-  background:linear-gradient(126deg,#17191e,#0c0d10);
-  color:#fff;
+  background:linear-gradient(130deg,#ffffff 0%,#f8f9fb 70%,#fff0f2 100%);
+  color:#232730;
   border-right:3px solid #ed2638;
 }
 body .app-shell .main .event-ops-workflow-kicker {
@@ -331,7 +592,7 @@ body .app-shell .main .event-ops-workflow-kicker {
   font-weight:800;
   line-height:1.4;
   letter-spacing:.15em;
-  color:#ff6479;
+  color:#c21c37;
 }
 body .app-shell .main .event-ops-workflow-context strong {
   font-size:clamp(16px,1.8vw,21px);
@@ -342,7 +603,7 @@ body .app-shell .main .event-ops-workflow-context strong {
 body .app-shell .main .event-ops-workflow-context small {
   font-size:12px;
   line-height:1.45;
-  color:#c3c5cb;
+  color:#646c78;
 }
 body .app-shell .main .event-ops-workflow-steps {
   display:grid;
@@ -603,4 +864,87 @@ body .app-shell .main .event-ops-page .resource-editor-page :is(input,select,tex
 }
 @media(prefers-reduced-motion:reduce) {
   body .app-shell .main .event-ops-workflow-step {transition:none}
+}
+
+/* Admin-only details consolidated from legacy sitewide finish / premium layers.
+ * Public and member CSS no longer decides how a staff editing surface is painted.
+ * This final-owned layer is imported last from main.tsx.
+ */
+body .app-shell .main .content :is(.error-panel,.notice,.form-error,.settings-section) {
+  min-inline-size:0;
+  max-inline-size:100%;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.admin-page-guide) {
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+body .app-shell .main .content .page-heading h1{
+  line-height:1.14;
+  letter-spacing:-.035em;
+}
+body .app-shell .main .content :is(.toolbar,.stage-picker,.page-actions,.page-heading-actions) {
+  min-inline-size:0;
+  max-inline-size:100%;
+  flex-wrap:wrap;
+}
+body .app-shell .main .content :is(.badge,.class-number-chip) {
+  max-inline-size:100%;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .content :is(.table-wrap,.data-table-wrap,.smart-table-wrap) {
+  scrollbar-color:#babdc5 transparent;
+  overscroll-behavior-x:contain;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) th{
+  background:#f5f6f8;
+  color:#545c68;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) tbody tr {
+  transition:background-color .15s ease;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) tbody tr:hover {
+  background:#fff5f6;
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button) {
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button):focus-visible {
+  box-shadow:0 0 0 3px rgba(229,28,59,.18);
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select){
+  color-scheme:light;
+  background:#fff;
+  color:#252933;
+  border-color:#d6dae1;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select):focus-visible {
+  border-color:var(--usd-admin-accent)!important;
+  outline-color:var(--usd-admin-accent)!important;
+  box-shadow:0 0 0 4px rgba(237,38,56,.12)!important;
+}
+/* Mail QA status panels should never inherit a black member/card surface. */
+body .app-shell .main .content :is(.mail-channel-status,.mail-test-result) {
+  min-inline-size:0;
+  border-radius:12px;
+  border:1px solid #dedfe5;
+  background:#fafafb;
+  color:#252830;
+}
+body .app-shell .main .content .mail-channel-status.ready {
+  border-color:#bdcfbf;
+  background:#f6faf6;
+}
+body .app-shell .main .content .mail-channel-status.needs-setup {
+  border-color:#edc2c8;
+  background:#fff7f8;
+}
+@media(max-width:800px) {
+  body .app-shell .main .content .page-heading h1 {font-size:clamp(24px,6vw,34px)}
+  body .app-shell .main .content :is(.toolbar,.page-actions,.page-heading-actions) {max-inline-size:100%}
+}
+@media(prefers-reduced-motion:reduce) {
+  body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button,.data-table tbody tr,.smart-table tbody tr) {
+    transition:none!important;
+  }
 }

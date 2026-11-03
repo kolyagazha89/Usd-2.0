@@ -5,7 +5,9 @@ const source=path=>readFile(new URL(path,import.meta.url),'utf8');
 
 test('all three image defaults are editable through admin and persisted in public branding',async()=>{
  const [admin,settings]=await Promise.all([source('../src/admin/SiteSettingsPage.tsx'),source('../../backend/src/site-settings/site-settings.service.ts')]);
- assert.match(admin,/\['placeholders','Заглушки',ImageIcon\]/);
+ const section=await source('../src/admin/site-settings-progress.ts');
+ assert.match(section,/id:'placeholders',title:'Заглушки'/);
+ assert.match(admin,/tab==='placeholders'/);
  for(const category of ['participant','car','stage']){
   assert.match(admin,new RegExp("key:'"+category+"'"));
   assert.match(settings,new RegExp(category+':null'));

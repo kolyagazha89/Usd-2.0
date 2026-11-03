@@ -36,17 +36,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .form-error{display:flex;align-items:center;gap:8px;background:#3a171b;border:1px solid #713038;color:#ffb7bd;padding:12px;border-radius:10px;font-size:12px}
 .login-footer{display:flex;justify-content:space-between;border-top:1px solid #2b2e32;margin-top:30px;padding-top:18px;color:#80858b;font-size:10px;text-transform:uppercase;letter-spacing:.1em}
 
-.app-shell{min-height:100vh;display:flex}.sidebar{width:268px;position:fixed;inset:0 auto 0 0;background:var(--black);color:#fff;padding:17px 12px 14px;display:flex;flex-direction:column;z-index:30;box-shadow:12px 0 35px rgba(0,0,0,.08)}
-.sidebar-top{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 22px}.brand-button{border:0;background:none;color:#fff;display:flex;align-items:center;gap:10px;padding:0}
-.brand-title{font-size:17px;letter-spacing:-.04em}.brand-title b{color:#b7bbc0}
-.sidebar-label{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:#777c82;padding:0 13px 9px;font-weight:900}
-nav{display:grid;gap:4px;overflow:auto;padding-right:2px}.nav-item{min-height:43px;border:0;background:transparent;color:#aeb2b7;border-radius:10px;display:flex;align-items:center;gap:11px;padding:0 12px;text-align:left;font-size:12px;font-weight:700;position:relative;transition:.12s}
-.nav-item svg{flex:0 0 auto}.nav-item:hover{background:#181a1d;color:#fff}.nav-item.active{background:#fff;color:#111;border-left:4px solid var(--red);padding-left:8px;box-shadow:0 4px 14px rgba(0,0,0,.16)}
-.nav-dot{margin-left:auto;width:7px;height:7px;background:var(--red);border-radius:50%}
-.sidebar-bottom{margin-top:auto;border-top:1px solid #292c30;padding:14px 4px 0}.user-mini{display:flex;align-items:center;gap:10px;padding:4px 6px 12px}
-.avatar{width:34px;height:34px;border-radius:9px;background:#292c30;display:grid;place-items:center;font-weight:900;font-size:12px}
-.user-mini strong,.user-mini small{display:block}.user-mini strong{font-size:11px;color:#f0f1f2}.user-mini small{font-size:9px;color:#858a90;margin-top:3px}
-.logout-button{width:100%;height:38px;border:0;background:none;color:#9a9fa5;display:flex;align-items:center;gap:8px;padding:0 7px;font-size:11px;border-radius:8px}.logout-button:hover{color:#fff;background:#17191c}
+/* Core admin navigation lives in admin/admin-shell-layout.css. */
+.app-shell{min-height:100vh;display:flex}
 .main{margin-left:268px;min-width:0;width:calc(100% - 268px)}
 .topbar{height:68px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.96);display:flex;align-items:center;padding:0 30px;position:sticky;top:0;z-index:20}
 .breadcrumb{display:flex;align-items:center;gap:8px;color:#7b8087;font-size:11px}.breadcrumb strong{color:#17191c;font-weight:800}
@@ -115,7 +106,6 @@ nav{display:grid;gap:4px;overflow:auto;padding-right:2px}.nav-item{min-height:43
   .quality-summary{grid-template-columns:repeat(2,1fr)}.import-grid{grid-template-columns:1fr}
 }
 @media(max-width:800px){
-  .sidebar{transform:translateX(-100%);transition:transform .2s;box-shadow:20px 0 45px rgba(0,0,0,.22)}.sidebar.open{transform:translateX(0)}
   .main{margin-left:0;width:100%}.menu-button,.mobile-close{display:grid}.mobile-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.56);border:0;z-index:25}
   .topbar{padding:0 16px;height:62px}.breadcrumb span,.breadcrumb svg{display:none}.content{padding:20px 14px}.page-heading{align-items:flex-start}.page-heading h1{font-size:27px}.role-pill,.field-status{display:none}
   .dashboard-info-grid{grid-template-columns:1fr}.race-command{min-height:108px}.registration-total strong{font-size:34px}
@@ -135,7 +125,7 @@ nav{display:grid;gap:4px;overflow:auto;padding-right:2px}.nav-item{min-height:43
 
 /* Large touch targets on field devices */
 @media(pointer:coarse){
-  .nav-item{min-height:48px}.icon-button{width:42px;height:42px}.secondary-button,.danger-button{min-height:44px}.search-box{height:46px}
+  .icon-button{width:42px;height:42px}.secondary-button,.danger-button{min-height:44px}.search-box{height:46px}
   .inspection-actions .secondary-button,.inspection-actions .danger-button{min-height:48px;padding:0 14px}.inspection-stat{min-height:100px}
 }
 
@@ -283,7 +273,7 @@ body{font-size:13px}
 .stage-class-card{box-shadow:0 2px 8px rgba(9,10,11,.025);transition:.12s}.stage-class-card:hover{border-color:#bfc5ca;box-shadow:0 5px 16px rgba(9,10,11,.05)}
 .stage-picker{align-items:center}.stage-picker label{font-size:11px}.stage-picker select{height:42px!important;min-width:320px;font-size:11px!important}
 .import-steps .import-step{font-size:11px!important}.import-row{padding:12px!important;border-color:#d7dade!important}.import-row:hover{border-color:#bfc5ca;box-shadow:0 2px 8px rgba(9,10,11,.04)}
-.field-mode .content{padding:26px 30px 44px}.field-mode .data-table td{font-size:14px;padding:17px 14px}.field-mode .data-table th{font-size:11px;padding:14px}.field-mode .nav-item{min-height:50px;font-size:13px}.field-mode .primary-button,.field-mode .secondary-button,.field-mode .danger-button{min-height:48px}.field-mode .search-box{height:48px}
+.field-mode .content{padding:26px 30px 44px}.field-mode .data-table td{font-size:14px;padding:17px 14px}.field-mode .data-table th{font-size:11px;padding:14px}.field-mode .primary-button,.field-mode .secondary-button,.field-mode .danger-button{min-height:48px}.field-mode .search-box{height:48px}
 @media(max-width:760px){
  .content{padding:20px 14px 34px}.page-heading{align-items:flex-start;flex-wrap:wrap}.page-heading h1{font-size:28px}.page-heading>button,.page-heading>.settings-save-actions{width:100%}
  .entity-fields{grid-template-columns:1fr}.entity-fields>.field-wrapper:last-child:nth-child(odd){grid-column:auto}
@@ -328,8 +318,6 @@ body{font-size:13px}
 .nav-group{display:grid;gap:3px;margin-bottom:13px}
 .nav-group-title{padding:5px 13px 4px;color:#666b72;font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
 .nav-group:first-child .nav-group-title{display:none}
-.nav-group .nav-item{min-height:41px}
-.sidebar nav{padding-bottom:8px}
 .topbar{gap:18px}
 .global-search-trigger{order:0}
 .breadcrumb{min-width:0}
@@ -354,7 +342,6 @@ body{font-size:13px}
  .admin-mini-stats{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:700px){
- .sidebar{width:286px}
  .topbar{padding:0 14px;gap:8px}
  .breadcrumb{display:none}
  .topbar-actions{gap:5px}
@@ -371,11 +358,6 @@ body{font-size:13px}
  --admin-shadow:0 8px 28px rgba(14,16,18,.055);
 }
 .app-shell{background:#f5f6f7}
-.sidebar{box-shadow:8px 0 30px rgba(0,0,0,.025);border-right:1px solid #e1e3e6}
-.brand-button{transition:transform .15s ease}.brand-button:hover{transform:translateY(-1px)}
-.nav-item{border:1px solid transparent!important;transition:background .14s,border-color .14s,transform .14s!important}
-.nav-item:hover{background:#f3f4f5!important;border-color:#e1e3e6!important;transform:translateX(2px)}
-.nav-item.active{box-shadow:inset 3px 0 0 var(--red),0 2px 8px rgba(0,0,0,.035)}
 .main{min-width:0}
 .content{animation:adminPageIn .18s ease-out}
 @keyframes adminPageIn{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:none}}
@@ -855,22 +837,7 @@ td,th{border-bottom:1px solid #edf0f3}
   --steel-2:#d8dce0;
 }
 body{background:#eef0f2}
-.sidebar{
-  background:
-    radial-gradient(circle at 15% 8%,rgba(227,27,45,.16),transparent 24%),
-    linear-gradient(180deg,#08090b 0%,#0c0e11 55%,#070809 100%);
-  border-right:1px solid #24272c;
-}
-.sidebar:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--usd-red),transparent);opacity:.8}
-.brand-title{font-size:19px;font-weight:900;letter-spacing:-.055em}
-.brand-title b{color:#6f747b}
-.nav-item{min-height:46px;border:1px solid transparent;font-size:11px;letter-spacing:-.01em}
-.nav-item:hover{background:linear-gradient(90deg,#181a1e,#111317);border-color:#272a2f}
-.nav-item.active{
-  background:linear-gradient(100deg,#fff 0%,#f2f3f4 100%);
-  color:#090a0b;border-left:0;padding-left:12px;
-  box-shadow:0 7px 22px rgba(0,0,0,.25),inset 3px 0 0 var(--usd-red);
-}
+/* Sidebar visuals belong only to admin/admin-shell-layout.css. */
 .topbar{
   height:74px;
   background:rgba(255,255,255,.88);
@@ -1384,39 +1351,7 @@ body{background:#eef0f2}
 
 .page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.page-actions .primary-button,.page-actions .secondary-button,.page-actions .danger-button{white-space:nowrap}.quality-table-panel,.statistics-table-panel{min-width:0;overflow:hidden}.quality-table-panel .smart-table-wrap,.statistics-table-panel .smart-table-wrap{width:100%;overflow:auto}.quality-detail{display:inline-block;margin:2px 5px 2px 0;padding:4px 7px;border-radius:7px;background:#f3f5f6;color:#59616a;font-size:9px}.badge.warn{background:#fff8e8;border-color:#ead59b;color:#9a6900}.file-picker{display:flex!important;align-items:center;justify-content:center;min-height:40px;border:1px dashed #cfd4d9;border-radius:10px;background:#f7f8f9;color:#30353a;cursor:pointer;font-size:10px!important;font-weight:900!important}.file-picker:hover{border-color:var(--red);background:#fff}.file-picker input{display:none!important}.asset-card{min-width:0}.asset-card small{min-height:26px}.dashboard-alert-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.dashboard-alert{min-height:108px;padding:12px}.dashboard-alert strong{font-size:24px}.dashboard-main-grid{grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr);align-items:stretch}.dashboard-feature{min-height:88px;padding:10px 4px}.dashboard-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.dashboard-actions button{min-height:46px;padding:0 10px;font-size:9px}.dashboard-actions button svg{width:15px;height:15px}.dashboard-system-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.kpi-grid.small{grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}.kpi-grid.small .stat-card{min-width:0;padding:14px}.kpi-grid.small .stat-card strong{font-size:22px}.modal-backdrop{overflow:auto;align-items:start;place-items:initial;padding:24px}.modal{margin:auto;max-height:min(88vh,900px);overflow:auto}.modal-head{position:sticky;top:0}.stage-class-modal-list{max-height:44vh;overflow:auto;padding:2px 4px 2px 0;overscroll-behavior:contain}.config-list{max-height:42vh;overflow:auto;padding-right:4px}.table-wrap.panel,.smart-table-wrap{max-width:100%}.data-table{min-width:680px}.assistant-request-actions{display:flex;gap:7px;flex-wrap:wrap}.assistant-request-meta span{color:#66707a}@media(max-width:1200px){.dashboard-alert-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-grid.small{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:800px){.dashboard-main-grid{grid-template-columns:1fr}.dashboard-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-grid.small{grid-template-columns:repeat(2,minmax(0,1fr))}.stage-class-settings .stage-class-fields{grid-template-columns:1fr!important}.modal-backdrop{padding:12px}}@media(max-width:560px){.dashboard-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-alert{min-width:0}.dashboard-alert>div{flex-wrap:wrap}.dashboard-alert{min-height:96px}.page-actions{width:100%}}
 
-/* USD production scrollbar + modal backdrop polish */
-html{
-  scrollbar-width:thin;
-  scrollbar-color:#aeb4ba transparent;
-}
-body{
-  scrollbar-width:thin;
-  scrollbar-color:#aeb4ba transparent;
-}
-*{
-  scrollbar-width:thin;
-  scrollbar-color:#b5bbc1 transparent;
-}
-*::-webkit-scrollbar{
-  width:5px;
-  height:5px;
-}
-*::-webkit-scrollbar-track{
-  background:transparent;
-}
-*::-webkit-scrollbar-thumb{
-  background:#b8bec4;
-  border-radius:999px;
-  border:1px solid transparent;
-  background-clip:padding-box;
-}
-*::-webkit-scrollbar-thumb:hover{
-  background:#8e969e;
-  background-clip:padding-box;
-}
-*::-webkit-scrollbar-corner{
-  background:transparent;
-}
+/* Scrollbars are theme-owned: public/member dark, admin shell light. */
 
 /* Modal is an overlay, not a second page */
 html:has(.modal-backdrop),
@@ -1581,45 +1516,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .assistant-chat-note{padding:8px 12px 12px}
 }
 
-/* USD FINAL VISUAL SYSTEM — intentional scrollbars + clean overlays */
-html,body{
-  scrollbar-width:auto;
-  scrollbar-color:#8f969e #eceef0;
+/* Scrollbar colors are surface-scoped. The previous universal "*" scrollbar
+ * painted light tracks onto the dark public/member site and created a pale rail. */
+body:has(.app-shell),
+body .app-shell .main,
+body .app-shell .main *{
+ scrollbar-width:auto;
+ scrollbar-color:#9aa1a8 #eef0f2;
 }
-*{
-  scrollbar-width:auto;
-  scrollbar-color:#9aa1a8 #eef0f2;
+body .app-shell .main *::-webkit-scrollbar{
+ width:8px;height:8px;
 }
-*::-webkit-scrollbar{
-  width:8px;
-  height:8px;
+body .app-shell .main *::-webkit-scrollbar-track{
+ background:#eef0f2;
+ border-radius:999px;
 }
-*::-webkit-scrollbar-track{
-  background:#eef0f2;
-  border-radius:999px;
+body .app-shell .main *::-webkit-scrollbar-thumb{
+ background:#9aa1a8;
+ border:2px solid #eef0f2;
+ border-radius:999px;
+ background-clip:padding-box;
 }
-*::-webkit-scrollbar-thumb{
-  background:#9aa1a8;
-  border:2px solid #eef0f2;
-  border-radius:999px;
-  background-clip:padding-box;
+body .app-shell .main *::-webkit-scrollbar-thumb:hover{
+ background:#68717a;border-width:1px;
 }
-*::-webkit-scrollbar-thumb:hover{
-  background:#68717a;
-  border-width:1px;
-}
-.sidebar nav::-webkit-scrollbar-track,
 .assistant-messages::-webkit-scrollbar-track,
 .stage-class-modal-list::-webkit-scrollbar-track,
 .config-list::-webkit-scrollbar-track{
   background:#151719;
-}
-.sidebar nav::-webkit-scrollbar-thumb{
-  background:#555b61;
-  border-color:#151719;
-}
-.sidebar nav::-webkit-scrollbar-thumb:hover{
-  background:#e21d2f;
 }
 .modal-backdrop{
   background:rgba(7,9,11,.52)!important;
@@ -1958,7 +1882,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-.sidebar-section-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;cursor:pointer}.section-chevron{transition:transform .18s ease}.section-chevron.open{transform:rotate(90deg)}.results-direction-row td{padding:12px 16px;background:var(--surface-2,#f5f5f5);border-top:1px solid var(--border,#e5e5e5)}.results-direction-row span{margin-left:10px;font-size:12px;color:var(--muted,#777);font-weight:500}
+.results-direction-row td{padding:12px 16px;background:var(--surface-2,#f5f5f5);border-top:1px solid var(--border,#e5e5e5)}.results-direction-row span{margin-left:10px;font-size:12px;color:var(--muted,#777);font-weight:500}
 /* USD 2.0 · car configurations */
 .config-modal{display:flex;flex-direction:column;gap:16px}
 .config-modal-hero{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:18px;background:linear-gradient(135deg,#fafafa,#f3f4f6)}
@@ -3180,35 +3104,22 @@ body:has(.modal-backdrop){overflow:hidden!important}
 @media(max-width:520px){.consent-stack{padding:12px;gap:14px}.consent-option{font-size:12px!important}}
 
 /* USD visual system: consistent dark controls across public pages, admin forms, participant portal and login. */
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) select,
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea {
   color: #f4f4f6;
   background-color: #151518;
   border-color: #39393f;
   color-scheme: dark;
 }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) input::placeholder,
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea::placeholder { color: #85858e; opacity: 1; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) option { color: #f4f4f6; background: #151518; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) input:focus,
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) select:focus,
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) textarea:focus { outline: 2px solid #ed2638; outline-offset: 1px; border-color: #ed2638; }
 
-/* USD stage summary: replace legacy white KPI tiles and white quick links with the graphite/red visual system. */
-.dashboard-feature { background: #151518 !important; color: #f4f4f6 !important; border: 1px solid #303036 !important; }
-.dashboard-feature:hover { background: #1c1c20 !important; }
-.dashboard-feature .stage-main strong, .dashboard-feature .stage-main span { color: #f4f4f6; }
-.working-stage-summary { border-color: #303036 !important; color: #f4f4f6; }
-.working-summary-kpis > div { background: linear-gradient(145deg,#19191d,#111113) !important; border-color: #34343a !important; color: #f4f4f6 !important; }
-.working-summary-kpis span, .working-summary-block-title, .working-summary-title { color: #a9a9b2 !important; }
-.working-summary-kpis strong { color: #fff !important; }
-.working-summary-kpis small { color: #9b9ba4 !important; }
-.dashboard-stage-card .working-summary-links .working-summary-link { background: #17171a !important; color: #f4f4f6 !important; border-color: #37373e !important; }
-.dashboard-stage-card .working-summary-links .working-summary-link:hover { background: #242428 !important; border-color: #ed2638 !important; color: #fff !important; }
-.dashboard-stage-card .working-summary-links .working-summary-link span { color: #f4f4f6 !important; }
-.dashboard-stage-card .working-summary-links .working-summary-link strong,
-.dashboard-stage-card .working-summary-links .working-summary-link svg { color: #ff6572 !important; }
+/* Admin stage summaries keep the light theme; see admin/admin-shell-layout.css. */
 .qr-camera-viewport { position: relative; width: 100%; overflow: hidden; border-radius: 14px; background: #050506; border: 1px solid #34343a; aspect-ratio: 4 / 3; display: grid; place-items: center; }
 .qr-camera-viewport video { display: block; width: 100%; height: 100%; max-height: min(62vh,620px); object-fit: cover; }
 .qr-camera-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; pointer-events: none; background: linear-gradient(90deg,#05050630,transparent 22%,transparent 78%,#05050630); }
@@ -3234,13 +3145,13 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .record-visibility-saving { color: #ff6572; font-size: 10px; }
 
 /* Keep helper surfaces and searchable dropdowns on-brand as well, not just native inputs. */
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
-:where(.app-shell,.page,.panel,.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro { background: linear-gradient(145deg,#19191d,#121214) !important; border-color: #35353b !important; color: #b5b5bd !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .form-intro b { color: #fff !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu { background: #151518 !important; border-color: #39393f !important; color: #f4f4f6 !important; box-shadow: 0 14px 40px #0009 !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu button:hover { background: #2a2a30 !important; color: #fff !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .searchable-select-menu .muted,
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .field-help { color: #9999a3 !important; }
+:where(.login-page,.participant-portal,.public-site,.configurations-page-shell) .registration-rules-consent { background: #19191d !important; border-color: #39393f !important; color: #d8d8de !important; }
 
 
 /* 2026-10-15 owner design split: admin form controls are soft white; public/participant surfaces stay graphite-red. */
@@ -3358,49 +3269,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .normalization-finding-list pre { margin:0; padding:10px; border:1px solid #303036; border-radius:8px; background:#0d0d0f; color:#d9d9e0; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:640px){.normalization-audit-heading{display:block}.normalization-audit-heading>small{display:block;margin-top:8px;white-space:normal}.normalization-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* Keep admin statistics surfaces on the dark USD dashboard palette; only form fields are soft-white. */
-.app-shell .stat-card,
-.app-shell .metric-card {
-  color: #f4f4f6 !important;
-  background: #17171b !important;
-  border-color: #35353c !important;
-}
-.app-shell .stat-card span,
-.app-shell .metric-card span { color: #a7a7b1 !important; }
-.app-shell .stat-card strong,
-.app-shell .metric-card strong { color: #fff !important; }
-.app-shell .stat-card.danger-card,
-.app-shell .danger-card {
-  background: #281519 !important;
-  border-color: #75414a !important;
-}
-.app-shell .quality-ring { color: #f4f4f6; }
-.app-shell .quality-ring:not(.healthy) { border-color: #39393f; }
-
-
-/* USD admin workspace stays light, but the Race Control sidebar remains black/red. */
-.app-shell .sidebar {
-  background: #0b0b0d !important;
-  color: #f4f4f6 !important;
-  border-right: 1px solid #29292f !important;
-  box-shadow: 6px 0 24px rgba(0, 0, 0, .24) !important;
-}
-.app-shell .sidebar-top,
-.app-shell .sidebar nav,
-.app-shell .sidebar-section,
-.app-shell .sidebar-bottom { background: #0b0b0d !important; }
-.app-shell .brand-button { color: #f4f4f6 !important; }
-.app-shell .brand-title b { color: #ed2638 !important; }
-.app-shell .sidebar-label { color: #8d8d98 !important; }
-.app-shell .nav-item { color: #c3c3cc !important; background: transparent !important; }
-.app-shell .nav-item:hover { background: #1d1d22 !important; color: #fff !important; }
-.app-shell .nav-item.active { background: #301217 !important; color: #ff6876 !important; border-left-color: #ed2638 !important; box-shadow: inset 0 0 0 1px rgba(237,38,56,.12) !important; }
-.app-shell .sidebar-bottom { border-top: 1px solid #29292f !important; }
-.app-shell .avatar { background: #25252b !important; color: #f4f4f6 !important; }
-.app-shell .user-mini strong { color: #f4f4f6 !important; }
-.app-shell .user-mini small { color: #92929d !important; }
-.app-shell .logout-button { color: #b6b6c0 !important; background: transparent !important; }
-.app-shell .logout-button:hover { color: #ff6876 !important; background: #241115 !important; }
+/* Navigation brand, menu and chrome are styled only by admin/admin-shell-layout.css. */
 .app-shell .stat-card,
 .app-shell .metric-card {
   color: #20242a !important;
@@ -3479,30 +3348,8 @@ body:has(.modal-backdrop){overflow:hidden!important}
 }
 
 
-/* Admin is a white workspace throughout, including feature-specific cards introduced by modules. */
-.app-shell [class*="-card"],
-.app-shell [class*="-panel"],
-.app-shell [class*="-tile"] {
-  color: #20242a !important;
-  background-color: #fff !important;
-  border-color: #d9dcdf !important;
-  box-shadow: 0 2px 8px rgba(9, 10, 11, .025);
-}
-.app-shell [class*="-card"] h1,
-.app-shell [class*="-card"] h2,
-.app-shell [class*="-card"] h3,
-.app-shell [class*="-panel"] h1,
-.app-shell [class*="-panel"] h2,
-.app-shell [class*="-panel"] h3 {
-  color: #17191c !important;
-}
-.app-shell [class*="-card"] p,
-.app-shell [class*="-card"] small,
-.app-shell [class*="-panel"] p,
-.app-shell [class*="-panel"] small {
-  color: #555c64;
-}
-
+/* Admin surfaces use explicit component selectors in admin/admin-shell-layout.css.
+   Never repaint every class containing '-card' or '-panel': it hides component intent. */
 
 /* Participant portal: vehicle forms and stage-stat status chips stay graphite/red. */
 .participant-portal .participant-car-detail-layout.is-new-car .form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
@@ -3755,220 +3602,220 @@ body:has(.modal-backdrop){overflow:hidden!important}
 /* Admin light-surface normalization: keep the sidebar and records workspace unchanged. */
 
 /* Admin light-surface normalization: keep the sidebar and records workspace unchanged. */
-.app-shell:not(:has(.admin-records-page)) .main .stage-number:not(.large),
-.app-shell:not(:has(.admin-records-page)) .main .segmented button.selected,
-.app-shell:not(:has(.admin-records-page)) .main .import-step.active,
-.app-shell:not(:has(.admin-records-page)) .main .settings-tabs button.selected,
-.app-shell:not(:has(.admin-records-page)) .main .asset-preview,
-.app-shell:not(:has(.admin-records-page)) .main .admin-help-icon,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-tabs button.active,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-hero-icon,
-.app-shell:not(:has(.admin-records-page)) .main .placeholder-icon,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-function-result pre,
-.app-shell:not(:has(.admin-records-page)) .main .admin-flow span:first-child,
-.app-shell:not(:has(.admin-records-page)) .main .stage-result-place,
-.app-shell:not(:has(.admin-records-page)) .main .config-car-icon,
-.app-shell:not(:has(.admin-records-page)) .main .config-editor-icon,
-.app-shell:not(:has(.admin-records-page)) .main .config-empty-icon,
-.app-shell:not(:has(.admin-records-page)) .main .config-version,
-.app-shell:not(:has(.admin-records-page)) .main .config-create-button>span,
-.app-shell:not(:has(.admin-records-page)) .main .config-details-hero,
-.app-shell:not(:has(.admin-records-page)) .main .quick-create-head>span,
-.app-shell:not(:has(.admin-records-page)) .main .json-view {
+.app-shell .main .stage-number:not(.large),
+.app-shell .main .segmented button.selected,
+.app-shell .main .import-step.active,
+.app-shell .main .settings-tabs button.selected,
+.app-shell .main .asset-preview,
+.app-shell .main .admin-help-icon,
+.app-shell .main .assistant-tabs button.active,
+.app-shell .main .assistant-hero-icon,
+.app-shell .main .placeholder-icon,
+.app-shell .main .assistant-function-result pre,
+.app-shell .main .admin-flow span:first-child,
+.app-shell .main .stage-result-place,
+.app-shell .main .config-car-icon,
+.app-shell .main .config-editor-icon,
+.app-shell .main .config-empty-icon,
+.app-shell .main .config-version,
+.app-shell .main .config-create-button>span,
+.app-shell .main .config-details-hero,
+.app-shell .main .quick-create-head>span,
+.app-shell .main .json-view {
   background:#f1f3f5 !important;
   color:#25292d !important;
   border-color:#d9dcdf !important;
   box-shadow:none;
 }
-.app-shell:not(:has(.admin-records-page)) .main .stage-number.large {
+.app-shell .main .stage-number.large {
   background:#e21d2f !important;
   color:#fff !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .race-command.primary {
+.app-shell .main .race-command.primary {
   background:#e21d2f !important;
   color:#fff !important;
   border-color:#e21d2f !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .race-command.primary:hover {
+.app-shell .main .race-command.primary:hover {
   background:#b91425 !important;
   color:#fff !important;
   border-color:#b91425 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .race-command.primary .race-command-icon {
+.app-shell .main .race-command.primary .race-command-icon {
   background:#fff !important;
   color:#e21d2f !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .race-command.primary small {
+.app-shell .main .race-command.primary small {
   color:#fff !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .race-command.primary span {
+.app-shell .main .race-command.primary span {
   color:#fff !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .modal-form .save-button {
+.app-shell .main .modal-form .save-button {
   background:#e21d2f !important;
   color:#fff !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .asset-preview img {
+.app-shell .main .asset-preview img {
   background:#f1f3f5 !important;
 }
 
 
 /* Audit pass 2: remove legacy graphite styling still leaking into admin modules. */
-.app-shell:not(:has(.admin-records-page)) .main .data-table th {
+.app-shell .main .data-table th {
   background:#f1f3f5 !important;
   color:#4f555c !important;
   border-bottom:1px solid #d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .global-search-head {
+.app-shell .main .global-search-head {
   background:#f1f3f5 !important;
   color:#25292d !important;
   border-bottom-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .global-search-head input {
+.app-shell .main .global-search-head input {
   background:transparent !important;
   color:#25292d !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .global-search-head input::placeholder {
+.app-shell .main .global-search-head input::placeholder {
   color:#777c82 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .row-actions .icon-button:hover {
+.app-shell .main .row-actions .icon-button:hover {
   background:#f1f3f5 !important;
   color:#25292d !important;
   border-color:#cfd3d7 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature {
+.app-shell .main .dashboard-feature {
   background:#fff !important;
   color:#25292d !important;
   border:1px solid #d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature:hover {
+.app-shell .main .dashboard-feature:hover {
   background:#f7f8f9 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature .stage-main strong {
+.app-shell .main .dashboard-feature .stage-main strong {
   color:#111214 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-feature .stage-main span {
+.app-shell .main .dashboard-feature .stage-main span {
   color:#555b62 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .working-stage-summary {
+.app-shell .main .working-stage-summary {
   background:#fff !important;
   color:#25292d !important;
   border-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis > div {
+.app-shell .main .working-summary-kpis > div {
   background:#f7f8f9 !important;
   color:#25292d !important;
   border-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis span,
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-block-title,
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-title,
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis small {
+.app-shell .main .working-summary-kpis span,
+.app-shell .main .working-summary-block-title,
+.app-shell .main .working-summary-title,
+.app-shell .main .working-summary-kpis small {
   color:#62676e !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .working-summary-kpis strong {
+.app-shell .main .working-summary-kpis strong {
   color:#111214 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link {
+.app-shell .main .dashboard-stage-card .working-summary-links .working-summary-link {
   background:#fff !important;
   color:#34383d !important;
   border-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link:hover {
+.app-shell .main .dashboard-stage-card .working-summary-links .working-summary-link:hover {
   background:#fff5f6 !important;
   border-color:#e21d2f !important;
   color:#25292d !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .dashboard-stage-card .working-summary-links .working-summary-link span {
+.app-shell .main .dashboard-stage-card .working-summary-links .working-summary-link span {
   color:#555b62 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .form-intro,
-.app-shell:not(:has(.admin-records-page)) .main .registration-rules-consent {
+.app-shell .main .form-intro,
+.app-shell .main .registration-rules-consent {
   background:#f7f8f9 !important;
   border-color:#d9dcdf !important;
   color:#4f555c !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .form-intro b {
+.app-shell .main .form-intro b {
   color:#25292d !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu {
+.app-shell .main .searchable-select-menu {
   background:#fff !important;
   border-color:#d9dcdf !important;
   color:#25292d !important;
   box-shadow:0 14px 40px rgba(9,10,11,.12) !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu button {
+.app-shell .main .searchable-select-menu button {
   color:#25292d !important;
   background:#fff !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu button:hover {
+.app-shell .main .searchable-select-menu button:hover {
   background:#f7f8f9 !important;
   color:#111214 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .searchable-select-menu .muted,
-.app-shell:not(:has(.admin-records-page)) .main .field-help {
+.app-shell .main .searchable-select-menu .muted,
+.app-shell .main .field-help {
   color:#62676e !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-empty,
-.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-note {
+.app-shell .main .normalization-audit-empty,
+.app-shell .main .normalization-audit-note {
   background:#f7f8f9 !important;
   border-color:#d9dcdf !important;
   color:#4f555c !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-audit-note {
+.app-shell .main .normalization-audit-note {
   background:#fff8e8 !important;
   border-color:#ead59b !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-finding {
+.app-shell .main .normalization-finding {
   background:#fff !important;
   border-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-finding summary {
+.app-shell .main .normalization-finding summary {
   color:#25292d !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-finding summary span {
+.app-shell .main .normalization-finding summary span {
   background:#f1f3f5 !important;
   color:#b91425 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .normalization-finding-list pre,
-.app-shell:not(:has(.admin-records-page)) .main .debug-panel pre,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-data pre {
+.app-shell .main .normalization-finding-list pre,
+.app-shell .main .debug-panel pre,
+.app-shell .main .assistant-data pre {
   background:#f7f8f9 !important;
   color:#25292d !important;
   border-color:#d9dcdf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .assistant-message.user .message-bubble {
+.app-shell .main .assistant-message.user .message-bubble {
   background:#fff0f2 !important;
   color:#25292d !important;
   border-color:#efb8bf !important;
   box-shadow:none !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .assistant-message.user .message-avatar,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-message.assistant .message-avatar,
-.app-shell:not(:has(.admin-records-page)) .main .assistant-chat-head .assistant-avatar {
+.app-shell .main .assistant-message.user .message-avatar,
+.app-shell .main .assistant-message.assistant .message-avatar,
+.app-shell .main .assistant-chat-head .assistant-avatar {
   background:#f1f3f5 !important;
   color:#34383d !important;
   box-shadow:none !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .assistant-chat-suggestions button:hover {
+.app-shell .main .assistant-chat-suggestions button:hover {
   background:#fff0f2 !important;
   color:#25292d !important;
   border-color:#efb8bf !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .audit-entry-icon {
+.app-shell .main .audit-entry-icon {
   background:#f1f3f5 !important;
   color:#34383d !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .config-details-hero p {
+.app-shell .main .config-details-hero p {
   color:#62676e !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main .config-version span {
+.app-shell .main .config-version span {
   opacity:1 !important;
 }
-.app-shell:not(:has(.admin-records-page)) .main input,
-.app-shell:not(:has(.admin-records-page)) .main select,
-.app-shell:not(:has(.admin-records-page)) .main textarea,
-.app-shell:not(:has(.admin-records-page)) .main option {
+.app-shell .main input,
+.app-shell .main select,
+.app-shell .main textarea,
+.app-shell .main option {
   color-scheme:light;
 }
 

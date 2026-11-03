@@ -58,66 +58,8 @@ body .usd-member :is(.participant-section,.registration-card,.participant-regist
   min-width:0;
   max-width:100%;
 }
-/* Administration: bright neutral workspace without vestigial blue accents. */
-body .app-shell>.main{
-  background: var(--usd-admin-canvas,#f3f5f8)!important;
-  color: #1d2025;
-}
-body .app-shell .main .content :is(.panel,.admin-card,.stat-card,.metric-card,.notification-overview,.notification-composer,.notification-history){
-  background-color: #fff;
-  border: 1px solid #e3e4e8;
-  border-radius: var(--usd-finish-radius);
-  box-shadow: 0 10px 32px rgba(22,27,35,.035);
-}
-body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button){
-  transition: background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
-}
-body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button):focus-visible{
-  box-shadow: 0 0 0 3px rgba(229,28,59,.18);
-}
-body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]),select,textarea){
-  border-color: #d6d8de;
-}
-body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]),select,textarea):focus-visible{
-  border-color: var(--usd-finish-red)!important;
-}
-body .app-shell .main .content :is(.table-wrap,.data-table-wrap,.smart-table-wrap){
-  scrollbar-color: #c1c3c9 transparent;
-}
-body .app-shell .main .content :is(.data-table,.smart-table) tbody tr{
-  transition: background-color .15s ease;
-}
-body .app-shell .main .content :is(.data-table,.smart-table) tbody tr:hover{
-  background: #faf0f2;
-}
-/* Mail QA belongs to the same admin visual language, not a separate widget theme. */
-body .app-shell .main .content .mail-channel-status,
-body .app-shell .main .content .mail-test-result{
-  min-width:0;
-  border-radius:12px;
-  border:1px solid #dedfe5;
-  background:#fafafb;
-  color:#252830;
-}
-body .app-shell .main .content .mail-channel-status.ready{
-  border-color:#bdcfbf;
-  background:#f6faf6;
-}
-body .app-shell .main .content .mail-channel-status.needs-setup{
-  border-color:#edc2c8;
-  background:#fff7f8;
-}
-body .app-shell .main .content .settings-section{
-  min-width:0;
-  max-width:100%;
-}
+/* Administration surfaces live exclusively in admin/admin-shell-layout.css. */
 @media(max-width:800px){
- body .app-shell .main .content :is(.panel,.admin-card,.notification-overview,.notification-composer,.notification-history){
-  border-radius:13px;
- }
- body .app-shell .main .content :is(.toolbar,.page-actions,.page-heading-actions){
-  max-width:100%;
- }
  body .usd-live :is(.u-card,.p-news-card,.p-person-card,.p-team-card,.p-car-card){
   border-radius:14px!important;
  }
