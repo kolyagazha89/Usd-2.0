@@ -8,7 +8,7 @@ import './offline-event.css';
  * it must open on a disconnected device after App /auth/refresh fails.
  * The only source of participant data is a passphrase-encrypted local vault.
  */
-export default function OfflineEventPage({onGoOnline}:{onGoOnline:()=>void}){
+export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)=>void}){
  const [raw,setRaw]=useState<EncryptedEventVault|null>(null);
  const [data,setData]=useState<OfflineEventPackage|null>(null);
  const [revision,setRevision]=useState('');
@@ -143,7 +143,8 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:()=>void}){
       <div className="usd-offline-entry-head"><strong>№ {entry.number??'—'} · {entry.participantName}</strong><span>{entry.status==='CANCELLED'?'Отменена':draft?'ЛОКАЛЬНЫЙ ЧЕРНОВИК':entry.inspection.status==='PASSED'?'Допущен на момент загрузки':entry.inspection.status==='FAILED'?'Не прошёл на момент загрузки':'Без инспекции'}</span></div>
       <p>{entry.car}{entry.registrationNumber?' · '+entry.registrationNumber:''}</p>
       <div className="usd-offline-classes">{entry.classes.map((name,i)=><span key={i}>{name}</span>)}</div>
-      {draft?<p className="usd-offline-draft"><ClipboardCheck size={15}/>Локально: {draft.status==='PASSED'?'Допустить':'Отказать'}{draft.notes?' · '+draft.notes:''} · Не синхронизировано</p>
+      {draft?<><p className="usd-offline-draft"><ClipboardCheck size={15}/>Локально: {draft.status==='PASSED'?'Допустить':'Отказать'}{draft.notes?' · '+draft.notes:''} · Не синхронизировано</p>
+       <button type="button" className="usd-offline-button secondary" disabled={!connected} onClick={()=>onGoOnline('/admin/inspections?stageId='+encodeURIComponent(data.stage.id)+'&registrationId='+encodeURIComponent(entry.id))}>Сверить и вручную внести на сервере</button></>
       :entry.status==='ACTIVE'&&entry.inspection.status==='PENDING'
        &&<button className="usd-offline-button secondary" type="button" onClick={()=>{setDraftFor(entry.id);setStatus('PASSED');setNotes('')}} disabled={busy}>Создать черновик инспекции</button>}
       {draftFor===entry.id&&<form className="usd-offline-draft-form" onSubmit={e=>{e.preventDefault();void saveDraft()}}>
