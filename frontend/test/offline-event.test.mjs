@@ -113,6 +113,7 @@ test('offline route is independent of stale JWT and asset worker never stores AP
   readFile(new URL('../package.json',import.meta.url),'utf8'),
  ]);
  assert.match(app,/\/offline-event'\)return <OfflineEventPage/);
+ assert.match(app,/route==='\/offline-event'\?'День соревнований — USD'/,'offline route sets its own browser title before rendering');
  assert.match(desk,/unsealOfflinePackage\(raw,passphrase\)/);
  assert.match(desk,/state:'LOCAL_ONLY'|ЛОКАЛЬНЫЙ ЧЕРНОВИК/);
  assert.match(prepare,/createOfflineVault\(payload,offlinePass\)/);
