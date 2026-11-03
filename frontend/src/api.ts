@@ -173,6 +173,7 @@ export async function apiDelete<T=any>(path:string){return request<T>(path,{meth
 
 const privateMediaObjectUrls = new Set<string>();
 export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.delete(url))URL.revokeObjectURL(url);}
+export function isPrivateMediaUrl(url:string){return privateMediaObjectUrls.has(url);}
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
