@@ -42,6 +42,13 @@ test('import is additive and idempotent, leaves existing stable IDs and retired 
  assert.equal(repeat.addedModels,0);assert.equal(repeat.addedBrands,0);
  assert.deepEqual(repeat.catalogs,next.catalogs);
 });
+test('imported models keep the existing canonical brand name for exact-match catalog UI filters',()=>{
+ const rows=parseAudioCatalogCsv('бренд,модель,категория\\nKICX,Two,AMPLIFIER\\n');
+ const merged=planAudioCatalogImport({componentBrands:[{id:'brand1',name:'Kicx',category:'AMPLIFIER',isActive:true}]},rows,()=> 'new-id');
+ assert.equal(merged.addedBrands,0);
+ assert.equal(merged.catalogs.componentModels[0].brand,'Kicx');
+});
+
 test('inactive brands require explicit review before import, not silent reactivation',()=>{
  const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Two,AMPLIFIER\n');
  assert.throws(()=>planAudioCatalogImport({componentBrands:[{id:'id',category:'AMPLIFIER',name:'Kicx',isActive:false}]},rows,()=>''),/отключена/);
