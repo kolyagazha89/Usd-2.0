@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,ArrowLeft,CheckCircle2,ClipboardCheck,HardDrive,Lock,LockKeyhole,Search,ShieldCheck,Trash2,Wifi,WifiOff} from 'lucide-react';
-import {assertOfflinePackage,findOfflineEntries,recordOfflineInspection,type OfflineEventPackage} from './offline-event-model';
+import {findOfflineEntries,recordOfflineInspection,type OfflineEventPackage} from './offline-event-model';
 import {deleteOfflineVault,loadEncryptedVault,unsealOfflinePackage,updateOfflineVault,type EncryptedEventVault} from './offline-event-vault';
 import './offline-event.css';
 
