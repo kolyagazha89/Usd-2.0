@@ -65,5 +65,5 @@ test('report routing and scoped print layout are present',async()=>{
  assert.match(ui,/pendingConfigurations/);
  assert.match(css,/@media print/);
  assert.match(css,/\.usd-stage-report-page/);
- assert.match(qa,/\/admin\/stage-report\?stageId=stage1/);
+ assert.ok(qa.includes('/admin/stage-report?stageId=stage1'));
 });
