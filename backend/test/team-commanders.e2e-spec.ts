@@ -265,7 +265,17 @@ integration('team/commander HTTP acceptance on isolated PostgreSQL 18', () => {
         ...payload,
         status: 'PUBLISHED',
       })
-      .expect(200);
+      .expect(400); // Full-body PATCH must not bypass reviewed-snapshot moderation.
+    await api('commander')
+      .post('/teams/' + team.id + '/posts/' + post.id + '/approve', {
+        reviewedAt: post.updatedAt,
+      })
+      .expect(403);
+    await api('admin')
+      .post('/teams/' + team.id + '/posts/' + post.id + '/approve', {
+        reviewedAt: post.updatedAt,
+      })
+      .expect(201);
     await api('commander')
       .patch('/teams/' + team.id + '/posts/' + post.id, {
         ...payload,
@@ -290,15 +300,21 @@ integration('team/commander HTTP acceptance on isolated PostgreSQL 18', () => {
       await request(app.getHttpServer()).get('/teams/public').expect(200)
     ).body.find((t: any) => t.id === team.id);
     expect(unpublished.posts).toHaveLength(0);
-    await api('commander')
-      .patch('/teams/' + team.id + '/posts/' + post.id, payload)
-      .expect(200);
+    const reviewedAgain = (
+      await api('commander')
+        .patch('/teams/' + team.id + '/posts/' + post.id, payload)
+        .expect(200)
+    ).body;
     await api('admin')
-      .patch('/teams/' + team.id + '/posts/' + post.id, {
-        ...payload,
-        status: 'PUBLISHED',
+      .post('/teams/' + team.id + '/posts/' + post.id + '/approve', {
+        reviewedAt: post.updatedAt,
       })
-      .expect(200);
+      .expect(409); // Withdrawn and resubmitted post invalidates prior approval.
+    await api('admin')
+      .post('/teams/' + team.id + '/posts/' + post.id + '/approve', {
+        reviewedAt: reviewedAgain.updatedAt,
+      })
+      .expect(201);
     await api('commander')
       .patch('/teams/' + team.id + '/memberships/' + privateRequest.id, {
         status: 'LEFT',

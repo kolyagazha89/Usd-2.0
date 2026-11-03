@@ -9,12 +9,12 @@ import TeamsPage from '../../src/admin/TeamsPage';
 export async function runTeamWorkflows(){
  const host=document.getElementById('root')!,root=createRoot(host);
  const calls:any[]=[];let membership:any=null,malformedAdmin=false;
- const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
+ const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED',updatedAt:'2026-11-03T12:00:00.000Z'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
   if(path==='/teams/public/t1/achievements')return {teamId:'t1',teamName:'First team',scope:'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,stages:[]};
-  if(path==='/teams/admin')return malformedAdmin?[]:{teams:[team],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
+  if(path==='/teams/admin')return malformedAdmin?[]:{teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
   if(path==='/teams/me/leave'){membership=null;return {success:true}}
@@ -34,12 +34,22 @@ export async function runTeamWorkflows(){
   await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Отправить на проверку');
   assert.equal(calls.at(-1).body.status,'IN_REVIEW');
   await render(<TeamWorkspace key="admin" team={{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}} admin users={[]} onChanged={async()=>{}}/>);
-  await click('Опубликовать');assert.equal(calls.at(-1).body.status,'PUBLISHED');
+  await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
   await render(<PublicTeamsPage path="/teams/First%20team"/>);assert.match(host.textContent??'',/Reviewed news/);assert.match(host.textContent??'',/Public text/);
   const Frame=({children,action}:any)=><main>{action}{children}</main>,Error=({message,retry}:any)=><div role="alert">{message}<button onClick={()=>void retry()}>Повторить</button></div>;
   await render(<TeamsPage PageFrame={Frame} ErrorPanel={Error} LoadingPage={()=>null} Empty={({text}:any)=><p>{text}</p>}/>);
   assert.match(host.textContent??'',/Архивные названия/);assert.ok(!host.textContent?.includes('Переименование обновляет'));
+  await act(async()=>{(host.querySelector('.team-review-list>li>button') as HTMLButtonElement).click();await new Promise(r=>setTimeout(r,0))});
+  assert.match(host.textContent??'',/Проверьте заголовок, полный текст и все фотографии/);
+  assert.match(host.textContent??'',/Reviewed news/);
+  await click('Одобрить публикацию');
+  await click('Подтвердить решение');
+  assert.deepEqual(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts/post1/approve').at(-1)?.body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
+  await act(async()=>{(host.querySelector('.team-review-list>li>button') as HTMLButtonElement).click();await new Promise(r=>setTimeout(r,0))});
+  await click('Вернуть на доработку');
+  await click('Подтвердить решение');
+  assert.deepEqual(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts/post1/return').at(-1)?.body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await input('Название новой команды','New normalized team');await click('Создать команду');
   assert.ok(calls.some(c=>c.method==='POST'&&c.path==='/teams'&&c.body.name==='New normalized team'));
   malformedAdmin=true;await click('Обновить');

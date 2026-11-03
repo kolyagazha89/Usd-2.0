@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 
 const teamId='00000000-0000-4000-8000-000000000111';
@@ -79,7 +79,7 @@ describe('team posts with moderated RustFS galleries',()=>{
  it('blocks a stale administrator approval when a post is withdrawn',async()=>{
   db.teamPost.findUnique.mockResolvedValue({id:postId,teamId,status:'DRAFT',images:[photo]});
   await expect(service.savePost(admin,teamId,{...body,status:'PUBLISHED',images:[photo]},postId))
-   .rejects.toBeInstanceOf(ConflictException);
+   .rejects.toBeInstanceOf(BadRequestException);
   expect(db.teamPost.update).not.toHaveBeenCalled();
  });
 
@@ -87,9 +87,8 @@ describe('team posts with moderated RustFS galleries',()=>{
   await expect(service.savePost(commander,teamId,{...body,status:'PUBLISHED',images:[photo]},postId))
    .rejects.toBeInstanceOf(ForbiddenException);
   db.teamPost.findUnique.mockResolvedValue({id:postId,teamId,status:'IN_REVIEW',images:[photo]});
-  await service.savePost(admin,teamId,{...body,status:'PUBLISHED',images:[photo]},postId);
-  expect(db.teamPost.update).toHaveBeenCalledWith(expect.objectContaining({
-   data:expect.objectContaining({status:'PUBLISHED',images:[photo]}),
-  }));
+  await expect(service.savePost(admin,teamId,{...body,status:'PUBLISHED',images:[photo]},postId))
+   .rejects.toBeInstanceOf(BadRequestException);
+  expect(db.teamPost.update).not.toHaveBeenCalled();
  });
 });

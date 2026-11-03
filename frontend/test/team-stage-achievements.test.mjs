@@ -41,7 +41,9 @@ test('team statistics are truthful about current membership and partial result c
  assert.match(component,/Статистика и фильтры рассчитаны только по первым 500 результатам/);
  assert.match(admin,/pendingReviews=teams\.flatMap/);
  assert.match(admin,/post\.status==='IN_REVIEW'/);
- assert.match(admin,/setSelected\(post\.teamId\)/);
+ assert.match(admin,/setSelected\(item\.teamId\)/);
+ assert.match(admin,/performReview\(reviewConfirm\)/);
+ assert.match(admin,/Только сохранённый материал|только сохранённый материал/);
  assert.match(css,/team-achievement-stats/);
  assert.match(css,/team-review-list/);
 });

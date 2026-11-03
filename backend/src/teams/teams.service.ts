@@ -409,6 +409,95 @@ export class TeamsService {
       return updated;
     });
   }
+  private reviewRevision(value: string) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value))
+      throw new BadRequestException('Нужна актуальная версия материала. Обновите очередь.');
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime()) || date.toISOString() !== value)
+      throw new BadRequestException('Некорректная версия материала');
+    return date;
+  }
+
+  /**
+   * Approve the stored, reviewed snapshot without accepting title, text or
+   * gallery keys back from the browser. Serializable transaction + status CAS
+   * ensures that an earlier withdrawn/updated review cannot be published.
+   */
+  async approvePost(
+    request: AuthenticatedRequest,
+    teamId: string,
+    postId: string,
+    reviewedAt: string,
+  ) {
+    this.admin(await this.actor(request));
+    const reviewedVersion = this.reviewRevision(reviewedAt);
+    return this.transaction(async (db) => {
+      const actor = await this.actor(request, db);
+      this.admin(actor);
+      await this.managed(actor, teamId, db);
+      const post = await db.teamPost.findUnique({ where: { id: postId } });
+      if (!post || post.teamId !== teamId)
+        throw new NotFoundException('Материал команды не найден');
+      if (post.status !== 'IN_REVIEW' ||
+          post.updatedAt.getTime() !== reviewedVersion.getTime())
+        throw new ConflictException(
+          'Материал уже изменён или отозван с проверки. Обновите список.',
+        );
+      const updated = await db.teamPost.updateMany({
+        where: { id: postId, teamId, status: 'IN_REVIEW', updatedAt: reviewedVersion },
+        data: { status: 'PUBLISHED', publishedAt: new Date() },
+      });
+      if (updated.count !== 1)
+        throw new ConflictException(
+          'Материал изменён во время публикации. Обновите список.',
+        );
+      await this.audit(db, actor.id, 'TEAM_POST_PUBLISHED', teamId, {
+        postId,
+        moderation: 'STORED_REVIEWED_SNAPSHOT',
+      });
+      return db.teamPost.findUniqueOrThrow({ where: { id: postId } });
+    });
+  }
+
+  /**
+   * Return a submitted post for revision without replaying potentially stale
+   * client-side title, body or gallery data over its stored snapshot.
+   */
+  async returnPostToDraft(
+    request: AuthenticatedRequest,
+    teamId: string,
+    postId: string,
+    reviewedAt: string,
+  ) {
+    this.admin(await this.actor(request));
+    const reviewedVersion = this.reviewRevision(reviewedAt);
+    return this.transaction(async (db) => {
+      const actor = await this.actor(request, db);
+      this.admin(actor);
+      await this.managed(actor, teamId, db);
+      const post = await db.teamPost.findUnique({ where: { id: postId } });
+      if (!post || post.teamId !== teamId)
+        throw new NotFoundException('Материал команды не найден');
+      if (post.status !== 'IN_REVIEW' ||
+          post.updatedAt.getTime() !== reviewedVersion.getTime())
+        throw new ConflictException(
+          'Материал уже отозван или изменён. Обновите список.',
+        );
+      const updated = await db.teamPost.updateMany({
+        where: { id: postId, teamId, status: 'IN_REVIEW', updatedAt: reviewedVersion },
+        data: { status: 'DRAFT', publishedAt: null },
+      });
+      if (updated.count !== 1)
+        throw new ConflictException(
+          'Материал изменён во время проверки. Обновите список.',
+        );
+      await this.audit(db, actor.id, 'TEAM_POST_RETURNED_FOR_REVISION', teamId, {
+        postId,
+      });
+      return db.teamPost.findUniqueOrThrow({ where: { id: postId } });
+    });
+  }
+
   async savePost(
     request: AuthenticatedRequest,
     teamId: string,
@@ -417,7 +506,12 @@ export class TeamsService {
   ) {
     const actor = await this.actor(request);
     await this.managed(actor, teamId);
-    if (input.status === 'PUBLISHED') this.admin(actor);
+    if (input.status === 'PUBLISHED') {
+      this.admin(actor);
+      throw new BadRequestException(
+        'Для публикации используйте отдельное подтверждение материала на проверке.',
+      );
+    }
     if (
       !['DRAFT', 'IN_REVIEW', 'PUBLISHED'].includes(input.status) ||
       !['NEWS', 'ACHIEVEMENT'].includes(input.kind)

@@ -16,6 +16,7 @@ import {
   CreateTeamDto,
   MembershipDecisionDto,
   TeamPostDto,
+  TeamPostReviewDto,
   UpdateTeamDto,
 } from './teams.dto';
 
@@ -83,6 +84,28 @@ export class TeamsController {
   ) {
     return this.service.decideMembership(request, teamId, id, body);
   }
+  @Roles('ADMIN')
+  @Post(':teamId/posts/:id/approve')
+  approvePost(
+    @Req() request: AuthenticatedRequest,
+    @Param('teamId') teamId: string,
+    @Param('id') id: string,
+    @Body() body: TeamPostReviewDto,
+  ) {
+    return this.service.approvePost(request, teamId, id, body.reviewedAt);
+  }
+
+  @Roles('ADMIN')
+  @Post(':teamId/posts/:id/return')
+  returnPost(
+    @Req() request: AuthenticatedRequest,
+    @Param('teamId') teamId: string,
+    @Param('id') id: string,
+    @Body() body: TeamPostReviewDto,
+  ) {
+    return this.service.returnPostToDraft(request, teamId, id, body.reviewedAt);
+  }
+
   @Roles('ADMIN', 'PARTICIPANT')
   @Post(':teamId/posts')
   createPost(

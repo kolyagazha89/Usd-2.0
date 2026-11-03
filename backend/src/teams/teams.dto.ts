@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsISO8601,
   IsArray,
   ArrayMaxSize,
   IsIn,
@@ -31,4 +32,9 @@ export class TeamPostDto {
 export class MembershipDecisionDto {
   @IsIn(['APPROVED', 'REJECTED', 'LEFT']) status!:
     'APPROVED' | 'REJECTED' | 'LEFT';
+}
+
+/** Review tokens are the exact server timestamp of the text + photo snapshot shown to ADMIN. */
+export class TeamPostReviewDto {
+  @IsISO8601({strict:true}) reviewedAt!: string;
 }
