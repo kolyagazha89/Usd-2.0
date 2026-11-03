@@ -409,6 +409,44 @@ export class TeamsService {
       return updated;
     });
   }
+  /**
+   * Approve the stored, reviewed snapshot without accepting title, text or
+   * gallery keys back from the browser. Serializable transaction + status CAS
+   * ensures that an earlier withdrawn/updated review cannot be published.
+   */
+  async approvePost(
+    request: AuthenticatedRequest,
+    teamId: string,
+    postId: string,
+  ) {
+    this.admin(await this.actor(request));
+    return this.transaction(async (db) => {
+      const actor = await this.actor(request, db);
+      this.admin(actor);
+      await this.managed(actor, teamId, db);
+      const post = await db.teamPost.findUnique({ where: { id: postId } });
+      if (!post || post.teamId !== teamId)
+        throw new NotFoundException('Материал команды не найден');
+      if (post.status !== 'IN_REVIEW')
+        throw new ConflictException(
+          'Материал уже изменён или отозван с проверки. Обновите список.',
+        );
+      const updated = await db.teamPost.updateMany({
+        where: { id: postId, teamId, status: 'IN_REVIEW' },
+        data: { status: 'PUBLISHED', publishedAt: new Date() },
+      });
+      if (updated.count !== 1)
+        throw new ConflictException(
+          'Материал изменён во время публикации. Обновите список.',
+        );
+      await this.audit(db, actor.id, 'TEAM_POST_PUBLISHED', teamId, {
+        postId,
+        moderation: 'STORED_REVIEWED_SNAPSHOT',
+      });
+      return db.teamPost.findUniqueOrThrow({ where: { id: postId } });
+    });
+  }
+
   async savePost(
     request: AuthenticatedRequest,
     teamId: string,
@@ -417,7 +455,10 @@ export class TeamsService {
   ) {
     const actor = await this.actor(request);
     await this.managed(actor, teamId);
-    if (input.status === 'PUBLISHED') this.admin(actor);
+    if (input.status === 'PUBLISHED')
+      throw new BadRequestException(
+        'Для публикации используйте отдельное подтверждение материала на проверке.',
+      );
     if (
       !['DRAFT', 'IN_REVIEW', 'PUBLISHED'].includes(input.status) ||
       !['NEWS', 'ACHIEVEMENT'].includes(input.kind)
