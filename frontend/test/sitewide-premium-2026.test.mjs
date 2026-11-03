@@ -12,16 +12,17 @@ test('all three USD surfaces share the 2026 design system without turning admin 
  assert.deepEqual(imports.slice(-3),['./sitewide-finish.css','./sitewide-premium-2026.css','./admin/admin-shell-layout.css']);
  assert.match(css,/--usd-brand:#ed2638/);
  assert.match(css,/--usd-brand-soft:rgba\(237,38,56,\.14\)/);
- for(const selector of ['.usd-live','.usd-member','.app-shell','.public-page-heading','.public-page-kicker','.u-cinema-hero','.public-stage-card','.public-result-card','.public-record-card','.p-car-card','.registration-card','.configuration-editor-page','.participant-portal-main','.resource-editor-page','.notification-overview','.data-table']){
+ for(const selector of ['.usd-live','.usd-member','.app-shell','.public-page-heading','.public-page-kicker','.u-cinema-hero','.public-stage-card','.public-result-card','.public-record-card','.p-car-card','.registration-card','.configuration-editor-page','.participant-portal-main']){
   assert.ok(css.includes(selector),'new sitewide finish misses '+selector);
  }
  assert.match(css,/\.usd-live\s*\{[\s\S]*?background:var\(--usd-background\)!important;/);
  assert.match(css,/\.usd-member\s*\{[\s\S]*?background:#06090d!important;/);
- assert.match(css,/\.app-shell \.main \{background:#f3f5f8!important;/);
- assert.match(css,/color-scheme:light/);
+ assert.match(admin,/body \.app-shell > \.main/);
+ assert.match(admin,/color-scheme:light/);
  assert.match(css,/\.login-page\.usd-auth/,'login and account recovery must use Dark Velocity');
  assert.match(css,/\.usd-member\.profile-match-page/,'first-login page must be dark');
  assert.match(css,/background:#121a23!important/,'no white auth inputs');
+ for(const selector of ['.resource-editor-page','.notification-overview','.data-table'])assert.ok(admin.includes(selector),'admin design owns '+selector);
  assert.match(css,/body > \.u-mobile-dock/,'portaled iOS dock must inherit the dark system');
  assert.match(admin,/body \.app-shell > \.main/);
  assert.match(publicCss,/\.usd-live\{/);
@@ -74,7 +75,7 @@ test('mobile layout avoids blank rail, forced white member inputs and iOS zoom',
  assert.match(css,/\.usd-member :is\(input:not\(\[type=checkbox\]/);
  assert.match(css,/background:#0d151d!important/);
  assert.match(css,/color-scheme:light/);
- assert.match(css,/scrollbar-color:#babdc5 transparent/);
+ assert.match(admin,/scrollbar-color:#babdc5 transparent/);
  assert.match(admin,/@media \(max-width: 800px\)/);
  assert.doesNotMatch(css,/body\s+\.usd-live\s+\.main\s+\.content/,'admin styling must not leak into public');
 });
