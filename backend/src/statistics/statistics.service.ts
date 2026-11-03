@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import {configurationStillPending} from '../registrations/pending-configuration';
 
 type ResultRow = {
   id: string;
@@ -21,6 +22,7 @@ type ResultRow = {
     status: string;
     stageId: string;
     carId: string;
+    teamNameAtInspection?: string | null;
     participant: {
       id: string;
       firstName: string;
@@ -93,6 +95,7 @@ export class StatisticsService {
         status: true,
         stageId: true,
         carId: true,
+        teamNameAtInspection: true,
         participant: {
           select: {
             id: true,
@@ -638,6 +641,7 @@ export class StatisticsService {
           city: true,
           date: true,
           status: true,
+          resultsPublishedAt: true,
           season: {
             select: {
               id: true,
@@ -652,7 +656,7 @@ export class StatisticsService {
       throw new NotFoundException('Этап не найден');
     }
 
-    const [registrations, results, inspections] = await Promise.all([
+    const [registrations, results] = await Promise.all([
       this.prisma.registration.findMany({
         where: {
           stageId,
@@ -663,6 +667,9 @@ export class StatisticsService {
           participantId: true,
           carId: true,
           participantNumber: true,
+          configurationSnapshot: true,
+          inspection: {select:{status:true,notes:true}},
+          stageInspection: {select:{status:true,notes:true}},
           participant: {
             select: {
               firstName: true,
@@ -697,35 +704,23 @@ export class StatisticsService {
       this.loadResults({
         registration: { stageId },
       }),
-      this.prisma.inspection.findMany({
-        where: { registration: { stageId } },
-        select: {
-          registrationId: true,
-          status: true,
-          notes: true,
-          registration: {
-            select: {
-              participantNumber: true,
-              participant: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  middleName: true,
-                  team: true,
-                },
-              },
-              car: {
-                select: {
-                  brand: true,
-                  model: true,
-                  registrationNumber: true,
-                },
-              },
-            },
-          },
-        },
-      }),
     ]);
+
+    // Vehicle inspections and legacy participant-stage inspections share one
+    // stage report: only ACTIVE registrations contribute to the totals.
+    const inspections = registrations.flatMap((registration) => {
+      const inspection = registration.inspection ?? registration.stageInspection;
+      return inspection ? [{
+        registrationId: registration.id,
+        status: inspection.status,
+        notes: inspection.notes,
+        registration: {
+          participantNumber: registration.participantNumber,
+          participant: registration.participant,
+          car: registration.car,
+        },
+      }] : [];
+    });
 
     const ids = [...new Set(results.map(
       (result) => result.registration.participantId,
@@ -794,8 +789,17 @@ export class StatisticsService {
           total: inspections.length,
           passed: inspections.filter((inspection) => inspection.status === 'PASSED').length,
           failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
-          pending: Math.max(0, registrations.length - new Set(inspections.map((inspection) => inspection.registrationId)).size),
+          pending: Math.max(0, registrations.length - inspections.length),
         },
+        pendingConfigurations: registrations
+          .filter((registration) => configurationStillPending(registration.configurationSnapshot))
+          .map((registration) => ({
+            registrationId: registration.id,
+            participantNumber: registration.participantNumber,
+            participant: registration.participant,
+            car: registration.car,
+          }))
+          .sort((a,b) => a.participantNumber-b.participantNumber),
         registrationClasses: (() => {
           const grouped = new Map<string, any>();
           for (const registration of registrations) {
@@ -873,6 +877,7 @@ export class StatisticsService {
                 place: result.place,
                 participant: result.registration.participant,
                 participantNumber: result.registration.participantNumber,
+                teamAtInspection: result.registration.teamNameAtInspection ?? null,
                 car: result.registration.car,
               })),
             bestResult: item.bestResult

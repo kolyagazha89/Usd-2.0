@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight} from 'lucide-react';
+import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight,FileText} from 'lucide-react';
 import {getPublicSiteAsset,type Role,type User} from '../api';
 
 const nav=[
@@ -19,6 +19,7 @@ const nav=[
  // Итоги, рекорды и спортивный контроль
  {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN']},
+ {section:'Результаты и контроль',label:'Отчёты по этапам',path:'/admin/stage-report',icon:FileText,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
 
  // Публичные материалы сайта
@@ -62,7 +63,7 @@ function navPermissionModule(path:string):string {
  if(path.startsWith('/admin/seasons'))return 'seasons';
  if(path.startsWith('/admin/classes'))return 'classes';
  if(path.startsWith('/admin/disqualifications'))return 'disqualifications';
- if(path.startsWith('/admin/statistics'))return 'statistics';
+ if(path.startsWith('/admin/statistics')||path.startsWith('/admin/stage-report'))return 'statistics';
  if(path.startsWith('/admin/import'))return 'imports';
  if(path.startsWith('/admin/historical-results'))return 'historicalResults';
  if(path.startsWith('/admin/data-quality'))return 'imports';
