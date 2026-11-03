@@ -1,3 +1,4 @@
+import {registerPrivateMediaUrl,releasePrivateMediaUrl as releaseTrustedMediaUrl,clearPrivateMediaUrls} from './private-media-urls';
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? '';
 const API_BASE = configuredApiBase
   ? (/^https?:\/\//i.test(configuredApiBase)
@@ -125,8 +126,7 @@ export function clearAuthSession(){
   authGeneration++;
   refreshPromise=null;
   accessToken=null;
-  for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}
-  privateMediaObjectUrls.clear();
+  clearPrivateMediaUrls();
   try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
 }
 export async function logout(){
@@ -171,8 +171,7 @@ export async function apiPatch<T=any>(path:string,body:any){return request<T>(pa
 export async function apiPut<T=any>(path:string,body:any){return request<T>(path,{method:'PUT',body:JSON.stringify(body)});}
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
-const privateMediaObjectUrls = new Set<string>();
-export function releasePrivateMediaUrl(url:string){if(privateMediaObjectUrls.delete(url))URL.revokeObjectURL(url);}
+export function releasePrivateMediaUrl(url:string){releaseTrustedMediaUrl(url);}
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{
@@ -191,7 +190,7 @@ export async function getPrivateMediaObjectUrl(targetType:string,targetId:string
     const blob=await response.blob();
     if(generation!==authGeneration)throw new Error('Сеанс завершён. Повторите вход.');
     const url=URL.createObjectURL(blob);
-    privateMediaObjectUrls.add(url);
+    registerPrivateMediaUrl(url);
     return url;
   };
   if(!accessToken){
@@ -288,8 +287,17 @@ export async function uploadEntityPhoto(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOT
   if(file.size<=0||file.size>10*1024*1024)throw new Error('Размер фотографии должен быть от 1 байта до 10 МБ');
   const prepared=await apiPost<any>('/media/prepare',{targetType,targetId,contentType:file.type});
   if(!prepared?.uploadToken)throw new Error('Сервер не подготовил загрузку фотографии');
-  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
-  return {photoUrl:prepared.photoUrl??null,url:await getMediaUrl(targetType,targetId)};
+  const completed=await request<{success:boolean;photoUrl?:string;targetType?:string;targetId?:string}>('/media/upload',{
+    method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file,
+  },false);
+  if(!completed?.success||completed.targetType!==targetType||completed.targetId!==targetId){
+    throw new Error('Сервер не подтвердил сохранение фотографии автомобиля или профиля');
+  }
+  // Upload has already been committed; a temporary preview failure must not
+  // turn a successful save into a misleading upload error.
+  let url:string|null=null;
+  try{url=await getMediaUrl(targetType,targetId)}catch{/* The page can retry the preview. */}
+  return {photoUrl:completed.photoUrl??null,url};
 }
 
 

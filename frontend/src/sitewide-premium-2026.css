@@ -37,9 +37,9 @@ body :is(.usd-live,.usd-member,.app-shell) :is(button,input,select,textarea) {
 body :is(.usd-live,.usd-member,.app-shell) :is(img,video,iframe) {max-inline-size:100%}
 body :is(.usd-live,.usd-member,.app-shell) :is(.page,.panel,.u-container,.participant-section) {min-inline-size:0}
 body .usd-live {
- --usd-background:#06090d;
- --usd-card:#0e151c;
- --usd-card-elevated:#151c25;
+ --usd-background:#0d131b;
+ --usd-card:#151d27;
+ --usd-card-elevated:#1c2632;
  --usd-muted:#b0b8c4;
  --usd-border:var(--usd-stroke-dark);
  background:var(--usd-background)!important;
@@ -346,4 +346,60 @@ body .usd-member.profile-match-page :is(input,select,textarea) {
 }
 @media(prefers-reduced-motion:reduce) {
  body .login-page.usd-auth :is(.login-card,.auth-card) {transition:none!important}
+}
+
+/* Final public surface contract: all legacy public page layers resolve to the
+ * same graphite depth. This is deliberately scoped to .usd-live, so admin
+ * screens keep their white design and photo/poster elements retain their size. */
+body .usd-live {
+ background:radial-gradient(ellipse 65% 35% at 75% 0%,rgba(158,42,63,.10),transparent 78%),#0d131b!important;
+}
+body .usd-live :is(.p-home-main,.p-inner-page,.public-page,.public-page-main,.public-content) {
+ background:transparent!important;
+}
+body .usd-live .p-inner-page {
+ min-height:calc(100dvh - 180px);
+ padding-block:clamp(24px,3.8vw,55px) clamp(58px,6vw,100px);
+}
+body .usd-live :is(.public-legal-document,.public-rules-card,.public-rules-document,.public-rules-sidebar,
+ .public-empty-state,.public-page .p-empty,.public-page .p-error,
+ .public-stage-detail .public-stage-card) {
+ background:radial-gradient(ellipse at 90% 0%,rgba(224,45,74,.08),transparent 55%),linear-gradient(145deg,#1a2430,#121a23)!important;
+ border:1px solid rgba(205,219,236,.18)!important;
+ border-radius:var(--usd-round-md)!important;
+ color:#eff3f8;
+}
+body .usd-live :is(.public-stage-card,.public-record-card,.public-result-card,
+ .p-person-card,.p-car-card,.p-team-card,.p-news-card) {
+ background:radial-gradient(ellipse at 95% 2%,rgba(224,45,74,.09),transparent 60%),linear-gradient(145deg,#1a2430,#121a23)!important;
+ border-color:rgba(205,219,236,.18)!important;
+}
+body .usd-live :is(.public-stage-list-poster-placeholder,.public-stage-poster-placeholder,
+ .p-photo-fallback,.public-stage-detail .p-photo-fallback.public-stage-poster) {
+ background:radial-gradient(ellipse at 75% 10%,rgba(232,47,77,.15),transparent 65%),linear-gradient(145deg,#24313f,#151e29)!important;
+}
+body .usd-live :is(.public-muted-empty,.public-page .public-page-error) {
+ border-radius:var(--usd-round-md);
+}
+body .usd-live :is(.public-rules-document,.public-legal-document) {
+ min-width:0;
+ overflow-wrap:anywhere;
+}
+body .usd-live .public-stage-detail :is(.public-stage-detail-copy,.public-stage-detail-poster) {
+ min-width:0;
+ background:transparent;
+}
+body .usd-member .participant-car-detail-photo {
+ background:radial-gradient(ellipse at 70% 0%,rgba(237,38,56,.13),transparent 65%),linear-gradient(145deg,#1d2732,#111923)!important;
+}
+body .usd-member .member-car-photo-feedback {
+ margin:10px 0 0;
+ color:#a8e4bf;
+ font-size:13px;
+ font-weight:650;
+}
+@media(max-width:700px){
+ body .usd-live .p-inner-page {padding-block:24px 84px}
+ body .usd-live .public-page-heading {margin-bottom:22px;padding:10px 0 20px}
+ body .usd-live :is(.public-legal-document,.public-rules-card,.public-rules-document) {padding:clamp(17px,4vw,26px)!important}
 }

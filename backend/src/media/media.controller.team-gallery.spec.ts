@@ -18,4 +18,17 @@ describe('team gallery HTTP cache boundary',()=>{
   expect(setHeader).toHaveBeenCalledWith('X-Content-Type-Options','nosniff');
   expect(send).toHaveBeenCalledTimes(1);
  });
+
+ it.each([MediaTargetType.CAR_PHOTO, MediaTargetType.PARTICIPANT_PHOTO])(
+  'disables stale public caches for replaceable %s images',async(type)=>{
+   const service:any={getPublicMediaFile:jest.fn<(...args:any[])=>Promise<any>>().mockResolvedValue({
+    body:Buffer.from([0x89,0x50,0x4e,0x47]),contentType:'image/png',
+   })};
+   const controller=new MediaController(service);
+   const setHeader=jest.fn();const send=jest.fn();
+   await controller.publicFile(type,'entity-1',{setHeader,send} as any);
+   expect(setHeader).toHaveBeenCalledWith('Cache-Control','no-store');
+   expect(send).toHaveBeenCalledTimes(1);
+  });
+
 });

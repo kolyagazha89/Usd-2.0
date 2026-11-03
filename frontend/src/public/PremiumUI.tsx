@@ -1,6 +1,8 @@
 import {createContext,useContext,useState,type ReactNode} from 'react';
 import InternalLink from '../navigation/InternalLink';
-import {initials,safeHref,stageDate} from './premium-model';
+import {initials,stageDate} from './premium-model';
+import {isPrivateMediaUrl} from '../private-media-urls';
+import {safePhotoSource} from './photo-source';
 export const PremiumNavigation=createContext<(path:string)=>void>(()=>{});
 export function Link({to,children,className='',...rest}:{to:string;children:ReactNode;className?:string;[key:string]:any}){const go=useContext(PremiumNavigation);return <InternalLink href={to} go={go} className={className} {...rest}>{children}</InternalLink>}
 export function Button({to,children,quiet=false,...rest}:{to:string;children:ReactNode;quiet?:boolean;[key:string]:any}){return <Link to={to} className={'u-btn '+(quiet?'u-quiet':'')} {...rest}>{children}<span aria-hidden>↗</span></Link>}
@@ -11,8 +13,8 @@ export const PremiumPlaceholders=createContext<PhotoPlaceholders>({});
 export function Photo({src,alt,className='',fallback,kind,placeholderSrc}:{src?:string;alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders;placeholderSrc?:string|null}){
  const placeholders=useContext(PremiumPlaceholders);
  const [failed,F]=useState<string[]>([]);
- const original=safeHref(src);
- const substitute=safeHref(placeholderSrc??(kind?placeholders[kind]??undefined:undefined));
+ const original=safePhotoSource(src,isPrivateMediaUrl);
+ const substitute=safePhotoSource(placeholderSrc??(kind?placeholders[kind]??undefined:undefined),isPrivateMediaUrl);
  const url=[original,substitute].find(candidate=>candidate&&!failed.includes(candidate));
  return url?<img className={className} src={url} alt={alt} loading="lazy" decoding="async" onError={()=>F(previous=>previous.includes(url)?previous:[...previous,url])}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
 }

@@ -87,7 +87,9 @@ export class MediaController {
     response.setHeader('Content-Length', String(media.body.length));
     // Revoking a team publication must not leave an unapproved photo in
     // browser or intermediary caches for another five minutes.
-    response.setHeader('Cache-Control', targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')
+    // Car and participant photos are replaceable at any time. Never serve a
+    // five-minute-stale image under the same stable public URL.
+    response.setHeader('Cache-Control', targetType !== MediaTargetType.SITE_ASSET || targetId.startsWith('team-post-')
       ? 'no-store' : 'public, max-age=300, s-maxage=300');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.send(media.body);
