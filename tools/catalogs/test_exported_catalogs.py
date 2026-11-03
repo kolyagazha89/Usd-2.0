@@ -70,7 +70,7 @@ class ExportedCatalogTests(unittest.TestCase):
         for rows in (self.cars, self.audio):
             for row in rows:
                 for field in row:
-                    self.assertFalse(field.startswith(("=", "+", "@", "\\t", "\\r")), row)
+                    self.assertFalse(field.startswith(("=", "+", "@", "\t", "\r")), row)
 
     def test_source_fragments_have_the_same_audio_header(self):
         files = sorted((DATA / "fragments").glob("*.csv"))
