@@ -150,6 +150,24 @@ try{
       assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
       assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
       row.sitewideHome='no late content replacement after boot';
+      const latestCards=page.locator('[data-home-block="latest-results"] .u-mini-results');
+      await latestCards.waitFor({state:'visible'});
+      const latestLayout=await latestCards.evaluate(node=>{
+       const style=getComputedStyle(node);
+       return {
+        display:style.display,
+        columns:style.gridTemplateColumns.split(/\\s+/).filter(Boolean).length,
+        cardCount:node.querySelectorAll('.usd-score-row').length,
+        scrollWidth:node.scrollWidth,
+        clientWidth:node.clientWidth,
+       };
+      });
+      const expectedColumns=width>1120?3:width>650?2:1;
+      assert.equal(latestLayout.display,'grid','latest results must use an explicit responsive card grid');
+      assert.equal(latestLayout.columns,expectedColumns,'latest results use desktop/tablet/mobile columns '+JSON.stringify({width,latestLayout}));
+      assert.ok(latestLayout.cardCount>0,'the candidate must render result cards for layout verification');
+      assert.ok(latestLayout.scrollWidth<=latestLayout.clientWidth+1,'latest results must fit the panel without horizontal overflow');
+      row.latestResultsGrid=latestLayout;
      }
      if(role===null&&['/stages','/records','/rules','/privacy','/teams','/participants'].includes(route)){
       const pageHeading=page.locator('.public-page-heading');
