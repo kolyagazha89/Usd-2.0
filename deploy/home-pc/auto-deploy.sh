@@ -30,7 +30,10 @@ if [[ -L "$SOURCE_DIR" ]]; then
   exit 1
 fi
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
-  git clone --no-checkout --filter=blob:none "$REPO" "$SOURCE_DIR"
+  if ! git clone --no-checkout --filter=blob:none "$REPO" "$SOURCE_DIR"; then
+    echo "GitHub source clone unavailable; deferring release until next poll" >&2
+    exit 0
+  fi
 fi
 # A root-owned but group-writable checkout is still unsafe: another local
 # account could inject files into the Docker build context or rewrite Git refs.
@@ -41,7 +44,10 @@ for protected_dir in "$SOURCE_DIR" "$SOURCE_DIR/.git" "$STATE_DIR"; do
     { echo "Deploy directory must not be group/world writable: $protected_dir" >&2; exit 1; }
 done
 [[ "$(git -C "$SOURCE_DIR" remote get-url origin)" == "$REPO" ]] || { echo "Unexpected Git remote" >&2; exit 1; }
-git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main
+if ! git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main; then
+  echo "GitHub main fetch unavailable; deferring release until next poll" >&2
+  exit 0
+fi
 SHA="$(git -C "$SOURCE_DIR" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
 # A cached SHA is valid only while BOTH published images still exist.
@@ -123,7 +129,15 @@ DEPLOY_ENV=/home/usd/usd-deploy/deploy/home-pc/.env
 OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 [[ "$OLD_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid deployed SHA" >&2; exit 1; }
 [[ "$OLD_TAG" != "$SHA" ]] || { echo "Already deployed $SHA"; exit 0; }
-git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"
+# A force-push can make the previously deployed SHA unreachable on the remote,
+# while its source tree remains safely available in the root-owned checkout.
+# Prefer that exact local object; never substitute the current candidate tree.
+if ! git -C "$SOURCE_DIR" cat-file -e "$OLD_TAG:backend/prisma" 2>/dev/null; then
+  if ! git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"; then
+    echo "GitHub previous-release fetch unavailable; deferring release until next poll" >&2
+    exit 0
+  fi
+fi
 old_schema="$(git -C "$SOURCE_DIR" rev-parse "$OLD_TAG:backend/prisma")"
 # When the candidate schema changed, the old tree MUST be the approved
 # live baseline. Arbitrary drift is not an automatic migration authorisation.
