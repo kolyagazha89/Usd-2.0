@@ -88,7 +88,18 @@ jobs:
               diagnose_service
               exit 1
             fi
-            usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"
+            # A short GitHub outage must not make the self-hosted request fail
+            # after the root service safely deferred an otherwise valid release.
+            if ! usd_latest_sha="$(timeout 20s git ls-remote --exit-code https://github.com/kolyagazha89/Usd-2.0.git refs/heads/main | awk '$2=="refs/heads/main" {print $1}')"; then
+              echo 'GitHub main ref temporarily unreachable; retrying without changing the deployed release' >&2
+              sleep 60
+              continue
+            fi
+            if [[ ! "$usd_latest_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo 'GitHub main ref invalid or missing; retrying without changing the deployed release' >&2
+              sleep 60
+              continue
+            fi
             if /usr/local/libexec/usd-verify-prerelease "$usd_latest_sha"; then
               echo "Public prerelease accepted after CI-gated host release: $usd_latest_sha"
               exit 0
