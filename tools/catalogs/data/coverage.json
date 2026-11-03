@@ -164,11 +164,14 @@
     "rejected": 2,
     "category_conflicts": 0,
     "conflict_samples": [],
-    "cleaned_marketing_labels": true
+    "cleaned_marketing_labels": true,
+    "import_schema_matched": true,
+    "source_fragment_headers_checked_by_ci": true,
+    "reference_csv_deduped_by_key": true
   },
-  "missing_manufacturers": [
-    "Kicx and Dynamic State official sites timed out on direct downloads; data sourced from verified official product page indexes but some items may be missing"
-  ],
   "completeness": "large verified multi-brand seed, NOT an exhaustive official product inventory",
-  "production_import": false
+  "production_import": false,
+  "partial_source_limitations": [
+    "Kicx and Dynamic State official sites timed out on direct downloads; data sourced from verified official product page indexes but some items may be missing"
+  ]
 }
