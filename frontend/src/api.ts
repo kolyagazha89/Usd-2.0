@@ -1,4 +1,4 @@
-import {registerPrivateMediaUrl} from './private-media-urls';
+import {registerPrivateMediaUrl,releasePrivateMediaUrl as releaseTrustedMediaUrl,clearPrivateMediaUrls} from './private-media-urls';
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? '';
 const API_BASE = configuredApiBase
   ? (/^https?:\/\//i.test(configuredApiBase)
@@ -126,8 +126,7 @@ export function clearAuthSession(){
   authGeneration++;
   refreshPromise=null;
   accessToken=null;
-  for(const url of privateMediaObjectUrls){URL.revokeObjectURL(url);}
-  privateMediaObjectUrls.clear();
+  clearPrivateMediaUrls();
   try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
 }
 export async function logout(){
@@ -172,7 +171,7 @@ export async function apiPatch<T=any>(path:string,body:any){return request<T>(pa
 export async function apiPut<T=any>(path:string,body:any){return request<T>(path,{method:'PUT',body:JSON.stringify(body)});}
 export async function apiDelete<T=any>(path:string){return request<T>(path,{method:'DELETE'});}
 
-export {releasePrivateMediaUrl} from './private-media-urls';
+export function releasePrivateMediaUrl(url:string){releaseTrustedMediaUrl(url);}
 export async function getPrivateMediaObjectUrl(targetType:string,targetId:string):Promise<string>{
   const path='/media/private-file/'+encodeURIComponent(targetType)+'/'+encodeURIComponent(targetId);
   const read=async(retry:boolean):Promise<string>=>{

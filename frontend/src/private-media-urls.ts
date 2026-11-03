@@ -13,3 +13,9 @@ export function releasePrivateMediaUrl(url:string):void {
 export function isPrivateMediaUrl(url:string):boolean {
  return privateMediaObjectUrls.has(url);
 }
+
+/** Closing a session must invalidate and revoke every authenticated preview. */
+export function clearPrivateMediaUrls():void {
+ for(const url of privateMediaObjectUrls)URL.revokeObjectURL(url);
+ privateMediaObjectUrls.clear();
+}
