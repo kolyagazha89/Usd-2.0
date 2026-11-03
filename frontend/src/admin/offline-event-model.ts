@@ -1,6 +1,6 @@
-/** Offline event *pilot*: a sealed, minimal roster and local inspection drafts.
- * No server writes, publication or background sync are performed by this module.
- * The venue hub and authenticated, idempotent sync protocol are still required.
+/** Offline event *pilot*: a sealed, minimal roster and immutable inspection
+ * decisions. Explicit online replay is idempotent, but the multi-judge venue
+ * hub, offline QR and operational recovery procedure are still outstanding.
  */
 import type {DayRow} from './event-day-model.ts';
 
@@ -23,7 +23,9 @@ export type OfflineInspectionDraft={
  id:string;registrationId:string;actorId:string;createdAt:string;
  baseInspectionId:string|null;
  status:'PASSED'|'FAILED';notes:string;
- state:'LOCAL_ONLY';
+ state:'LOCAL_ONLY'|'ACKNOWLEDGED'|'CONFLICT';
+ serverInspectionId?:string;
+ syncMessage?:string;
 };
 export type OfflineEventPackage={
  format:1;stage:{id:string;name:string;city:string;date:string};
@@ -91,8 +93,10 @@ export function assertOfflinePackage(value:unknown,now=Date.now()):asserts value
  }
  for(const draft of data.drafts){
   if(!draft||!draft.id||!ids.has(draft.registrationId)||draft.actorId!==data.actor.id
-   ||draft.state!=='LOCAL_ONLY'||!['PASSED','FAILED'].includes(draft.status)
-   ||typeof draft.notes!=='string'||draft.notes.length>OFFLINE_MAX_DRAFT_NOTES)
+   ||!['LOCAL_ONLY','ACKNOWLEDGED','CONFLICT'].includes(draft.state)||!['PASSED','FAILED'].includes(draft.status)
+   ||typeof draft.notes!=='string'||draft.notes.length>OFFLINE_MAX_DRAFT_NOTES
+   ||(draft.state==='ACKNOWLEDGED'&&!draft.serverInspectionId)
+   ||(draft.syncMessage!==undefined&&(typeof draft.syncMessage!=='string'||draft.syncMessage.length>240)))
    throw new Error('Повреждён локальный черновик инспекции.');
  }
 }
@@ -121,6 +125,30 @@ export function recordOfflineInspection(
   notes:status==='FAILED'?cleanNotes:'',
   state:'LOCAL_ONLY' as const,
  }]};
+}
+/** Persist server acknowledgement before attempting the next operation.
+ * Conflicts remain in the encrypted vault for explicit human review. */
+export function markOfflineInspectionSync(
+ value:OfflineEventPackage,operationId:string,
+ state:'ACKNOWLEDGED'|'CONFLICT',message:string,
+ serverInspectionId?:string,
+ now=Date.now(),
+):OfflineEventPackage {
+ assertOfflinePackage(value,now);
+ const draft=value.drafts.find(item=>item.id===operationId);
+ if(!draft)throw new Error('Локальная операция не найдена.');
+ if(draft.state==='ACKNOWLEDGED'){
+  if(state!=='ACKNOWLEDGED'||draft.serverInspectionId!==serverInspectionId)
+   throw new Error('Подтверждённую инспекцию нельзя изменить локально.');
+  return value;
+ }
+ if(state==='ACKNOWLEDGED'&&!serverInspectionId)
+  throw new Error('Сервер не предоставил ID сохранённой инспекции.');
+ const text=message.trim().slice(0,240);
+ return {...value,drafts:value.drafts.map(item=>item.id!==operationId?item:{
+  ...item,state,serverInspectionId:state==='ACKNOWLEDGED'?serverInspectionId:undefined,
+  syncMessage:text||undefined,
+ })};
 }
 export function findOfflineEntries(data:OfflineEventPackage,search:string):OfflineEntry[]{
  const normalized=search.trim().toLocaleLowerCase('ru');

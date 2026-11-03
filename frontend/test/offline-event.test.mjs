@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {buildOfflineEventPackage,assertOfflinePackage,recordOfflineInspection,findOfflineEntries,OFFLINE_MAX_AGE_MS} from '../src/admin/offline-event-model.ts';
+import {buildOfflineEventPackage,assertOfflinePackage,recordOfflineInspection,markOfflineInspectionSync,findOfflineEntries,OFFLINE_MAX_AGE_MS} from '../src/admin/offline-event-model.ts';
 import {sealOfflinePackage,unsealOfflinePackage} from '../src/admin/offline-event-vault.ts';
 globalThis.crypto??=webcrypto;
 
@@ -127,4 +127,34 @@ test('offline route is independent of stale JWT and asset worker never stores AP
  const push=await readFile(new URL('../public/usd-push-sw.js',import.meta.url),'utf8');
  assert.match(push,/addEventListener\('push'/);
  assert.doesNotMatch(push,/addEventListener\('fetch'/);
+});
+
+test('explicit server receipts survive validation; conflicts retain the local decision',()=>{
+ const now=Date.now();
+ const pkg=buildOfflineEventPackage({stage:{id:'stage-1',name:'Этап',date:new Date(now).toISOString()},rows:sampleRows(),actor:{id:'judge-1',role:'ADMIN'},now});
+ const draft=recordOfflineInspection(pkg,'reg-active','FAILED','Без крепления',now,'op-123');
+ const conflict=markOfflineInspectionSync(draft,'op-123','CONFLICT','Уже существует инспекция',undefined,now);
+ assert.equal(conflict.drafts[0].state,'CONFLICT');
+ assert.equal(conflict.drafts[0].notes,'Без крепления');
+ assertOfflinePackage(conflict,now);
+ const acknowledged=markOfflineInspectionSync(conflict,'op-123','ACKNOWLEDGED','Сервер подтвердил','inspection-id-1',now);
+ assert.equal(acknowledged.drafts[0].serverInspectionId,'inspection-id-1');
+ assert.equal(acknowledged.drafts[0].state,'ACKNOWLEDGED');
+ assertOfflinePackage(acknowledged,now);
+ assert.equal(markOfflineInspectionSync(acknowledged,'op-123','ACKNOWLEDGED','Повтор','inspection-id-1',now),acknowledged);
+ assert.throws(()=>markOfflineInspectionSync(acknowledged,'op-123','CONFLICT','Ошибочный откат',undefined,now),/нельзя изменить/);
+ assert.throws(()=>markOfflineInspectionSync(draft,'op-123','ACKNOWLEDGED','Без ID',undefined,now),/не предоставил ID/);
+});
+
+test('offline sync is explicitly initiated, authenticated, and preserves conflicts',async()=>{
+ const page=await readFile(new URL('../src/admin/OfflineEventPage.tsx',import.meta.url),'utf8');
+ const service=await readFile(new URL('../../backend/src/inspections/inspections.service.ts',import.meta.url),'utf8');
+ assert.match(page,/await refresh\(\)/);
+ assert.match(page,/session\.user\.id!==data\.actor\.id/);
+ assert.match(page,/apiPost<\{/);
+ assert.match(page,/\/inspections\/offline\/sync/);
+ assert.match(page,/serverStatus===409/);
+ assert.match(page,/updateOfflineVault\(updated,passphrase,activeRevision\)/);
+ assert.match(service,/pg_advisory_xact_lock/);
+ assert.match(service,/OFFLINE_INSPECTION_SYNCED/);
 });
