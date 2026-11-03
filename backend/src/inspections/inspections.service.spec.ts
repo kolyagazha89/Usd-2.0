@@ -484,4 +484,71 @@ describe('InspectionsService', () => {
     });
   });
 
+
+  it('assigns BassRace a separate number when five primary classes are selected in inspection', async () => {
+    const numbers = [
+      { id: 'primary-2', number: 2, isPrimary: true },
+      { id: 'extra-3', number: 3, isPrimary: false },
+    ];
+    const regularClasses = Array.from({ length: 5 }, (_, index) => ({
+      classId: 'regular-' + index,
+      class: { name: 'Regular ' + index, directionId: 'direction-' + index, direction: { name: 'Direction ' + index } },
+    }));
+    const bassClass = { classId: 'bass-129', class: { name: 'BassRace 129.9', directionId: 'bass', direction: { name: 'BassRace' } } };
+    tx.registration.findUnique.mockResolvedValue({
+      ...registration, numbers, inspection: { status: 'PASSED' }, classes: [],
+    });
+    tx.stageClass = { findMany: jest.fn().mockResolvedValue([...regularClasses, bassClass]) };
+    tx.registrationClass = { create: jest.fn().mockResolvedValue({ id: 'created' }), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) };
+
+    await service.updateRegistrationClasses('registration-1', [...regularClasses.map(row => row.classId), bassClass.classId], actor);
+
+    for (const row of regularClasses) {
+      expect(tx.registrationClass.create).toHaveBeenCalledWith({
+        data: { registrationId: 'registration-1', classId: row.classId, numberId: 'primary-2' },
+      });
+    }
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({
+      data: { registrationId: 'registration-1', classId: 'bass-129', numberId: 'extra-3' },
+    });
+    expect(tx.registrationNumber.create).not.toHaveBeenCalled();
+  });
+
+  it('uses genuinely free numbers when two BassRace classes require new stickers', async () => {
+    const regularClasses = Array.from({ length: 5 }, (_, index) => ({
+      classId: 'regular-' + index,
+      class: { name: 'Regular ' + index, directionId: 'direction-' + index, direction: { name: 'Direction ' + index } },
+    }));
+    const bassClasses = ['129.9', '139.9'].map(value => ({
+      classId: 'bass-' + value,
+      class: { name: 'BassRace ' + value, directionId: 'bass', direction: { name: 'BassRace' } },
+    }));
+    tx.registration.findUnique.mockResolvedValue({
+      ...registration,
+      numbers: [{ id: 'primary-2', number: 2, isPrimary: true }],
+      classes: [],
+    });
+    tx.stageClass = { findMany: jest.fn().mockResolvedValue([...regularClasses, ...bassClasses]) };
+    tx.registrationNumber.findMany.mockResolvedValue([{ number: 1 }, { number: 2 }, { number: 4 }]);
+    tx.registrationNumber.create.mockImplementation(async ({ data }: any) => ({
+      id: 'number-' + data.number, ...data,
+    }));
+    tx.registrationClass = { create: jest.fn().mockResolvedValue({ id: 'created' }), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) };
+
+    await service.updateRegistrationClasses('registration-1', [...regularClasses, ...bassClasses].map(row => row.classId), actor);
+
+    expect(tx.registrationNumber.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({ number: 3, isPrimary: false }),
+    });
+    expect(tx.registrationNumber.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({ number: 5, isPrimary: false }),
+    });
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({
+      data: { registrationId: 'registration-1', classId: 'bass-129.9', numberId: 'number-3' },
+    });
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({
+      data: { registrationId: 'registration-1', classId: 'bass-139.9', numberId: 'number-5' },
+    });
+  });
+
 });
