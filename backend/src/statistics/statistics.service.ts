@@ -789,7 +789,7 @@ export class StatisticsService {
           total: inspections.length,
           passed: inspections.filter((inspection) => inspection.status === 'PASSED').length,
           failed: inspections.filter((inspection) => inspection.status === 'FAILED').length,
-          pending: Math.max(0, registrations.length - inspections.filter((inspection) => inspection.status !== 'PENDING').length),
+          pending: Math.max(0, registrations.length - inspections.length),
         },
         pendingConfigurations: registrations
           .filter((registration) => configurationStillPending(registration.configurationSnapshot))
@@ -841,7 +841,7 @@ export class StatisticsService {
           }))
           .sort((a, b) => a.participantNumber - b.participantNumber),
         pendingRegistrations: registrations
-          .filter((registration) => !inspections.some((inspection) => inspection.registrationId === registration.id && inspection.status !== 'PENDING'))
+          .filter((registration) => !inspections.some((inspection) => inspection.registrationId === registration.id))
           .map((registration) => ({
             registrationId: registration.id,
             participantNumber: registration.participantNumber,

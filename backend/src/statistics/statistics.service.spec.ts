@@ -57,7 +57,7 @@ describe('StatisticsService stage reporting with active registration inspections
   const regs=[
    {id:'r1',participantId:'p1',carId:'car1',participantNumber:2,configurationSnapshot:{configurationPending:true},participant,car,classes:[],inspection:null,stageInspection:{status:'PASSED',notes:null}},
    {id:'r2',participantId:'p2',carId:'car2',participantNumber:3,configurationSnapshot:{configurationPending:true,postStageCompletion:{versionId:'v1'}},participant,car,classes:[],inspection:{status:'FAILED',notes:'Неверное крепление'},stageInspection:null},
-   {id:'r3',participantId:'p3',carId:'car3',participantNumber:4,configurationSnapshot:{configurationPending:false},participant,car,classes:[],inspection:null,stageInspection:{status:'PENDING',notes:null}},
+   {id:'r3',participantId:'p3',carId:'car3',participantNumber:4,configurationSnapshot:{configurationPending:false},participant,car,classes:[],inspection:null,stageInspection:null},
   ];
   const prisma:any={
    stage:{findUnique:jest.fn().mockResolvedValue(stage)},
