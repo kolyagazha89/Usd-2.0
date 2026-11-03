@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,Check,CheckCircle2,Layers,Package,Plus,RefreshCw,Search,Trash2,Pencil} from 'lucide-react';
+import {AlertTriangle,Check,CheckCircle2,Layers,Package,Plus,RefreshCw,Search,Trash2,Pencil,DownloadCloud} from 'lucide-react';
 import {activationCounts,archiveCatalogBrand,archiveCatalogModel,editComponentModel,enableAllCatalogItems,renameComponentBrand,toggleCatalogBrand,toggleCatalogModel,type ComponentCatalog} from './component-catalog-management';
 import {getSiteSettings,updateSiteSettings,getComponentCatalogRequests,approveComponentCatalogRequest,rejectComponentCatalogRequest,retryComponentCatalogRequestEmail} from '../api';
 import {parseAudioCatalogCsv,planAudioCatalogImport,type AudioCsvRow,MAX_AUDIO_CSV_BYTES} from './catalog-csv-import';
@@ -119,6 +119,17 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
   try{return planAudioCatalogImport(catalogs,importRows,()=> 'preview-only')}
   catch{return null}
  })();
+ const previewUsdCatalog=async()=>{
+  setImportRows(null);setImportConfirmed(false);setImportFilename('');setError('');setNotice('');
+  try{
+   const response=await fetch('/catalogs/usd_audio.csv',{credentials:'omit',cache:'force-cache'});
+   if(!response.ok)throw new Error('Не удалось загрузить встроенный справочник USD.');
+   const rows=parseAudioCatalogCsv(await response.text());
+   planAudioCatalogImport(catalogs,rows,()=> 'preview-only');
+   setImportRows(rows);
+   setImportFilename('Базовый каталог USD · 3 388 моделей');
+  }catch(error){setError(error instanceof Error?error.message:'Не удалось подготовить базовый каталог')}
+ };
  const previewCsv=async(file:File)=>{
   setImportRows(null);setImportConfirmed(false);setImportFilename('');setError('');setNotice('');
   try{
@@ -154,7 +165,8 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  {!vibration&&<section className="panel catalog-import-panel" aria-label="Импорт оборудования из CSV">
   <PanelTitle title="Массовый импорт моделей" icon={Package}/>
   <p className="settings-help">Загрузите CSV из справочников USD: ровно три столбца «бренд,модель,категория». Поддерживаются усилители, сабвуферы, акустика, головные устройства и DSP. Файл проверяется в браузере; данные не меняются до явного подтверждения. Существующие модели, статусы и ID не заменяются.</p>
-  <label className="file-picker">
+  <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void previewUsdCatalog()}><DownloadCloud size={16}/>Подготовить базовый каталог USD · 3 388 моделей</button>
+   <label className="file-picker">
    <input type="file" accept=".csv,text/csv" disabled={saving} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void previewCsv(file);e.currentTarget.value=''}}/>
    <span>{importFilename?'Выбрать другой CSV':'Выбрать CSV (до 1 МБ)'}</span>
   </label>

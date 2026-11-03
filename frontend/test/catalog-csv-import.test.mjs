@@ -63,3 +63,22 @@ test('CSV planner does not trigger network calls, and catalog UI must have an ex
  assert.match(page,/updateSiteSettings\(\{catalogs:merged\.catalogs\}\)/,
   'import uses only partial CMS PATCH and never overwrites unrelated settings');
 });
+
+test('official audio CSV can be prepared inside admin without a separate manual download',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const [source,bundled,admin]=await Promise.all([
+  readFile(new URL('../../tools/catalogs/data/usd_audio.csv',import.meta.url),'utf8'),
+  readFile(new URL('../public/catalogs/usd_audio.csv',import.meta.url),'utf8'),
+  readFile(new URL('../src/admin/CatalogPage.tsx',import.meta.url),'utf8'),
+ ]);
+ assert.equal(source,bundled,'admin seed must be the reviewed official export');
+ const rows=parseAudioCatalogCsv(bundled);
+ assert.equal(rows.length,3388);
+ const planned=planAudioCatalogImport({},rows,()=> 'new-id');
+ assert.equal(planned.addedModels,3388);
+ assert.match(admin,/\/catalogs\/usd_audio\.csv/);
+ assert.match(admin,/previewUsdCatalog\(\)/);
+ assert.match(admin,/setImportRows\(rows\)/);
+ assert.match(admin,/importConfirmed/,'operator explicitly approves preview before write');
+ assert.match(admin,/const current=await getSiteSettings\(\)/,'import must re-fetch latest settings');
+});

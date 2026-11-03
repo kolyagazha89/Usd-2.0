@@ -16,7 +16,7 @@ test('all three USD surfaces share the 2026 design system without turning admin 
   assert.ok(css.includes(selector),'new sitewide finish misses '+selector);
  }
  assert.match(css,/\.usd-live\s*\{[\s\S]*?background:var\(--usd-background\)!important;/);
- assert.match(css,/\.usd-member\s*\{[\s\S]*?background:#06090d!important;/);
+ assert.match(css,/\.usd-member\s*\{[\s\S]*?background:radial-gradient\(/);
  assert.match(admin,/body \.app-shell > \.main/);
  assert.match(admin,/color-scheme:light/);
  assert.match(css,/\.login-page\.usd-auth/,'login and account recovery must use Dark Velocity');
@@ -78,4 +78,24 @@ test('mobile layout avoids blank rail, forced white member inputs and iOS zoom',
  assert.match(admin,/scrollbar-color:#babdc5 transparent/);
  assert.match(admin,/@media \(max-width: 800px\)/);
  assert.doesNotMatch(css,/body\s+\.usd-live\s+\.main\s+\.content/,'admin styling must not leak into public');
+});
+
+test('public and member gallery have a single graphite surface contract without repainting admin',async()=>{
+ const [css,legacy,member,admin]=await Promise.all([
+  read('../src/sitewide-premium-2026.css'),read('../src/public/premium-public.css'),
+  read('../src/participant/member-experience.css'),read('../src/admin/admin-shell-layout.css'),
+ ]);
+ for(const selector of ['.p-profile-banner','.p-car-banner','.p-system','.p-history-row',
+  '.p-document-intro','.p-contact-story','.p-about-hero','.p-partner-card',
+  '.member-race-card','.member-pass-card','.member-garage-panel','.member-results-panel',
+  '.member-vehicle-surface','.member-readiness']){
+  assert.ok(css.includes(selector),'graphite material not assigned to '+selector);
+ }
+ assert.match(css,/--usd-panel-surface:#171f2a/);
+ assert.match(css,/--usd-member-panel:#19232e/);
+ assert.match(css,/body \.participant-portal\.usd-member\s*\{/);
+ assert.match(css,/object-fit:cover/);
+ assert.doesNotMatch(legacy,/\.usd-live\{[^\n]*background:#05090b!important/);
+ assert.doesNotMatch(member,/body \.participant-portal\.usd-member\{[^\n]*background:#080b0f!important/);
+ assert.match(admin,/--usd-admin-paper:#ffffff/);
 });

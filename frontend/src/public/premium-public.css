@@ -1,5 +1,5 @@
 /* Public presentation only. Authenticated operations keep their existing layout. */
-.usd-live{--panel:#0b1114;--border:#303b40;--red:#f20c2e;--muted:#a4b0b7;background:#05090b!important;font-family:'Exo 2','Segoe UI',sans-serif!important;color:#f5f7f8!important}
+.usd-live{--panel:#0b1114;--border:#303b40;--red:#f20c2e;--muted:#a4b0b7;background:var(--usd-background,#0d131b)!important;font-family:'Exo 2','Segoe UI',sans-serif!important;color:#f5f7f8!important}
 .usd-live .p-home-main{display:flex;flex-direction:column;gap:16px;outline:0;min-width:0}
 .usd-live .p-home-main>.u-container,.usd-live .p-home-main .u-container{flex-shrink:0}
 .usd-live .u-cinema-hero{margin-bottom:-16px}

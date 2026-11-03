@@ -181,7 +181,7 @@ try{
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
-      assert.ok(['rgb(6, 9, 13)','rgb(8, 11, 15)'].includes(surface),'member account stays graphite dark on all profile pages: '+surface);
+      assert.equal(surface,'rgb(13, 19, 27)','member account must not fall back to the legacy near-black canvas');
       row.sitewideMember='graphite account and consistent form design';
      }
      if(role==='ADMIN'&&route.startsWith('/admin/site-settings')){
@@ -254,7 +254,8 @@ try{
       await bulk.getByRole('button',{name:/Включить все в категории/}).click();
       await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
-      row.componentCatalog='brand/model management, disabled filters and bulk confirmation without writing';
+      assert.equal(await page.getByRole('button',{name:/Подготовить базовый каталог USD/}).count(),1,'official 3388-model seed is available without manual CSV download');
+      row.componentCatalog='brand/model management, official 3388-model seed, filters and bulk confirmation without writing';
      }
      if(route==='/offline-event'){
       await page.getByRole('heading',{name:'День соревнований'}).waitFor();
@@ -418,10 +419,33 @@ try{
        '.app-shell .main .content .normalization-finding',
       ];
       const surfaces=surfaceSelectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>el.getBoundingClientRect().width>0).slice(0,10).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor})));
-      return {sidebar,header,nav,groups,footer,eventDesk,active,fields,surfaces,
+      const darkSelectors=[
+       '.usd-live .p-profile-banner','.usd-live .p-car-banner','.usd-live .p-system',
+       '.usd-live .p-history-row','.usd-live .p-document-intro','.usd-live .p-contact-story',
+       '.usd-live .p-about-hero','.usd-live .p-partner-card','.usd-live .p-news-card',
+       '.usd-live .p-team-card','.usd-live .public-stage-card','.usd-live .public-record-card',
+       '.usd-member .member-race-card','.usd-member .member-pass-card',
+       '.usd-member .member-garage-panel','.usd-member .member-results-panel',
+       '.usd-member .member-vehicle-surface','.usd-member .member-readiness',
+      ];
+      const darkSurfaces=darkSelectors.flatMap(sel=>[...document.querySelectorAll(sel)]
+       .filter(el=>el.getBoundingClientRect().width>0)
+       .slice(0,4).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor,
+        image:getComputedStyle(el).backgroundImage})));
+      return {sidebar,header,nav,groups,footer,eventDesk,active,fields,surfaces,darkSurfaces,
        publicContainer:style('.usd-live .u-container'),memberContent:style('.usd-member .participant-portal-main'),
        padding:padding?{left:parseFloat(padding.paddingLeft),right:parseFloat(padding.paddingRight)}:null};
      });
+     if(role!=='ADMIN'){
+      // Detect opaque black cards not caught by viewport geometry checks.
+      for(const surface of paint.darkSurfaces){
+       const channels=surface.bg.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+       const veryBlack=Boolean(channels)&&Math.max(...channels.slice(1,4).map(Number))<=14;
+       assert.ok(surface.image!=='none'||!veryBlack,
+        'opaque legacy black card background: '+JSON.stringify({route,width,...surface}));
+      }
+      row.darkSurfacesChecked=paint.darkSurfaces.length;
+     }
      if(role==='ADMIN'){
       assert.ok(paint.sidebar,'admin sidebar must exist');
       assert.equal(paint.sidebar.background,'rgb(23, 24, 29)','admin menu has one graphite canvas, not uneven black or blue');
