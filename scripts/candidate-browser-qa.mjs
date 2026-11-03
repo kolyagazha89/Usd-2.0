@@ -333,7 +333,7 @@ try{
       if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
       assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
        'admin has balanced page gutters '+JSON.stringify(paint.padding));
-      const isLight=c=>{const rgb=c.match(/^rgb\\((\\d+)/);return !rgb||Number(rgb[1])>=185};
+      const isLight=c=>{const red=c.startsWith('rgb(')?Number(c.slice(4).split(',')[0]):NaN;return !Number.isFinite(red)||red>=185};
       for(const field of paint.fields)assert.ok(isLight(field.bg),'dark admin form input: '+JSON.stringify(field));
       for(const surface of paint.surfaces)assert.ok(isLight(surface.bg),'stray black admin panel: '+JSON.stringify(surface));
       row.cssAudit={sidebar:paint.sidebar.background,innerTransparent:true,panelCount:paint.surfaces.length,fieldCount:paint.fields.length};
