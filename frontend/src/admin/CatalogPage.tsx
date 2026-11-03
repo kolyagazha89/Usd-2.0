@@ -83,7 +83,8 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  const models=(catalogs.componentModels as any[]).filter((x:any)=>x.category===category&&(!modelBrand||x.brand===modelBrand)).filter(matchesActivity).filter((x:any)=>lifecycleFilter==='ALL'||(x.lifecycle??'UNKNOWN')===lifecycleFilter).filter((x:any)=>!query||[x.brand,x.model].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a:any,b:any)=>a.brand.localeCompare(b.brand,'ru')||a.model.localeCompare(b.model,'ru'));
  const componentCatalog=catalogs as ComponentCatalog;
  const modelPages=Math.max(1,Math.ceil(models.length/60));
- const visibleModels=models.slice((modelPage-1)*60,modelPage*60);
+ const actualModelPage=Math.min(modelPage,modelPages);
+ const visibleModels=models.slice((actualModelPage-1)*60,actualModelPage*60);
  const categoryCounts=activationCounts(componentCatalog,category);
  const allCounts=activationCounts(componentCatalog,'ALL');
  const addComponentBrand=async()=>{
@@ -268,9 +269,9 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
     {!models.length&&<Empty text="Нет моделей по выбранному фильтру"/>}
    </div>
    {modelPages>1&&<div className="list-pagination" role="navigation" aria-label="Страницы моделей комплектующих">
-    <span>Страница {modelPage} / {modelPages} · {models.length} моделей</span>
-    <button type="button" className="secondary-button compact" disabled={modelPage<=1} onClick={()=>setModelPage(n=>Math.max(1,n-1))}>Назад</button>
-    <button type="button" className="secondary-button compact" disabled={modelPage>=modelPages} onClick={()=>setModelPage(n=>Math.min(modelPages,n+1))}>Вперёд</button>
+    <span>Страница {actualModelPage} / {modelPages} · {models.length} моделей</span>
+    <button type="button" className="secondary-button compact" disabled={actualModelPage<=1} onClick={()=>setModelPage(n=>Math.max(1,Math.min(n,modelPages)-1))}>Назад</button>
+    <button type="button" className="secondary-button compact" disabled={actualModelPage>=modelPages} onClick={()=>setModelPage(n=>Math.min(modelPages,Math.min(n,modelPages)+1))}>Вперёд</button>
    </div>}
   </section>
  </div>
