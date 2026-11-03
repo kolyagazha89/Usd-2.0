@@ -66,5 +66,5 @@ test('light admin has white inputs and panels, public/member own dark color sche
  assert.match(admin,/color-scheme:light/,'admin fields native light');
  assert.match(admin,/\.form-intro,\.registration-rules-consent,\.searchable-select-menu/,'helper fields explicitly light');
  assert.match(admin,/\.record-visibility-panel/,'records fully normalized to light surfaces');
- assert.match(admin,/overflow-x:clip/,'no body horizontal scrollbar in admin');
+ assert.match(admin,/overflow-x:\s*clip/,'no body horizontal scrollbar in admin');
 });
