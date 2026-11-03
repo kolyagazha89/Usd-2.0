@@ -439,7 +439,7 @@ try{
      if(role!=='ADMIN'){
       // Detect opaque black cards not caught by viewport geometry checks.
       for(const surface of paint.darkSurfaces){
-       const channels=surface.bg.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+       const channels=surface.bg.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
        const veryBlack=Boolean(channels)&&Math.max(...channels.slice(1,4).map(Number))<=14;
        assert.ok(surface.image!=='none'||!veryBlack,
         'opaque legacy black card background: '+JSON.stringify({route,width,...surface}));
