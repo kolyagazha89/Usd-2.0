@@ -212,4 +212,46 @@ describe('MediaService media library', () => {
       .rejects.toBeInstanceOf(ConflictException);
     expect(prisma.mediaUpload.deleteMany).not.toHaveBeenCalled();
   });
+
+  it('commits a replacement car photo and its library entry in one transaction', async () => {
+    const upload = {
+      id:'uploaded-car-photo', userId:'admin-1', targetType:MediaTargetType.CAR_PHOTO,
+      targetId:'car-1', objectKey:'new-car-photo', contentType:'image/png',
+      completedAt:null, expiresAt:new Date(Date.now()+60_000),
+    };
+    prisma.mediaUpload.findUnique = jest.fn().mockResolvedValue(upload);
+    prisma.mediaUpload.update = jest.fn().mockResolvedValue({ ...upload, completedAt:new Date() });
+    prisma.car.update = jest.fn().mockResolvedValue({ id:'car-1' });
+    (service as any).headObject = jest.fn(async () => ({ size:4, contentType:'image/png' }));
+    (service as any).validateImageSignature = jest.fn(async () => undefined);
+    (service as any).objectUrl = jest.fn(() => 'https://storage.example/new-car-photo');
+
+    const result = await service.complete('admin-1','ADMIN','valid-upload-token');
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.mediaUpload.update).toHaveBeenCalledWith({
+      where:{ id:'uploaded-car-photo' }, data:{ completedAt:expect.any(Date) },
+    });
+    expect(prisma.car.update).toHaveBeenCalledWith({
+      where:{ id:'car-1' }, data:{ photoUrl:'https://storage.example/new-car-photo' },
+    });
+    expect(result).toMatchObject({ success:true,targetType:MediaTargetType.CAR_PHOTO,targetId:'car-1' });
+  });
+
+  it('does not report successful photo completion if updating the car fails', async () => {
+    prisma.mediaUpload.findUnique = jest.fn().mockResolvedValue({
+      id:'uploaded-car-photo',userId:'admin-1',targetType:MediaTargetType.CAR_PHOTO,
+      targetId:'missing-car',objectKey:'new-car-photo',contentType:'image/png',
+      completedAt:null,expiresAt:new Date(Date.now()+60_000),
+    });
+    prisma.mediaUpload.update = jest.fn().mockResolvedValue({});
+    prisma.car.update = jest.fn(async () => { throw new Error('Car not found'); });
+    (service as any).headObject = jest.fn(async () => ({ size:4,contentType:'image/png' }));
+    (service as any).validateImageSignature = jest.fn(async () => undefined);
+    (service as any).objectUrl = jest.fn(() => 'https://storage.example/new-car-photo');
+
+    await expect(service.complete('admin-1','ADMIN','valid-upload-token')).rejects.toThrow('Car not found');
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
 });

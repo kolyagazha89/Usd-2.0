@@ -213,7 +213,7 @@ export class MediaService {
     if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new BadRequestException('Файл не найден');
@@ -231,7 +231,7 @@ export class MediaService {
     await this.ensureTargetAccess(userId, role, targetType, targetId, false, true);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new NotFoundException('Медиафайл не найден');
@@ -264,7 +264,7 @@ export class MediaService {
     }
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new BadRequestException('Файл не найден');
@@ -286,7 +286,7 @@ export class MediaService {
         targetId,
         completedAt: { not: null },
       },
-      orderBy: { completedAt: 'desc' },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
       select: { objectKey: true, contentType: true },
     });
 
@@ -481,7 +481,7 @@ export class MediaService {
   async getSiteAssetBuffer(targetId: string) {
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType: MediaTargetType.SITE_ASSET, targetId, contentType: DOCX_TYPE, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
       select: { objectKey: true },
     });
     if (!upload) throw new BadRequestException('Загруженный документ не найден');
@@ -521,7 +521,7 @@ export class MediaService {
   async complete(userId: string, role: string, uploadToken: string, canManageSiteAssets = false) {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId);
+    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
     const object = await this.headObject(upload.objectKey);
     if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
@@ -536,15 +536,18 @@ export class MediaService {
     } else {
       throw new BadRequestException('Недопустимый тип файла для этой загрузки');
     }
-    await this.prisma.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
-    // The bucket is private. Store the S3 object URL internally; clients must not
-    // use it directly. A signed GET URL can be generated when media delivery is added.
+    // Publish the upload and its owner reference atomically. An interrupted
+    // car/participant update must never leave a completed media-library entry
+    // pointing at an older photo.
     const url = this.objectUrl(upload.objectKey);
-    if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
-      await this.prisma.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-    } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
-      await this.prisma.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
+      if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+        await tx.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
+      } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
+        await tx.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
+      }
+    });
     return { success: true, photoUrl: url, targetType: upload.targetType, targetId: upload.targetId };
   }
 }

@@ -288,8 +288,17 @@ export async function uploadEntityPhoto(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOT
   if(file.size<=0||file.size>10*1024*1024)throw new Error('Размер фотографии должен быть от 1 байта до 10 МБ');
   const prepared=await apiPost<any>('/media/prepare',{targetType,targetId,contentType:file.type});
   if(!prepared?.uploadToken)throw new Error('Сервер не подготовил загрузку фотографии');
-  await request<any>('/media/upload',{method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file},false);
-  return {photoUrl:prepared.photoUrl??null,url:await getMediaUrl(targetType,targetId)};
+  const completed=await request<{success:boolean;photoUrl?:string;targetType?:string;targetId?:string}>('/media/upload',{
+    method:'PUT',headers:{'Content-Type':file.type,'X-Upload-Token':prepared.uploadToken},body:file,
+  },false);
+  if(!completed?.success||completed.targetType!==targetType||completed.targetId!==targetId){
+    throw new Error('Сервер не подтвердил сохранение фотографии автомобиля или профиля');
+  }
+  // Upload has already been committed; a temporary preview failure must not
+  // turn a successful save into a misleading upload error.
+  let url:string|null=null;
+  try{url=await getMediaUrl(targetType,targetId)}catch{/* The page can retry the preview. */}
+  return {photoUrl:completed.photoUrl??null,url};
 }
 
 
