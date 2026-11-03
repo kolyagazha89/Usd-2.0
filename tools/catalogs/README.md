@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3275 | 28 brand/series choices from 20 official Deaf Bonce product-section and manufacturer source fragments |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,275 | 28 brands and product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -27,7 +27,7 @@ Source fragments are in [data/fragments](data/fragments), grouped by manufacture
 
 The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified; a final manual inspection is still advisable before enabling strict-only choice validation for participants.
 
-**Known gaps:** Kicx and Dynamic State direct host downloads timed out, so their product names were collected from indexed official product titles; this method cannot certify exhaustive coverage. Hertz products were fetched through a public page-reading plugin; SounDigital links used a free text extraction gateway. These brands need a sanctioned export or alternate reachable manufacturer endpoint before the list can be considered complete. Current and discontinued historical product coverage varies by manufacturer.
+**Known gaps:** Kicx and Dynamic State direct host downloads timed out, so their product names were collected from indexed official product titles; this method cannot certify exhaustive coverage. Hertz products were fetched through a public page-reading plugin; SounDigital links used a free text extraction gateway. For exhaustive Kicx / Dynamic State coverage, direct official product feeds or an approved export are still needed; current and historical coverage varies by manufacturer. The dataset is useful as a strong seed and should not be described as literally complete.
 
 ## Testing and refresh
 
