@@ -38,6 +38,34 @@ body .usd-live {
 }
 body .usd-live :is(h1,h2,h3){letter-spacing:-.045em;text-wrap:balance}
 body .usd-live :is(.u-container,.p-inner-page,.p-section){min-width:0}
+/* Single responsive outer gutter, shared by homepage, inner pages and public header.
+ * Prevent dark empty side bands when content grids change at a breakpoint. */
+body .usd-live{
+ --usd-public-gutter:clamp(12px,4vw,30px);
+ --usd-public-gap:clamp(14px,2.1vw,24px);
+}
+body .usd-live .u-container{
+ box-sizing:border-box;
+ width:min(calc(100% - 2 * var(--usd-public-gutter)),1380px)!important;
+ max-width:1380px;
+ min-width:0;
+ margin-inline:auto;
+}
+body .usd-live :is(.u-container,.p-inner-page,.p-section,.p-inner-page>*,.u-home-dashboard,.u-home-bottom,.p-grid){
+ box-sizing:border-box;
+ min-inline-size:0;
+ max-inline-size:100%;
+}
+body .usd-live :is(.u-home-dashboard,.u-home-bottom,.p-grid,.public-stage-grid,.public-result-grid,.public-record-grid){
+ column-gap:var(--usd-public-gap);
+}
+body .usd-live :is(.p-section,.p-inner-page) :is(h1,h2,h3,p){
+ overflow-wrap:break-word;
+}
+body .usd-live :is(.p-section,.p-inner-page) img{
+ max-inline-size:100%;
+}
+
 body .usd-live :is(.u-btn,.public-stage-primary,.public-stage-secondary,.public-result-profile-link,.p-show-more,.p-filter button,.u-watch-button){
   border-radius:var(--dv-radius-sm)!important;
   min-height:46px;
