@@ -7,6 +7,9 @@ https://{$VENUE_BIND_IP} {
     X-Frame-Options "DENY"
     Referrer-Policy "no-referrer"
     Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+    # Defense in depth: even a missing/blocked venue bootstrap cannot call
+    # the public API from the laptop. LAN browser requests stay same-origin.
+    Content-Security-Policy "connect-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
   }
   handle_path /venue-api/* {
     reverse_proxy api:3000

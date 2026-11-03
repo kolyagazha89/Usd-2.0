@@ -26,3 +26,17 @@ test('the browser loads no-store venue configuration before Vite and production 
  assert.match(venue,/__USD_VENUE_MODE__ = true/);
  assert.match(venue,/__USD_VENUE_API_BASE__ = '\/venue-api'/);
 });
+
+test('laptop LAN proxy blocks external API even if a bootstrap script fails to load',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const [caddy,compose]=await Promise.all([
+  readFile(new URL('../../deploy/venue-lan/Caddyfile',import.meta.url),'utf8'),
+  readFile(new URL('../../deploy/venue-lan/compose.yaml',import.meta.url),'utf8'),
+ ]);
+ assert.match(caddy,/Content-Security-Policy "connect-src 'self'/);
+ assert.match(caddy,/tls internal/);
+ assert.match(caddy,/handle_path \/venue-api\/\*/);
+ assert.match(compose,/ports:\s*[\s\S]*?\$\{VENUE_BIND_IP\}:443:443/);
+ assert.doesNotMatch(compose,/5432:5432|0\.0\.0\.0:443:443/);
+ assert.match(compose,/S3_ENDPOINT: http:\/\/rustfs:9000/);
+});
