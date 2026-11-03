@@ -263,78 +263,7 @@ body .usd-member .participant-header-actions>span {
  overflow-wrap:anywhere;
  min-width:0;
 }
-/* Admin is purposefully WHITE; the only black surface is the sidebar.
- * Explicit scope prevents stale public CSS from leaking into staff pages. */
-body .app-shell {
- --usd-admin-canvas:#f3f5f8;
- --usd-admin-text:#20232c;
- --usd-admin-muted:#68717f;
- --usd-admin-border:#e0e2e8;
- color-scheme:light;
-}
-body .app-shell .main {background:#f3f5f8!important;color:var(--usd-admin-text)}
-body .app-shell .main .content {
- min-width:0;
- max-width:100%;
- box-sizing:border-box;
-}
-body .app-shell .main .content :is(.panel,.admin-card,.metric-card,.stat-card,.notification-overview,.notification-composer,.notification-history,.resource-editor-page) {
- border-color:var(--usd-admin-border);
- border-radius:var(--usd-round-md);
- background-color:#fff;
- color:var(--usd-admin-text);
- box-shadow:0 12px 38px rgba(17,24,35,.045);
-}
-body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.admin-page-guide) {
- min-width:0;
- max-width:100%;
-}
-body .app-shell .main .content .page-heading h1 {
- line-height:1.14;
- letter-spacing:-.035em;
-}
-body .app-shell .main .content :is(.toolbar,.stage-picker,.page-actions,.page-heading-actions) {
- min-width:0;
- max-width:100%;
- flex-wrap:wrap;
-}
-body .app-shell .main .content :is(.table-wrap,.smart-table-wrap,.data-table-wrap) {
- max-width:100%;
- min-width:0;
- scrollbar-color:#babdc5 transparent;
- overscroll-behavior-x:contain;
-}
-body .app-shell .main .content :is(.data-table,.smart-table) th {
- background:#f5f6f8;
- color:#545c68;
-}
-body .app-shell .main .content :is(.data-table,.smart-table) tbody tr:hover {
- background:#fff5f6;
-}
-body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select) {
- color-scheme:light;
- background:#fff;
- color:#252933;
- border-color:#d6dae1;
-}
-body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select):focus-visible {
- border-color:var(--usd-brand)!important;
- outline-color:var(--usd-brand)!important;
- box-shadow:0 0 0 4px rgba(237,38,56,.12)!important;
-}
-body .app-shell .main .content :is(.badge,.class-number-chip) {max-width:100%;overflow-wrap:anywhere}
-body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button) {
- min-height:40px;
- border-radius:9px;
-}
-body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button):focus-visible {
- outline-color:var(--usd-brand)!important;
-}
-body .app-shell .main .content :is(.error-panel,.notice,.form-error) {
- min-width:0;
- max-width:100%;
- overflow-wrap:anywhere;
-}
+/* Admin workspace visual rules have one owner: admin/admin-shell-layout.css. */
 @media(max-width:800px) {
  body .usd-live .p-inner-page {
   padding-block:22px 50px!important;
@@ -350,8 +279,6 @@ body .app-shell .main .content :is(.error-panel,.notice,.form-error) {
  body .usd-live :is(.p-profile-banner,.p-document-intro,.p-contact-story,.p-about-hero) {min-width:0;max-width:100%}
  body .usd-member .participant-portal-main {padding-inline:clamp(12px,3vw,22px)}
  body .usd-member .participant-header-actions {max-width:100%}
- body .app-shell .main .content .page-heading h1 {font-size:clamp(24px,6vw,34px)}
- body .app-shell .main .content :is(.panel,.resource-editor-page,.notification-overview,.notification-composer,.notification-history) {border-radius:12px}
 }
 @media(max-width:480px) {
  body .usd-live .p-inner-page {width:calc(100% - 24px)!important}
@@ -360,7 +287,6 @@ body .app-shell .main .content :is(.error-panel,.notice,.form-error) {
  body .usd-live .u-cinema-copy .u-actions>* {max-width:100%}
  body .usd-member .participant-portal-main {padding-inline:12px}
  body .usd-member .participant-journey li {min-width:0}
- body .app-shell .main .content :is(.toolbar,.stage-picker,.page-heading-actions) {max-width:100%}
 }
 @media(prefers-reduced-motion:reduce) {
  body .usd-live .p-home-main.is-ready {animation:none!important}

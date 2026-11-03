@@ -311,15 +311,34 @@ try{
       const nav=style('.app-shell > .sidebar > nav');
       const groups=style('.app-shell > .sidebar .sidebar-section');
       const footer=style('.app-shell > .sidebar .sidebar-bottom');
+      const eventDesk=style('.app-shell .main .event-ops-workflow-context');
       const active=style('.app-shell > .sidebar .nav-item[aria-current="page"]');
       const content=pick('.app-shell .main > .content');
       const padding=content?getComputedStyle(content):null;
       const fields=[...document.querySelectorAll('.app-shell .main .content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),.app-shell .main .content select,.app-shell .main .content textarea')]
        .filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility==='visible')
        .slice(0,50).map(el=>({tag:el.tagName,bg:getComputedStyle(el).backgroundColor}));
-      const surfaceSelectors=['.app-shell .main .content .panel','.app-shell .main .content .form-intro','.app-shell .main .content .dashboard-feature','.app-shell .main .content .record-visibility-panel','.app-shell .main .content .normalization-finding'];
+      const surfaceSelectors=[
+       '.app-shell .main .content .panel',
+       '.app-shell .main .content .resource-editor-page',
+       '.app-shell .main .content .admin-card',
+       '.app-shell .main .content .stat-card',
+       '.app-shell .main .content .metric-card',
+       '.app-shell .main .content .settings-section',
+       '.app-shell .main .content .form-intro',
+       '.app-shell .main .content .dashboard-feature',
+       '.app-shell .main .content .dashboard-stage-card',
+       '.app-shell .main .content .notification-overview',
+       '.app-shell .main .content .notification-composer',
+       '.app-shell .main .content .notification-history',
+       '.app-shell .main .content .mail-channel-status',
+       '.app-shell .main .content .mail-test-result',
+       '.app-shell .main .content .role-permission-card',
+       '.app-shell .main .content .record-visibility-panel',
+       '.app-shell .main .content .normalization-finding',
+      ];
       const surfaces=surfaceSelectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>el.getBoundingClientRect().width>0).slice(0,10).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor})));
-      return {sidebar,header,nav,groups,footer,active,fields,surfaces,
+      return {sidebar,header,nav,groups,footer,eventDesk,active,fields,surfaces,
        publicContainer:style('.usd-live .u-container'),memberContent:style('.usd-member .participant-portal-main'),
        padding:padding?{left:parseFloat(padding.paddingLeft),right:parseFloat(padding.paddingRight)}:null};
      });
@@ -331,9 +350,21 @@ try{
        if(paint[key])assert.equal(paint[key].background,'rgba(0, 0, 0, 0)','menu '+key+' must share sidebar background');
       }
       if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
+      if(paint.eventDesk){
+       assert.match(paint.eventDesk.image,/rgb\(255,\s*255,\s*255\)/,'event workflow context must be pearl, not a leftover black rectangle');
+       assert.equal(paint.eventDesk.color,'rgb(35, 39, 48)','event workflow context has readable graphite typography');
+      }
       assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
        'admin has balanced page gutters '+JSON.stringify(paint.padding));
-      const isLight=c=>{const red=c.startsWith('rgb(')?Number(c.slice(4).split(',')[0]):NaN;return !Number.isFinite(red)||red>=185};
+      const isLight=c=>{
+       // RGB first-channel checks accidentally accepted deep burgundy/black cards.
+       // Use perceptual luminance instead; transparent containers inherit paper.
+       const channels=c.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+       if(!channels)return true;
+       if(channels[4]!==undefined&&Number(channels[4])===0)return true;
+       const [r,g,b]=channels.slice(1,4).map(Number);
+       return .2126*r+.7152*g+.0722*b>=185;
+      };
       for(const field of paint.fields)assert.ok(isLight(field.bg),'dark admin form input: '+JSON.stringify(field));
       for(const surface of paint.surfaces)assert.ok(isLight(surface.bg),'stray black admin panel: '+JSON.stringify(surface));
       row.cssAudit={sidebar:paint.sidebar.background,innerTransparent:true,panelCount:paint.surfaces.length,fieldCount:paint.fields.length};
