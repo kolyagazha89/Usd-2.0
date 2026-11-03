@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {apiPatch,apiPost,uploadTeamPostPhoto,getTeamPostPhotoUrl,getPrivateMediaObjectUrl,releasePrivateMediaUrl} from '../api';
 import type {Team,TeamPost,TeamUser} from './types';
 import './teams.css';
-function TeamPhotoPreview({targetId,alt}:{targetId:string;alt:string}){
+export function TeamPhotoPreview({targetId,alt}:{targetId:string;alt:string}){
  const [url,setUrl]=useState('');
  useEffect(()=>{
   let active=true;let current='';
@@ -42,10 +42,11 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
  const savePost=(status:TeamPost['status'])=>run(async()=>{const path=base+'/posts'+(editing?'/'+encodeURIComponent(editing):'');await (editing?apiPatch:apiPost)(path,{...draft,status});setDraft(emptyPost);setEditing('')},status==='IN_REVIEW'?'Материал отправлен на проверку':'Черновик сохранён');
  const changePost=(post:TeamPost,status:TeamPost['status'])=>run(
   ()=>status==='PUBLISHED'
-   // Publish only the exact server-stored reviewed snapshot. Never resend stale
-   // text or gallery keys from this browser during approval.
+   // Publish the stored snapshot, not a stale form copy.
    ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/approve',{})
-   :apiPatch(base+'/posts/'+encodeURIComponent(post.id),{kind:post.kind,title:post.title,body:post.body,status,images:post.images??[]}),
+   :admin&&post.status==='IN_REVIEW'&&status==='DRAFT'
+    ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/return',{})
+    :apiPatch(base+'/posts/'+encodeURIComponent(post.id),{kind:post.kind,title:post.title,body:post.body,status,images:post.images??[]}),
   status==='PUBLISHED'?'Материал опубликован':'Материал возвращён в черновик'
  );
  const active=team.memberships?.filter(m=>['PENDING','APPROVED'].includes(m.status))??[];
