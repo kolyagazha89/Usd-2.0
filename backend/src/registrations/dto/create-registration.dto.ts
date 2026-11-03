@@ -14,7 +14,9 @@ export class CreateRegistrationDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(5)
+  // 5 per PRIMARY sticker; additional BassRace classes use new numbers.
+  // Fine-grained classification and numbering are validated by the service.
+  @ArrayMaxSize(100)
   @IsUUID('4', { each: true })
   classIds!: string[];
 

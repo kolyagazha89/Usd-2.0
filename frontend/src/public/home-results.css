@@ -124,3 +124,56 @@
  }
  .usd-live .usd-carousel-dots button {transition:none}
 }
+
+/* Homepage winners: six result cards appear in coherent ROWS.
+ * This scope never affects the vertical LIVE carousel or admin tables. */
+.usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ align-items:stretch;
+ gap:14px;
+ min-width:0;
+}
+.usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results>.usd-score-row{
+ width:100%;
+ min-width:0;
+ min-height:112px;
+ grid-template-columns:36px 42px minmax(0,1fr);
+ grid-template-rows:auto auto;
+ align-content:center;
+ gap:8px 10px;
+}
+.usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results .usd-score-avatar{
+ width:42px;height:42px;
+}
+.usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results .usd-score-value{
+ grid-column:2 / 4;
+ justify-self:end;
+ font-size:clamp(19px,2.2vw,25px);
+}
+.usd-live .u-home-dashboard[data-home-block="latest-results"] .usd-score-identity small{
+ white-space:normal;overflow-wrap:anywhere;
+}
+@media(max-width:1100px){
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+}
+@media(max-width:630px){
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results{
+  grid-template-columns:minmax(0,1fr);
+ }
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results>.usd-score-row{
+  grid-template-columns:35px 44px minmax(0,1fr) auto;
+  grid-template-rows:auto;
+ }
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results .usd-score-value{
+  grid-column:auto;justify-self:end;font-size:19px;
+ }
+}
+@media(max-width:390px){
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results>.usd-score-row{
+  grid-template-columns:32px minmax(0,1fr) auto;
+ }
+ .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results .usd-score-avatar{display:none}
+}

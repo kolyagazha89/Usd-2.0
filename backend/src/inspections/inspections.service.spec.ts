@@ -387,6 +387,72 @@ describe('InspectionsService', () => {
     expect(tx.registrationNumber?.create).not.toHaveBeenCalled();
   });
 
+  it('keeps five ordinary classes on the primary sticker and assigns two extra BassRace numbers after class editing',async()=>{
+    const primary={id:'primary-2',number:2,isPrimary:true};
+    const secondary=[{id:'other-3',number:3,isPrimary:false},{id:'other-4',number:4,isPrimary:false}];
+    const ordinary=(i:number)=>({
+      id:'registration-class-r'+i,classId:'r'+i,numberId:primary.id,number:primary,
+      class:{id:'r'+i,name:'SPL '+i,directionId:'direction-'+i,direction:{name:'Direction '+i}},
+      results:[],inspection:null,
+    });
+    const bass=(i:number)=>({
+      id:'registration-class-b'+i,classId:'b'+i,numberId:primary.id,number:primary,
+      class:{id:'b'+i,name:'BassRace '+i,directionId:'direction-bass',direction:{name:'BassRace'}},
+      results:[],inspection:null,
+    });
+    tx.registration={findUnique:jest.fn().mockResolvedValue({
+      ...registration,stage:{isDeleted:false,status:'PUBLISHED'},numbers:[primary,...secondary],
+      classes:[...Array.from({length:4},(_,i)=>ordinary(i)),bass(0)],
+    })};
+    tx.stageClass={findMany:jest.fn().mockResolvedValue([
+      ...Array.from({length:5},(_,i)=>({classId:'r'+i,class:ordinary(i).class})),
+      ...Array.from({length:2},(_,i)=>({classId:'b'+i,class:bass(i).class})),
+    ])};
+    tx.registrationClass={
+      create:jest.fn().mockResolvedValue({id:'added'}),
+      update:jest.fn().mockResolvedValue({id:'moved'}),
+      deleteMany:jest.fn().mockResolvedValue({count:0}),
+    };
+    await service.updateRegistrationClasses('registration-1',
+      ['r0','r1','r2','r3','r4','b0','b1'],actor);
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({data:{
+      registrationId:'registration-1',classId:'r4',numberId:'primary-2',
+    }});
+    expect(tx.registrationClass.update).toHaveBeenCalledWith({where:{
+      id:'registration-class-b0',
+    },data:{numberId:'other-3'}});
+    expect(tx.registrationClass.create).toHaveBeenCalledWith({data:{
+      registrationId:'registration-1',classId:'b1',numberId:'other-4',
+    }});
+    expect(tx.registrationNumber.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses silent renumbering of a judged BassRace class when the primary sticker fills',async()=>{
+    const primary={id:'primary',number:1,isPrimary:true};
+    const rows=Array.from({length:4},(_,i)=>({
+      id:'regular-'+i,classId:'r'+i,numberId:'primary',number:primary,
+      class:{name:'Direction '+i,directionId:'direction-'+i,direction:{name:'Direction '+i}},
+      results:[],inspection:null,
+    }));
+    const bass={id:'bass-old',classId:'b0',numberId:'primary',number:primary,
+      class:{name:'BassRace 129.9',directionId:'bass',direction:{name:'BassRace'}},
+      results:[{id:'official-result'}],inspection:null};
+    tx.registration={findUnique:jest.fn().mockResolvedValue({
+      ...registration,stage:{isDeleted:false,status:'PUBLISHED'},
+      numbers:[primary,{id:'extra',number:2,isPrimary:false}],classes:[...rows,bass],
+    })};
+    tx.stageClass={findMany:jest.fn().mockResolvedValue([
+      ...rows.map(row=>({classId:row.classId,class:row.class})),
+      {classId:'r4',class:{name:'Direction 4',directionId:'direction-4',direction:{name:'Direction 4'}}},
+      {classId:'b0',class:bass.class},
+    ])};
+    tx.registrationClass={create:jest.fn(),update:jest.fn(),deleteMany:jest.fn()};
+    await expect(service.updateRegistrationClasses('registration-1',
+      ['r0','r1','r2','r3','r4','b0'],actor))
+      .rejects.toThrow('записанным результатом');
+    expect(tx.registrationClass.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('blocks removing a class that already has a result', async () => {
     tx.registration = { findUnique: jest.fn().mockResolvedValue({
       ...registration,

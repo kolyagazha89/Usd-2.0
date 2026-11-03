@@ -39,7 +39,7 @@ test('both operational lists have independently reachable detail actions and loa
  assert.match(inspections,/onClick=\{onOpen\}/);
  assert.match(inspections,/Итоговый список допущенных доступен ниже/);
  assert.doesNotMatch(inspections,/готов к выгрузке|text\/csv|\.csv/);
- assert.match(inspections,/classIds\.length>5/,'maximum five classes remains guarded');
+ assert.match(inspections,/primaryNumberClassCount\(classIds,stageClasses\)>MAX_PRIMARY_NUMBER_CLASSES/,'five classes on primary number remain guarded');
  assert.match(inspections,/!notes\.trim\(\)/,'failed inspection requires a reason');
 });
 

@@ -14,6 +14,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { configurationStillPending } from './pending-configuration';
+import { MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers } from './registration-class-numbering';
 import type { CreateOnSiteProfileDto, CreateOnSiteCarDto } from './dto/create-registration.dto';
 
 
@@ -683,9 +684,9 @@ export class RegistrationsService {
       );
     }
 
-    if (classIds.length > 5) {
+    if (classIds.length > MAX_REGISTRATION_CLASS_IDS) {
       throw new BadRequestException(
-        'В одной регистрации нельзя выбрать более 5 классов',
+        'Превышен технический лимит классов в одной заявке',
       );
     }
 
@@ -964,6 +965,12 @@ export class RegistrationsService {
           );
         }
 
+        // The primary sticker may contain at most five classes, while all
+        // BassRace classes remain selectable with independent sticker numbers.
+        let numberPlan: ReturnType<typeof planRegistrationClassNumbers>;
+        try { numberPlan=planRegistrationClassNumbers(classIds,stageClasses); }
+        catch(error){throw new BadRequestException(error instanceof Error?error.message:'Недопустимый выбор классов');}
+
         // 7. Проверяем лимиты классов на этом этапе.
         for (const stageClass of stageClasses) {
           if (stageClass.participantLimit === null) continue;
@@ -1077,10 +1084,7 @@ export class RegistrationsService {
           await tx.registrationNumber.deleteMany({ where: { registrationId: existing.id } });
         }
 
-        const bassRaceClassIds = stageClasses
-          .filter((item) => this.isBassRaceClass(item.class.name, item.class.direction?.name))
-          .map((item) => item.classId);
-        const requiredNumberCount = Math.max(1, bassRaceClassIds.length);
+        const requiredNumberCount = numberPlan.requiredNumberCount;
         // Older class edits could leave non-primary sticker rows without
         // any class linked to them. Remove those stale reservations before
         // allocating numbers for a different registration.
@@ -1174,7 +1178,9 @@ export class RegistrationsService {
 
         const primaryNumber = createdNumbers.find((item) => item.isPrimary) ?? createdNumbers[0];
         const numberByClassId = new Map<string, string>();
-        let bassRaceIndex = 0;
+        // With five non-BassRace classes the primary sticker is full.
+        // Every BassRace class therefore starts on the next number.
+        let bassRaceIndex = numberPlan.bassOnPrimaryId?0:1;
 
         for (const classId of classIds) {
           const stageClass = stageClasses.find((item) => item.classId === classId)!;

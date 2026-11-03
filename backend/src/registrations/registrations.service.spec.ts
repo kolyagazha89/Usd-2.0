@@ -391,7 +391,7 @@ describe('RegistrationsService', () => {
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
-  it('allows up to five classes when multiple BassRace classes are included', async () => {
+  it('accepts six classes across two primary directions and four BassRace extra numbers', async () => {
     const bassRaceClasses = [
       { classId: 'br-129', name: 'BassRace 129.9' },
       { classId: 'br-139', name: 'BassRace 139.9' },
@@ -402,6 +402,7 @@ describe('RegistrationsService', () => {
       stageClass: {
         findMany: jest.fn().mockResolvedValue([
           { classId: 'spl-1', participantLimit: null, class: { directionId: 'spl', name: 'SPL 1x2', direction: { name: 'SPL' } } },
+          { classId: 'bfspl-1', participantLimit: null, class: { directionId: 'bfspl', name: 'Wicket 6-10', direction: { name: 'BFSPL' } } },
           ...bassRaceClasses.map(({ classId, name }) => ({
             classId,
             participantLimit: null,
@@ -418,7 +419,10 @@ describe('RegistrationsService', () => {
           additionalDescription: 'Test',
           configuration: { id: 'configuration-1', name: 'Основная' },
           headUnits: [],
-          audioComponents: [{ id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 }],
+          audioComponents: [
+            { id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 },
+            { id: 'front-1', brand: 'Test', model: 'Speaker', direction: 'FRONT', type: 'SPEAKER', quantity: 1 },
+          ],
           amplifiers: [],
           batteries: [],
           generators: [],
@@ -441,7 +445,7 @@ describe('RegistrationsService', () => {
 
     await service.create(participantRequest, {
       ...requestBody,
-      classIds: ['spl-1', ...bassRaceClasses.map(({ classId }) => classId)],
+      classIds: ['spl-1', 'bfspl-1', ...bassRaceClasses.map(({ classId }) => classId)],
     });
 
     expect(tx.registrationNumber.createMany).toHaveBeenCalledWith({
@@ -456,6 +460,7 @@ describe('RegistrationsService', () => {
     expect(tx.registrationClass.createMany).toHaveBeenCalledWith({
       data: [
         { registrationId: 'registration-1', classId: 'spl-1', numberId: 'number-11' },
+        { registrationId: 'registration-1', classId: 'bfspl-1', numberId: 'number-11' },
         ...bassRaceClasses.map(({ classId }, index) => ({
           registrationId: 'registration-1',
           classId,
@@ -492,10 +497,10 @@ describe('RegistrationsService', () => {
     );
   });
 
-  it('rejects six classes before acquiring any DB transaction, including BassRace', async () => {
+  it('rejects only >100 classes before acquiring any DB transaction', async () => {
     await expect(service.create(participantRequest, {
-      ...requestBody, classIds: ['spl-1','br-1','br-2','br-3','br-4','br-5'],
-    })).rejects.toThrow('более 5 классов');
+      ...requestBody, classIds: Array.from({length:101},(_,index)=>'br-'+index),
+    })).rejects.toThrow('технический лимит');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
