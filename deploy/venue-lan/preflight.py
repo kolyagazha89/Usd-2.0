@@ -73,7 +73,13 @@ def main() -> int:
     try:
         validate(load_env(config))
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
-        if "0.0.0.0:443" in compose or "5432:5432" in compose or "9000:9000" in compose:
+        # Exact port mapping only. A local-only '127.0.0.1:19000:9000'
+        # is intentionally allowed for laptop-side RustFS provisioning.
+        bad_port = re.search(
+            r"""(?m)^\s*-\s*["']?(?:0\.0\.0\.0:)?(?:443:443|5432:5432|9000:9000)(?:/tcp|/udp)?["']?\s*$""",
+            compose,
+        )
+        if bad_port:
             raise ValueError("Сервис БД/медиа или WAN-порт открыт небезопасно")
         bootstrap = (root / "config" / "venue-config.js").read_text(encoding="utf-8")
         if "__USD_VENUE_MODE__ = true" not in bootstrap or "'/venue-api'" not in bootstrap:
