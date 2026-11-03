@@ -2,7 +2,7 @@
  * Keep the 4,347 seed rows in static assets, not in the SiteSettings JSON.
  * Overlay entries use stable IDs and never rewrite participant cars.
  */
-import {modelsForVehicleMake,type VehicleDirectory} from '../vehicle-directory';
+import {modelsForVehicleMake,type VehicleDirectory} from '../vehicle-directory.ts';
 
 export type VehicleBrand={id:string;name:string;isActive:boolean;isArchived?:boolean};
 export type VehicleModel={id:string;brandId:string;name:string;isActive:boolean;isArchived?:boolean};
