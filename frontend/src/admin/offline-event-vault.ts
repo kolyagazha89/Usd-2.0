@@ -51,7 +51,7 @@ export async function unsealOfflinePackage(
  try{
   const key=await derive(passphrase,fromBase64(raw.salt));
   const plain=await crypto.subtle.decrypt(
-   {name:'AES-GCM',iv:fromBase64(raw.iv)},key,fromBase64(raw.ciphertext));
+   {name:'AES-GCM',iv:Uint8Array.from(fromBase64(raw.iv))},key,Uint8Array.from(fromBase64(raw.ciphertext)));
   const value:unknown=JSON.parse(decoder.decode(plain));
   assertOfflinePackage(value,now);
   return value;
