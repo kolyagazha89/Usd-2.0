@@ -92,7 +92,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    <header className="usd-offline-header">
     <div><span className="usd-offline-kicker">USD / ЛОКАЛЬНЫЙ РЕЖИМ</span><h1>День соревнований</h1>
      <p>Автономный пакет и черновики инспекции без доступа к интернету.</p></div>
-    <button className="usd-offline-button secondary" type="button" onClick={onGoOnline}><ArrowLeft size={17}/>На сайт</button>
+    <button className="usd-offline-button secondary" type="button" onClick={()=>onGoOnline()}><ArrowLeft size={17}/>На сайт</button>
    </header>
    <div className="usd-offline-badges" aria-label="Состояние офлайн-приложения">
     <span><WifiOff size={15}/>{connected?'Устройство в сети · API не проверен':'Нет интернет-соединения'}</span>
@@ -106,7 +106,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
     <Lock size={28}/><h2>Пакет ещё не подготовлен</h2>
     <p>Авторизуйтесь как судья или администратор с доступом к инспекциям, откройте «День соревнований» и подготовьте защищённый пакет, пока API доступен.</p>
     <p className="usd-offline-warning">Это пока автономный черновик для одного устройства, а не общий судейский сервер. Синхронизация с центральной БД не реализована.</p>
-    <button className="usd-offline-button" type="button" onClick={onGoOnline}>Вернуться к подготовке</button>
+    <button className="usd-offline-button" type="button" onClick={()=>onGoOnline()}>Вернуться к подготовке</button>
    </section>
    :!data?<section className="usd-offline-panel">
     <LockKeyhole size={27}/><h2>Разблокировать пакет</h2>
@@ -160,7 +160,7 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    <section className="usd-offline-panel">
     <h2>Завершение локальной работы</h2>
     <p>До очистки устройства проверьте каждый черновик в онлайн-админке и дождитесь подтверждения сохранения от сервера. Автоматической отправки и отметки «синхронизировано» пока нет.</p>
-    <div className="usd-offline-draft-actions"><button className="usd-offline-button secondary" type="button" onClick={onGoOnline}><Wifi size={15}/>Перейти в онлайн-админку</button>
+    <div className="usd-offline-draft-actions"><button className="usd-offline-button secondary" type="button" onClick={()=>onGoOnline()}><Wifi size={15}/>Перейти в онлайн-админку</button>
      <button className="usd-offline-button danger" type="button" onClick={()=>setConfirmDelete(true)} disabled={busy}><Trash2 size={15}/>Удалить локальный пакет</button></div>
     {confirmDelete&&<div className="usd-offline-confirm" role="group" aria-label="Подтверждение удаления пакета">
      <p>Это необратимо удалит все {data.drafts.length} локальных черновиков. Убедитесь, что данные перенесены на сервер и подтверждены.</p>
