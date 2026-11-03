@@ -1,10 +1,11 @@
-/** Keep the client-side registration picker in sync with the server's five-class cap. */
+/** Maximum number of classes on ONE primary sticker, not on registration. */
 export const MAX_REGISTRATION_CLASSES=5;
 
-/** Preserve the selected order (the first class determines the main number). */
-export function nextRegistrationClassIds(ids:string[],id:string,checked:boolean):string[]{
+/** Preserve order while allowing every BassRace class to have its own sticker.
+ * The backend is authoritative for the final per-number assignment. */
+export function nextRegistrationClassIds(ids:string[],id:string,checked:boolean,isBassRace=false,selectedNonBassRaceCount=ids.length):string[]{
  if(!checked)return ids.filter(value=>value!==id);
- if(ids.includes(id)||ids.length>=MAX_REGISTRATION_CLASSES)return ids;
+ if(ids.includes(id)||(!isBassRace&&selectedNonBassRaceCount>=MAX_REGISTRATION_CLASSES))return ids;
  return [...ids,id];
 }
 
