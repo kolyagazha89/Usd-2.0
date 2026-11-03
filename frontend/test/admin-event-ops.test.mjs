@@ -86,10 +86,11 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
   readFile(new URL('../src/admin/AdminShell.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
  ]);
- assert.match(css,/\.content:has\(> \.page\.event-ops-page\)/,'no static page width cap or blank right rail on event workspaces');
- assert.match(css,/padding: 0 !important;/,'event pages must not double-inset at mobile/tablet breakpoints');
- assert.match(layout,/scrollbar-gutter: auto/,'navigation must not reserve a side stripe');
- assert.match(layout,/scrollbar-color: #56565e transparent/,'dark neutral scrollbar replaces blue-gray');
+ assert.doesNotMatch(css,/body \.app-shell/,'public Dark Velocity cannot own admin event workspace');
+ assert.match(layout,/\.page\.event-ops-page/,'event workspace width belongs to admin owner');
+ assert.match(layout,/padding: 0 !important;/,'event pages must not double-inset at mobile/tablet breakpoints');
+ assert.match(layout,/scrollbar-gutter:auto/,'navigation does not reserve a permanent blank side stripe');
+ assert.match(layout,/scrollbar-color:#56565e transparent/,'dark neutral scrollbar replaces blue-gray');
  assert.match(layout,/\.sidebar \.nav-item\[aria-current="page"\]/,'active navigation has a distinct dark red state');
  assert.match(layout,/\.sidebar :is\(\.nav-item,\.sidebar-section-toggle/,'keyboard focus is explicitly accessible');
  assert.match(shell,/aria-current=\{active\?'page':undefined\}/,'active route is announced');
