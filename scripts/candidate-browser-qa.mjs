@@ -651,7 +651,8 @@ try{
       await board.waitFor({state:'visible'});
       const nav=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
       await nav.waitFor({state:'visible'});
-      assert.equal(await nav.locator('button').count(),3,'three stage-scoped desk links');
+      assert.equal(await nav.locator('.event-ops-workflow-step').count(),3,'three stage-scoped desks');
+       assert.equal(await nav.getByRole('button',{name:'Все участники и допуски'}).count(),1,'stage desk offers return to unified roster');
       assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
       await page.locator('.judging-summary-card').first().waitFor();
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
@@ -718,7 +719,8 @@ try{
       const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';
       const nextPath=route==='/admin/registrations'?'/admin/inspections':'/admin/registrations';
       assert.equal(await workflow.locator('[aria-current="page"]').getAttribute('aria-label'),activeLabel);
-      assert.equal(await workflow.locator('button').count(),3,'three connected event-day steps');
+      assert.equal(await workflow.locator('.event-ops-workflow-step').count(),3,'three connected event-day steps');
+       assert.equal(await workflow.getByRole('button',{name:'Все участники и допуски'}).count(),1,'unified event-day roster is reachable from inspections and registration');
       await workflow.getByRole('button',{name:nextLabel,exact:true}).click();
       await page.waitForURL(url=>url.pathname===nextPath&&url.searchParams.get('stageId')==='stage1');
       await page.locator('.event-ops-workflow-step.is-active').waitFor();
