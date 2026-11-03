@@ -29,6 +29,17 @@ The vehicle list was collected by make and model only from Drom's public catalog
 
 **Kicx and Dynamic State:** now 166 Kicx Sound group models (Kicx, Headshot, Loud Level, Phantom, Sound Civilization, Terza) and 168 Dynamic State models; Kicx group categories include 1 DSP. Manufacturer category pages were used to identify missing models, with index-backed records for pages that are not directly fetchable. Their official hosts also timed out on GitHub-hosted Ubuntu, including robots.txt requests. The separate optional crawler preserves failure reports and fails visibly when extraction was blocked. This method cannot certify full discontinued/historical product coverage. Hertz products were fetched through a public page-reading plugin; SounDigital links used a free text extraction gateway. For exhaustive historical Kicx / Dynamic State coverage, an official manufacturer export or reliably accessible product feed would still be needed. Do not claim 100% completeness on inaccessible old products. The dataset is useful as a strong seed and should not be described as literally complete.
 
+## How to apply the reference data in USD
+
+The audio CSV is **not automatically deployed into PostgreSQL**. After reviewing its brands/categories and resolving any suspicious or incomplete entries:
+
+1. Download `data/usd_audio.csv` as a UTF-8 CSV from this PR or the merged repository.
+2. Sign in as USD ADMIN, open **Комплектующие** and choose **Массовый импорт моделей** (implemented in PR #391).
+3. Select the file, inspect added/already-present counts and the sample rows, then explicitly confirm the operation. Existing catalog IDs, retired entries, and equipment history are preserved; subsequent imports only add missing models.
+4. Verify a few known brands/categories in the administrator catalog and the participant configurator. Unsupported models can still be submitted as approval requests.
+
+The **car** CSV has no corresponding admin importer yet: keep `usd_cars.csv` as staging data; do not replace real car names, registration plates, or historical records with a database script. Once a reviewed car-directory selector/importer is built, it should consume only `марка,модель`, retain user-added historic makes, and accept unknown rare makes without data loss.
+
 ## Testing and refresh
 
 `python -m unittest discover -s tools/catalogs -p 'test_*.py' -v` validates exports and collector logic without touching the database. [catalog-data-validation.yml](../../.github/workflows/catalog-data-validation.yml) runs that check on PR changes.
