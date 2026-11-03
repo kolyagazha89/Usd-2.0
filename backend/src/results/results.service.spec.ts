@@ -496,6 +496,7 @@ describe('ResultsService', () => {
           id:'r-1',value:{toString:()=> '152.5'},unit:'DB',place:1,notes:'Correction',
         }),
       },
+      stage:{findUnique:jest.fn().mockResolvedValue({id:'stage-1',seasonId:'season-1'})},
       disqualification:{findMany:jest.fn().mockResolvedValue([])},
       auditLog:{create:jest.fn().mockResolvedValue({id:'audit-1'})},
     };
