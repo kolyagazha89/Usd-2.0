@@ -10,7 +10,7 @@ export const OFFLINE_MAX_ENTRIES=2500;
 export const OFFLINE_MAX_DRAFT_NOTES=2000;
 
 export type OfflineEntry={
- id:string;
+ id:string;carId:string;
  number:number|null;
  participantName:string;
  car:string;
@@ -51,7 +51,7 @@ export function buildOfflineEventPackage({
   ids.add(row.id);
   const inspect=row.stageInspection??row.inspection;
   return {
-   id:row.id,
+   id:row.id,carId:clamp(row.carId??row.car?.id,100)||row.id,
    number:row.participantNumber??row.numbers?.find(n=>Number.isSafeInteger(n.number)&&Number(n.number)>0)?.number??null,
    participantName:clamp([row.participant?.lastName,row.participant?.firstName,row.participant?.middleName].filter(Boolean).join(' '),180)||'Без имени',
    car:clamp([row.car?.brand,row.car?.model].filter(Boolean).join(' '),180)||'Автомобиль не указан',
@@ -84,7 +84,7 @@ export function assertOfflinePackage(value:unknown,now=Date.now()):asserts value
   throw new Error('Срок действия пакета истёк или время устройства неверно. Обновите пакет у организатора.');
  const ids=new Set<string>();
  for(const item of data.entries){
-  if(!item||typeof item.id!=='string'||!item.id||ids.has(item.id)
+  if(!item||typeof item.id!=='string'||!item.id||!item.carId||ids.has(item.id)
    ||!['ACTIVE','CANCELLED'].includes(item.status)||!Array.isArray(item.classes))
    throw new Error('Повреждён список регистраций.');
   ids.add(item.id);
@@ -107,9 +107,9 @@ export function recordOfflineInspection(
  assertOfflinePackage(value,now);
  const entry=value.entries.find(e=>e.id===registrationId);
  if(!entry||entry.status!=='ACTIVE')throw new Error('Регистрация отменена или отсутствует в пакете.');
- if(entry.inspection.status!=='PENDING')
-  throw new Error('Инспекция уже была выполнена до подготовки пакета. Изменение требует подключения к серверу.');
- if(value.drafts.some(d=>d.registrationId===registrationId))
+ if(value.entries.some(item=>item.carId===entry.carId&&item.inspection.status!=='PENDING'))
+  throw new Error('У этого автомобиля уже есть инспекция. Изменение требует подключения к серверу.');
+ if(value.drafts.some(d=>value.entries.some(item=>item.id===d.registrationId&&item.carId===entry.carId)))
   throw new Error('Для этой регистрации уже сохранён черновик. Проверьте его перед продолжением.');
  if(!['PASSED','FAILED'].includes(status))throw new Error('Недопустимый результат инспекции.');
  const cleanNotes=notes.trim();
