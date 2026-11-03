@@ -50,6 +50,7 @@ export function summarizeTrafficRows(rows:TrafficAggregate[]){
 @Injectable()
 export class TrafficService{
  private readonly quota=new Map<string,{minute:number;count:number}>();
+ private lastPrunedAt=0;
  constructor(private readonly prisma:PrismaService){}
  async record(path:unknown,userAgent:unknown,origin:unknown,ip:unknown){
   const allowed=String(process.env.CORS_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -67,6 +68,15 @@ export class TrafficService{
   this.quota.set(client,{minute,count:previous?.minute===minute?previous.count+1:1});
   // AuditLog already exists: no schema migration required. Deliberately
   // omit userId and ipAddress and never store a session or browser fingerprint.
+  // Traffic-only diagnostics have 31-day retention. Never erase unrelated
+  // security audit events; cleanup runs on normal traffic, not on a timer.
+  if(Date.now()-this.lastPrunedAt>24*60*60*1000){
+   this.lastPrunedAt=Date.now();
+   void this.prisma.auditLog.deleteMany({where:{
+    action:'PUBLIC_PAGE_VIEW',entity:'PublicSite',
+    createdAt:{lt:new Date(Date.now()-31*24*60*60*1000)},
+   }}).catch(()=>{}); // A retention error must not block the website.
+  }
   await this.prisma.auditLog.create({data:{
    userId:null,ipAddress:null,action:'PUBLIC_PAGE_VIEW',
    entity:'PublicSite',entityId:normalized,metadata:{device},
