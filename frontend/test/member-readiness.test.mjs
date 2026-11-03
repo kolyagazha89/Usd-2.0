@@ -230,6 +230,11 @@ test('dashboard and onboarding share the same car completion rule',async()=>{
 });
 
 
+test('online registration excludes gate-only internal draft versions', async()=>{
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.match(app,/setConfigurations\(rows\.flatMap\(\(c:any\)=>\(\(c\.versions\?\?\[\]\)\.filter\(\(v:any\)=>v\.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING'\)/);
+});
+
 test('public car page uses the exact active configuration version, not array position',async()=>{
  const old={version:1,audioComponents:[row('SUB','SUBWOOFER')]};
  const current={version:3,audioComponents:[row('FRONT')]};

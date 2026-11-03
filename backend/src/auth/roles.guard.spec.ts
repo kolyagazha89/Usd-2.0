@@ -95,12 +95,27 @@ describe('RolesGuard', () => {
       ['RegistrationsController','/registrations/me','GET'],
       ['RegistrationsController','/registrations/me','POST'],
       ['RegistrationsController','/registrations/me/reg-1','DELETE'],
+      ['RegistrationsController','/registrations/reg-1/configuration','PATCH'],
       ['AuthController','/auth/legal-consent','PATCH'],
       ['MediaController','/media/prepare','POST'],
     ] as const) {
       const request:any={method,path,body:path==='/media/prepare'?{targetType:'CAR_PHOTO'}:{},user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}};
       await expect(guard.canActivate(context(request,name))).resolves.toBe(true);
     }
+  });
+
+  it('does not mistake an equipment completion URL for blanket registration update access', async () => {
+    prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
+    const actor={sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'};
+    await expect(guard.canActivate(context({
+      method:'PATCH',path:'/registrations/reg-1/configuration',user:actor,
+    },'RegistrationsController'))).resolves.toBe(true);
+    await expect(guard.canActivate(context({
+      method:'PATCH',path:'/registrations/reg-1',user:actor,
+    },'RegistrationsController'))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(guard.canActivate(context({
+      method:'POST',path:'/registrations/on-site/profile',user:actor,
+    },'RegistrationsController'))).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('checks owner-only configuration access when staff has no configurations permission', async () => {

@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { PushTransport } from './push.transport';
 import { safePushPath } from './push-endpoint';
+import { configurationStillPending } from '../registrations/pending-configuration';
 import type {
   PushAnnouncementDto,
   PushPreferencesDto,
@@ -414,6 +415,52 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       stageId: stage.id,
     });
   }
+  /** Reminder is opt-in through the existing 'reminders' subscription switch.
+   * One notification per registration on days +1, +7 and +14, with idempotent
+   * event keys. No email or public exposure of equipment details.
+   */
+  private async schedulePendingConfigurations(now: Date) {
+    const stages = await this.db.stage.findMany({
+      where: {
+        isDeleted: false,
+        status: { in: ['PUBLISHED', 'COMPLETED'] },
+        date: { gte: new Date(now.getTime() - 15 * 86400000), lt: now },
+      },
+      select: { id: true, name: true, date: true },
+    });
+    for (const stage of stages) {
+      const days = -calendarDaysUntil(stage.date, now);
+      if (![1, 7, 14].includes(days)) continue;
+      const unfinished = await this.db.registration.findMany({
+        where: {
+          stageId: stage.id,
+          status: 'ACTIVE',
+          source: 'ON_SITE',
+          configurationSnapshot: { path: ['configurationPending'], equals: true },
+          participant: { user: { isActive: true, emailVerifiedAt: { not: null } } },
+        },
+        select: {
+          id: true, carId: true, configurationSnapshot: true,
+          participant: { select: { user: { select: { id: true } } } },
+        },
+      });
+      for (const registration of unfinished) {
+        if (!configurationStillPending(registration.configurationSnapshot)) continue;
+        const userId = registration.participant.user?.id;
+        if (!userId) continue; // Unlinked gate profiles cannot receive push.
+        await this.enqueue({
+          eventKey: 'configuration-pending:' + registration.id + ':' + days,
+          category: 'reminders',
+          title: 'USD · заполните конфигурацию',
+          body: ('После этапа «' + stage.name + '» необходимо заполнить аудиосистему автомобиля перед следующей регистрацией.').slice(0, 240),
+          path: '/participant?tab=registrations',
+          stageId: stage.id,
+          userIds: [userId],
+        });
+      }
+    }
+  }
+
   async schedule(now = new Date()) {
     if (!this.transport.configured()) return;
     const stages = await this.db.stage.findMany({
@@ -444,6 +491,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         userIds: await this.stageUserIds(stage.id),
       });
     }
+    await this.schedulePendingConfigurations(now);
   }
   async processQueue() {
     if (!this.transport.configured()) return;
@@ -511,9 +559,24 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
           (reminderDays === 1 || reminderDays === 3) &&
           row.message.eventKey ===
             `reminder:${stage.id}:${stage.date.toISOString().slice(0, 10)}:${reminderDays}`;
+        const pendingKey = /^configuration-pending:([0-9a-f-]{36}):(1|7|14)$/.exec(row.message.eventKey);
+        // Re-check at send time: a participant may have completed equipment
+        // after enqueue but before the worker could reach the browser.
+        let currentPendingReminder = false;
+        if (pendingKey && stage && subscription) {
+          const registration = await this.db.registration.findFirst({
+            where: {
+              id: pendingKey[1], stageId: stage.id, status: 'ACTIVE',
+              participant: { user: { id: subscription.userId } },
+            },
+            select: { configurationSnapshot: true },
+          });
+          currentPendingReminder = reminderDays !== null && Number(pendingKey[2]) === -reminderDays &&
+            configurationStillPending(registration?.configurationSnapshot);
+        }
         if (
           !stage ||
-          (category === 'reminders' && !currentReminder) ||
+          (category === 'reminders' && !(pendingKey ? currentPendingReminder : currentReminder)) ||
           (category === 'registrationOpen' &&
             (stage.status !== 'PUBLISHED' ||
               !stage.registrationOpen ||

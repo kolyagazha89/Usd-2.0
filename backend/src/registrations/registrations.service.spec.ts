@@ -99,6 +99,7 @@ describe('RegistrationsService', () => {
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'registration-1' }),
         update: jest.fn().mockResolvedValue({ id: 'registration-1' }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-1' }),
@@ -299,6 +300,7 @@ describe('RegistrationsService', () => {
           status: 'ACTIVE',
         }),
         findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
       },
     });
@@ -325,6 +327,7 @@ describe('RegistrationsService', () => {
       registration: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-car-2' }),
       },
@@ -353,6 +356,7 @@ describe('RegistrationsService', () => {
           participantNumber: 7,
         }),
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn().mockResolvedValue({ id: 'registration-old' }),
         create: jest.fn(),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-old' }),
@@ -387,14 +391,12 @@ describe('RegistrationsService', () => {
     expect(tx.registrationClass.deleteMany).toHaveBeenCalledWith({ where: { registrationId: 'registration-old' } });
   });
 
-  it('allows more than five selected classes when multiple BassRace classes are included', async () => {
+  it('allows up to five classes when multiple BassRace classes are included', async () => {
     const bassRaceClasses = [
       { classId: 'br-129', name: 'BassRace 129.9' },
       { classId: 'br-139', name: 'BassRace 139.9' },
       { classId: 'br-149', name: 'BassRace 149.9' },
       { classId: 'br-159', name: 'BassRace 159.9' },
-      { classId: 'br-169', name: 'BassRace 169.9' },
-      { classId: 'br-179', name: 'BassRace 179.9' },
     ];
     const tx = baseTx({
       stageClass: {
@@ -425,7 +427,7 @@ describe('RegistrationsService', () => {
       registrationNumber: {
         findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
-        createMany: jest.fn().mockResolvedValue({ count: 6 }),
+        createMany: jest.fn().mockResolvedValue({ count: 4 }),
         findMany: jest.fn()
           .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 })))
           .mockResolvedValue(bassRaceClasses.map((_, index) => ({
@@ -489,4 +491,414 @@ describe('RegistrationsService', () => {
       'В одной регистрации нельзя выбрать несколько классов одного направления',
     );
   });
+
+  it('rejects six classes before acquiring any DB transaction, including BassRace', async () => {
+    await expect(service.create(participantRequest, {
+      ...requestBody, classIds: ['spl-1','br-1','br-2','br-3','br-4','br-5'],
+    })).rejects.toThrow('более 5 классов');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('does not let a client submit an old internal gate draft as a complete configuration', async () => {
+    const tx = baseTx({
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'old-gate-version', version: 1, configurationId: 'old-gate-config',
+          additionalDescription: 'USD_ON_SITE_DRAFT_PENDING',
+          configuration: { id: 'old-gate-config', name: 'На въезде' },
+          headUnits: [], audioComponents: [], amplifiers: [], batteries: [], generators: [],
+        }),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.create(
+      { user: { sub: 'staff-1', role: 'ADMIN', customRoleId: null } } as any,
+      { ...requestBody, configurationVersionId: 'old-gate-version', source: 'ON_SITE',
+        privacyConsent: true, termsAccepted: true },
+    )).rejects.toThrow('Служебный черновик конфигурации нельзя использовать');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('creates an explicitly pending hardware snapshot for staff ON_SITE without a configuration', async () => {
+    const tx = baseTx({
+      carConfiguration: {
+        create: jest.fn().mockResolvedValue({ versions: [{ id: 'draft-version-1' }] }),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'draft-version-1',
+          configurationId: 'configuration-draft',
+          version: 1,
+          vibrationIsolation: null,
+          additionalDescription: 'USD_ON_SITE_DRAFT_PENDING',
+          configuration: { id: 'configuration-draft', name: 'Запись на месте' },
+          headUnits: [], audioComponents: [], amplifiers: [], batteries: [], generators: [],
+        }),
+      },
+    });
+    setupTransaction(tx);
+    const registration = await service.create(
+      { user: { sub: 'staff-1', role: 'ADMIN', customRoleId: null } } as any,
+      {
+        ...requestBody,
+        configurationVersionId: undefined,
+        source: 'ON_SITE',
+        privacyConsent: true,
+        termsAccepted: true,
+      },
+    );
+    expect(registration).toEqual({ id: 'registration-1' });
+    expect(tx.carConfiguration.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        carId: 'car-1',
+        versions: { create: { version: 1, additionalDescription: 'USD_ON_SITE_DRAFT_PENDING' } },
+      }),
+    }));
+    expect(tx.carConfigurationVersion.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'draft-version-1' }),
+    }));
+    expect(tx.registration.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        source: 'ON_SITE', configurationVersionId: 'draft-version-1',
+        configurationSnapshot: expect.objectContaining({
+          configurationPending: true,
+          audioComponents: [],
+        }),
+      }),
+    }));
+  });
+
+  it('creates a new non-public profile, car and audit atomically for the on-site operator', async () => {
+    const tx: any = {
+      $executeRaw: jest.fn(),
+      participant: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'new-person' }),
+      },
+      car: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({ id: 'new-car' }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'log-1' }) },
+    };
+    setupTransaction(tx);
+    const result = await service.createOnSiteProfile(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        lastName: 'Иванов', firstName: 'Иван', middleName: '',
+        brand: 'ВАЗ', model: '2107', registrationCountry: 'RU',
+        registrationNumber: 'A001YP01', privacyConsent: true, termsAccepted: true,
+      },
+    );
+    expect(result).toEqual({ participantId: 'new-person', carId: 'new-car' });
+    expect(tx.car.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        participantId: 'new-person', registrationNumber: 'А001УР01', isPublic: false,
+      }),
+    }));
+    expect(tx.auditLog.create).toHaveBeenCalled();
+  });
+
+  it('rejects unconsented gate intake without creating any records', async () => {
+    await expect(service.createOnSiteProfile(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: false, termsAccepted: true,
+      },
+    )).rejects.toThrow('необходимо согласие участника');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate historical name without creating a second profile', async () => {
+    const tx: any = {
+      $executeRaw: jest.fn(),
+      participant: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'historical-person' }),
+        create: jest.fn(),
+      },
+    };
+    setupTransaction(tx);
+    await expect(service.createOnSiteProfile(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    )).rejects.toThrow('Профиль с таким ФИО уже существует');
+    expect(tx.participant.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a non-staff profile creation even if a request reaches the service', async () => {
+    await expect(service.createOnSiteProfile(
+      { user: { sub: 'participant', role: 'PARTICIPANT' } } as any,
+      {
+        lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    )).rejects.toThrow('Только сотрудник');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  const confirmedConfigId = '00000000-0000-4000-8000-000000000224';
+  const onSiteAdmin: any = { user: { sub: 'operator-1', role: 'ADMIN' } };
+  const pendingRegistration = {
+    id: 'registration-1', participantId: 'participant-1', carId: 'car-1',
+    configurationVersionId: 'pending-version', source: 'ON_SITE', status: 'ACTIVE',
+    configurationSnapshot: { configurationPending: true },
+    stage: { isDeleted: false, status: 'PUBLISHED' },
+    classes: [{ class: { name: 'Limited 2.0', code: 'limited', direction: { name: 'SPL' } } }],
+    results: [],
+  };
+
+  function confirmTx(overrides: any = {}) {
+    return {
+      $executeRaw: jest.fn(),
+      registration: {
+        findUnique: jest.fn().mockResolvedValue(pendingRegistration),
+        update: jest.fn().mockResolvedValue({ id: 'registration-1' }),
+      },
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: confirmedConfigId, configurationId: 'config-1',
+          version: 2, additionalDescription: 'Установленная система',
+          vibrationIsolation: null,
+          configuration: { id: 'config-1', name: 'Текущая' },
+          headUnits: [], amplifiers: [], generators: [], batteries: [],
+          audioComponents: [{ direction: 'SUB', type: 'SUBWOOFER', brand: 'USD', model: 'Sub', quantity: 1 }],
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'log-1' }) },
+      ...overrides,
+    };
+  }
+
+  it('confirms a real hardware snapshot before results without changing stage, class or number', async () => {
+    const tx = confirmTx();
+    setupTransaction(tx);
+    const result = await service.confirmOnSiteConfiguration(onSiteAdmin, 'registration-1', confirmedConfigId);
+    expect(result).toEqual({
+      id: 'registration-1', configurationVersionId: confirmedConfigId, configurationPending: false,
+    });
+    expect(tx.carConfigurationVersion.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: confirmedConfigId, configuration: { carId: 'car-1', isActive: true } },
+    }));
+    expect(tx.registration.update).toHaveBeenCalledWith({
+      where: { id: 'registration-1' },
+      data: expect.objectContaining({
+        configurationSnapshot: expect.objectContaining({
+          configurationPending: true,
+          postStageCompletion: expect.objectContaining({
+            versionId: confirmedConfigId, documentedByUserId: 'operator-1',
+            audioComponents: [expect.objectContaining({ type: 'SUBWOOFER' })],
+          }),
+        }),
+      }),
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'ON_SITE_CONFIGURATION_CONFIRMED', entityId: 'registration-1' }),
+    }));
+  });
+
+  it('allows post-stage completion after judging and preserves the event-day snapshot', async () => {
+    const originalSnapshot = { configurationPending: true, additionalDescription: 'USD_ON_SITE_DRAFT_PENDING', audioComponents: [] };
+    const tx = confirmTx({
+      registration: {
+        findUnique: jest.fn().mockResolvedValue({
+          ...pendingRegistration, stage: { status: 'COMPLETED', isDeleted: false },
+          configurationSnapshot: originalSnapshot, results: [{ id: 'result-1' }],
+        }),
+        update: jest.fn(),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.confirmOnSiteConfiguration(onSiteAdmin, 'registration-1', confirmedConfigId))
+      .resolves.toMatchObject({ configurationPending: false });
+    const written = tx.registration.update.mock.calls[0][0].data;
+    expect(written).not.toHaveProperty('configurationVersionId');
+    expect(written.configurationSnapshot).toMatchObject({
+      ...originalSnapshot, postStageCompletion: { versionId: confirmedConfigId },
+    });
+    expect(originalSnapshot).not.toHaveProperty('postStageCompletion');
+  });
+
+  it('rejects a second confirmation and a version from another car', async () => {
+    const tx = confirmTx({
+      registration: {
+        findUnique: jest.fn().mockResolvedValue({
+          ...pendingRegistration, configurationSnapshot: { configurationPending: false },
+        }),
+        update: jest.fn(),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.confirmOnSiteConfiguration(onSiteAdmin, 'registration-1', confirmedConfigId))
+      .rejects.toThrow('Подтверждение доступно только');
+    expect(tx.registration.update).not.toHaveBeenCalled();
+    const txWrongCar = confirmTx({
+      carConfigurationVersion: { findFirst: jest.fn().mockResolvedValue(null) },
+    });
+    setupTransaction(txWrongCar);
+    await expect(service.confirmOnSiteConfiguration(onSiteAdmin, 'registration-1', confirmedConfigId))
+      .rejects.toThrow('Выберите заполненную конфигурацию этого автомобиля');
+    expect(txWrongCar.registration.update).not.toHaveBeenCalled();
+  });
+
+  it('does not allow an unrelated participant to change another entrant configuration', async () => {
+    const tx = confirmTx();
+    setupTransaction(tx);
+    await expect(service.confirmOnSiteConfiguration(
+      { user: { sub: 'unrelated-user', role: 'PARTICIPANT', participantId: 'elsewhere' } } as any,
+      'registration-1', confirmedConfigId,
+    )).rejects.toThrow('Недостаточно прав');
+    expect(tx.registration.update).not.toHaveBeenCalled();
+  });
+
+  it('enforces audio direction requirements before confirming a draft', async () => {
+    const tx = confirmTx({
+      carConfigurationVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: confirmedConfigId, configurationId: 'config-1', version: 2,
+          configuration: { name: 'Пустая' }, additionalDescription: null,
+          headUnits: [], audioComponents: [], amplifiers: [], batteries: [], generators: [],
+        }),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.confirmOnSiteConfiguration(onSiteAdmin, 'registration-1', confirmedConfigId))
+      .rejects.toThrow('необходимо добавить сабвуфер');
+    expect(tx.registration.update).not.toHaveBeenCalled();
+  });
+
+
+  it('adds a new car to an existing historical profile without creating another participant', async () => {
+    const tx: any = {
+      $executeRaw: jest.fn(),
+      participant: { findUnique: jest.fn().mockResolvedValue({ id: 'existing-person' }), create: jest.fn() },
+      car: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({ id: 'new-car' }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    };
+    setupTransaction(tx);
+    const result = await service.createOnSiteCar(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        participantId: 'existing-person', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'A001YP01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    );
+    expect(result).toEqual({ participantId: 'existing-person', carId: 'new-car' });
+    expect(tx.participant.create).not.toHaveBeenCalled();
+    expect(tx.car.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        participantId: 'existing-person', registrationNumber: 'А001УР01', isPublic: false,
+      }),
+    }));
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'ON_SITE_CAR_CREATED' }),
+    }));
+  });
+
+  it('refuses duplicate registration plates even when the old row used Latin lookalikes', async () => {
+    const tx: any = {
+      $executeRaw: jest.fn(),
+      participant: { findUnique: jest.fn().mockResolvedValue({ id: 'existing-person' }) },
+      car: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'old-car', registrationNumber: 'A001YP01' }]),
+        create: jest.fn(),
+      },
+    };
+    setupTransaction(tx);
+    await expect(service.createOnSiteCar(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        participantId: 'existing-person', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    )).rejects.toThrow('Автомобиль с таким госномером уже существует');
+    expect(tx.car.create).not.toHaveBeenCalled();
+  });
+
+  it('does not store an additional vehicle when its owner is unknown or consents are missing', async () => {
+    await expect(service.createOnSiteCar(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        participantId: 'existing-person', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: false, termsAccepted: true,
+      },
+    )).rejects.toThrow('подтвердите согласия');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    const tx: any = {
+      $executeRaw: jest.fn(),
+      participant: { findUnique: jest.fn().mockResolvedValue(null) },
+      car: { create: jest.fn() },
+    };
+    setupTransaction(tx);
+    await expect(service.createOnSiteCar(
+      { user: { sub: 'operator', role: 'ADMIN' } } as any,
+      {
+        participantId: 'missing-person', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    )).rejects.toThrow('Участник не найден');
+    expect(tx.car.create).not.toHaveBeenCalled();
+  });
+
+
+  it('denies a staff identity intake when its custom role has no registrations create grant', async () => {
+    prisma.user.findUnique.mockResolvedValueOnce({
+      isActive: true, emailVerifiedAt: new Date(), customRoleId: 'read-only-role',
+    });
+    prisma.role = { findUnique: jest.fn().mockResolvedValue({ permissions: {} }) };
+    await expect(service.createOnSiteProfile(
+      { user: { sub: 'staff-id', role: 'PARTICIPANT', customRoleId: 'read-only-role' } } as any,
+      {
+        lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
+        registrationCountry: 'RU', registrationNumber: 'А001УР01',
+        privacyConsent: true, termsAccepted: true,
+      },
+    )).rejects.toThrow('Недостаточно прав на регистрацию на месте');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+  it('blocks the following stage while another finished stage still has an unfinished draft', async () => {
+    const tx = baseTx({
+      registration: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'old-registration', configurationSnapshot: { configurationPending: true } }]),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody))
+      .rejects.toMatchObject({ response: expect.objectContaining({ code: 'PREVIOUS_CONFIGURATION_REQUIRED', registrationId: 'old-registration' }) });
+    expect(tx.registration.create).not.toHaveBeenCalled();
+    expect(tx.registration.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ stageId: { not: 'stage-1' }, status: 'ACTIVE' }),
+    }));
+  });
+
+  it('allows the next stage after documenting equipment without rewriting the original snapshot', async () => {
+    const tx = baseTx({
+      registration: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'old-registration', configurationSnapshot: {
+          configurationPending: true, postStageCompletion: { versionId: confirmedConfigId },
+        } }]),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'registration-1' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'registration-1' }),
+      },
+    });
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody)).resolves.toMatchObject({ id: 'registration-1' });
+  });
+
 });

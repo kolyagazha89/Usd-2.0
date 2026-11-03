@@ -281,6 +281,11 @@ export class ResultsService {
       );
     }
 
+    // At offline competition venues judges may record measurements even if the
+    // participant has not yet documented the equipment. The original entry-day
+    // configuration snapshot is retained and outstanding documentation will
+    // block registration at a DIFFERENT, later stage (not today's judging).
+
     if (
       registration.stage.isDeleted ||
       !['PUBLISHED', 'COMPLETED'].includes(registration.stage.status)
@@ -537,6 +542,9 @@ export class ResultsService {
 
     const result = await this.prisma.$transaction(
       async (tx) => {
+        // Serialized with registration draft confirmation, so a result can
+        // never slip in between the pending check and the final snapshot.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.registrationId}))`;
         const registration = await this.getRegistrationContext(
           tx,
           data.registrationId,

@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -13,7 +14,7 @@ import {
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { Roles } from '../auth/roles.decorator';
 import { RegistrationsService } from './registrations.service';
-import { CreateRegistrationDto } from './dto/create-registration.dto';
+import { CreateRegistrationDto, CreateOnSiteProfileDto, CreateOnSiteCarDto, ConfirmOnSiteConfigurationDto } from './dto/create-registration.dto';
 
 @Controller('registrations')
 export class RegistrationsController {
@@ -83,6 +84,36 @@ export class RegistrationsController {
       throw new ForbiddenException('Нет доступа к этой регистрации');
     }
     return this.registrationsService.cancel(id, this.asParticipant(request));
+  }
+
+  // Dedicated gate-only identity intake, authorized by registrations.create.
+  // It never links an existing historical profile or grants an account.
+  @Roles('ADMIN')
+  @Post('on-site/profile')
+  createOnSiteProfile(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateOnSiteProfileDto,
+  ) {
+    return this.registrationsService.createOnSiteProfile(request, body);
+  }
+
+  @Roles('ADMIN', 'PARTICIPANT')
+  @Patch(':id/configuration')
+  confirmOnSiteConfiguration(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: ConfirmOnSiteConfigurationDto,
+  ) {
+    return this.registrationsService.confirmOnSiteConfiguration(request, id, body.configurationVersionId);
+  }
+
+  @Roles('ADMIN')
+  @Post('on-site/car')
+  createOnSiteCar(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateOnSiteCarDto,
+  ) {
+    return this.registrationsService.createOnSiteCar(request, body);
   }
 
   @Get(':id')
