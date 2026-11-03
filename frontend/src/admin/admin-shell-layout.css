@@ -487,7 +487,7 @@ body .app-shell .main > .topbar{
  -webkit-backdrop-filter:blur(16px);
 }
 body .app-shell > .mobile-backdrop{
- background:rgba(13,15,20,.67)!important;
+ background:rgba(13,15,20,.74)!important;
  -webkit-backdrop-filter:blur(6px);
  backdrop-filter:blur(6px);
  touch-action:none;
