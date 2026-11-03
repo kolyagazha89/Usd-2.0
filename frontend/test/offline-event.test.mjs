@@ -130,8 +130,7 @@ test('offline route is independent of stale JWT and asset worker never stores AP
 });
 
 test('explicit server receipts survive validation; conflicts retain the local decision',()=>{
- const now=Date.now();
- const pkg=buildOfflineEventPackage({stage:{id:'stage-1',name:'Этап',date:new Date(now).toISOString()},rows:sampleRows(),actor:{id:'judge-1',role:'ADMIN'},now});
+ const pkg=make();
  const draft=recordOfflineInspection(pkg,'reg-active','FAILED','Без крепления',now,'op-123');
  const conflict=markOfflineInspectionSync(draft,'op-123','CONFLICT','Уже существует инспекция',undefined,now);
  assert.equal(conflict.drafts[0].state,'CONFLICT');
