@@ -11,19 +11,19 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3275,
-    "brands": 28,
+    "rows": 3396,
+    "brands": 30,
     "fields": [
       "бренд",
       "модель",
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 898,
-      "AUDIO_COMPONENT": 1330,
-      "SUBWOOFER": 948,
+      "AMPLIFIER": 910,
+      "AUDIO_COMPONENT": 1397,
+      "SUBWOOFER": 989,
       "HEAD_UNIT": 74,
-      "DSP": 25
+      "DSP": 26
     },
     "counts_by_brand": {
       "Apocalypse": 174,
@@ -34,28 +34,30 @@
       "DD Audio": 361,
       "Deaf Bonce": 16,
       "DL Audio": 197,
-      "Dynamic State": 115,
       "EDGE": 96,
       "Fi Car Audio": 31,
       "Ground Zero": 291,
       "Hannibal": 51,
-      "Headshot": 43,
       "Hertz": 110,
-      "Kicx": 51,
       "Machete": 161,
       "Pride": 242,
       "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
-      "Sound Civilization": 2,
       "SounDigital": 46,
       "SP Audio": 95,
       "Stetsom": 74,
       "Sundown Audio": 279,
       "Taramps": 42,
-      "Terza": 2,
-      "Урал": 161
+      "Урал": 161,
+      "Headshot": 48,
+      "Kicx": 80,
+      "Loud Level": 9,
+      "Phantom": 8,
+      "Sound Civilization": 16,
+      "Terza": 5,
+      "Dynamic State": 168
     },
-    "brand_count_note": "28 manufacturer and sub-brand labels, e.g. Kicx, Headshot, Sound Civilization, Terza"
+    "brand_count_note": "30 brand/series labels, Kicx Sound subbrands separate"
   },
   "fragment_coverage": [
     {
@@ -149,14 +151,14 @@
       "source": "official hertz-audio.com product collections and individual titles"
     },
     {
-      "name": "dynamic_state",
-      "rows": 115,
-      "source_method": "official manufacturer product titles indexed by public search"
+      "name": "kicx",
+      "rows": 166,
+      "source_method": "official Kicx Sound group cached category pages and indexed manufacturer product pages; partial historical coverage"
     },
     {
-      "name": "kicx",
-      "rows": 98,
-      "source_method": "official manufacturer product titles indexed by public search"
+      "name": "dynamic_state",
+      "rows": 168,
+      "source_method": "official Dynamic State category pages and indexed manufacturer product pages; partial historical coverage"
     }
   ],
   "validation": {
@@ -169,9 +171,9 @@
     "source_fragment_headers_checked_by_ci": true,
     "reference_csv_deduped_by_key": true
   },
-  "completeness": "large verified multi-brand seed, NOT an exhaustive official product inventory",
+  "completeness": "review-ready substantial official catalog seed; full historical product coverage not certified",
   "production_import": false,
   "partial_source_limitations": [
-    "Kicx and Dynamic State official sites timed out on direct downloads; data sourced from verified official product page indexes but some items may be missing"
+    "Both Kicx and Dynamic State hosts time out on direct HTTP, including GitHub-hosted runner; official indexed product titles and cached official categories collected instead. Full historical coverage cannot be independently certified."
   ]
 }
