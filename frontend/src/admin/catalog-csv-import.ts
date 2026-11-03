@@ -67,7 +67,7 @@ export function parseAudioCatalogCsv(source:string):AudioCsvRow[]{
   const previousCategory=seen.get(productKey);
   if(previousCategory&&previousCategory!==category)
    throw new Error('Строка '+(index+2)+': модель '+brand+' '+model+' встречается в разных категориях.');
-  if(previousCategory)continue;
+  if(previousCategory)return;
   seen.set(productKey,category);
   result.push({brand,model,category});
  });
