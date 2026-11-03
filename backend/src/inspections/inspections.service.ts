@@ -239,14 +239,9 @@ export class InspectionsService {
 
       const numberRows = [...registration.numbers] as any[];
       const primaryNumber = numberRows.find((number: any) => number.isPrimary) ?? numberRows[0];
-      const isBassRace = (item: any) => this.isBassRaceClass(
-        item.class?.name ?? item.name ?? '',
-        item.class?.direction?.name ?? item.direction?.name ?? '',
-      );
 
       // Prefer preserving the existing BassRace class on the primary sticker
       // if primary has room. Never renumber a recorded class silently.
-      const stageById=new Map(stageClasses.map((item:any)=>[item.classId,item]));
       const oldPrimaryBass=existing.find((item:any)=>
         item.numberId===primaryNumber.id && isBassRaceStageClass(item.class.name,item.class.direction?.name??'')
         && requestedSet.has(item.classId));
