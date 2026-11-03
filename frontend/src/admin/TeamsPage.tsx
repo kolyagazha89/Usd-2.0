@@ -23,7 +23,7 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
   setReviewBusy(true);setReviewError('');setReviewNotice('');
   try{
    // No title, body or gallery is sent: backend moderates the stored snapshot.
-   await apiPost('/teams/'+encodeURIComponent(currentReview.teamId)+'/posts/'+encodeURIComponent(currentReview.postId)+'/'+decision,{});
+   await apiPost('/teams/'+encodeURIComponent(currentReview.teamId)+'/posts/'+encodeURIComponent(currentReview.postId)+'/'+decision,{reviewedAt:currentReview.post.updatedAt});
    await load();
    setReviewNotice(decision==='approve'?'Материал опубликован без изменения проверенного содержимого.':'Материал возвращён в черновик для исправлений.');
    setReviewing('');setReviewConfirm('');
