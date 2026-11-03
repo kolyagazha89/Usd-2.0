@@ -11,17 +11,17 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3062,
-    "brands": 23,
+    "rows": 3275,
+    "brands": 28,
     "fields": [
       "бренд",
       "модель",
       "категория"
     ],
     "categories": {
-      "AMPLIFIER": 828,
-      "AUDIO_COMPONENT": 1249,
-      "SUBWOOFER": 886,
+      "AMPLIFIER": 898,
+      "AUDIO_COMPONENT": 1330,
+      "SUBWOOFER": 948,
       "HEAD_UNIT": 74,
       "DSP": 25
     },
@@ -34,23 +34,28 @@
       "DD Audio": 361,
       "Deaf Bonce": 16,
       "DL Audio": 197,
+      "Dynamic State": 115,
       "EDGE": 96,
       "Fi Car Audio": 31,
       "Ground Zero": 291,
       "Hannibal": 51,
+      "Headshot": 43,
       "Hertz": 110,
+      "Kicx": 51,
       "Machete": 161,
       "Pride": 242,
       "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
+      "Sound Civilization": 2,
       "SounDigital": 46,
       "SP Audio": 95,
       "Stetsom": 74,
       "Sundown Audio": 279,
       "Taramps": 42,
+      "Terza": 2,
       "Урал": 161
     },
-    "brand_count_note": "23 distinct manufacturer/series names as USD select options"
+    "brand_count_note": "28 manufacturer and sub-brand labels, e.g. Kicx, Headshot, Sound Civilization, Terza"
   },
   "fragment_coverage": [
     {
@@ -142,6 +147,16 @@
       "name": "hertz",
       "rows": 110,
       "source": "official hertz-audio.com product collections and individual titles"
+    },
+    {
+      "name": "dynamic_state",
+      "rows": 115,
+      "source_method": "official manufacturer product titles indexed by public search"
+    },
+    {
+      "name": "kicx",
+      "rows": 98,
+      "source_method": "official manufacturer product titles indexed by public search"
     }
   ],
   "validation": {
@@ -152,9 +167,8 @@
     "cleaned_marketing_labels": true
   },
   "missing_manufacturers": [
-    "Kicx (official host timeouts even through free gateways)",
-    "Dynamic State (official host timeouts/DNS failures)"
+    "Kicx and Dynamic State official sites timed out on direct downloads; data sourced from verified official product page indexes but some items may be missing"
   ],
-  "completeness": "partial; comprehensive within reachable catalogs, not certified all current and historical models",
+  "completeness": "large verified multi-brand seed, NOT an exhaustive official product inventory",
   "production_import": false
 }
