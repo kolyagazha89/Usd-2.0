@@ -89,7 +89,7 @@ test('event-day layouts fill their content pane and navigation stays graphite/re
  assert.doesNotMatch(css,/body \.app-shell/,'public Dark Velocity cannot own admin event workspace');
  assert.match(layout,/\.page\.event-ops-page/,'event workspace width belongs to admin owner');
  assert.match(layout,/padding: 0 !important;/,'event pages must not double-inset at mobile/tablet breakpoints');
- assert.match(layout,/scrollbar-gutter:stable/,'sidebar scrollbar uses one stable layout');
+ assert.match(layout,/scrollbar-gutter:auto/,'navigation does not reserve a permanent blank side stripe');
  assert.match(layout,/scrollbar-color:#56565e transparent/,'dark neutral scrollbar replaces blue-gray');
  assert.match(layout,/\.sidebar \.nav-item\[aria-current="page"\]/,'active navigation has a distinct dark red state');
  assert.match(layout,/\.sidebar :is\(\.nav-item,\.sidebar-section-toggle/,'keyboard focus is explicitly accessible');
