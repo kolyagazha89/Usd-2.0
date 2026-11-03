@@ -6,6 +6,7 @@ import jsQR from 'jsqr';
 import {parseInspectionQr} from '../participant/usd-id';
 import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,Users,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
+import {useVehicleDirectory} from '../use-vehicle-directory';
 
 function isPastStageCalendar(s:any){if(!s)return false;if(s.status==='COMPLETED'||s.status==='CANCELLED')return true;if(!s.date)return false;const d=new Date(s.date),today=new Date();d.setHours(0,0,0,0);today.setHours(0,0,0,0);return d.getTime()<today.getTime()}
 
@@ -202,6 +203,7 @@ function EntryInspection({stageId,go,user,readOnly,Empty,LoadingPage,SearchableS
 }
 
 function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,displayCarName,LoadingPage,enumLabel}:{stageId:string;onClose:()=>void;onSaved:(registrationId:string)=>Promise<void>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;LoadingPage:React.ComponentType<any>;enumLabel:(v:any)=>string}){
+ const {makes,modelsFor}=useVehicleDirectory();
  const[participants,setParticipants]=useState<any[]>([]),[cars,setCars]=useState<any[]>([]),[stageClasses,setStageClasses]=useState<any[]>([]);
  const[profileQuery,setProfileQuery]=useState(''),[showAllProfiles,setShowAllProfiles]=useState(false);
  const[showNewProfile,setShowNewProfile]=useState(false),[creatingProfile,setCreatingProfile]=useState(false),[showNewCar,setShowNewCar]=useState(false),[creatingCar,setCreatingCar]=useState(false);
@@ -274,7 +276,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  const submit=async()=>{if(!participantId||!carId||!classIds.length){setError('Выберите участника, автомобиль и классы');return}if(classIds.length>5){setError('Можно выбрать не более 5 классов на регистрацию');return}if(!legalReady){setError('Регистрация временно недоступна: юридические документы не утверждены организатором');return}if(!rulesAccepted||!privacyConsent||!termsAccepted){setError('Подтвердите все обязательные согласия участника');return}setSaving(true);setError('');try{const created=await apiPost<{id:string}>('/registrations',{stageId,participantId,carId,...(configurationVersionId?{configurationVersionId}:{}),classIds,source:'ON_SITE',rulesAccepted,privacyConsent,termsAccepted});await onSaved(typeof created?.id==='string'?created.id:'')}catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать участника')}finally{setSaving(false)}};
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ВЪЕЗДНАЯ ИНСПЕКЦИЯ · РЕГИСТРАЦИЯ</span><h2>Регистрация участника на этап</h2><p>Найдите участника или создайте профиль прямо на въезде. Конфигурацию оборудования можно дополнить позже.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div>
   {error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {loading?<LoadingPage small/>:<div className="form modal-form">
+  {loading?<LoadingPage small/>:<div className="form modal-form"><datalist id="usd-gate-car-makes">{makes.map(make=><option key={make} value={make}/>)}</datalist><datalist id="usd-gate-car-models">{modelsFor(newBrand).map(model=><option key={model} value={model}/>)}</datalist>
    <section className="registration-profile-picker" aria-labelledby="registration-profile-title">
     <div className="registration-profile-picker-heading"><div><h3 id="registration-profile-title">Найти участника</h3><p>Проверьте существующий профиль перед регистрацией, чтобы не создавать дубликаты.</p></div><span>{participants.length} в базе</span></div>
     <label className="registration-profile-search">Поиск по ФИО, команде или телефону<input type="search" autoComplete="off" value={profileQuery} onChange={e=>{setProfileQuery(e.target.value);setShowAllProfiles(false)}} placeholder="Начните вводить фамилию или имя…"/></label>
@@ -290,8 +292,8 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
       <label>Фамилия<input autoComplete="family-name" value={newLastName} onChange={e=>setNewLastName(e.target.value)} maxLength={120} required/></label>
       <label>Имя<input autoComplete="given-name" value={newFirstName} onChange={e=>setNewFirstName(e.target.value)} maxLength={120} required/></label>
       <label>Отчество (необязательно)<input value={newMiddleName} onChange={e=>setNewMiddleName(e.target.value)} maxLength={120}/></label>
-      <label>Марка автомобиля<input value={newBrand} onChange={e=>setNewBrand(e.target.value)} maxLength={80} required/></label>
-      <label>Модель автомобиля<input value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
+      <label>Марка автомобиля<input list="usd-gate-car-makes" value={newBrand} onChange={e=>{setNewBrand(e.target.value);setNewModel('')}} maxLength={80} required/></label>
+      <label>Модель автомобиля<input list="usd-gate-car-models" value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
       <label>Страна регистрации<select value={newCountry} onChange={e=>setNewCountry(e.target.value)}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option><option value="OTHER" disabled>Другие страны — добавьте авто через профиль</option></select></label>
       <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(e.target.value)} placeholder="А001УР01" maxLength={32} required/></label>
      </div>
@@ -302,8 +304,8 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
    <label>Автомобиль<SearchableSelect value={carId} options={cars.map(c=>({id:c.id,label:[c.brand,c.model,c.registrationNumber].filter(Boolean).join(' · ')}))} onChange={(v:string)=>setCarId(v)} required/></label>
    {selectedParticipant&&<div className="event-ops-newcomer"><p>Автомобиля нет в списке? Можно добавить новую машину существующему участнику, не создавая второй профиль.</p><button type="button" className="secondary-button compact" onClick={()=>{setShowNewCar(v=>!v);setError('')}} aria-expanded={showNewCar}><Plus size={16}/>{showNewCar?'Скрыть добавление автомобиля':'Добавить автомобиль на въезде'}</button></div>}
    {showNewCar&&selectedParticipant&&<section className="event-ops-newcomer-form" aria-label="Новый автомобиль существующего участника"><div className="event-ops-newcomer-fields">
-    <label>Марка<input value={newBrand} onChange={e=>setNewBrand(e.target.value)} maxLength={80} required/></label>
-    <label>Модель<input value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
+    <label>Марка<input list="usd-gate-car-makes" value={newBrand} onChange={e=>{setNewBrand(e.target.value);setNewModel('')}} maxLength={80} required/></label>
+    <label>Модель<input list="usd-gate-car-models" value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
     <label>Страна<select value={newCountry} onChange={e=>setNewCountry(e.target.value)}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option></select></label>
     <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(e.target.value)} placeholder="А001УР01" maxLength={32} required/></label>
    </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!newBrand.trim()||!newModel.trim()||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button></section>}
