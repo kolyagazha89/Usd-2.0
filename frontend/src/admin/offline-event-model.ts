@@ -1,6 +1,6 @@
 /** Offline event *pilot*: a sealed, minimal roster and immutable inspection
  * decisions. Explicit online replay is idempotent, but the multi-judge venue
- * hub, offline QR and operational recovery procedure are still outstanding.
+ * hub, multi-device reconciliation and operational recovery are still outstanding.
  */
 import type {DayRow} from './event-day-model.ts';
 
@@ -149,6 +149,36 @@ export function markOfflineInspectionSync(
   ...item,state,serverInspectionId:state==='ACKNOWLEDGED'?serverInspectionId:undefined,
   syncMessage:text||undefined,
  })};
+}
+
+/** Resolve the participant's existing QR against the encrypted local roster.
+ * Only the exact USD inspection deep-link format or a bare UUID is accepted.
+ * This function never requests data from the central API, and QR possession
+ * never authenticates a judge or permits an inspection mutation by itself.
+ */
+export function resolveOfflineRegistrationQr(
+ data:OfflineEventPackage,value:string,expectedOrigin:string,
+ now=Date.now(),
+):OfflineEntry {
+ assertOfflinePackage(data,now);
+ const raw=value.trim();
+ if(!raw||raw.length>2048)throw new Error('QR-код пустой или слишком длинный.');
+ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+ let registrationId=raw;
+ if(!uuid.test(raw)){
+  let scanned:URL;
+  try{scanned=new URL(raw)}catch{throw new Error('Это не QR регистрации USD.');}
+  if(scanned.origin!==expectedOrigin||scanned.pathname!=='/admin/inspections'
+   ||scanned.hash||scanned.searchParams.size!==2
+   ||scanned.searchParams.get('stageId')!==data.stage.id){
+   throw new Error('QR относится к другому сайту или этапу, либо содержит лишние параметры.');
+  }
+  registrationId=scanned.searchParams.get('registrationId')??'';
+ }
+ if(!uuid.test(registrationId))throw new Error('QR не содержит корректный ID регистрации.');
+ const found=data.entries.find(item=>item.id.toLowerCase()===registrationId.toLowerCase());
+ if(!found)throw new Error('Регистрации нет в загруженном пакете. Обновите его через организатора.');
+ return found;
 }
 export function findOfflineEntries(data:OfflineEventPackage,search:string):OfflineEntry[]{
  const normalized=search.trim().toLocaleLowerCase('ru');
