@@ -10,10 +10,8 @@ Example:
 import argparse
 import csv
 import json
-import random
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
@@ -111,7 +109,6 @@ class OfficialCatalog:
 
     def sitemap(self, max_documents=60):
         queue = []
-        robots_text = self.robots.__dict__ if self.robots else {}
         # The official sitemap is a standard well-known URL. Probe two only.
         queue.extend((self.base + "/sitemap.xml", self.base + "/sitemap_index.xml"))
         discovered = set()
@@ -240,7 +237,7 @@ class OfficialCatalog:
 
     def run(self, max_products):
         if self.blocked:
-            return [], {"blocked": True, "requests": self.requests, "errors": self.errors}
+            return [], {"blocked": True, "requests": self.requests, "candidate_products": 0, "visited_products": 0, "extracted_models": 0, "capped": False, "errors": self.errors}
         candidates = self.sitemap()
         candidates.update(self.listing_urls())
         selected = [(u, self.classified_url(u)) for u in sorted(candidates)]
@@ -281,7 +278,7 @@ def main():
         report[site] = stats
         print(site, json.dumps(stats, ensure_ascii=False), flush=True)
     (path / "source_coverage.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
-    if any(not report[s]["extracted_models"] for s in names):
+    if any(report[s].get("extracted_models", 0) == 0 for s in names):
         raise SystemExit("Not all manufacturer sites returned product catalogs; no claims of full coverage")
 
 
