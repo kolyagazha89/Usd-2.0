@@ -80,7 +80,7 @@ export function planAudioCatalogImport(
 ):{catalogs:ExistingCatalog;addedBrands:number;addedModels:number;unchangedModels:number}{
  const oldBrands=toObjects(existing.componentBrands),oldModels=toObjects(existing.componentModels);
  const brands=[...oldBrands],models=[...oldModels];
- const knownBrands=new Map(oldBrands.map(item=>[key(item.category)+'|'+key(item.name),item]));
+ const knownBrands=new Map<string,CatalogItem>(oldBrands.map(item=>[key(item.category)+'|'+key(item.name),item] as const));
  const knownModels=new Set(oldModels.map(item=>key(item.category)+'|'+key(item.brand)+'|'+key(item.model)));
  let addedBrands=0,addedModels=0,unchangedModels=0;
  for(const row of rows){
