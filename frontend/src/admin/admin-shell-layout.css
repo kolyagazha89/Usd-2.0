@@ -865,3 +865,86 @@ body .app-shell .main .event-ops-page .resource-editor-page :is(input,select,tex
 @media(prefers-reduced-motion:reduce) {
   body .app-shell .main .event-ops-workflow-step {transition:none}
 }
+
+/* Admin-only details consolidated from legacy sitewide finish / premium layers.
+ * Public and member CSS no longer decides how a staff editing surface is painted.
+ * This final-owned layer is imported last from main.tsx.
+ */
+body .app-shell .main .content :is(.error-panel,.notice,.form-error,.settings-section) {
+  min-inline-size:0;
+  max-inline-size:100%;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .content :is(.page-heading,.resource-editor-heading,.admin-page-guide) {
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+body .app-shell .main .content .page-heading h1{
+  line-height:1.14;
+  letter-spacing:-.035em;
+}
+body .app-shell .main .content :is(.toolbar,.stage-picker,.page-actions,.page-heading-actions) {
+  min-inline-size:0;
+  max-inline-size:100%;
+  flex-wrap:wrap;
+}
+body .app-shell .main .content :is(.badge,.class-number-chip) {
+  max-inline-size:100%;
+  overflow-wrap:anywhere;
+}
+body .app-shell .main .content :is(.table-wrap,.data-table-wrap,.smart-table-wrap) {
+  scrollbar-color:#babdc5 transparent;
+  overscroll-behavior-x:contain;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) th{
+  background:#f5f6f8;
+  color:#545c68;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) tbody tr {
+  transition:background-color .15s ease;
+}
+body .app-shell .main .content :is(.data-table,.smart-table) tbody tr:hover {
+  background:#fff5f6;
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button) {
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button):focus-visible {
+  box-shadow:0 0 0 3px rgba(229,28,59,.18);
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select){
+  color-scheme:light;
+  background:#fff;
+  color:#252933;
+  border-color:#d6dae1;
+}
+body .app-shell .main .content :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select):focus-visible {
+  border-color:var(--usd-admin-accent)!important;
+  outline-color:var(--usd-admin-accent)!important;
+  box-shadow:0 0 0 4px rgba(237,38,56,.12)!important;
+}
+/* Mail QA status panels should never inherit a black member/card surface. */
+body .app-shell .main .content :is(.mail-channel-status,.mail-test-result) {
+  min-inline-size:0;
+  border-radius:12px;
+  border:1px solid #dedfe5;
+  background:#fafafb;
+  color:#252830;
+}
+body .app-shell .main .content .mail-channel-status.ready {
+  border-color:#bdcfbf;
+  background:#f6faf6;
+}
+body .app-shell .main .content .mail-channel-status.needs-setup {
+  border-color:#edc2c8;
+  background:#fff7f8;
+}
+@media(max-width:800px) {
+  body .app-shell .main .content .page-heading h1 {font-size:clamp(24px,6vw,34px)}
+  body .app-shell .main .content :is(.toolbar,.page-actions,.page-heading-actions) {max-inline-size:100%}
+}
+@media(prefers-reduced-motion:reduce) {
+  body .app-shell .main .content :is(.primary-button,.secondary-button,.danger-button,.icon-button,.data-table tbody tr,.smart-table tbody tr) {
+    transition:none!important;
+  }
+}
