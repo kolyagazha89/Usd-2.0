@@ -447,6 +447,42 @@ export class TeamsService {
     });
   }
 
+  /**
+   * Return a submitted post for revision without replaying potentially stale
+   * client-side title, body or gallery data over its stored snapshot.
+   */
+  async returnPostToDraft(
+    request: AuthenticatedRequest,
+    teamId: string,
+    postId: string,
+  ) {
+    this.admin(await this.actor(request));
+    return this.transaction(async (db) => {
+      const actor = await this.actor(request, db);
+      this.admin(actor);
+      await this.managed(actor, teamId, db);
+      const post = await db.teamPost.findUnique({ where: { id: postId } });
+      if (!post || post.teamId !== teamId)
+        throw new NotFoundException('Материал команды не найден');
+      if (post.status !== 'IN_REVIEW')
+        throw new ConflictException(
+          'Материал уже отозван или изменён. Обновите список.',
+        );
+      const updated = await db.teamPost.updateMany({
+        where: { id: postId, teamId, status: 'IN_REVIEW' },
+        data: { status: 'DRAFT', publishedAt: null },
+      });
+      if (updated.count !== 1)
+        throw new ConflictException(
+          'Материал изменён во время проверки. Обновите список.',
+        );
+      await this.audit(db, actor.id, 'TEAM_POST_RETURNED_FOR_REVISION', teamId, {
+        postId,
+      });
+      return db.teamPost.findUniqueOrThrow({ where: { id: postId } });
+    });
+  }
+
   async savePost(
     request: AuthenticatedRequest,
     teamId: string,
