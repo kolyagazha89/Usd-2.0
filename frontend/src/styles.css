@@ -1548,32 +1548,29 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .assistant-chat-note{padding:8px 12px 12px}
 }
 
-/* USD FINAL VISUAL SYSTEM — intentional scrollbars + clean overlays */
-html,body{
-  scrollbar-width:auto;
-  scrollbar-color:#8f969e #eceef0;
+/* Scrollbar colors are surface-scoped. The previous universal "*" scrollbar
+ * painted light tracks onto the dark public/member site and created a pale rail. */
+body:has(.app-shell),
+body .app-shell .main,
+body .app-shell .main *{
+ scrollbar-width:auto;
+ scrollbar-color:#9aa1a8 #eef0f2;
 }
-*{
-  scrollbar-width:auto;
-  scrollbar-color:#9aa1a8 #eef0f2;
+body .app-shell .main *::-webkit-scrollbar{
+ width:8px;height:8px;
 }
-*::-webkit-scrollbar{
-  width:8px;
-  height:8px;
+body .app-shell .main *::-webkit-scrollbar-track{
+ background:#eef0f2;
+ border-radius:999px;
 }
-*::-webkit-scrollbar-track{
-  background:#eef0f2;
-  border-radius:999px;
+body .app-shell .main *::-webkit-scrollbar-thumb{
+ background:#9aa1a8;
+ border:2px solid #eef0f2;
+ border-radius:999px;
+ background-clip:padding-box;
 }
-*::-webkit-scrollbar-thumb{
-  background:#9aa1a8;
-  border:2px solid #eef0f2;
-  border-radius:999px;
-  background-clip:padding-box;
-}
-*::-webkit-scrollbar-thumb:hover{
-  background:#68717a;
-  border-width:1px;
+body .app-shell .main *::-webkit-scrollbar-thumb:hover{
+ background:#68717a;border-width:1px;
 }
 .assistant-messages::-webkit-scrollbar-track,
 .stage-class-modal-list::-webkit-scrollbar-track,
