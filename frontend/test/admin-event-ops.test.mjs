@@ -120,7 +120,7 @@ test('the registration desk enters the correct live stage and never offers walk-
  assert.match(inspection,/setSelectedRegistrationId\(registrationId\)/,'operator must continue directly to inspection');
  assert.match(inspection,/params\.set\('registrationId',registrationId\)/,'QR and history links retain the newly saved selection');
  assert.match(inspection,/const created=await apiPost<\{id:string\}>\('\/registrations'/,'use the saved registration ID from backend');
- assert.match(inspection,/Итоговый список допущенных готов к просмотру/,'the admitted roster is viewed inside USD, not downloaded as CSV');
+ assert.match(inspection,/Итоговый список допущенных доступен ниже/,'the admitted roster is viewed inside USD, not downloaded as CSV');
  assert.match(inspection,/classIds\.length>=5/,'a sixth class must be disabled at on-site registration');
  assert.match(inspection,/apiPost<\{participantId:string;carId:string\}>\('\/registrations\/on-site\/profile'/);
  assert.match(inspection,/privacyConsent,termsAccepted,/,'consent is sent before any new identity record is stored');
