@@ -12,7 +12,7 @@ export type NumberingStageClass={
 };
 
 export function isBassRaceStageClass(className:string,directionName=''):boolean{
- const normalize=(name:string)=>String(name??'').trim().toLowerCase().replace(/[\\s_-]/g,'');
+ const normalize=(name:string)=>String(name??'').trim().toLowerCase().replace(/[\s_-]/g,'');
  return normalize(className).startsWith('bassrace')||normalize(directionName).includes('bassrace');
 }
 
