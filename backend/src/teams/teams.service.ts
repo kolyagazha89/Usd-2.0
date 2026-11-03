@@ -409,6 +409,15 @@ export class TeamsService {
       return updated;
     });
   }
+  private reviewRevision(value: string) {
+    if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value))
+      throw new BadRequestException('Нужна актуальная версия материала. Обновите очередь.');
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime()) || date.toISOString() !== value)
+      throw new BadRequestException('Некорректная версия материала');
+    return date;
+  }
+
   /**
    * Approve the stored, reviewed snapshot without accepting title, text or
    * gallery keys back from the browser. Serializable transaction + status CAS
@@ -418,8 +427,10 @@ export class TeamsService {
     request: AuthenticatedRequest,
     teamId: string,
     postId: string,
+    reviewedAt: string,
   ) {
     this.admin(await this.actor(request));
+    const reviewedVersion = this.reviewRevision(reviewedAt);
     return this.transaction(async (db) => {
       const actor = await this.actor(request, db);
       this.admin(actor);
@@ -427,12 +438,13 @@ export class TeamsService {
       const post = await db.teamPost.findUnique({ where: { id: postId } });
       if (!post || post.teamId !== teamId)
         throw new NotFoundException('Материал команды не найден');
-      if (post.status !== 'IN_REVIEW')
+      if (post.status !== 'IN_REVIEW' ||
+          post.updatedAt.getTime() !== reviewedVersion.getTime())
         throw new ConflictException(
           'Материал уже изменён или отозван с проверки. Обновите список.',
         );
       const updated = await db.teamPost.updateMany({
-        where: { id: postId, teamId, status: 'IN_REVIEW' },
+        where: { id: postId, teamId, status: 'IN_REVIEW', updatedAt: reviewedVersion },
         data: { status: 'PUBLISHED', publishedAt: new Date() },
       });
       if (updated.count !== 1)
@@ -455,8 +467,10 @@ export class TeamsService {
     request: AuthenticatedRequest,
     teamId: string,
     postId: string,
+    reviewedAt: string,
   ) {
     this.admin(await this.actor(request));
+    const reviewedVersion = this.reviewRevision(reviewedAt);
     return this.transaction(async (db) => {
       const actor = await this.actor(request, db);
       this.admin(actor);
@@ -464,12 +478,13 @@ export class TeamsService {
       const post = await db.teamPost.findUnique({ where: { id: postId } });
       if (!post || post.teamId !== teamId)
         throw new NotFoundException('Материал команды не найден');
-      if (post.status !== 'IN_REVIEW')
+      if (post.status !== 'IN_REVIEW' ||
+          post.updatedAt.getTime() !== reviewedVersion.getTime())
         throw new ConflictException(
           'Материал уже отозван или изменён. Обновите список.',
         );
       const updated = await db.teamPost.updateMany({
-        where: { id: postId, teamId, status: 'IN_REVIEW' },
+        where: { id: postId, teamId, status: 'IN_REVIEW', updatedAt: reviewedVersion },
         data: { status: 'DRAFT', publishedAt: null },
       });
       if (updated.count !== 1)
