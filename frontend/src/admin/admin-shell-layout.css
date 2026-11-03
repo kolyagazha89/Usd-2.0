@@ -583,8 +583,8 @@ body .app-shell .main .event-ops-workflow-context {
   gap:7px;
   min-inline-size:0;
   padding:clamp(18px,2.2vw,28px);
-  background:linear-gradient(126deg,#17191e,#0c0d10);
-  color:#fff;
+  background:linear-gradient(130deg,#ffffff 0%,#f8f9fb 70%,#fff0f2 100%);
+  color:#232730;
   border-right:3px solid #ed2638;
 }
 body .app-shell .main .event-ops-workflow-kicker {
@@ -592,7 +592,7 @@ body .app-shell .main .event-ops-workflow-kicker {
   font-weight:800;
   line-height:1.4;
   letter-spacing:.15em;
-  color:#ff6479;
+  color:#c21c37;
 }
 body .app-shell .main .event-ops-workflow-context strong {
   font-size:clamp(16px,1.8vw,21px);
@@ -603,7 +603,7 @@ body .app-shell .main .event-ops-workflow-context strong {
 body .app-shell .main .event-ops-workflow-context small {
   font-size:12px;
   line-height:1.45;
-  color:#c3c5cb;
+  color:#646c78;
 }
 body .app-shell .main .event-ops-workflow-steps {
   display:grid;
