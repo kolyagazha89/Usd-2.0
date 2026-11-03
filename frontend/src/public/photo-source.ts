@@ -1,4 +1,4 @@
-import {safeHref} from './premium-model';
+import {safeHref} from './premium-model.ts';
 
 /** A media Blob URL is displayable only when created by our authenticated
  * media fetch, not when supplied as arbitrary user/CMS content. */
