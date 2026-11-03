@@ -27,7 +27,7 @@ describe('privacy-first USD traffic analytics',()=>{
  });
  it('stores only anonymized page category+device, drops bots and rate limits per minute',async()=>{
   process.env.CORS_ORIGINS='https://app.usd-russia.ru';
-  const auditLog={create:jest.fn().mockResolvedValue({})};
+  const auditLog={create:jest.fn().mockResolvedValue({}),deleteMany:jest.fn().mockResolvedValue({count:0})};
   const service=new TrafficService({auditLog} as any);
   const args=['/stages/id?some=secret','Mozilla/5.0 (iPhone) Safari','https://app.usd-russia.ru','1.2.3.4'] as const;
   for(let i=0;i<20;i++)await service.record(...args);
