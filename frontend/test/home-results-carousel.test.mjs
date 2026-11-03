@@ -62,3 +62,14 @@ test('homepage loads all stage results; class and record carousel both have manu
  assert.match(member,/publicResultValue\(r.value\)/);
  assert.match(css,/max-height:540px/);
 });
+
+test('the six latest-result cards render in responsive horizontal rows, without altering LIVE scoreboard',async()=>{
+ const css=await readFile(new URL('../src/public/home-results.css',import.meta.url),'utf8');
+ const page=await readFile(new URL('../src/public/PremiumHome.tsx',import.meta.url),'utf8');
+ assert.match(page,/data-home-block="latest-results"/);
+ assert.match(page,/results\.slice\(0,6\)/);
+ assert.match(css,/data-home-block="latest-results"\] \.u-mini-results\s*\{\s*display:grid;\s*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+ assert.match(css,/@media\(max-width:1100px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(css,/@media\(max-width:630px\)[\s\S]*?grid-template-columns:minmax\(0,1fr\)/);
+ assert.match(css,/scoped|LIVE carousel|LIVE scoreboard/i);
+});

@@ -1,23 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {MAX_REGISTRATION_CLASSES,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
+import {MAX_REGISTRATION_CLASSES,MAX_PRIMARY_NUMBER_CLASSES,primaryNumberClassCount,isBassRaceStageOption,nextRegistrationClassIds,canContinueVehicleRegistration} from '../src/participant/registration-classes.ts';
 
-test('participant can choose at most five classes while preserving primary class order',()=>{
- assert.equal(MAX_REGISTRATION_CLASSES,5);
- const selected=['a','b','c','d','e'];
- assert.deepEqual(nextRegistrationClassIds(selected,'f',true),selected);
- assert.deepEqual(nextRegistrationClassIds(selected,'c',true),selected);
- assert.deepEqual(nextRegistrationClassIds(selected,'a',false),['b','c','d','e']);
- assert.deepEqual(nextRegistrationClassIds(['b','c','d','e'],'f',true),['b','c','d','e','f']);
- assert.deepEqual(selected,['a','b','c','d','e'],'selection must be immutable');
-});
-test('unchecking a class removes it and duplicate clicks do not add it twice',()=>{
- assert.deepEqual(nextRegistrationClassIds(['a','b'],'b',false),['a']);
- assert.deepEqual(nextRegistrationClassIds(['a'],'a',true),['a']);
- assert.deepEqual(nextRegistrationClassIds([],'a',true),['a']);
-});
+const regular=(n)=>({classId:'r'+n,class:{name:'SPL '+n,direction:{name:'SPL'}}});
+const bass=(n)=>({classId:'b'+n,class:{name:'BassRace '+n,direction:{name:'BassRace'}}});
+const catalog=[...Array.from({length:7},(_,i)=>regular(i)),...Array.from({length:8},(_,i)=>bass(i))];
 
+test('only 5 classes may share primary sticker, all BassRace classes can use extra numbers',()=>{
+ assert.equal(MAX_PRIMARY_NUMBER_CLASSES,5);
+ assert.ok(MAX_REGISTRATION_CLASSES>5);
+ const selected=['r0','r1','r2','r3','r4'];
+ assert.deepEqual(nextRegistrationClassIds(selected,'r5',true,catalog),selected);
+ assert.deepEqual(nextRegistrationClassIds(selected,'b0',true,catalog),[...selected,'b0']);
+ assert.equal(primaryNumberClassCount([...selected,'b0'],catalog),5);
+ let multiple=[...selected,'b0'];
+ for(let i=1;i<8;i++)multiple=nextRegistrationClassIds(multiple,'b'+i,true,catalog);
+ assert.equal(multiple.length,13);
+ assert.equal(primaryNumberClassCount(multiple,catalog),5);
+ assert.deepEqual(nextRegistrationClassIds(['r0'],'r0',false,catalog),[]);
+ assert.deepEqual(selected,['r0','r1','r2','r3','r4'],'selection is immutable');
+});
+test('one BassRace class shares the primary sticker if fewer than five regular classes',()=>{
+ assert.equal(primaryNumberClassCount(['r0','b0','b1'],catalog),2);
+ assert.deepEqual(nextRegistrationClassIds(['r0','r1','r2','r3','b0'],'r4',true,catalog),
+  ['r0','r1','r2','r3','b0','r4']);
+ assert.equal(primaryNumberClassCount(['r0','r1','r2','r3','b0','r4'],catalog),5);
+ assert.equal(isBassRaceStageOption(catalog[8]),true);
+ assert.equal(isBassRaceStageOption(catalog[0]),false);
+ assert.deepEqual(nextRegistrationClassIds([],'missing',true,catalog),[]);
+ assert.deepEqual(nextRegistrationClassIds(['b0','b1'],'b1',false,catalog),['b0']);
+});
 test('returning competitor must review configuration before moving to classes',()=>{
  assert.equal(canContinueVehicleRegistration(false,false,'',false),false);
  assert.equal(canContinueVehicleRegistration(true,false,'',false),true);
@@ -30,8 +43,8 @@ test('returning competitor must review configuration before moving to classes',(
 test('registration screen wires the class cap and returning-vehicle question',async()=>{
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
  const flow=await readFile(new URL('../src/participant/RegistrationFlow.tsx',import.meta.url),'utf8');
- assert.match(app,/nextRegistrationClassIds\(ids,id,e\.target\.checked\)/);
- assert.match(app,/registerClassIds\.length>=MAX_REGISTRATION_CLASSES/);
+ assert.match(app,/nextRegistrationClassIds\(ids,id,e\.target\.checked,stageClasses\)/);
+ assert.match(app,/primaryNumberClassCount\(registerClassIds,stageClasses\)/);
  assert.match(app,/repeatVehicle=\{Boolean\(registerCarId/);
  assert.match(flow,/Вы меняли аудиосистему после предыдущего выступления/);
  assert.match(flow,/canContinueVehicleRegistration\(vehicleReady,repeatVehicle,configurationAnswer,updatedReviewed\)/);
@@ -43,4 +56,13 @@ test('registration screen wires the class cap and returning-vehicle question',as
   'a stale configuration review must not allow staying on class selection or confirmation');
  assert.match(flow,/\[canContinueVehicle,classesReady,step\]/,
   'step guard must react when review eligibility changes');
+});
+
+test('inspection and gate frontends use primary-number policy instead of total 5 cap',async()=>{
+ const admin=await readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8');
+ assert.match(admin,/nextRegistrationClassIds\(classIds,id,!classIds\.includes\(id\),stageClasses\)/);
+ assert.match(admin,/primaryNumberClassCount\(classIds,stageClasses\)/);
+ assert.doesNotMatch(admin,/Всего не более 5 классов на регистрацию/);
+ assert.doesNotMatch(admin,/if\(classIds\.length>5\)/);
+ assert.match(admin,/BassRace.*отдельные номера/);
 });

@@ -15,14 +15,14 @@ function validDto(classIds: string[]): CreateRegistrationDto {
 }
 
 describe('CreateRegistrationDto', () => {
-  it('accepts up to five classes including multiple BassRace classes', async () => {
-    const dto = validDto(Array.from({ length: 5 }, (_, index) => uuid(index + 10)));
+  it('accepts more than five selected classes; primary sticker policy is checked by service', async () => {
+    const dto = validDto(Array.from({ length: 12 }, (_, index) => uuid(index + 10)));
 
     await expect(validate(dto)).resolves.toHaveLength(0);
   });
 
-  it('rejects more than the supported maximum of 5 classes', async () => {
-    const dto = validDto(Array.from({ length: 6 }, (_, index) => uuid(index + 10)));
+  it('rejects only an excessive technical payload of more than 100 classes', async () => {
+    const dto = validDto(Array.from({ length: 101 }, (_, index) => uuid(index + 10)));
 
     const errors = await validate(dto);
     expect(errors.some((error) => error.property === 'classIds')).toBe(true);
