@@ -1,0 +1,68 @@
+name: Venue LAN hub safety
+on:
+  pull_request:
+    paths:
+      - 'deploy/venue-lan/**'
+      - 'frontend/src/venue-api-config.ts'
+      - 'frontend/public/usd-venue-config.js'
+      - 'frontend/index.html'
+      - 'frontend/nginx.conf'
+      - '.github/workflows/venue-lan-safety.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/venue-lan/**'
+      - 'frontend/src/venue-api-config.ts'
+      - 'frontend/public/usd-venue-config.js'
+      - 'frontend/index.html'
+      - 'frontend/nginx.conf'
+      - '.github/workflows/venue-lan-safety.yml'
+permissions:
+  contents: read
+jobs:
+  venue-lan-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate RFC1918-only hub and independent credentials
+        run: python3 -m unittest discover -s deploy/venue-lan -p 'test-*.py' -v
+      - name: Rehearse no-secret venue compose preflight
+        working-directory: deploy/venue-lan
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from importlib.machinery import SourceFileLoader
+          from importlib.util import module_from_spec,spec_from_loader
+          spec=spec_from_loader('venue_preflight',SourceFileLoader('venue_preflight','preflight.py'))
+          module=module_from_spec(spec)
+          spec.loader.exec_module(module)
+          from urllib.parse import quote
+          env={
+            'VENUE_BIND_IP':'192.168.50.10',
+            'VENUE_IMAGE_TAG':'a'*40,
+            'VENUE_DB_NAME':'usd_venue',
+            'VENUE_DB_USER':'usd_venue',
+            'VENUE_DB_PASSWORD':'test-venue-only-password-12345',
+            'VENUE_DATABASE_URL':'postgresql://usd_venue:'+quote('test-venue-only-password-12345')+'@db:5432/usd_venue?schema=public',
+            'VENUE_JWT_SECRET':'j'*64,
+            'VENUE_S3_ROOT_ACCESS':'venue-root-only',
+            'VENUE_S3_ROOT_SECRET':'venue-root-secret-only',
+            'VENUE_S3_APP_ACCESS':'venue-bucket-only',
+            'VENUE_S3_APP_SECRET':'venue-bucket-secret-only',
+          }
+          module.validate(env)
+          Path('.env').write_text('\n'.join(k+'='+v for k,v in env.items())+'\n')
+          PY
+          python3 preflight.py
+          docker compose config --quiet
+          rm -f .env
+      - name: Set up Node.js for TypeScript smoke tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check frontend runtime API selection stays local in venue mode
+        run: |
+          cd frontend
+          npm ci --ignore-scripts
+          node --experimental-strip-types --test test/venue-api-config.test.mjs

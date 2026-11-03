@@ -1,0 +1,17 @@
+# Router-only venue network; no dependency on public DNS or ACME.
+https://{$VENUE_BIND_IP} {
+  tls internal
+  encode zstd gzip
+  header {
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+  }
+  handle_path /venue-api/* {
+    reverse_proxy api:3000
+  }
+  handle {
+    reverse_proxy frontend:80
+  }
+}
