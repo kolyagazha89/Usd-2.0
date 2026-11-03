@@ -42,12 +42,18 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
   ||status==='INACTIVE'&&!entry.isActive&&!entry.isArchived;
  const q=search.trim().toLocaleLowerCase('ru');
  const brands=(catalog?.brands??[]).filter(matchesStatus).filter(b=>!q||b.name.toLocaleLowerCase('ru').includes(q));
- const brandNames=new Map((catalog?.brands??[]).map(b=>[b.id,b.name]));
+ const brandNames=useMemo(()=>new Map((catalog?.brands??[]).map(b=>[b.id,b.name])),[catalog]);
+ const brandModelCounts=useMemo(()=>{
+  const counts=new Map<string,number>();
+  for(const item of catalog?.models??[])counts.set(item.brandId,(counts.get(item.brandId)??0)+1);
+  return counts;
+ },[catalog]);
  const models=(catalog?.models??[]).filter(m=>!selectedBrand||m.brandId===selectedBrand)
   .filter(matchesStatus)
   .filter(m=>!q||(brandNames.get(m.brandId)+' '+m.name).toLocaleLowerCase('ru').includes(q));
- const visibleModels=models.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
  const pageCount=Math.max(1,Math.ceil(models.length/PAGE_SIZE));
+ const actualPage=Math.min(page,pageCount);
+ const visibleModels=models.slice((actualPage-1)*PAGE_SIZE,actualPage*PAGE_SIZE);
  const allCounts=catalog?countDisabledVehicles(catalog,'ALL'):{brands:0,models:0,total:0};
  const selectedCounts=catalog&&selectedBrand?countDisabledVehicles(catalog,selectedBrand):{brands:0,models:0,total:0};
  const currentSelection=catalog?.brands.find(b=>b.id===selectedBrand);
@@ -154,7 +160,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
      <div className="catalog-list vehicle-catalog-brand-list">{brands.map(b=><div className={'catalog-list-row catalog-manage-row '+(selectedBrand===b.id?'selected':'')} key={b.id}>
       {editor?.kind==='brand'&&editor.id===b.id?
        <form className="catalog-inline-editor" onSubmit={e=>{e.preventDefault();void saveEditor()}}><label>Название марки<input autoFocus maxLength={100} value={editor.name} onChange={e=>setEditor({...editor,name:e.target.value})}/></label><div className="catalog-row-actions"><button type="submit" className="primary-button compact" disabled={saving||!editor.name.trim()}>Сохранить</button><button type="button" className="secondary-button compact" onClick={()=>setEditor(null)}>Отмена</button></div></form>:
-       <><button type="button" className="catalog-list-select" aria-pressed={selectedBrand===b.id} onClick={()=>{setSelectedBrand(b.id);setPage(1)}}><strong>{b.name}</strong><small>{displayStatus(b)} · {catalog.models.filter(m=>m.brandId===b.id).length} моделей</small></button><div className="catalog-row-actions">
+       <><button type="button" className="catalog-list-select" aria-pressed={selectedBrand===b.id} onClick={()=>{setSelectedBrand(b.id);setPage(1)}}><strong>{b.name}</strong><small>{displayStatus(b)} · {brandModelCounts.get(b.id)??0} моделей</small></button><div className="catalog-row-actions">
         <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'brand',id:b.id,name:b.name,brandId:b.id})}><Pencil size={13}/>Редактировать</button>
         <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void mutate((c,o)=>toggleVehicleBrand(c,o,b.id),'Статус марки сохранён')}>{b.isArchived?'Восстановить':b.isActive?'Отключить':'Включить'}</button>
         {!b.isArchived&&(deleteKey==='brand:'+b.id?<div className="catalog-inline-confirm" role="group"><span>Убрать марку из вариантов? История не изменится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void archive()}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setDeleteKey('')}>Отмена</button></div>:<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setDeleteKey('brand:'+b.id)}><Trash2 size={13}/>Удалить</button>)}
@@ -178,7 +184,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
         {!m.isArchived&&(deleteKey==='model:'+m.id?<div className="catalog-inline-confirm" role="group"><span>Убрать модель из вариантов?</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void archive()}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setDeleteKey('')}>Отмена</button></div>:<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setDeleteKey('model:'+m.id)}><Trash2 size={13}/>Удалить</button>)}
        </div></>}
      </div>)}{models.length===0&&<Empty text="Модели не найдены"/>}</div>
-     {pageCount>1&&<div className="list-pagination"><span>Страница {page} из {pageCount} · всего {models.length} моделей</span><nav aria-label="Страницы моделей"><button type="button" className="secondary-button compact" disabled={page<=1} onClick={()=>setPage(x=>Math.max(1,x-1))}>Назад</button><button type="button" className="secondary-button compact" disabled={page>=pageCount} onClick={()=>setPage(x=>Math.min(pageCount,x+1))}>Дальше</button></nav></div>}
+     {pageCount>1&&<div className="list-pagination"><span>Страница {actualPage} из {pageCount} · всего {models.length} моделей</span><nav aria-label="Страницы моделей"><button type="button" className="secondary-button compact" disabled={actualPage<=1} onClick={()=>setPage(x=>Math.max(1,Math.min(x,pageCount)-1))}>Назад</button><button type="button" className="secondary-button compact" disabled={actualPage>=pageCount} onClick={()=>setPage(x=>Math.min(pageCount,Math.min(x,pageCount)+1))}>Дальше</button></nav></div>}
     </section>
    </div>
   </>}
