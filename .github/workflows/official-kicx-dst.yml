@@ -1,0 +1,72 @@
+name: Official Kicx and Dynamic State catalog extraction
+on:
+  push:
+    branches:
+      - data/catalog-scrapers-20261102
+    paths:
+      - 'tools/catalogs/crawl_kicx_dynamic.py'
+      - '.github/workflows/official-kicx-dst.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: usd-kicx-dst-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install free site parser
+        run: pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Extract official manufacturer records without Firecrawl credits
+        id: crawl
+        continue-on-error: true
+        run: python tools/catalogs/crawl_kicx_dynamic.py --out catalog-site-output --delay 0.65 --max-products 900
+      - name: Export data and error report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicx-dynamic-site-crawl
+          path: catalog-site-output/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Commit successful source fragments only (not main or production)
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          import shutil
+          for name in ("kicx", "dynamic_state"):
+              source=Path("catalog-site-output")/(name+".csv")
+              if not source.is_file():
+                  print(f"{name}: no file")
+                  continue
+              with source.open(encoding="utf-8-sig", newline="") as stream:
+                  reader=csv.reader(stream)
+                  header=next(reader, [])
+                  rows=list(reader)
+              if header!=["бренд","модель","категория"] or len(rows)<25:
+                  print(f"{name}: {len(rows)} collected, below safety threshold; leaving reviewed seed unchanged")
+                  continue
+              target=Path("tools/catalogs/data/fragments")/(name+"_official_crawl.csv")
+              target.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2(source,target)
+              print(f"{name}: staged {len(rows)} official product records")
+          PY
+          if ! git status --porcelain -- tools/catalogs/data/fragments/ | grep -q .; then
+            echo "No new official crawl data; see attached report"
+            exit 0
+          fi
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add tools/catalogs/data/fragments/
+          git commit -m "data(catalog): capture public official Kicx and Dynamic State product indexes"
+          git push origin "HEAD:data/catalog-scrapers-20261102"
