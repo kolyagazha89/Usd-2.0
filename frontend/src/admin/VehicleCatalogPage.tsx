@@ -80,7 +80,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
   if(ok)setEditor(null);
  };
  const archive=async()=>{
-  const [kind,id]=deleteKey.split(':',2);
+  const split=deleteKey.indexOf(':');const kind=deleteKey.slice(0,split),id=deleteKey.slice(split+1);
   if(!kind||!id)return;
   const ok=await mutate((c,o)=>kind==='brand'?archiveVehicleBrand(c,o,id):archiveVehicleModel(c,o,id),
    'Запись убрана из новых вариантов. Автомобили участников и история сохранены.');
