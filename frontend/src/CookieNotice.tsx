@@ -42,7 +42,7 @@ export default function CookieNotice() {
       // Dismiss for the current render even when storage is blocked.
     }
     setVisible(false);
-    window.dispatchEvent(new Event('usd:analytics-consent-changed'));
+    window.dispatchEvent(new window.Event('usd:analytics-consent-changed'));
   };
 
   if (!visible) return null;
