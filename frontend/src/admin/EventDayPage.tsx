@@ -1,9 +1,11 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,Info,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
+import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {judgingNumbers,judgingResultLink} from './results-operations-model';
 import {isPendingEquipment,walkInRegistrationPath} from './event-ops-model';
 import {canChangeDayInspection,dayPath,dayStatus,eventDayCounts,filterEventDayRows,hasDayPermission,stageIsReadOnly,type DayRow,type DayStatus} from './event-day-model';
+import {buildOfflineEventPackage} from './offline-event-model';
+import {createOfflineVault} from './offline-event-vault';
 import './event-day.css';
 
 type Stage={id:string;name:string;city?:string|null;stageNumber?:number|null;date?:string|null;status?:string|null};
@@ -35,10 +37,12 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
  const [search,setSearch]=useState(''),[filter,setFilter]=useState<DayStatus>('ALL');
  const [savingId,setSavingId]=useState(''),[confirmPass,setConfirmPass]=useState('');
  const [failId,setFailId]=useState(''),[failureReason,setFailureReason]=useState('');
+ const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false);
  const requestId=useRef(0);
  const canList=hasDayPermission(user,'registrations','view');
  const canSeeInspections=hasDayPermission(user,'inspections','view');
  const canRegister=hasDayPermission(user,'registrations','create')&&canSeeInspections;
+ const canPrepareOffline=hasDayPermission(user,'inspections','create')&&canSeeInspections;
  const canSeeResults=hasDayPermission(user,'results','view');
  const canEnterResult=hasDayPermission(user,'results','create')&&canSeeResults;
  const selected=stages.find(s=>s.id===stageId);
@@ -93,6 +97,18 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
   go(id?dayPath('/admin/event-day',id):'/admin/event-day');
  };
  const refresh=async()=>{if(stageId&&!savingId)await load(stageId)};
+ const prepareOffline=async()=>{
+  if(!selected||loading||offlineSaving||readOnly||!canPrepareOffline)return;
+  if(offlinePass.length<14||offlinePass!==offlineConfirm){setError('Для пакета требуется пароль не короче 14 символов и точное подтверждение.');return;}
+  setOfflineSaving(true);setError('');setNotice('');
+  try{
+   const payload=buildOfflineEventPackage({stage:selected,rows,actor:{id:user.id,role:user.customRole?.name??user.role}});
+   await createOfflineVault(payload,offlinePass);
+   setOfflinePass('');setOfflineConfirm('');setOfflinePrepOpen(false);
+   go('/offline-event');
+  }catch(e){setError(displayError(e,'Не удалось зашифровать пакет. Возможно, на устройстве уже есть сохранённые черновики.'))}
+  finally{setOfflineSaving(false)}
+ };
  const inspectionPath=(row:DayRow)=>dayPath('/admin/inspections',stageId,row.id);
  const saveInspection=async(row:DayRow,status:'PASSED'|'FAILED')=>{
   if(!canChangeDayInspection(user,row,readOnly)||savingId)return;
@@ -145,8 +161,26 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
+      {canPrepareOffline&&!readOnly&&<button type="button" className="secondary-button compact" aria-expanded={offlinePrepOpen} onClick={()=>setOfflinePrepOpen(x=>!x)}><HardDrive size={15}/>Подготовить автономный пакет</button>}
+      <button type="button" className="secondary-button compact" onClick={()=>go('/offline-event')}><LockKeyhole size={15}/>Открыть локальные черновики</button>
      </div>
     </section>
+    {offlinePrepOpen&&canPrepareOffline&&!readOnly&&<section className="panel event-day-offline-prepare" aria-label="Подготовка автономного пакета">
+     <h3><LockKeyhole size={19}/>Защищённый пакет на это устройство</h3>
+     <p>Сохранится минимум данных выбранного этапа: ФИО, автомобиль, номер, классы и текущий статус осмотра. Без телефонов, email, JWT и всей базы USD. Пакет действует 72 часа и шифруется AES-GCM.</p>
+     <p className="event-day-offline-warning">Этот первый offline-режим позволяет искать участников и сохранять черновики инспекций без интернета. Несколько судей не разделяют изменения. Отправка в API пока не реализована — решения нужно сверять и переносить вручную после восстановления связи.</p>
+     <form onSubmit={e=>{e.preventDefault();void prepareOffline()}}>
+      <div className="event-day-offline-fields">
+       <label>Пароль пакета (от 14 символов)<input type="password" autoComplete="new-password" minLength={14} maxLength={128} value={offlinePass} onChange={e=>setOfflinePass(e.target.value)} required/></label>
+       <label>Повторите пароль<input type="password" autoComplete="new-password" minLength={14} maxLength={128} value={offlineConfirm} onChange={e=>setOfflineConfirm(e.target.value)} required/></label>
+      </div>
+      <div className="event-day-row-actions">
+       <button type="submit" className="primary-button compact" disabled={offlineSaving||loading||offlinePass.length<14||offlinePass!==offlineConfirm}>Зашифровать {rows.length} регистраций и открыть</button>
+       <button type="button" className="secondary-button compact" onClick={()=>{setOfflinePrepOpen(false);setOfflinePass('');setOfflineConfirm('')}}>Отмена</button>
+      </div>
+     </form>
+     <small>Если на устройстве уже есть пакет, сначала перенесите его черновики и удалите его вручную. Запись поверх запрещена. Перед отключением интернета откройте автономный экран и убедитесь, что оболочка установлена.</small>
+    </section>}
     <section className="panel event-day-roster" aria-label="Рабочий список участников">
      <header className="event-day-roster-head"><div><span className="eyebrow">СПИСОК УЧАСТНИКОВ</span><h3>{filter==='PASSED'?'Итоговый список допущенных':statusLabels[filter]}</h3><p>{filter==='PASSED'?'Здесь только действующие регистрации с подтверждённой общей инспекцией.':'Поиск по точному номеру участника, ФИО, автомобилю, госномеру и классу.'}</p></div><span aria-live="polite" role="status" className="event-day-count">{loading?'Загрузка…':visible.length+' из '+(filter==='ALL'?counts.active:counts.total)}</span></header>
      <div className="event-day-search" role="search"><Search size={19}/><input type="search" aria-label="Поиск участника в день соревнований" value={search} onChange={e=>setSearch(e.target.value)} placeholder="№ участника, ФИО, госномер, автомобиль, класс…" autoComplete="off"/>{search&&<button type="button" className="secondary-button compact" onClick={()=>setSearch('')}>Очистить</button>}</div>
