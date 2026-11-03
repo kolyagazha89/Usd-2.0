@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-const COOKIE_NOTICE_VERSION = '2026-10-v1';
+const COOKIE_NOTICE_VERSION = '2026-11-analytics-v2';
 const COOKIE_NOTICE_KEY = 'usd_cookie_notice_dismissed';
 const TRAFFIC_CONSENT_KEY = 'usd_traffic_analytics_consent_v1';
 
