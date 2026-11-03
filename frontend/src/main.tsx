@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import {installAssetPreloadRecovery} from './asset-preload-recovery';
 import CookieNotice from './CookieNotice';
 import VelocityEffects from './public/VelocityEffects';
 import './styles.css';
@@ -16,6 +17,9 @@ import './dark-velocity-sitewide.css';
 import './sitewide-finish.css';
 import './sitewide-premium-2026.css';
 import './admin/admin-shell-layout.css';
+
+// Handle CSS/chunk requests that race a SHA-pinned frontend image switch.
+installAssetPreloadRecovery();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
