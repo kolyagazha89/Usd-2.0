@@ -36,6 +36,7 @@ import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} f
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
 import AdminShell from './admin/AdminShell';
 import AdminRoutes from './admin/AdminRoutes';
+import OfflineEventPage from './admin/OfflineEventPage';
 import {validateImageUpload} from './admin/upload-validation';
 import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
 import './catalog.css';
@@ -86,7 +87,7 @@ function initialInstalledPath():string {
 function App(){
  // iOS Safari can pin /participant even when the manifest starts at /.
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(()=>initialInstalledPath()),[mobileOpen,setMobileOpen]=useState(false); useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
- useEffect(()=>{const route=path.split('?')[0];if(!/^\/(?:admin|participant|login|reset-password|confirm-email-change|verify-email)(?:\/|$)/.test(route))return;document.title=route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
+ useEffect(()=>{const route=path.split('?')[0];if(!/^\/(?:admin|participant|offline-event|login|reset-password|confirm-email-change|verify-email)(?:\/|$)/.test(route))return;document.title=route==='/offline-event'?'День соревнований — USD':route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  useEffect(()=>{const onExpired=()=>{setUser(null);const current=location.pathname+location.search;if(/^\/(?:admin|participant)(?:\/|\?|$)/.test(current)){const target='/login?next='+encodeURIComponent(current);history.replaceState({},'',target);setPath(target)}};window.addEventListener('usd:session-expired',onExpired);return()=>window.removeEventListener('usd:session-expired',onExpired)},[]);
  // Reset after the old screen has detached its scroll listener. Resetting inside
@@ -114,6 +115,9 @@ function App(){
  const accountAction=path.split('?')[0];
  if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
  if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ // The offline desk is protected by its own passphrase, not by a stale JWT.
+ // It must render even when auth/refresh cannot reach the central API.
+ if(path.split('?')[0]==='/offline-event')return <OfflineEventPage onGoOnline={target=>go(target??'/admin/event-day')}/>;
  if(!user){if(/^\/participant(?:\/|\?|$)/.test(path))return <Splash/>;if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(accountLanding(loggedInUser,next,path.startsWith('/admin')))}}/>;return <PublicSite path={path} go={go} user={user}/>;}
  if(/^\/participant(?:\/|\?|$)/.test(path)||(path.startsWith('/admin')&&!hasAdminPanelAccess(user)))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{const signingOut=logout();setUser(null);await signingOut}}/>;
  // Public routes must remain public even when an ADMIN or custom-role session is active.

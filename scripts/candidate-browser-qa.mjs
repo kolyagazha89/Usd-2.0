@@ -88,7 +88,7 @@ function dataFor(url,role){
  if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
  return [];
 }
-const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
+const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
@@ -136,7 +136,7 @@ try{
     console.log('CANDIDATE_QA_START '+JSON.stringify(row));
     try{
      await page.goto(base+route,{waitUntil:'networkidle'});
-     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.profile-match-page,.app-shell').first().waitFor();
+     await page.locator('.usd-live,.public-site,.login-page,.participant-portal,.profile-match-page,.app-shell,.usd-offline-page').first().waitFor();
      await page.waitForTimeout(100);
      if(route.includes('/configurations')&&route.includes('&view=')){await page.getByRole('button',{name:'Подробнее',exact:true}).click();await page.locator('.configuration-details-page').waitFor();row.configurationView='opened through UI'}
      if(route.includes('/configurations')&&route.includes('&edit=')){await page.getByRole('button',{name:'Редактировать',exact:true}).click();await page.locator('.configuration-editor-page').waitFor();row.configurationEditor='opened through UI; no saving'}
@@ -255,6 +255,12 @@ try{
       await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
       row.componentCatalog='brand/model management, disabled filters and bulk confirmation without writing';
+     }
+     if(route==='/offline-event'){
+      await page.getByRole('heading',{name:'День соревнований'}).waitFor();
+      await page.getByRole('heading',{name:'Пакет ещё не подготовлен'}).waitFor();
+      assert.equal(await page.getByRole('heading',{name:'Регистрации и осмотр'}).count(),0,'no personal roster renders before vault unlock');
+      row.offlineDesk='locked offline desk exposes no participant data';
      }
      if(role==='ADMIN'&&route.startsWith('/admin/event-day')){
       const desk=page.locator('.event-day-page');
