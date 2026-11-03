@@ -43,12 +43,14 @@ test('graphite navigation stays neutral, selected state and focus remain branded
     read('../src/admin/admin-shell-layout.css'),
     read('../src/dark-velocity-sitewide.css'),
   ]);
-  assert.match(layout,/background: linear-gradient\(180deg,#111114,#080809\) !important;/);
-  assert.match(layout,/scrollbar-color: #56565e transparent;/);
+  assert.match(layout,/background:#17181d!important/,'sidebar has one solid graphite canvas');
+  assert.match(layout,/background-image:none!important/,'no gradient or pattern in admin nav');
+  assert.match(layout,/scrollbar-color:#56565e transparent;/);
   assert.match(layout,/\.nav-item\[aria-current="page"\]/);
-  assert.match(layout,/border-left: 3px solid #e72642 !important;/);
-  assert.match(layout,/:focus-visible\s*\{\s*outline: 2px solid #ef2744 !important;/);
-  assert.match(source,/\.content:has\(> \.page\.event-ops-page\)/);
+  assert.match(layout,/border-left:3px solid #ed2638!important/);
+  assert.match(layout,/:focus-visible\s*\{\s*outline:2px solid #ed2638!important/);
+  assert.doesNotMatch(source,/body \.app-shell/,'public theme cannot style admin geometry');
+  assert.match(layout,/\.page\.event-ops-page/);
 });
 
 test('wide tables scroll inside the pane, not the document; panels size border-box', async () => {
