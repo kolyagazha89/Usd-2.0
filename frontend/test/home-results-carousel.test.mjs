@@ -61,4 +61,9 @@ test('homepage loads all stage results; class and record carousel both have manu
  assert.match(member,/member-result-place/);
  assert.match(member,/publicResultValue\(r.value\)/);
  assert.match(css,/max-height:540px/);
+ assert.match(home,/data-home-block="latest-results"/);
+ assert.match(css,/\[data-home-block="latest-results"\] \.u-mini-results \{/);
+ assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+ assert.match(css,/@media\(max-width:1120px\)/);
+ assert.match(css,/@media\(max-width:650px\)/);
 });
