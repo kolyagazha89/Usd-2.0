@@ -30,13 +30,24 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertNotIn(["каталог спецтехники", "Автомобили"], self.cars)
 
     def test_audio_has_full_import_categories_and_many_models(self):
-        self.assertGreaterEqual(len(self.audio), 3200)
-        self.assertGreaterEqual(len({r[0] for r in self.audio}), 28)
+        self.assertGreaterEqual(len(self.audio), 3350)
+        self.assertGreaterEqual(len({r[0] for r in self.audio}), 30)
         self.assertTrue({r[2] for r in self.audio}.issubset(AUDIO_TYPES))
         self.assertIn(["Apocalypse", "AAB-1200.2D", "AMPLIFIER"], self.audio)
         self.assertIn(["Hertz", "CP 1.2K", "AMPLIFIER"], self.audio)
         self.assertIn(["Dynamic State", "CUSTOM CA-100.6", "AMPLIFIER"], self.audio)
         self.assertIn(["Kicx", "ST-12M", "SUBWOOFER"], self.audio)
+        self.assertIn(["Dynamic State", "FORCE P5W21 (2+2 Ohms)", "SUBWOOFER"], self.audio)
+        self.assertIn(["Dynamic State", "CUSTOM CM-20.1v2", "AUDIO_COMPONENT"], self.audio)
+        self.assertIn(["Headshot", "Q315 (2+2)", "SUBWOOFER"], self.audio)
+        self.assertIn(["Loud Level", "LL 1000D", "AMPLIFIER"], self.audio)
+        self.assertIn(["Kicx", "ST D8 (version 1.1)", "DSP"], self.audio)
+
+    def test_kicx_crossover_parts_do_not_appear_as_models(self):
+        self.assertNotIn(["Kicx", "Кроссовер CR-96", "AUDIO_COMPONENT"], self.audio)
+        self.assertNotIn(["Sound Civilization", "X6", "AUDIO_COMPONENT"], self.audio)
+        self.assertNotIn(["Kicx", "E12", "SUBWOOFER"], self.audio)
+        self.assertNotIn(["Kicx", "E15", "SUBWOOFER"], self.audio)
 
     def test_no_blank_values_or_year_only_car_models(self):
         for make, model in self.cars:
