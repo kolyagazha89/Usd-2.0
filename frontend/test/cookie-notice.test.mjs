@@ -28,8 +28,16 @@ test('cookie clearance follows the wrapped notice and is removed on dismissal',a
    height=240;await React.act(async()=>resize());assert.equal(clearance(),'240px','a taller wrapped notice must reserve more scroll space');
    await React.act(async()=>document.querySelector('.cookie-notice__button').click());
    assert.equal(document.querySelector('.cookie-notice'),null);assert.equal(clearance(),'');assert.equal(disconnected,true);
-   assert.equal(window.localStorage.getItem('usd_cookie_notice_dismissed'),'2026-10-v1');
+   assert.equal(window.localStorage.getItem('usd_cookie_notice_dismissed'),'2026-11-analytics-v2');
+   assert.equal(window.localStorage.getItem('usd_traffic_analytics_consent_v1'),'no','analytics is off after essential-only choice');
    height=300;window.dispatchEvent(new window.Event('resize'));assert.equal(clearance(),'','dismissed notices must not leave stale clearance');
+   await React.act(async()=>window.dispatchEvent(new window.Event('usd:cookie-open')));
+   assert.ok(document.querySelector('.cookie-notice'),'visitor can reopen settings at any time');
+   await React.act(async()=>document.querySelectorAll('.cookie-notice__button')[1].click());
+   assert.equal(window.localStorage.getItem('usd_traffic_analytics_consent_v1'),'yes','tracking requires a new explicit opt-in');
+   await React.act(async()=>window.dispatchEvent(new window.Event('usd:cookie-open')));
+   await React.act(async()=>document.querySelectorAll('.cookie-notice__button')[0].click());
+   assert.equal(window.localStorage.getItem('usd_traffic_analytics_consent_v1'),'no','permission may be withdrawn without clearing browser storage');
   }finally{await React.act(async()=>root.unmount())}
  }finally{
   dom.window.close();

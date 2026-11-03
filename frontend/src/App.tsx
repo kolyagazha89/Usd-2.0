@@ -10,6 +10,7 @@ import PublicMeasurements from './public/PublicMeasurements';
 import {Link as PublicLink,Photo as PublicPhoto} from './public/PremiumUI';
 import {usePhotoPlaceholders} from './public/usePhotoPlaceholders';
 import {useVehicleDirectory} from './use-vehicle-directory';
+import {recordConsentedTrafficVisit} from './public/traffic-tracking';
 import PublicCommunity,{communityRoutes,communityTitle} from './public/PublicCommunity';
 import UsdIdLanding from './public/UsdIdLanding';
 import {PremiumProvider,PremiumHeader,PremiumFooter,PublicMetadata} from './public/PremiumShell';
@@ -176,6 +177,12 @@ function EmailVerificationPage({onGoLogin}:{onGoLogin:()=>void}){
  return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div><div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div><h1>{status==='loading'?'Проверяем ссылку':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1><p className="muted">{message}</p>{status==='loading'&&<div className="participant-loading"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}{status!=='loading'&&<button className="primary-button" onClick={onGoLogin}>{status==='success'?'Войти':'Вернуться ко входу'}<ChevronRight size={18}/></button>}</div></div>;
 }
 function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|null}){
+ useEffect(()=>{
+  const record=()=>{void recordConsentedTrafficVisit(path)};
+  record();
+  window.addEventListener('usd:analytics-consent-changed',record);
+  return()=>window.removeEventListener('usd:analytics-consent-changed',record);
+ },[path]);
  const [homeMinDelayPassed,setHomeMinDelayPassed]=useState(false);
  const [winnersReady,setWinnersReady]=useState<{stages:any[];settings:any}|null>(null);
  const [liveReady,setLiveReady]=useState<{stages:any[];settings:any}|null>(null);

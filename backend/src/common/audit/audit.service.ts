@@ -39,7 +39,10 @@ export class AuditService {
 
     const where = {
       ...(params.entity ? { entity: params.entity } : {}),
-      ...(params.action ? { action: params.action } : {}),
+      // Anonymous traffic diagnostics belong to their own admin overview, not
+      // the operational SECURITY audit timeline. Explicit filtering still
+      // allows ADMIN to inspect a specific traffic action when necessary.
+      ...(params.action ? { action: params.action } : { action: { not: 'PUBLIC_PAGE_VIEW' } }),
     };
 
     const [total, items] = await Promise.all([

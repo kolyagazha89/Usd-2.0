@@ -1,0 +1,12 @@
+/* Browser traffic summary belongs to the light administrative visual system. */
+.app-shell .usd-traffic-analytics{display:grid;gap:18px}
+.app-shell .usd-traffic-analytics .statistics-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.app-shell .usd-traffic-columns{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;min-width:0}
+.app-shell .usd-traffic-columns>div{min-width:0}
+.app-shell .usd-traffic-columns h3{font-size:15px;margin:0 0 12px;color:#282b32}
+.app-shell .usd-traffic-day-list{display:grid;gap:0}
+.app-shell .usd-traffic-day-list>div{display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid #e5e7ec;font-size:12px;color:#555e6a}
+.app-shell .usd-traffic-day-list strong{color:#222630;font-variant-numeric:tabular-nums}
+.usd-live .usd-footer-cookie-settings{border:0;background:transparent;color:#c8cdd5;text-decoration:underline;cursor:pointer;font:inherit}
+.usd-live .usd-footer-cookie-settings:focus-visible{outline:2px solid #ff5067;outline-offset:3px}
+@media(max-width:800px){.app-shell .usd-traffic-columns{grid-template-columns:minmax(0,1fr)}}
