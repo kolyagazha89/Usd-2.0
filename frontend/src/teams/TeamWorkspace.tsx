@@ -43,9 +43,9 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
  const changePost=(post:TeamPost,status:TeamPost['status'])=>run(
   ()=>status==='PUBLISHED'
    // Publish the stored snapshot, not a stale form copy.
-   ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/approve',{})
+   ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/approve',{reviewedAt:post.updatedAt})
    :admin&&post.status==='IN_REVIEW'&&status==='DRAFT'
-    ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/return',{})
+    ?apiPost(base+'/posts/'+encodeURIComponent(post.id)+'/return',{reviewedAt:post.updatedAt})
     :apiPatch(base+'/posts/'+encodeURIComponent(post.id),{kind:post.kind,title:post.title,body:post.body,status,images:post.images??[]}),
   status==='PUBLISHED'?'Материал опубликован':'Материал возвращён в черновик'
  );
