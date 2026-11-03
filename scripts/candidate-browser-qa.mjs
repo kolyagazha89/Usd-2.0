@@ -351,7 +351,7 @@ try{
       }
       if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
       if(paint.eventDesk){
-       assert.match(paint.eventDesk.image,/rgb\\(255,\\s*255,\\s*255\\)/,'event workflow context must be pearl, not a leftover black rectangle');
+       assert.match(paint.eventDesk.image,/rgb\(255,\s*255,\s*255\)/,'event workflow context must be pearl, not a leftover black rectangle');
        assert.equal(paint.eventDesk.color,'rgb(35, 39, 48)','event workflow context has readable graphite typography');
       }
       assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
