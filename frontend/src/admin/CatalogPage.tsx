@@ -146,7 +146,107 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  </section>}
  { !vibration && <div className="panel component-request-queue"><PanelTitle title={`Очередь запросов участников · ${requests.filter((x:any)=>x.status==='PENDING').length}`} icon={Package}/><p className="settings-help">Запросы приходят сюда и на email администраторов. После добавления модели участник получает сервисное письмо.</p>{requests.length===0?<Empty text="Запросов пока нет"/>:<div className="catalog-list">{requests.map((item:any)=><article className="catalog-request-row" key={item.id}><div className="catalog-model-label"><strong>{item.brand} {item.model}</strong><small>{CATALOG_CATEGORIES.find(x=>x.value===item.category)?.label??item.category} · {item.userEmail}</small><small>{new Date(item.createdAt).toLocaleString('ru-RU')} · {item.status==='PENDING'?'Ожидает':item.status==='APPROVED'?'Добавлено':'Отклонено'}</small><small>Письмо администратору: {item.adminEmailStatus==='PROVIDER_ACCEPTED'?'провайдер принял':item.adminEmailStatus==='FAILED'?'ошибка отправки':'ожидает отправки'}{item.status==='APPROVED'?' · письмо участнику: '+(item.participantEmailStatus==='PROVIDER_ACCEPTED'?'провайдер принял':item.participantEmailStatus==='FAILED'?'ошибка отправки':'ожидает отправки'):''}</small>{item.details&&<p>{item.details}</p>}{item.adminNote&&<small>Комментарий: {item.adminNote}</small>}</div>{(item.adminEmailStatus==='FAILED'||(item.status==='APPROVED'&&item.participantEmailStatus==='FAILED'))&&<button className="secondary-button compact" disabled={!!requestBusy} onClick={async()=>{setRequestBusy(item.id);try{await retryComponentCatalogRequestEmail(item.id);const r=await getComponentCatalogRequests();setRequests(r.items??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось повторить отправку письма')}finally{setRequestBusy('')}}}>Повторить отправку письма</button>}{item.status==='PENDING'&&<div className="catalog-request-actions"><input value={requestNote[item.id]??''} onChange={e=>setRequestNote(s=>({...s,[item.id]:e.target.value}))} placeholder="Комментарий участнику (необязательно)"/><div className="catalog-category-tabs"><button className="primary-button compact" disabled={!!requestBusy} onClick={async()=>{setRequestBusy(item.id);try{await approveComponentCatalogRequest(item.id,requestNote[item.id]);const r=await getComponentCatalogRequests();setRequests(r.items??[]);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось добавить комплектующее')}finally{setRequestBusy('')}}}>{requestBusy===item.id?'Обработка…':'Добавить и уведомить'}</button><button className="secondary-button compact" disabled={!!requestBusy} onClick={async()=>{setRequestBusy(item.id);try{await rejectComponentCatalogRequest(item.id,requestNote[item.id]);const r=await getComponentCatalogRequests();setRequests(r.items??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось отклонить запрос')}finally{setRequestBusy('')}}}>Отклонить</button></div></div>}</article>)}</div>}</div> }
 
- {vibration?<><div className="panel catalog-add-panel"><PanelTitle title="Добавить марку" icon={Layers}/><p className="settings-help">Здесь хранятся только бренды виброизоляции — без шумоизоляции и прочих материалов.</p><form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addVibrationBrand()}}><input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="Например, STP, ComfortMat, Audior" required/><button className="primary-button compact" disabled={saving||!brand.trim()}><Plus size={15}/>Добавить</button></form></div><div className="panel"><PanelTitle title={'Марки в справочнике · '+catalogs.vibrationBrands.length} icon={Layers}/><div className="catalog-chip-list">{catalogs.vibrationBrands.filter((x:string)=>x.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).map((x:string)=><div className="catalog-chip" key={x}><strong>{x}</strong>{confirmRemoveKey==='vibration:'+x?<span className="inline-confirm-actions"><span>Удалить марку?</span><button className="danger-button compact" disabled={saving} onClick={()=>void removeVibrationBrand(x)}>Подтвердить</button><button className="secondary-button compact" onClick={()=>setConfirmRemoveKey("")}>Отмена</button></span>:<button className="icon-button danger" disabled={saving} title={'Удалить '+x} onClick={()=>setConfirmRemoveKey('vibration:'+x)}><Trash2 size={14}/></button>}</div>)}{!catalogs.vibrationBrands.length&&<Empty text="Добавьте первую марку виброизоляции"/>}</div></div></>:<><div className="panel catalog-category-panel"><PanelTitle title="Категория оборудования" icon={Package}/><div className="catalog-category-tabs">{CATALOG_CATEGORIES.map(x=><button key={x.value} className={'secondary-button compact '+(category===x.value?'active':'')} onClick={()=>{setCategory(x.value);setModelBrand('');setBrand('');setModel('');setError('');setNotice('')}}>{x.label}</button>)}</div></div><div className="catalog-two-column"><div className="panel"><PanelTitle title="Марки" icon={Layers}/><form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentBrand()}}><input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="Новая марка" required/><button className="primary-button compact" disabled={saving||!brand.trim()}><Plus size={15}/>Добавить</button></form><div className="catalog-list">{brands.map((x:any)=><div className={'catalog-list-row '+(modelBrand===x.name?'selected':'')} key={x.id}><button className="catalog-list-select" onClick={()=>setModelBrand(x.name)}><strong>{x.name}</strong><small>{x.isActive===false?'Отключена · ':''}{catalogs.componentModels.filter((m:any)=>m.category===category&&m.brand===x.name&&m.isActive!==false).length} активных моделей</small></button><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentBrand(x)}>{x.isActive===false?'Включить марку':'Отключить марку'}</button></div>)}{!brands.length&&<Empty text="В этой категории пока нет марок"/>}</div></div><div className="panel"><PanelTitle title="Модели" icon={Package}/><p className="settings-help">Отключённые модели сохраняют ID и историю, но недоступны для новых конфигураций. После включения марки модели включаются отдельно.</p><p className="settings-help">{modelBrand?'Выбрана марка: '+modelBrand:'Выберите марку слева, чтобы добавлять модели.'}</p><form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentModel()}}><select value={modelBrand} onChange={e=>setModelBrand(e.target.value)} required><option value="">Выберите марку</option>{brands.map((x:any)=><option key={x.id} value={x.name}>{x.name}</option>)}</select><input value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" required/><button className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button></form><div className="toolbar"><div className="search-box"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск марки или модели"/></div><div className="catalog-category-tabs"><button className={"secondary-button compact "+(lifecycleFilter==='ALL'?'active':'')} onClick={()=>setLifecycleFilter('ALL')}>Все</button><button className={"secondary-button compact "+(lifecycleFilter==='ACTIVE'?'active':'')} onClick={()=>setLifecycleFilter('ACTIVE')}>Актуальные</button><button className={"secondary-button compact "+(lifecycleFilter==='DISCONTINUED'?'active':'')} onClick={()=>setLifecycleFilter('DISCONTINUED')}>Снятые с производства</button></div></div><div className="catalog-list">{models.map((x:any)=><div className="catalog-list-row" key={x.id}><div className="catalog-model-label"><strong>{x.model}</strong><small>{x.brand} · {x.isActive===false?'отключена · ':''}{(x.lifecycle??'UNKNOWN')==='DISCONTINUED'?'снята с производства':(x.lifecycle??'UNKNOWN')==='ACTIVE'?'актуальная модель':'статус не проверен'}</small></div><button className="secondary-button compact" disabled={saving} onClick={()=>void saveCatalogs({...catalogs,componentModels:catalogs.componentModels.map((m:any)=>m.id===x.id?{...m,lifecycle:m.lifecycle==='DISCONTINUED'?'ACTIVE':'DISCONTINUED'}:m)})}>{x.lifecycle==='DISCONTINUED'?'Вернуть в актуальные':'Отметить снятой'}</button><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentModel(x)}>{x.isActive===false?'Включить модель':'Отключить модель'}</button></div>)}{!models.length&&<Empty text={modelBrand?'У этой марки пока нет моделей':'Нет моделей по выбранному фильтру'}/>}</div></div></div></>}
+ {vibration?<><div className="panel catalog-add-panel"><PanelTitle title="Добавить марку" icon={Layers}/><p className="settings-help">Здесь хранятся только бренды виброизоляции — без шумоизоляции и прочих материалов.</p><form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addVibrationBrand()}}><input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="Например, STP, ComfortMat, Audior" required/><button className="primary-button compact" disabled={saving||!brand.trim()}><Plus size={15}/>Добавить</button></form></div><div className="panel"><PanelTitle title={'Марки в справочнике · '+catalogs.vibrationBrands.length} icon={Layers}/><div className="catalog-chip-list">{catalogs.vibrationBrands.filter((x:string)=>x.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).map((x:string)=><div className="catalog-chip" key={x}><strong>{x}</strong>{confirmRemoveKey==='vibration:'+x?<span className="inline-confirm-actions"><span>Удалить марку?</span><button className="danger-button compact" disabled={saving} onClick={()=>void removeVibrationBrand(x)}>Подтвердить</button><button className="secondary-button compact" onClick={()=>setConfirmRemoveKey("")}>Отмена</button></span>:<button className="icon-button danger" disabled={saving} title={'Удалить '+x} onClick={()=>setConfirmRemoveKey('vibration:'+x)}><Trash2 size={14}/></button>}</div>)}{!catalogs.vibrationBrands.length&&<Empty text="Добавьте первую марку виброизоляции"/>}</div></div></>:<>
+ <section className="panel catalog-category-panel">
+  <PanelTitle title="Категория оборудования" icon={Package}/>
+  <div className="catalog-category-tabs">{CATALOG_CATEGORIES.map(x=><button type="button" key={x.value} className={'secondary-button compact '+(category===x.value?'active':'')} onClick={()=>{setCategory(x.value);setModelBrand('');setEditor(null);setConfirmBulkScope(null);setConfirmRemoveKey('');setError('');setNotice('')}}>{x.label}</button>)}</div>
+ </section>
+ <section className="panel catalog-bulk-panel" aria-label="Массовое включение комплектующих">
+  <PanelTitle title="Доступность справочника" icon={CheckCircle2}/>
+  <p className="settings-help">«Включить все» активирует отключённые марки и модели за одно сохранение. Удалённые (архивные) записи остаются в архиве и восстанавливаются отдельно.</p>
+  <div className="catalog-bulk-actions">
+   <button type="button" className="secondary-button compact" disabled={saving||categoryCounts.total===0} onClick={()=>setConfirmBulkScope(category)}>Включить все в категории · {categoryCounts.total}</button>
+   <button type="button" className="secondary-button compact" disabled={saving||allCounts.total===0} onClick={()=>setConfirmBulkScope('ALL')}>Включить все во всём справочнике · {allCounts.total}</button>
+  </div>
+  {confirmBulkScope&&<div className="catalog-inline-confirm" role="group" aria-label="Подтверждение массового включения">
+   <span>{confirmBulkScope==='ALL'?'Весь справочник':CATALOG_CATEGORIES.find(x=>x.value===confirmBulkScope)?.label}: включить {activationCounts(componentCatalog,confirmBulkScope).brands} марок и {activationCounts(componentCatalog,confirmBulkScope).models} моделей?</span>
+   <button type="button" className="primary-button compact" disabled={saving} onClick={()=>void activateAll(confirmBulkScope)}>Подтвердить включение</button>
+   <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setConfirmBulkScope(null)}>Отмена</button>
+  </div>}
+ </section>
+ <div className="toolbar catalog-filter-bar">
+  <div className="search-box"><Search size={15}/><input value={query} aria-label="Поиск по брендам и моделям" onChange={e=>setQuery(e.target.value)} placeholder="Поиск марки или модели"/></div>
+  <label className="catalog-filter-label">Статус
+   <select value={activityFilter} onChange={e=>setActivityFilter(e.target.value as typeof activityFilter)} aria-label="Статус записей справочника">
+    <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
+   </select>
+  </label>
+ </div>
+ <div className="catalog-two-column">
+  <section className="panel">
+   <PanelTitle title={'Марки · '+brands.length} icon={Layers}/>
+   <form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentBrand()}}>
+    <input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="Новая марка" aria-label="Новая марка комплектующих" required maxLength={100}/>
+    <button type="submit" className="primary-button compact" disabled={saving||!brand.trim()}><Plus size={15}/>Добавить</button>
+   </form>
+   <div className="catalog-list">{brands.map((x:any)=>
+    <div className={'catalog-list-row catalog-manage-row '+(modelBrand===x.name?'selected':'')} key={x.id}>
+     {editor?.kind==='brand'&&editor.id===x.id?
+      <form className="catalog-inline-editor" onSubmit={e=>{e.preventDefault();void saveEditor()}}>
+       <label>Название марки<input autoFocus value={editor.value} onChange={e=>setEditor({...editor,value:e.target.value})} maxLength={100}/></label>
+       <div className="catalog-row-actions"><button type="submit" className="primary-button compact" disabled={saving||!editor.value.trim()}>Сохранить</button><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor(null)}>Отмена</button></div>
+      </form>:
+      <>
+       <button type="button" className="catalog-list-select" onClick={()=>setModelBrand(x.name)} aria-pressed={modelBrand===x.name}>
+        <strong>{x.name}</strong>
+        <small>{x.isArchived?'Удалена (архив)':x.isActive===false?'Отключена':'Включена'} · {catalogs.componentModels.filter((m:any)=>m.category===category&&m.brand===x.name&&m.isActive!==false&&!m.isArchived).length} активных моделей</small>
+       </button>
+       <div className="catalog-row-actions">
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'brand',id:x.id,value:x.name,brand:x.name})}><Pencil size={13}/>Редактировать</button>
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentBrand(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить':'Отключить'}</button>
+        {confirmRemoveKey==='brand:'+x.id?
+         <div className="catalog-inline-confirm" role="group"><span>Убрать марку и её модели из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('brand',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
+         !x.isArchived&&<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setConfirmRemoveKey('brand:'+x.id)}><Trash2 size={13}/>Удалить</button>}
+       </div>
+      </>}
+    </div>)}
+    {!brands.length&&<Empty text={query||activityFilter!=='ALL'?'Марки по фильтру не найдены':'В этой категории пока нет марок'}/>}
+   </div>
+  </section>
+  <section className="panel">
+   <PanelTitle title={'Модели · '+models.length} icon={Package}/>
+   <p className="settings-help">{modelBrand?'Выбрана марка: '+modelBrand:'Выберите марку слева для добавления модели или просматривайте все модели.'} Удаление сохраняет ID и историю конфигураций.</p>
+   <form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentModel()}}>
+    <select aria-label="Марка новой модели" value={modelBrand} onChange={e=>setModelBrand(e.target.value)} required>
+     <option value="">Выберите марку</option>{selectBrands.map((x:any)=><option key={x.id} value={x.name}>{x.name}</option>)}
+    </select>
+    <input aria-label="Название новой модели" value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" maxLength={160} required/>
+    <button type="submit" className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button>
+   </form>
+   <div className="catalog-category-tabs catalog-model-filters">
+    <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ALL'?'active':'')} onClick={()=>setLifecycleFilter('ALL')}>Все</button>
+    <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ACTIVE'?'active':'')} onClick={()=>setLifecycleFilter('ACTIVE')}>Актуальные</button>
+    <button type="button" className={'secondary-button compact '+(lifecycleFilter==='DISCONTINUED'?'active':'')} onClick={()=>setLifecycleFilter('DISCONTINUED')}>Снятые с производства</button>
+    {modelBrand&&<button type="button" className="secondary-button compact" onClick={()=>setModelBrand('')}>Все марки</button>}
+   </div>
+   <div className="catalog-list">{models.map((x:any)=>
+    <div className="catalog-list-row catalog-manage-row" key={x.id}>
+     {editor?.kind==='model'&&editor.id===x.id?
+      <form className="catalog-inline-editor" onSubmit={e=>{e.preventDefault();void saveEditor()}}>
+       <label>Модель<input autoFocus value={editor.value} onChange={e=>setEditor({...editor,value:e.target.value})} maxLength={160}/></label>
+       <label>Марка<select value={editor.brand} onChange={e=>setEditor({...editor,brand:e.target.value})}>{selectBrands.map((b:any)=><option key={b.id} value={b.name}>{b.name}</option>)}</select></label>
+       <div className="catalog-row-actions"><button type="submit" className="primary-button compact" disabled={saving||!editor.value.trim()}>Сохранить</button><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor(null)}>Отмена</button></div>
+      </form>:
+      <>
+       <div className="catalog-model-label">
+        <strong>{x.model}</strong>
+        <small>{x.brand} · {x.isArchived?'Удалена (архив)':x.isActive===false?'Отключена':'Включена'} · {(x.lifecycle??'UNKNOWN')==='DISCONTINUED'?'снята с производства':(x.lifecycle??'UNKNOWN')==='ACTIVE'?'актуальная':'статус не проверен'}</small>
+       </div>
+       <div className="catalog-row-actions">
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'model',id:x.id,value:x.model,brand:x.brand})}><Pencil size={13}/>Редактировать</button>
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void saveCatalogs({...catalogs,componentModels:catalogs.componentModels.map((m:any)=>m.id===x.id?{...m,lifecycle:m.lifecycle==='DISCONTINUED'?'ACTIVE':'DISCONTINUED'}:m)})}>{x.lifecycle==='DISCONTINUED'?'Вернуть в актуальные':'Снята с производства'}</button>
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentModel(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить':'Отключить'}</button>
+        {confirmRemoveKey==='model:'+x.id?
+         <div className="catalog-inline-confirm" role="group"><span>Убрать модель из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('model',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
+         !x.isArchived&&<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setConfirmRemoveKey('model:'+x.id)}><Trash2 size={13}/>Удалить</button>}
+       </div>
+      </>}
+    </div>)}
+    {!models.length&&<Empty text="Нет моделей по выбранному фильтру"/>}
+   </div>
+  </section>
+ </div>
+ </>}
  {!vibration&&<section className="panel" aria-label="Типы аккумуляторов">
   <PanelTitle title={'Типы аккумуляторов · '+(catalogs.batteryTypes??[]).length} icon={Layers}/>
   <p className="settings-help">Химия и конструкция — разные свойства. AGM, GEL и EFB относятся к свинцово-кислотным аккумуляторам. Не удаляйте используемый тип: отключите его для новых конфигураций.</p>
