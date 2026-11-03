@@ -419,7 +419,10 @@ describe('RegistrationsService', () => {
           additionalDescription: 'Test',
           configuration: { id: 'configuration-1', name: 'Основная' },
           headUnits: [],
-          audioComponents: [{ id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 }],
+          audioComponents: [
+            { id: 'sub-1', brand: 'Test', model: 'Subwoofer', direction: 'SUB', type: 'SUBWOOFER', quantity: 1 },
+            { id: 'front-1', brand: 'Test', model: 'Speaker', direction: 'FRONT', type: 'SPEAKER', quantity: 1 },
+          ],
           amplifiers: [],
           batteries: [],
           generators: [],
