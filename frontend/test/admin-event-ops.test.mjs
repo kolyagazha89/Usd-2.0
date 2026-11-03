@@ -5,6 +5,7 @@ import {
   operationsSearchText,matchesOperationsSearch,
   summarizeRegistrations,filterRegistrations,
   summarizeInspections,filterInspections,isPendingInspection,
+  walkInRegistrationPath,canOpenWalkInRegistration,isPendingEquipment,
 } from '../src/admin/event-ops-model.ts';
 
 const rows=[
@@ -30,6 +31,31 @@ test('registration totals always represent all statuses even when list is filter
  assert.deepEqual(filterRegistrations(rows,'CANCELLED','').map(r=>r.id),['c']);
  assert.deepEqual(filterRegistrations(rows,'ALL','').map(r=>r.id),['a','b','c','d']);
  assert.deepEqual(filterRegistrations(rows,'ACTIVE','',true).map(r=>r.id),['a','b','c','d']);
+});
+
+test('pending equipment tracks active uncompleted on-site drafts only',()=>{
+ const unfinished={status:'ACTIVE',configurationSnapshot:{configurationPending:true}};
+ assert.equal(isPendingEquipment(unfinished),true);
+ assert.equal(isPendingEquipment({...unfinished,status:'CANCELLED'}),false);
+ assert.equal(isPendingEquipment({status:'ACTIVE',configurationSnapshot:{configurationPending:false}}),false);
+ assert.equal(isPendingEquipment({status:'ACTIVE',configurationSnapshot:{configurationPending:true,postStageCompletion:{versionId:'actual-v2'}}}),false);
+ assert.equal(isPendingEquipment({status:'ACTIVE',configurationSnapshot:{configurationPending:true,postStageCompletion:{versionId:' '}}}),true);
+ assert.equal(isPendingEquipment({status:'ACTIVE'}),false);
+ assert.equal(isPendingEquipment({status:'ACTIVE',configurationSnapshot:{configurationPending:true,postStageCompletion:{versionId:123}}}),true);
+});
+
+test('registrations admin can filter overdue equipment and open its specific inspection',async()=>{
+ const [registration,css]=await Promise.all([
+  readFile(new URL('../src/admin/RegistrationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/ui-consistency.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(registration,/rows\.filter\(isPendingEquipment\)\.length/);
+ assert.match(registration,/filterRegistrations\(rows,status,query,pastStage\)\.filter\(r=>!pendingOnly\|\|isPendingEquipment\(r\)\)/);
+ assert.match(registration,/aria-pressed=\{pendingOnly\}/);
+ assert.match(registration,/Оборудование не заполнено/);
+ assert.match(registration,/encodeURIComponent\(stageId\)\+'\&registrationId='\+encodeURIComponent\(r\.id\)/);
+ assert.match(css,/\.event-ops-metrics>\.event-ops-pending-filter/);
+ assert.match(css,/@media\(max-width:750px\)/);
 });
 
 test('operations search supports name, class, team, car plate, stage number and multi-term queries',()=>{
@@ -60,6 +86,68 @@ test('inspection counters and real queue filters never mistake failed for pendin
  assert.deepEqual(filterInspections([...rows,cancelledFailed],'FAILED','').map(r=>r.id),['b']);
  assert.equal(summarizeInspections([...rows,cancelledPassed]).passed,1);
  assert.equal(filterInspections([...rows,cancelledPassed],'PASSED','').length,1);
+});
+
+test('gate registration uses an exact stage link, protects past events and never opens from a malformed intent',()=>{
+ const stageId='этап А / #3';
+ const route=walkInRegistrationPath(stageId);
+ assert.equal(route,'/admin/inspections?stageId='+encodeURIComponent(stageId)+'&register=1');
+ const query=new URL(route,'https://app.usd-russia.ru').search;
+ assert.equal(new URLSearchParams(query).get('stageId'),stageId);
+ assert.equal(canOpenWalkInRegistration(query,false),true);
+ assert.equal(canOpenWalkInRegistration(query,true),false);
+ for(const unsafe of ['?register=0','?register=true','?register=','?Register=1','']) {
+  assert.equal(canOpenWalkInRegistration(unsafe,false),false,unsafe);
+ }
+});
+
+test('the registration desk enters the correct live stage and never offers walk-in on an archive',async()=>{
+ const [registration,inspection,css]=await Promise.all([
+  readFile(new URL('../src/admin/RegistrationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/ui-consistency.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(registration,/!pastStage&&<button type="button" className="primary-button compact"/);
+ assert.match(registration,/go\(walkInRegistrationPath\(stageId\)\)/);
+ assert.match(registration,/disabled=\{!stageId\|\|loading\}/);
+ assert.match(inspection,/loadingStages\?<LoadingPage small\/>/,'initial stage must be validated before rendering gate form');
+ assert.match(inspection,/!initialRegistrationId&&canOpenWalkInRegistration\(location\.search,readOnly\)/);
+ assert.match(inspection,/registerOpen&&!readOnly/,'a crafted past-stage URL cannot mount the write form');
+ assert.match(inspection,/params\.delete\('register'\)/,'closing the form must clear its one-shot URL intent');
+ assert.match(inspection,/onClose=\{closeWalkInRegistration\}/);
+ assert.match(inspection,/onSaved=\{async\(registrationId:string\)=>\{closeWalkInRegistration\(\);const updated=await load\(\)/);
+ assert.match(inspection,/updated\.some\(\(item:any\)=>item\.id===registrationId\)/,'new registration must be in the selected stage roster');
+ assert.match(inspection,/setSelectedRegistrationId\(registrationId\)/,'operator must continue directly to inspection');
+ assert.match(inspection,/params\.set\('registrationId',registrationId\)/,'QR and history links retain the newly saved selection');
+ assert.match(inspection,/const created=await apiPost<\{id:string\}>\('\/registrations'/,'use the saved registration ID from backend');
+ assert.match(inspection,/Итоговый список допущенных доступен ниже/,'the admitted roster is viewed inside USD, not downloaded as CSV');
+ assert.match(inspection,/classIds\.length>=5/,'a sixth class must be disabled at on-site registration');
+ assert.match(inspection,/apiPost<\{participantId:string;carId:string\}>\('\/registrations\/on-site\/profile'/);
+ assert.match(inspection,/privacyConsent,termsAccepted,/,'consent is sent before any new identity record is stored');
+ assert.match(inspection,/const updated=await load\(\)/,'new registration must be reloaded from the server');
+ assert.match(inspection,/!configurationVersionId&&carId&&/,'missing hardware must be explicitly shown as pending');
+ assert.match(inspection,/r\.configurationSnapshot\?\.configurationPending===true/,'the inspection list and detail must warn about the pending equipment draft');
+ assert.match(inspection,/apiPost<\{participantId:string;carId:string\}>\('\/registrations\/on-site\/car'/,'existing participants can add a new car without duplicate profiles');
+ assert.match(inspection,/setCarId\(created\.carId\)/,'new car is selected for continued registration');
+ assert.match(inspection,/apiPatch\('\/registrations\/'\+encodeURIComponent\(registrationId\)\+'\/configuration'/,'operator can confirm the actual equipment');
+ assert.match(inspection,/onClick=\{\(\)=>void confirmConfiguration\(\)\}/,'pending confirmation is actionable');
+ assert.match(inspection,/const canDocumentEquipment=!readOnly\|\|user.role==='ADMIN'/,'ADMIN may document equipment for archived stage without editing inspection');
+ assert.match(inspection,/Конфигурацию можно заполнить после этапа/);
+ assert.match(inspection,/\{canDocumentEquipment&&<div className="event-ops-confirm-config">/);
+ assert.match(inspection,/!confirmChoices\.length&&!confirmLoading/,'the operator sees a meaningful empty state');
+ assert.match(inspection,/setConfirmChoices\(options\);setChosenConfiguration\(''\)/,'judge must explicitly select the actual saved equipment version');
+ assert.match(inspection,/const configurations=\(selectedCar\?\.configurations\?\?\[\]\)\.flatMap\(\(cfg:any\)=>\(cfg\.versions\?\?\[\]\)\.filter\(\(v:any\)=>v\.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING'\)/,'judge cannot accidentally select a previous event-day placeholder');
+
+ assert.match(inspection,/Конфигурация ожидает заполнения/);
+ assert.match(inspection,/configurationVersionId\?\{configurationVersionId\}:\{\}/,'on-site draft is authorized only on the API, not forged by client');
+ assert.match(inspection,/pendingCreatedCarId\.current=created\.carId/);
+ assert.match(css,/\.event-ops-newcomer-fields/);
+ assert.match(css,/@media\(max-width:620px\)/);
+ assert.match(inspection,/if\(classIds\.length>5\)\{setError\('Можно выбрать не более 5 классов на регистрацию'\);return\}/);
+ assert.match(inspection,/Выбрано классов: \{classIds\.length\} из 5/,'judge sees why further classes are unavailable');
+ assert.match(inspection,/!isBassRace\(x\)&&selectedDirections\.has\(directionId\)/,'non-BassRace direction exclusivity is preserved');
+ assert.match(css,/\.event-ops-quick-actions/);
+ assert.match(css,/@media\(max-width:375px\)/);
 });
 
 test('operations UI preserves stage deep links and real mobile width',async()=>{

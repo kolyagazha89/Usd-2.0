@@ -699,6 +699,19 @@ body .field-mode .main .content > .page.event-ops-page {
 .event-ops-intro h2{font-size:clamp(22px,2.5vw,30px);line-height:1.2;letter-spacing:-.035em;margin:8px 0;color:#111827}
 .event-ops-intro p{font-size:14px;line-height:1.55;color:#64748b;margin:0 0 12px}
 .event-ops-intro .secondary-button{display:inline-flex;align-items:center;gap:8px;min-height:40px}
+.event-ops-newcomer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:14px;padding:15px;border-radius:14px;background:#f8fafc;border:1px solid #e4e7ed}
+.event-ops-newcomer p{flex:1 1 260px;margin:0;line-height:1.5;color:#475569;font-size:13px}
+.event-ops-newcomer-form{min-width:0;padding:18px;margin-top:14px;background:#fff;border:1px solid #e2e6ed;border-radius:18px;box-sizing:border-box}
+.event-ops-newcomer-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.event-ops-newcomer-fields label{display:grid;align-content:start;gap:6px;min-width:0;font-size:12px;font-weight:700;color:#334155}
+.event-ops-newcomer-fields :is(input,select){display:block;min-width:0;width:100%;min-height:44px;font-size:16px!important;color:#17212f;border:1px solid #d8dde5;background:#fff;border-radius:11px;box-sizing:border-box}
+.event-ops-newcomer-form .field-help{display:block;margin:14px 0;color:#64748b;line-height:1.6}
+.event-ops-newcomer-form button{max-width:100%;min-height:44px;white-space:normal}
+@media(max-width:620px){.event-ops-newcomer-fields{grid-template-columns:minmax(0,1fr)}.event-ops-newcomer-form{padding:14px}}
+.event-ops-intro .event-ops-quick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;max-width:100%}
+.event-ops-intro .event-ops-quick-actions button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;max-width:100%;white-space:normal;text-align:center}
+.event-ops-intro .event-ops-quick-actions button:focus-visible{outline:2px solid #d52c41;outline-offset:3px}
+@media(max-width:375px){.event-ops-intro .event-ops-quick-actions button{width:100%}}
 .event-ops-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1 1 330px;gap:10px;max-width:530px}
 .event-ops-metrics>div{
   display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;min-width:0;
@@ -844,3 +857,42 @@ body .app-shell .main .content .event-ops-page{display:block;min-width:0;width:1
 body .app-shell .main .content .event-ops-page > :is(.panel,.toolbar,.event-ops-overview,.event-ops-results){min-width:0;max-width:100%;box-sizing:border-box}
 body .app-shell .main .content .event-ops-page .event-ops-toolbar{width:100%;min-width:0;box-sizing:border-box}
 body .app-shell .main .content .event-ops-page .event-ops-results{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+
+/* Follow-up equipment confirmation for a registration created at the gate. */
+.event-ops-pending-config{display:grid;gap:12px;min-width:0;margin:16px 0}
+.event-ops-confirm-config{display:flex;align-items:end;flex-wrap:wrap;gap:12px;min-width:0;padding:16px;border:1px solid #e4e7ed;border-radius:14px;background:#f9fafb}
+.event-ops-confirm-config label{display:grid;gap:6px;min-width:200px;flex:1 1 260px;font-size:13px;font-weight:700;color:#334155}
+.event-ops-confirm-config select{min-height:44px;min-width:0;width:100%;max-width:100%;box-sizing:border-box;font-size:16px;color:#17212f;background:#fff;border:1px solid #cbd5e1;border-radius:10px}
+.event-ops-confirm-config button{min-height:44px;max-width:100%;white-space:normal}
+.event-ops-confirm-config .field-help{flex-basis:100%;margin:0}
+@media(max-width:620px){.event-ops-confirm-config{padding:12px}.event-ops-confirm-config button{width:100%}.event-ops-confirm-config label{min-width:0}}
+
+/* Pending hardware after a competition: self-service from the participant account. */
+.pending-equipment-card{display:grid;gap:12px;min-width:0;padding:16px;border:1px solid #e4ac82;border-radius:16px;background:#fff8f0;color:#422c21}
+.pending-equipment-card>strong{font-size:15px;color:#522a21}
+.pending-equipment-card p{margin:0;line-height:1.6;color:#6b4836}
+.pending-equipment-card .pending-equipment-actions{display:flex;align-items:end;gap:10px;flex-wrap:wrap;min-width:0}
+.pending-equipment-card label{display:grid;gap:6px;min-width:190px;flex:1 1 210px;font-size:12px;font-weight:700}
+.pending-equipment-card select{display:block;min-width:0;width:100%;min-height:44px;border-radius:10px;background:#fff;color:#171717;border:1px solid #b8a69c;font-size:16px;box-sizing:border-box}
+.pending-equipment-card button{min-height:44px;max-width:100%;white-space:normal}
+.pending-equipment-card .form-error{margin:0}
+@media(max-width:560px){.pending-equipment-card{padding:12px}.pending-equipment-card .pending-equipment-actions button{width:100%}.pending-equipment-card label{min-width:0}}
+
+/* Participant landing state: missing post-stage equipment is a next-event gate, not a lost result. */
+.member-equipment-warning{display:flex;gap:12px;align-items:start;padding:16px;margin-bottom:18px;background:#fff8ec;border:1px solid #b87b34;border-radius:14px;color:#4e321d;min-width:0}
+.member-equipment-warning svg{flex:none;color:#a96725}
+.member-equipment-warning strong{font-size:15px}
+.member-equipment-warning p{margin:5px 0 0;line-height:1.5;font-size:13px;color:#64452c}
+@media(max-width:560px){.member-equipment-warning{padding:12px;gap:9px}}
+
+/* Actionable unresolved-equipment metric on both live and archived stage rosters. */
+.event-ops-metrics{grid-template-columns:repeat(4,minmax(0,1fr));max-width:710px}
+.event-ops-metrics>.event-ops-pending-filter{
+  display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;min-width:0;
+  padding:15px 13px;border:1px solid #e8ebf0;border-radius:15px;background:#fff;
+  color:#101828;cursor:pointer;text-align:left
+}
+.event-ops-metrics>.event-ops-pending-filter:hover,.event-ops-metrics>.event-ops-pending-filter[aria-pressed="true"]{background:#fff6f2;border-color:#ce3850}
+.event-ops-metrics>.event-ops-pending-filter:focus-visible{outline:2px solid #b7203d;outline-offset:3px}
+@media(max-width:750px){.event-ops-metrics{max-width:100%;width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:360px){.event-ops-metrics{grid-template-columns:minmax(0,1fr)}}

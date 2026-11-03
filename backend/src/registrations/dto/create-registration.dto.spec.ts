@@ -15,17 +15,23 @@ function validDto(classIds: string[]): CreateRegistrationDto {
 }
 
 describe('CreateRegistrationDto', () => {
-  it('accepts more than five classes so multiple BassRace classes can be selected', async () => {
-    const dto = validDto(Array.from({ length: 7 }, (_, index) => uuid(index + 10)));
+  it('accepts up to five classes including multiple BassRace classes', async () => {
+    const dto = validDto(Array.from({ length: 5 }, (_, index) => uuid(index + 10)));
 
     await expect(validate(dto)).resolves.toHaveLength(0);
   });
 
-  it('rejects more than the supported maximum of 32 classes', async () => {
-    const dto = validDto(Array.from({ length: 33 }, (_, index) => uuid(index + 10)));
+  it('rejects more than the supported maximum of 5 classes', async () => {
+    const dto = validDto(Array.from({ length: 6 }, (_, index) => uuid(index + 10)));
 
     const errors = await validate(dto);
     expect(errors.some((error) => error.property === 'classIds')).toBe(true);
     expect(errors.find((error) => error.property === 'classIds')?.constraints).toHaveProperty('arrayMaxSize');
+  });
+  it('allows omitting configuration for an explicitly on-site intake (service enforces source)', async () => {
+    const dto=validDto([uuid(10)]);
+    dto.configurationVersionId=undefined;
+    dto.source='ON_SITE';
+    await expect(validate(dto)).resolves.toHaveLength(0);
   });
 });

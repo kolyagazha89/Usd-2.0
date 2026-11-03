@@ -6,8 +6,20 @@
 export type RegistrationFilter = 'ALL' | 'ACTIVE' | 'CANCELLED';
 export type InspectionFilter = 'ALL' | 'PASSED' | 'FAILED' | 'PENDING';
 
+/** Stage-scoped entry point for an operator registering a participant at the gate. */
+export function walkInRegistrationPath(stageId:string):string {
+  return '/admin/inspections?stageId='+encodeURIComponent(stageId)+'&register=1';
+}
+
+/** Past events can be viewed, but a crafted deep link must never open registration. */
+export function canOpenWalkInRegistration(search:string,readOnly:boolean):boolean {
+  return !readOnly&&new URLSearchParams(search).get('register')==='1';
+}
+
+
 type OperationsRow = {
   status?: string | null;
+  configurationSnapshot?: {configurationPending?: boolean;postStageCompletion?: {versionId?: string | null} | null} | null;
   participantNumber?: number | string | null;
   numbers?: Array<{number?: number | string | null}> | null;
   participant?: {
@@ -38,6 +50,13 @@ const label=(value:unknown):string=>{
 const normalize=(value:string)=>value.toLocaleLowerCase('ru').replace(/ё/g,'е').trim();
 const compactPlate=(value:string)=>normalize(value).replace(/[\s\-–—]/g,'');
 const inspectionStatus=(row:OperationsRow)=>row.inspection?.status??row.stageInspection?.status??'';
+/** An active entry-day draft still awaiting documentation; cancellation never blocks another stage. */
+export function isPendingEquipment(row:OperationsRow):boolean {
+  const completedVersion=row.configurationSnapshot?.postStageCompletion?.versionId;
+  return row.status==='ACTIVE'&&row.configurationSnapshot?.configurationPending===true
+    &&!(typeof completedVersion==='string'&&completedVersion.trim().length>0);
+}
+
 export const isPendingInspection=(row:OperationsRow):boolean=>row.status==='ACTIVE'&&!['PASSED','FAILED'].includes(inspectionStatus(row));
 
 export function operationsSearchText(row:OperationsRow):string {
