@@ -32,9 +32,9 @@ test('search matches exact entry numbers, Ё/Е, plate, car, team, class and mul
 });
 test('filters only active admitted registrations for entering results',()=>{
  const others=[
- {...base,id:'reg2',participantNumber:9,stageInspection:{status:'FAILED'}},
- {...base,id:'reg3',participantNumber:10,stageInspection:null,inspection:null},
- {...base,id:'reg4',participantNumber:11,status:'CANCELLED'},
+ {...base,id:'reg2',participantNumber:9,numbers:[{number:9}],classes:[],stageInspection:{status:'FAILED'}},
+ {...base,id:'reg3',participantNumber:10,numbers:[{number:10}],classes:[],stageInspection:null,inspection:null},
+ {...base,id:'reg4',participantNumber:11,numbers:[{number:11}],classes:[],status:'CANCELLED'},
  ];
  assert.deepEqual(filterJudgeRegistrations([others[0],...others.slice(1),base],'',{passedOnly:true}).map(r=>r.id),['reg1']);
  assert.deepEqual(filterJudgeRegistrations([...others,base],'').map(r=>r.id),['reg1','reg2','reg3']);
