@@ -533,3 +533,51 @@ describe('SiteSettingsService editable homepage section copy', () => {
     expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
   });
 });
+
+
+describe('Vehicle catalog CMS overlay safety', () => {
+  function setup(){
+    const prisma = {
+      siteSettings: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockImplementation(async (args: any) => ({ id: 'default', ...args.create })),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as unknown as PrismaService;
+    return {prisma,service:new SiteSettingsService(prisma)};
+  }
+
+  it('publishes only small edits and retains the immutable bundled car seed outside settings', async () => {
+    const {prisma,service}=setup();
+    const overlay={
+      brands:[{id:'seed-brand:toyota',name:'Toyota USD',isActive:true}],
+      models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false,isArchived:true}],
+    };
+    const updated=await service.update({catalogs:{vehicleDirectory:overlay}} as any,'admin-1');
+    expect(updated.settings.catalogs.vehicleDirectory).toEqual(overlay);
+    expect((prisma as any).siteSettings.upsert).toHaveBeenCalledTimes(1);
+    (prisma as any).siteSettings.findUnique.mockResolvedValueOnce({catalogs:{vehicleDirectory:overlay}});
+    const publicResult=await service.getPublic();
+    expect(publicResult.settings.catalogs.vehicleDirectory).toEqual(overlay);
+    expect((prisma as any).auditLog.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects malformed, duplicated and dangerous overlays before database writes', async () => {
+    const {prisma,service}=setup();
+    const valid={id:'custom-id',name:'Toyota',isActive:true};
+    for(const value of [
+      null,
+      {brands:'wrong',models:[]},
+      {brands:[],models:'wrong'},
+      {brands:[valid,valid],models:[]},
+      {brands:[{...valid,name:'\u0000bad'}],models:[]},
+      {brands:[{...valid,isActive:true,isArchived:true}],models:[]},
+      {brands:[],models:[{id:'model',name:'X',isActive:true}]},
+      {brands:Array(10001).fill(valid),models:[]},
+    ]){
+      await expect(service.update({catalogs:{vehicleDirectory:value}} as any,'admin-1')).rejects.toThrow(BadRequestException);
+    }
+    expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
+    expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
+  });
+});
