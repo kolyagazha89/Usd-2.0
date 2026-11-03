@@ -9,6 +9,7 @@ import {
 import { Prisma } from '../generated/prisma/client';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import {MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers,isBassRaceStageClass} from '../registrations/registration-class-numbering';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 
 type InspectionStatus = 'PASSED' | 'FAILED';
@@ -186,6 +187,8 @@ export class InspectionsService {
   async updateRegistrationClasses(registrationId: string, classIds: string[], actor: Actor) {
     const requestedIds = [...new Set((classIds ?? []).filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()))];
     if (!requestedIds.length) throw new BadRequestException('У регистрации должен остаться хотя бы один класс');
+    if (requestedIds.length>MAX_REGISTRATION_CLASS_IDS)
+      throw new BadRequestException('Превышен технический лимит классов в одной заявке');
 
     return this.prisma.$transaction(async (tx) => {
       const registration = await tx.registration.findUnique({
@@ -220,6 +223,13 @@ export class InspectionsService {
       if (stageClasses.length !== requestedIds.length) {
         throw new BadRequestException('Один или несколько выбранных классов недоступны на этом этапе');
       }
+      let numbering:ReturnType<typeof planRegistrationClassNumbers>;
+      try{numbering=planRegistrationClassNumbers(requestedIds,stageClasses)}
+      catch(error){throw new BadRequestException(error instanceof Error?error.message:'Недопустимый выбор классов')}
+      const nonBassDirections=numbering.regularClassIds.map(id=>
+        stageClasses.find(item=>item.classId===id)!.class.directionId);
+      if(new Set(nonBassDirections).size!==nonBassDirections.length)
+        throw new BadRequestException('Нельзя выбрать несколько классов одного направления (кроме BassRace)');
       const added = stageClasses.filter((item: any) => !existingByClassId.has(item.classId));
       if (!registration.numbers.length) throw new ConflictException('У регистрации нет закреплённого номера участника');
 
@@ -234,62 +244,71 @@ export class InspectionsService {
         item.class?.direction?.name ?? item.direction?.name ?? '',
       );
 
-      // Keep numbers already assigned to BassRace classes that remain selected.
-      // Number rows from removed classes stay reserved and are deliberately reused
-      // before allocating fresh numbers.
-      const retainedBassRace = stageClasses.filter((item: any) => isBassRace(item) && existingByClassId.has(item.classId));
-      const usedBassRaceNumberIds = new Set(
-        retainedBassRace.map((item: any) => existingByClassId.get(item.classId)?.numberId).filter(Boolean),
-      );
-      let highestStageNumber: number | null = null;
-      const allocateNewBassRaceNumber = async () => {
-        if (highestStageNumber === null) {
-          // Remove stale unlinked numbers from other registrations before looking
-          // for the smallest available sticker number. Keep this registration's
-          // own unlinked rows available for reuse in the loop below.
+      // Prefer preserving the existing BassRace class on the primary sticker
+      // if primary has room. Never renumber a recorded class silently.
+      const stageById=new Map(stageClasses.map((item:any)=>[item.classId,item]));
+      const oldPrimaryBass=existing.find((item:any)=>
+        item.numberId===primaryNumber.id && isBassRaceStageClass(item.class.name,item.class.direction?.name??'')
+        && requestedSet.has(item.classId));
+      const primaryBassId=numbering.bassOnPrimaryId
+        ?oldPrimaryBass?.classId??numbering.bassOnPrimaryId:null;
+      const occupiedBassIds=new Set<string>();
+      const preservedBassIds=new Set(numbering.bassRaceClassIds.flatMap(id=>{
+        const row=existingByClassId.get(id);
+        return row?.numberId&&row.numberId!==primaryNumber.id?[row.numberId]:[];
+      }));
+      let nextStageNumber=1;
+      let occupiedStageNumbers:Set<number>|null=null;
+      const allocateNewBassRaceNumber=async()=>{
+        if(!occupiedStageNumbers){
           await tx.registrationNumber.deleteMany({
-            where: {
-              stageId: registration.stageId,
-              registrationId: { not: registrationId },
-              isPrimary: false,
-              classes: { none: {} },
-            },
+            where:{stageId:registration.stageId,registrationId:{not:registrationId},
+              isPrimary:false,classes:{none:{}}},
           });
-          const occupiedRows = await tx.registrationNumber.findMany({
-            where: { stageId: registration.stageId },
-            select: { number: true },
+          const rows=await tx.registrationNumber.findMany({
+            where:{stageId:registration.stageId},select:{number:true},
           });
-          const occupied = new Set(occupiedRows.map((item: any) => Number(item.number)));
-          highestStageNumber = 0;
-          while (occupied.has(highestStageNumber + 1)) highestStageNumber += 1;
+          occupiedStageNumbers=new Set(rows.map((row:any)=>Number(row.number)));
         }
-        const number = ++highestStageNumber;
-        const created = await tx.registrationNumber.create({
-          data: { stageId: registration.stageId, registrationId, number, isPrimary: false },
+        while(occupiedStageNumbers.has(nextStageNumber))nextStageNumber++;
+        const newNumber=nextStageNumber++;
+        occupiedStageNumbers.add(newNumber);
+        const created=await tx.registrationNumber.create({
+          data:{stageId:registration.stageId,registrationId,number:newNumber,isPrimary:false},
         });
         numberRows.push(created);
         return created;
       };
-
-      for (const item of added as any[]) {
-        let chosenNumber: any;
-        if (isBassRace(item)) {
-          const reusable = numberRows
-            .filter((number: any) => !usedBassRaceNumberIds.has(number.id))
-            .sort((a: any, b: any) => Number(b.isPrimary) - Number(a.isPrimary) || Number(a.number) - Number(b.number))[0];
-          chosenNumber = reusable ?? await allocateNewBassRaceNumber();
-          usedBassRaceNumberIds.add(chosenNumber.id);
-        } else {
-          const directionId = item.class.directionId;
-          const sameDirection = existing.find((current: any) => current.class.directionId === directionId);
-          chosenNumber = (sameDirection?.numberId
-            ? numberRows.find((number: any) => number.id === sameDirection.numberId)
-            : undefined) ?? primaryNumber;
+      const assignClass=async(classId:string,numberId:string)=>{
+        const existingClass=existingByClassId.get(classId);
+        if(existingClass){
+          if(existingClass.numberId===numberId)return;
+          if(existingClass.results?.length)
+            throw new ConflictException('Нельзя перенести класс с записанным результатом на другой номер. Требуется проверка администратором.');
+          await tx.registrationClass.update({where:{id:existingClass.id},data:{numberId}});
+        }else{
+          await tx.registrationClass.create({data:{registrationId,classId,numberId}});
         }
-        if (!chosenNumber) throw new ConflictException('Не удалось определить номер для нового класса «' + item.class.name + '»');
-        await tx.registrationClass.create({
-          data: { registrationId, classId: item.classId, numberId: chosenNumber.id },
-        });
+      };
+      for(const classId of numbering.regularClassIds)await assignClass(classId,primaryNumber.id);
+      // Retained BassRace numbers are allocated before new entries so adding
+      // a new class cannot steal a sticker from a previously judged class.
+      const orderedBass=[...numbering.bassRaceClassIds.filter(id=>existingByClassId.has(id)),
+        ...numbering.bassRaceClassIds.filter(id=>!existingByClassId.has(id))];
+      for(const classId of orderedBass){
+        const oldId=existingByClassId.get(classId)?.numberId;
+        let chosenNumber:any;
+        if(classId===primaryBassId)chosenNumber=primaryNumber;
+        else{
+          if(oldId && oldId!==primaryNumber.id && !occupiedBassIds.has(oldId))
+            chosenNumber=numberRows.find((row:any)=>row.id===oldId);
+          if(!chosenNumber)chosenNumber=numberRows
+            .filter((row:any)=>!row.isPrimary&&!occupiedBassIds.has(row.id)&&!preservedBassIds.has(row.id))
+            .sort((a:any,b:any)=>Number(a.number)-Number(b.number))[0];
+          if(!chosenNumber)chosenNumber=await allocateNewBassRaceNumber();
+        }
+        occupiedBassIds.add(chosenNumber.id);
+        await assignClass(classId,chosenNumber.id);
       }
 
       if (removed.length) {
