@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,Check,CheckCircle2,Layers,Package,Plus,RefreshCw,Search,Trash2} from 'lucide-react';
+import {AlertTriangle,Check,CheckCircle2,Layers,Package,Plus,RefreshCw,Search,Trash2,Pencil} from 'lucide-react';
+import {activationCounts,archiveCatalogBrand,archiveCatalogModel,editComponentModel,enableAllCatalogItems,renameComponentBrand,toggleCatalogBrand,toggleCatalogModel,type ComponentCatalog} from './component-catalog-management';
 import {getSiteSettings,updateSiteSettings,getComponentCatalogRequests,approveComponentCatalogRequest,rejectComponentCatalogRequest,retryComponentCatalogRequestEmail} from '../api';
 import {parseAudioCatalogCsv,planAudioCatalogImport,type AudioCsvRow,MAX_AUDIO_CSV_BYTES} from './catalog-csv-import';
 
@@ -23,6 +24,9 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  const [batteryCode,setBatteryCode]=useState(''),[batteryName,setBatteryName]=useState(''),[batteryChemistry,setBatteryChemistry]=useState('LEAD_ACID'),[batteryConstruction,setBatteryConstruction]=useState('AGM'),[batteryDrafts,setBatteryDrafts]=useState<Record<string,{name:string;chemistry:string;construction:string}>>({});
  const [importRows,setImportRows]=useState<AudioCsvRow[]|null>(null),[importFilename,setImportFilename]=useState(''),[importConfirmed,setImportConfirmed]=useState(false);
  const [brand,setBrand]=useState(''),[category,setCategory]=useState<CatalogCategory>('HEAD_UNIT'),[modelBrand,setModelBrand]=useState(''),[model,setModel]=useState(''),[confirmRemoveKey,setConfirmRemoveKey]=useState(''),[requests,setRequests]=useState<any[]>([]),[requestBusy,setRequestBusy]=useState(''),[requestNote,setRequestNote]=useState<Record<string,string>>({}),[lifecycleFilter,setLifecycleFilter]=useState<'ALL'|'ACTIVE'|'DISCONTINUED'>('ALL');
+ const [activityFilter,setActivityFilter]=useState<'ALL'|'ENABLED'|'DISABLED'|'ARCHIVED'>('ALL');
+ const [editor,setEditor]=useState<{kind:'brand'|'model';id:string;value:string;brand:string}|null>(null);
+ const [confirmBulkScope,setConfirmBulkScope]=useState<'ALL'|CatalogCategory|null>(null);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();const raw=r?.settings??{};const catalogs=raw.catalogs??{};setSettings({...raw,catalogs:{...catalogs,vibrationBrands:Array.isArray(catalogs.vibrationBrands)?catalogs.vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:Array.isArray(catalogs.componentBrands)?catalogs.componentBrands:[],componentModels:Array.isArray(catalogs.componentModels)?catalogs.componentModels:[],batteryTypes:Array.isArray(catalogs.batteryTypes)?catalogs.batteryTypes:[],teams:Array.isArray(catalogs.teams)?catalogs.teams:[]}})}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить справочник')}finally{setLoading(false)}};
  useEffect(()=>{void load();if(!vibration)void getComponentCatalogRequests().then(r=>setRequests(Array.isArray(r?.items)?r.items:[])).catch(()=>{})},[]);
  const catalogs=settings?.catalogs??{vibrationBrands:DEFAULT_VIBRATION_BRANDS,componentBrands:[],componentModels:[],teams:[]};
@@ -37,22 +41,53 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
   const next=batteryDrafts[item.code]??{name:item.name,chemistry:item.chemistry,construction:item.construction};
   await saveCatalogs({...catalogs,batteryTypes:(catalogs.batteryTypes??[]).map((x:any)=>x.code===item.code?{...x,...next}:x)});
  };
- const saveCatalogs=async(next:any)=>{if(!settings)return;setSaving(true);setError('');setNotice('');try{const result=await updateSiteSettings({...settings,catalogs:next});setSettings({...settings,...(result?.settings??{}),catalogs:result?.settings?.catalogs??next});setNotice('Изменения сохранены')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить справочник')}finally{setSaving(false)}};
+ const saveCatalogs=async(next:any)=>{if(!settings||saving)return;setSaving(true);setError('');setNotice('');try{const result=await updateSiteSettings({catalogs:next});setSettings((old:any)=>({...old,catalogs:result?.settings?.catalogs??next}));setNotice('Изменения сохранены')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить справочник')}finally{setSaving(false)}};
+ const applyCatalogAction=async(change:(value:ComponentCatalog)=>ComponentCatalog,message:string)=>{
+  if(saving)return false;
+  setSaving(true);setError('');setNotice('');
+  try{
+   // Transform the latest server snapshot: one admin must not overwrite another
+   // admin's imports or unrelated site settings with a stale whole-form PATCH.
+   const current=await getSiteSettings();
+   const old=current?.settings?.catalogs??{};
+   const next=change({...old,componentBrands:old.componentBrands??[],componentModels:old.componentModels??[]});
+   const saved=await updateSiteSettings({catalogs:next});
+   setSettings((previous:any)=>({...previous,catalogs:saved?.settings?.catalogs??next}));
+   setNotice(message);
+   return true;
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить изменения');return false}
+  finally{setSaving(false)}
+ };
+ const saveEditor=async()=>{
+  if(!editor)return;
+  const ok=await applyCatalogAction(c=>editor.kind==='brand'?
+   renameComponentBrand(c,editor.id,editor.value):editComponentModel(c,editor.id,editor.value,editor.brand),'Изменения сохранены');
+  if(ok){if(editor.kind==='brand'&&modelBrand) setModelBrand('');setEditor(null)}
+ };
+ const deleteCatalogEntry=async(kind:'brand'|'model',id:string)=>{
+  const ok=await applyCatalogAction(c=>kind==='brand'?archiveCatalogBrand(c,id):archiveCatalogModel(c,id),
+   'Запись убрана из выбора. ID и история конфигураций сохранены.');
+  if(ok){setConfirmRemoveKey('');if(kind==='brand')setModelBrand('')}
+ };
+ const activateAll=async(scope:'ALL'|CatalogCategory)=>{
+  const ok=await applyCatalogAction(c=>enableAllCatalogItems(c,scope),
+    scope==='ALL'?'Все доступные марки и модели включены':'Марки и модели категории включены');
+  if(ok)setConfirmBulkScope(null);
+ };
  const addVibrationBrand=async()=>{const value=brand.trim();if(!value)return;if(catalogs.vibrationBrands.some((x:string)=>x.toLocaleLowerCase('ru')===value.toLocaleLowerCase('ru'))){setError('Такая марка уже есть в справочнике');return}await saveCatalogs({...catalogs,vibrationBrands:[...catalogs.vibrationBrands,value].sort((a:string,b:string)=>a.localeCompare(b,'ru'))});setBrand('')};
  const removeVibrationBrand=async(value:string)=>{await saveCatalogs({...catalogs,vibrationBrands:catalogs.vibrationBrands.filter((x:string)=>x!==value)})};
- const brands=(catalogs.componentBrands as any[]).filter((x:any)=>x.category===category).sort((a:any,b:any)=>a.name.localeCompare(b.name,'ru'));
- const models=(catalogs.componentModels as any[]).filter((x:any)=>x.category===category&&(!modelBrand||x.brand===modelBrand)).filter((x:any)=>lifecycleFilter==='ALL'||(x.lifecycle??'UNKNOWN')===lifecycleFilter).filter((x:any)=>!query||[x.brand,x.model].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a:any,b:any)=>a.brand.localeCompare(b.brand,'ru')||a.model.localeCompare(b.model,'ru'));
+ const matchesActivity=(x:any)=>activityFilter==='ALL'||(activityFilter==='ARCHIVED'?x.isArchived===true:activityFilter==='ENABLED'?x.isActive!==false&&!x.isArchived:x.isActive===false&&!x.isArchived);
+ const brands=(catalogs.componentBrands as any[]).filter((x:any)=>x.category===category).filter(matchesActivity).filter((x:any)=>!query||x.name.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a:any,b:any)=>a.name.localeCompare(b.name,'ru'));
+ const selectBrands=(catalogs.componentBrands as any[]).filter((x:any)=>x.category===category&&!x.isArchived).sort((a:any,b:any)=>a.name.localeCompare(b.name,'ru'));
+ const models=(catalogs.componentModels as any[]).filter((x:any)=>x.category===category&&(!modelBrand||x.brand===modelBrand)).filter(matchesActivity).filter((x:any)=>lifecycleFilter==='ALL'||(x.lifecycle??'UNKNOWN')===lifecycleFilter).filter((x:any)=>!query||[x.brand,x.model].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a:any,b:any)=>a.brand.localeCompare(b.brand,'ru')||a.model.localeCompare(b.model,'ru'));
+ const componentCatalog=catalogs as ComponentCatalog;
+ const categoryCounts=activationCounts(componentCatalog,category);
+ const allCounts=activationCounts(componentCatalog,'ALL');
  const addComponentBrand=async()=>{const value=brand.trim();if(!value)return;if(catalogs.componentBrands.some((x:any)=>x.category===category&&x.name.toLocaleLowerCase('ru')===value.toLocaleLowerCase('ru'))){setError('Эта марка уже есть в выбранной категории');return}await saveCatalogs({...catalogs,componentBrands:[...catalogs.componentBrands,{id:crypto.randomUUID(),category,name:value,isActive:true}].sort((a:any,b:any)=>a.name.localeCompare(b.name,'ru'))});setBrand('')};
  const addComponentModel=async()=>{const value=model.trim();if(brands.some((x:any)=>x.name===modelBrand&&x.isActive===false)){setError('Сначала включите марку.');return}if(!modelBrand){setError('Сначала выберите марку');return}if(!value)return;if(catalogs.componentModels.some((x:any)=>x.category===category&&x.brand===modelBrand&&x.model.toLocaleLowerCase('ru')===value.toLocaleLowerCase('ru'))){setError('Эта модель уже есть у выбранной марки');return}await saveCatalogs({...catalogs,componentModels:[...catalogs.componentModels,{id:crypto.randomUUID(),category,brand:modelBrand,model:value,isActive:true,lifecycle:'ACTIVE',sourceType:'ADMIN_ADDED',verifiedAt:new Date().toISOString()}].sort((a:any,b:any)=>a.brand.localeCompare(b.brand,'ru')||a.model.localeCompare(b.model,'ru'))});setModel('')};
- // Never physically remove a model or its brand: historical configuration versions
- // can still refer to their stable catalog IDs. Deactivate for new selections.
- const toggleComponentBrand=async(item:any)=>{const active=item.isActive===false;await saveCatalogs({...catalogs,
-  componentBrands:catalogs.componentBrands.map((x:any)=>x.id===item.id?{...x,isActive:active}:x),
-  componentModels:active?catalogs.componentModels:catalogs.componentModels.map((x:any)=>x.category===item.category&&x.brand===item.name?{...x,isActive:false}:x),
- });if(!active&&modelBrand===item.name)setModelBrand('')};
- const toggleComponentModel=async(item:any)=>{if(item.isActive===false&&catalogs.componentBrands.some((x:any)=>x.category===item.category&&x.name===item.brand&&x.isActive===false)){setError('Сначала включите марку модели.');return}
-  await saveCatalogs({...catalogs,componentModels:catalogs.componentModels.map((x:any)=>x.id===item.id?{...x,isActive:x.isActive===false}:x)});
- };
+ // Preserve IDs and historical snapshots when changing availability.
+ const toggleComponentBrand=async(item:any)=>{const active=item.isActive===false||item.isArchived;const ok=await applyCatalogAction(c=>toggleCatalogBrand(c,item.id),'Марка '+(active?'включена':'отключена'));if(ok&&!active&&modelBrand===item.name)setModelBrand('')};
+ const toggleComponentModel=async(item:any)=>{await applyCatalogAction(c=>toggleCatalogModel(c,item.id),'Статус модели обновлён')};
  // A CSV is only read locally until the administrator has reviewed the preview.
  // Never replace historical catalog entries or submit unrelated site settings.
  const importPreview=(()=>{
