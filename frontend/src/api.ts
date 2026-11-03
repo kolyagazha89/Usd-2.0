@@ -1,10 +1,8 @@
 import {registerPrivateMediaUrl,releasePrivateMediaUrl as releaseTrustedMediaUrl,clearPrivateMediaUrls} from './private-media-urls';
-const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? '';
-const API_BASE = configuredApiBase
-  ? (/^https?:\/\//i.test(configuredApiBase)
-      ? configuredApiBase
-      : 'https://' + configuredApiBase.replace(/^\/+/, ''))
-  : 'https://api.usd-russia.ru';
+import {resolveUsdApiBase} from './venue-api-config';
+const venueRuntime = window as Window & {__USD_VENUE_MODE__?:unknown;__USD_VENUE_API_BASE__?:unknown};
+const API_BASE = resolveUsdApiBase(import.meta.env.VITE_API_URL as string|undefined,
+  venueRuntime.__USD_VENUE_MODE__,venueRuntime.__USD_VENUE_API_BASE__);
 
 type ApiError = Error & { status?: number; debug?: string; responseBody?: unknown; requestPath?: string };
 let accessToken: string | null = null;

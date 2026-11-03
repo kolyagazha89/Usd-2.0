@@ -2,6 +2,8 @@
 
 Status: **partial P0 implementation since PR #402; explicit authenticated inspection replay added in the follow-up; full offline-event readiness NOT achieved.**
 
+**Primary target confirmed:** one laptop running a USD local server and database, with judges' phones connected through a dedicated Wi-Fi router **without internet**. A shared venue DB is the authoritative on-site copy. The per-device encrypted IndexedDB pilot below is a *backup only*, not a replacement for the LAN hub. The first LAN container/bootstrap scaffold is in `deploy/venue-lan/`; it has **no supported stage data import, authoritatively reconciled sync, or disconnected multi-judge acceptance yet**, so it must not be used as the official event server.
+
 ### Implemented pilot — encrypted local inspection drafts
 
 - Authorized ADMIN/judge with `inspections.create` opens **День соревнований → Подготовить автономный пакет** while the public API is available; only the current stage's display roster is included.
@@ -13,7 +15,7 @@ Status: **partial P0 implementation since PR #402; explicit authenticated inspec
 - The browser does not silently auto-send, auto-retry, or delete local drafts. Every accepted response is sealed back into IndexedDB before processing the next decision. Connection/authentication failures leave remaining operations pending, and changed server state becomes visible `CONFLICT` requiring manual review.
 - A new package cannot silently replace an existing vault and its pending drafts. Manual removal is an explicit destructive operation, after reviewing outstanding work.
 
-**Still open before event use:** signed/audited package export and revocation; role-bound/offline re-authentication and device incident handling; camera scanner compatibility across actual iPhone/Android browsers (manual QR URL/ID fallback is provided); multi-judge LAN venue hub; independent device conflict reconciliation beyond per-inspection retries; field tests on disconnected iPhone/Android. The first central replay flow is NOT approval of full offline mode for a real multi-judge event.
+**Still open before event use:** signed/audited stage export and full hub import; initial local schema/media staging; host-only local WLAN authentication; router Wi-Fi acceptance; shared multi-judge writes with local event audit journal; central replication/reconciliation of registrations, inspections, class changes and official results; device/role revocation; independent conflict resolution; field tests on unplugged WAN with target laptop, router and iPhone/Android. The per-device fallback is supplementary, not approval of full offline mode.
 
 The architecture and acceptance requirements below remain authoritative, even when this first pilot has passed CI.
 

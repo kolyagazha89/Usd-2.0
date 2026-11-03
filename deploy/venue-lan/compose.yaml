@@ -1,0 +1,101 @@
+# Independent venue-only stack, NOT an override of the production usd-home compose.
+# No host-published PostgreSQL or media ports; HTTPS bound to one private LAN IP.
+name: usd-venue
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${VENUE_DB_NAME:?set VENUE_DB_NAME}
+      POSTGRES_USER: ${VENUE_DB_USER:?set VENUE_DB_USER}
+      POSTGRES_PASSWORD: ${VENUE_DB_PASSWORD:?set VENUE_DB_PASSWORD}
+    volumes: [venue_db:/var/lib/postgresql]
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VENUE_DB_USER} -d ${VENUE_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [venue_private]
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    restart: unless-stopped
+    command: ["/data"]
+    user: "10001:10001"
+    security_opt: [no-new-privileges:true]
+    environment:
+      RUSTFS_ACCESS_KEY: ${VENUE_S3_ROOT_ACCESS:?set VENUE_S3_ROOT_ACCESS}
+      RUSTFS_SECRET_KEY: ${VENUE_S3_ROOT_SECRET:?set VENUE_S3_ROOT_SECRET}
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      # Storage provisioning remains laptop-local, never exposed to judges.
+      - "127.0.0.1:19000:9000/tcp"
+      - "127.0.0.1:19001:9001/tcp"
+    volumes: [venue_media:/data]
+    networks: [venue_private]
+  api:
+    image: ghcr.io/kolyagazha89/usd-2.0-api:${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}
+    restart: unless-stopped
+    command: ["node","dist/main.js"]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: ${VENUE_DATABASE_URL:?set VENUE_DATABASE_URL}
+      JWT_SECRET: ${VENUE_JWT_SECRET:?set VENUE_JWT_SECRET}
+      AUTH_COOKIE_SECURE: "true"
+      CORS_ORIGINS: https://${VENUE_BIND_IP:?set VENUE_BIND_IP}
+      CSRF_TRUSTED_ORIGINS: https://${VENUE_BIND_IP}
+      FRONTEND_URL: https://${VENUE_BIND_IP}
+      API_PUBLIC_URL: https://${VENUE_BIND_IP}/venue-api
+      PUBLIC_API_URL: https://${VENUE_BIND_IP}/venue-api
+      TRUST_PROXY_HOPS: "1"
+      S3_ENDPOINT: http://rustfs:9000
+      S3_BUCKET: usd-venue-media
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+      # Separate scoped media credentials. NEVER pass RustFS root keys here.
+      S3_ACCESS_KEY_ID: ${VENUE_S3_APP_ACCESS:?set VENUE_S3_APP_ACCESS}
+      S3_SECRET_ACCESS_KEY: ${VENUE_S3_APP_SECRET:?set VENUE_S3_APP_SECRET}
+      # Do not provide SMTP/email or external cloud credentials to this stack.
+      MAIL_ACCOUNT_ONLY: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    expose: ["3000"]
+    networks: [venue_private]
+  frontend:
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./config/venue-config.js
+        target: /usr/share/nginx/html/usd-venue-config.js
+        read_only: true
+        bind:
+          create_host_path: false
+    expose: ["80"]
+    networks: [venue_private]
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      VENUE_BIND_IP: ${VENUE_BIND_IP:?set VENUE_BIND_IP}
+    ports:
+      # Only the private router-facing laptop IP, never 0.0.0.0.
+      - "${VENUE_BIND_IP}:443:443/tcp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - venue_ca:/data
+      - venue_caddy_config:/config
+    depends_on: [frontend,api]
+    networks: [venue_private]
+volumes:
+  venue_db:
+  venue_media:
+  venue_ca:
+  venue_caddy_config:
+networks:
+  venue_private:
+    driver: bridge
