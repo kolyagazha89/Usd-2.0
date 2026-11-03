@@ -78,9 +78,9 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:()=>void}){
   finally{setBusy(false)}
  };
  const remove=async()=>{
-  if(!data||!confirmDelete||busy)return;setBusy(true);setError('');
+  if(!raw||!confirmDelete||busy)return;setBusy(true);setError('');
   try{
-   await deleteOfflineVault(revision);setData(null);setPassphrase('');setRevision('');
+   await deleteOfflineVault(revision||raw.revision);setData(null);setPassphrase('');setRevision('');
    setRaw(null);setConfirmDelete(false);setNotice('Локальный пакет удалён. Это не изменяет результаты на сервере.');
   }catch(e){setError(e instanceof Error?e.message:'Не удалось удалить пакет')}
   finally{setBusy(false)}
@@ -115,6 +115,12 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:()=>void}){
      <button className="usd-offline-button" type="submit" disabled={busy||!passphrase}>Открыть пакет</button>
     </form>
     <p className="usd-offline-warning">При потере пароля восстановить локальные данные нельзя. Пакет действителен не более 72 часов. Не храните пароль в заметках на этом же устройстве.</p>
+    <button type="button" className="usd-offline-button danger" onClick={()=>setConfirmDelete(true)} disabled={busy}>Удалить пакет при утере пароля или истечении срока</button>
+    {confirmDelete&&<div className="usd-offline-confirm" role="group" aria-label="Удаление заблокированного пакета">
+     <p>ВНИМАНИЕ: будут необратимо удалены зашифрованные регистрационные данные и ВСЕ локальные черновики, которые ещё могли не попасть на сервер. Восстановление невозможно.</p>
+     <button className="usd-offline-button danger" type="button" disabled={busy} onClick={()=>void remove()}>Безвозвратно удалить</button>
+     <button className="usd-offline-button secondary" type="button" onClick={()=>setConfirmDelete(false)}>Отмена</button>
+    </div>}
    </section>
    :<><section className="usd-offline-panel">
     <div className="usd-offline-stage-top">
