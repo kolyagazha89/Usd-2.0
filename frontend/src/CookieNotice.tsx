@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const COOKIE_NOTICE_VERSION = '2026-10-v1';
 const COOKIE_NOTICE_KEY = 'usd_cookie_notice_dismissed';
+const TRAFFIC_CONSENT_KEY = 'usd_traffic_analytics_consent_v1';
 
 export default function CookieNotice() {
   const [visible, setVisible] = useState(false);
@@ -31,13 +32,17 @@ export default function CookieNotice() {
     }
   }, []);
 
-  const dismiss = () => {
+  useEffect(() => {const open=()=>setVisible(true);window.addEventListener('usd:cookie-open',open);return()=>window.removeEventListener('usd:cookie-open',open)},[]);
+
+  const dismiss = (allowAnalytics:boolean) => {
     try {
       window.localStorage.setItem(COOKIE_NOTICE_KEY, COOKIE_NOTICE_VERSION);
+      window.localStorage.setItem(TRAFFIC_CONSENT_KEY,allowAnalytics?'yes':'no');
     } catch {
       // Dismiss for the current render even when storage is blocked.
     }
     setVisible(false);
+    window.dispatchEvent(new Event('usd:analytics-consent-changed'));
   };
 
   if (!visible) return null;
@@ -48,12 +53,18 @@ export default function CookieNotice() {
         <strong>Мы используем cookie</strong>
         <p>
           Технические cookie нужны для авторизации, защиты и корректной работы USD.
+          Анонимную статистику разделов и типов устройств собираем только с вашего разрешения — без IP, ФИО и идентификаторов.
           Подробнее — в <a href="/privacy">политике конфиденциальности</a>.
         </p>
       </div>
-      <button className="cookie-notice__button" type="button" onClick={dismiss}>
-        Понятно
-      </button>
+      <div className="cookie-notice__actions">
+        <button className="cookie-notice__button secondary" type="button" onClick={()=>dismiss(false)}>
+          Только необходимые
+        </button>
+        <button className="cookie-notice__button" type="button" onClick={()=>dismiss(true)}>
+          Разрешить аналитику
+        </button>
+      </div>
       <style>{`
         .cookie-notice {
           position: fixed;
@@ -93,6 +104,7 @@ export default function CookieNotice() {
         .cookie-notice__copy strong { display: block; font-size: 14px; font-weight: 800; }
         .cookie-notice__copy p { margin: 5px 0 0; color: #c4c7cc; font-size: 12px; line-height: 1.55; }
         .cookie-notice__copy a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+        .cookie-notice__actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
         .cookie-notice__button {
           flex: 0 0 auto;
           min-height: 42px;
@@ -106,10 +118,13 @@ export default function CookieNotice() {
           font-weight: 800;
           cursor: pointer;
         }
+        .cookie-notice__button.secondary{background:#292a30;border:1px solid #4d4e54}
+        .cookie-notice__button.secondary:hover{background:#36383e}
         .cookie-notice__button:hover { background: #b91425; }
         .cookie-notice__button:focus-visible { outline: 3px solid rgba(226, 29, 47, .5); outline-offset: 3px; }
         @media (max-width: 560px) {
           .cookie-notice { left: 12px; right: 12px; bottom: calc(var(--usd-dock-height, 0px) + max(12px, env(safe-area-inset-bottom))); align-items: stretch; flex-direction: column; gap: 12px; padding: 16px; }
+          .cookie-notice__actions{flex-direction:column}
           .cookie-notice__button { width: 100%; }
         }
       `}</style>
