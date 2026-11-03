@@ -1,5 +1,5 @@
 import { RegistrationCountry } from '../../generated/prisma/enums';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateRegistrationDto {
   @IsUUID()
@@ -14,7 +14,6 @@ export class CreateRegistrationDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(5)
   @IsUUID('4', { each: true })
   classIds!: string[];
 
