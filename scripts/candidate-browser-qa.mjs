@@ -311,6 +311,7 @@ try{
       const nav=style('.app-shell > .sidebar > nav');
       const groups=style('.app-shell > .sidebar .sidebar-section');
       const footer=style('.app-shell > .sidebar .sidebar-bottom');
+      const eventDesk=style('.app-shell .main .event-ops-workflow-context');
       const active=style('.app-shell > .sidebar .nav-item[aria-current="page"]');
       const content=pick('.app-shell .main > .content');
       const padding=content?getComputedStyle(content):null;
@@ -337,7 +338,7 @@ try{
        '.app-shell .main .content .normalization-finding',
       ];
       const surfaces=surfaceSelectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>el.getBoundingClientRect().width>0).slice(0,10).map(el=>({selector:sel,bg:getComputedStyle(el).backgroundColor})));
-      return {sidebar,header,nav,groups,footer,active,fields,surfaces,
+      return {sidebar,header,nav,groups,footer,eventDesk,active,fields,surfaces,
        publicContainer:style('.usd-live .u-container'),memberContent:style('.usd-member .participant-portal-main'),
        padding:padding?{left:parseFloat(padding.paddingLeft),right:parseFloat(padding.paddingRight)}:null};
      });
@@ -349,6 +350,10 @@ try{
        if(paint[key])assert.equal(paint[key].background,'rgba(0, 0, 0, 0)','menu '+key+' must share sidebar background');
       }
       if(paint.active)assert.equal(paint.active.background,'rgb(50, 24, 30)','active menu is understated red, not blue');
+      if(paint.eventDesk){
+       assert.match(paint.eventDesk.image,/rgb\\(255,\\s*255,\\s*255\\)/,'event workflow context must be pearl, not a leftover black rectangle');
+       assert.equal(paint.eventDesk.color,'rgb(35, 39, 48)','event workflow context has readable graphite typography');
+      }
       assert.ok(paint.padding.left>=9&&Math.abs(paint.padding.left-paint.padding.right)<=2,
        'admin has balanced page gutters '+JSON.stringify(paint.padding));
       const isLight=c=>{
