@@ -93,6 +93,16 @@ export class TeamsController {
     return this.service.approvePost(request, teamId, id);
   }
 
+  @Roles('ADMIN')
+  @Post(':teamId/posts/:id/return')
+  returnPost(
+    @Req() request: AuthenticatedRequest,
+    @Param('teamId') teamId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.returnPostToDraft(request, teamId, id);
+  }
+
   @Roles('ADMIN', 'PARTICIPANT')
   @Post(':teamId/posts')
   createPost(
