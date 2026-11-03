@@ -4,10 +4,10 @@ import type {User} from '../api.ts';
 
 export type DayStatus='ALL'|'PASSED'|'PENDING'|'FAILED'|'CANCELLED'|'EQUIPMENT';
 export type DayRow={
- id:string;status?:string;participantId?:string|null;participantNumber?:number|null;
+ id:string;status?:string;participantId?:string|null;carId?:string|null;participantNumber?:number|null;
  numbers?:Array<{number?:number|null}>;classes?:Array<{id?:string;number?:{number?:number|null};class?:{name?:string;direction?:{name?:string}}}>;
  participant?:{firstName?:string|null;lastName?:string|null;middleName?:string|null;team?:string|{name?:string}}|null;
- car?:{brand?:string;model?:string;registrationNumber?:string}|null;
+ car?:{id?:string|null;brand?:string;model?:string;registrationNumber?:string}|null;
  inspection?:{id?:string;status?:string;checkedByUserId?:string|null;createdByUserId?:string|null;notes?:string|null}|null;
  stageInspection?:{id?:string;status?:string;checkedByUserId?:string|null;createdByUserId?:string|null;notes?:string|null}|null;
  configurationSnapshot?:{configurationPending?:boolean;postStageCompletion?:{versionId?:string|null}|null}|null;
