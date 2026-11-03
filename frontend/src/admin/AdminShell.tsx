@@ -6,6 +6,7 @@ const nav=[
  {section:'Рабочий стол',label:'Панель управления',path:'/admin',icon:LayoutDashboard,roles:['ADMIN']},
 
  // Оперативная работа на этапах
+ {section:'Соревнования',label:'День соревнований',path:'/admin/event-day',icon:ClipboardCheck,roles:['ADMIN']},
  {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN']},
  {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN']},
  {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN']},
@@ -54,6 +55,7 @@ const nav=[
 function navPermissionModule(path:string):string {
  if(path==='/admin')return 'statistics';
  if(path.startsWith('/admin/stages'))return 'stages';
+ if(path.startsWith('/admin/event-day'))return 'registrations';
  if(path.startsWith('/admin/registrations'))return 'registrations';
  if(path.startsWith('/admin/inspections'))return 'inspections';
  if(path.startsWith('/admin/results'))return 'results';

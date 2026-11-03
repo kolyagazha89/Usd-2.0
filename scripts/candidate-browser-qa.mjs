@@ -90,13 +90,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of [1440,1024,390,320]){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -255,6 +255,34 @@ try{
       await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
       row.componentCatalog='brand/model management, disabled filters and bulk confirmation without writing';
+     }
+     if(role==='ADMIN'&&route.startsWith('/admin/event-day')){
+      const desk=page.locator('.event-day-page');
+      await desk.getByRole('heading',{name:'Рабочая площадка'}).waitFor();
+      await desk.getByRole('heading',{name:'Активные'}).waitFor();
+      await desk.locator('.event-day-person').first().waitFor({state:'visible'});
+      assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
+      await desk.getByRole('button',{name:'Допустить'}).click();
+      const confirm=desk.getByRole('group',{name:/Подтверждение допуска/});
+      await confirm.waitFor({state:'visible'});
+      await confirm.getByRole('button',{name:'Отмена'}).click();
+      assert.equal(await confirm.count(),0);
+      await desk.getByRole('button',{name:'Отказать'}).click();
+      const failed=desk.getByRole('group',{name:/Причина отказа/});
+      assert.equal(await failed.getByRole('button',{name:'Подтвердить отказ'}).isDisabled(),true,'failure always requires a reason');
+      await failed.getByLabel('Причина отказа в допуске').fill('Проверка не пройдена');
+      assert.equal(await failed.getByRole('button',{name:'Подтвердить отказ'}).isEnabled(),true);
+      await failed.getByRole('button',{name:'Отмена'}).click();
+      await desk.getByRole('button',{name:'Допущено'}).first().click();
+      await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
+      assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
+      await desk.getByRole('button',{name:'Активные'}).first().click();
+      await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№7');
+      assert.equal(await desk.locator('.event-day-person').count(),1,'operator finds exact participant number');
+      await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№8');
+      await desk.locator('.event-day-person').first().waitFor({state:'detached'});
+      assert.equal(await desk.locator('.event-day-person').count(),0,'exact number search does not match another number');
+      row.eventDay='integrated registration roster, admission, reason-required failure, final list, number search';
      }
      if(role==='ADMIN'&&route==='/admin/stages/new'){
       const form=page.locator('.entity-form-journey');
@@ -623,7 +651,8 @@ try{
       await board.waitFor({state:'visible'});
       const nav=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
       await nav.waitFor({state:'visible'});
-      assert.equal(await nav.locator('button').count(),3,'three stage-scoped desk links');
+      assert.equal(await nav.locator('.event-ops-workflow-step').count(),3,'three stage-scoped desks');
+       assert.equal(await nav.getByRole('button',{name:'Все участники и допуски'}).count(),1,'stage desk offers return to unified roster');
       assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
       await page.locator('.judging-summary-card').first().waitFor();
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
@@ -690,7 +719,8 @@ try{
       const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';
       const nextPath=route==='/admin/registrations'?'/admin/inspections':'/admin/registrations';
       assert.equal(await workflow.locator('[aria-current="page"]').getAttribute('aria-label'),activeLabel);
-      assert.equal(await workflow.locator('button').count(),3,'three connected event-day steps');
+      assert.equal(await workflow.locator('.event-ops-workflow-step').count(),3,'three connected event-day steps');
+       assert.equal(await workflow.getByRole('button',{name:'Все участники и допуски'}).count(),1,'unified event-day roster is reachable from inspections and registration');
       await workflow.getByRole('button',{name:nextLabel,exact:true}).click();
       await page.waitForURL(url=>url.pathname===nextPath&&url.searchParams.get('stageId')==='stage1');
       await page.locator('.event-ops-workflow-step.is-active').waitFor();

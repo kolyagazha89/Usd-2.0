@@ -24,6 +24,7 @@ export function EventOperationsNavigation({current,stageId,stageName,go}:{
    <span className="event-ops-workflow-kicker">USD · ДЕНЬ СОРЕВНОВАНИЙ</span>
    <strong>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</strong>
    <small>Одна площадка · три связанных рабочих раздела</small>
+   {stageId&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Все участники и допуски</button>}
   </div>
   <div className="event-ops-workflow-steps">
    {sections.map(step=>{

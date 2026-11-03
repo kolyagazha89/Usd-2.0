@@ -22,6 +22,7 @@ import EmailTemplatesPage from './EmailTemplatesPage';
 import AssistantPage from './AssistantPage';
 import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './CompetitionPages';
 import RegistrationsPage from './RegistrationsPage';
+import EventDayPage from './EventDayPage';
 import InspectionsPage from './InspectionsPage';
 import ResultsPage from './ResultsPage';
 import AuditPage from './AuditPage';
@@ -50,6 +51,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/stages/')&&!path.startsWith('/admin/stages/new')&&!path.startsWith('/admin/stages/edit')&&!path.startsWith('/admin/stages/classes')&&!path.startsWith('/admin/stages/poster'))return <StageDetailPage stageId={path.split('/')[3]} go={go} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel} formatDate={formatDate} PublicResultCards={PublicResultCards}/>;
   if(path.startsWith('/admin/stages'))return <StagesPage go={go} user={user} routePath={path} ResourcePage={RoutedResourcePage} LoadingPage={LoadingPage} PanelTitle={PanelTitle} Empty={Empty} PageFrame={PageFrame} ErrorPanel={ErrorPanel} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/classes'))return <ClassesPage PageFrame={PageFrame} ResourcePage={RoutedResourcePage} go={go} routePath={path}/>;
+  if(path.startsWith('/admin/event-day'))return <EventDayPage path={path} go={go} user={user} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage}/>;
   if(path.startsWith('/admin/registrations'))return <RegistrationsPage go={go} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/inspections'))return <InspectionsPage key={path} user={user} go={go} PageFrame={PageFrame} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/results'))return <ResultsPage path={path} go={go} user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} displayCarName={displayCarName} displayPersonName={displayPersonName}/>;
