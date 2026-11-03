@@ -3,6 +3,7 @@ import {useEffect,useState,type FormEvent} from 'react';
 import {AlertTriangle,ChevronLeft,ChevronRight,Loader2,Plus,RefreshCw,Search} from 'lucide-react';
 import {apiDelete,apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {formatPlateInput,isValidPlate} from '../profile-validation';
+import {useVehicleDirectory} from '../use-vehicle-directory';
 
 function CarsPage({user,go,PageFrame,Empty,LoadingPage,EntityDetailModal,displayCarName}: {user:User;go:(path:string)=>void;PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string}){
  const canEdit=user.role==='ADMIN';const pageSize=25;
@@ -37,6 +38,7 @@ export function CarEditorPage({user,carId,go,PageFrame,LoadingPage,ErrorPanel,is
 }
 
 function CarEditorForm({value,participants,countries,saving,error,onClose,onSubmit,isValidPlate,clean}:{value:any;participants:any[];countries:string[];saving:boolean;error?:string;onClose:()=>void;onSubmit:(v:any)=>Promise<void>;isValidPlate:(country:string,plate:string)=>boolean;clean:(value:any)=>any}){
+ const {makes,modelsFor}=useVehicleDirectory();
  const [v,setV]=useState<any>({participantId:value.participantId??'',brand:value.brand??'',model:value.model??'',registrationCountry:value.registrationCountry??'RU',registrationNumber:value.registrationNumber??'',color:value.color??'',isPublic:value.isPublic??true});
  const [validationError,setValidationError]=useState('');
  const name=(p:any)=>[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ');
@@ -67,7 +69,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
    {step===0&&<div className="usd-car-editor-panel" aria-label="Основные данные автомобиля">
     <h3>Кому принадлежит автомобиль?</h3><p>Укажите владельца и модель. Эти данные будут использоваться в регистрациях и протоколах USD.</p>
     {!value.id&&<label>Участник<select aria-label="Участник" value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
-    <div className="form-grid-2"><label>Марка<input aria-label="Марка" value={v.brand} onChange={e=>setV({...v,brand:e.target.value})} autoComplete="off" required/></label><label>Модель<input aria-label="Модель" value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div>
+    <div className="form-grid-2"><label>Марка<input aria-label="Марка" list="usd-admin-car-makes" value={v.brand} onChange={e=>setV({...v,brand:e.target.value,model:''})} autoComplete="off" required/></label><label>Модель<input aria-label="Модель" list="usd-admin-car-models" value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div><datalist id="usd-admin-car-makes">{makes.map(make=><option key={make} value={make}/>)}</datalist><datalist id="usd-admin-car-models">{modelsFor(v.brand).map(model=><option key={model} value={model}/>)}</datalist><small className="field-help">Подсказки из каталога автомобилей USD. Редкую марку или модель можно ввести вручную.</small>
    </div>}
    {step===1&&<div className="usd-car-editor-panel" aria-label="Регистрационные данные">
     <h3>Госномер и внешний вид</h3><p>Номер проверяется по правилам страны регистрации. Цвет указывать необязательно.</p>
