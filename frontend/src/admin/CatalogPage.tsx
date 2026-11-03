@@ -193,7 +193,7 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
        </button>
        <div className="catalog-row-actions">
         <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'brand',id:x.id,value:x.name,brand:x.name})}><Pencil size={13}/>Редактировать</button>
-        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentBrand(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить':'Отключить'}</button>
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentBrand(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить марку':'Отключить марку'}</button>
         {confirmRemoveKey==='brand:'+x.id?
          <div className="catalog-inline-confirm" role="group"><span>Убрать марку и её модели из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('brand',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
          !x.isArchived&&<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setConfirmRemoveKey('brand:'+x.id)}><Trash2 size={13}/>Удалить</button>}
@@ -235,7 +235,7 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
        <div className="catalog-row-actions">
         <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'model',id:x.id,value:x.model,brand:x.brand})}><Pencil size={13}/>Редактировать</button>
         <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void saveCatalogs({...catalogs,componentModels:catalogs.componentModels.map((m:any)=>m.id===x.id?{...m,lifecycle:m.lifecycle==='DISCONTINUED'?'ACTIVE':'DISCONTINUED'}:m)})}>{x.lifecycle==='DISCONTINUED'?'Вернуть в актуальные':'Снята с производства'}</button>
-        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentModel(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить':'Отключить'}</button>
+        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void toggleComponentModel(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить модель':'Отключить модель'}</button>
         {confirmRemoveKey==='model:'+x.id?
          <div className="catalog-inline-confirm" role="group"><span>Убрать модель из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('model',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
          !x.isArchived&&<button type="button" className="danger-button compact" disabled={saving} onClick={()=>setConfirmRemoveKey('model:'+x.id)}><Trash2 size={13}/>Удалить</button>}
