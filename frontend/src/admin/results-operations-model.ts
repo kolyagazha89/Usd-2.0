@@ -29,10 +29,12 @@ const stringsForRegistration=(registration:R)=>{
   ...(registration?.classes??[]).flatMap((c:R)=>[c.class?.name,c.class?.code,c.class?.direction?.name])];
 };
 export function matchesJudgeSearch(registration:R,search:string):boolean{
+ const nums=judgingNumbers(registration);
+ const numbered=String(search??'').trim().match(/^[№#]\s*(\d+)$/);
+ if(numbered)return nums.includes(Number(numbered[1]));
  const q=clean(search);
  if(!q)return true;
- const nums=judgingNumbers(registration);
- if(/^(?:№\s*)?\d+$/.test(q))return nums.includes(Number(q.replace('№','').trim()));
+ if(/^\d+$/.test(q))return nums.includes(Number(q));
  const original=stringsForRegistration(registration);
  const haystack=clean([...original,...nums.map(String)].join(' '));
  const qWords=q.split(/\s+/);
@@ -43,8 +45,9 @@ export function matchesJudgeSearch(registration:R,search:string):boolean{
 }
 export function filterJudgeRegistrations(registrations:R[],search:string,{passedOnly=false}={}):R[]{
  const sorted=registrations.filter(r=>r?.status==='ACTIVE'&&(!passedOnly||canJudgeRegistration(r)));
+ const primaryNumber=(r:R)=>Number(r.participantNumber)>0?Number(r.participantNumber):(judgingNumbers(r)[0]??Infinity);
  return sorted.filter(r=>matchesJudgeSearch(r,search)).sort((a,b)=>
-  (judgingNumbers(a)[0]??Infinity)-(judgingNumbers(b)[0]??Infinity)||
+  primaryNumber(a)-primaryNumber(b)||
    String(a.participant?.lastName??'').localeCompare(String(b.participant?.lastName??''),'ru'));
 }
 export function remainingJudgingClasses(registration:R|undefined,results:R[]):R[]{
