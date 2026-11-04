@@ -519,7 +519,7 @@ export class MediaService {
     const finalKey = upload.objectKey + '-published-' + crypto.randomUUID();
     const published = await fetch(this.presignedUrl('PUT', finalKey, upload.contentType, 60), {
       method: 'PUT', headers: { 'Content-Type': upload.contentType },
-      body: verifiedBytes, signal: AbortSignal.timeout(15000),
+      body: verifiedBytes as unknown as BodyInit, signal: AbortSignal.timeout(15000),
     });
     if (!published.ok) throw new ServiceUnavailableException('Не удалось сохранить проверенную копию файла');
     const url = this.objectUrl(finalKey);
