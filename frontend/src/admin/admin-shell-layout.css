@@ -1226,3 +1226,22 @@ body .app-shell .main .content .catalog-manage-row button {min-height:36px}
     grid-template-columns:minmax(0,1fr);
   }
 }
+
+/* Release audit UI-15: small secondary text on white / light-grey admin cards.
+   Scope these overrides to the admin shell to preserve the dark public theme. */
+body .app-shell .main .dashboard-create-actions > button small,
+body .app-shell .main .dashboard-kpi small,
+body .app-shell .main .dashboard-alert small,
+body .app-shell .main .breadcrumb,
+body .app-shell .main .detail-grid span,
+body .app-shell .main .config-section-title small,
+body .app-shell .main .config-section-empty,
+body .app-shell .main .config-stat-grid span,
+body .app-shell .main .config-detail-grid .detail-block span,
+body .app-shell .main .config-card-main p,
+body .app-shell .main .stage-results-summary span,
+body .app-shell .main .field-help,
+body .app-shell .main .field-check small,
+body .app-shell .main .table-sub {
+  color: #565f68 !important;
+}
