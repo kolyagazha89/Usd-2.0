@@ -317,13 +317,25 @@ export class MediaService {
     if (!Number.isFinite(length) || length > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Файл больше допустимых 10 МБ');
     }
-    // Read into a trusted local buffer once, validate exactly these bytes,
-    // then copy the SAME buffer to an unguessable final object key.
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Некорректный размер загруженного файла');
+    // The staging object can be replaced between HEAD and GET. Never use
+    // unbounded arrayBuffer() on an untrusted S3 response: cap while streaming.
+    const reader = response.body?.getReader();
+    if (!reader) throw new BadRequestException('Пустой поток загруженного файла');
+    const chunks: Buffer[] = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_IMAGE_BYTES) throw new BadRequestException('Файл больше допустимых 10 МБ');
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined);
     }
-    return bytes;
+    if (!total) throw new BadRequestException('Пустой загруженный файл');
+    return Buffer.concat(chunks, total);
   }
 
   private validateImageSignature(bytes: Buffer, contentType: string) {
