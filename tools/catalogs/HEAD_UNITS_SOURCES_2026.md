@@ -13,6 +13,8 @@ This is a **reference list** of verified real car radio/head-unit model identifi
 | Sony | https://electronics.sony.com/audio/car-marine-audio/c/receiver-players and https://www.sony.com/electronics/support/car-marine-entertainment-in-car-receivers | Car receivers; explicitly exclude marine-only units |
 | Clarion | https://archive.clarion.com/ca/fr/user-support/software/audio/index.html | Manufacturer's historical car receiver software archive |
 | Phantom | https://phantom-dvm.ru/category/phantom-dvm_s0/all/ and https://www.phantom-dvm.ru/pricelist/ | Archived DVM branded vehicle head units, not generic Kicx accessories |
+| Blaupunkt | https://www.blaupunkt.com/de-de/product-category/automotive/incar-entertainment-automotive?product-category=autoradio-de | Official catalog category explicitly tagged car radio, excludes loudspeakers and adapters |
+| Nakamichi | https://nakamichicaraudio.com/collections/all and https://nakamichicaraudio.com/products/nakamichi-nam1700 | Official maker receiver listings; exclude DSP, amplifiers and accessories |
 | Prology | https://www.prology.ru/news/avtomagnitoli-prology-poluchili-3-letnyuyu-servisnuyu-podderzhku-1900 and https://www.prology.ru/htmlmap | Current 2026 support models plus older product index |
 | ACV | https://acv-auto.com/swap-fund/ | Official warranty replacement list specifically identifies car receivers |
 | Teyes | https://teyes.com.ru/sravnitelnaya-tablitsa/ and https://teyes.com.ru/brand/ | Named receiver series; current and historical labels, no vehicle fitment/memory/color variants |
