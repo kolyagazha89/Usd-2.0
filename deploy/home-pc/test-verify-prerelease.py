@@ -117,3 +117,22 @@ class VerifyReleaseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class SafeRevisionDiagnosticsTests(unittest.TestCase):
+    def test_mismatch_shows_only_commit_prefixes_and_identifies_ingress(self):
+        with self.assertRaisesRegex(ValueError,'observed='+('b'*12)) as error:
+            module.require_revision({'revision':'b'*40},'a'*40,'frontend')
+        self.assertIn('ingress',str(error.exception))
+        self.assertNotIn('b'*40,str(error.exception))
+
+    def test_arbitrary_response_cannot_write_private_values_to_release_log(self):
+        for value in ('SECRET_KEY_DO_NOT_LOG','https://not-our-app.test',None,[],{'password':'password'}):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError) as error:
+                    module.require_revision({'revision':value},'a'*40,'API')
+                self.assertIn('missing-or-invalid',str(error.exception))
+                self.assertNotIn('SECRET_KEY_DO_NOT_LOG',str(error.exception))
+                self.assertNotIn('password',str(error.exception))
+
+    def test_exact_revision_passes_without_logging(self):
+        module.require_revision({'revision':'a'*40},'a'*40,'frontend')
