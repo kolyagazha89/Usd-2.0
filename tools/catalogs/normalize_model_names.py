@@ -16,7 +16,7 @@ ACCESSORY = re.compile(
     r"wire kit|amplifier wiring|speaker wire|power wire|cable|recone|"
     r"rebuild|repair|\bspare\b|\breplacement\b|"
     r"^адаптер\b|\bмм2\b|^модуль\s|^кабель|^провод|ремкомплект|система оповещения|"
-    r"акустический комплект|sound.?bar|Vanity Plate|Kit Only|"
+    r"акустический комплект|^СИМФОНИЯ КНС\\s|sound.?bar|Vanity Plate|Kit Only|"
     r"^ПРО Климат|camera|рекон|"
     r"^DRMT\b|^GRP-|^LED-RBG|^MRMT\b|^SSRMT|^VMRMT|"
     r"^VO-CT|^TXO|^WXO|^DSI-3-RMT|^SC[246](?:a)?\b|"
