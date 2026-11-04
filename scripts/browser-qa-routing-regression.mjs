@@ -6,11 +6,13 @@ import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 import {handleLiveQaRoute} from './public-browser-qa-routing.mjs';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
-let deniedHits=0;
+let deniedHits=0,transientMediaHits=0,permanentMediaHits=0;
 const denied=createServer((_req,res)=>{deniedHits++;res.end('must never be contacted')});
 await new Promise(resolve=>denied.listen(0,'127.0.0.1',resolve));
 const source=createServer((req,res)=>{
  if(req.url==='/disconnect')return req.socket.destroy();
+ if(req.url==='/media/public-file/SITE_ASSET/transient'&&++transientMediaHits===1)return req.socket.destroy();
+ if(req.url==='/media/public-file/SITE_ASSET/broken'){permanentMediaHits++;return req.socket.destroy();}
  if(req.url==='/redirect')return res.writeHead(302,{location:'http://127.0.0.1:'+denied.address().port+'/denied'}).end();
  if(req.url==='/primary-redirect')return res.writeHead(302,{location:'https://usd-russia.ru/'}).end();
  res.writeHead(200,{'Content-Type':'text/html'}).end('<h1>Local routing fixture</h1>');
@@ -46,10 +48,21 @@ try{
  assert.equal(deniedHits,0,'redirect destinations are never contacted');
  assert.equal(fetched.some(url=>!url.startsWith('https://app.usd-russia.ru/')),false,'only approved reads reach the network adapter');
  assert.equal(blocked.filter(request=>request.reason==='redirect').length,2,'both redirects fail closed');
+ const transientMedia=await context.newPage();
+ await transientMedia.goto('https://api.usd-russia.ru/media/public-file/SITE_ASSET/transient');
+ assert.equal(await transientMedia.locator('h1').innerText(),'Local routing fixture');
+ await transientMedia.close();
+ assert.equal(transientMediaHits,2,'one failed media read may be retried exactly once');
+ assert.equal(blocked.filter(request=>request.reason==='read failed').length,0,'recovered public media read must not be treated as a failure');
  const disconnectedPage=await context.newPage();
  await assert.rejects(disconnectedPage.goto('https://app.usd-russia.ru/disconnect'),/ERR_FAILED/);
  await disconnectedPage.close();
  assert.equal(blocked.filter(request=>request.reason==='read failed').length,1,'network failure is reported and explicitly aborted');
+ const brokenMedia=await context.newPage();
+ await assert.rejects(brokenMedia.goto('https://api.usd-russia.ru/media/public-file/SITE_ASSET/broken'),/ERR_FAILED/);
+ await brokenMedia.close();
+ assert.equal(permanentMediaHits,2,'persistent broken public media must stop after two attempts');
+ assert.equal(blocked.filter(request=>request.reason==='read failed').length,2,'persistent failure remains explicitly reported');
  const before=fetched.length;
  const refresh=await page.evaluate(async()=>{const response=await fetch('https://api.usd-russia.ru/auth/refresh',{method:'POST'});return response.status});
  assert.equal(refresh,401,'anonymous bootstrap is synthetic');
@@ -57,7 +70,7 @@ try{
  assert.equal(fetched.length,before,'mutations never reach the network adapter');
  await assert.rejects(page.goto('https://usd-russia.ru/'),/ERR_(?:BLOCKED_BY_CLIENT|FAILED)/);
  assert.equal(fetched.length,before,'the primary domain is blocked before network access');
- console.log('BROWSER_ROUTING_REGRESSION passed: approved reads, redirect isolation, synthetic bootstrap, blocked mutations and primary domain');
+ console.log('BROWSER_ROUTING_REGRESSION passed: approved reads, one-time media retry, permanent failure isolation, redirect isolation, synthetic bootstrap, blocked mutations and primary domain');
  await context.close();
 }finally{
  await browser.close();

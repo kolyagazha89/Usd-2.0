@@ -38,6 +38,8 @@ jobs:
           npm ci --ignore-scripts
           npm test
           npm run build
+      - name: Test isolated public-read verification without network
+        run: node --test scripts/public-browser-read-recheck.test.mjs
       - name: Verify live browser network boundary with local fixtures
         run: node scripts/browser-qa-routing-regression.mjs
       - name: Check candidate public, participant and admin interfaces

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Merge independent USD crawl artifacts into exactly two import-ready CSV files."""
+"""Merge independent USD crawl artifacts into exactly two import-ready CSV files.\n\nSignal cabling, repair parts and other accessories are excluded via ACCESSORY.\n"""
 import csv
 import json
 import argparse

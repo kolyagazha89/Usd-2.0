@@ -4,6 +4,7 @@ import path from 'node:path';
 import {getLiveQaConfig} from './public-browser-qa-config.mjs';
 import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 import {handleLiveQaRoute} from './public-browser-qa-routing.mjs';
+import {recheckFailedPublicReads} from './public-browser-read-recheck.mjs';
 
 const tooling=process.env.USD_BROWSER_TOOLING;
 if(!tooling)throw new Error('Set USD_BROWSER_TOOLING to the temporary Playwright installation');
@@ -73,6 +74,30 @@ try{
           }else{
             row.resultDataState='legacy-deployed';
             await page.locator('.public-result-card').first().waitFor({state:'visible',timeout:60000});
+          }
+        }
+        if(route==='/stages?season=ALL'){
+          // A live page can render its shell long before the separate stage API
+          // finishes. 'networkidle' also returns after a failed/slow API read.
+          // Demand actual stage cards, not a guessed delay or an empty shell.
+          const hasStageCards=()=>page.waitForFunction(
+            ()=>document.querySelectorAll('.public-stage-grid .public-stage-card').length>=2,
+            null,{timeout:15000},
+          );
+          try{
+            await hasStageCards();
+          }catch{
+            // One bounded read-only retry covers intermittent prerelease API
+            // timeouts. A truly empty/broken stage list still fails the job.
+            row.stageReadRetried=true;
+            await page.reload({waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(
+              ()=>document.querySelectorAll('.public-stage-grid .public-stage-card').length>=2,
+              null,{timeout:40000},
+            ).catch(()=>{
+              // Persist error/empty-state evidence rather than hiding the failure.
+              row.stageErrorText='Stage API did not populate at least two cards after a read-only retry';
+            });
           }
         }
         const originalResultText=await inspectResultText(page);
@@ -150,7 +175,19 @@ try{
   }
 }finally{
   await browser.close();
-  for(const request of report.blockedRequests.filter(request=>['redirect','read failed'].includes(request.reason)))report.failures.push({route:request.url,error:request.reason==='redirect'?'Live QA blocked an HTTP redirect before following it':'Live QA read failed before a response was available'});
+  // Playwright may cancel an in-flight background GET after navigation. Do not
+  // equate that cancellation with an unavailable production endpoint: verify
+  // it in isolation, with a bounded safe GET. A persistent failure is fatal.
+  for(const request of report.blockedRequests.filter(request=>request.reason==='redirect')){
+    report.failures.push({route:request.url,error:'Live QA blocked an HTTP redirect before following it'});
+  }
+  try{
+    const checked=await recheckFailedPublicReads(report.blockedRequests);
+    report.recoveredReadFailures=checked.recovered;
+    for(const failed of checked.unresolved)report.failures.push({route:failed.url,error:failed.reason});
+  }catch{
+    report.failures.push({route:'read-only-recheck',error:'Failed to verify public read errors in isolation'});
+  }
   report.finishedAt=new Date().toISOString();
   await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
 }
