@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {groupLiveByClass,otherHomepageRecords,resultEntryNumber} from '../src/public/home-results-model.ts';
+import {groupLiveByClass,otherHomepageRecords,resultEntryNumber,homepageLatestWinners} from '../src/public/home-results-model.ts';
 
 const sample=(id,cls,place,value,number)=>({
  id,place,value,
@@ -72,4 +72,12 @@ test('the six latest-result cards render in responsive horizontal rows, without 
  assert.match(css,/@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/@media\(max-width:630px\)[\s\S]*?grid-template-columns:minmax\(0,1fr\)/);
  assert.match(css,/scoped|LIVE carousel|LIVE scoreboard/i);
+});
+
+test('homepage latest winners respects 3 SPL, 2 BFSPL and 1 BDW SPL and ignores runners-up',()=>{
+ const make=(id,direction,place=1)=>({id,place,registrationClass:{class:{id,name:id,direction:{name:direction}}}});
+ const rows=[make('runner','SPL',2),...Array.from({length:5},(_,i)=>make('spl'+i,'SPL')),...Array.from({length:4},(_,i)=>make('bfspl'+i,'BFSPL')),make('bdw','BDW SPL'),make('bass','BassRace')];
+ assert.deepEqual(homepageLatestWinners(rows).map(r=>r.id),['spl0','spl1','spl2','bfspl0','bfspl1','bdw']);
+ assert.deepEqual(homepageLatestWinners([make('second','SPL',2)]),[]);
+ assert.deepEqual(homepageLatestWinners([make('first','BDW SPL'),make('first','BDW SPL')]).map(r=>r.id),['first']);
 });
