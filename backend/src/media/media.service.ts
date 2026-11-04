@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
@@ -12,6 +12,8 @@ const isAllowedType = (type: string, targetType: MediaTargetType) =>
 
 @Injectable()
 export class MediaService {
+  private readonly logger = new Logger(MediaService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   private config() {
@@ -275,7 +277,12 @@ export class MediaService {
           (error instanceof ServiceUnavailableException && error.message === 'Хранилище вернуло ошибку чтения')) {
           throw error;
         }
-        if (attempt === 2) throw new ServiceUnavailableException('Временная ошибка чтения медиафайла');
+        if (attempt === 2) {
+          // Never log signed URLs, S3 keys or public target IDs.
+          this.logger.error('RustFS media GET failed after two bounded reads');
+          throw new ServiceUnavailableException('Временная ошибка чтения медиафайла');
+        }
+        this.logger.warn('Transient RustFS media GET failure; retrying once');
       }
     }
     throw new ServiceUnavailableException('Временная ошибка чтения медиафайла');
