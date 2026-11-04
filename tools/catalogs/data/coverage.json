@@ -11,8 +11,8 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3614,
-    "brands": 39,
+    "rows": 3654,
+    "brands": 41,
     "fields": [
       "бренд",
       "модель",
@@ -22,7 +22,7 @@
       "AMPLIFIER": 910,
       "AUDIO_COMPONENT": 1389,
       "DSP": 26,
-      "HEAD_UNIT": 300,
+      "HEAD_UNIT": 340,
       "SUBWOOFER": 989
     },
     "counts_by_brand": {
@@ -34,6 +34,7 @@
       "Avatar": 96,
       "B2 Audio": 62,
       "Black Hydra": 26,
+      "Blaupunkt": 18,
       "Clarion": 13,
       "DD Audio": 361,
       "Deaf Bonce": 31,
@@ -50,6 +51,7 @@
       "Kicx": 80,
       "Loud Level": 9,
       "Machete": 161,
+      "Nakamichi": 22,
       "Phantom": 26,
       "Pioneer": 12,
       "Pride": 239,
@@ -66,8 +68,8 @@
       "Terza": 5,
       "Teyes": 10
     },
-    "brand_count_note": "39 brand/series labels; includes genuine head-unit manufacturers in addition to SPL labels",
-    "review_note": "Added 226 verified HEAD_UNIT names from official catalog/support pages; excluded marine units, adapters and fabricated head units for brands that only produce speakers/amplifiers. Existing head-unit rows preserved; full historical coverage still incomplete."
+    "brand_count_note": "41 brand/series labels; includes genuine head-unit manufacturers in addition to SPL labels",
+    "review_note": "Added 266 verified HEAD_UNIT names from official catalog/support pages; excluded marine units, adapters and fabricated head units for brands that only produce speakers/amplifiers. Existing head-unit rows preserved; full historical coverage still incomplete."
   },
   "fragment_coverage": [
     {
@@ -172,7 +174,7 @@
     },
     {
       "name": "head_units_verified_2026",
-      "rows": 226,
+      "rows": 266,
       "source_method": "Manufacturer product listings/support and official dealer catalogs; source map: tools/catalogs/HEAD_UNITS_SOURCES_2026.md"
     }
   ],
