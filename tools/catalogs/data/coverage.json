@@ -11,7 +11,7 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3809,
+    "rows": 3798,
     "brands": 41,
     "fields": [
       "бренд",
@@ -20,7 +20,7 @@
     ],
     "categories": {
       "AMPLIFIER": 910,
-      "AUDIO_COMPONENT": 1384,
+      "AUDIO_COMPONENT": 1373,
       "DSP": 26,
       "HEAD_UNIT": 500,
       "SUBWOOFER": 989
@@ -54,7 +54,7 @@
       "Nakamichi": 22,
       "Phantom": 26,
       "Pioneer": 32,
-      "Pride": 239,
+      "Pride": 228,
       "Prology": 42,
       "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
@@ -69,7 +69,7 @@
       "Teyes": 10
     },
     "brand_count_note": "41 brand/series labels; 500 head-unit model names across 17 labels, incl archived receivers from manufacturer support.",
-    "review_note": "Manufacturer archive expansion: 160 extra receiver names, 5 Ural 'СИМФОНИЯ КНС' signal cables excluded from AUDIO_COMPONENT. Catalog is incomplete, existing live records must not be auto-deleted."
+    "review_note": "Manufacturer archive expansion: 160 additional receivers; excluded five Ural signal cables and eleven Pride gaskets. Pride Mille, Mezzo, Rapid already exist; no duplicate additions. Production records untouched."
   },
   "fragment_coverage": [
     {
@@ -196,7 +196,8 @@
     "head_unit_sources": "tools/catalogs/HEAD_UNITS_SOURCES_2026.md",
     "archive_import_has_no_duplicates": true,
     "accessory_cables_removed": 5,
-    "catalog_asset_and_source_synced": true
+    "catalog_asset_and_source_synced": true,
+    "accessory_gaskets_removed": 11
   },
   "completeness": "review-ready substantial official catalog seed; head units expanded across real manufacturers; full historical product coverage not certified",
   "production_import": false,
