@@ -45,8 +45,8 @@ class ExportedCatalogTests(unittest.TestCase):
 
     def test_manufacturer_head_units_are_import_ready_and_not_fabricated(self):
         head_units = [row for row in self.audio if row[2] == "HEAD_UNIT"]
-        self.assertEqual(len(head_units), 300)
-        self.assertEqual(len({row[0] for row in head_units}), 15)
+        self.assertEqual(len(head_units), 340)
+        self.assertEqual(len({row[0] for row in head_units}), 17)
         self.assertEqual(len({(r[0].casefold(), r[1].casefold()) for r in head_units}), len(head_units))
         required = [
             ("Deaf Bonce", "DB-310DSP"),
@@ -60,6 +60,8 @@ class ExportedCatalogTests(unittest.TestCase):
             ("Clarion", "CZ505"),
             ("Phantom", "DVM-1500G i6"),
             ("Prology", "CMD-350"),
+            ("Blaupunkt", "Bremen SQR 46 DAB"),
+            ("Nakamichi", "NAM1700"),
             ("ACV", "AVS-824BW"),
             ("Teyes", "CC4 Pro"),
             ("Aura", "STORM-679DSP"),
@@ -74,7 +76,7 @@ class ExportedCatalogTests(unittest.TestCase):
         # resulting 3-column import CSV, without added product specifications.
         fragment = load(DATA / "fragments" / "head_units_verified_2026.csv",
                         ["бренд", "модель", "категория"])
-        self.assertEqual(len(fragment), 226)
+        self.assertEqual(len(fragment), 266)
         for row in fragment:
             self.assertEqual(row[2], "HEAD_UNIT")
             self.assertIn(row, self.audio)
