@@ -1,3 +1,4 @@
+import RussianPlateKeypad from '../participant/RussianPlateKeypad';
 import './car-editor-journey.css';
 import {useEffect,useState,type FormEvent} from 'react';
 import {AlertTriangle,ChevronLeft,ChevronRight,Loader2,Plus,RefreshCw,Search} from 'lucide-react';
@@ -73,7 +74,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
    </div>}
    {step===1&&<div className="usd-car-editor-panel" aria-label="Регистрационные данные">
     <h3>Госномер и внешний вид</h3><p>Номер проверяется по правилам страны регистрации. Цвет указывать необязательно.</p>
-    <div className="form-grid-2"><label>Страна регистрации<select aria-label="Страна регистрации" value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value,registrationNumber:''})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input aria-label="Госномер" value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={16} autoCapitalize="characters" required/></label></div>
+    <div className="form-grid-2"><label>Страна регистрации<select aria-label="Страна регистрации" value={v.registrationCountry} onChange={e=>setV({...v,registrationCountry:e.target.value,registrationNumber:''})}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label>Госномер<input aria-label="Госномер" value={v.registrationNumber} onChange={e=>setV({...v,registrationNumber:formatPlateInput(String(v.registrationCountry??'RU'),e.target.value)})} maxLength={16} autoCapitalize="characters" required/></label>{v.registrationCountry==='RU'&&<RussianPlateKeypad value={String(v.registrationNumber??'')} onChange={number=>setV((previous:any)=>({...previous,registrationNumber:number}))}/>} </div>
     <label>Цвет автомобиля<input aria-label="Цвет автомобиля" value={v.color} onChange={e=>setV({...v,color:e.target.value})}/></label>
    </div>}
    {step===2&&<div className="usd-car-editor-panel" aria-label="Проверка и публикация">
