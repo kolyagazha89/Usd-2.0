@@ -5,7 +5,7 @@ import { VenueStageService } from './venue-stage.service';
 import { signVenueStageSnapshot, verifyVenueStagePackage, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 
 const {privateKey,publicKey}=generateKeyPairSync('ed25519');
-const secret=privateKey.export({type:'pkcs8',format:'pem'}).toString('base64');
+const secret=Buffer.from(privateKey.export({type:'pkcs8',format:'pem'})).toString('base64');
 const publicPem=publicKey.export({type:'spki',format:'pem'}).toString();
 const start=Date.parse('2026-11-04T04:00:00Z');
 const snapshot:VenueStageSnapshot={
