@@ -67,7 +67,7 @@ test('the six latest-result cards render in responsive horizontal rows, without 
  const css=await readFile(new URL('../src/public/home-results.css',import.meta.url),'utf8');
  const page=await readFile(new URL('../src/public/PremiumHome.tsx',import.meta.url),'utf8');
  assert.match(page,/data-home-block="latest-results"/);
- assert.match(page,/results\.slice\(0,6\)/);
+ assert.match(page,/latestWinners\.map\(/);
  assert.match(css,/data-home-block="latest-results"\] \.u-mini-results\s*\{\s*display:grid;\s*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
  assert.match(css,/@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/@media\(max-width:630px\)[\s\S]*?grid-template-columns:minmax\(0,1fr\)/);
