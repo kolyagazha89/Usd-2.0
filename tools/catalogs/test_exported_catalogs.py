@@ -30,7 +30,7 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertNotIn(["каталог спецтехники", "Автомобили"], self.cars)
 
     def test_audio_has_full_import_categories_and_many_models(self):
-        self.assertGreaterEqual(len(self.audio), 3350)
+        self.assertEqual(len(self.audio), 3809)
         self.assertGreaterEqual(len({r[0] for r in self.audio}), 30)
         self.assertTrue({r[2] for r in self.audio}.issubset(AUDIO_TYPES))
         self.assertIn(["Apocalypse", "AAB-1200.2D", "AMPLIFIER"], self.audio)
@@ -45,7 +45,7 @@ class ExportedCatalogTests(unittest.TestCase):
 
     def test_manufacturer_head_units_are_import_ready_and_not_fabricated(self):
         head_units = [row for row in self.audio if row[2] == "HEAD_UNIT"]
-        self.assertEqual(len(head_units), 340)
+        self.assertEqual(len(head_units), 500)
         self.assertEqual(len({row[0] for row in head_units}), 17)
         self.assertEqual(len({(r[0].casefold(), r[1].casefold()) for r in head_units}), len(head_units))
         required = [
@@ -81,12 +81,23 @@ class ExportedCatalogTests(unittest.TestCase):
             self.assertEqual(row[2], "HEAD_UNIT")
             self.assertIn(row, self.audio)
             self.assertTrue(all(field.strip() for field in row))
+        archived = load(DATA / "fragments" / "head_units_archive_verified_2026.csv",
+                        ["бренд", "модель", "категория"])
+        self.assertEqual(len(archived), 160)
+        for row in archived:
+            self.assertEqual(row[2], "HEAD_UNIT")
+            self.assertIn(row, self.audio)
+        self.assertIn(["Kenwood", "KMM-100", "HEAD_UNIT"], self.audio)
+        self.assertIn(["Pioneer", "FH-S820DAB", "HEAD_UNIT"], self.audio)
+        self.assertIn(["Sony", "DSX-GS900", "HEAD_UNIT"], self.audio)
+        self.assertIn(["Alpine", "CDA-9887", "HEAD_UNIT"], self.audio)
         # SPL-only manufacturers cannot be padded with made-up head units.
         for brand in ("Fi Car Audio", "Pride", "Sundown Audio", "Taramps"):
             self.assertFalse(any(row[0] == brand for row in head_units), brand)
 
     def test_audio_reference_does_not_include_wiring_or_adapters(self):
         for brand, model, category in self.audio:
+            self.assertFalse(model.startswith("СИМФОНИЯ КНС"), (brand, model, category))
             self.assertNotIn("мм2", model.casefold(), (brand, model, category))
             self.assertFalse(model.casefold().startswith("адаптер"), (brand, model, category))
 
