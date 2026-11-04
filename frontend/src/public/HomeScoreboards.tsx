@@ -23,17 +23,17 @@ export function HomeResultRow({row}:{row:any}){
 }
 
 export function LiveClassCarousel({rows}:{rows:any[]}){
- const groups=groupLiveByClass(rows),[index,setIndex]=useState(0),[paused,setPaused]=useState(false);
+ const groups=groupLiveByClass(rows),[index,setIndex]=useState(0),[paused,setPaused]=useState(false),[hovered,setHovered]=useState(false),[focused,setFocused]=useState(false);
  const keys=groups.map(g=>g.key).join('|');
  useEffect(()=>setIndex(0),[keys]);
  useEffect(()=>{
-  if(paused||groups.length<2||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  if(paused||hovered||focused||groups.length<2||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
   const timer=window.setInterval(()=>setIndex(current=>(current+1)%groups.length),7000);
   return ()=>window.clearInterval(timer);
- },[keys,groups.length,paused]);
+ },[keys,groups.length,paused,hovered,focused]);
  const group=groups[index%groups.length];
  if(!group)return null;
- return <div className="usd-live-carousel" aria-label="Результаты по классам">
+ return <div className="usd-live-carousel" aria-label="Результаты по классам" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
   <div className="usd-live-class-heading">
    <div><small>{group.direction||'НАПРАВЛЕНИЕ USD'}</small><h3>{group.name}</h3><span>{group.rows.length} {group.rows.length===1?'результат':group.rows.length<5?'результата':'результатов'}</span></div>
    {groups.length>1&&<div className="usd-carousel-controls"><span>{index%groups.length+1} / {groups.length}</span><button type="button" aria-label={paused?'Возобновить смену классов':'Приостановить смену классов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={18}/>:<Pause size={18}/>}</button><button type="button" aria-label="Предыдущий класс" onClick={()=>{setPaused(true);setIndex(i=>(i-1+groups.length)%groups.length)}}><ChevronLeft size={18}/></button><button type="button" aria-label="Следующий класс" onClick={()=>{setPaused(true);setIndex(i=>(i+1)%groups.length)}}><ChevronRight size={18}/></button></div>}
@@ -50,17 +50,17 @@ export function LiveClassCarousel({rows}:{rows:any[]}){
 }
 
 export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
- const records=otherHomepageRecords(rows,bestId),[page,setPage]=useState(0),[paused,setPaused]=useState(false);
+ const records=otherHomepageRecords(rows,bestId),[page,setPage]=useState(0),[paused,setPaused]=useState(false),[hovered,setHovered]=useState(false),[focused,setFocused]=useState(false);
  const total=Math.ceil(records.length/3);
  const keys=records.map(r=>r.id).join('|');
  useEffect(()=>setPage(0),[keys]);
  useEffect(()=>{
-  if(paused||total<2||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  if(paused||hovered||focused||total<2||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
   const timer=window.setInterval(()=>setPage(p=>(p+1)%total),8500);
   return ()=>window.clearInterval(timer);
- },[keys,total,paused]);
+ },[keys,total,paused,hovered,focused]);
  const current=page%Math.max(1,total);
- return <div className="usd-record-carousel">
+ return <div className="usd-record-carousel" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
   <div className="usd-record-viewport" aria-label="Другие рекорды USD">
    <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
     {Array.from({length:total},(_,slide)=><div key={slide} className="u-record-minis usd-record-slide" aria-hidden={slide!==current} inert={slide!==current}>{records.slice(slide*3,slide*3+3).map(r=>{
