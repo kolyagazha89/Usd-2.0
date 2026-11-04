@@ -221,6 +221,66 @@ export class MediaService {
     return { success: true, url: this.presignedUrl('GET', upload.objectKey, null, expiresIn), expiresIn, contentType: upload.contentType };
   }
 
+  /**
+   * The public proxy must not hold a Node request indefinitely when local
+   * RustFS stalls. One bounded retry is allowed for an idempotent S3 GET,
+   * but not for missing objects or invalid/oversized data.
+   *
+   * Sign the S3 request afresh on every attempt; signed URLs and object keys
+   * must never appear in logs or in a public exception.
+   */
+  private async readStoredMedia(key: string): Promise<Buffer> {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(this.presignedUrl('GET', key, null, 60), {
+          method: 'GET',
+          signal: AbortSignal.timeout(7000),
+        });
+        if (!response.ok) {
+          await response.body?.cancel();
+          if (response.status === 404) throw new NotFoundException('Медиафайл не найден в хранилище');
+          if (![429, 500, 502, 503, 504].includes(response.status)) {
+            throw new ServiceUnavailableException('Хранилище вернуло ошибку чтения');
+          }
+          throw new Error('Transient storage HTTP failure');
+        }
+        const lengthHeader = response.headers.get('content-length');
+        const length = lengthHeader === null ? 0 : Number(lengthHeader);
+        if (!Number.isFinite(length) || length < 0 || length > MAX_IMAGE_BYTES) {
+          await response.body?.cancel();
+          throw new BadRequestException('Некорректный размер медиафайла');
+        }
+        if (!response.body) throw new Error('Storage response has no body');
+        const reader = response.body.getReader();
+        const chunks: Buffer[] = [];
+        let total = 0;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            total += value.byteLength;
+            if (total > MAX_IMAGE_BYTES) throw new BadRequestException('Размер медиафайла превышает 10 MB');
+            chunks.push(Buffer.from(value));
+          }
+        } catch (error) {
+          await reader.cancel().catch(() => {});
+          throw error;
+        } finally {
+          reader.releaseLock();
+        }
+        if (!total) throw new BadRequestException('Файл пустой');
+        return Buffer.concat(chunks, total);
+      } catch (error) {
+        if (error instanceof BadRequestException || error instanceof NotFoundException ||
+          (error instanceof ServiceUnavailableException && error.message === 'Хранилище вернуло ошибку чтения')) {
+          throw error;
+        }
+        if (attempt === 2) throw new ServiceUnavailableException('Временная ошибка чтения медиафайла');
+      }
+    }
+    throw new ServiceUnavailableException('Временная ошибка чтения медиафайла');
+  }
+
   async getPrivateMediaFile(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     // Private site assets may include unpublished legal documents; require ADMIN.
@@ -235,12 +295,7 @@ export class MediaService {
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new NotFoundException('Медиафайл не найден');
-    const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
-    if (!response.ok) throw new ServiceUnavailableException('Не удалось получить медиафайл из S3');
-    const contentLength = Number(response.headers.get('content-length') || '0');
-    if (contentLength > MAX_IMAGE_BYTES) throw new BadRequestException('Размер медиафайла превышает 10 MB');
-    const body = Buffer.from(await response.arrayBuffer());
-    if (body.length === 0 || body.length > MAX_IMAGE_BYTES) throw new BadRequestException('Некорректный размер медиафайла');
+    const body = await this.readStoredMedia(upload.objectKey);
     return { body, contentType: upload.contentType };
   }
 
@@ -268,10 +323,7 @@ export class MediaService {
       select: { objectKey: true, contentType: true },
     });
     if (!upload) throw new BadRequestException('Файл не найден');
-    const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
-    if (!response.ok) throw new BadRequestException('Не удалось получить файл из хранилища');
-    const body = Buffer.from(await response.arrayBuffer());
-    if (!body.length) throw new BadRequestException('Файл пустой');
+    const body = await this.readStoredMedia(upload.objectKey);
     return { body, contentType: upload.contentType };
   }
 
