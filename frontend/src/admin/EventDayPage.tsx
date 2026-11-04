@@ -182,7 +182,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
       {canExportVenue&&<button type="button" className="secondary-button compact" disabled={venueExporting||loading} onClick={()=>void downloadVenuePackage()}><Download size={15}/>{venueExporting?'Подписываем пакет…':'Скачать пакет для ноутбука (LAN)'}</button>}
-      {canExportVenue&&<span className="event-day-venue-export-warning">Содержит ФИО, госномера и конфигурации. Файл действителен до 72 часов и только для защищённого LAN-сервера USD.</span>
+      {canExportVenue&&<span className="event-day-venue-export-warning">Содержит ФИО, госномера и конфигурации. Файл действителен до 72 часов и только для защищённого LAN-сервера USD.</span>}
       {canPrepareOffline&&!readOnly&&<button type="button" className="secondary-button compact" aria-expanded={offlinePrepOpen} onClick={()=>setOfflinePrepOpen(x=>!x)}><HardDrive size={15}/>Подготовить автономный пакет</button>}
       <button type="button" className="secondary-button compact" onClick={()=>go('/offline-event')}><LockKeyhole size={15}/>Открыть локальные черновики</button>
      </div>
@@ -190,7 +190,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
     {offlinePrepOpen&&canPrepareOffline&&!readOnly&&<section className="panel event-day-offline-prepare" aria-label="Подготовка автономного пакета">
      <h3><LockKeyhole size={19}/>Защищённый пакет на это устройство</h3>
      <p>Сохранится минимум данных выбранного этапа: ФИО, автомобиль, номер, классы и текущий статус осмотра. Без телефонов, email, JWT и всей базы USD. Пакет действует 72 часа и шифруется AES-GCM.</p>
-     <p className="event-day-offline-warning">Этот первый offline-режим позволяет искать участников и сохранять черновики инспекций без интернета. Несколько судей не разделяют изменения. Отправка в API пока не реализована — решения нужно сверять и переносить вручную после восстановления связи.</p>
+     <p className="event-day-offline-warning">Это резервный офлайн-режим одного устройства. Он позволяет сохранять черновики без интернета и отправлять их через защищённый API после восстановления связи. Для нескольких судей предназначен локальный сервер на ноутбуке через Wi-Fi-роутер.</p>
      <form onSubmit={e=>{e.preventDefault();void prepareOffline()}}>
       <div className="event-day-offline-fields">
        <label>Пароль пакета (от 14 символов)<input type="password" autoComplete="new-password" minLength={14} maxLength={128} value={offlinePass} onChange={e=>setOfflinePass(e.target.value)} required/></label>
