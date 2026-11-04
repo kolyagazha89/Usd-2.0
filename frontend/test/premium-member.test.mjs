@@ -20,7 +20,7 @@ test('all participant and account routes use the isolated premium public theme',
  assert.match(app,/className="login-page usd-auth"/);
  assert.match(app,/className="login-page usd-auth usd-auth-simple"/);
  assert.match(account,/className="login-page usd-auth usd-auth-simple"/);
- const cssImports=main.trim().split('\n').filter(line=>/^import .*\.css';$/.test(line));
+ const cssImports=main.trim().split(/\r?\n/).filter(line=>/^import .*\.css';$/.test(line.trim())).map(line=>line.trim());
  assert.deepEqual(cssImports.slice(-5),["import './participant/member-experience.css';","import './dark-velocity-sitewide.css';","import './sitewide-finish.css';","import './sitewide-premium-2026.css';","import './admin/admin-shell-layout.css';"],'one cross-site premium theme follows the member implementation and leaves the light admin geometry last');
  assert.ok(main.indexOf("import './public/premium-member.css'")<main.indexOf("import './public/premium-configurator.css'"));
  assert.match(css,/body \.usd-member \.participant-tabs/);
