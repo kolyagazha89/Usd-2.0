@@ -21,5 +21,7 @@ RUN node -e 'const fs=require("node:fs");const revision=process.env.USD_RELEASE_
 LABEL org.opencontainers.image.revision=${USD_RELEASE_SHA}
 
 ENV NODE_ENV=production
+# Keep the process unprivileged even when a runtime does not override USER.
+USER node
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
