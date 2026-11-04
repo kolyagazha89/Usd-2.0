@@ -12,6 +12,8 @@ let logoutPromise: Promise<void> | null = null;
 const pendingAuthRequests = new Set<Promise<AuthResponse>>();
 // Prevent an in-flight refresh response from restoring credentials after logout.
 let authGeneration = 0;
+// Cleanup of the pre-cookie auth scheme; storage may be disabled.
+function purgeLegacyRefreshToken(){try{window.localStorage.removeItem('usd_refresh_token')}catch{/* blocked storage */}}
 
 export type Role = 'ADMIN' | 'PARTICIPANT';
 export type CustomRoleInfo = { id:string; key:string; name:string; permissions:Record<string,string[]> };
@@ -91,6 +93,7 @@ function requestAuth(path:string,init:RequestInit){
   return pending;
 }
 export async function login(email:string,password:string){
+  purgeLegacyRefreshToken();
   if(logoutPromise)await logoutPromise;
   const generation=authGeneration;
   const r=await requestAuth('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
@@ -100,6 +103,7 @@ export async function login(email:string,password:string){
   return r.user;
 }
 export async function refresh(){
+  purgeLegacyRefreshToken();
   if(logoutPromise)return null;
   if(refreshPromise)return refreshPromise;
   const generation=authGeneration;
@@ -122,7 +126,7 @@ export function clearAuthSession(){
   refreshPromise=null;
   accessToken=null;
   clearPrivateMediaUrls();
-  try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
+  purgeLegacyRefreshToken();
 }
 export async function logout(){
   if(logoutPromise)return logoutPromise;
