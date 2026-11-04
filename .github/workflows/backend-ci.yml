@@ -93,3 +93,24 @@ jobs:
       - name: Dependency audit
         if: ${{ always() && steps.install.outcome == 'success' }}
         run: npm audit --omit=dev --audit-level=high
+
+  runtime-image-smoke:
+    name: Production image (Prisma CLI, non-root, no dev tools)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build the exact runtime Dockerfile
+        run: docker build -f backend/Dockerfile --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-api-runtime-audit:pr backend
+
+      - name: Confirm effective UID and migration CLI without dev toolchain
+        run: |
+          docker run --rm --entrypoint sh usd-api-runtime-audit:pr -ec '
+            test "$(id -u)" -ne 0
+            test -x node_modules/.bin/prisma
+            node_modules/.bin/prisma --version
+            node -e "require.resolve(\"@prisma/client\")"
+            test ! -x node_modules/.bin/jest
+            test ! -x node_modules/.bin/tsc
+          '
