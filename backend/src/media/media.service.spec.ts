@@ -213,6 +213,17 @@ describe('MediaService media library', () => {
     expect(prisma.mediaUpload.deleteMany).not.toHaveBeenCalled();
   });
 
+  it('bounds staging reads even when object HEAD was small but GET body changes', async () => {
+    global.fetch = jest.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(6 * 1024 * 1024));
+        controller.enqueue(new Uint8Array(6 * 1024 * 1024));
+        controller.close();
+      },
+    }), { status: 200 })) as typeof fetch;
+    await expect((service as any).readStagedUpload('temporary-key')).rejects.toThrow('10 МБ');
+  });
+
   it('commits a replacement car photo and its library entry in one transaction', async () => {
     const upload = {
       id:'uploaded-car-photo', userId:'admin-1', targetType:MediaTargetType.CAR_PHOTO,
