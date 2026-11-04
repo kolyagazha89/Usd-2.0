@@ -140,7 +140,9 @@ export function validateDocxBytes(bytes: Buffer) {
         /(?:vbaProject\.bin|\.exe|\.js)$/i.test(name)) fail();
     totalExpanded += uncompressed;
     if (totalExpanded > 40 * 1024 * 1024 || uncompressed > 10 * 1024 * 1024) fail();
-    if (mandatory.has(name)) {
+    // External OOXML relationships may trigger remote requests when opened
+    // by a document processor. Inspect all .rels parts, not only the main XML.
+    if (mandatory.has(name) || name.endsWith('.rels')) {
       const local = bytes.readUInt32LE(offset + 42);
       if (local + 30 > bytes.length || bytes.readUInt32LE(local) !== 0x04034b50) fail();
       const data = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
@@ -151,7 +153,10 @@ export function validateDocxBytes(bytes: Buffer) {
         xml = method === 0 ? raw : inflateRawSync(raw, { maxOutputLength: 10 * 1024 * 1024 });
       } catch { fail(); }
       if (xml.length !== uncompressed || !xml.toString('utf8').includes('<')) fail();
-      mandatory.set(name, true);
+      if (name.endsWith('.rels') && /TargetMode\\s*=\\s*["']External["']/i.test(xml.toString('utf8'))) {
+        throw new BadRequestException('DOCX содержит внешние связи. Удалите их перед загрузкой.');
+      }
+      if (mandatory.has(name)) mandatory.set(name, true);
     }
     offset = next;
   }
