@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-03",
+  "generated_at": "2026-11-04",
   "sources": "Manufacturer official websites and Drom (factual names only)",
   "cars": {
     "rows": 4347,
@@ -11,8 +11,8 @@
     "origin": "https://www.drom.ru/catalog/"
   },
   "audio": {
-    "rows": 3388,
-    "brands": 30,
+    "rows": 3654,
+    "brands": 41,
     "fields": [
       "бренд",
       "модель",
@@ -21,44 +21,55 @@
     "categories": {
       "AMPLIFIER": 910,
       "AUDIO_COMPONENT": 1389,
-      "SUBWOOFER": 989,
-      "HEAD_UNIT": 74,
-      "DSP": 26
+      "DSP": 26,
+      "HEAD_UNIT": 340,
+      "SUBWOOFER": 989
     },
     "counts_by_brand": {
+      "Урал": 156,
+      "ACV": 22,
+      "Alpine": 13,
       "Apocalypse": 174,
       "Aura": 178,
       "Avatar": 96,
       "B2 Audio": 62,
       "Black Hydra": 26,
+      "Blaupunkt": 18,
+      "Clarion": 13,
       "DD Audio": 361,
-      "Deaf Bonce": 16,
+      "Deaf Bonce": 31,
       "DL Audio": 197,
+      "Dynamic State": 168,
       "EDGE": 96,
       "Fi Car Audio": 31,
       "Ground Zero": 291,
-      "Hannibal": 51,
+      "Hannibal": 54,
+      "Headshot": 48,
       "Hertz": 110,
+      "JVC": 33,
+      "Kenwood": 31,
+      "Kicx": 80,
+      "Loud Level": 9,
       "Machete": 161,
+      "Nakamichi": 22,
+      "Phantom": 26,
+      "Pioneer": 12,
       "Pride": 239,
+      "Prology": 42,
       "Resilient Sounds": 42,
       "Rockford Fosgate": 231,
+      "Sony": 14,
+      "Sound Civilization": 16,
       "SounDigital": 46,
       "SP Audio": 95,
       "Stetsom": 74,
       "Sundown Audio": 279,
       "Taramps": 42,
-      "Урал": 156,
-      "Headshot": 48,
-      "Kicx": 80,
-      "Loud Level": 9,
-      "Phantom": 8,
-      "Sound Civilization": 16,
       "Terza": 5,
-      "Dynamic State": 168
+      "Teyes": 10
     },
-    "brand_count_note": "30 brand/series labels, Kicx Sound subbrands separate",
-    "review_note": "Eight wiring/adapter listings removed from the AUDIO_COMPONENT staging seed; manufacturer coverage remains non-exhaustive."
+    "brand_count_note": "41 brand/series labels; includes genuine head-unit manufacturers in addition to SPL labels",
+    "review_note": "Added 266 verified HEAD_UNIT names from official catalog/support pages; excluded marine units, adapters and fabricated head units for brands that only produce speakers/amplifiers. Existing head-unit rows preserved; full historical coverage still incomplete."
   },
   "fragment_coverage": [
     {
@@ -160,6 +171,11 @@
       "name": "dynamic_state",
       "rows": 168,
       "source_method": "official Dynamic State category pages and indexed manufacturer product pages; partial historical coverage"
+    },
+    {
+      "name": "head_units_verified_2026",
+      "rows": 266,
+      "source_method": "Manufacturer product listings/support and official dealer catalogs; source map: tools/catalogs/HEAD_UNITS_SOURCES_2026.md"
     }
   ],
   "validation": {
@@ -170,9 +186,11 @@
     "cleaned_marketing_labels": true,
     "import_schema_matched": true,
     "source_fragment_headers_checked_by_ci": true,
-    "reference_csv_deduped_by_key": true
+    "reference_csv_deduped_by_key": true,
+    "head_units_verified": true,
+    "head_unit_sources": "tools/catalogs/HEAD_UNITS_SOURCES_2026.md"
   },
-  "completeness": "review-ready substantial official catalog seed; full historical product coverage not certified",
+  "completeness": "review-ready substantial official catalog seed; head units expanded across real manufacturers; full historical product coverage not certified",
   "production_import": false,
   "partial_source_limitations": [
     "Both Kicx and Dynamic State hosts time out on direct HTTP, including GitHub-hosted runner; official indexed product titles and cached official categories collected instead. Full historical coverage cannot be independently certified."

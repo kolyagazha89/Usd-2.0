@@ -1,4 +1,4 @@
-# USD reference catalogs — import staging (2026-11-03)
+# USD reference catalogs — import staging (2026-11-04)
 
 Data files are gathered separately from the deployed competition website. No production database has been altered.
 
@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,388 | 30 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,654 | 41 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -20,6 +20,15 @@ The files intentionally contain no product price, wattage, size, impedance, URLs
 - `DSP` — signal processors
 
 These are reference product **types**, not the FRONT/REAR/SUB vehicle installation positions.
+
+## Magnetic head units / receiver coverage (04 Nov 2026)
+
+`HEAD_UNIT` now includes **340** distinct receiver models/series (previously 74), across **17** catalog labels. Added **266** from a reviewed **266**-row fragment across 14 manufacturers. `Aura`, `Урал`, `DL Audio` records were already present and remain unchanged; `Deaf Bonce`, `Hannibal`, `Phantom` and real mainstream receiver brands are supplemented.
+
+- Verified import fragment: [head_units_verified_2026.csv](data/fragments/head_units_verified_2026.csv)
+- Independent manufacturer references and coverage limits: [HEAD_UNITS_SOURCES_2026.md](HEAD_UNITS_SOURCES_2026.md)
+- Brands whose manufacturer catalogs do not support a car receiver are **not** assigned invented `HEAD_UNIT` models. Only actual head-unit product lines are included. This is not exhaustive archival coverage.
+- No DB import/deployment was carried out. Use the admin preview and explicit confirmation; do not overwrite already existing or inactive catalog entities.
 
 ## Provenance and quality
 
