@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { MediaTargetType } from '../generated/prisma/enums';
 import { MediaService } from './media.service';
