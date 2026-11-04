@@ -76,8 +76,8 @@ function dataFor(url,role){
  if(p==='/directions')return [klass.direction];
  if(p==='/admin/participants')return [participant];
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
- if(p==='/participants/p1')return {...participant,cars:[car],registrations:[registration]};
- if(p==='/cars/car1')return car;
+ if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
+ if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
  if(p==='/results/registration/reg1')return [result];
  if(p==='/participants/teams')return [{name:'USD Team'}];
  if(p==='/teams/admin')return {teams:[],users:[]};
@@ -150,6 +150,19 @@ try{
       assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
       assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
       row.sitewideHome='no late content replacement after boot';
+     }
+     if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
+      const carPhoto=route==='/cars/car1';
+      const photo=page.locator(carPhoto?'.p-car-hero':'.p-profile-photo');
+      await photo.waitFor({state:'visible'});
+      const src=await photo.getAttribute('src');
+      assert.ok(src,'fixture with photo must render an image, not the placeholder');
+      const resolved=new URL(src,base);
+      assert.equal(resolved.pathname,carPhoto?'/media/public-file/CAR_PHOTO/car1':'/media/public-file/PARTICIPANT_PHOTO/p1',
+       'public pages must use privacy-checked media API, never private object storage');
+      assert.match(resolved.searchParams.get('v')??'',/^[a-f0-9]{8}$/,'replaced photos must invalidate browser image caches');
+      assert.ok(!src.includes('private-object-store.invalid'));
+      row.publicPhoto='protected proxy and versioned image URL';
      }
      if(role===null&&['/stages','/records','/rules','/privacy','/teams','/participants'].includes(route)){
       const pageHeading=page.locator('.public-page-heading');

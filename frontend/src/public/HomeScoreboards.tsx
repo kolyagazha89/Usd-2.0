@@ -2,6 +2,8 @@ import {useEffect,useState} from 'react';
 import {ChevronLeft,ChevronRight,Pause,Play} from 'lucide-react';
 import {publicResultUnit,publicResultValue} from '../public-result-utils';
 import {carName,personName} from './premium-model';
+import {getPublicEntityPhotoUrl} from './public-entity-photo-url';
+import {publicEntityPhotoSource} from './photo-source';
 import {Link,Photo} from './PremiumUI';
 import {groupLiveByClass,otherHomepageRecords,resultClass,resultEntryNumber} from './home-results-model';
 
@@ -14,7 +16,7 @@ export function HomeResultRow({row}:{row:any}){
  const value=row.value??row.result?.value??row.score;
  return <Link to={url} className="usd-score-row">
   <span className="usd-score-place"><b>{Number.isInteger(place)&&place>0?place:'—'}</b><small>МЕСТО</small></span>
-  <Photo kind="participant" src={participant?.photoUrl} alt={personName(participant)} className="usd-score-avatar" fallback={<img src="/usd/usd-original.png" alt="" aria-hidden="true"/>}/>
+  <Photo kind="participant" src={publicEntityPhotoSource('PARTICIPANT_PHOTO',participant,getPublicEntityPhotoUrl)} alt={personName(participant)} className="usd-score-avatar" fallback={<img src="/usd/usd-original.png" alt="" aria-hidden="true"/>}/>
   <span className="usd-score-identity"><b>{personName(participant)}</b><small>{number!==null?'№ '+String(number).padStart(3,'0')+' · ':''}{cls.name||'Класс не указан'}</small><small>{carName(car)}</small></span>
   <strong className="usd-score-value">{publicResultValue(value)}<small>{publicResultUnit(row.unit??cls.unit,cls)}</small></strong>
  </Link>;

@@ -12,10 +12,14 @@ export type PhotoPlaceholders={participant?:string|null;car?:string|null;stage?:
 export const PremiumPlaceholders=createContext<PhotoPlaceholders>({});
 export function Photo({src,alt,className='',fallback,kind,placeholderSrc}:{src?:string;alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders;placeholderSrc?:string|null}){
  const placeholders=useContext(PremiumPlaceholders);
- const [failed,F]=useState<string[]>([]);
  const original=safePhotoSource(src,isPrivateMediaUrl);
  const substitute=safePhotoSource(placeholderSrc??(kind?placeholders[kind]??undefined:undefined),isPrivateMediaUrl);
+ // A replaced S3 object has a new reference even when its public proxy URL is
+ // stable. Reset failed-image tracking when that reference changes.
+ const sourceKey=[src??'',placeholderSrc??'',substitute].join('\\0');
+ const [failure,F]=useState<{key:string;urls:string[]}>({key:'',urls:[]});
+ const failed=failure.key===sourceKey?failure.urls:[];
  const url=[original,substitute].find(candidate=>candidate&&!failed.includes(candidate));
- return url?<img className={className} src={url} alt={alt} loading="lazy" decoding="async" onError={()=>F(previous=>previous.includes(url)?previous:[...previous,url])}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
+ return url?<img className={className} src={url} alt={alt} loading="lazy" decoding="async" onError={()=>F(previous=>{const urls=previous.key===sourceKey?previous.urls:[];return {key:sourceKey,urls:urls.includes(url)?urls:[...urls,url]};})}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
 }
 export function NewsCard({post}:{post:any}){return <Link to={'/news/'+encodeURIComponent(post.id)} className="p-news-card"><Photo src={post.photoUrl} alt={post.title} className="p-news-cover" fallback={<><span>USD / JOURNAL</span><b>ГРОМЧЕ<br/>КАЖДЫЙ ДЕНЬ.</b><i aria-hidden/></>}/><div className="p-news-copy"><small>{post.publishedAt?stageDate(post.publishedAt):'USD / ЖУРНАЛ'}</small><h3>{post.title}</h3>{post.excerpt&&<p>{post.excerpt}</p>}<span className="p-news-read">Читать материал <b aria-hidden>↗</b></span></div></Link>}

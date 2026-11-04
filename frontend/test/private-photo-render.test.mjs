@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {safePhotoSource} from '../src/public/photo-source.ts';
+import {safePhotoSource,publicEntityPhotoSource} from '../src/public/photo-source.ts';
 
 test('authenticated Blob URLs render as photos without permitting arbitrary Blob links',()=>{
  const privateUrl='blob:https://app.usd-russia.ru/updated-car-photo';
@@ -27,4 +27,33 @@ test('reloading a member gallery revokes stale authenticated object URLs without
  assert.match(source,/!active\.has\(url\)\)releasePrivateMediaUrl\(url\)/);
  assert.match(source,/portalPhotoUrls\.current\.clear\(\)/);
  assert.match(source,/getMediaUrl\('CAR_PHOTO',car\.id\)/);
+});
+
+test('public car and participant photos use the protected API route, never private S3 links',()=>{
+ const proxy=(type,id)=>'/media/public-file/'+type+'/'+encodeURIComponent(id);
+ const car={id:'car-1',isPublic:true,photoUrl:'https://private-s3.example/cars/car-1/object'};
+ const first=publicEntityPhotoSource('CAR_PHOTO',car,proxy);
+ assert.ok(first.startsWith('/media/public-file/CAR_PHOTO/car-1?v='));
+ assert.match(first.split('?v=')[1],/^[a-f0-9]{8}$/);
+ assert.notEqual(first,car.photoUrl,'never leak private object key');
+ assert.notEqual(publicEntityPhotoSource('CAR_PHOTO',{...car,photoUrl:'https://private-s3.example/cars/car-1/replaced'},proxy),first,
+  'replacing the same entity photograph must force a new browser image URL');
+ assert.ok(publicEntityPhotoSource('PARTICIPANT_PHOTO',{...car,id:'person 1'},proxy).startsWith('/media/public-file/PARTICIPANT_PHOTO/person%201?v='));
+ assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,photoUrl:null},proxy),'');
+ assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,isPublic:false},proxy),'');
+ assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,id:''},proxy),'');
+});
+
+test('every public car and participant card uses the visibility-checked media API',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ for(const name of ['PublicCommunity.tsx','HomeScoreboards.tsx','PremiumHome.tsx']){
+  const source=await readFile(new URL('../src/public/'+name,import.meta.url),'utf8');
+  assert.ok(source.includes('publicEntityPhotoSource('),name);
+  for(const raw of ['src={p.photoUrl}','src={c.photoUrl}','src={entity.photoUrl}','src={participant?.photoUrl}']){
+   assert.ok(!source.includes(raw),name+' leaked raw image URL: '+raw);
+  }
+ }
+ const photo=await readFile(new URL('../src/public/PremiumUI.tsx',import.meta.url),'utf8');
+ assert.ok(photo.includes('failure.key===sourceKey'));
+ assert.ok(photo.includes('previous.key===sourceKey'));
 });
