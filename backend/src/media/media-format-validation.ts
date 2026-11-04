@@ -159,7 +159,7 @@ export function validateDocxBytes(bytes: Buffer) {
         xml = method === 0 ? raw : inflateRawSync(raw, { maxOutputLength: 10 * 1024 * 1024 });
       } catch { fail(); }
       if (xml.length !== uncompressed || !xml.toString('utf8').includes('<')) fail();
-      if (name.endsWith('.rels') && /TargetMode\\s*=\\s*["']External["']/i.test(xml.toString('utf8'))) {
+      if (name.endsWith('.rels') && /TargetMode\s*=\s*["']External["']/i.test(xml.toString('utf8'))) {
         throw new BadRequestException('DOCX содержит внешние связи. Удалите их перед загрузкой.');
       }
       if (mandatory.has(name)) mandatory.set(name, true);
