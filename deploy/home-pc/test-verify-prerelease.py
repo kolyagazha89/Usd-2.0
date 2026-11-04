@@ -191,6 +191,25 @@ class PublicMediaAcceptanceTests(unittest.TestCase):
             self.assertEqual(module.verify_public_image_assets(settings), 0)
             get.assert_not_called()
 
+    def test_samples_newest_published_stages_before_old_cms_ids(self):
+        poster = module.API + '/media/public-file/SITE_ASSET/'
+        settings = {'homepage': {'stagePosters': {
+            'old': poster + 'old', 'upcoming': poster + 'upcoming',
+            'recent': poster + 'recent', 'early': poster + 'early',
+        }}}
+        stages = [
+            {'id': 'old', 'date': '2020-01-01T00:00:00Z'},
+            {'id': 'recent', 'date': '2026-09-12T00:00:00Z'},
+            {'id': 'early', 'date': '2025-05-03T00:00:00Z'},
+            {'id': 'upcoming', 'date': '2026-11-21T00:00:00Z'},
+        ]
+        with patch.object(module, 'fetch', return_value=(200, 'image/png', self.PNG)) as get:
+            self.assertEqual(module.verify_public_image_assets(settings, stages), 3)
+        self.assertEqual(
+            [call.args[0] for call in get.call_args_list],
+            [poster + 'upcoming', poster + 'recent', poster + 'early'],
+        )
+
     def test_samples_at_most_three_unique_stage_posters(self):
         posters = {
             str(i): module.API + '/media/public-file/SITE_ASSET/poster-' + str(i)
