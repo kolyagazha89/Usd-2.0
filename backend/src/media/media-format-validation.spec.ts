@@ -83,5 +83,11 @@ describe('media format validation before S3 promotion', () => {
     expect(() => validateDocxBytes(valid)).not.toThrow();
     expect(() => validateDocxBytes(zip([['arbitrary.txt','not a docx'], ['second.txt','zip file']]))).toThrow();
     expect(() => validateDocxBytes(valid.subarray(0,valid.length-8))).toThrow();
+    const withExternalLinks = zip([
+      ['[Content_Types].xml','<Types/>'],
+      ['word/document.xml','<w:document/>'],
+      ['word/_rels/document.xml.rels','<Relationships><Relationship TargetMode="External" Target="https://untrusted.example/x"/></Relationships>'],
+    ]);
+    expect(() => validateDocxBytes(withExternalLinks)).toThrow('внешние связи');
   });
 });
