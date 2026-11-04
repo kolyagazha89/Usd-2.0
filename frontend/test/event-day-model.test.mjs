@@ -79,3 +79,22 @@ test('the browser workflow is wired to the same protected registration/inspectio
  assert.match(inspections,/query\.get\('scan'\)==='1'/);
  assert.match(nav,/\/admin\/event-day\?stageId=/);
 });
+
+test('LAN stage export is ADMIN-only and does not silently write to a live database',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const [event,controller,service]=await Promise.all([
+  readFile(new URL('../src/admin/EventDayPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../../backend/src/stages/stages.controller.ts',import.meta.url),'utf8'),
+  readFile(new URL('../../backend/src/stages/venue-stage.service.ts',import.meta.url),'utf8'),
+ ]);
+ assert.match(event,/user\.role==='ADMIN'&&canList/);
+ assert.match(event,/Скачать пакет для ноутбука \(LAN\)/);
+ assert.match(event,/\/stages\/venue\//);
+ assert.match(event,/URL\.revokeObjectURL\(url\)/);
+ assert.match(controller,/@Get\('venue\/:id\/export'\)/);
+ assert.match(controller,/@Header\('Cache-Control', 'private, no-store/);
+ assert.match(service,/request\.user\.role!=='ADMIN'/);
+ assert.match(service,/VENUE_STAGE_SIGNING_KEY_B64/);
+ assert.match(service,/VENUE_STAGE_PACKAGE_EXPORTED/);
+ assert.doesNotMatch(service,/passwordHash|refreshToken|birthDate|phone:true|email:true/);
+});
