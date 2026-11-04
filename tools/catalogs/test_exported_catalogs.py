@@ -30,7 +30,7 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertNotIn(["каталог спецтехники", "Автомобили"], self.cars)
 
     def test_audio_has_full_import_categories_and_many_models(self):
-        self.assertEqual(len(self.audio), 3809)
+        self.assertEqual(len(self.audio), 3798)
         self.assertGreaterEqual(len({r[0] for r in self.audio}), 30)
         self.assertTrue({r[2] for r in self.audio}.issubset(AUDIO_TYPES))
         self.assertIn(["Apocalypse", "AAB-1200.2D", "AMPLIFIER"], self.audio)
@@ -98,6 +98,7 @@ class ExportedCatalogTests(unittest.TestCase):
     def test_audio_reference_does_not_include_wiring_or_adapters(self):
         for brand, model, category in self.audio:
             self.assertFalse(model.startswith("СИМФОНИЯ КНС"), (brand, model, category))
+            self.assertFalse(model.startswith("Гаскет"), (brand, model, category))
             self.assertNotIn("мм2", model.casefold(), (brand, model, category))
             self.assertFalse(model.casefold().startswith("адаптер"), (brand, model, category))
 
