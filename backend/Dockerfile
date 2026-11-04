@@ -21,7 +21,7 @@ RUN DATABASE_URL=postgresql://usd:usd@127.0.0.1:5432/usd?schema=public npm run b
 RUN node -e 'const fs=require("node:fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const version=pkg.devDependencies.prisma;if(!version||!lock.packages[""].devDependencies.prisma)throw Error("Prisma CLI pin missing");pkg.dependencies.prisma=version;delete pkg.devDependencies.prisma;lock.packages[""].dependencies.prisma=version;delete lock.packages[""].devDependencies.prisma;fs.writeFileSync("package.json",JSON.stringify(pkg)+"\n");fs.writeFileSync("package-lock.json",JSON.stringify(lock)+"\n")'
 RUN npm prune --omit=dev --no-fund --no-audit \
   && test -x node_modules/.bin/prisma \
-  && ./node_modules/.bin/prisma --version \
+  && DATABASE_URL=postgresql://usd:usd@127.0.0.1:5432/usd ./node_modules/.bin/prisma --version \
   && node -e 'require.resolve("@prisma/client")' \
   && npm audit --omit=dev --audit-level=high
 ARG USD_RELEASE_SHA=development
