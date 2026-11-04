@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
