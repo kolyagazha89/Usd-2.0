@@ -28,7 +28,17 @@ describe('one-button global historical import with a real test database', () => 
   const participant = await db.user.create({ data: { email: 'global-participant-' + suffix + '@example.invalid', passwordHash: 'not-used-by-jwt', role: 'PARTICIPANT', participantId: protectedId, emailVerifiedAt: new Date() } });
   const jwt = app.get(JwtService);
   const options = { issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api', audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client' };
-  adminToken = jwt.sign({ sub: admin.id }, options); participantToken = jwt.sign({ sub: participant.id }, options);
+  // Protected JWTs now require a live refresh-session family. Create
+  // synthetic isolated DB sessions, not bearer tokens that bypass revocation.
+  const adminFamily = randomUUID(), participantFamily = randomUUID();
+  await db.refreshSession.createMany({
+    data: [
+      { userId: admin.id, familyId: adminFamily, tokenHash: 'audit-admin-' + suffix, expiresAt: new Date(Date.now() + 3600000) },
+      { userId: participant.id, familyId: participantFamily, tokenHash: 'audit-participant-' + suffix, expiresAt: new Date(Date.now() + 3600000) },
+    ],
+  });
+  adminToken = jwt.sign({ sub: admin.id, fid: adminFamily }, options);
+  participantToken = jwt.sign({ sub: participant.id, fid: participantFamily }, options);
   if (!await db.class.findFirst({ where: { name: 'Coffin', isActive: true } })) {
    const direction = await db.direction.create({ data: { name: 'Global E2E', legacyId: sourceHash } });
    await db.class.create({ data: { name: 'Coffin', code: 'GLOBAL_E2E_' + suffix, directionId: direction.id, unit: 'DB' } });
