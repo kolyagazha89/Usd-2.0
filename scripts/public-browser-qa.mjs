@@ -75,6 +75,30 @@ try{
             await page.locator('.public-result-card').first().waitFor({state:'visible',timeout:60000});
           }
         }
+        if(route==='/stages?season=ALL'){
+          // A live page can render its shell long before the separate stage API
+          // finishes. 'networkidle' also returns after a failed/slow API read.
+          // Demand actual stage cards, not a guessed delay or an empty shell.
+          const hasStageCards=()=>page.waitForFunction(
+            ()=>document.querySelectorAll('.public-stage-grid .public-stage-card').length>=2,
+            null,{timeout:15000},
+          );
+          try{
+            await hasStageCards();
+          }catch{
+            // One bounded read-only retry covers intermittent prerelease API
+            // timeouts. A truly empty/broken stage list still fails the job.
+            row.stageReadRetried=true;
+            await page.reload({waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(
+              ()=>document.querySelectorAll('.public-stage-grid .public-stage-card').length>=2,
+              null,{timeout:40000},
+            ).catch(()=>{
+              // Persist error/empty-state evidence rather than hiding the failure.
+              row.stageErrorText='Stage API did not populate at least two cards after a read-only retry';
+            });
+          }
+        }
         const originalResultText=await inspectResultText(page);
         if(injectCandidateCss)await page.addStyleTag({content:candidateCss});
         row.visualSource=visualSource;
