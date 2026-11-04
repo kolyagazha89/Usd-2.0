@@ -33,3 +33,23 @@ export function groupLiveByClass(rows:any[]){
 export function otherHomepageRecords(rows:any[],bestId:string){
  return sortRecordRows(rows.filter(isDbRecordEligible)).filter(r=>r.id!==bestId);
 }
+
+/** Homepage podium: three SPL, two BFSPL and one BDW SPL first places.
+ * Never promote a second place to fill a missing direction's slot. */
+export function homepageLatestWinners(rows:any[]):any[]{
+ const limits=new Map([['SPL',3],['BFSPL',2],['BDWSPL',1]]);
+ const chosen=new Map<string,any[]>();
+ for(const row of Array.isArray(rows)?rows:[]){
+  if(!row||Number(row.place??row.position)!==1)continue;
+  const direction=String(resultClass(row).direction?.name??'').toUpperCase().replace(/[^A-Z]/g,'');
+  const limit=limits.get(direction);
+  if(!limit)continue;
+  const list=chosen.get(direction)??[];
+  if(list.length>=limit)continue;
+  const classId=String(resultClass(row).id??resultClass(row).name??'');
+  if(list.some(item=>String(resultClass(item).id??resultClass(item).name??'')===classId))continue;
+  list.push(row);
+  chosen.set(direction,list);
+ }
+ return [...limits.keys()].flatMap(direction=>chosen.get(direction)??[]);
+}
