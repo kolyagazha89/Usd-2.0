@@ -60,11 +60,20 @@ try{
         // result list. The page exposes a truthful terminal state after it
         // checks stage results or produces an explicit connection error.
         if(route==='/results'){
-          await page.waitForFunction(()=>{
-            const state=document.querySelector('.public-results-workspace')?.getAttribute('data-results-state');
-            return state==='ready'||state==='empty'||state==='error';
-          },null,{timeout:60000});
-          row.resultDataState=await page.locator('.public-results-workspace').getAttribute('data-results-state');
+          // Live QA checks the already deployed site, which can legitimately
+          // lag behind this PR. Use the explicit contract when available;
+          // otherwise await legacy cards without requiring undeployed markup.
+          const newContract=await page.locator('.public-results-workspace').count()>0;
+          if(newContract){
+            await page.waitForFunction(()=>{
+              const state=document.querySelector('.public-results-workspace')?.getAttribute('data-results-state');
+              return state==='ready'||state==='empty'||state==='error';
+            },null,{timeout:60000});
+            row.resultDataState=await page.locator('.public-results-workspace').getAttribute('data-results-state');
+          }else{
+            row.resultDataState='legacy-deployed';
+            await page.locator('.public-result-card').first().waitFor({state:'visible',timeout:60000});
+          }
         }
         const originalResultText=await inspectResultText(page);
         if(injectCandidateCss)await page.addStyleTag({content:candidateCss});
@@ -107,6 +116,7 @@ try{
           if(route==='/results'){
             if(row.resultDataState==='error')throw new Error('Public results API unavailable: explicit retry state shown; investigate and recover API');
             if(row.resultDataState==='ready'&&!before.length)throw new Error('Results page marked ready without result cards');
+            if(row.resultDataState==='legacy-deployed'&&!before.length)throw new Error('Deployed result cards did not load after bounded wait');
             if(row.resultDataState==='empty'){
               const empty=await page.locator('.public-results-workspace .public-muted-empty').innerText();
               if(!/опубликованн|результат/i.test(empty))throw new Error('Results empty state is not explained to the visitor');
