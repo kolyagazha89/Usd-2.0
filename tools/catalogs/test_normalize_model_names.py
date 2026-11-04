@@ -41,6 +41,12 @@ class ModelNameNormalizationTests(unittest.TestCase):
             ("Урал", "777 ЦСП", "HEAD_UNIT"),
         )
 
+    def test_pride_gaskets_are_accessories_not_acoustics(self):
+        for name in ("Гаскет 6.5 (RL-6.5)", "Гаскет 8 RD", "Гаскет10"):
+            self.assertIsNone(normalize("Pride", name, "AUDIO_COMPONENT"))
+        # Legitimate Pride speakers and legacy amplifiers stay importable.
+        self.assertEqual(normalize("Pride", "Mezzo", "AMPLIFIER"), ("Pride", "Mezzo", "AMPLIFIER"))
+
     def test_duplicate_model_keys_retain_one_entry(self):
         rows = process([
             ("Pride", "Apollo", "AMPLIFIER"),
