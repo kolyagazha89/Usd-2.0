@@ -115,8 +115,6 @@ class VerifyReleaseTests(unittest.TestCase):
         get.assert_not_called()
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 class SafeRevisionDiagnosticsTests(unittest.TestCase):
     def test_mismatch_shows_only_commit_prefixes_and_identifies_ingress(self):
@@ -136,3 +134,72 @@ class SafeRevisionDiagnosticsTests(unittest.TestCase):
 
     def test_exact_revision_passes_without_logging(self):
         module.require_revision({'revision':'a'*40},'a'*40,'frontend')
+
+
+class PublicMediaAcceptanceTests(unittest.TestCase):
+    PNG = b'\\x89PNG\\r\\n\\x1a\\n' + b'content'
+
+    def test_checks_public_site_asset_bytes_without_credentials(self):
+        settings = {
+            'branding': {'logoUrl': 'https://cdn.example/logo.svg'},
+            'homepage': {'stagePosters': {
+                'one': 'https://api.usd-russia.ru/media/public-file/SITE_ASSET/stage-poster-one',
+                'two': '/media/public-file/SITE_ASSET/stage-poster-two',
+            }},
+        }
+        with patch.object(module, 'fetch', return_value=(200, 'image/png', self.PNG)) as get:
+            self.assertEqual(module.verify_public_image_assets(settings), 2)
+        self.assertEqual(get.call_count, 2)
+        self.assertTrue(all(c.args[0].startswith(module.API + '/media/') for c in get.call_args_list))
+        self.assertTrue(all(c.args[1].startswith('image/') for c in get.call_args_list))
+
+    def test_failed_media_bytes_or_404_block_acceptance(self):
+        poster = {'homepage': {'stagePosters': {'one':
+            module.API + '/media/public-file/SITE_ASSET/stage-poster-test'}}}
+        for reply in [
+            (200, 'text/html', b'<html>SPA fallback</html>'),
+            (200, 'image/png', b'not actually a PNG'),
+            (404, 'application/json', b'{}'),
+        ]:
+            with self.subTest(reply=reply[:2]):
+                with patch.object(module, 'fetch', return_value=reply) as get:
+                    with self.assertRaisesRegex(ValueError, 'stage poster'):
+                        module.verify_public_image_assets(poster)
+                self.assertEqual(get.call_count, 1)
+
+    def test_transient_storage_read_is_retried_once_and_must_recover(self):
+        poster = {'homepage': {'stagePosters': {'one':
+            module.API + '/media/public-file/SITE_ASSET/stage-poster-test'}}}
+        with patch.object(module, 'fetch', side_effect=[
+            OSError('disconnected'), (200, 'image/webp', b'RIFF1234WEBPdata'),
+        ]) as get:
+            self.assertEqual(module.verify_public_image_assets(poster), 1)
+            self.assertEqual(get.call_count, 2)
+        with patch.object(module, 'fetch', side_effect=OSError('still down')) as get:
+            with self.assertRaisesRegex(ValueError, 'unavailable'):
+                module.verify_public_image_assets(poster)
+            self.assertEqual(get.call_count, 2)
+
+    def test_does_not_fetch_primary_site_or_untrusted_or_private_links(self):
+        settings = {'homepage': {'stagePosters': {
+            'primary': 'https://usd-russia.ru/media/public-file/SITE_ASSET/a',
+            'evil': 'https://api.usd-russia.ru.attacker.test/media/public-file/SITE_ASSET/a',
+            'private': 'https://api.usd-russia.ru/media/private-file/SITE_ASSET/a',
+            'nonasset': 'https://api.usd-russia.ru/records/current',
+        }}}
+        with patch.object(module, 'fetch') as get:
+            self.assertEqual(module.verify_public_image_assets(settings), 0)
+            get.assert_not_called()
+
+    def test_samples_at_most_three_unique_stage_posters(self):
+        posters = {
+            str(i): module.API + '/media/public-file/SITE_ASSET/poster-' + str(i)
+            for i in range(20)
+        }
+        with patch.object(module, 'fetch', return_value=(200, 'image/png', self.PNG)) as get:
+            self.assertEqual(module.verify_public_image_assets({'homepage': {'stagePosters': posters}}), 3)
+        self.assertEqual(get.call_count, 3)
+
+
+if __name__ == '__main__':
+    unittest.main()
