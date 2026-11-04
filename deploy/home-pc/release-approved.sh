@@ -665,9 +665,16 @@ db_after="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --
 # exact frontend/API revision, public data and unauthenticated access denial.
 # Existing images remain available; never reverse database migrations here.
 public_accepted=0
-for public_attempt in 1 2 3; do
+# An HTTPS ingress or CDN may serve the previously deployed immutable
+# release during a container handoff. Give it one bounded propagation window
+# while the rollback trap stays armed; never accept the wrong public SHA.
+# The verifier prints sanitized observed/requested revision IDs for diagnosis.
+for public_attempt in 1 2 3 4 5; do
   if "$PUBLIC_VERIFIER" "$NEW_TAG"; then public_accepted=1; break; fi
-  [[ "$public_attempt" == 3 ]] || sleep 5
+  if [[ "$public_attempt" != 5 ]]; then
+    echo "Public prerelease is not on approved SHA yet (attempt $public_attempt/5); retaining rollback gate" >&2
+    sleep "$((public_attempt * 4))"
+  fi
 done
 [[ "$public_accepted" == 1 ]] || { echo "Public prerelease acceptance failed; rolling back application images" >&2; false; }
 

@@ -94,15 +94,29 @@ def verify_frontend() -> None:
             raise ValueError('Public frontend asset is missing or has incorrect content type')
 
 
+def require_revision(metadata, expected: str, kind: str) -> None:
+    """Print only validated public commit IDs, never arbitrary response bodies.
+    An outdated external reverse proxy must not be mistaken for a bad image
+    (the protected in-container image identity is checked separately).
+    """
+    raw = metadata.get('revision') if isinstance(metadata, dict) else None
+    actual = raw if isinstance(raw, str) and re.fullmatch(r'[a-f0-9]{40}', raw) else None
+    if actual != expected:
+        observed = actual[:12] if actual else 'missing-or-invalid'
+        raise ValueError(
+            'Public ' + kind + ' revision does not match the requested commit; '
+            'expected=' + expected[:12] + ', observed=' + observed +
+            '. Check the prerelease ingress target and cache; release must roll back.'
+        )
+
+
 def verify(sha: str) -> None:
     if not re.fullmatch(r'[a-f0-9]{40}', sha):
         raise ValueError('Expected a full Git commit SHA')
     metadata = get_json(APP + '/usd-release.json?check=' + str(time.time_ns()))
-    if not isinstance(metadata, dict) or metadata.get('revision') != sha:
-        raise ValueError('Public frontend revision does not match the requested commit')
+    require_revision(metadata, sha, 'frontend')
     api_metadata = get_json(API + '/release?check=' + str(time.time_ns()))
-    if not isinstance(api_metadata, dict) or api_metadata.get('revision') != sha:
-        raise ValueError('Public API revision does not match the requested commit')
+    require_revision(api_metadata, sha, 'API')
     settings = get_json(API + '/site-settings/public')
     if not isinstance(settings, dict) or not isinstance(settings.get('settings'), dict):
         raise ValueError('Public API did not return settings application data')
