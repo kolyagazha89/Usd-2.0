@@ -14,10 +14,18 @@ export async function handleLiveQaRoute(route,blockedRequests){
  // fulfilled manually. Never give the browser a redirect it could follow to
  // the primary site or another unapproved service.
  let response;
- try{response=await route.fetch({maxRedirects:0})}
- catch{
-  record('read failed');
-  return route.abort('failed');
+ // The live media store can intermittently close a read while the prerelease
+ // page is loading. Retry one safe GET for public media only; persistent
+ // failures still fail the browser QA. Redirects are never followed or retried.
+ const attempts=request.method()==='GET'&&url.pathname.startsWith('/media/public-file/')?2:1;
+ for(let attempt=0;attempt<attempts;attempt++){
+  try{response=await route.fetch({maxRedirects:0});break}
+  catch{
+   if(attempt===attempts-1){
+    record('read failed');
+    return route.abort('failed');
+   }
+  }
  }
  if([301,302,303,307,308].includes(response.status())){
   record('redirect');
