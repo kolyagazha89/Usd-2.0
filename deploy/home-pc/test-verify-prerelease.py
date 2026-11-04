@@ -137,7 +137,7 @@ class SafeRevisionDiagnosticsTests(unittest.TestCase):
 
 
 class PublicMediaAcceptanceTests(unittest.TestCase):
-    PNG = b'\\x89PNG\\r\\n\\x1a\\n' + b'content'
+    PNG = b'\x89PNG\r\n\x1a\n' + b'content'
 
     def test_checks_public_site_asset_bytes_without_credentials(self):
         settings = {
