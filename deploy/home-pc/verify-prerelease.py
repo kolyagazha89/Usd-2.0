@@ -94,6 +94,68 @@ def verify_frontend() -> None:
             raise ValueError('Public frontend asset is missing or has incorrect content type')
 
 
+
+def public_image_url(value) -> str | None:
+    """Only an existing prerelease API SITE_ASSET URL may be probed."""
+    if not isinstance(value, str):
+        return None
+    if value.startswith('/media/public-file/SITE_ASSET/'):
+        url = API + value
+    else:
+        url = value
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != 'https' or parts.netloc != 'api.usd-russia.ru':
+        return None
+    if not re.fullmatch(r'/media/public-file/SITE_ASSET/[A-Za-z0-9._-]{2,180}', parts.path):
+        return None
+    if parts.username or parts.password or parts.fragment:
+        return None
+    return url
+
+
+def verify_public_image_assets(settings: dict) -> int:
+    """Smoke-check already published posters, without listing or changing S3.
+
+    No third-party image URLs are fetched. The probe validates actual image
+    bytes through the public RustFS-backed API proxy, not a 200 HTML fallback.
+    Only three deterministic stage posters + one branding logo are sampled;
+    this is NOT a full inventory check or an S3 integrity scan.
+    """
+    homepage = settings.get('homepage') if isinstance(settings, dict) else None
+    branding = settings.get('branding') if isinstance(settings, dict) else None
+    posters = homepage.get('stagePosters') if isinstance(homepage, dict) else None
+    chosen = []
+    if isinstance(branding, dict):
+        chosen.append(('branding', branding.get('logoUrl')))
+    if isinstance(posters, dict):
+        chosen.extend(('stage poster', posters[key]) for key in sorted(posters)[:3])
+    seen = set()
+    verified = 0
+    for label, value in chosen:
+        url = public_image_url(value)
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        for attempt in range(2):
+            try:
+                status, content_type, body = fetch(url, 'image/jpeg, image/png, image/webp')
+            except (OSError, urllib.error.URLError):
+                if attempt == 0:
+                    continue
+                raise ValueError('Public ' + label + ' image read is unavailable after two attempts') from None
+            valid = (
+                content_type == 'image/jpeg' and body.startswith(b'\\xff\\xd8\\xff')
+                or content_type == 'image/png' and body.startswith(b'\\x89PNG\\r\\n\\x1a\\n')
+                or content_type == 'image/webp' and body[:4] == b'RIFF' and body[8:12] == b'WEBP'
+            )
+            if status == 200 and valid:
+                verified += 1
+                break
+            if status in (429, 500, 502, 503, 504) and attempt == 0:
+                continue
+            raise ValueError('Public ' + label + ' image returned invalid or unavailable media')
+    return verified
+
 def require_revision(metadata, expected: str, kind: str) -> None:
     """Print only validated public commit IDs, never arbitrary response bodies.
     An outdated external reverse proxy must not be mistaken for a bad image
@@ -120,6 +182,7 @@ def verify(sha: str) -> None:
     settings = get_json(API + '/site-settings/public')
     if not isinstance(settings, dict) or not isinstance(settings.get('settings'), dict):
         raise ValueError('Public API did not return settings application data')
+    verify_public_image_assets(settings['settings'])
     for route in ('/stages/public', '/records/current'):
         if not isinstance(get_json(API + route), list):
             raise ValueError('Public API did not return list application data')
