@@ -144,8 +144,8 @@ def verify_public_image_assets(settings: dict) -> int:
                     continue
                 raise ValueError('Public ' + label + ' image read is unavailable after two attempts') from None
             valid = (
-                content_type == 'image/jpeg' and body.startswith(b'\\xff\\xd8\\xff')
-                or content_type == 'image/png' and body.startswith(b'\\x89PNG\\r\\n\\x1a\\n')
+                content_type == 'image/jpeg' and body.startswith(b'\xff\xd8\xff')
+                or content_type == 'image/png' and body.startswith(b'\x89PNG\r\n\x1a\n')
                 or content_type == 'image/webp' and body[:4] == b'RIFF' and body[8:12] == b'WEBP'
             )
             if status == 200 and valid:
