@@ -178,3 +178,21 @@ test('failed delayed auth body cannot recreate JS credentials and logout clears 
   assert.equal(calls.find(call=>call.url.endsWith('/auth/logout')).init.body,undefined);
   assert.equal(localStorage.getItem('usd_refresh_token'),null);
 }));
+
+
+test('login, refresh and logout work when browser storage access throws',()=>withApi(async api=>{
+  Object.defineProperty(window,'localStorage',{configurable:true,get:()=>{throw new window.DOMException('Disabled','SecurityError')}});
+  const calls=[];
+  globalThis.fetch=async(url,init)=>{
+    calls.push({url,init});
+    if(url.endsWith('/auth/login'))return auth('storage-disabled');
+    if(url.endsWith('/auth/refresh'))return auth('storage-disabled');
+    if(url.endsWith('/auth/logout'))return new Response('{"success":true}');
+    throw Error(url);
+  };
+  const user=await api.login('test@example.invalid','synthetic-password');
+  assert.equal(user.id,'storage-disabled');
+  assert.equal((await api.refresh()).accessToken,'storage-disabled-access');
+  await api.logout();
+  assert.equal(calls.filter(call=>call.url.endsWith('/auth/logout')).length,1);
+}));
