@@ -103,7 +103,9 @@ describe('one-button global historical import with a real test database', () => 
   const cls=await db.registrationClass.create({data:{registrationId:final.id,classId:original.classes[0].classId,numberId:number.id}});
   await db.result.create({data:{registrationId:final.id,registrationClassId:cls.id,value:150,unit:'DB',isHistorical:true}});
   const account=await db.user.create({data:{email:'claim-'+randomUUID()+'@example.invalid',passwordHash:'unused',role:'PARTICIPANT',participantId:person.id,emailVerifiedAt:new Date()}});
-  const token=app.get(JwtService).sign({sub:account.id},{issuer:process.env.JWT_ISSUER??'usd-2.0-api',audience:process.env.JWT_AUDIENCE??'usd-2.0-client'});
+  const accountFamilyId=randomUUID();
+  await db.refreshSession.create({data:{userId:account.id,familyId:accountFamilyId,tokenHash:'audit-claim-'+randomUUID(),expiresAt:new Date(Date.now()+3600000)}});
+  const token=app.get(JwtService).sign({sub:account.id,fid:accountFamilyId},{issuer:process.env.JWT_ISSUER??'usd-2.0-api',audience:process.env.JWT_AUDIENCE??'usd-2.0-client'});
   const headers={Authorization:'Bearer '+token};
   const entry=await request(app.getHttpServer()).get('/configurations/me/final-2026').set(headers).expect(200);
   expect(entry.body.items).toHaveLength(1);expect(entry.body.items[0].confirmedAt).toBeNull();
