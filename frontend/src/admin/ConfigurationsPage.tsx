@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Activity,AlertTriangle,BatteryCharging,CarFront,Check,CheckCircle2,ChevronLeft,ChevronRight,Database,FileText,Gauge,Info,Layers3,Loader2,MoreHorizontal,Pencil,Plus,RefreshCw,Settings2,Volume2,X} from 'lucide-react';
 import {apiGet,apiPost,apiPut,getSiteSettings,getPublicSiteSettings,listData} from '../api';
 import {Empty,LoadingPage} from './AdminPrimitives';
@@ -47,6 +47,51 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [actionsOpen,setActionsOpen]=useState(false);
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
  const [modelQuery,setModelQuery]=useState('');
+ const pickerDialogRef=useRef<HTMLElement|null>(null);
+ const pickerReturnFocusRef=useRef<HTMLElement|null>(null);
+ const pickerActive=Boolean(picker&&!admin);
+ // Keep keyboard and screen-reader focus within this dialog; restore the
+ // trigger after closing without trapping focus in an inert background.
+ useEffect(()=>{
+  if(!pickerActive)return;
+  const dialog=pickerDialogRef.current;
+  if(!dialog)return;
+  const returnTo=pickerReturnFocusRef.current;
+  const siblings:Array<{node:HTMLElement;wasInert:boolean}>=[];
+  let active:HTMLElement|null=dialog;
+  while(active?.parentElement){
+   const parent:HTMLElement=active.parentElement;
+   for(const child of Array.from(parent.children)){
+    if(child!==active&&child instanceof HTMLElement){
+     siblings.push({node:child,wasInert:child.inert});
+     child.inert=true;
+    }
+   }
+   active=parent;
+   if(active===document.body)break;
+  }
+  const focusable=()=>Array.from(dialog.querySelectorAll<HTMLElement>(
+   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+  )).filter(node=>!node.inert&&node.getAttribute('aria-hidden')!=='true');
+  (dialog.querySelector<HTMLElement>('button[aria-label="Закрыть выбор оборудования"]')??dialog).focus();
+  const onKeyDown=(event:KeyboardEvent)=>{
+   if(event.key==='Escape'){event.preventDefault();setPicker(null);return}
+   if(event.key!=='Tab')return;
+   const elements=focusable();
+   if(!elements.length){event.preventDefault();dialog.focus();return}
+   const first=elements[0],last=elements[elements.length-1];
+   if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){event.preventDefault();last.focus()}
+   else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){event.preventDefault();first.focus()}
+  };
+  document.addEventListener('keydown',onKeyDown);
+  return()=>{
+   document.removeEventListener('keydown',onKeyDown);
+   for(const {node,wasInert} of siblings.reverse())node.inert=wasInert;
+   if(returnTo?.isConnected)returnTo.focus();
+   pickerReturnFocusRef.current=null;
+  };
+ },[pickerActive]);
+
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
  const editorViews=[{key:'SUB',label:'Басовая система',short:'Бас',icon:Volume2,desc:'Сабвуферы и усилители для SPL, BassRace и Storm Wall.'},
@@ -59,6 +104,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const selectedView=editorViews.find(item=>item.key===activeView)!;
  const viewIsReady=(key:string)=>key==='SUB'||key==='FRONT'||key==='REAR'?configuredIn(key as 'SUB'|'FRONT'|'REAR')>0:key==='POWER'?(v.batteries.length+v.generators.length)>0:key==='BOX'?isBoxConfigured(box):key==='NOTES'?Boolean(v.additionalDescription.trim()):Boolean(v.name.trim());
  const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR')=>{
+  pickerReturnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
   setModelQuery('');setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
  };
  const addEquipmentForView=()=>{if(activeView==='SUB'||activeView==='FRONT'||activeView==='REAR')openPicker('audioComponents',activeView);else if(activeView==='POWER'){if(defaultBatteryCode)add('batteries',{brand:defaultBatteryCode,model:'100',quantity:1});else setError('Справочник аккумуляторов недоступен. Повторите попытку после загрузки каталога.');}else setActiveView('SUB');setActionsOpen(false)};
@@ -142,7 +188,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
     <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} data-section={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Заполнено':activeView==='SETUP'?'Укажите название':['SUB','FRONT','REAR'].includes(activeView)?'Не заполнено':'Необязательно'}</strong></div>
     {picker&&!admin&&<div className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
-      <section className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
+      <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
        <div className="member-config-picker-title"><div><span className="eyebrow">КАТАЛОГ USD / {picker.direction}</span><h2>Добавить оборудование</h2><p>Выберите бренд и модель. Если нужной модели нет, запросите её добавление.</p></div><button aria-label="Закрыть выбор оборудования" type="button" onClick={()=>setPicker(null)}><X size={20}/></button></div>
        <div className="member-config-picker-body"><div className="member-config-picker-fields">
         <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPicker({...picker,kind,brand:'',model:''});setModelQuery('')}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
