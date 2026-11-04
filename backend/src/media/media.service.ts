@@ -307,13 +307,25 @@ export class MediaService {
     };
   }
 
-  private async validateImageSignature(key: string, contentType: string) {
-    const response = await fetch(this.presignedUrl('GET', key, null, 60));
-    if (!response.ok) {
-      throw new BadRequestException('Не удалось проверить загруженное изображение');
+  private async readStagedUpload(key: string): Promise<Buffer> {
+    const response = await fetch(this.presignedUrl('GET', key, null, 60), {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new BadRequestException('Не удалось прочитать загруженный файл');
+    const length = Number(response.headers.get('content-length') ?? '0');
+    if (!Number.isFinite(length) || length > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Файл больше допустимых 10 МБ');
     }
+    // Read into a trusted local buffer once, validate exactly these bytes,
+    // then copy the SAME buffer to an unguessable final object key.
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Некорректный размер загруженного файла');
+    }
+    return bytes;
+  }
 
-    const bytes = new Uint8Array(await response.arrayBuffer());
+  private validateImageSignature(bytes: Uint8Array, contentType: string) {
     const isJpeg =
       bytes.length >= 3 &&
       bytes[0] === 0xff &&
@@ -350,10 +362,7 @@ export class MediaService {
     }
   }
 
-  private async validateDocxSignature(key: string) {
-    const response = await fetch(this.presignedUrl('GET', key, null, 60));
-    if (!response.ok) throw new BadRequestException('Не удалось проверить загруженный DOCX');
-    const bytes = Buffer.from(await response.arrayBuffer());
+  private validateDocxSignature(bytes: Uint8Array) {
     if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
       throw new BadRequestException('Файл не является корректным DOCX');
     }
@@ -529,25 +538,41 @@ export class MediaService {
     if (object.contentType !== upload.contentType) {
       throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
     }
+    const verifiedBytes = await this.readStagedUpload(upload.objectKey);
     if (ALLOWED_IMAGE_TYPES.has(upload.contentType)) {
-      await this.validateImageSignature(upload.objectKey, upload.contentType);
+      this.validateImageSignature(verifiedBytes, upload.contentType);
     } else if (upload.contentType === DOCX_TYPE && upload.targetType === MediaTargetType.SITE_ASSET) {
-      await this.validateDocxSignature(upload.objectKey);
+      this.validateDocxSignature(verifiedBytes);
     } else {
       throw new BadRequestException('Недопустимый тип файла для этой загрузки');
     }
-    // Publish the upload and its owner reference atomically. An interrupted
-    // car/participant update must never leave a completed media-library entry
-    // pointing at an older photo.
-    const url = this.objectUrl(upload.objectKey);
-    await this.prisma.$transaction(async (tx) => {
-      await tx.mediaUpload.update({ where: { id: upload.id }, data: { completedAt: new Date() } });
+
+    // An already issued presigned staging PUT must NEVER be able to overwrite
+    // published content, even if its 10-minute URL is replayed after complete.
+    // We publish validated bytes to a fresh, never presigned-for-clients key.
+    const finalKey = upload.objectKey + '-published-' + crypto.randomUUID();
+    const published = await fetch(this.presignedUrl('PUT', finalKey, upload.contentType, 60), {
+      method: 'PUT', headers: { 'Content-Type': upload.contentType },
+      body: verifiedBytes, signal: AbortSignal.timeout(15000),
+    });
+    if (!published.ok) throw new ServiceUnavailableException('Не удалось сохранить проверенную копию файла');
+    const url = this.objectUrl(finalKey);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+      await tx.mediaUpload.update({ where: { id: upload.id }, data: { objectKey: finalKey, completedAt: new Date() } });
       if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
         await tx.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
       } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
         await tx.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
       }
-    });
+      });
+    } catch (error) {
+      // Database rollback: remove the unpublished final object best effort.
+      await this.deleteStoredObjects([finalKey]);
+      throw error;
+    }
+    // Best-effort staging cleanup. Failure cannot re-open the published key.
+    await this.deleteStoredObjects([upload.objectKey]);
     return { success: true, photoUrl: url, targetType: upload.targetType, targetId: upload.targetId };
   }
 }
