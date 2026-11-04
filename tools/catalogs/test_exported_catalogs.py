@@ -43,6 +43,46 @@ class ExportedCatalogTests(unittest.TestCase):
         self.assertIn(["Loud Level", "LL 1000D", "AMPLIFIER"], self.audio)
         self.assertIn(["Kicx", "ST D8 (version 1.1)", "DSP"], self.audio)
 
+    def test_manufacturer_head_units_are_import_ready_and_not_fabricated(self):
+        head_units = [row for row in self.audio if row[2] == "HEAD_UNIT"]
+        self.assertEqual(len(head_units), 300)
+        self.assertEqual(len({row[0] for row in head_units}), 15)
+        self.assertEqual(len({(r[0].casefold(), r[1].casefold()) for r in head_units}), len(head_units))
+        required = [
+            ("Deaf Bonce", "DB-310DSP"),
+            ("Deaf Bonce", "Gemini 770DSP"),
+            ("Hannibal", "HBM-101 BT"),
+            ("Pioneer", "SPH-DA97DAB"),
+            ("Kenwood", "KDC-BT782HD"),
+            ("JVC", "KD-T925BTS"),
+            ("Alpine", "UTE-73BT"),
+            ("Sony", "XAV-AX6000"),
+            ("Clarion", "CZ505"),
+            ("Phantom", "DVM-1500G i6"),
+            ("Prology", "CMD-350"),
+            ("ACV", "AVS-824BW"),
+            ("Teyes", "CC4 Pro"),
+            ("Aura", "STORM-679DSP"),
+            ("Урал", "МОЛОТ АРС-МТ 115"),
+            ("DL Audio", "Barracuda HALF-DSP Head Unit"),
+        ]
+        for brand, model in required:
+            with self.subTest(brand=brand, model=model):
+                self.assertIn([brand, model, "HEAD_UNIT"], self.audio)
+
+        # The reviewed official-source fragment must be fully included in the
+        # resulting 3-column import CSV, without added product specifications.
+        fragment = load(DATA / "fragments" / "head_units_verified_2026.csv",
+                        ["бренд", "модель", "категория"])
+        self.assertEqual(len(fragment), 226)
+        for row in fragment:
+            self.assertEqual(row[2], "HEAD_UNIT")
+            self.assertIn(row, self.audio)
+            self.assertTrue(all(field.strip() for field in row))
+        # SPL-only manufacturers cannot be padded with made-up head units.
+        for brand in ("Fi Car Audio", "Pride", "Sundown Audio", "Taramps"):
+            self.assertFalse(any(row[0] == brand for row in head_units), brand)
+
     def test_audio_reference_does_not_include_wiring_or_adapters(self):
         for brand, model, category in self.audio:
             self.assertNotIn("мм2", model.casefold(), (brand, model, category))
