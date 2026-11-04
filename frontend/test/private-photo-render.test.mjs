@@ -43,10 +43,12 @@ test('every public car and participant card uses the visibility-checked media AP
  const {readFile}=await import('node:fs/promises');
  for(const name of ['PublicCommunity.tsx','HomeScoreboards.tsx','PremiumHome.tsx']){
   const source=await readFile(new URL('../src/public/'+name,import.meta.url),'utf8');
-  assert.match(source,/publicEntityPhotoSource\\(/,name);
-  assert.doesNotMatch(source,/<Photo[^>]*src=\\{(?:p|c|entity|participant)(?:\\?|)\\.photoUrl\\}/,name);
+  assert.ok(source.includes('publicEntityPhotoSource('),name);
+  for(const raw of ['src={p.photoUrl}','src={c.photoUrl}','src={entity.photoUrl}','src={participant?.photoUrl}']){
+   assert.ok(!source.includes(raw),name+' leaked raw image URL: '+raw);
+  }
  }
  const photo=await readFile(new URL('../src/public/PremiumUI.tsx',import.meta.url),'utf8');
- assert.match(photo,/failure\\.key===sourceKey/);
- assert.match(photo,/previous\\.key===sourceKey/);
+ assert.ok(photo.includes('failure.key===sourceKey'));
+ assert.ok(photo.includes('previous.key===sourceKey'));
 });
