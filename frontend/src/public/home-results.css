@@ -154,7 +154,7 @@
 .usd-live .u-home-dashboard[data-home-block="latest-results"] .usd-score-identity small{
  white-space:normal;overflow-wrap:anywhere;
 }
-@media(max-width:1100px){
+@media(max-width:900px){
  .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results{
   grid-template-columns:repeat(2,minmax(0,1fr));
  }

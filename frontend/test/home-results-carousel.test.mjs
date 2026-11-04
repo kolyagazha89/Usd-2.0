@@ -69,7 +69,7 @@ test('the six latest-result cards render in responsive horizontal rows, without 
  assert.match(page,/data-home-block="latest-results"/);
  assert.match(page,/results\.slice\(0,6\)/);
  assert.match(css,/data-home-block="latest-results"\] \.u-mini-results\s*\{\s*display:grid;\s*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
- assert.match(css,/@media\(max-width:1100px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(css,/@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/@media\(max-width:630px\)[\s\S]*?grid-template-columns:minmax\(0,1fr\)/);
  assert.match(css,/scoped|LIVE carousel|LIVE scoreboard/i);
 });
