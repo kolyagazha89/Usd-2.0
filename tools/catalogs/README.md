@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,614 | 39 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,654 | 41 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -23,7 +23,7 @@ These are reference product **types**, not the FRONT/REAR/SUB vehicle installati
 
 ## Magnetic head units / receiver coverage (04 Nov 2026)
 
-`HEAD_UNIT` now includes **300** distinct receiver models/series (previously 74), across **15** catalog labels. Added **226** from a reviewed **226**-row fragment across 12 manufacturers. `Aura`, `Урал`, `DL Audio` records were already present and remain unchanged; `Deaf Bonce`, `Hannibal`, `Phantom` and real mainstream receiver brands are supplemented.
+`HEAD_UNIT` now includes **340** distinct receiver models/series (previously 74), across **17** catalog labels. Added **266** from a reviewed **266**-row fragment across 14 manufacturers. `Aura`, `Урал`, `DL Audio` records were already present and remain unchanged; `Deaf Bonce`, `Hannibal`, `Phantom` and real mainstream receiver brands are supplemented.
 
 - Verified import fragment: [head_units_verified_2026.csv](data/fragments/head_units_verified_2026.csv)
 - Independent manufacturer references and coverage limits: [HEAD_UNITS_SOURCES_2026.md](HEAD_UNITS_SOURCES_2026.md)
