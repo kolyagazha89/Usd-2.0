@@ -87,7 +87,7 @@ test('admin route and public suggestion hook use the same overlay',async()=>{
 });
 
 test('multi-brand CSV preview never overwrites rows when preview ID generator returns one placeholder',()=>{
- const imported=parseVehicleDirectoryCsv('марка,модель\\nLada,Granta\\nLada,Vesta\\nGeely,Coolray\\nGeely,Atlas\\n');
+ const imported=parseVehicleDirectoryCsv('марка,модель\nLada,Granta\nLada,Vesta\nGeely,Coolray\nGeely,Atlas\n');
  const empty=emptyVehicleOverrides();
  const planned=planVehicleImport(resolve(empty),empty,imported,()=> 'preview-only');
  assert.equal(planned.addedBrands,2);
