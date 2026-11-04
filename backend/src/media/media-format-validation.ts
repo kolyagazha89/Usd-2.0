@@ -148,7 +148,7 @@ export function validateDocxBytes(bytes: Buffer) {
       const data = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
       if (data + compressed > bytes.length) fail();
       const raw = bytes.subarray(data, data + compressed);
-      let xml: Buffer;
+      let xml: Buffer = Buffer.alloc(0);
       try {
         xml = method === 0 ? raw : inflateRawSync(raw, { maxOutputLength: 10 * 1024 * 1024 });
       } catch { fail(); }
