@@ -113,7 +113,7 @@ def public_image_url(value) -> str | None:
     return url
 
 
-def verify_public_image_assets(settings: dict) -> int:
+def verify_public_image_assets(settings: dict, stages: list | None = None) -> int:
     """Smoke-check already published posters, without listing or changing S3.
 
     No third-party image URLs are fetched. The probe validates actual image
@@ -128,7 +128,27 @@ def verify_public_image_assets(settings: dict) -> int:
     if isinstance(branding, dict):
         chosen.append(('branding', branding.get('logoUrl')))
     if isinstance(posters, dict):
-        chosen.extend(('stage poster', posters[key]) for key in sorted(posters)[:3])
+        # The latest publicly visible stages are more useful to participants
+        # than the first three lexicographically sorted UUIDs.
+        selected = []
+        if isinstance(stages, list):
+            sorted_stages = sorted(
+                (stage for stage in stages if isinstance(stage, dict)),
+                key=lambda stage: str(stage.get('date') or ''),
+                reverse=True,
+            )
+            for stage in sorted_stages:
+                stage_id = stage.get('id')
+                if isinstance(stage_id, str) and stage_id in posters and stage_id not in selected:
+                    selected.append(stage_id)
+                if len(selected) >= 3:
+                    break
+        for key in sorted(posters):
+            if len(selected) >= 3:
+                break
+            if key not in selected:
+                selected.append(key)
+        chosen.extend(('stage poster', posters[key]) for key in selected)
     seen = set()
     verified = 0
     for label, value in chosen:
@@ -182,10 +202,12 @@ def verify(sha: str) -> None:
     settings = get_json(API + '/site-settings/public')
     if not isinstance(settings, dict) or not isinstance(settings.get('settings'), dict):
         raise ValueError('Public API did not return settings application data')
-    verify_public_image_assets(settings['settings'])
-    for route in ('/stages/public', '/records/current'):
-        if not isinstance(get_json(API + route), list):
-            raise ValueError('Public API did not return list application data')
+    stages = get_json(API + '/stages/public')
+    if not isinstance(stages, list):
+        raise ValueError('Public API did not return list application data')
+    verify_public_image_assets(settings['settings'], stages)
+    if not isinstance(get_json(API + '/records/current'), list):
+        raise ValueError('Public API did not return list application data')
     for route in ('/auth/me', '/auth/sessions', '/registrations/me'):
         if get_status(API + route) not in (401, 403):
             raise ValueError('Private API route is not protected: ' + route)
