@@ -85,3 +85,14 @@ test('admin route and public suggestion hook use the same overlay',async()=>{
  assert.match(nav,/\/admin\/vehicle-catalog/);
  assert.match(hook,/availableVehicleDirectory/);
 });
+
+test('participant car editor uses reusable RU plate keypad and retains physical keyboard mask',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ const keypad=await readFile(new URL('../src/participant/RussianPlateKeypad.tsx',import.meta.url),'utf8');
+ assert.match(app,/RussianPlateKeypad/);
+ assert.match(keypad,/АВЕКМНОРСТУХ0123456789/);
+ assert.match(keypad,/formatPlateInput\('RU',value\+key\)/);
+ assert.match(keypad,/Удалить последний символ госномера/);
+ assert.match(app,/registrationNumber:formatPlateInput/);
+});
