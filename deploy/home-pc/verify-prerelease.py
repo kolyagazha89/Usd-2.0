@@ -11,7 +11,7 @@ import urllib.request
 
 APP = 'https://app.usd-russia.ru'
 API = 'https://api.usd-russia.ru'
-MAX_BYTES = 8 * 1024 * 1024
+MAX_BYTES = 10 * 1024 * 1024  # same hard limit as accepted image uploads
 
 
 def allowed_origin(url: str) -> str:
