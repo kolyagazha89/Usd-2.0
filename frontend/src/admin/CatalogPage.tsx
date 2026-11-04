@@ -122,12 +122,12 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  const previewUsdCatalog=async()=>{
   setImportRows(null);setImportConfirmed(false);setImportFilename('');setError('');setNotice('');
   try{
-   const response=await fetch('/catalogs/usd_audio.csv',{credentials:'omit',cache:'force-cache'});
+   const response=await fetch('/catalogs/usd_audio.csv',{credentials:'omit',cache:'no-store'});
    if(!response.ok)throw new Error('Не удалось загрузить встроенный справочник USD.');
    const rows=parseAudioCatalogCsv(await response.text());
    planAudioCatalogImport(catalogs,rows,()=> 'preview-only');
    setImportRows(rows);
-   setImportFilename('Базовый каталог USD · 3 388 моделей');
+   setImportFilename('Базовый каталог USD · '+rows.length.toLocaleString('ru-RU')+' моделей');
   }catch(error){setError(error instanceof Error?error.message:'Не удалось подготовить базовый каталог')}
  };
  const previewCsv=async(file:File)=>{
@@ -165,7 +165,7 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
  {!vibration&&<section className="panel catalog-import-panel" aria-label="Импорт оборудования из CSV">
   <PanelTitle title="Массовый импорт моделей" icon={Package}/>
   <p className="settings-help">Загрузите CSV из справочников USD: ровно три столбца «бренд,модель,категория». Поддерживаются усилители, сабвуферы, акустика, головные устройства и DSP. Файл проверяется в браузере; данные не меняются до явного подтверждения. Существующие модели, статусы и ID не заменяются.</p>
-  <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void previewUsdCatalog()}><DownloadCloud size={16}/>Подготовить базовый каталог USD · 3 388 моделей</button>
+  <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void previewUsdCatalog()}><DownloadCloud size={16}/>Подготовить базовый каталог USD</button>
    <label className="file-picker">
    <input type="file" accept=".csv,text/csv" disabled={saving} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void previewCsv(file);e.currentTarget.value=''}}/>
    <span>{importFilename?'Выбрать другой CSV':'Выбрать CSV (до 1 МБ)'}</span>
