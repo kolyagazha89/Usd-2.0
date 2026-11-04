@@ -412,3 +412,12 @@
 .battery-catalog-row .catalog-model-label{min-width:0;overflow-wrap:anywhere}
 @media(max-width:1100px){.battery-catalog-row{grid-template-columns:repeat(2,minmax(0,1fr))}.battery-catalog-row .catalog-model-label{grid-column:1/-1}}
 @media(max-width:540px){.battery-catalog-row{grid-template-columns:minmax(0,1fr)}.battery-catalog-row .catalog-model-label{grid-column:auto}.battery-catalog-row .secondary-button{width:100%;justify-content:center}}
+
+/* Accessible plate keypad in the participant car editor; scoped away from admin forms. */
+.usd-plate-keypad{padding:12px;border:1px solid var(--border,#4b5563);border-radius:12px;min-width:0}
+.usd-plate-keypad p{margin:0 0 10px;font-size:12px;line-height:1.5}
+.usd-plate-keys{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.usd-plate-keys button{min-width:0;min-height:44px;padding:7px 2px;border-radius:8px;border:1px solid #666;background:#222c36;color:#fff;font-size:17px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.usd-plate-keys button:focus-visible{outline:2px solid #e84a60;outline-offset:2px}
+.usd-plate-keys .usd-plate-delete,.usd-plate-keys .usd-plate-clear{font-size:13px;background:#4b2631}
+@media(max-width:380px){.usd-plate-keys{grid-template-columns:repeat(5,minmax(0,1fr))}}
