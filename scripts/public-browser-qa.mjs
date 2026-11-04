@@ -56,6 +56,16 @@ try{
         await page.locator('.usd-live,.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
+        // Do not sample an unfinished auto-discovery request as an empty
+        // result list. The page exposes a truthful terminal state after it
+        // checks stage results or produces an explicit connection error.
+        if(route==='/results'){
+          await page.waitForFunction(()=>{
+            const state=document.querySelector('.public-results-workspace')?.getAttribute('data-results-state');
+            return state==='ready'||state==='empty'||state==='error';
+          },null,{timeout:60000});
+          row.resultDataState=await page.locator('.public-results-workspace').getAttribute('data-results-state');
+        }
         const originalResultText=await inspectResultText(page);
         if(injectCandidateCss)await page.addStyleTag({content:candidateCss});
         row.visualSource=visualSource;
@@ -94,7 +104,15 @@ try{
         if(route==='/'||route==='/results'){
           const before=originalResultText;
           row.resultTextSurfaceBefore=before.filter(hasSurface);
-          if(route==='/results'&&!before.length)throw new Error('No public result cards available for text-style validation');
+          if(route==='/results'){
+            if(row.resultDataState==='error')throw new Error('Public results API unavailable: explicit retry state shown; investigate and recover API');
+            if(row.resultDataState==='ready'&&!before.length)throw new Error('Results page marked ready without result cards');
+            if(row.resultDataState==='empty'){
+              const empty=await page.locator('.public-results-workspace .public-muted-empty').innerText();
+              if(!/опубликованн|результат/i.test(empty))throw new Error('Results empty state is not explained to the visitor');
+              row.resultEmptyState=empty;
+            }
+          }
           if(before.length){
             await page.screenshot({path:path.join(output,width+'-'+(route==='/'?'home':'results')+'-live-before.png'),fullPage:false});
             const after=await inspectResultText(page);
