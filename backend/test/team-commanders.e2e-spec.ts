@@ -114,7 +114,12 @@ integration('team/commander HTTP acceptance on isolated PostgreSQL 18', () => {
       });
       users[name] = u.id;
       people[name] = p.id;
-      tokens[name] = await jwt.signAsync({ sub: u.id, role: 'ADMIN' }); // claims cannot grant ADMIN
+      const familyId = randomUUID();
+      await db.refreshSession.create({
+        data: { userId: u.id, familyId, tokenHash: 'team-fixture-' + randomUUID(),
+          expiresAt: new Date(Date.now() + 3600000) },
+      });
+      tokens[name] = await jwt.signAsync({ sub: u.id, fid: familyId, role: 'ADMIN' }); // claims cannot grant ADMIN
     }
   });
   afterAll(async () => {
