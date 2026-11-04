@@ -1,4 +1,4 @@
-import {getPublicEntityPhotoUrl} from '../api';
+import {getPublicEntityPhotoUrl} from './public-entity-photo-url';
 import {publicEntityPhotoSource} from './photo-source';
 import {lazy,Suspense,useEffect,useState} from 'react';
 import './dark-velocity.css';

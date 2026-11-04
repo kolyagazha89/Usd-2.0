@@ -17,6 +17,15 @@ export function publicEntityPhotoSource(
  publicUrl:(targetType:'PARTICIPANT_PHOTO'|'CAR_PHOTO',targetId:string)=>string,
 ):string {
  const id=typeof entity?.id==='string'?entity.id.trim():'';
- if(!id||entity?.isPublic===false||typeof entity?.photoUrl!=='string'||!entity.photoUrl.trim())return '';
- return publicUrl(targetType,id);
+ const reference=typeof entity?.photoUrl==='string'?entity.photoUrl.trim():'';
+ if(!id||entity?.isPublic===false||!reference)return '';
+ // Never expose the internal S3 key to anonymous users. An opaque revision
+ // derived from the reference ensures a replaced picture has a new <img> URL,
+ // even when the protected public media route has a stable entity ID.
+ let revision=2166136261;
+ for(let index=0;index<reference.length;index++){
+  revision=Math.imul(revision^reference.charCodeAt(index),16777619);
+ }
+ const url=publicUrl(targetType,id);
+ return url+(url.includes('?')?'&':'?')+'v='+(revision>>>0).toString(16).padStart(8,'0');
 }

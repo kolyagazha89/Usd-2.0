@@ -32,8 +32,13 @@ test('reloading a member gallery revokes stale authenticated object URLs without
 test('public car and participant photos use the protected API route, never private S3 links',()=>{
  const proxy=(type,id)=>'/media/public-file/'+type+'/'+encodeURIComponent(id);
  const car={id:'car-1',isPublic:true,photoUrl:'https://private-s3.example/cars/car-1/object'};
- assert.equal(publicEntityPhotoSource('CAR_PHOTO',car,proxy),'/media/public-file/CAR_PHOTO/car-1');
- assert.equal(publicEntityPhotoSource('PARTICIPANT_PHOTO',{...car,id:'person 1'},proxy),'/media/public-file/PARTICIPANT_PHOTO/person%201');
+ const first=publicEntityPhotoSource('CAR_PHOTO',car,proxy);
+ assert.match(first,/^\\/media\\/public-file\\/CAR_PHOTO\\/car-1\\?v=[a-f0-9]{8}$/);
+ assert.notEqual(first,car.photoUrl,'never leak private object key');
+ assert.notEqual(publicEntityPhotoSource('CAR_PHOTO',{...car,photoUrl:'https://private-s3.example/cars/car-1/replaced'},proxy),first,
+  'replacing the same entity photograph must force a new browser image URL');
+ assert.match(publicEntityPhotoSource('PARTICIPANT_PHOTO',{...car,id:'person 1'},proxy),
+  /^\\/media\\/public-file\\/PARTICIPANT_PHOTO\\/person%201\\?v=[a-f0-9]{8}$/);
  assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,photoUrl:null},proxy),'');
  assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,isPublic:false},proxy),'');
  assert.equal(publicEntityPhotoSource('CAR_PHOTO',{...car,id:''},proxy),'');

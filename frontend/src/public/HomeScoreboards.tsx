@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {ChevronLeft,ChevronRight,Pause,Play} from 'lucide-react';
 import {publicResultUnit,publicResultValue} from '../public-result-utils';
 import {carName,personName} from './premium-model';
-import {getPublicEntityPhotoUrl} from '../api';
+import {getPublicEntityPhotoUrl} from './public-entity-photo-url';
 import {publicEntityPhotoSource} from './photo-source';
 import {Link,Photo} from './PremiumUI';
 import {groupLiveByClass,otherHomepageRecords,resultClass,resultEntryNumber} from './home-results-model';
