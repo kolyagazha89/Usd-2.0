@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
 import { teamPostIdFromAssetKey, teamPhotoKeys } from '../teams/team-photo-keys';
+import { validateImageBytes, validateDocxBytes } from './media-format-validation';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -325,47 +326,12 @@ export class MediaService {
     return bytes;
   }
 
-  private validateImageSignature(bytes: Uint8Array, contentType: string) {
-    const isJpeg =
-      bytes.length >= 3 &&
-      bytes[0] === 0xff &&
-      bytes[1] === 0xd8 &&
-      bytes[2] === 0xff;
-    const isPng =
-      bytes.length >= 8 &&
-      bytes[0] === 0x89 &&
-      bytes[1] === 0x50 &&
-      bytes[2] === 0x4e &&
-      bytes[3] === 0x47 &&
-      bytes[4] === 0x0d &&
-      bytes[5] === 0x0a &&
-      bytes[6] === 0x1a &&
-      bytes[7] === 0x0a;
-    const isWebp =
-      bytes.length >= 12 &&
-      bytes[0] === 0x52 &&
-      bytes[1] === 0x49 &&
-      bytes[2] === 0x46 &&
-      bytes[3] === 0x46 &&
-      bytes[8] === 0x57 &&
-      bytes[9] === 0x45 &&
-      bytes[10] === 0x42 &&
-      bytes[11] === 0x50;
-
-    const valid =
-      (contentType === 'image/jpeg' && isJpeg) ||
-      (contentType === 'image/png' && isPng) ||
-      (contentType === 'image/webp' && isWebp);
-
-    if (!valid) {
-      throw new BadRequestException('Содержимое файла не соответствует заявленному типу изображения');
-    }
+  private validateImageSignature(bytes: Buffer, contentType: string) {
+    validateImageBytes(bytes, contentType);
   }
 
-  private validateDocxSignature(bytes: Uint8Array) {
-    if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
-      throw new BadRequestException('Файл не является корректным DOCX');
-    }
+  private validateDocxSignature(bytes: Buffer) {
+    validateDocxBytes(bytes);
   }
 
   private async getReferencedSiteAssetIds(): Promise<Set<string>> {
