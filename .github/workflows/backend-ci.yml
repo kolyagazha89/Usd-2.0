@@ -66,6 +66,9 @@ jobs:
           python3 -m pip install --disable-pip-version-check --break-system-packages openpyxl==3.1.5
           python3 ../scripts/sync_historical_xlsx.py --check
 
+      - name: Reject public historical contact data and raw registration XLSX
+        run: python3 ../scripts/test_historical_privacy.py
+
       - name: Generate Prisma Client
         run: npx prisma generate
 
