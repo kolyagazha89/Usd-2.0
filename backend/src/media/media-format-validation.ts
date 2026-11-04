@@ -65,7 +65,11 @@ function validateJpeg(bytes: Buffer) {
       pixels(bytes.readUInt16BE(offset + 3), bytes.readUInt16BE(offset + 5));
       sawFrame = true;
     }
-    if (marker === 0xda) { sawScan = true; break; }
+    if (marker === 0xda) {
+      // Even a correctly formed SOF cannot rescue a truncated entropy stream.
+      if (offset + size >= bytes.length - 2) fail();
+      sawScan = true; break;
+    }
     offset += size;
   }
   if (!sawFrame || !sawScan) fail();
@@ -74,7 +78,7 @@ function validateJpeg(bytes: Buffer) {
 function validateWebp(bytes: Buffer) {
   if (bytes.length < 30 || bytes.toString('ascii', 0, 4) !== 'RIFF' ||
       bytes.toString('ascii', 8, 12) !== 'WEBP' || bytes.readUInt32LE(4) + 8 !== bytes.length) fail();
-  let offset = 12, header = false;
+  let offset = 12, header = false, imageData = false;
   while (offset + 8 <= bytes.length) {
     const type = bytes.toString('ascii', offset, offset + 4);
     const length = bytes.readUInt32LE(offset + 4);
@@ -84,11 +88,13 @@ function validateWebp(bytes: Buffer) {
       pixels(1 + bytes.readUIntLE(payload + 4, 3), 1 + bytes.readUIntLE(payload + 7, 3));
       header = true;
     }
+    if (type === 'VP8 ' && length >= 10) imageData = true;
     if (!header && type === 'VP8 ' && length >= 10 && bytes[payload + 3] === 0x9d &&
         bytes[payload + 4] === 0x01 && bytes[payload + 5] === 0x2a) {
       pixels(bytes.readUInt16LE(payload + 6) & 0x3fff, bytes.readUInt16LE(payload + 8) & 0x3fff);
       header = true;
     }
+    if (type === 'VP8L' && length >= 5) imageData = true;
     if (!header && type === 'VP8L' && length >= 5 && bytes[payload] === 0x2f) {
       const width = 1 + (((bytes[payload + 2] & 0x3f) << 8) | bytes[payload + 1]);
       const height = 1 + (((bytes[payload + 4] & 0x0f) << 10) | (bytes[payload + 3] << 2) | (bytes[payload + 2] >>> 6));
@@ -97,7 +103,7 @@ function validateWebp(bytes: Buffer) {
     }
     offset = payload + length + (length & 1);
   }
-  if (!header || offset !== bytes.length) fail();
+  if (!header || !imageData || offset !== bytes.length) fail();
 }
 
 export function validateImageBytes(bytes: Buffer, contentType: string) {
