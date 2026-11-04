@@ -223,15 +223,20 @@ describe('MediaService media library', () => {
     prisma.mediaUpload.update = jest.fn().mockResolvedValue({ ...upload, completedAt:new Date() });
     prisma.car.update = jest.fn().mockResolvedValue({ id:'car-1' });
     (service as any).headObject = jest.fn(async () => ({ size:4, contentType:'image/png' }));
-    (service as any).validateImageSignature = jest.fn(async () => undefined);
+    (service as any).readStagedUpload = jest.fn(async () => Buffer.from([0x89,0x50,0x4e,0x47]));
+    (service as any).validateImageSignature = jest.fn(() => undefined);
     (service as any).objectUrl = jest.fn(() => 'https://storage.example/new-car-photo');
 
     const result = await service.complete('admin-1','ADMIN','valid-upload-token');
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.mediaUpload.update).toHaveBeenCalledWith({
-      where:{ id:'uploaded-car-photo' }, data:{ completedAt:expect.any(Date) },
+      where:{ id:'uploaded-car-photo' }, data:{ objectKey:expect.stringMatching(/^new-car-photo-published-[\da-f-]+$/),completedAt:expect.any(Date) },
     });
+    const savedKey = prisma.mediaUpload.update.mock.calls[0][0].data.objectKey;
+    expect(savedKey).not.toBe(upload.objectKey);
+    expect((service as any).validateImageSignature).toHaveBeenCalledWith(Buffer.from([0x89,0x50,0x4e,0x47]),'image/png');
+    expect(global.fetch).toHaveBeenCalledWith('https://storage.example/signed',expect.objectContaining({method:'PUT',body:Buffer.from([0x89,0x50,0x4e,0x47])}));
     expect(prisma.car.update).toHaveBeenCalledWith({
       where:{ id:'car-1' }, data:{ photoUrl:'https://storage.example/new-car-photo' },
     });
@@ -247,7 +252,8 @@ describe('MediaService media library', () => {
     prisma.mediaUpload.update = jest.fn().mockResolvedValue({});
     prisma.car.update = jest.fn(async () => { throw new Error('Car not found'); });
     (service as any).headObject = jest.fn(async () => ({ size:4,contentType:'image/png' }));
-    (service as any).validateImageSignature = jest.fn(async () => undefined);
+    (service as any).readStagedUpload = jest.fn(async () => Buffer.from([0x89,0x50,0x4e,0x47]));
+    (service as any).validateImageSignature = jest.fn(() => undefined);
     (service as any).objectUrl = jest.fn(() => 'https://storage.example/new-car-photo');
 
     await expect(service.complete('admin-1','ADMIN','valid-upload-token')).rejects.toThrow('Car not found');
