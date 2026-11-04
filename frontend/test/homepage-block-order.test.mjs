@@ -29,7 +29,7 @@ test('each CMS homepage dashboard and bottom block has its own order and visibil
   const hidden=render(blocks.map(item=>item.id==='records'?{...item,enabled:false}:item));
   assert.doesNotMatch(hidden,/data-home-block="records"/,'CMS hidden records must not leave a blank card');
   assert.match(hidden,/data-home-block="teams" style="order:2"/,'hiding records must not remove the team block');
-  const winners=Array.from({length:6},(_,index)=>({id:'winner-'+index,place:1,value:150+index,participant:{id:'p'+index,firstName:'Тест',lastName:'Участник'},registrationClass:{class:{name:'SPL '+index,direction:{name:'SPL'},unit:'DB'}},car:{brand:'Lada',model:'Vesta'}}));
+  const winners=Array.from({length:6},(_,index)=>({id:'winner-'+index,place:1,value:150+index,participant:{id:'p'+index,firstName:'Тест',lastName:'Участник'},registrationClass:{class:{id:'class-'+index,name:'Class '+index,direction:{name:index<3?'SPL':index<5?'BFSPL':'BDW SPL'},unit:'DB'}},car:{brand:'Lada',model:'Vesta'}}));
   const winnersHtml=render(blocks,winners);
   assert.equal((winnersHtml.match(/class="usd-score-row"/g)??[]).length,6,'all six selected winners must appear on the homepage');
   const withPartners=[...blocks,{id:'partners',enabled:true}];
