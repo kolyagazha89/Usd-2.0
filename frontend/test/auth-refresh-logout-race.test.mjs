@@ -44,8 +44,10 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
     await loggingOut;
     assert.equal(localStorage.getItem('usd_refresh_token'),null);
     assert.equal(calls.filter(c=>c.url.endsWith('/auth/refresh')).length,1);
-    assert.deepEqual(calls.filter(c=>c.url.endsWith('/auth/logout')).map(c=>JSON.parse(c.init.body).refreshToken).sort(),
-      ['initial-token','stale-refresh'],'logout must revoke the captured session and the discarded rotated token');
+    assert.equal(calls.filter(c=>c.url.endsWith('/auth/logout')).length,1,
+      'logout must wait for the latest Set-Cookie and revoke the current cookie session');
+    assert.equal(calls.find(c=>c.url.endsWith('/auth/logout')).init.body,undefined,
+      'the refresh secret must never be copied to JavaScript');
 
     // An old refresh must not block a new session from refreshing after logout.
     localStorage.setItem('usd_refresh_token','new-login-token');
@@ -57,10 +59,10 @@ test('a delayed refresh cannot restore credentials after explicit logout',async(
       throw Error('Unexpected request: '+url);
     };
     const newSessionRefresh=api.refresh();
-    assert.equal(calls.at(-1).init.body,JSON.stringify({refreshToken:'new-login-token'}));
+    assert.equal(calls.at(-1).init.body,undefined,'refresh uses HttpOnly cookie only');
     releaseSecondRefresh(new Response(JSON.stringify({accessToken:'fresh-access',refreshToken:'fresh-refresh',user:{id:'u2',role:'PARTICIPANT'}}),{status:200,headers:{'Content-Type':'application/json'}}));
     assert.equal((await newSessionRefresh).accessToken,'fresh-access');
-    assert.equal(localStorage.getItem('usd_refresh_token'),'fresh-refresh');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'refresh is never stored in JS');
     // If the network fails while signing out, local credentials stay cleared.
     globalThis.fetch=async(url)=>{
       if(url.endsWith('/auth/logout'))throw Error('Network offline');
