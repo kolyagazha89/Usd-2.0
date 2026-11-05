@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {groupLiveByClass,otherHomepageRecords,resultEntryNumber,homepageLatestWinners} from '../src/public/home-results-model.ts';
+import {groupLiveByClass,otherHomepageRecords,recordHolderName,resultEntryNumber,homepageLatestWinners} from '../src/public/home-results-model.ts';
 
 const sample=(id,cls,place,value,number)=>({
  id,place,value,
@@ -80,4 +80,34 @@ test('homepage latest winners respects 3 SPL, 2 BFSPL and 1 BDW SPL and ignores 
  assert.deepEqual(homepageLatestWinners(rows).map(r=>r.id),['spl0','spl1','spl2','bfspl0','bfspl1','bdw']);
  assert.deepEqual(homepageLatestWinners([make('second','SPL',2)]),[]);
  assert.deepEqual(homepageLatestWinners([make('first','BDW SPL'),make('first','BDW SPL')]).map(r=>r.id),['first']);
+});
+
+test('homepage records display a public participant name and respect privacy',()=>{
+ const participant=(props)=>({result:{registration:{participant:props}}});
+ assert.equal(recordHolderName(participant({lastName:'Иванов',firstName:'Иван',middleName:'Иванович',isPublic:true})),'Иванов Иван Иванович');
+ assert.equal(recordHolderName(participant({lastName:'Частный',firstName:'Профиль',isPublic:false})),'Участник скрыт');
+ assert.equal(recordHolderName(participant({lastName:'',firstName:''})),'Участник USD');
+ assert.equal(recordHolderName({participant:{lastName:'НЕ ПУБЛИКОВАТЬ',firstName:'Тайна'}}),'Участник USD');
+ assert.equal(recordHolderName({}),'Участник USD');
+});
+
+test('home record podium has one luminous hero and adaptive three/two-card carousel',async()=>{
+ const [home,scoreboards,css]=await Promise.all([
+  readFile(new URL('../src/public/PremiumHome.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/public/HomeScoreboards.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/public/home-records-podium.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(home,/usd-record-spotlight__value/);
+ assert.match(home,/usd-record-spotlight__meta/);
+ assert.match(home,/recordHolderName\(best\)/);
+ assert.match(home,/home-records-podium\.css/);
+ assert.match(scoreboards,/recordHolderName\(r\)/);
+ assert.match(scoreboards,/records\.slice\(slide\*perPage,slide\*perPage\+perPage\)/);
+ assert.match(scoreboards,/matchMedia\('\(max-width: 680px\)'\)/);
+ assert.match(scoreboards,/setPerPage\(media\.matches\?2:3\)/);
+ assert.match(scoreboards,/aria-hidden=\{slide!==current\} inert=\{slide!==current\}/);
+ assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
+ assert.match(css,/@media\(max-width:680px\)[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+ assert.match(css,/prefers-reduced-motion:reduce/);
+ assert.doesNotMatch(css,/grid-template-columns:minmax\(0,1fr\)!important/);
 });
