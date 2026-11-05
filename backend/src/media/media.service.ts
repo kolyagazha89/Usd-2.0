@@ -531,10 +531,10 @@ export class MediaService {
       select: { objectKey: true },
     });
     if (!upload) throw new BadRequestException('Загруженный документ не найден');
-    const response = await fetch(this.presignedUrl('GET', upload.objectKey, null, 60));
-    if (!response.ok) throw new BadRequestException('Не удалось получить DOCX из хранилища');
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) throw new BadRequestException('Некорректный размер DOCX');
+    // Reuse bounded, timeout-protected storage reads. An untrusted S3 reply
+    // must never be buffered without a size limit before DOCX conversion.
+    const bytes = await this.readStoredMedia(upload.objectKey);
+    this.validateDocxSignature(bytes);
     return bytes;
   }
 
@@ -596,7 +596,17 @@ export class MediaService {
     const url = this.objectUrl(finalKey);
     try {
       await this.prisma.$transaction(async (tx) => {
-      await tx.mediaUpload.update({ where: { id: upload.id }, data: { objectKey: finalKey, completedAt: new Date() } });
+      // CAS: two /media/complete calls can both read the original staging
+      // token before either transaction commits. Exactly one may publish;
+      // a losing transaction must not overwrite the winning final objectKey
+      // or change the vehicle's photo URL.
+      const claimed = await tx.mediaUpload.updateMany({
+        where: { id: upload.id, completedAt: null, objectKey: upload.objectKey },
+        data: { objectKey: finalKey, completedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException('Загрузка уже завершена другим запросом');
+      }
       if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
         await tx.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
       } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
