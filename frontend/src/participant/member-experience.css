@@ -497,3 +497,36 @@ body .participant-portal.usd-member .member-usd-id-notice{color:#8ee3b2}
  body .participant-portal.usd-member .member-usd-id-body{padding:14px}
  body .participant-portal.usd-member .member-usd-id-body>.secondary-button{width:100%;justify-content:center}
 }
+
+
+/* Release QA: registration wizard on iPhone, 2026-11-05. */
+@media(max-width:760px){
+ body .participant-portal.usd-member .entry-configuration-review{
+  margin-top:30px;padding:22px 16px 18px;display:flex;flex-direction:column;gap:15px;
+ }
+ body .participant-portal.usd-member .entry-configuration-review legend{
+  display:block;max-width:100%;padding:0 4px 10px;line-height:1.35;
+ }
+ body .participant-portal.usd-member .entry-configuration-review label{
+  align-items:center;min-height:48px;padding:7px 3px;gap:14px;
+ }
+ body .participant-portal.usd-member .entry-configuration-review input[type=radio]{
+  appearance:auto!important;-webkit-appearance:radio!important;
+  width:22px!important;height:22px!important;min-width:22px!important;
+  margin:0!important;opacity:1!important;accent-color:#ff4053;
+  pointer-events:auto!important;
+ }
+ body .participant-portal.usd-member .entry-task-title{margin-top:14px;margin-bottom:28px}
+ body .participant-portal.usd-member .entry-workspace{padding-top:14px}
+ body .participant-portal.usd-member .entry-task-title h2{scroll-margin-top:130px}
+}
+/* Native checkbox remains clickable and doesn't inherit ornamental pseudo-lines. */
+body .participant-portal.usd-member .entry-task input[type=checkbox]{
+ appearance:auto!important;-webkit-appearance:checkbox!important;
+ accent-color:#ff4053;min-width:22px;width:22px;height:22px;
+ opacity:1!important;flex-shrink:0;box-shadow:none!important;
+}
+body .participant-portal.usd-member .entry-task input[type=checkbox]::before,
+body .participant-portal.usd-member .entry-task input[type=checkbox]::after{
+ content:none!important;display:none!important;
+}
