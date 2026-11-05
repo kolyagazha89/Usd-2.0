@@ -1,16 +1,30 @@
 import {formatPlateInput} from '../profile-validation';
 
-type Props={value:string;onChange:(value:string)=>void};
+type Props={value:string;onChange:(value:string)=>void;nativeKeyboard?:boolean};
 const KEYS=[...'АВЕКМНОРСТУХ0123456789'];
-/** Screen keypad for Russian registration plates; physical keyboard and paste remain available. */
-export default function RussianPlateKeypad({value,onChange}:Props){
+const LETTERS=new Set('АВЕКМНОРСТУХ');
+const STEPS=[
+ 'Буква', 'Первая цифра', 'Вторая цифра', 'Третья цифра',
+ 'Первая буква серии', 'Вторая буква серии',
+ 'Первая цифра региона', 'Вторая цифра региона',
+ 'Третья цифра региона (если нужна)',
+];
+
+/** Context-sensitive Russian plate keypad: invalid keys never appear.
+ * Format: А000АА00, optionally a third region digit.
+ */
+export default function RussianPlateKeypad({value,onChange,nativeKeyboard=true}:Props){
+ const current=formatPlateInput('RU',value);
+ const position=current.length;
+ const isLetterSlot=position===0||position===4||position===5;
+ const candidates=position>=9?[]:KEYS.filter(key=>LETTERS.has(key)===isLetterSlot);
  const append=(key:string)=>onChange(formatPlateInput('RU',value+key));
  return <div className="usd-plate-keypad" role="group" aria-label="Клавиатура российского госномера">
-  <p>Допустимые буквы госномера и цифры. Можно также вводить с обычной клавиатуры.</p>
+  <p role="status" aria-live="polite">{position>=9?'Номер введён. Проверьте регион.':STEPS[position]+': выберите допустимый символ.'}{nativeKeyboard?' Также доступен ввод с обычной клавиатуры.':''}</p>
   <div className="usd-plate-keys">
-   {KEYS.map(key=><button type="button" key={key} aria-label={'Ввести '+key} onClick={()=>append(key)}>{key}</button>)}
-   <button type="button" className="usd-plate-delete" aria-label="Удалить последний символ госномера" onClick={()=>onChange(value.slice(0,-1))}>⌫</button>
-   <button type="button" className="usd-plate-clear" onClick={()=>onChange('')}>Очистить</button>
+   {candidates.map(key=><button type="button" key={key} aria-label={'Ввести '+key} onClick={()=>append(key)}>{key}</button>)}
+   <button type="button" className="usd-plate-delete" disabled={!value} aria-label="Удалить последний символ госномера" onClick={()=>onChange(value.slice(0,-1))}>⌫</button>
+   <button type="button" className="usd-plate-clear" disabled={!value} onClick={()=>onChange('')}>Очистить</button>
   </div>
  </div>;
 }
