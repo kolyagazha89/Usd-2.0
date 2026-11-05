@@ -326,4 +326,21 @@ describe('MediaService media library', () => {
     await expect(service.getSiteAssetBuffer('legal-document-test')).rejects.toThrow();
   });
 
+  it('does not return internal storage responses to an upload client', async () => {
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'pending',userId:'admin-1',targetType:MediaTargetType.CAR_PHOTO,
+      targetId:'car-1',objectKey:'staging',contentType:'image/png',
+      completedAt:null,expiresAt:new Date(Date.now()+60_000),
+    });
+    global.fetch=jest.fn(async()=>new Response(
+      '<Error><Endpoint>http://private-storage:19000</Endpoint><Key>internal-secret</Key></Error>',
+      {status:503,headers:{'content-type':'application/xml'}},
+    )) as typeof fetch;
+    const failure=service.uploadThroughApi('admin-1','ADMIN','pending-token',
+      Buffer.from([137,80,78,71]),'image/png');
+    await expect(failure).rejects.toThrow('Хранилище временно не приняло файл');
+    await expect(service.uploadThroughApi('admin-1','ADMIN','pending-token',
+      Buffer.from([137,80,78,71]),'image/png')).rejects.not.toThrow(/internal-secret|private-storage/);
+  });
+
 });
