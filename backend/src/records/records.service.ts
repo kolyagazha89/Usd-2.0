@@ -8,6 +8,14 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
+// Public cards need stage metadata, never a full regulation document per row.
+// Keep stored snapshots and the authenticated admin projection untouched.
+const publicRecordStageSelect = {
+  id: true, seasonId: true, stageNumber: true, name: true, city: true,
+  date: true, status: true, resultsPublishedAt: true,
+  season: { select: { id: true, name: true, year: true, status: true } },
+} satisfies Prisma.StageSelect;
+
 @Injectable()
 export class RecordsService {
   private readonly logger = new Logger(RecordsService.name);
@@ -79,11 +87,7 @@ export class RecordsService {
         direction: true,
       },
     },
-    stage: {
-      include: {
-        season: true,
-      },
-    },
+    stage: { select: publicRecordStageSelect },
     result: {
       include: {
         registration: {
@@ -114,11 +118,7 @@ export class RecordsService {
                 isActive: true,
               },
             },
-            stage: {
-              include: {
-                season: true,
-              },
-            },
+            stage: { select: publicRecordStageSelect },
           },
         },
         registrationClass: {

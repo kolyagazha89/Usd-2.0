@@ -89,7 +89,7 @@ export class ParticipantsService {
   // =========================================================
 
   async findAllAdmin(request: AuthenticatedRequest) {
-    await this.requireAdmin(request);
+    const actor = await this.requireAdmin(request);
 
     return this.prisma.participant.findMany({
       orderBy: [
@@ -102,7 +102,7 @@ export class ParticipantsService {
         firstName: true,
         middleName: true,
         team: true,
-        phone: true,
+        phone: actor.role === 'ADMIN',
         birthDate: true,
         city: true,
         photoUrl: true,
@@ -112,7 +112,7 @@ export class ParticipantsService {
         user: {
           select: {
             id: true,
-            email: true,
+            email: actor.role === 'ADMIN',
             role: true,
             isActive: true,
             emailVerifiedAt: true,
@@ -842,7 +842,7 @@ export class ParticipantsService {
       isPublic?: boolean;
     },
   ) {
-    await this.requireAdmin(request);
+    const actor = await this.requireAdmin(request);
 
     const lastName =
       this.requiredText(
@@ -856,7 +856,7 @@ export class ParticipantsService {
         'Имя обязательно',
       );
 
-    return this.prisma.participant.create({
+    const created = await this.prisma.participant.create({
       data: {
         lastName,
         firstName,
@@ -876,6 +876,10 @@ export class ParticipantsService {
           body.isPublic ?? true,
       },
     });
+    if (actor.role === 'ADMIN') return created;
+    // Delegated profile management does not grant access to another person's contacts.
+    const { phone: _phone, ...withoutContacts } = created;
+    return withoutContacts;
   }
 
   // =========================================================

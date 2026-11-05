@@ -17,9 +17,12 @@ body .app-shell .main .content .usd-car-editor-panel>p{color:#6b7280;line-height
 body .app-shell .main .content .usd-car-editor-panel :is(input:not([type=checkbox]),select){width:100%;min-width:0;max-width:100%;font-size:16px}
 body .app-shell .main .content .usd-car-editor-summary{margin:0 0 22px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 body .app-shell .main .content .usd-car-editor-summary>div{display:grid;gap:5px;min-width:0;background:#fff;padding:14px;border-radius:12px;border:1px solid #e3e5e9}
-body .app-shell .main .content .usd-car-editor-summary dt{font-size:11px;color:#737b89}
+body .app-shell .main .content .usd-car-editor-summary dt{font-size:11px;color:#626a76}
 body .app-shell .main .content .usd-car-editor-summary dd{font-weight:750;margin:0;overflow-wrap:anywhere;color:#262a33}
 body .app-shell .main .content .usd-car-editor-actions{display:flex;justify-content:flex-end;gap:10px;margin:20px 0 0;flex-wrap:wrap}
 @media(max-width:840px){body .app-shell .main .content .usd-car-editor-steps{grid-template-columns:1fr;gap:7px}body .app-shell .main .content .usd-car-editor-step{min-height:52px;padding:10px 12px}body .app-shell .main .content .usd-car-editor-summary{grid-template-columns:1fr}}
 @media(max-width:480px){body .app-shell .main .content .usd-car-editor-actions>*{flex:1 1 135px;justify-content:center}body .app-shell .main .content .usd-car-editor-panel{padding:14px}}
 @media(prefers-reduced-motion:reduce){body .app-shell .main .content .usd-car-editor-progress>div{transition:none}}
+
+/* Public-visibility consent belongs to the light admin form. */
+body .app-shell .main .content .usd-car-editor-form .checkbox-row{color:#333b46}

@@ -29,7 +29,7 @@
 .event-day-page .event-day-roster {min-width:0;padding:22px 24px}
 .event-day-roster-head {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .event-day-roster-head h3 {font-size:clamp(21px,2vw,26px);line-height:1.2;letter-spacing:-.02em;color:#22242a;margin:6px 0}
-.event-day-roster-head p {font-size:13px;color:#717784;margin:0}
+.event-day-roster-head p {font-size:13px;color:#626a76;margin:0}
 .event-day-count {font-size:13px;font-weight:700;color:#6b3540;background:#fff3f5;border:1px solid #efd1d7;border-radius:8px;padding:7px 10px}
 .event-day-search {display:flex;align-items:center;gap:10px;min-width:0;margin:20px 0 14px;padding:0 12px;
  border:1px solid #dadddf;border-radius:12px;background:#fff;color:#5b606e}
@@ -64,7 +64,7 @@
 .event-day-confirm label {display:grid;gap:7px;color:#4f3035;font-size:13px;font-weight:700}
 .event-day-confirm textarea {width:100%;min-width:0;resize:vertical;border-radius:9px;min-height:88px;padding:9px;background:#fff;font-size:16px}
 .event-day-roster-footer {display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #e7e8ee;
- margin-top:18px;padding-top:15px;font-size:12px;color:#747986}
+ margin-top:18px;padding-top:15px;font-size:12px;color:#626a76}
 .event-day-roster-footer span {display:inline-flex;align-items:center;gap:7px}
 .event-day-blocked {display:grid;gap:9px;padding:25px}.event-day-blocked h2 {margin:0}.event-day-blocked p {margin:0}
 @media(max-width:1150px){

@@ -156,7 +156,7 @@ function buildMechanicalLogo(T:any,image:HTMLImageElement,texture:any,model:any,
  return {bars,cone,speaker};
 }
 
-export default function LogoShowcase() {
+export default function LogoShowcase({active=true}:{active?:boolean}) {
  const host=useRef<HTMLButtonElement>(null);
  const canvas=useRef<HTMLCanvasElement>(null);
  const pulse=useRef<()=>void>(()=>{});
@@ -167,16 +167,18 @@ export default function LogoShowcase() {
  const [strike,setStrike]=useState(0),[arriving,setArriving]=useState(false);
  const introPlayed=useRef(false);
  useEffect(()=>{
+  if(!active){setArriving(false);return;}
   if((!ready&&motion!=='fallback')||introPlayed.current||typeof matchMedia!=='function')return;
   introPlayed.current=true;if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  try{if(sessionStorage.getItem('usd-logo-arrival-v1'))return;sessionStorage.setItem('usd-logo-arrival-v1','seen')}catch{/* Storage-disabled visitors still get only one reveal per mount. */}
+  // Play once per home mount, after the loading overlay releases the hero.
   setArriving(true);setStrike(n=>n+1);
   const impact=setTimeout(()=>{pulse.current();setBoost(n=>n+1)},180);
   const finish=setTimeout(()=>setArriving(false),1800);
   return()=>{clearTimeout(impact);clearTimeout(finish)};
- },[ready,motion==='fallback']);
+ },[active,ready,motion==='fallback']);
 
  useEffect(()=>{
+  if(!active)return;
   const node=host.current, surface=canvas.current;
   if(!node||!surface||typeof matchMedia!=='function')return;
   let disposed=false;
@@ -309,7 +311,7 @@ export default function LogoShowcase() {
   }
   init();
   return()=>{disposed=true;cleanup()};
- },[]);
+ },[active]);
 
  return <><button ref={host}
   className={'u-stage-emblem u-logo-showcase '+(ready?'is-webgl':'is-fallback')+(arriving?' is-arriving':'')}

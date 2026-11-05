@@ -61,7 +61,7 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
  },[keys,total,paused,hovered,focused]);
  const current=page%Math.max(1,total);
  return <div className="usd-record-carousel" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
-  <div className="usd-record-viewport" aria-label="Другие рекорды USD">
+  <div className="usd-record-viewport" role="group" aria-label="Другие рекорды USD">
    <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
     {Array.from({length:total},(_,slide)=><div key={slide} className="u-record-minis usd-record-slide" aria-hidden={slide!==current} inert={slide!==current}>{records.slice(slide*3,slide*3+3).map(r=>{
    const cls=resultClass(r);

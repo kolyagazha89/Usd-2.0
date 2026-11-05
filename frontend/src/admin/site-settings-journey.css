@@ -38,11 +38,11 @@ body .app-shell .main .content .usd-editor-section-link.is-active{
 body .app-shell .main .content .usd-editor-section-link:hover{border-color:#da5368}
 body .app-shell .main .content .usd-editor-section-link:focus-visible{outline:2px solid #ed2638;outline-offset:2px}
 body .app-shell .main .content .usd-editor-section-index{
- font-size:11px;font-weight:900;letter-spacing:-.02em;color:#ed2638;padding-top:3px;
+ font-size:11px;font-weight:900;letter-spacing:-.02em;color:#b91c35;padding-top:3px;
 }
 body .app-shell .main .content .usd-editor-section-text{display:grid;gap:6px;min-width:0;flex:1}
 body .app-shell .main .content .usd-editor-section-text strong{font-size:12px;line-height:1.3;color:#20222b}
-body .app-shell .main .content .usd-editor-section-text small{font-size:10px;color:#7a818f;overflow-wrap:anywhere}
+body .app-shell .main .content .usd-editor-section-text small{font-size:10px;color:#626a76;overflow-wrap:anywhere}
 body .app-shell .main .content .usd-editor-verified{flex-shrink:0;color:#237b42}
 body .app-shell .main .content .usd-home-step-nav{
  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
@@ -54,7 +54,7 @@ body .app-shell .main .content .usd-home-step{
  padding:16px 14px;background:#fff;color:#222832;text-align:left;
  min-width:0;min-height:96px;cursor:pointer;
 }
-body .app-shell .main .content .usd-home-step.is-active{border-color:#ed2638;background:#fff8f9}
+body .app-shell .main .content .usd-home-step.is-active{border-color:#b91c35;background:#fff8f9}
 body .app-shell .main .content .usd-home-step-index{
  width:32px;height:32px;flex:0 0 32px;
  display:grid;place-items:center;
@@ -62,7 +62,7 @@ body .app-shell .main .content .usd-home-step-index{
  font-size:13px;font-weight:850;color:#5c6470;
 }
 body .app-shell .main .content .usd-home-step.is-active .usd-home-step-index{
- background:#ed2638;color:#fff;border-color:#ed2638;
+ background:#ed2638;color:#fff;border-color:#b91c35;
 }
 body .app-shell .main .content .usd-home-step>span:last-child{display:grid;min-width:0;gap:5px}
 body .app-shell .main .content .usd-home-step strong{font-size:14px}
@@ -70,7 +70,7 @@ body .app-shell .main .content .usd-home-step small{color:#6b7280;font-size:11px
 body .app-shell .main .content .usd-home-step em{font-size:10px;color:#9b273c;font-style:normal;font-weight:750}
 body .app-shell .main .content .usd-editor-journey-foot{
  display:flex;align-items:center;justify-content:space-between;gap:12px;
- margin:18px 0 10px;color:#717987;font-size:12px;
+ margin:18px 0 10px;color:#626a76;font-size:12px;
 }
 body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav){display:block!important;max-width:100%;min-width:0}
 body .app-shell .main .content .settings-layout:has(.usd-editor-section-nav) .settings-content{min-width:0;width:100%;max-width:100%}

@@ -77,8 +77,8 @@ body .participant-portal.usd-member .participant-tabs a{background:transparent!i
 body .participant-portal.usd-member .participant-tabs a[aria-current=page]{background:transparent!important;color:#fff!important;box-shadow:inset 0 -2px 0 #ff4053!important;border:0!important}
 body .participant-portal.usd-member .participant-tabs a[aria-current=page] svg{color:#ff4053!important}
 body .participant-portal.usd-member :is(.primary-button,.secondary-button,.text-button,.danger-button){font-weight:600!important;border-radius:8px!important;box-shadow:none!important;min-height:44px;letter-spacing:0!important}
-body .participant-portal.usd-member .primary-button{background:#ff4053!important;border:1px solid #ff4053!important;color:#fff!important;box-shadow:none!important}
-body .participant-portal.usd-member .primary-button:hover:not(:disabled){background:#e92f44!important;border-color:#e92f44!important;box-shadow:none!important}
+body .participant-portal.usd-member .primary-button{background:#d71938!important;border:1px solid #d71938!important;color:#fff!important;box-shadow:none!important}
+body .participant-portal.usd-member .primary-button:hover:not(:disabled){background:#c41430!important;border-color:#c41430!important;box-shadow:none!important}
 body .participant-portal.usd-member .secondary-button{background:#1c232c!important;border:1px solid #2b333f!important;color:#d4d9e2!important}
 body .participant-portal.usd-member .secondary-button:hover:not(:disabled){background:#262e3a!important;border-color:#495361!important}
 body .participant-portal.usd-member .text-button{color:#ff596a!important;display:inline-flex;align-items:center;gap:8px;font-size:12px!important}
@@ -189,7 +189,7 @@ body .participant-portal.usd-member .entry-steps ol{display:grid;grid-template-c
 body .participant-portal.usd-member .entry-steps button{display:flex;align-items:center;gap:12px;border:0!important;background:transparent!important;padding:0 0 18px;width:100%;text-align:left;color:#737e8e;border-radius:0;font-size:12px;min-height:50px}
 body .participant-portal.usd-member .entry-steps button>span{width:28px;height:28px;border:1px solid #303a48;display:grid;place-items:center;border-radius:50%;font-size:10px;flex-shrink:0}
 body .participant-portal.usd-member .entry-steps [data-state=current] button{color:#fff;box-shadow:0 2px #ff4053}
-body .participant-portal.usd-member .entry-steps [data-state=current] button>span{background:#ff4053;border-color:#ff4053;color:#fff}
+body .participant-portal.usd-member .entry-steps [data-state=current] button>span{background:#d71938;border-color:#d71938;color:#fff}
 body .participant-portal.usd-member .entry-steps [data-state=complete] button{color:#81d9ae}
 body .participant-portal.usd-member .entry-steps button:disabled{opacity:1;cursor:default}
 body .participant-portal.usd-member .entry-workspace{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:32px;align-items:start}
@@ -340,7 +340,7 @@ body .participant-portal.usd-member .member-equipment-item[open]>summary>svg{tra
 body .participant-portal.usd-member .member-equipment-item>.config-row-content{display:block!important;border-top:1px solid #2a313c;padding:18px!important;background:#10161e}
 body .participant-portal.usd-member .member-equipment-remove{margin-top:16px;padding:0}
 body .participant-portal.usd-member .config-editor-actions{background:#0e131a!important;border-color:#2a313c!important;box-shadow:none!important}
-body .participant-portal.usd-member .configuration-editor-page[data-member-view] .config-editor-actions>.primary-button{background:#ff4053!important;border-color:#ff4053!important;box-shadow:none!important}
+body .participant-portal.usd-member .configuration-editor-page[data-member-view] .config-editor-actions>.primary-button{background:#d71938!important;border-color:#d71938!important;box-shadow:none!important}
 @media(max-width:760px){
  body .participant-portal.usd-member .member-config-directions button:nth-child(n+4){font-size:10px!important}
  body .participant-portal.usd-member .member-config-directions button:nth-child(n+4) svg{display:none}
