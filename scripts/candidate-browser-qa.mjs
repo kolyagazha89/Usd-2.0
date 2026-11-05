@@ -62,7 +62,14 @@ function dataFor(url,role){
  if(p==='/configurations/config1')return configuration;
  if(p==='/site-settings'||p==='/site-settings/public')return {settings};
  if(p.startsWith('/media/'))return {url:''};
- if(p==='/records/current')return [{id:'record1',value:150.25,unit:'DB',class:klass,result,stage,isCurrent:true}];
+ if(p==='/records/current')return Array.from({length:7},(_,index)=>({
+  id:'record'+(index+1),value:190-index*3.25,unit:'DB',
+  class:{...klass,id:'record-class-'+index,
+   name:['NoLim','Limited 2.0','Wall','Gate 1-6','Wicket 6-10','Wall+','Mad-X'][index],
+   direction:{...klass.direction,name:index<3?'SPL':'BFSPL'}},
+  result:{...result,registration:{...registration,participant}},
+  stage,isCurrent:true,
+ }));
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stage:{...stage,resultsPublishedAt:null},stats:{registrations:1,participants:1,cars:1,appearances:1,inspections:{total:0,pending:1,passed:0,failed:0},registrationClasses:[{class:klass,registrations:1,participants:1,cars:1}],pendingConfigurations:[],inspectionDetails:[],pendingRegistrations:[{registrationId:'reg1',participantNumber:1,participant}],classResults:[{class:klass,results:[{id:'result1',place:1,value:'151.2',unit:'DB',participant,participantNumber:1,car,teamAtInspection:'USD Team'}]}]}};
@@ -153,6 +160,25 @@ try{
       assert.equal(await page.locator('.usd-home-boot-overlay').count(),0,'USD splash must be removed after fonts and hero readiness');
       assert.equal(await page.locator('.p-home-main').getAttribute('aria-busy'),'false','interactive homepage becomes ready atomically');
       row.sitewideHome='no late content replacement after boot';
+      const podium=page.locator('[data-home-block="records"] .usd-record-podium');
+      await podium.waitFor({state:'visible'});
+      const expectedColumns=width<=680?2:3;
+      assert.equal(Number(await podium.getAttribute('data-columns')),expectedColumns,
+       'record carousel must show two cards on phones and three on wider screens');
+      const currentSlide=page.locator('.usd-record-podium__grid[aria-hidden="false"]');
+      assert.equal(await currentSlide.locator('.usd-record-podium__card').count(),expectedColumns,
+       'each visible record slide must contain exactly the responsive number of cards');
+      const columns=await currentSlide.evaluate(element=>getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+      assert.equal(columns,expectedColumns,'record cards must be side by side, not stacked');
+      assert.match(await page.locator('.usd-record-spotlight__meta strong').innerText(),/Тестовый Иван/,
+       'champion must display public participant full name');
+      assert.match(await currentSlide.locator('.usd-record-podium__holder').first().innerText(),/Тестовый Иван/,
+       'smaller records must display public participant full name');
+      await podium.getByRole('button',{name:'Следующие рекорды'}).click();
+      assert.equal(await page.locator('.usd-record-podium__grid[aria-hidden="false"] .usd-record-podium__card').count(),expectedColumns,
+       'next carousel page must preserve responsive grid');
+      row.recordPodium='hero + '+expectedColumns+' visible cards; participant name and next-page navigation';
+
      }
      if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
       const carPhoto=route==='/cars/car1';
@@ -587,7 +613,7 @@ try{
        assert.deepEqual(markers,['1.','2.','1.','3.','1.'],'light admin DOCX preview uses public numbering');
        row.rulesAdminPreview='numbered DOCX preview passed';
       }
-      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
+      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),7,'all seven published synthetic record fixtures are rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
      if(route==='/stages/stage1'){
