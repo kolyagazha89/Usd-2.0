@@ -59,8 +59,10 @@ describe('Car plate identity under concurrent registrations',()=>{
   const {prisma,tx,rows}=makeDb(),service=new ParticipantsService(prisma);
   rows.push({id:'car-A',participantId:'p1',registrationCountry:'RU',registrationNumber:'А555АА72'},
             {id:'car-B',participantId:'p1',registrationCountry:'RU',registrationNumber:'А123ВС72'});
+  const rejected=service.updateCar(actor,'car-A',{registrationNumber:'A123BC72'});
+  await expect(rejected).rejects.toBeInstanceOf(ConflictException);
   await expect(service.updateCar(actor,'car-A',{registrationNumber:'A123BC72'}))
-   .rejects.toBeInstanceOf(ConflictException);
+   .rejects.not.toThrow(/car-B|ID:/);
   expect(rows[0].registrationNumber).toBe('А555АА72');
   expect(tx.car.update).not.toHaveBeenCalled();
  });
