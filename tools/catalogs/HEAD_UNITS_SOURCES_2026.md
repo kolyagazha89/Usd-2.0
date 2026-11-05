@@ -24,3 +24,18 @@ This is a **reference list** of verified real car radio/head-unit model identifi
 - Brands without a supported receiver in a manufacturer catalog are **not** given fabricated `HEAD_UNIT` records: e.g. SPL-only subwoofer, loudspeaker and amplifier brands such as Pride, Fi Car Audio, Sundown Audio, Taramps. Add them if a documented actual receiver is found later.
 - Data rows have only `бренд,модель,категория`. No dimensions, power, prices, links, or installation hardware in CSV.
 - No automatic production database import. Use admin preview and explicit approval; preserve existing IDs and participant history. Models are a curated, incomplete seed, not a promise of every discontinued SKU.
+
+## Additional manufacturer historical receiver models — 4 November 2026
+
+| Brand | Manufacturer primary-source evidence | New model identifiers in import fragment | Notes |
+| --- | --- | ---: | --- |
+| Kenwood | https://www.kenwood.com/cs/ce/index.php?lang=english&model=KMM and https://www.kenwood.com/cs/ce/mm/firmware/ | 123 | Full displayed **KMM** support directory plus selected non-marine models from official car-electronics catalog; includes older discontinued units. Does not include unrelated KMR marine receivers. |
+| Pioneer | https://pioneer-car.eu/media/2c/44/90/1692606303/deh-mvh-fh_press_release_pee-final.pdf | 20 | Explicit 25-model manufacturer 2019 receiver press release, five previously listed; separate DEH, FH and MVH subfamilies. |
+| Alpine | https://www.alpine-usa.com/company/press/2008/alpine-electronics-ups-the-ante-for-in-car-connectivity-and-great-sound-with-new-2008-head-units | 5 | Manufacturer 2008 release identifies CDA-9884/9886/9887 and CDE-9872/9874; exclude KCE/PXA adapters and processors from `HEAD_UNIT`. |
+| Sony | https://www.sony.com/electronics/support/articles/MC000028 and https://www.sony.com/electronics/support/mobile-cd-players-digital-media-players-dsx-series | 12 | Official car-audio compatibility/support lists; marine DSX-M devices deliberately excluded. |
+
+All model labels remain country/era specific; manufacturer support pages are **not** proof that every model was available in Russia. They are only a factual reference for historic configurations. No technical specifications, price, URL, or stock data enter the CSV. Data is import-staging, not auto-approved for production.
+
+### Data quality fixes in this revision
+
+Removed five false-positive Ural cable/connector products (`СИМФОНИЯ КНС Jack/RCA/XLR`) from `AUDIO_COMPONENT`; their source fragments are retained for audit but shared normalization explicitly excludes these rows on future rebuilds. Existing production catalog rows are **not deleted** by this change. `HEAD_UNIT` grows to 500 reference rows, total equipment references to 3,809. `frontend/public/catalogs/usd_audio.csv` and the admin import count now match the reviewed source and the frontend regression test fails if they drift.

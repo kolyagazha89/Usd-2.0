@@ -29,6 +29,24 @@ class ModelNameNormalizationTests(unittest.TestCase):
         self.assertIsNone(normalize("Урал", "Патриот 2х1,5 мм2", "AUDIO_COMPONENT"))
         self.assertIsNone(normalize("Pride", "Адаптер No 1 для твиттера", "AUDIO_COMPONENT"))
 
+    def test_ural_signal_cables_are_not_speakers_or_head_units(self):
+        for name in (
+            "СИМФОНИЯ КНС Jack-6.3 mono СФ",
+            "СИМФОНИЯ КНС RCA СФ",
+            "СИМФОНИЯ КНС XLR-F-3 pin СФ",
+        ):
+            self.assertIsNone(normalize("Урал", name, "AUDIO_COMPONENT"))
+        self.assertEqual(
+            normalize("Урал", "777 ЦСП", "HEAD_UNIT"),
+            ("Урал", "777 ЦСП", "HEAD_UNIT"),
+        )
+
+    def test_pride_gaskets_are_accessories_not_acoustics(self):
+        for name in ("Гаскет 6.5 (RL-6.5)", "Гаскет 8 RD", "Гаскет10"):
+            self.assertIsNone(normalize("Pride", name, "AUDIO_COMPONENT"))
+        # Legitimate Pride speakers and legacy amplifiers stay importable.
+        self.assertEqual(normalize("Pride", "Mezzo", "AMPLIFIER"), ("Pride", "Mezzo", "AMPLIFIER"))
+
     def test_duplicate_model_keys_retain_one_entry(self):
         rows = process([
             ("Pride", "Apollo", "AMPLIFIER"),

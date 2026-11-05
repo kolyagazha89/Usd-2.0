@@ -7,7 +7,7 @@ Data files are gathered separately from the deployed competition website. No pro
 | Export | Columns (UTF-8 CSV) | Records | Coverage |
 | --- | --- | ---: | --- |
 | [Vehicles](data/usd_cars.csv) | `марка,модель` | 4,347 | 308 makes from Drom's official public catalog |
-| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,654 | 41 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
+| [Audio](data/usd_audio.csv) | `бренд,модель,категория` | 3,798 | 41 brands/product-series labels, sourced from manufacturer catalog pages and indexed manufacturer product cards |
 
 The files intentionally contain no product price, wattage, size, impedance, URLs, generational data, or vehicle trim details.
 
@@ -23,9 +23,11 @@ These are reference product **types**, not the FRONT/REAR/SUB vehicle installati
 
 ## Magnetic head units / receiver coverage (04 Nov 2026)
 
-`HEAD_UNIT` now includes **340** distinct receiver models/series (previously 74), across **17** catalog labels. Added **266** from a reviewed **266**-row fragment across 14 manufacturers. `Aura`, `Урал`, `DL Audio` records were already present and remain unchanged; `Deaf Bonce`, `Hannibal`, `Phantom` and real mainstream receiver brands are supplemented.
+`HEAD_UNIT` now includes **500** distinct receiver models/series (previously 74), across **17** catalog labels. Added **266** new receiver models from the current manufacturer fragment and **160 additional historical models** from official manufacturer archives. All 17 receiver brands are now included in one import CSV. `Aura`, `Урал`, `DL Audio` records were already present and remain unchanged; `Deaf Bonce`, `Hannibal`, `Phantom` and real mainstream receiver brands are supplemented.
 
-- Verified import fragment: [head_units_verified_2026.csv](data/fragments/head_units_verified_2026.csv)
+- Contemporary receiver fragment: [head_units_verified_2026.csv](data/fragments/head_units_verified_2026.csv)
+- Manufacturer archive receiver fragment: [head_units_archive_verified_2026.csv](data/fragments/head_units_archive_verified_2026.csv) (123 Kenwood, 20 Pioneer, 5 Alpine, 12 Sony models new to existing list)
+- `frontend/public/catalogs/usd_audio.csv` is an exact copy of the reviewed master export. Admin built-in CSV preview reads this asset with no stale-cache reuse and displays the live count.
 - Independent manufacturer references and coverage limits: [HEAD_UNITS_SOURCES_2026.md](HEAD_UNITS_SOURCES_2026.md)
 - Brands whose manufacturer catalogs do not support a car receiver are **not** assigned invented `HEAD_UNIT` models. Only actual head-unit product lines are included. This is not exhaustive archival coverage.
 - No DB import/deployment was carried out. Use the admin preview and explicit confirmation; do not overwrite already existing or inactive catalog entities.
@@ -34,7 +36,7 @@ These are reference product **types**, not the FRONT/REAR/SUB vehicle installati
 
 Source fragments are in [data/fragments](data/fragments), grouped by manufacturer website. For Deaf Bonce, original brand/series labels (Machete, Apocalypse, Avatar, Hannibal, Black Hydra) are separate brand choices. See [coverage.json](data/coverage.json) for per-brand counts and incomplete sources.
 
-The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified (including five Ural wiring variants and three Pride adapters removed in the quality review); a final manual inspection is still advisable before enabling strict-only choice validation for participants.
+The vehicle list was collected by make and model only from Drom's public catalog and model listings; generation/year pages are excluded. Two-column vehicle records and three-column audio records are deduplicated case-insensitively. Product cards with descriptive names have been reduced to model identifiers; marketing wattages, component kits, repair modules and accessory names have been excluded where identifiable. Manufacturer accessories and kits were filtered where identified (including five Ural wiring variants, five signal cabling/connectors named «СИМФОНИЯ КНС», eleven Pride gasket rings, and three Pride adapters removed in the quality review); a final manual inspection is still advisable before enabling strict-only choice validation for participants.
 
 **Kicx and Dynamic State:** now 166 Kicx Sound group models (Kicx, Headshot, Loud Level, Phantom, Sound Civilization, Terza) and 168 Dynamic State models; Kicx group categories include 1 DSP. Manufacturer category pages were used to identify missing models, with index-backed records for pages that are not directly fetchable. Their official hosts also timed out on GitHub-hosted Ubuntu, including robots.txt requests. The separate optional crawler preserves failure reports and fails visibly when extraction was blocked. This method cannot certify full discontinued/historical product coverage. Hertz products were fetched through a public page-reading plugin; SounDigital links used a free text extraction gateway. For exhaustive historical Kicx / Dynamic State coverage, an official manufacturer export or reliably accessible product feed would still be needed. Do not claim 100% completeness on inaccessible old products. The dataset is useful as a strong seed and should not be described as literally complete.
 
@@ -47,7 +49,7 @@ The audio CSV is **not automatically deployed into PostgreSQL**. After reviewing
 3. Select the file, inspect added/already-present counts and the sample rows, then explicitly confirm the operation. Existing catalog IDs, retired entries, and equipment history are preserved; subsequent imports only add missing models.
 4. Verify a few known brands/categories in the administrator catalog and the participant configurator. Unsupported models can still be submitted as approval requests.
 
-The **car** CSV has no corresponding admin importer yet: keep `usd_cars.csv` as staging data; do not replace real car names, registration plates, or historical records with a database script. Once a reviewed car-directory selector/importer is built, it should consume only `марка,модель`, retain user-added historic makes, and accept unknown rare makes without data loss.
+The **car** CSV is separately administered via the reviewed car-directory import/overlay; use its own preview and confirm flow. Never replace participant cars or live historical records. Legacy staging note: keep `usd_cars.csv` as reference data; do not replace real car names, registration plates, or historical records with a database script. Once a reviewed car-directory selector/importer is built, it should consume only `марка,модель`, retain user-added historic makes, and accept unknown rare makes without data loss.
 
 ## Testing and refresh
 

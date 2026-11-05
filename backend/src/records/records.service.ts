@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
@@ -9,6 +10,8 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Injectable()
 export class RecordsService {
+  private readonly logger = new Logger(RecordsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /** Keep official records visible while redacting private participant and car details. */
@@ -658,6 +661,7 @@ export class RecordsService {
   }
 
   async findCurrent() {
+    const startedAt = Date.now();
     return this.prisma.record.findMany({
       where: {
         isCurrent: true,
@@ -672,7 +676,11 @@ export class RecordsService {
         { class: { direction: { sortOrder: 'asc' } } },
         { class: { sortOrder: 'asc' } },
       ],
-    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)));
+    }).then(async (records) => (await this.filterPublicRecordVisibility(records)).map((record) => this.sanitizePublicRecord(record)))
+      .finally(() => {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > 2500) this.logger.warn('Public records/current DB read was slow: ' + elapsed + 'ms');
+      });
   }
 
   async findByClass(classId: string) {
