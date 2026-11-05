@@ -734,6 +734,9 @@ export class AuthService {
         // candidates need them for self-service account recovery.
         city: canSelfLink ? candidate.city : null,
         team: canSelfLink ? candidate.team : null,
+        // Explicit response allowlist: never serialize legacy plate numbers,
+        // even if an old query or test fixture contains extra properties.
+        cars: candidate.cars.map(({ id, brand, model }) => ({ id, brand, model })),
         canSelfLink,
       };
     }));
