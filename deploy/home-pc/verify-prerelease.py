@@ -176,6 +176,21 @@ def verify_public_image_assets(settings: dict, stages: list | None = None) -> in
             raise ValueError('Public ' + label + ' image returned invalid or unavailable media')
     return verified
 
+def verify_stable_public_reads(settings: dict, stages: list) -> None:
+    """Require repeatable real reads, not just one lucky 200 through ingress.
+
+    A transient S3 or API transport problem can pass a one-shot post-deploy
+    smoke check, while public browser QA fails minutes later. Intentionally
+    do not retry failed records reads: the release must stay unaccepted until
+    the underlying Ubuntu/RustFS/edge failure is resolved.
+    """
+    for _ in range(3):
+        records = get_json(API + '/records/current')
+        if not isinstance(records, list):
+            raise ValueError('Public API did not return list application data')
+        verify_public_image_assets(settings, stages)
+
+
 def require_revision(metadata, expected: str, kind: str) -> None:
     """Print only validated public commit IDs, never arbitrary response bodies.
     An outdated external reverse proxy must not be mistaken for a bad image
@@ -205,9 +220,7 @@ def verify(sha: str) -> None:
     stages = get_json(API + '/stages/public')
     if not isinstance(stages, list):
         raise ValueError('Public API did not return list application data')
-    verify_public_image_assets(settings['settings'], stages)
-    if not isinstance(get_json(API + '/records/current'), list):
-        raise ValueError('Public API did not return list application data')
+    verify_stable_public_reads(settings['settings'], stages)
     for route in ('/auth/me', '/auth/sessions', '/registrations/me'):
         if get_status(API + route) not in (401, 403):
             raise ValueError('Private API route is not protected: ' + route)
