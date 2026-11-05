@@ -1,4 +1,4 @@
-import {formatPlateInput} from '../profile-validation';
+import {formatPlateInput} from '../profile-validation.ts';
 
 const KEYS=[...'АВЕКМНОРСТУХ0123456789'];
 const LETTERS=new Set('АВЕКМНОРСТУХ');
