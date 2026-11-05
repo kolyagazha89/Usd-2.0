@@ -2,7 +2,7 @@
 
 Статус 05.11.2026: подготовлена и проверена локальная очищенная mirror-копия; публичные refs не менялись.
 
-- Оригинальные JSON и два XLSX из 701d624 сохранены вне Git в AES-256-GCM архиве; ACL Windows разрешает доступ только текущему пользователю, наследование отключено. Расшифровка побайтово совпала с исходным zip. Это локальная копия; off-host/неизменяемое серверное хранение пока не принято. Ключ и ciphertext в релизный пакет не входят.
+- Оригинальные JSON и два XLSX из 701d624 сохранены вне Git в AES-256-GCM архиве; ACL Windows разрешает доступ только текущему пользователю, наследование отключено. Расшифровка побайтово совпала с исходным zip. Дополнительно на сервере создана AES-256-GCM копия на отдельном /dev/sdb1 ext4 вне RustFS data mount; root-only, ключ на другом разделе, расшифровка/все 3 checksum проверены, chattr immutable подтверждён. Это второй диск того же серверного хоста, не off-host устойчивость. Ключ и ciphertext в релизный пакет не входят.
 - Инвентаризация потребителей: scripts/sync_historical_xlsx.py; backend imports.service.ts; global-historical-import.service.ts / global-historical-plan.ts; import tests; CI sync-historical-excel/backend-ci. Production import не запускался.
 - Текущий main уже очищен PR #423; scripts/test_historical_privacy.py: 3/3 PASS. Эти изменения не дублировать.
 - Локальный git-filter-repo 2.47.0 обработал 5399 commits, переписал 5378. Из всех refs удалён исходный регистрационный XLSX; три достижимых blob historical-xlsx.json проверены, email-вхождений 0. Прочие данные соревнований сохранены. Дерево main до/после совпало полностью.
@@ -18,3 +18,5 @@
 6. Не закрывать #427 до фактической проверки публичного доступа и сохранности приватного оригинала.
 
 Публичные доказательства без контактов: archive-verification.json и history-cleanup-preview.json в outputs/release-hardening текущего аудита. Реальная GitHub-история остаётся неочищенной.
+
+Проверка серверной копии: 3 файла; ciphertext SHA256 620643252fc71b47cbc4c7ca6d8e56e45cc893f3b510996669b0f3d001b845bf; 211307 байт; restoreVerified/rootOnly/keyStoredSeparately/secondDiskVerified/immutable=true. Оригиналы не уничтожались, публичные refs не изменялись. После появления новых main-коммитов preview mirror нужно обновить; старое соответствие a98fa91→20c4f56 использовать только как историческое доказательство неизменности дерева.
