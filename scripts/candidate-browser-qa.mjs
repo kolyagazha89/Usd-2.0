@@ -102,6 +102,7 @@ try{
    const reducedMotion='reduce';
    const context=await browser.newContext({viewport:{width,height:960},reducedMotion,serviceWorkers:'block'});
    const failuresSeen=new Set();
+   let registrationCalendarFailures=0;
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===base)return route.continue();
@@ -116,7 +117,9 @@ try{
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(url.pathname.startsWith('/participants/')?{...participant,id:'offline',cars:[],registrations:[]}:{...stage,id:'offline'})});
      }
      if(role==='PARTICIPANT'&&request.frame().url().includes('stageId=outage')&&url.pathname==='/stages/public'){
-      if(!failuresSeen.has('registration-calendar')){failuresSeen.add('registration-calendar');return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic calendar outage'})})}
+      // The API client now retries transient public GETs once. Keep two
+      // consecutive fixture failures to verify the visible manual retry path.
+      if(++registrationCalendarFailures<=2)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic calendar outage'})});
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{...stage,id:'outage'}])});
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');

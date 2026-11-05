@@ -231,7 +231,7 @@ describe('MediaService media library', () => {
       completedAt:null, expiresAt:new Date(Date.now()+60_000),
     };
     prisma.mediaUpload.findUnique = jest.fn().mockResolvedValue(upload);
-    prisma.mediaUpload.update = jest.fn().mockResolvedValue({ ...upload, completedAt:new Date() });
+    prisma.mediaUpload.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     prisma.car.update = jest.fn().mockResolvedValue({ id:'car-1' });
     (service as any).headObject = jest.fn(async () => ({ size:4, contentType:'image/png' }));
     (service as any).readStagedUpload = jest.fn(async () => Buffer.from([0x89,0x50,0x4e,0x47]));
@@ -241,10 +241,10 @@ describe('MediaService media library', () => {
     const result = await service.complete('admin-1','ADMIN','valid-upload-token');
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.mediaUpload.update).toHaveBeenCalledWith({
-      where:{ id:'uploaded-car-photo' }, data:{ objectKey:expect.stringMatching(/^new-car-photo-published-[\da-f-]+$/),completedAt:expect.any(Date) },
+    expect(prisma.mediaUpload.updateMany).toHaveBeenCalledWith({
+      where:{ id:'uploaded-car-photo',completedAt:null,objectKey:'new-car-photo' }, data:{ objectKey:expect.stringMatching(/^new-car-photo-published-[\da-f-]+$/),completedAt:expect.any(Date) },
     });
-    const savedKey = prisma.mediaUpload.update.mock.calls[0][0].data.objectKey;
+    const savedKey = prisma.mediaUpload.updateMany.mock.calls[0][0].data.objectKey;
     expect(savedKey).not.toBe(upload.objectKey);
     expect((service as any).validateImageSignature).toHaveBeenCalledWith(Buffer.from([0x89,0x50,0x4e,0x47]),'image/png');
     expect(global.fetch).toHaveBeenCalledWith('https://storage.example/signed',expect.objectContaining({method:'PUT',body:Buffer.from([0x89,0x50,0x4e,0x47])}));
@@ -260,7 +260,7 @@ describe('MediaService media library', () => {
       targetId:'missing-car',objectKey:'new-car-photo',contentType:'image/png',
       completedAt:null,expiresAt:new Date(Date.now()+60_000),
     });
-    prisma.mediaUpload.update = jest.fn().mockResolvedValue({});
+    prisma.mediaUpload.updateMany = jest.fn().mockResolvedValue({count:1});
     prisma.car.update = jest.fn(async () => { throw new Error('Car not found'); });
     (service as any).headObject = jest.fn(async () => ({ size:4,contentType:'image/png' }));
     (service as any).readStagedUpload = jest.fn(async () => Buffer.from([0x89,0x50,0x4e,0x47]));
@@ -269,6 +269,78 @@ describe('MediaService media library', () => {
 
     await expect(service.complete('admin-1','ADMIN','valid-upload-token')).rejects.toThrow('Car not found');
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the winning car photo when two completion attempts race', async () => {
+    const upload = {
+      id:'upload-racing',userId:'admin-1',targetType:MediaTargetType.CAR_PHOTO,
+      targetId:'car-1',objectKey:'staging-key',contentType:'image/png',
+      completedAt:null,expiresAt:new Date(Date.now()+60_000),
+    };
+    let claimed=false;
+    const writtenKeys:string[]=[];
+    prisma.mediaUpload.findUnique=jest.fn(async()=>upload);
+    prisma.mediaUpload.updateMany=jest.fn(async({data}:any)=>{
+      if(claimed)return {count:0};
+      claimed=true;
+      writtenKeys.push(data.objectKey);
+      return {count:1};
+    });
+    prisma.car.update=jest.fn(async()=>({id:'car-1'}));
+    (service as any).headObject=jest.fn(async()=>({size:4,contentType:'image/png'}));
+    (service as any).readStagedUpload=jest.fn(async()=>Buffer.from([137,80,78,71]));
+    (service as any).validateImageSignature=jest.fn(()=>undefined);
+    (service as any).objectUrl=jest.fn((key:string)=>'https://storage.example/'+key);
+    const results=await Promise.allSettled([
+      service.complete('admin-1','ADMIN','racing-token'),
+      service.complete('admin-1','ADMIN','racing-token'),
+    ]);
+    expect(results.filter(x=>x.status==='fulfilled')).toHaveLength(1);
+    expect(results.filter(x=>x.status==='rejected')).toHaveLength(1);
+    expect(results.find(x=>x.status==='rejected')).toMatchObject({
+      reason:expect.any(ConflictException),
+    });
+    expect(writtenKeys).toHaveLength(1);
+    expect(prisma.car.update).toHaveBeenCalledTimes(1);
+    const deletes=(global.fetch as jest.Mock).mock.calls.filter((call:any)=>call[1]?.method==='DELETE');
+    // Winner cleans its staging object; loser cleans only its unique final key.
+    expect(deletes).toHaveLength(2);
+  });
+
+  it('rejects oversized DOCX storage stream before trying to decode it', async () => {
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'legal-object'});
+    const response=new Response(new ReadableStream({
+      start(controller){
+        controller.enqueue(new Uint8Array(6*1024*1024));
+        controller.enqueue(new Uint8Array(6*1024*1024));
+        controller.close();
+      },
+    }),{status:200,headers:{'content-type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}});
+    global.fetch=jest.fn(async()=>response) as typeof fetch;
+    await expect(service.getSiteAssetBuffer('legal-document-test')).rejects.toThrow('10 MB');
+  });
+
+  it('rejects arbitrary non-DOCX bytes from the site document converter', async () => {
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'not-docx'});
+    (service as any).readStoredMedia=jest.fn(async()=>Buffer.from('hello, not a zip'));
+    await expect(service.getSiteAssetBuffer('legal-document-test')).rejects.toThrow();
+  });
+
+  it('does not return internal storage responses to an upload client', async () => {
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'pending',userId:'admin-1',targetType:MediaTargetType.CAR_PHOTO,
+      targetId:'car-1',objectKey:'staging',contentType:'image/png',
+      completedAt:null,expiresAt:new Date(Date.now()+60_000),
+    });
+    global.fetch=jest.fn(async()=>new Response(
+      '<Error><Endpoint>http://private-storage:19000</Endpoint><Key>internal-secret</Key></Error>',
+      {status:503,headers:{'content-type':'application/xml'}},
+    )) as typeof fetch;
+    const failure=service.uploadThroughApi('admin-1','ADMIN','pending-token',
+      Buffer.from([137,80,78,71]),'image/png');
+    await expect(failure).rejects.toThrow('Хранилище временно не приняло файл');
+    await expect(service.uploadThroughApi('admin-1','ADMIN','pending-token',
+      Buffer.from([137,80,78,71]),'image/png')).rejects.not.toThrow(/internal-secret|private-storage/);
   });
 
 });
