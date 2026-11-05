@@ -553,7 +553,7 @@ body .participant-portal.usd-member .primary-button:hover:not(:disabled) {
  background:#a90e29!important;border-color:#a90e29!important;
 }
 body .participant-portal.usd-member .member-config-actions-button {
- position:relative;z-index:5;pointer-events:auto;
+ position:absolute;z-index:5;pointer-events:auto;
 }
 body .participant-portal.usd-member .member-config-vehicle-visual {
  pointer-events:none;
