@@ -1,5 +1,6 @@
 import {registerPrivateMediaUrl,releasePrivateMediaUrl as releaseTrustedMediaUrl,clearPrivateMediaUrls} from './private-media-urls';
 import {resolveUsdApiBase} from './venue-api-config';
+import {fetchWithPublicReadRetry} from './public-read-retry';
 const venueRuntime = window as Window & {__USD_VENUE_MODE__?:unknown;__USD_VENUE_API_BASE__?:unknown};
 const API_BASE = resolveUsdApiBase(import.meta.env.VITE_API_URL as string|undefined,
   venueRuntime.__USD_VENUE_MODE__,venueRuntime.__USD_VENUE_API_BASE__);
@@ -45,7 +46,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   const timeout = window.setTimeout(() => controller.abort(), path.startsWith('/admin/permanent-deletion/') ? 120_000 : REQUEST_TIMEOUT_MS);
 
   try {
-    const response=await fetch(`${API_BASE}${path}`,{
+    const response=await fetchWithPublicReadRetry(path,`${API_BASE}${path}`,{
       ...init,
       headers,
       credentials:'include',
