@@ -48,7 +48,7 @@ export class ParticipantsService {
     const duplicate=candidates.find(car=>canonicalPlateIdentity(country,car.registrationNumber)===identity);
     if(duplicate){
       throw new ConflictException(
-        'Автомобиль с таким госномером уже существует (ID: '+duplicate.id+'). Выберите существующую запись.'
+        'Автомобиль с таким госномером уже существует. Проверьте свои автомобили или обратитесь к судье.'
       );
     }
   }
