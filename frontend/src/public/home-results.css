@@ -180,3 +180,28 @@
  }
  .usd-live .u-home-dashboard[data-home-block="latest-results"] .u-mini-results .usd-score-avatar{display:none}
 }
+
+
+/* Mobile homepage: record podium stays as three readable horizontal rows,
+   rather than a narrow vertical column of centered numbers. */
+@media(max-width:760px){
+ .u-gold-panel .usd-record-slide.u-record-minis,
+ .u-gold-panel .u-record-minis.usd-record-slide{
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  align-content:start;gap:0!important;
+ }
+ .u-gold-panel .usd-record-slide.u-record-minis>a{
+  display:grid!important;grid-template-columns:minmax(92px,auto) minmax(0,1fr);
+  align-items:center;text-align:left!important;column-gap:18px;
+  min-height:80px!important;padding:12px 14px!important;
+  border-bottom:1px solid rgba(255,255,255,.12);
+ }
+ .u-gold-panel .usd-record-slide.u-record-minis>a:last-child{border-bottom:0}
+ .u-gold-panel .usd-record-slide.u-record-minis>a>b{
+  grid-row:1 / span 2;grid-column:1;white-space:nowrap;
+ }
+ .u-gold-panel .usd-record-slide.u-record-minis>a>span,
+ .u-gold-panel .usd-record-slide.u-record-minis>a>small{
+  grid-column:2;min-width:0;overflow-wrap:anywhere;
+ }
+}
