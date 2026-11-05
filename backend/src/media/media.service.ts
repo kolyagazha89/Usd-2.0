@@ -558,8 +558,12 @@ export class MediaService {
       body: body as unknown as BodyInit,
     });
     if (!response.ok) {
-      const detail = (await response.text().catch(() => '')).trim();
-      throw new BadRequestException(detail ? 'Хранилище отклонило загрузку: ' + detail.slice(0, 200) : 'Хранилище отклонило загрузку файла');
+      // Never return storage XML, internal bucket/endpoint names or signed URL
+      // fragments to an upload client. The status is sufficient for a
+      // sanitized operator diagnostic without logging credentials.
+      await response.body?.cancel().catch(() => undefined);
+      this.logger.warn('Media S3 upload rejected (HTTP ' + response.status + ')');
+      throw new ServiceUnavailableException('Хранилище временно не приняло файл');
     }
     return this.complete(userId, role, uploadToken, canManageSiteAssets);
   }
