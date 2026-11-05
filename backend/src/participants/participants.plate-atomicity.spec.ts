@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {ConflictException} from '@nestjs/common';
 import {ParticipantsService} from './participants.service';
 import {plateAdvisoryKey} from './plate-identity';
