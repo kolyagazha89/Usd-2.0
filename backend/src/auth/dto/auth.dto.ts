@@ -10,6 +10,19 @@ import {
   MinLength,
 } from 'class-validator';
 
+export class HistoricalProfileSearchDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  fullName!: string;
+}
+
+export class LinkHistoricalProfileDto {
+  @IsString()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+  participantId!: string;
+}
+
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 
 export class RegisterDto {
