@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
+import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
 import { configurationStillPending } from './pending-configuration';
 import { MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers } from './registration-class-numbering';
 import type { CreateOnSiteProfileDto, CreateOnSiteCarDto } from './dto/create-registration.dto';
@@ -295,19 +296,13 @@ export class RegistrationsService {
     const brand = String(body.brand ?? '').normalize('NFKC').trim();
     const model = String(body.model ?? '').normalize('NFKC').trim();
     const country = body.registrationCountry;
-    let number = String(body.registrationNumber ?? '').normalize('NFKC').trim().toLocaleUpperCase('ru-RU');
-    if (country === 'RU') {
-      const chars: Record<string, string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
-      number = [...number].map(char => /[|\s.\-_/\\]/.test(char) ? '' : chars[char] ?? char).join('');
-    } else {
-      number = number.replace(/\s+/g, ' ');
-    }
+    const number=normalizePlateNumber(country,String(body.registrationNumber??''));
     if (!firstName || !lastName || !brand || !model ||
       firstName.length > 120 || lastName.length > 120 || (middleName?.length ?? 0) > 120 ||
       brand.length > 80 || model.length > 120 || !isValidRegistrationPlate(country, number)) {
       throw new BadRequestException('Укажите корректные ФИО, марку, модель и госномер автомобиля');
     }
-    const plateKey = country + ':' + number.replace(/[^\p{L}\p{N}]/gu, '');
+    const plateKey = plateAdvisoryKey(country,number);
     return this.prisma.$transaction(async tx => {
       // Serialise both the identity check and plate check for concurrent gate
       // operators. Without the name lock, two different cars could generate
@@ -327,15 +322,7 @@ export class RegistrationsService {
         where: { registrationCountry: country },
         select: { id: true, registrationNumber: true },
       });
-      const canonical = (value: string) => {
-        let normalized = value.normalize('NFKC').toLocaleUpperCase('ru-RU');
-        if (country === 'RU') {
-          const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
-          normalized = [...normalized].map(char => lookalikes[char] ?? char).join('');
-        }
-        return normalized.replace(/[^\p{L}\p{N}]/gu, '');
-      };
-      if (cars.some(car => canonical(car.registrationNumber) === canonical(number))) {
+      if (cars.some(car => canonicalPlateIdentity(country,car.registrationNumber) === canonicalPlateIdentity(country,number))) {
         throw new ConflictException('Автомобиль с таким госномером уже существует. Выберите существующий профиль.');
       }
       const participant = await tx.participant.create({
@@ -379,21 +366,13 @@ export class RegistrationsService {
     const brand = String(body.brand ?? '').normalize('NFKC').trim();
     const model = String(body.model ?? '').normalize('NFKC').trim();
     const country = body.registrationCountry;
-    let number = String(body.registrationNumber ?? '').normalize('NFKC').trim().toLocaleUpperCase('ru-RU');
-    const lookalikes: Record<string,string> = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
-    if (country === 'RU') number = [...number].map(char => /[|\s.\-_/\\]/.test(char) ? '' : lookalikes[char] ?? char).join('');
-    else number = number.replace(/\s+/g, ' ');
+    const number=normalizePlateNumber(country,String(body.registrationNumber??''));
     if (!body.participantId || !brand || !model || brand.length > 80 || model.length > 120 ||
         !isValidRegistrationPlate(country, number)) {
       throw new BadRequestException('Укажите участника, марку, модель и корректный госномер автомобиля');
     }
-    const canonical = (plate: string) => {
-      let normalized = plate.normalize('NFKC').toLocaleUpperCase('ru-RU');
-      if (country === 'RU') normalized = [...normalized].map(char => lookalikes[char] ?? char).join('');
-      return normalized.replace(/[^\p{L}\p{N}]/gu, '');
-    };
     return this.prisma.$transaction(async tx => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${country + ':' + canonical(number)}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateAdvisoryKey(country,number)}))`;
       const participant = await tx.participant.findUnique({
         where: { id: body.participantId },
         select: { id: true },
@@ -402,7 +381,7 @@ export class RegistrationsService {
       const cars = await tx.car.findMany({
         where: { registrationCountry: country }, select: { id: true, registrationNumber: true },
       });
-      if (cars.some(car => canonical(car.registrationNumber) === canonical(number))) {
+      if (cars.some(car => canonicalPlateIdentity(country,car.registrationNumber) === canonicalPlateIdentity(country,number))) {
         throw new ConflictException('Автомобиль с таким госномером уже существует. Проверьте существующую запись.');
       }
       const car = await tx.car.create({

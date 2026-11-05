@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
+import { Prisma } from '../generated/prisma/client';
+import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from './plate-identity';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegistrationCountry } from '../generated/prisma/enums';
@@ -34,40 +36,20 @@ export class ParticipantsService {
     return phone;
   }
 
-  private normalizeRegistrationNumber(value: string, country?: RegistrationCountry): string {
-    let number = value.normalize('NFKC')
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/[\u00A0\u202F]/g, ' ')
-      .trim()
-      .toLocaleUpperCase('ru-RU');
-    if (country === 'RU') {
-      const lookalikes: Record<string, string> = {
-        A: 'А', B: 'В', E: 'Е', K: 'К', M: 'М',
-        H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т',
-        Y: 'У', X: 'Х',
-      };
-      number = [...number]
-        .map((char) => /[|\s.\-_/\\]/.test(char) ? '' : (lookalikes[char] ?? char))
-        .join('');
-    } else {
-      number = number.replace(/\s+/g, ' ');
-    }
-    return number;
-  }
-
-  private plateIdentity(country: RegistrationCountry, value: string): string {
-    return this.normalizeRegistrationNumber(value, country).replace(/[^\p{L}\p{N}]/gu, '');
-  }
-
-  private async ensurePlateUnique(country: RegistrationCountry, number: string, excludeCarId?: string): Promise<void> {
-    const candidates = await this.prisma.car.findMany({
-      where: { registrationCountry: country, ...(excludeCarId ? { id: { not: excludeCarId } } : {}) },
-      select: { id: true, registrationNumber: true },
+  private async ensurePlateUnique(
+    country:RegistrationCountry,number:string,excludeCarId?:string,
+    db:PrismaService|Prisma.TransactionClient=this.prisma,
+  ):Promise<void> {
+    const candidates=await db.car.findMany({
+      where:{registrationCountry:country,...(excludeCarId?{id:{not:excludeCarId}}:{})},
+      select:{id:true,registrationNumber:true},
     });
-    const identity = this.plateIdentity(country, number);
-    const duplicate = candidates.find(car => this.plateIdentity(country, car.registrationNumber) === identity);
-    if (duplicate) {
-      throw new ConflictException(`Автомобиль с госномером ${number} уже существует в базе (ID: ${duplicate.id}). Проверьте существующий автомобиль вместо создания дубля.`);
+    const identity=canonicalPlateIdentity(country,number);
+    const duplicate=candidates.find(car=>canonicalPlateIdentity(country,car.registrationNumber)===identity);
+    if(duplicate){
+      throw new ConflictException(
+        'Автомобиль с таким госномером уже существует. Проверьте свои автомобили или обратитесь к судье.'
+      );
     }
   }
 
@@ -75,7 +57,7 @@ export class ParticipantsService {
     country: RegistrationCountry,
     value: string,
   ): string {
-    const number = this.normalizeRegistrationNumber(value, country);
+    const number = normalizePlateNumber(country, value);
     if (!isValidRegistrationPlate(country, number)) {
       throw new BadRequestException(
         `Некорректный регистрационный номер для страны ${country}`,
@@ -1384,9 +1366,10 @@ export class ParticipantsService {
         registrationNumber,
       );
 
-    await this.ensurePlateUnique(registrationCountry, normalizedRegistrationNumber);
-
-    return this.prisma.car.create({
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateAdvisoryKey(registrationCountry,normalizedRegistrationNumber)}))`;
+      await this.ensurePlateUnique(registrationCountry,normalizedRegistrationNumber,undefined,tx);
+      return tx.car.create({
       data: {
         participantId,
         brand,
@@ -1416,6 +1399,7 @@ export class ParticipantsService {
         createdAt: true,
         updatedAt: true,
       },
+      });
     });
   }
 
@@ -1656,7 +1640,7 @@ export class ParticipantsService {
           finalCountry,
           requiredNumber,
         );
-      await this.ensurePlateUnique(finalCountry, data.registrationNumber, id);
+      // Check the latest car state while holding the same lock as car creation.
     }
 
     if (body.color !== undefined) {
@@ -1698,7 +1682,7 @@ export class ParticipantsService {
       data.isActive = body.isActive;
     }
 
-    return this.prisma.car.update({
+    const save=async(db:PrismaService|Prisma.TransactionClient)=>db.car.update({
       where: {
         id,
       },
@@ -1746,6 +1730,31 @@ export class ParticipantsService {
         },
       },
     });
+    if(countryChanged||numberChanged){
+      return this.prisma.$transaction(async tx=>{
+        // Serialize two edits of the same car before resolving its current
+        // plate. This also prevents two simultaneous edits overwriting one
+        // another's country/number and bypassing the uniqueness check.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'vehicle-car:'+id}))`;
+        const current=await tx.car.findUnique({
+          where:{id},
+          select:{participantId:true,registrationCountry:true,registrationNumber:true},
+        });
+        if(!current)throw new NotFoundException('Автомобиль не найден');
+        if(!isAdmin&&current.participantId!==user.participantId)
+          throw new ForbiddenException('Нет доступа к этому автомобилю');
+        const country=body.registrationCountry??current.registrationCountry;
+        const number=this.validateRegistrationNumber(
+          country,this.requiredText(body.registrationNumber??current.registrationNumber,'Госномер автомобиля не может быть пустым')
+        );
+        data.registrationCountry=country;
+        data.registrationNumber=number;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateAdvisoryKey(country,number)}))`;
+        await this.ensurePlateUnique(country,number,id,tx);
+        return save(tx);
+      });
+    }
+    return save(this.prisma);
   }
 
   // =========================================================
