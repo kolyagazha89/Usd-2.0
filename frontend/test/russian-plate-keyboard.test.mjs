@@ -29,17 +29,17 @@ test('keys and input mask reject Cyrillic not allowed in a Russian plate',()=>{
  assert.equal(isValidPlate('RU','А123ВС000'),false);
 });
 
-test('all three entrypoints provide the same keypad and touch-only native keyboard suppression',async()=>{
- const [member,admin,gate,hook,keypad]=await Promise.all([
+test('all car entrypoints use the native OS keyboard and shared plate input mask',async()=>{
+ const [member,admin,gate]=await Promise.all([
   '../src/App.tsx','../src/admin/CarsPage.tsx','../src/admin/InspectionsPage.tsx',
-  '../src/participant/use-plate-keyboard.ts','../src/participant/RussianPlateKeypad.tsx',
  ].map(path=>readFile(new URL(path,import.meta.url),'utf8')));
- assert.match(member,/nativePlateKeyboard=useNativePlateKeyboard/);
- assert.match(admin,/nativePlateKeyboard=useNativePlateKeyboard/);
- assert.match(gate,/nativePlateKeyboard=useNativePlateKeyboard/);
- assert.equal(gate.split('<RussianPlateKeypad value={newPlate}').length-1,2);
- assert.match(gate,/setNewPlate\(formatPlateInput\(newCountry,e.target.value\)\)/);
+ for(const source of [member,admin,gate]){
+  assert.doesNotMatch(source,/<RussianPlateKeypad/);
+  assert.doesNotMatch(source,/useNativePlateKeyboard/);
+  assert.doesNotMatch(source,/inputMode=\\{[^}]*'none'/);
+  assert.doesNotMatch(source,/readOnly=\\{[^}]*nativePlateKeyboard/);
+  assert.match(source,/inputMode="text"/);
+ }
+ assert.match(gate,/setNewPlate\\(formatPlateInput\\(newCountry,e.target.value\\)\\)/);
  assert.equal(gate.split('if(!isValidPlate(newCountry,newPlate))').length-1,2);
- assert.match(hook,/\(pointer: coarse\)/);
- assert.match(keypad,/nextRussianPlateKeys\(value\)/);
 });
