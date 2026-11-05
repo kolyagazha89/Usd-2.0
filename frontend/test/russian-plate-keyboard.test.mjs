@@ -36,10 +36,10 @@ test('all car entrypoints use the native OS keyboard and shared plate input mask
  for(const source of [member,admin,gate]){
   assert.doesNotMatch(source,/<RussianPlateKeypad/);
   assert.doesNotMatch(source,/useNativePlateKeyboard/);
-  assert.doesNotMatch(source,/inputMode=\\{[^}]*'none'/);
-  assert.doesNotMatch(source,/readOnly=\\{[^}]*nativePlateKeyboard/);
+  assert.doesNotMatch(source,/inputMode=\{[^}]*'none'/);
+  assert.doesNotMatch(source,/readOnly=\{[^}]*nativePlateKeyboard/);
   assert.match(source,/inputMode="text"/);
  }
- assert.match(gate,/setNewPlate\\(formatPlateInput\\(newCountry,/);
+ assert.match(gate,/setNewPlate\(formatPlateInput\(newCountry,/);
  assert.equal(gate.split('if(!isValidPlate(newCountry,newPlate))').length-1,2);
 });
