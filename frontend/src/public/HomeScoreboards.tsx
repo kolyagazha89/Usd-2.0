@@ -5,7 +5,7 @@ import {carName,personName} from './premium-model';
 import {getPublicEntityPhotoUrl} from './public-entity-photo-url';
 import {publicEntityPhotoSource} from './photo-source';
 import {Link,Photo} from './PremiumUI';
-import {groupLiveByClass,otherHomepageRecords,resultClass,resultEntryNumber} from './home-results-model';
+import {groupLiveByClass,otherHomepageRecords,recordHolderName,resultClass,resultEntryNumber} from './home-results-model';
 
 export function HomeResultRow({row}:{row:any}){
  const participant=row.participant??row.registration?.participant??row.result?.registration?.participant;
@@ -49,24 +49,65 @@ export function LiveClassCarousel({rows}:{rows:any[]}){
  </div>;
 }
 
+/** A full-width podium carousel: three records on desktop, two on phones.
+ * Change the page size with the viewport so mobile never renders a single
+ * skinny three-column strip or a vertically stacked trio.
+ */
 export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
- const records=otherHomepageRecords(rows,bestId),[page,setPage]=useState(0),[paused,setPaused]=useState(false),[hovered,setHovered]=useState(false),[focused,setFocused]=useState(false);
- const total=Math.ceil(records.length/3);
+ const records=otherHomepageRecords(rows,bestId);
+ const [perPage,setPerPage]=useState(3);
+ const [page,setPage]=useState(0);
+ const [paused,setPaused]=useState(false);
+ const [hovered,setHovered]=useState(false);
+ const [focused,setFocused]=useState(false);
  const keys=records.map(r=>r.id).join('|');
- useEffect(()=>setPage(0),[keys]);
+ const total=Math.ceil(records.length/perPage);
+ useEffect(()=>{
+  const media=window.matchMedia('(max-width: 680px)');
+  const update=()=>setPerPage(media.matches?2:3);
+  update();
+  media.addEventListener('change',update);
+  return ()=>media.removeEventListener('change',update);
+ },[]);
+ useEffect(()=>setPage(0),[keys,perPage]);
  useEffect(()=>{
   if(paused||hovered||focused||total<2||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
   const timer=window.setInterval(()=>setPage(p=>(p+1)%total),8500);
   return ()=>window.clearInterval(timer);
  },[keys,total,paused,hovered,focused]);
+ if(!records.length)return null;
  const current=page%Math.max(1,total);
- return <div className="usd-record-carousel" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
-  <div className="usd-record-viewport" aria-label="Другие рекорды USD">
+ return <div className="usd-record-carousel usd-record-podium" data-columns={perPage}
+  onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}
+  onFocusCapture={()=>setFocused(true)}
+  onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
+  <div className="usd-record-podium__heading">
+   <span>ЕЩЁ РЕКОРДЫ USD</span>
+   <small>Лучшие результаты по классам</small>
+  </div>
+  <div className="usd-record-viewport" aria-label="Карусель рекордов USD" aria-live="off">
    <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
-    {Array.from({length:total},(_,slide)=><div key={slide} className="u-record-minis usd-record-slide" aria-hidden={slide!==current} inert={slide!==current}>{records.slice(slide*3,slide*3+3).map(r=>{
-   const cls=resultClass(r);
-   return <Link key={r.id} to="/records"><b>{publicResultValue(r.value)}<small> {publicResultUnit(cls.unit??r.unit,cls)}</small></b><span>{cls.name||'Класс не указан'}</span><small>{cls.direction?.name}</small></Link>;
-  })}</div>)}</div></div>
-  {total>1&&<div className="usd-record-controls"><button type="button" onClick={()=>{setPaused(true);setPage(p=>(p-1+total)%total)}} aria-label="Предыдущие рекорды"><ChevronLeft size={17}/></button><span>{current+1} / {total}</span><button type="button" aria-label={paused?'Возобновить ротацию рекордов':'Приостановить ротацию рекордов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={17}/>:<Pause size={17}/>}</button><button type="button" onClick={()=>{setPaused(true);setPage(p=>(p+1)%total)}} aria-label="Следующие рекорды"><ChevronRight size={17}/></button></div>}
+    {Array.from({length:total},(_,slide)=><div key={slide}
+     className="u-record-minis usd-record-slide usd-record-podium__grid"
+     aria-hidden={slide!==current} inert={slide!==current}>
+     {records.slice(slide*perPage,slide*perPage+perPage).map(r=>{
+      const cls=resultClass(r);
+      return <Link key={r.id} to="/records" className="usd-record-podium__card">
+       <span className="usd-record-podium__direction">{cls.direction?.name||'USD'}</span>
+       <b className="usd-record-podium__number">{publicResultValue(r.value)}<small>{publicResultUnit(cls.unit??r.unit,cls)}</small></b>
+       <span className="usd-record-podium__class">{cls.name||'Класс не указан'}</span>
+       <span className="usd-record-podium__holder">{recordHolderName(r)}</span>
+       <span className="usd-record-podium__corner" aria-hidden="true">↗</span>
+      </Link>;
+     })}
+    </div>)}
+   </div>
+  </div>
+  {total>1&&<div className="usd-record-controls usd-record-podium__controls">
+   <button type="button" onClick={()=>{setPaused(true);setPage(p=>(p-1+total)%total)}} aria-label="Предыдущие рекорды"><ChevronLeft size={17}/></button>
+   <span aria-label={`Страница ${current+1} из ${total}`}>{current+1} / {total}</span>
+   <button type="button" aria-label={paused?'Возобновить ротацию рекордов':'Приостановить ротацию рекордов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={17}/>:<Pause size={17}/>}</button>
+   <button type="button" onClick={()=>{setPaused(true);setPage(p=>(p+1)%total)}} aria-label="Следующие рекорды"><ChevronRight size={17}/></button>
+  </div>}
  </div>;
 }
