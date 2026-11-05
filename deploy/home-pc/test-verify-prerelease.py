@@ -64,14 +64,17 @@ class VerifyReleaseTests(unittest.TestCase):
     def setUp(self):
         self.protected = patch.object(module, "get_status", return_value=401, create=True)
         self.assets = patch.object(module, "verify_frontend", create=True)
+        self.stable_reads = patch.object(module, "verify_stable_public_reads")
         self.protected.start()
         self.assets.start()
+        self.stable_reads.start()
         self.addCleanup(self.protected.stop)
         self.addCleanup(self.assets.stop)
+        self.addCleanup(self.stable_reads.stop)
 
     def test_rejects_missing_or_malformed_public_application_data(self):
         valid = [{"revision": SHA}, {"revision": SHA}, {"settings": {}}, [], []]
-        for index, invalid in [(2, {}), (2, {"settings": []}), (3, {}), (4, {})]:
+        for index, invalid in [(2, {}), (2, {"settings": []}), (3, {})]:
             with self.subTest(index=index, invalid=invalid):
                 values = list(valid)
                 values[index] = invalid
@@ -89,7 +92,7 @@ class VerifyReleaseTests(unittest.TestCase):
     def test_requires_exact_deployed_revision_and_working_public_api(self):
         with patch.object(module, "get_json", side_effect=[{"revision": SHA}, {"revision": SHA}, {"settings": {}}, [], []]) as get:
             module.verify(SHA)
-        self.assertEqual(get.call_count, 5)
+        self.assertEqual(get.call_count, 4)
         self.assertTrue(all("usd-russia.ru" in c.args[0] for c in get.call_args_list))
         self.assertTrue(all("https://usd-russia.ru/" not in c.args[0] for c in get.call_args_list))
 
@@ -134,6 +137,39 @@ class SafeRevisionDiagnosticsTests(unittest.TestCase):
 
     def test_exact_revision_passes_without_logging(self):
         module.require_revision({'revision':'a'*40},'a'*40,'frontend')
+
+
+class StablePublicReadTests(unittest.TestCase):
+    def test_success_requires_three_real_records_and_media_cycles(self):
+        with patch.object(module, "get_json", return_value=[]) as get, \
+             patch.object(module, "verify_public_image_assets", return_value=1) as media:
+            module.verify_stable_public_reads({}, [])
+        self.assertEqual(get.call_count, 3)
+        self.assertTrue(all(call.args[0] == module.API + '/records/current' for call in get.call_args_list))
+        self.assertEqual(media.call_count, 3)
+
+    def test_intermittent_records_failure_blocks_acceptance(self):
+        with patch.object(module, "get_json", side_effect=[[], OSError("socket closed"), []]) as get, \
+             patch.object(module, "verify_public_image_assets", return_value=1) as media:
+            with self.assertRaises(OSError):
+                module.verify_stable_public_reads({}, [])
+        self.assertEqual(get.call_count, 2)
+        self.assertEqual(media.call_count, 1)
+
+    def test_intermittent_poster_failure_blocks_acceptance(self):
+        with patch.object(module, "get_json", return_value=[]) as get, \
+             patch.object(module, "verify_public_image_assets", side_effect=[1, ValueError("unavailable")]) as media:
+            with self.assertRaisesRegex(ValueError, "unavailable"):
+                module.verify_stable_public_reads({}, [])
+        self.assertEqual(get.call_count, 2)
+        self.assertEqual(media.call_count, 2)
+
+    def test_invalid_records_shape_is_never_accepted(self):
+        with patch.object(module, "get_json", side_effect=[[], {"error": "temporary"}]), \
+             patch.object(module, "verify_public_image_assets", return_value=1) as media:
+            with self.assertRaisesRegex(ValueError, "application data"):
+                module.verify_stable_public_reads({}, [])
+        self.assertEqual(media.call_count, 1)
 
 
 class PublicMediaAcceptanceTests(unittest.TestCase):
