@@ -36,11 +36,11 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<{ sub?: string }>(token, {
+      const payload = await this.jwtService.verifyAsync<{ sub?: string; fid?: string }>(token, {
         issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api',
         audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client',
       });
-      if (!payload.sub) throw new UnauthorizedException('Некорректный JWT');
+      if (!payload.sub || !payload.fid) throw new UnauthorizedException('Сеанс недействителен');
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
@@ -59,6 +59,21 @@ export class JwtAuthGuard implements CanActivate {
       if (!user || !user.isActive || !user.emailVerifiedAt) {
         throw new UnauthorizedException('Пользователь неактивен или email не подтверждён');
       }
+
+      // Every access token is tied to a revocable refresh-session family.
+      // Fail closed on legacy JWTs without fid and check the database on every
+      // protected request: logout, password changes and bulk revocation must
+      // invalidate already issued access tokens immediately.
+      const activeSession = await this.prisma.refreshSession.findFirst({
+        where: {
+          familyId: payload.fid,
+          userId: user.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+      if (!activeSession) throw new UnauthorizedException('Сеанс завершён');
 
       request.user = {
         sub: user.id,

@@ -26,8 +26,11 @@
 .usd-live .usd-live-class-entries{display:grid;gap:9px;max-height:540px;overflow-y:auto;overscroll-behavior:contain;padding:15px 18px;animation:usd-class-slide .3s ease-out}
 @keyframes usd-class-slide{from{opacity:.55;transform:translateY(7px)}to{opacity:1;transform:none}}
 .usd-live .usd-carousel-dots{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;padding:5px 15px 17px}
-.usd-live .usd-carousel-dots button{height:7px;width:23px;border-radius:999px;border:0;background:#4a5562;cursor:pointer}
-.usd-live .usd-carousel-dots button[aria-pressed=true]{background:#ff4967;width:36px}
+.usd-live .usd-carousel-dots button{position:relative;height:40px;min-width:44px;width:44px;border-radius:8px;border:0;background:transparent;cursor:pointer}
+.usd-live .usd-carousel-dots button::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);height:7px;width:23px;border-radius:999px;background:#4a5562}
+.usd-live .usd-carousel-dots button[aria-pressed=true]{background:transparent;width:44px}
+.usd-live .usd-carousel-dots button[aria-pressed=true]::before{background:#ff4967;width:32px}
+.usd-live .usd-carousel-dots button:focus-visible{outline:2px solid #ff4967;outline-offset:2px}
 .usd-live .usd-record-carousel{min-width:0}
 .usd-live .usd-record-carousel .u-record-minis>a{min-width:0}
 .usd-live .usd-record-carousel .u-record-minis small{display:block;font-size:10px;line-height:1.35;color:#91a5b5;margin-top:3px}

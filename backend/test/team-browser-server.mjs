@@ -16,7 +16,9 @@ const jwt=new JwtService({secret:'synthetic-browser-secret-minimum-32-characters
 for(const key of ['admin','commander','member']){
  const participant=await db.participant.create({data:{firstName:key==='member'?'Иван':'Проверка',lastName:'Синтетический',city:'Тестовый город',team:'Архив браузера '+tag}});
  const user=await db.user.create({data:{email:key+'-'+tag+'@teams.invalid',passwordHash:'unused-synthetic-browser',role:key==='admin'?'ADMIN':'PARTICIPANT',participantId:participant.id,emailVerifiedAt:new Date()}});
- actors[key]={user:{id:user.id,email:user.email,role:user.role,participantId:participant.id,emailVerifiedAt:user.emailVerifiedAt},participant,accessToken:await jwt.signAsync({sub:user.id,role:user.role})};
+ const familyId=randomUUID();
+ await db.refreshSession.create({data:{userId:user.id,familyId,tokenHash:'teams-browser-'+randomUUID(),expiresAt:new Date(Date.now()+3600000)}});
+ actors[key]={user:{id:user.id,email:user.email,role:user.role,participantId:participant.id,emailVerifiedAt:user.emailVerifiedAt},participant,accessToken:await jwt.signAsync({sub:user.id,role:user.role,fid:familyId})};
 }
 const app=module.createNestApplication();app.useGlobalPipes(new ValidationPipe({transform:true,whitelist:true,forbidNonWhitelisted:true}));app.useGlobalGuards(new JwtAuthGuard(jwt,module.get(Reflector),db),new RolesGuard(module.get(Reflector),db));app.enableCors({origin:'http://127.0.0.1:55441',credentials:true});
 await app.listen(55440,'127.0.0.1');

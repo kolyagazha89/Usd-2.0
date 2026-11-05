@@ -28,7 +28,17 @@ describe('one-button global historical import with a real test database', () => 
   const participant = await db.user.create({ data: { email: 'global-participant-' + suffix + '@example.invalid', passwordHash: 'not-used-by-jwt', role: 'PARTICIPANT', participantId: protectedId, emailVerifiedAt: new Date() } });
   const jwt = app.get(JwtService);
   const options = { issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api', audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client' };
-  adminToken = jwt.sign({ sub: admin.id }, options); participantToken = jwt.sign({ sub: participant.id }, options);
+  // Protected JWTs now require a live refresh-session family. Create
+  // synthetic isolated DB sessions, not bearer tokens that bypass revocation.
+  const adminFamily = randomUUID(), participantFamily = randomUUID();
+  await db.refreshSession.createMany({
+    data: [
+      { userId: admin.id, familyId: adminFamily, tokenHash: 'audit-admin-' + suffix, expiresAt: new Date(Date.now() + 3600000) },
+      { userId: participant.id, familyId: participantFamily, tokenHash: 'audit-participant-' + suffix, expiresAt: new Date(Date.now() + 3600000) },
+    ],
+  });
+  adminToken = jwt.sign({ sub: admin.id, fid: adminFamily }, options);
+  participantToken = jwt.sign({ sub: participant.id, fid: participantFamily }, options);
   if (!await db.class.findFirst({ where: { name: 'Coffin', isActive: true } })) {
    const direction = await db.direction.create({ data: { name: 'Global E2E', legacyId: sourceHash } });
    await db.class.create({ data: { name: 'Coffin', code: 'GLOBAL_E2E_' + suffix, directionId: direction.id, unit: 'DB' } });
@@ -93,7 +103,9 @@ describe('one-button global historical import with a real test database', () => 
   const cls=await db.registrationClass.create({data:{registrationId:final.id,classId:original.classes[0].classId,numberId:number.id}});
   await db.result.create({data:{registrationId:final.id,registrationClassId:cls.id,value:150,unit:'DB',isHistorical:true}});
   const account=await db.user.create({data:{email:'claim-'+randomUUID()+'@example.invalid',passwordHash:'unused',role:'PARTICIPANT',participantId:person.id,emailVerifiedAt:new Date()}});
-  const token=app.get(JwtService).sign({sub:account.id},{issuer:process.env.JWT_ISSUER??'usd-2.0-api',audience:process.env.JWT_AUDIENCE??'usd-2.0-client'});
+  const accountFamilyId=randomUUID();
+  await db.refreshSession.create({data:{userId:account.id,familyId:accountFamilyId,tokenHash:'audit-claim-'+randomUUID(),expiresAt:new Date(Date.now()+3600000)}});
+  const token=app.get(JwtService).sign({sub:account.id,fid:accountFamilyId},{issuer:process.env.JWT_ISSUER??'usd-2.0-api',audience:process.env.JWT_AUDIENCE??'usd-2.0-client'});
   const headers={Authorization:'Bearer '+token};
   const entry=await request(app.getHttpServer()).get('/configurations/me/final-2026').set(headers).expect(200);
   expect(entry.body.items).toHaveLength(1);expect(entry.body.items[0].confirmedAt).toBeNull();

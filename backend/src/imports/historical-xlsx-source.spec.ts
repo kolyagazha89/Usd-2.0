@@ -49,10 +49,14 @@ describe('supplied historical XLSX source', () => {
   it('records the exact supplied workbook hashes', () => {
     expect(source._source?.workbooks).toHaveLength(2);
     for (const workbook of source._source.workbooks) {
+      if (workbook.file === 'USD _ Регистрация.xlsx') {
+        // Private contact workbook was deliberately removed from the public
+        // repository. Its original SHA is retained only as provenance.
+        expect(workbook.sha256).toMatch(/^[0-9a-f]{64}$/);
+        continue;
+      }
       const bytes = readFileSync(join(process.cwd(), '..', workbook.file));
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-        workbook.sha256,
-      );
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(workbook.sha256);
     }
   });
   it('keeps every archive job results-only, including the sheet with no Results', async () => {

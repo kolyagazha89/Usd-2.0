@@ -46,7 +46,7 @@ describe('SecurityMiddleware', () => {
     const middleware = new SecurityMiddleware();
     const next = jest.fn();
 
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < 60; i += 1) {
       middleware.use(
         createRequest('203.0.113.11', '/auth/login'),
         createResponse(),
@@ -62,5 +62,16 @@ describe('SecurityMiddleware', () => {
     );
 
     expect(response.status).toHaveBeenCalledWith(429);
+  });
+
+  it('does not allow shared-venue refresh requests to consume the login budget', () => {
+    const middleware = new SecurityMiddleware();
+    const next = jest.fn();
+    for (let i = 0; i < 100; i += 1) {
+      middleware.use(createRequest('203.0.113.12','/auth/refresh'),createResponse(),next);
+    }
+    const response = createResponse();
+    middleware.use(createRequest('203.0.113.12','/auth/login'),response,next);
+    expect(response.status).not.toHaveBeenCalledWith(429);
   });
 });

@@ -230,7 +230,7 @@ try{
     await captureFocused(current.page,currentConfirm,`participant-${width}-confirm-current`);
     current.state.revokeError=true;await currentConfirm.click();
     await current.security.getByRole('alert').filter({hasText:'Не удалось завершить сеанс'}).waitFor();
-    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),'synthetic-refresh','failed current revoke preserves local auth');
+    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null,'failed current revoke keeps access in memory, not a browser-readable refresh token');
     current.state.revokeError=false;current.state.holdLogout=true;
     await currentRevoke.click();
     const cleanupStarted=current.page.waitForRequest(request=>new URL(request.url()).pathname==='/auth/logout');
@@ -244,7 +244,7 @@ try{
     assert.equal(current.state.calls.filter(call=>call.path==='/auth/login').length,0,'new login must wait for pending cookie cleanup');
     current.state.releaseLogout();
     await current.page.getByRole('navigation',{name:'Разделы личного кабинета'}).waitFor();
-    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),'synthetic-new-refresh','completed old cleanup must not erase new credentials');
+    assert.equal(await current.page.evaluate(()=>localStorage.getItem('usd_refresh_token')),null,'completed cleanup must not write cookie credentials to JavaScript storage');
     report.actions.push({width,scenario:'proven current-device label, revoke confirmation, failure/retry, immediate local sign-out and safe relogin during pending cookie cleanup'});
     await current.context.close();
 

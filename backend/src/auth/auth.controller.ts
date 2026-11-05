@@ -33,9 +33,9 @@ export class AuthController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
-    // Frontend and API may be on different origins (for example app.usd-russia.ru and api.usd-russia.ru).
-    // In production the refresh cookie must therefore be a secure cross-site cookie.
-    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
+    // Our production app and API use different origins but the same schemeful site.
+    // Lax prevents most cross-site cookie submissions while retaining same-site refresh.
+    const sameSite = 'lax' as const;
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
@@ -64,9 +64,9 @@ export class AuthController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     const secure = isProduction || process.env.AUTH_COOKIE_SECURE === 'true';
-    // Frontend and API may be on different origins (for example app.usd-russia.ru and api.usd-russia.ru).
-    // In production the refresh cookie must therefore be a secure cross-site cookie.
-    const sameSite = isProduction ? ('none' as const) : ('lax' as const);
+    // Our production app and API use different origins but the same schemeful site.
+    // Lax prevents most cross-site cookie submissions while retaining same-site refresh.
+    const sameSite = 'lax' as const;
 
     response.cookie(
       process.env.AUTH_COOKIE_NAME ??
@@ -190,18 +190,17 @@ export class AuthController {
     );
 
     const {
-      refreshToken,
+      refreshToken: _refreshToken,
       ...publicResult
     } = result;
 
-    return { ...publicResult, refreshToken };
+    return publicResult;
   }
 
   @Public()
   @Post('refresh')
   async refresh(
     @Req() request: Request,
-    @Body() body: { refreshToken?: string },
     @Res({ passthrough: true })
     response: Response,
   ) {
@@ -210,7 +209,7 @@ export class AuthController {
       'usd_refresh_token';
 
     const refreshToken =
-      body?.refreshToken || request.cookies?.[cookieName];
+      request.cookies?.[cookieName];
 
     const result =
       await this.authService.refresh(
@@ -227,14 +226,13 @@ export class AuthController {
       ...publicResult
     } = result;
 
-    return { ...publicResult, refreshToken: _refreshToken };
+    return publicResult;
   }
 
   @Public()
   @Post('logout')
   async logout(
     @Req() request: Request,
-    @Body() body: { refreshToken?: string },
     @Res({ passthrough: true })
     response: Response,
   ) {
@@ -243,7 +241,7 @@ export class AuthController {
       'usd_refresh_token';
 
     const refreshToken =
-      body?.refreshToken || request.cookies?.[cookieName];
+      request.cookies?.[cookieName];
 
     await this.authService.logout(
       refreshToken,

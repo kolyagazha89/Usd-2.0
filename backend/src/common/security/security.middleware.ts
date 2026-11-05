@@ -23,20 +23,22 @@ export class SecurityMiddleware implements NestMiddleware {
     const path = request.path || request.originalUrl.split('?')[0] || '/';
 
     const isAuthRoute = path.startsWith('/auth/');
-    const isSensitiveAuthRoute =
-      /^\/auth\/(login|register|verify-email|resend-verification|forgot-password|reset-password|refresh|logout)$/.test(path);
+    // Shared venue Wi-Fi must not make background refreshes exhaust the
+    // login or password-recovery quota for other competitors behind one NAT.
+    const group = path === '/auth/login' ? 'auth-login'
+      : path === '/auth/register' ? 'auth-register'
+      : path === '/auth/refresh' || path === '/auth/logout' ? 'auth-session'
+      : /^\/auth\/(verify-email|resend-verification|forgot-password|reset-password)$/.test(path) ? 'auth-recovery'
+      : isAuthRoute ? 'auth-other' : 'global';
+    const isSensitiveAuthRoute = group.startsWith('auth-') && group !== 'auth-other';
+    const windowMs = isSensitiveAuthRoute ? 15 * 60 * 1000 : 60 * 1000;
+    const limit = group === 'auth-session' ? 600
+      : group === 'auth-login' ? 60
+      : group === 'auth-register' ? 30
+      : group === 'auth-recovery' ? 60
+      : isAuthRoute ? 60 : 180;
 
-    const windowMs = isSensitiveAuthRoute
-      ? 15 * 60 * 1000
-      : 60 * 1000;
-
-    const limit = isSensitiveAuthRoute
-      ? 30
-      : isAuthRoute
-        ? 60
-        : 180;
-
-    const key = `${ip}:${isSensitiveAuthRoute ? 'auth-sensitive' : isAuthRoute ? 'auth' : 'global'}`;
+    const key = `${ip}:${group}`;
     const bucket = this.buckets.get(key);
 
     if (!bucket && this.buckets.size >= this.maxBuckets) {

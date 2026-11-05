@@ -7,7 +7,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {JSDOM} from 'jsdom';
 
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done});return {promise,resolve}};
-const auth=(id='new')=>new Response(JSON.stringify({accessToken:id+'-access',refreshToken:id+'-refresh',user:{id,role:'PARTICIPANT'}}),{headers:{'Content-Type':'application/json'}});
+const auth=(id='new')=>new Response(JSON.stringify({accessToken:id+'-access',user:{id,role:'PARTICIPANT'}}),{headers:{'Content-Type':'application/json'}});
 async function withApi(run){
   const base=path.dirname(fileURLToPath(import.meta.url));
   const scratch=await mkdtemp(path.join(base,'.auth-boundaries-'));
@@ -50,7 +50,7 @@ test('new login waits for pending logout cookie cleanup and duplicate logout sha
   await Promise.all([loggingOut,duplicate,loggingIn]);
   assert.equal(beforeCleanup.filter(url=>url.endsWith('/auth/logout')).length,1,'duplicate sign-out must share cookie cleanup');
   assert.equal(beforeCleanup.filter(url=>url.endsWith('/auth/login')).length,0,'new login cannot race old Set-Cookie cleanup');
-  assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh');
+  assert.equal(localStorage.getItem('usd_refresh_token'),null,'no browser-readable refresh credential');
 }));
 
 test('delayed login response cannot restore credentials after logout',()=>withApi(async api=>{
@@ -65,7 +65,7 @@ test('delayed login response cannot restore credentials after logout',()=>withAp
   const beforeResponse=calls.filter(call=>call.url.endsWith('/auth/logout')).length;
   response.resolve(auth('old'));await rejected;await loggingOut;
   assert.equal(beforeResponse,0,'remote cleanup must follow the login Set-Cookie response');
-  assert.ok(calls.some(call=>call.url.endsWith('/auth/logout')&&JSON.parse(call.init.body??'{}').refreshToken==='old-refresh'),'cleanup must revoke the discarded login session too');
+  assert.ok(calls.some(call=>call.url.endsWith('/auth/logout')&&!call.init.body),'cleanup must revoke the latest cookie after delayed login');
   assert.equal(localStorage.getItem('usd_refresh_token'),null);
 }));
 
@@ -118,7 +118,7 @@ test('a stale protected 401 cannot refresh or retry using the next account',()=>
   response.resolve(new Response('{}',{status:401}));await rejected;
   assert.equal(calls.filter(url=>url.endsWith('/auth/me')).length,1);
   assert.equal(calls.filter(url=>url.endsWith('/auth/refresh')).length,0);
-  assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh');
+  assert.equal(localStorage.getItem('usd_refresh_token'),null,'no browser-readable refresh credential');
 }));
 
 test('logout waits for a pending refresh failure before allowing the next account',()=>withApi(async api=>{
@@ -134,7 +134,7 @@ test('logout waits for a pending refresh failure before allowing the next accoun
   assert.equal(await oldRefresh,null);
   await loggingOut;await api.login('new@example.test','synthetic-password');
   assert.equal(expired,0);
-  assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh');
+  assert.equal(localStorage.getItem('usd_refresh_token'),null,'no browser-readable refresh credential');
 }));
 
 test('remote logout waits for the pending refresh body and revokes its rotated token',()=>withApi(async api=>{
@@ -155,31 +155,44 @@ test('remote logout waits for the pending refresh body and revokes its rotated t
   assert.equal(beforeBody,0,'Set-Cookie and body must settle before cookie clearing starts');
   assert.equal(await duringLogout,null,'logout cannot start another cookie-bearing refresh');
   assert.equal(calls.filter(call=>call.url.endsWith('/auth/refresh')).length,1);
-  assert.deepEqual(new Set(calls.filter(call=>call.url.endsWith('/auth/logout')).map(call=>JSON.parse(call.init.body).refreshToken)),new Set(['old-refresh','rotated-refresh']));
+  assert.equal(calls.filter(call=>call.url.endsWith('/auth/logout')).length,1);
+  assert.equal(calls.find(call=>call.url.endsWith('/auth/logout')).init.body,undefined,'logout uses HttpOnly cookie');
   assert.equal(localStorage.getItem('usd_refresh_token'),null);
 }));
 
-test('cookie cleanup precedes captured tokens after an auth body fails',()=>withApi(async api=>{
-  const response=deferred();let cookie='old-refresh';
-  const active=new Set(['old-refresh','discarded-login-refresh']);const cleanup=[];
-  localStorage.setItem('usd_refresh_token','old-refresh');
+test('failed delayed auth body cannot recreate JS credentials and logout clears the cookie once',()=>withApi(async api=>{
+  const response=deferred();const calls=[];
+  localStorage.setItem('usd_refresh_token','legacy-token-to-remove');
   globalThis.fetch=async(url,init)=>{
+    calls.push({url,init});
     if(url.endsWith('/auth/login'))return response.promise;
-    if(url.endsWith('/auth/logout')){
-      const explicit=JSON.parse(init.body??'{}').refreshToken;
-      cleanup.push(explicit??null);
-      active.delete(explicit??cookie);cookie=null;
-      return new Response('{}');
-    }
+    if(url.endsWith('/auth/logout'))return new Response('{}');
     throw Error(url);
   };
   const loggingIn=api.login('old@example.test','synthetic-password');
   const rejected=assert.rejects(loggingIn,/Сеанс.*завершён/);
   const loggingOut=api.logout();
-  cookie='discarded-login-refresh';
   response.resolve({status:200,ok:true,json:async()=>{throw Error('Truncated auth response')}});
   await rejected;await loggingOut;
-  assert.deepEqual([...active],[],'no family may survive merely because an earlier cleanup erased its cookie');
-  assert.deepEqual(cleanup,[null,'old-refresh']);
-  assert.equal(cookie,null);
+  assert.equal(calls.filter(call=>call.url.endsWith('/auth/logout')).length,1);
+  assert.equal(calls.find(call=>call.url.endsWith('/auth/logout')).init.body,undefined);
+  assert.equal(localStorage.getItem('usd_refresh_token'),null);
+}));
+
+
+test('login, refresh and logout work when browser storage access throws',()=>withApi(async api=>{
+  Object.defineProperty(window,'localStorage',{configurable:true,get:()=>{throw new window.DOMException('Disabled','SecurityError')}});
+  const calls=[];
+  globalThis.fetch=async(url,init)=>{
+    calls.push({url,init});
+    if(url.endsWith('/auth/login'))return auth('storage-disabled');
+    if(url.endsWith('/auth/refresh'))return auth('storage-disabled');
+    if(url.endsWith('/auth/logout'))return new Response('{"success":true}');
+    throw Error(url);
+  };
+  const user=await api.login('test@example.invalid','synthetic-password');
+  assert.equal(user.id,'storage-disabled');
+  assert.equal((await api.refresh()).accessToken,'storage-disabled-access');
+  await api.logout();
+  assert.equal(calls.filter(call=>call.url.endsWith('/auth/logout')).length,1);
 }));

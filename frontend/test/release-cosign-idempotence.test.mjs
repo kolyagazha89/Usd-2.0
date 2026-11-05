@@ -7,6 +7,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const script=fileURLToPath(new URL('../../deploy/home-pc/sign-published-image.sh',import.meta.url));
+// These tests invoke a Linux bash release script; Windows does not provide a
+// POSIX shell by default. Keep all of them enabled in Ubuntu CI.
+const linuxShellTest=process.platform==='win32'?test.skip:test;
 const good={
  USD_IMAGE:'ghcr.io/kolyagazha89/usd-2.0-frontend',
  USD_DIGEST:'sha256:'+'a'.repeat(64),
@@ -37,7 +40,7 @@ function run({sign='ok',verify='ok',vars={}}={}){
   const tool=path.join(dir,'cosign');
   writeFileSync(tool,mock);chmodSync(tool,0o755);
   const log=path.join(dir,'calls');
-  const env={...process.env,PATH:dir+':'+process.env.PATH,USD_TEST_LOG:log,USD_TEST_SIGN:sign,USD_TEST_VERIFY:verify,...good,...vars};
+  const env={...process.env,PATH:dir+path.delimiter+process.env.PATH,USD_TEST_LOG:log,USD_TEST_SIGN:sign,USD_TEST_VERIFY:verify,...good,...vars};
   let result;
   try{
    result={ok:true,output:execFileSync('bash',[script],{encoding:'utf8',env,stdio:['ignore','pipe','pipe']})};
@@ -49,7 +52,7 @@ function run({sign='ok',verify='ok',vars={}}={}){
  }finally{rmSync(dir,{recursive:true,force:true})}
 }
 
-test('normal publish signs and verifies exact digest, main workflow identity and source sha',()=>{
+linuxShellTest('normal publish signs and verifies exact digest, main workflow identity and source sha',()=>{
  const {ok,calls}=run();
  assert.equal(ok,true);
  assert.equal(calls.length,2);
@@ -59,7 +62,7 @@ test('normal publish signs and verifies exact digest, main workflow identity and
  assert.match(calls[1],/git_sha=b{40}/);
 });
 
-test('only equivalent Rekor entry 409 is tolerated and still requires successful verification',()=>{
+linuxShellTest('only equivalent Rekor entry 409 is tolerated and still requires successful verification',()=>{
  const goodReplay=run({sign:'conflict'});
  assert.equal(goodReplay.ok,true);
  assert.equal(goodReplay.calls.length,2);
@@ -68,7 +71,7 @@ test('only equivalent Rekor entry 409 is tolerated and still requires successful
  assert.equal(verifyRejected.calls.length,2);
 });
 
-test('reject unrelated signing errors and non-equivalent transparency-log conflicts',()=>{
+linuxShellTest('reject unrelated signing errors and non-equivalent transparency-log conflicts',()=>{
  for(const sign of ['bad','other-conflict']){
   const result=run({sign});
   assert.equal(result.ok,false);
@@ -76,13 +79,13 @@ test('reject unrelated signing errors and non-equivalent transparency-log confli
  }
 });
 
-test('reject invalid signatures even when signing succeeds',()=>{
+linuxShellTest('reject invalid signatures even when signing succeeds',()=>{
  const result=run({sign:'ok',verify:'bad'});
  assert.equal(result.ok,false);
  assert.equal(result.calls.length,2);
 });
 
-test('reject wrong digest, source commit, or image repository before invoking cosign',()=>{
+linuxShellTest('reject wrong digest, source commit, or image repository before invoking cosign',()=>{
  for(const vars of [
   {USD_DIGEST:'sha256:wrong'},
   {USD_SOURCE_SHA:'main'},

@@ -1,8 +1,7 @@
 import RussianPlateKeypad from './participant/RussianPlateKeypad';
 import {PushPreferences} from './push/PushPreferences';
 import ParticipantAccountSecurity from './ParticipantAccountSecurity';
-import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
-import * as XLSX from 'xlsx';
+import {lazy,Suspense,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { QRCodeSVG } from 'qrcode.react';
 import PublicRulesPage from './PublicRulesPage';
@@ -37,7 +36,6 @@ import ResourcePageModule from './admin/ResourcePage';
 import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} from './admin/FormComponents';
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
 import AdminShell from './admin/AdminShell';
-import AdminRoutes from './admin/AdminRoutes';
 import OfflineEventPage from './admin/OfflineEventPage';
 import {validateImageUpload} from './admin/upload-validation';
 import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
@@ -46,6 +44,9 @@ import './catalog.css';
 import { formatPlateInput, formatRussianPhoneInput, isValidInternationalPhone, isValidPlate } from './profile-validation';
 import {Activity,AlertTriangle,Bot,Code2,CheckCircle2,LockKeyhole,Sparkles,BarChart3,Bell,CalendarDays,CarFront,Check,ChevronLeft,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag,Gauge,History,LayoutDashboard,Loader2,LogOut,Menu,Plus,RefreshCw,Search,ScanQrCode,Settings2,ShieldAlert,Trophy,UserRound,Users,X,Pencil,Trash2,Info,Layers,Package} from 'lucide-react';
 import {clearAuthSession,apiDelete,apiGet,apiPatch,apiPost,apiPut,getAudit,getDashboard,getStageStatistics,getDataQuality,connectGoogle,getGoogleSheetValues,getGoogleSpreadsheet,getGoogleSpreadsheets,getGoogleStatus,listData,login,logout,refresh,getSiteSettings,getPublicSiteSettings,updateSiteSettings,uploadSiteAsset,getMediaUrl,getPublicSiteAsset,getAssistantRequests,chatAssistant,createAssistantRequest,submitAssistantRequest,approveAssistantRequest,rejectAssistantRequest,applyAssistantRequest,getAssistantFunctions,executeAssistantFunction,prepareHistoricalImport,findHistoricalProfileCandidates,linkHistoricalProfile,uploadEntityPhoto,releasePrivateMediaUrl,getPublicEntityPhotoUrl,type Dashboard,type Role,type User} from './api';
+
+// Do not send all administration screens to every anonymous homepage visitor.
+const AdminRoutes=lazy(()=>import('./admin/AdminRoutes'));
 
 const roleName:Record<Role,string>={ADMIN:'Администратор',PARTICIPANT:'Участник'};
 
@@ -518,7 +519,7 @@ function ParticipantCarPage({carId,go,user,onLogout}:{carId:string;go:(path:stri
 function AccessDenied({onLogout}:{onLogout:()=>Promise<void>}){return <div className="center-page"><div className="empty-card"><ShieldAlert size={36}/><h2>Нет доступа к панели</h2><p className="muted">Учётная запись участника не имеет доступа к административной панели.</p><button className="secondary-button" onClick={()=>void onLogout()}>Выйти</button></div></div>}
 
 
-function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){return <AdminRoutes path={path} go={go} user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} ResourcePage={ResourcePage} EntityDetailModal={EntityDetailModal} EntityForm={EntityForm} SearchableSelect={SearchableSelect} enumLabel={enumLabel} formatDate={formatDate} displayCarName={displayCarName} displayPersonName={displayPersonName} roleName={roleName} humanize={humanize} humanizeAuditKey={humanizeAuditKey} clean={clean} isValidPlate={isValidPlate} PublicResultCards={PublicResultCards} cacheBrandLogo={cacheBrandLogo}/>}
+function PageContent({path,go,user}:{path:string;go:(p:string)=>void;user:User}){return <Suspense fallback={<LoadingPage/>}><AdminRoutes path={path} go={go} user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} ResourcePage={ResourcePage} EntityDetailModal={EntityDetailModal} EntityForm={EntityForm} SearchableSelect={SearchableSelect} enumLabel={enumLabel} formatDate={formatDate} displayCarName={displayCarName} displayPersonName={displayPersonName} roleName={roleName} humanize={humanize} humanizeAuditKey={humanizeAuditKey} clean={clean} isValidPlate={isValidPlate} PublicResultCards={PublicResultCards} cacheBrandLogo={cacheBrandLogo}/></Suspense>}
 function EntityForm(props:any){return <EntityFormModule {...props} enumLabel={enumLabel}/>}
 function EntityDetailModal(props:any){return <EntityDetailWorkspace {...props} enumLabel={enumLabel} formatDate={formatDate}/>}
 function clean(v:any){return Object.fromEntries(Object.entries(v).filter(([,x])=>x!==''&&x!==undefined))}

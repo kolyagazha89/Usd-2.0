@@ -6,6 +6,8 @@ Usage:
     python scripts/sync_historical_xlsx.py --check
 
 Do not correct people's names or remove result rows in this conversion step.
+Public snapshots must NEVER contain participant contact addresses. Keep the
+original registration workbook in private storage outside this public repo.
 Normalization is applied later by backend/src/imports/global-historical-plan.ts.
 """
 from __future__ import annotations
@@ -15,6 +17,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -26,6 +29,7 @@ except ImportError as error:
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "backend/data/historical-xlsx.json"
 WORKBOOKS = ("USD _ Регистрация.xlsx", "USD _ Результаты.xlsx")
+EMAIL_LIKE = re.compile(r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", re.IGNORECASE)
 
 
 def clean_cell(value):
@@ -59,6 +63,23 @@ def read_workbook(path: Path):
         book.close()
 
 
+def redact_registration_contacts(sheets: dict) -> dict:
+    """Remove private contact cells, preserving all competition results and row IDs."""
+    for sheet, rows in sheets.items():
+        if not rows:
+            continue
+        headers = [str(value or '').strip().lower() for value in rows[0]]
+        contact_columns = [i for i, label in enumerate(headers)
+                           if label in {'email', 'e-mail', 'электронная почта', 'телефон', 'phone'}]
+        for row in rows[1:]:
+            for index in contact_columns:
+                if index < len(row):
+                    row[index] = None
+            if any(EMAIL_LIKE.search(value) for value in row if isinstance(value, str)):
+                raise ValueError(f'Email-like personal data remains in registration sheet {sheet!r}')
+    return sheets
+
+
 def count_results(sheets: dict) -> int:
     """Count result entries using the same carried-class rule as the backend."""
     total = 0
@@ -88,6 +109,17 @@ def create_snapshot():
     workbooks = []
     for filename in WORKBOOKS:
         path = ROOT / filename
+        if not path.is_file() and filename == WORKBOOKS[0]:
+            # The raw registrations workbook contains personal email addresses
+            # and must not be checked in. Preserve previously audited
+            # NON-CONTACT competition rows when only Results XLSX changes.
+            data[filename] = redact_registration_contacts(previous[filename])
+            archived = next((item for item in previous.get("_source", {}).get("workbooks", [])
+                             if item.get("file") == filename), None)
+            if not archived:
+                raise ValueError("Registration provenance missing from previous snapshot")
+            workbooks.append(archived)
+            continue
         if not path.is_file():
             raise FileNotFoundError(f"Historical source workbook missing: {path}")
         payload = path.read_bytes()
@@ -98,7 +130,8 @@ def create_snapshot():
             "suppliedFile": filename,
             "sha256": hashlib.sha256(payload).hexdigest(),
         })
-        data[filename] = read_workbook(path)
+        workbook = read_workbook(path)
+        data[filename] = redact_registration_contacts(workbook) if filename == WORKBOOKS[0] else workbook
     historical_count = count_results(data[WORKBOOKS[1]])
     if historical_count < 1:
         raise ValueError("Refusing to publish an empty Results archive")

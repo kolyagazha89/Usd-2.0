@@ -44,9 +44,10 @@ export class AuthService {
       email: string;
       role: string;
     },
+    familyId: string,
   ): Promise<string> {
     return this.jwtService.signAsync(
-      { sub: user.id, email: user.email, role: user.role },
+      { sub: user.id, email: user.email, role: user.role, fid: familyId },
       {
         issuer: process.env.JWT_ISSUER ?? 'usd-2.0-api',
         audience: process.env.JWT_AUDIENCE ?? 'usd-2.0-client',
@@ -461,20 +462,13 @@ export class AuthService {
       );
     }
 
-    const accessToken =
-      await this.createAccessToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-    const refreshToken =
-      this.generateToken();
+    const familyId = crypto.randomUUID();
+    const refreshToken = this.generateToken();
 
     await this.prisma.refreshSession.create({
       data: {
         userId: user.id,
-        familyId: crypto.randomUUID(),
+        familyId,
         tokenHash:
           this.hashToken(refreshToken),
         userAgent:
@@ -485,6 +479,12 @@ export class AuthService {
           this.getRefreshExpiration(),
       },
     });
+
+    const accessToken = await this.createAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    }, familyId);
 
     return {
       accessToken,
@@ -621,7 +621,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
-    });
+    }, identity.familyId);
 
     return {
       accessToken: newAccessToken,

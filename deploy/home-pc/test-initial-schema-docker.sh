@@ -79,8 +79,12 @@ cat > "$WORK/Dockerfile" <<'DOCKERFILE'
 ARG CANDIDATE_IMAGE
 FROM ${CANDIDATE_IMAGE}
 ARG FIXTURE_SHA
+# The release runtime is intentionally unprivileged. Switching to root is
+# limited to rebuilding an isolated synthetic migration-fixture image.
+USER root
 RUN --mount=type=bind,source=prisma,target=/fixture-prisma,readonly \
-    rm -rf /app/prisma && cp -a /fixture-prisma /app/prisma
+    rm -rf /app/prisma && cp -a /fixture-prisma /app/prisma && chown -R node:node /app/prisma
+USER node
 LABEL org.opencontainers.image.revision=${FIXTURE_SHA}
 DOCKERFILE
 build_schema_fixture() {

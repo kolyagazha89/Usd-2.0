@@ -78,7 +78,7 @@ export async function runAccountSecurity(){
     mutation=async()=>{throw Object.assign(Error('Неверный текущий пароль'),{status:401})};
     await click('Сменить пароль и выйти');
     assert.match(section().querySelector('[role="alert"]')?.textContent??'',/Неверный текущий пароль/);
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null);
     assert.equal(writes().filter(call=>call.path==='/auth/change-password').length,2,'HTTP 401 checks the existing refresh-and-retry client behavior');
     let finishPassword:()=>void=()=>{};
     mutation=()=>new Promise(resolve=>{finishPassword=()=>resolve({success:true})});
@@ -119,14 +119,14 @@ export async function runAccountSecurity(){
     await act(async()=>finish());await flush();
     assert.match(section().querySelector('[role="status"]')?.textContent??'',/new.address@example.test/);
     assert.equal((document.getElementById('account-email-password') as HTMLInputElement).value,'');
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','pending email change keeps the current email/session');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'pending email change keeps the current email/session');
     assert.match(section().textContent??'',/fixture@example.test/);
 
     await mount();
     mutation=async()=>{throw Error('Этот email уже используется')};
     await fill('account-new-email','occupied@example.test');await fill('account-email-password','Current-password');await submit('account-email-form');
     assert.match(section().querySelector('[role="alert"]')?.textContent??'',/Этот email уже используется/);
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null);
     mutation=async()=>({success:true});await fill('account-new-email','available@example.test');await submit('account-email-form');
     assert.match(section().querySelector('[role="status"]')?.textContent??'',/available@example.test/);
 
@@ -143,11 +143,11 @@ export async function runAccountSecurity(){
     await act(async()=>revoke.click());await flush();await click('Да, завершить сеанс');
     assert.equal(section().querySelector('[aria-label="Завершить сеанс: Chrome on Android"]'),null);
     assert.equal(writes().at(-1)?.path,'/auth/sessions/session%2Fone');
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','single revocation cannot identify whether it was this device');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'single revocation cannot identify whether it was this device');
     await click('Завершить все сеансы');assert.equal(writes().filter(c=>c.path==='/auth/sessions').length,0);
     mutation=async()=>{throw Error('Не удалось завершить все сеансы')};await click('Да, завершить все и выйти');
     assert.match(section().querySelector('[role="alert"]')?.textContent??'',/Не удалось завершить все сеансы/);
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','failed bulk revoke must not sign out locally');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'failed bulk revoke must not sign out locally');
     await click('Завершить все сеансы');
     let finishRevoke:()=>void=()=>{};
     mutation=()=>new Promise(resolve=>{finishRevoke=()=>resolve({success:true})});
@@ -187,7 +187,7 @@ export async function runAccountSecurity(){
     await act(async()=>currentRevoke.click());await flush();
     assert.match(section().querySelector('[aria-label="Подтверждение завершения сеансов"]')?.textContent??'',/сразу выйдете/);
     mutation=async()=>{throw Error('Не удалось завершить сеанс')};await click('Да, завершить и выйти');
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','failed current-device revocation must keep local auth');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'failed current-device revocation must keep local auth');
     mutation=async()=>({success:true});
     let finishLogout:()=>void=()=>{};
     logoutRequest=()=>new Promise(resolve=>{finishLogout=()=>resolve({success:true})});
@@ -202,7 +202,7 @@ export async function runAccountSecurity(){
     assert.equal(calls.filter(call=>call.path==='/auth/login').length,0,'new login must wait for pending logout cookie cleanup');
     await act(async()=>finishLogout());await flush();
     assert.equal(calls.filter(call=>call.path==='/auth/login').length,1);
-    assert.equal(localStorage.getItem('usd_refresh_token'),'new-refresh','old logout must not clear a subsequent successful login');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'old logout must not clear a subsequent successful login');
     assert.ok(section());
 
     await mount('PARTICIPANT',true,false,'sessions');
@@ -220,7 +220,7 @@ export async function runAccountSecurity(){
     assert.equal(button('Завершить все сеансы').disabled,true);
     listSessions=async()=>{throw new TypeError('Failed to fetch')};await click('Обновить сеансы');
     assert.match(section().querySelector('[role="alert"]')?.textContent??'',/Failed to fetch/);
-    assert.equal(localStorage.getItem('usd_refresh_token'),'synthetic-refresh','network rejection keeps local auth');
+    assert.equal(localStorage.getItem('usd_refresh_token'),null,'network rejection keeps local auth');
     listSessions=async()=>sessions;await click('Обновить сеансы');
     assert.match(section().textContent??'',/Chrome on Android/);
   }finally{

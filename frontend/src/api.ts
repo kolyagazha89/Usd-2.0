@@ -12,11 +12,13 @@ let logoutPromise: Promise<void> | null = null;
 const pendingAuthRequests = new Set<Promise<AuthResponse>>();
 // Prevent an in-flight refresh response from restoring credentials after logout.
 let authGeneration = 0;
+// Cleanup of the pre-cookie auth scheme; storage may be disabled.
+function purgeLegacyRefreshToken(){try{window.localStorage.removeItem('usd_refresh_token')}catch{/* blocked storage */}}
 
 export type Role = 'ADMIN' | 'PARTICIPANT';
 export type CustomRoleInfo = { id:string; key:string; name:string; permissions:Record<string,string[]> };
 export type User = { id:string; email:string; name?:string|null; role:Role; emailVerifiedAt?:string|null; participantId?:string|null; customRoleId?:string|null; customRole?:CustomRoleInfo|null };
-export type AuthResponse = { success?:boolean; accessToken:string; refreshToken?:string; user:User };
+export type AuthResponse = { success?:boolean; accessToken:string; user:User };
 export type Dashboard = {
   success:boolean; generatedAt:string;
   overview:{participants:number;cars:number;stages:number;registrations:number;results:number;records:number;appearances?:number;currentRecords?:number};
@@ -91,25 +93,24 @@ function requestAuth(path:string,init:RequestInit){
   return pending;
 }
 export async function login(email:string,password:string){
+  purgeLegacyRefreshToken();
   if(logoutPromise)await logoutPromise;
   const generation=authGeneration;
   const r=await requestAuth('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
   if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');
   authGeneration++;
   accessToken=r.accessToken;
-  if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);
   return r.user;
 }
 export async function refresh(){
+  purgeLegacyRefreshToken();
   if(logoutPromise)return null;
   if(refreshPromise)return refreshPromise;
   const generation=authGeneration;
-  const storedRefreshToken=localStorage.getItem('usd_refresh_token');
-  const pending=requestAuth('/auth/refresh',{method:'POST',body:storedRefreshToken?JSON.stringify({refreshToken:storedRefreshToken}):undefined})
+  const pending=requestAuth('/auth/refresh',{method:'POST'})
     .then(r=>{
       if(generation!==authGeneration)return null;
       accessToken=r.accessToken;
-      if(r.refreshToken)localStorage.setItem('usd_refresh_token',r.refreshToken);
       return r;
     }).catch((error:ApiError)=>{
       if(generation!==authGeneration)return null;
@@ -125,35 +126,22 @@ export function clearAuthSession(){
   refreshPromise=null;
   accessToken=null;
   clearPrivateMediaUrls();
-  try{localStorage.removeItem('usd_refresh_token')}catch{/* Storage may be disabled by the browser. */}
+  purgeLegacyRefreshToken();
 }
 export async function logout(){
   if(logoutPromise)return logoutPromise;
   // Clear immediately, before the remote request: pending refreshes must not
   // repopulate the session while the network request is still in flight.
-  const refreshToken=localStorage.getItem('usd_refresh_token');
   const inFlight=[...pendingAuthRequests];
   clearAuthSession();
-  // Wait for older Set-Cookie responses before clearing the browser cookie.
-  // Revoke discarded login families as well as any rotated refresh token.
+  // Cookie-only credentials are never exposed to JS. Wait until all older
+  // Set-Cookie responses settle, then revoke the family holding the newest
+  // browser cookie. New logins wait for this cleanup before starting.
   const pending=(async()=>{
-    const responses=await Promise.allSettled(inFlight);
-    const tokens=new Set<string>();
-    if(refreshToken)tokens.add(refreshToken);
-    let cleanCookie=tokens.size===0;
-    for(const response of responses){
-      if(response.status==='fulfilled'&&response.value.refreshToken)tokens.add(response.value.refreshToken);
-      else cleanCookie=true; // A failed body may still have applied Set-Cookie.
-    }
-    // A token-specific logout also clears the browser cookie. Revoke an
-    // unknown cookie first, before an explicit old token can erase its proof.
-    const cleanup:Array<string|undefined>=cleanCookie?[undefined,...tokens]:[...tokens];
-    for(const token of cleanup){
-      try{await request('/auth/logout',{method:'POST',body:token?JSON.stringify({refreshToken:token}):undefined},false)}
-      catch{/* Expired sessions or network errors must not block local sign-out. */}
-    }
-  })()
-    .finally(()=>{if(logoutPromise===pending)logoutPromise=null});
+    await Promise.allSettled(inFlight);
+    try{await request('/auth/logout',{method:'POST'},false)}
+    catch{/* An offline sign-out still clears the local access token. */}
+  })().finally(()=>{if(logoutPromise===pending)logoutPromise=null});
   logoutPromise=pending;
   return pending;
 }

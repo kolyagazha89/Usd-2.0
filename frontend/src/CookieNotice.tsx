@@ -122,7 +122,7 @@ export default function CookieNotice() {
         .cookie-notice__button.secondary:hover{background:#36383e}
         .cookie-notice__button:hover { background: #b91425; }
         .cookie-notice__button:focus-visible { outline: 3px solid rgba(226, 29, 47, .5); outline-offset: 3px; }
-        @media (max-width: 560px) {
+        @media (max-width: 740px) {
           .cookie-notice { left: 12px; right: 12px; bottom: calc(var(--usd-dock-height, 0px) + max(12px, env(safe-area-inset-bottom))); align-items: stretch; flex-direction: column; gap: 12px; padding: 16px; }
           .cookie-notice__actions{flex-direction:column}
           .cookie-notice__button { width: 100%; }

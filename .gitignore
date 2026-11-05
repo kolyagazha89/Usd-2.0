@@ -34,3 +34,6 @@ usd_backup_before_participant_car.sql
 .agents/
 .claude/
 .windsurf/
+
+# Historical XLSX registration contains private contact details: never check in.
+/USD _ Регистрация.xlsx
