@@ -112,5 +112,8 @@ jobs:
             DATABASE_URL=postgresql://usd:usd@127.0.0.1:5432/usd node_modules/.bin/prisma --version
             node -e "require.resolve(\"@prisma/client\")"
             test ! -x node_modules/.bin/jest
-            test ! -x node_modules/.bin/tsc
+            # Prisma CLI keeps TypeScript transitively; verify explicitly
+            # banned runtime tooling rather than every transitive binary.
+            test ! -x node_modules/.bin/nest
+            test ! -x node_modules/.bin/eslint
           '
