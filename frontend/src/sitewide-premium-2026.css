@@ -522,10 +522,13 @@ body .usd-live .public-stage-list-poster-placeholder :is(span,strong,small) {
 body {min-width:0}
 body .usd-live,body .participant-portal.usd-member {min-width:0;max-width:100%}
 body .participant-portal.usd-member .config-card-main {
- min-width:0;max-width:100%;width:100%;background:transparent!important;
+ flex:1 1 0;min-width:0;max-width:100%;width:auto;background:transparent!important;
 }
 body .participant-portal.usd-member .config-card-main>div {
  min-width:0;max-width:100%;
+}
+@media(max-width:700px) {
+ body .participant-portal.usd-member .config-card-main {width:100%;flex:1 1 auto}
 }
 body .participant-portal.usd-member .config-card-main :is(p,span,small,strong) {
  min-width:0;max-width:100%;overflow-wrap:anywhere;white-space:normal;
