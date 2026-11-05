@@ -1,8 +1,7 @@
 import {formatPlateInput} from '../profile-validation';
+import {nextRussianPlateKeys} from './russian-plate-keyboard';
 
 type Props={value:string;onChange:(value:string)=>void;nativeKeyboard?:boolean};
-const KEYS=[...'АВЕКМНОРСТУХ0123456789'];
-const LETTERS=new Set('АВЕКМНОРСТУХ');
 const STEPS=[
  'Буква', 'Первая цифра', 'Вторая цифра', 'Третья цифра',
  'Первая буква серии', 'Вторая буква серии',
@@ -16,8 +15,7 @@ const STEPS=[
 export default function RussianPlateKeypad({value,onChange,nativeKeyboard=true}:Props){
  const current=formatPlateInput('RU',value);
  const position=current.length;
- const isLetterSlot=position===0||position===4||position===5;
- const candidates=position>=9?[]:KEYS.filter(key=>LETTERS.has(key)===isLetterSlot);
+ const candidates=nextRussianPlateKeys(value);
  const append=(key:string)=>onChange(formatPlateInput('RU',value+key));
  return <div className="usd-plate-keypad" role="group" aria-label="Клавиатура российского госномера">
   <p role="status" aria-live="polite">{position>=9?'Номер введён. Проверьте регион.':STEPS[position]+': выберите допустимый символ.'}{nativeKeyboard?' Также доступен ввод с обычной клавиатуры.':''}</p>
