@@ -19,7 +19,7 @@ import { readReleaseInfo } from '../release-info';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto, HistoricalProfileSearchDto, LinkHistoricalProfileDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -270,7 +270,7 @@ export class AuthController {
   @Post('profile/historical-candidates')
   async historicalProfileCandidates(
     @Req() request: Request,
-    @Body() body: { fullName?: string },
+    @Body() body: HistoricalProfileSearchDto,
   ) {
     const actor = (request as AuthenticatedRequest).user;
     return this.authService.findHistoricalProfileCandidates(actor, body.fullName ?? '');
@@ -279,7 +279,7 @@ export class AuthController {
   @Post('profile/link-historical')
   async linkHistoricalProfile(
     @Req() request: Request,
-    @Body() body: { participantId?: string },
+    @Body() body: LinkHistoricalProfileDto,
   ) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
     return this.authService.linkHistoricalProfile(userId, body.participantId ?? '');
