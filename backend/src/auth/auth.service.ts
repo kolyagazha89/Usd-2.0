@@ -684,16 +684,16 @@ export class AuthService {
         middleName: true,
         team: true,
         city: true,
+        isPublic: true,
         user: { select: { id: true } },
         cars: {
-          where: { isActive: true },
+          where: { isActive: true, isPublic: true },
           orderBy: { createdAt: 'asc' },
           take: 3,
           select: {
             id: true,
             brand: true,
             model: true,
-            registrationNumber: true,
           },
         },
         _count: { select: { registrations: true } },
@@ -723,19 +723,37 @@ export class AuthService {
         legacyEmail?.email &&
         legacyEmail.email.trim().toLowerCase() === userEmail
       );
-      return { ...candidate, canSelfLink };
+      // A non-public unclaimed profile is invisible to unrelated verified
+      // accounts even when the name search matches. Ownership proof may reveal
+      // the private candidate only to its verified legacy-email owner.
+      if (!candidate.isPublic && !canSelfLink) return null;
+      const { user: _user, isPublic: _isPublic, ...safeCandidate } = candidate;
+      return {
+        ...safeCandidate,
+        // City and team are personal metadata; only ownership-verified
+        // candidates need them for self-service account recovery.
+        city: canSelfLink ? candidate.city : null,
+        team: canSelfLink ? candidate.team : null,
+        // Explicit response allowlist: never serialize legacy plate numbers,
+        // even if an old query or test fixture contains extra properties.
+        cars: candidate.cars.map(({ id, brand, model }) => ({ id, brand, model })),
+        canSelfLink,
+      };
     }));
+    const visibleCandidates = candidatesWithOwnership.filter(
+      (candidate): candidate is NonNullable<typeof candidate> => candidate !== null,
+    );
 
     return {
       success: true,
-      found: candidatesWithOwnership.length,
-      candidates: candidatesWithOwnership.map(({ user: _user, ...participant }) => participant),
+      found: visibleCandidates.length,
+      candidates: visibleCandidates,
     };
   }
 
   async linkHistoricalProfile(userId: string, participantId: string) {
-    if (!participantId?.trim()) {
-      throw new BadRequestException('participantId обязателен');
+    if (typeof participantId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(participantId)) {
+      throw new BadRequestException('Некорректный participantId');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -1512,48 +1530,33 @@ export class AuthService {
         12,
       );
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: {
-          id: resetToken.userId,
-        },
-        data: {
-          passwordHash,
-        },
-      }),
-
-      this.prisma.passwordResetToken.update({
+    // Claim the one-time token atomically inside the same transaction that
+    // updates the password. Two racing requests must never both succeed.
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetToken.updateMany({
         where: {
           id: resetToken.id,
+          tokenHash,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
         },
-        data: {
-          usedAt: new Date(),
-        },
-      }),
-
-      /*
-       * После смены пароля закрываем все
-       * старые авторизованные устройства.
-       */
-      this.prisma.refreshSession.updateMany({
-        where: {
-          userId: resetToken.userId,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-        },
-      }),
-
-      this.prisma.passwordResetToken.deleteMany({
-        where: {
-          userId: resetToken.userId,
-          id: {
-            not: resetToken.id,
-          },
-        },
-      }),
-    ]);
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new BadRequestException('Недействительный или использованный токен восстановления');
+      }
+      await tx.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      });
+      await tx.refreshSession.updateMany({
+        where: { userId: resetToken.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: resetToken.userId, id: { not: resetToken.id } },
+      });
+    });
 
     return {
       success: true,

@@ -509,3 +509,84 @@ body .usd-live .usd-footer-cookie-settings:focus-visible{
  outline-offset:3px;
  border-radius:4px;
 }
+
+
+/* 2026-11-05 public/member audit: component-scoped geometry and usability. */
+body .usd-live .public-stage-list-poster.public-stage-list-poster-placeholder {
+ display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+ gap:12px;text-align:center;
+}
+body .usd-live .public-stage-list-poster-placeholder :is(span,strong,small) {
+ display:block;max-width:100%;overflow-wrap:anywhere;
+}
+body {min-width:0}
+body .usd-live,body .participant-portal.usd-member {min-width:0;max-width:100%}
+body .participant-portal.usd-member .config-card-main {
+ flex:1 1 0;min-width:0;max-width:100%;width:auto;background:transparent!important;
+}
+body .participant-portal.usd-member .config-card-main>div {
+ min-width:0;max-width:100%;
+}
+@media(max-width:700px) {
+ body .participant-portal.usd-member .config-card-main {width:100%;flex:1 1 auto}
+}
+body .participant-portal.usd-member .config-card-main :is(p,span,small,strong) {
+ min-width:0;max-width:100%;overflow-wrap:anywhere;white-space:normal;
+}
+body .participant-portal.usd-member .registration-hero {
+ padding:clamp(18px,3vw,32px)!important;
+}
+body .participant-portal.usd-member .registration-class-check {
+ width:22px!important;min-width:22px!important;height:22px!important;min-height:22px!important;
+ flex:0 0 22px;
+}
+body .participant-portal.usd-member .registration-class-option input[type=checkbox] {
+ opacity:0!important;
+}
+body .participant-portal.usd-member .registration-class-option {
+ min-height:44px;
+}
+body .participant-portal.usd-member .entry-task-title h2 {
+ scroll-margin-top:calc(76px + 16px);
+}
+body .participant-portal.usd-member .primary-button {
+ background:#bd1533!important;border-color:#bd1533!important;color:#fff!important;
+}
+body .participant-portal.usd-member .primary-button:hover:not(:disabled) {
+ background:#a90e29!important;border-color:#a90e29!important;
+}
+body .participant-portal.usd-member .member-config-actions-button {
+ position:absolute;z-index:5;pointer-events:auto;
+}
+body .participant-portal.usd-member .member-config-vehicle-visual {
+ pointer-events:none;
+}
+body .usd-live .p-article {
+ padding:clamp(18px,3vw,36px)!important;min-width:0;
+}
+body .usd-live .p-prose {
+ display:grid;grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%;
+}
+body .usd-live .p-prose :is(p,h1,h2,h3,li,a) {
+ min-width:0;max-width:100%;overflow-wrap:anywhere!important;
+}
+body .login-page.usd-auth {
+ overflow-x:clip!important;overflow-y:visible!important;height:auto!important;
+}
+body .participant-portal.usd-member .team-photo-editor {
+ background:#18232e!important;border-color:#415464!important;color:#f4f7f9!important;
+}
+body .participant-portal.usd-member .team-photo-editor :is(strong,label,p,.team-help) {
+ color:#e7eef5!important;
+}
+body .participant-portal.usd-member .team-photo-list li {
+ background:#243240!important;color:#e7eef5!important;
+}
+body .participant-portal.usd-member .team-photo-list li :is(span,button) {
+ color:#e7eef5;
+}
+@media(max-width:740px) {
+ body .participant-portal.usd-member .entry-task-title h2 {
+  scroll-margin-top:calc(66px + 20px);
+ }
+}
