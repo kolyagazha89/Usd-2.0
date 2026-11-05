@@ -613,7 +613,7 @@ try{
        assert.deepEqual(markers,['1.','2.','1.','3.','1.'],'light admin DOCX preview uses public numbering');
        row.rulesAdminPreview='numbered DOCX preview passed';
       }
-      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),1,'published record fixture is rendered');
+      if(route==='/records')assert.equal(await page.locator('.public-record-card').count(),7,'all seven published synthetic record fixtures are rendered');
      if(route==='/cars')assert.equal(await page.locator('.p-car-card').count(),1,'public directory renders public cars');
      if(route==='/cars/car1')assert.match(await page.locator('.p-car-banner').innerText(),/Lada Vesta/);
      if(route==='/stages/stage1'){
