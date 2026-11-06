@@ -896,3 +896,29 @@ body .app-shell .main .content .event-ops-page .event-ops-results{width:100%;min
 .event-ops-metrics>.event-ops-pending-filter:focus-visible{outline:2px solid #b7203d;outline-offset:3px}
 @media(max-width:750px){.event-ops-metrics{max-width:100%;width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:360px){.event-ops-metrics{grid-template-columns:minmax(0,1fr)}}
+
+/* Gate inspector modal: searchable car suggestions participate in the scroll
+ * flow instead of being clipped by the modal's overflow container on iOS. */
+.event-ops-newcomer-form .searchable-select { min-width:0; position:relative; }
+.event-ops-newcomer-form .searchable-select-menu {
+ position:static!important;
+ width:100%;
+ box-sizing:border-box;
+ margin:6px 0 0;
+ max-height:min(260px,36dvh);
+ overflow-y:auto;
+ -webkit-overflow-scrolling:touch;
+ background:#fff!important;
+ color:#17212f!important;
+ border:1px solid #cdd6e0!important;
+ box-shadow:0 8px 24px rgba(16,24,40,.12)!important;
+}
+.event-ops-newcomer-form .searchable-select-menu button {
+ color:#17212f!important;
+ background:transparent!important;
+ min-height:44px;
+}
+.event-ops-newcomer-form .searchable-select-menu button:is(:hover,.is-active,[aria-selected="true"]) {
+ background:#fff0f2!important;
+ color:#aa1935!important;
+}
