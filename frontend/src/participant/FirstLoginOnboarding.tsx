@@ -1,3 +1,4 @@
+import '../admin/profile-links.css';
 import {useState} from 'react';
 import {ArrowRight,CarFront,CheckCircle2,ChevronRight,Clock3,History,LogOut,Search,ShieldCheck,Sparkles,UserRound,UserRoundPlus,Users,X} from 'lucide-react';
 import './first-login-onboarding.css';
