@@ -66,7 +66,7 @@ class SafeSqlTests(unittest.TestCase):
         module.check_additive_sql(valid)
         unsafe = [
             valid.replace("'APPROVED'", "'APPROVED' OR TRUE"),
-            valid.replace("'APPROVED'", "'APPROVED'); DROP TABLE \\"User\\"; --"),
+            valid.replace("'APPROVED'", """'APPROVED'); DROP TABLE "User"; --"""),
             valid.replace('"status" IN', '"status" NOT IN'),
             valid.replace("'APPROVED'", "current_user"),
             valid.replace("'APPROVED'", "'APPROVED' || 'ROOT'"),
