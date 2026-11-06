@@ -27,6 +27,7 @@ describe('Car plate identity under concurrent registrations',()=>{
   };
   const prisma:any={
    participant:{findUnique:jest.fn(async()=>({id:'p1'}))},
+   siteSettings:{findUnique:jest.fn(async()=>({catalogs:{}}))},
    user:{findUnique:jest.fn(async()=>({id:'admin-1',role:'ADMIN',isActive:true,participantId:'p1'}))},
    car:{findUnique:jest.fn(async({where}:any)=>rows.find(x=>x.id===where.id)??null)},
    $transaction:jest.fn(async(callback:any)=>{
