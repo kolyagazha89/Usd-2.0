@@ -590,3 +590,27 @@ body .participant-portal.usd-member .team-photo-list li :is(span,button) {
   scroll-margin-top:calc(66px + 20px);
  }
 }
+
+/* Release mobile navigation: fixed viewport anchors, including iOS safe areas. */
+body .usd-live .p-public-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 110 !important;
+}
+body > .u-mobile-dock {
+  position: fixed !important;
+  inset-inline: 0 !important;
+  bottom: 0 !important;
+  z-index: 120 !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* The authentication canvas must not reveal a white page behind the card. */
+html:has(.login-page.usd-auth),
+body:has(.login-page.usd-auth),
+#root:has(.login-page.usd-auth) {
+  background: #090d14 !important;
+}
+body .login-page.usd-auth {
+  min-height: 100dvh;
+  overflow-x: clip;
+}
