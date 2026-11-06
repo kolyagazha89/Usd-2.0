@@ -87,7 +87,7 @@ function dataFor(url,role){
  if(p==='/admin/participants')return [participant,{...participant,id:'p2',firstName:'Пётр',lastName:'Петров'}];
  if(p==='/admin/profile-links')return [];
  if(p==='/admin/profile-links/duplicates/preview')return {
-  state:'DRY_RUN_ONLY',canMerge:false,source:{id:'p1',name:'Иванов Иван'},
+  state:'DRY_RUN_ONLY',canMerge:false,source:{id:'p1',name:'Тестовый Иван'},
   target:{id:'p2',name:'Петров Пётр'},
   counts:{source:{cars:2,registrations:3,results:4},target:{cars:1,registrations:2,results:3}},
   conflicts:[{code:'SAME_STAGE',description:'Профили имеют активные заявки на одном этапе.'}],
@@ -722,7 +722,7 @@ try{
      if(role==='ADMIN'&&route==='/admin/profile-links'){
       assert.ok(await page.getByRole('heading',{name:'Проверка дублирующихся профилей'}).isVisible());
       const selectors=page.locator('.duplicate-choose-profile input');
-      await selectors.nth(0).fill('Иванов');
+      await selectors.nth(0).fill('Тестовый');
       await page.locator('.duplicate-choose-profile').nth(0).locator('li button').first().click();
       await selectors.nth(1).fill('Петров');
       await page.locator('.duplicate-choose-profile').nth(1).locator('li button').first().click();
