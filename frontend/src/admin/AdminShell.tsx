@@ -22,6 +22,7 @@ const nav=[
  {section:'Результаты и контроль',label:'Рекорды',path:'/admin/records',icon:Trophy,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Статистика',path:'/admin/statistics',icon:BarChart3,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Отчёты по этапам',path:'/admin/stage-report',icon:FileText,roles:['ADMIN']},
+ {section:'Результаты и контроль',label:'Отчёт по сезону',path:'/admin/season-report',icon:BarChart3,roles:['ADMIN']},
  {section:'Результаты и контроль',label:'Дисквалификации',path:'/admin/disqualifications',icon:AlertTriangle,roles:['ADMIN']},
 
  // Публичные материалы сайта

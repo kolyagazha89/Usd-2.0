@@ -11,6 +11,7 @@ import RecordsPage from './RecordsPage';
 import UsersPage from './UsersPage';
 import StatisticsPage from './StatisticsPage';
 import StageReportPage from './StageReportPage';
+import SeasonReportPage from './SeasonReportPage';
 import QualityPage from './QualityPage';
 import TeamsPage from './TeamsPage';
 import PartnersPage from './PartnersPage';
@@ -60,6 +61,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/historical-results'))return <HistoricalPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} PanelTitle={PanelTitle} EntityDetailModal={EntityDetailModal} enumLabel={enumLabel} formatDate={formatDate}/>;
   if(path.startsWith('/admin/import'))return <ImportPage path={path} go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/records'))return <RecordsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate}/>;
+  if(path.startsWith('/admin/season-report'))return <SeasonReportPage PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/stage-report'))return <StageReportPage path={path} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/profile-links'))return <ProfileLinksPage PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/statistics'))return <StatisticsPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
