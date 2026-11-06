@@ -365,8 +365,15 @@ try{
       await flow.getByRole('button',{name:/Продолжить/}).click();
       await flow.getByRole('alert').filter({hasText:'марку и модель'}).waitFor();
       await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
-      await flow.getByLabel('Марка',{exact:true}).fill('Lada');
-      await flow.getByLabel('Модель',{exact:true}).fill('Vesta');
+      // Support both mobile native selectors and searchable catalog comboboxes.
+      for(const [label,value] of [['Марка','Lada'],['Модель','Vesta']]){
+       const field=flow.getByLabel(label,{exact:true});
+       if(await field.evaluate(element=>element.tagName.toLowerCase()==='select')){
+        await field.selectOption({label:value});
+       }else{
+        await field.fill(value);
+       }
+      }
       await flow.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await flow.getByLabel('Госномер',{exact:true}).count(),1);
       await flow.getByLabel('Госномер',{exact:true}).fill('А123АА72');
