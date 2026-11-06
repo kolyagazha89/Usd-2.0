@@ -45,6 +45,8 @@ model User {
   customRole               Role?                    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   pushSubscriptions        PushSubscription[]
   componentCatalogRequests ComponentCatalogRequest[]
+  profileLinkClaims        ProfileLinkRequest[] @relation("ProfileLinkClaimant")
+  profileLinkReviews       ProfileLinkRequest[] @relation("ProfileLinkReviewer")
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
   auditLogs                AuditLog[]
@@ -96,6 +98,7 @@ model Participant {
   stageInspections  ParticipantStageInspection[]
   user              User?
   teamMembership    TeamMembership?
+  profileLinkRequests ProfileLinkRequest[]
 
   @@index([lastName])
   @@index([firstName])
@@ -1115,4 +1118,27 @@ model PushDelivery {
   @@unique([messageId, subscriptionId])
   @@index([status, nextAttemptAt])
   @@index([subscriptionId])
+}
+
+
+// A verified account may request manual ownership review of an unclaimed archive
+// profile. Searching by name never confers profile ownership.
+model ProfileLinkRequest {
+  id             String @id @default(uuid())
+  claimantUserId String
+  participantId  String
+  status         String @default("PENDING") @db.VarChar(16)
+  note           String @db.VarChar(1000)
+  reviewedByUserId String?
+  decisionReason String? @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  reviewedAt     DateTime? @db.Timestamptz(3)
+  claimant       User @relation("ProfileLinkClaimant",fields:[claimantUserId],references:[id],onDelete:Restrict)
+  reviewer       User? @relation("ProfileLinkReviewer",fields:[reviewedByUserId],references:[id],onDelete:SetNull)
+  participant    Participant @relation(fields:[participantId],references:[id],onDelete:Restrict)
+
+  @@unique([claimantUserId,participantId])
+  @@index([status,createdAt])
+  @@index([participantId,status])
 }

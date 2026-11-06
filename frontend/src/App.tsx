@@ -376,6 +376,7 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
  const[profile,setProfile]=useState<any>({}),[teamOptions,setTeamOptions]=useState<string[]>([]),[qrRegistrationId,setQrRegistrationId]=useState(''),[cancelConfirmId,setCancelConfirmId]=useState('');
  const[registerStage,setRegisterStage]=useState<any|null>(null),[stageClasses,setStageClasses]=useState<any[]>([]),[registerCarId,setRegisterCarId]=useState(''),[configurations,setConfigurations]=useState<any[]>([]),[registerConfigId,setRegisterConfigId]=useState(''),[registerClassIds,setRegisterClassIds]=useState<string[]>([]);const[rulesAccepted,setRulesAccepted]=useState(false);const[newsletterConsent,setNewsletterConsent]=useState(false),[savingNewsletterConsent,setSavingNewsletterConsent]=useState(false);const[legalConsentState,setLegalConsentState]=useState<any>({legalReady:false,version:null,privacyAccepted:false,termsAccepted:false}),[stagePrivacyConsent,setStagePrivacyConsent]=useState(false),[stageTermsAccepted,setStageTermsAccepted]=useState(false);
  const [saving,setSaving]=useState(false);
+ const [linkRequests,setLinkRequests]=useState<Array<{id:string;participantId:string;status:string}>>([]);
  const profileSearchRequest=useRef(0);
  const registrationCarRequest=useRef(0),registrationStageRequest=useRef(0);
  const [stagesState,setStagesState]=useState<'loading'|'ready'|'error'>('loading');
@@ -400,6 +401,8 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
  useEffect(()=>{if(user.participantId)void loadPortal();apiGet<any>('/participants/teams').then((r:any)=>{setTeamOptions(listData<any>(r).map((x:any)=>String(x.name??'').trim()).filter(Boolean).sort((x:string,y:string)=>x.localeCompare(y,'ru')))}).catch(()=>{})},[user.participantId]);
  useEffect(()=>{if(!profile.team||!teamOptions.length)return;const canonical=teamOptions.find(team=>team.toLocaleLowerCase('ru')===String(profile.team).trim().toLocaleLowerCase('ru'));if(canonical&&canonical!==profile.team)setProfile((p:any)=>({...p,team:canonical}))},[teamOptions,profile.team]);
  const search=async()=>{const requestId=++profileSearchRequest.current;const query=name.trim();setConfirmNewProfile(false);setHasSearchedProfiles(false);setCandidates([]);setError('');setLoading(true);try{const r=await findHistoricalProfileCandidates(query);if(requestId===profileSearchRequest.current){setCandidates(r.candidates??[]);setHasSearchedProfiles(true)}}catch(e){if(requestId===profileSearchRequest.current)report(e,'Не удалось выполнить поиск')}finally{if(requestId===profileSearchRequest.current)setLoading(false)}};
+ const requestLink=async(id:string,note:string)=>{await apiPost('/profile-links',{participantId:id,note});const rows=await apiGet<any>('/profile-links/mine');setLinkRequests(listData(rows));};
+ useEffect(()=>{if(user.participantId)return;let active=true;apiGet<any>('/profile-links/mine').then(rows=>{if(active)setLinkRequests(listData(rows))}).catch(()=>{});return()=>{active=false}},[user.participantId]);
  const link=async(id:string)=>{setError('');setLoading(true);try{await linkHistoricalProfile(id);const r=await refresh();if(r?.user)onUserChange(r.user)}catch(e){report(e,'Не удалось привязать профиль')}finally{setLoading(false)}};
  const create=async()=>{if(!confirmNewProfile){setConfirmNewProfile(true);return}const lastName=newLastName.trim(),firstName=newFirstName.trim(),middleName=newMiddleName.trim();if(!lastName||!firstName){setError('Заполните фамилию и имя отдельно');return}setLoading(true);setError('');try{await apiPost('/participants/me',{lastName,firstName,middleName:middleName||null,isPublic:true});const r=await refresh();if(r?.user)onUserChange(r.user)}catch(e){report(e,'Не удалось создать профиль')}finally{setLoading(false)}};
  const uploadProfilePhoto=async(file:File)=>{const validationError=validateImageUpload(file);if(validationError){setError(validationError);return}if(!participant?.id){setError('Сначала создайте профиль участника');return}setSaving(true);setError('');try{await uploadEntityPhoto('PARTICIPANT_PHOTO',participant.id,file);await loadPortal()}catch(e){report(e,'Не удалось загрузить фото профиля')}finally{setSaving(false)}};
@@ -430,6 +433,7 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
   onGoSite={()=>go('/')} onGoAdmin={()=>go('/admin')} onLogout={onLogout}
   onSearchNameChange={value=>{profileSearchRequest.current++;setLoading(false);setName(value);setHasSearchedProfiles(false);setConfirmNewProfile(false);setNewLastName('');setNewFirstName('');setNewMiddleName('');setCandidates([]);if(error)setError('')}}
   onSearch={()=>void search()} onLink={id=>void link(id)}
+  onRequestLink={requestLink} linkRequests={linkRequests}
   onCreate={()=>void create()} onCancelCreate={()=>setConfirmNewProfile(false)}
   onNewLastNameChange={setNewLastName} onNewFirstNameChange={setNewFirstName}
   onNewMiddleNameChange={setNewMiddleName}

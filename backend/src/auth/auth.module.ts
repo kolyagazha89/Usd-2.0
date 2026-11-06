@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { AuthController } from './auth.controller';
+import {ProfileLinksController,AdminProfileLinksController} from './profile-links.controller';
+import {ProfileLinksService} from './profile-links.service';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
@@ -26,10 +28,13 @@ import { MailModule } from '../mail/mail.module';
 
   controllers: [
     AuthController,
+    ProfileLinksController,
+    AdminProfileLinksController,
   ],
 
   providers: [
     AuthService,
+    ProfileLinksService,
     JwtAuthGuard,
     RolesGuard,
   ],

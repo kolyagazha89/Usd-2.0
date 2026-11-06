@@ -1,3 +1,5 @@
+import '../admin/profile-links.css';
+import {useState} from 'react';
 import {ArrowRight,CarFront,CheckCircle2,ChevronRight,Clock3,History,LogOut,Search,ShieldCheck,Sparkles,UserRound,UserRoundPlus,Users,X} from 'lucide-react';
 import './first-login-onboarding.css';
 
@@ -28,6 +30,8 @@ type FirstLoginOnboardingProps={
  onSearchNameChange:(value:string)=>void;
  onSearch:()=>void;
  onLink:(id:string)=>void;
+ onRequestLink:(id:string,note:string)=>Promise<void>;
+ linkRequests:Array<{id:string;participantId:string;status:string}>;
  onCreate:()=>void;
  onCancelCreate:()=>void;
  onNewLastNameChange:(value:string)=>void;
@@ -42,9 +46,13 @@ const readableCar=(car:NonNullable<Candidate['cars']>[number])=>
 export default function FirstLoginOnboarding({
  email,portalLogo,canAccessAdmin,searchName,candidates,loading,hasSearchedProfiles,
  confirmNewProfile,newLastName,newFirstName,newMiddleName,error,
- onGoSite,onGoAdmin,onLogout,onSearchNameChange,onSearch,onLink,onCreate,onCancelCreate,
+ onGoSite,onGoAdmin,onLogout,onSearchNameChange,onSearch,onLink,onRequestLink,linkRequests,onCreate,onCancelCreate,
  onNewLastNameChange,onNewFirstNameChange,onNewMiddleNameChange,
 }:FirstLoginOnboardingProps){
+ const [requestCandidateId,setRequestCandidateId]=useState('');
+ const [requestNote,setRequestNote]=useState('');
+ const [requesting,setRequesting]=useState(false);
+ const [requestFeedback,setRequestFeedback]=useState('');
  const searched=hasSearchedProfiles&&!loading;
  const canCreate=true;
  const searchReady=searchName.trim().length>=2;
@@ -126,7 +134,21 @@ export default function FirstLoginOnboarding({
        </div>
        {c.canSelfLink?
         <button type="button" className="primary-button compact profile-match-action" onClick={()=>onLink(c.id)} disabled={loading}>Это мой профиль <ChevronRight size={16}/></button>
-        :<div className="historical-match-unavailable"><span><ShieldCheck size={16} aria-hidden="true"/> Требуется подтверждение</span><small>Эта запись уже защищена. Обратитесь к организатору USD для проверки принадлежности.</small></div>}
+        :<div className="historical-match-unavailable">
+         <span><ShieldCheck size={16} aria-hidden="true"/> Требуется подтверждение</span>
+         {linkRequests.find(request=>request.participantId===c.id)?.status==='PENDING'
+          ?<small role="status">Заявка на привязку отправлена. Ожидайте решения организатора.</small>
+          :<><small>Для защиты вашей истории привязка к новому email проверяется администратором.</small>
+           <button type="button" className="secondary-button compact" disabled={loading||requesting} onClick={()=>{setRequestCandidateId(c.id===requestCandidateId?'':c.id);setRequestFeedback('')}}>Это мой профиль — запросить проверку</button>
+           {requestCandidateId===c.id&&<div className="profile-match-request">
+            <label>Как подтвердить, что это ваш профиль?
+             <textarea value={requestNote} onChange={e=>setRequestNote(e.target.value)} maxLength={1000} rows={3} placeholder="Укажите известные вам этапы участия и сведения для проверки. Не отправляйте пароли."/>
+            </label>
+            <button type="button" className="primary-button compact" disabled={requesting||requestNote.trim().length<12} onClick={()=>{setRequesting(true);setRequestFeedback('');void onRequestLink(c.id,requestNote).then(()=>{setRequestCandidateId('');setRequestNote('');setRequestFeedback('Заявка отправлена организатору USD.')}).catch(e=>setRequestFeedback(e instanceof Error?e.message:'Не удалось отправить заявку')).finally(()=>setRequesting(false))}}>Отправить заявку</button>
+            {requestFeedback&&<small role="status">{requestFeedback}</small>}
+           </div>}
+          </>}
+        </div>}
       </article>)}
      </div>:<div className="profile-match-empty"><Search size={23} aria-hidden="true"/><p>Например, если «Иванов Иван» не найден, попробуйте «Иван» или другую форму фамилии.</p></div>}
     </section>}

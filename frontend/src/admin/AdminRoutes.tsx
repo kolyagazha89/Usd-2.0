@@ -29,6 +29,7 @@ import AuditPage from './AuditPage';
 import CatalogPage from './CatalogPage';
 import VehicleCatalogPage from './VehicleCatalogPage';
 import ParticipantsPage from './ParticipantsPage';
+import ProfileLinksPage from './ProfileLinksPage';
 import ConfigurationsPage from './ConfigurationsPage';
 import DashboardPage from './DashboardPage';
 import RulesAdminPage from '../RulesAdminPage';
@@ -60,6 +61,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/import'))return <ImportPage path={path} go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} enumLabel={enumLabel}/>;
   if(path.startsWith('/admin/records'))return <RecordsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate}/>;
   if(path.startsWith('/admin/stage-report'))return <StageReportPage path={path} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
+  if(path.startsWith('/admin/profile-links'))return <ProfileLinksPage PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/statistics'))return <StatisticsPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;
   if(path.startsWith('/admin/media'))return <MediaLibraryPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;

@@ -47,7 +47,9 @@ test('protected historical identities remain unselectable without admin review',
  const view=await read('../src/participant/FirstLoginOnboarding.tsx');
  assert.match(view,/c\.canSelfLink\?/);
  assert.match(view,/onLink\(c\.id\)/);
- assert.match(view,/Эта запись уже защищена/);
+ assert.match(view,/Для защиты вашей истории привязка к новому email проверяется администратором/);
+ assert.match(view,/onRequestLink\(c.id,requestNote\)/);
+ assert.match(view,/linkRequests.find\(request=>request.participantId===c.id\)/);
  assert.doesNotMatch(view,/Обратитесь к администратору USD для ручной проверки">Нужна проверка<\/button>/);
 });
 
