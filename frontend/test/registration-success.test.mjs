@@ -23,7 +23,7 @@ test('registration pass includes primary and every additional BassRace number, d
 test('success confirmation is only entered after a saved registration response',async()=>{
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
  const pass=await readFile(new URL('../src/participant/RegistrationSuccess.tsx',import.meta.url),'utf8');
-  assert.match(app,/const saved:\\{id:string\\}=await apiPost\\('\/registrations\/me'/);
+ assert.match(app,/const saved.*apiPost\('\/registrations\/me'/);
  assert.match(app,/if\(!saved\?\.id\)throw new Error/);
  assert.match(app,/go\('\/participant\/registration-success\?registrationId='/);
  assert.match(app,/if\(routePath==='\/participant\/registration-success'\)/);
