@@ -59,10 +59,10 @@ export default function RegistrationPass({registrationId,go}:{registrationId:str
  if(loading)return <main className="usd-registration-pass-page" role="status"><div className="usd-registration-pass"><p>Загружаем ваш пропуск USD…</p></div></main>;
  if(error&&!registration)return <main className="usd-registration-pass-page"><div className="usd-registration-pass"><h1>Пропуск недоступен</h1><p role="alert">{error}</p><div className="usd-registration-pass-actions"><button type="button" onClick={()=>reload()}><RefreshCw size={16}/>Повторить</button><button type="button" onClick={()=>go('/participant?tab=registrations')}>К моим регистрациям</button></div></div></main>;
  if(!registration||!usdId)return null;
- const active=registration.status!=='CANCELLED';
+ const active=registration.status==='ACTIVE';
  let qrUrl='';
  try{qrUrl=registrationPassQrUrl(registration,window.location.origin)}catch{}
- const numbers=(registration.numbers??[]).sort((a,b)=>a.number-b.number);
+ const numbers=[...(registration.numbers??[])].sort((a,b)=>a.number-b.number);
  const displayedNumbers=numbers.length?numbers.map(n=>n.number):[registration.participantNumber];
  const classRows=(registration.classes??[]).map(c=>({
   id:c.id,name:c.class?.name||'Класс USD',direction:c.class?.direction?.name||'Направление уточняется',
