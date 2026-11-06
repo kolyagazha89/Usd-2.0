@@ -1,4 +1,5 @@
 import './profile-links.css';
+import DuplicateProfilesPreview from './DuplicateProfilesPreview';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch} from '../api';
 
@@ -23,6 +24,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
+  <DuplicateProfilesPreview/>
   <div className="profile-link-filters"><label>Статус
    <select value={status} onChange={e=>{setStatus(e.target.value);setSelected('');setError('')}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
