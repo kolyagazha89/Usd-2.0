@@ -42,7 +42,7 @@ test('record minis rotate only eligible dB records and never show the hero again
  assert.ok(!others.some(r=>r.id==='hero'));
 });
 
-test('homepage loads all stage results; class and record carousel both have manual controls',async()=>{
+test('homepage loads all stage results; class and record carousels are swipe-first',async()=>{
  const [app,home,scoreboards,member,css]=await Promise.all([
   readFile(new URL('../src/App.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/public/PremiumHome.tsx',import.meta.url),'utf8'),
@@ -53,8 +53,11 @@ test('homepage loads all stage results; class and record carousel both have manu
  assert.match(home,/<LiveClassCarousel rows=\{liveRows\}/);
  assert.match(home,/<RecordMinis rows=\{records\}/);
  assert.doesNotMatch(app,/results\/stage\/'\+encodeURIComponent\(stage.id\)\)\)\.slice\(0,8\)/);
- assert.match(scoreboards,/aria-label="Следующий класс"/);
- assert.match(scoreboards,/aria-label="Предыдущие рекорды"/);
+ assert.match(scoreboards,/useCarouselSwipe/);
+ assert.match(scoreboards,/onPointerDown/);
+ assert.match(scoreboards,/onPointerUp/);
+ assert.match(scoreboards,/onKeyDown=\{event=>/);
+ assert.doesNotMatch(scoreboards,/aria-label="Следующий класс"|aria-label="Предыдущие рекорды"/);
  assert.match(scoreboards,/publicEntityPhotoSource\('PARTICIPANT_PHOTO',participant,getPublicEntityPhotoUrl\)/);
  assert.match(scoreboards,/resultEntryNumber\(row\)/);
  assert.match(scoreboards,/cls.name\|\|'Класс не указан'/);
