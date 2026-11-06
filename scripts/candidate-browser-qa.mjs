@@ -974,8 +974,8 @@ try{
       });
       assert.ok(download,'QR export creates a downloadable blob');
       assert.match(download.filename,/^USD-QR-.*\.svg$/);
-      assert.match(download.svg,/<svg\\b/);
-      assert.match(download.svg,/<path\\b|<rect\\b/);
+      assert.match(download.svg,/<svg\b/);
+      assert.match(download.svg,/<path\b|<rect\b/);
       assert.equal(await page.getByRole('button',{name:/Скопировать USD ID/}).count(),1);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'QR pass fits mobile width');
       row.registrationPass='confirmed route, permanent ID, class numbers and downloaded SVG';
