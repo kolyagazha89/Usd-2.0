@@ -90,6 +90,9 @@ export class ProfileLinksService {
     throw new ConflictException('Заявка уже рассмотрена. Обновите список.');
    // Lock the participant itself, so two claim requests cannot both attach it.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+pending.participantId}))`;
+   // Two competing requests can name different participant IDs but the same
+   // claimant. The claimant lock prevents last-write-wins profile hijacks.
+   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+pending.claimantUserId}))`;
    const [claimant,participant]=await Promise.all([
     tx.user.findUnique({where:{id:pending.claimantUserId},select:{id:true,participantId:true,emailVerifiedAt:true,isActive:true}}),
     tx.participant.findUnique({where:{id:pending.participantId},select:{id:true,user:{select:{id:true}}}}),
