@@ -249,8 +249,12 @@ function ConfigDirectionListEditor({title,subtitle,icon:Icon,items,direction,onA
 function cleanConfig(v:any,catalogModels:any[]=[]){
  const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Number(component.quantity)}));
  const amplifierLinks=allocateAmplifierLinks(audioComponents,v.amplifiers??[]);
+ // Head-unit DTO does not accept quantity; the UI can retain it locally,
+ // but sending it causes a 400 validation error on every configuration save.
+ const headUnits=(v.headUnits??[]).map(({quantity:_quantity,...headUnit}:any)=>headUnit);
  const normalized={
   ...v,
+  headUnits,
   audioComponents,
   batteries:(v.batteries??[]).map((battery:any)=>({...battery,quantity:Number(battery.quantity)})),
   generators:(v.generators??[]).map((generator:any)=>({...generator,quantity:Number(generator.quantity)})),
