@@ -28,6 +28,7 @@ function PersonPicker({label,candidates,value,onChange}:{label:string;candidates
     onBlur={()=>setActive(false)}/>
   </label>
   {active&&matches.length>0&&<ul role="listbox" aria-label={label}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
+   onPointerDown={event=>event.preventDefault()}
    onMouseDown={event=>event.preventDefault()}
    onClick={()=>{onChange(candidate.id);setQuery(fullName(candidate)+' · '+candidate.id.slice(0,8));setActive(false)}}>
    {fullName(candidate)} <small>· {candidate.id.slice(0,8)} · {candidate.birthDate?new Date(candidate.birthDate).toLocaleDateString('ru-RU'):''}</small>
