@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import {ConflictException} from '@nestjs/common';
+import {BadRequestException,ConflictException} from '@nestjs/common';
 import {ParticipantsService} from './participants.service';
 import {plateAdvisoryKey} from './plate-identity';
 
@@ -42,6 +42,16 @@ describe('Car plate identity under concurrent registrations',()=>{
  };
  const payload=(registrationNumber:string)=>({
   brand:'Lada',model:'Vesta',registrationCountry:'RU' as const,registrationNumber,
+ });
+ it('refuses arbitrary vehicle names on car creation and editing before any write',async()=>{
+  const {prisma,tx,rows}=makeDb(),service=new ParticipantsService(prisma);
+  await expect((service as any).createCarInternal('p1',{...payload('А456ВС72'),brand:'Not-listed',model:'Something'}))
+   .rejects.toBeInstanceOf(BadRequestException);
+  expect(tx.car.create).not.toHaveBeenCalled();
+  rows.push({id:'car-A',participantId:'p1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А456ВС72'});
+  await expect(service.updateCar(actor,'car-A',{model:'Made-up'}))
+   .rejects.toBeInstanceOf(BadRequestException);
+  expect(tx.car.update).not.toHaveBeenCalled();
  });
  it('only creates one car if concurrent staff/admin requests use different RU spellings',async()=>{
   const {prisma,tx,rows}=makeDb(),service=new ParticipantsService(prisma);
