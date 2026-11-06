@@ -29,14 +29,15 @@ test('no unexpected account security forms on the very first page',async()=>{
  assert.match(view,/Настройки аккаунта будут доступны в личном кабинете после выбора профиля/);
 });
 
-test('newcomer must search with a real full name and explicitly confirm creation',async()=>{
+test('newcomer can explicitly start without searching but must enter full name before confirmation',async()=>{
  const [app,view]=await Promise.all([read('../src/App.tsx'),read('../src/participant/FirstLoginOnboarding.tsx')]);
  assert.match(app,/if\(!confirmNewProfile\)\{setConfirmNewProfile\(true\);return\}/);
  assert.match(app,/if\(!lastName\|\|!firstName\)/);
  assert.match(app,/middleName:middleName\|\|null/);
  assert.match(app,/apiPost\('\/participants\/me'/);
- assert.match(view,/canOfferNewProfile\(searchName\)/);
- assert.match(view,/searched&&canOfferNewProfile/);
+ assert.match(view,/const canCreate=true/);
+ assert.match(view,/Я не участвовал ранее — создать новый профиль/);
+ assert.doesNotMatch(view,/canOfferNewProfile\(searchName\)/);
  assert.match(view,/!newLastName\.trim\(\)\|\|!newFirstName\.trim\(\)/);
  assert.match(view,/onCancelCreate/);
  assert.match(view,/type="button"/);
