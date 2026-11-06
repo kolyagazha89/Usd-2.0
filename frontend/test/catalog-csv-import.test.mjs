@@ -50,7 +50,7 @@ test('imported models keep the existing canonical brand name for exact-match cat
 });
 
 test('official catalog import preserves unique IDs even with repeated preview placeholder',()=>{
- const rows=parseAudioCatalogCsv('бренд,модель,категория\\nKicx,Uno,AMPLIFIER\\nKicx,Two,AMPLIFIER\\nDeaf Bonce,DB-1,SUBWOOFER\\n');
+ const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Uno,AMPLIFIER\nKicx,Two,AMPLIFIER\nDeaf Bonce,DB-1,SUBWOOFER\n');
  const planned=planAudioCatalogImport({},rows,()=> 'preview-only');
  const items=[...planned.catalogs.componentBrands,...planned.catalogs.componentModels];
  assert.equal(new Set(items.map(item=>item.id)).size,items.length);
