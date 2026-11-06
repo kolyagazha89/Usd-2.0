@@ -1183,8 +1183,8 @@ export class RegistrationsService {
         });
       },
     );
-    // Success is shown in the participant account after the saved response.
-    // Do not send a duplicate registration-confirmation email.
+    // A successful registration is acknowledged in the authenticated QR-pass page.
+    // Do not send a duplicate 'registration confirmed' email.
     return registration;
   }
   // ==========================================
