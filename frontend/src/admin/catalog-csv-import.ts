@@ -80,6 +80,8 @@ export function planAudioCatalogImport(
 ):{catalogs:ExistingCatalog;addedBrands:number;addedModels:number;unchangedModels:number}{
  const oldBrands=toObjects(existing.componentBrands),oldModels=toObjects(existing.componentModels);
  const brands=[...oldBrands],models=[...oldModels];
+ const usedIds=new Set([...oldBrands,...oldModels].map(item=>String(item.id??'')).filter(Boolean));
+ const nextId=()=>{const proposed=makeId();if(!proposed||typeof proposed!=='string')throw new Error('Не удалось создать идентификатор оборудования.');let id=proposed,serial=1;while(usedIds.has(id))id=proposed+'-'+(++serial);usedIds.add(id);return id;};
  const knownBrands=new Map<string,CatalogItem>(oldBrands.map(item=>[key(item.category)+'|'+key(item.name),item] as const));
  const knownModels=new Set(oldModels.map(item=>key(item.category)+'|'+key(item.brand)+'|'+key(item.model)));
  let addedBrands=0,addedModels=0,unchangedModels=0;
@@ -92,10 +94,10 @@ export function planAudioCatalogImport(
   if(existingBrand?.isActive===false)
    throw new Error('Марка '+row.brand+' отключена в '+row.category+'. Сначала включите её вручную.');
   if(!existingBrand){
-   const added={id:makeId(),category:row.category,name:row.brand,isActive:true};
+   const added={id:nextId(),category:row.category,name:row.brand,isActive:true};
    brands.push(added);knownBrands.set(brandKey,added);existingBrand=added;addedBrands++;
   }
-  models.push({id:makeId(),category:row.category,brand:String(existingBrand.name),model:row.model,
+  models.push({id:nextId(),category:row.category,brand:String(existingBrand.name),model:row.model,
    isActive:true,lifecycle:'UNKNOWN',sourceType:'CSV_IMPORT'});
   knownModels.add(modelKey);addedModels++;
  }
