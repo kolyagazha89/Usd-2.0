@@ -3,11 +3,13 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import {isCandidateApiRequest} from './candidate-browser-qa-config.mjs';
+import {isCandidateApiRequest,getCandidateQaOptions} from './candidate-browser-qa-config.mjs';
 import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
-const output=path.resolve('candidate-browser-qa');await mkdir(output,{recursive:true});
+const qaOptions=getCandidateQaOptions();
+const output=path.resolve(qaOptions.axe?'candidate-browser-a11y':'candidate-browser-qa');
+const AxeBuilder=qaOptions.axe?createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('@axe-core/playwright').AxeBuilder:null;await mkdir(output,{recursive:true});
 const dist=path.resolve('frontend/dist');
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{
@@ -101,7 +103,7 @@ const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
- for(const width of [1440,1024,390,320]){
+ for(const width of qaOptions.widths){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
    const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
@@ -944,6 +946,11 @@ try{
       }
       row.configuratorInteraction='all seven sections; catalog search; absent-model rejection; add to SUB without saving';
       await page.evaluate(()=>scrollTo(0,0));
+     }
+     if(AxeBuilder){
+      const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+      row.axe={violations:axe.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),incomplete:axe.incomplete.length,passes:axe.passes.length};
+      assert.equal(row.axe.violations.length,0,'WCAG A/AA violations: '+JSON.stringify(row.axe.violations));
      }
      row.status='passed';
     }catch(error){row.status='failed';row.error=error.message;row.runtimeErrors=errors;report.failures.push({role:row.role,width,route,error:error.message})}

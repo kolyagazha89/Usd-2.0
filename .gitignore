@@ -37,3 +37,7 @@ usd_backup_before_participant_car.sql
 
 # Historical XLSX registration contains private contact details: never check in.
 /USD _ Регистрация.xlsx
+
+/candidate-browser-a11y/
+
+/home-logo-browser-qa/

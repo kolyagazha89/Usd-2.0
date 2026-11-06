@@ -85,7 +85,7 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
    <span>ЕЩЁ РЕКОРДЫ USD</span>
    <small>Лучшие результаты по классам</small>
   </div>
-  <div className="usd-record-viewport" aria-label="Карусель рекордов USD" aria-live="off">
+  <div className="usd-record-viewport" role="group" aria-label="Карусель рекордов USD" aria-live="off">
    <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
     {Array.from({length:total},(_,slide)=><div key={slide}
      className="u-record-minis usd-record-slide usd-record-podium__grid"

@@ -48,6 +48,8 @@ jobs:
         run: node scripts/account-security-browser-qa.mjs
         env:
           USD_ACCOUNT_QA_OUTPUT: ${{ github.workspace }}/account-security-browser-qa
+      - name: Verify logo intro waits for visible home and respects reduced motion
+        run: node scripts/home-logo-browser-qa.mjs
       - name: Save candidate screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,6 +58,7 @@ jobs:
           path: |
             candidate-browser-qa/
             account-security-browser-qa/
+            home-logo-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested
@@ -82,4 +85,35 @@ jobs:
         with:
           name: public-browser-qa-${{ github.run_attempt }}
           path: public-browser-qa/
+          retention-days: 7
+
+  candidate-accessibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
+      USD_CANDIDATE_QA_WIDTHS: '768,1920'
+      USD_CANDIDATE_QA_AXE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned free browser and accessibility tooling
+        run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1 @axe-core/playwright@4.14.0
+      - name: Install Chromium
+        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Build candidate and verify viewport configuration
+        run: |
+          npm ci --ignore-scripts --prefix frontend
+          npm run build --prefix frontend
+          node --test scripts/candidate-browser-qa-config.test.mjs
+      - name: Check tablet and wide layouts with WCAG A/AA
+        run: node scripts/candidate-browser-qa.mjs
+      - name: Save accessibility screenshots and findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-browser-a11y-${{ github.run_attempt }}
+          path: candidate-browser-a11y/
           retention-days: 7

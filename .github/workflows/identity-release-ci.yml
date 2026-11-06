@@ -123,3 +123,13 @@ jobs:
         env:
           USD_AUTH_FAMILY_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/auth-session-family.e2e-spec.ts
+
+      - name: Verify compact public record payload and immutable rules snapshots on PostgreSQL 18
+        env:
+          USD_RECORDS_PAYLOAD_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/records-public-payload.e2e-spec.ts
+
+      - name: Verify own, public, admin and delegated-role profile contact privacy
+        env:
+          USD_PROFILE_PRIVACY_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/profile-contact-privacy.e2e-spec.ts

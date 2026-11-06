@@ -662,7 +662,7 @@ body .app-shell .main .event-ops-workflow-number {
   font-size:10px;
   font-weight:850;
   letter-spacing:.1em;
-  color:#a9abb2;
+  color:#626a76;
 }
 body .app-shell .main .event-ops-workflow-copy {
   display:grid;
@@ -680,7 +680,7 @@ body .app-shell .main .event-ops-workflow-step.is-active .event-ops-workflow-cop
 body .app-shell .main .event-ops-workflow-copy small {
   font-size:11px;
   line-height:1.5;
-  color:#717580;
+  color:#626a76;
   overflow-wrap:anywhere;
 }
 body .app-shell .main .event-ops-workflow-arrow {
@@ -1194,7 +1194,7 @@ body .app-shell .main .content .catalog-manage-row button {min-height:36px}
     line-height:1.3;
     font-weight:800;
     letter-spacing:.04em;
-    color:#747986;
+    color:#626a76;
     text-transform:uppercase;
   }
   body .app-shell .main .content .event-ops-page .event-ops-results .data-table tbody td.row-actions {
@@ -1245,3 +1245,6 @@ body .app-shell .main .field-check small,
 body .app-shell .main .table-sub {
   color: #565f68 !important;
 }
+
+/* Small counters need readable text on the light toolbar surface. */
+body .app-shell .main .row-count{color:#626a76}
