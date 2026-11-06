@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {duplicatePreview,type DuplicateSnapshot} from './duplicate-profile-preview';
 
 const requestIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sanitize=(value:string)=>value.replace(/\s+/g,' ').trim();
@@ -70,6 +71,43 @@ export class ProfileLinksService {
   });
  }
 
+ /** Read-only ADMIN comparison: no update/delete, no implicit identity claim. */
+ async previewDuplicates(sourceId:string,targetId:string){
+  if(!requestIdPattern.test(sourceId)||!requestIdPattern.test(targetId)||sourceId===targetId)
+   throw new BadRequestException('Выберите два разных профиля участников.');
+  const ids=[sourceId,targetId];
+  const [participants,sourceRecords,targetRecords]=await Promise.all([
+   this.prisma.participant.findMany({
+    where:{id:{in:ids}},
+    select:{
+     id:true,firstName:true,lastName:true,middleName:true,birthDate:true,legacyId:true,usdIdToken:true,
+     user:{select:{id:true}},teamMembership:{select:{teamId:true}},
+     cars:{select:{id:true,registrationCountry:true,registrationNumber:true,_count:{select:{configurations:true}}}},
+     registrations:{select:{id:true,stageId:true,status:true,_count:{select:{numbers:true,classes:true,results:true}}}},
+     _count:{select:{stageInspections:true,disqualifications:true,profileLinkRequests:true}},
+    },
+   }),
+   this.prisma.record.count({where:{participantId:sourceId}}),
+   this.prisma.record.count({where:{participantId:targetId}}),
+  ]);
+  if(participants.length!==2)throw new NotFoundException('Один или оба профиля не найдены.');
+  const snapshot=(id:string,recordCount:number):DuplicateSnapshot=>{
+   const p=participants.find(item=>item.id===id)!;
+   return {
+    id:p.id,name:[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' '),
+    birthDate:p.birthDate?.toISOString().slice(0,10)??null,
+    linkedUserId:p.user?.id??null,legacyId:p.legacyId??null,usdIdExists:!!p.usdIdToken,
+    teamId:p.teamMembership?.teamId??null,
+    cars:p.cars.map(car=>({id:car.id,country:car.registrationCountry,number:car.registrationNumber,configurations:car._count.configurations})),
+    registrations:p.registrations.map(row=>({id:row.id,stageId:row.stageId,status:row.status,
+     classes:row._count.classes,results:row._count.results,numbers:row._count.numbers})),
+    stageInspections:p._count.stageInspections,disqualifications:p._count.disqualifications,
+    records:recordCount,claims:p._count.profileLinkRequests,
+   };
+  };
+  return duplicatePreview(snapshot(sourceId,sourceRecords),snapshot(targetId,targetRecords));
+ }
+
  async review(requestId:string,reviewerId:string,decision:'APPROVE'|'REJECT',reason:string,ownershipVerified:boolean){
   if(!requestIdPattern.test(requestId))throw new BadRequestException('Некорректный идентификатор заявки');
   if(decision!=='APPROVE'&&decision!=='REJECT')throw new BadRequestException('Неизвестное решение');
@@ -90,6 +128,9 @@ export class ProfileLinksService {
     throw new ConflictException('Заявка уже рассмотрена. Обновите список.');
    // Lock the participant itself, so two claim requests cannot both attach it.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+pending.participantId}))`;
+   // Two competing requests can name different participant IDs but the same
+   // claimant. The claimant lock prevents last-write-wins profile hijacks.
+   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+pending.claimantUserId}))`;
    const [claimant,participant]=await Promise.all([
     tx.user.findUnique({where:{id:pending.claimantUserId},select:{id:true,participantId:true,emailVerifiedAt:true,isActive:true}}),
     tx.participant.findUnique({where:{id:pending.participantId},select:{id:true,user:{select:{id:true}}}}),

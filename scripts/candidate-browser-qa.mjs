@@ -84,7 +84,16 @@ function dataFor(url,role){
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
  if(p==='/seasons'||p==='/seasons/public')return [season];
  if(p==='/directions')return [klass.direction];
- if(p==='/admin/participants')return [participant];
+ if(p==='/admin/participants')return [participant,{...participant,id:'p2',firstName:'Пётр',lastName:'Петров'}];
+ if(p==='/admin/profile-links')return [];
+ if(p==='/admin/profile-links/duplicates/preview')return {
+  state:'DRY_RUN_ONLY',canMerge:false,source:{id:'p1',name:'Тестовый Иван'},
+  target:{id:'p2',name:'Петров Пётр'},
+  counts:{source:{cars:2,registrations:3,results:4},target:{cars:1,registrations:2,results:3}},
+  conflicts:[{code:'SAME_STAGE',description:'Профили имеют активные заявки на одном этапе.'}],
+  constraints:['Предпросмотр не изменяет данные.'],
+ };
+
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
@@ -100,7 +109,7 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
@@ -709,6 +718,21 @@ try{
        assert.ok(save.y+save.height<=cookie.y,'save button remains above the cookie notice');
       }
       await page.evaluate(()=>scrollTo(0,0));
+     }
+     if(role==='ADMIN'&&route==='/admin/profile-links'){
+      assert.ok(await page.getByRole('heading',{name:'Проверка дублирующихся профилей'}).isVisible());
+      const selectors=page.locator('.duplicate-choose-profile input');
+      await selectors.nth(0).fill('Тестовый');
+      await page.locator('.duplicate-choose-profile').nth(0).locator('li button').first().click();
+      await selectors.nth(1).fill('Петров');
+      await page.locator('.duplicate-choose-profile').nth(1).locator('li button').first().click();
+      await page.getByRole('button',{name:'Проверить конфликты и историю'}).click();
+      // API-backed preview is asynchronous, even with a local route fixture.
+      // isVisible() is an instantaneous snapshot and races the React render.
+      await page.locator('.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+      await page.getByText(/Профили имеют активные заявки/).waitFor({state:'visible',timeout:6000});
+      assert.equal(await page.getByRole('button',{name:/Объединить профили/}).count(),0,'destructive merge is never available');
+      row.duplicatePreview='read-only conflicting historical profiles, no merge controls';
      }
      if(role==='ADMIN'){
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);

@@ -20,7 +20,9 @@ concurrency:
 jobs:
   candidate-ui:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The full responsive route matrix and account-security flows can exceed
+    # 15 minutes on shared runners. Keep every QA scenario, not a reduced set.
+    timeout-minutes: 30
     env:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
     steps:

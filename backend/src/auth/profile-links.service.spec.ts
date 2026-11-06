@@ -58,6 +58,9 @@ describe('secure manual profile link review',()=>{
   const response=await service.review(requestId,reviewerId,'APPROVE',reviewReason,true);
   expect(response.status).toBe('APPROVED');
   expect(db.user.update).toHaveBeenCalledWith({where:{id:claimantId},data:{participantId}});
+  // Request, historical participant AND claimant locks prevent competing
+  // approvals that target separate participant IDs for the same account.
+  expect(db.$executeRaw).toHaveBeenCalledTimes(3);
   expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
    data:expect.objectContaining({action:'PROFILE_LINK_APPROVED',entity:'ProfileLinkRequest'}),
   }));

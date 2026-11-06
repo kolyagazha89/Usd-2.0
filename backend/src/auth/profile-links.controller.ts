@@ -30,6 +30,10 @@ export class AdminProfileLinksController {
  constructor(private readonly service:ProfileLinksService){}
  @Get()
  list(@Query('status') status?:string){return this.service.adminList(status)}
+ @Get('duplicates/preview')
+ previewDuplicates(@Query('sourceId') sourceId:string,@Query('targetId') targetId:string){
+  return this.service.previewDuplicates(sourceId,targetId);
+ }
  @Patch(':requestId')
  review(@Req() request:AuthenticatedRequest,@Param('requestId') requestId:string,@Body() body:ReviewLinkDto){
   return this.service.review(requestId,request.user.sub,body.decision,body.reason,body.ownershipVerified===true);
