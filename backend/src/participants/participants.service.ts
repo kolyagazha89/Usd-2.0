@@ -14,6 +14,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegistrationCountry } from '../generated/prisma/enums';
 import { isValidInternationalPhone, isValidRegistrationPlate } from './profile-validation';
+import { assertVehicleCatalogSelection } from './vehicle-catalog-validation';
 
 @Injectable()
 export class ParticipantsService {
@@ -1349,6 +1350,13 @@ export class ParticipantsService {
         'Модель автомобиля обязательна',
       );
 
+    // New cars must use the active, administratively managed vehicle catalog.
+    // Return canonical display spelling instead of trusting arbitrary text.
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' }, select: { catalogs: true },
+    });
+    const selectedVehicle = assertVehicleCatalogSelection(settings?.catalogs,brand,model);
+
     const registrationNumber =
       this.requiredText(
         body.registrationNumber,
@@ -1376,8 +1384,8 @@ export class ParticipantsService {
       return tx.car.create({
       data: {
         participantId,
-        brand,
-        model,
+        brand: selectedVehicle.brand,
+        model: selectedVehicle.model,
         registrationCountry,
         registrationNumber:
           normalizedRegistrationNumber,
@@ -1610,6 +1618,22 @@ export class ParticipantsService {
           body.model,
           'Модель автомобиля не может быть пустой',
         );
+    }
+
+    if (body.brand !== undefined || body.model !== undefined) {
+      const settings = await this.prisma.siteSettings.findUnique({
+        where: { id: 'default' }, select: { catalogs: true },
+      });
+      // Existing historic cars may remain unchanged. A modified make/model
+      // pair must resolve to a currently active catalog entry on the server.
+      const selectedVehicle = assertVehicleCatalogSelection(
+        settings?.catalogs,
+        data.brand ?? car.brand,
+        data.model ?? car.model,
+        { brand: car.brand, model: car.model },
+      );
+      data.brand = selectedVehicle.brand;
+      data.model = selectedVehicle.model;
     }
 
     const countryChanged =
