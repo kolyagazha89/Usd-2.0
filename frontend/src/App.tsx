@@ -513,7 +513,7 @@ function ParticipantCarPage({carId,go,user,onLogout}:{carId:string;go:(path:stri
  const load=async()=>{setLoading(true);setError('');if(carId==='new'){originalVehicle.current=null;setCar({brand:'',model:'',registrationCountry:'RU',registrationNumber:'',color:'',isPublic:true,configurations:[]});setLoading(false);return}try{const response=await apiGet<any>('/participants/me/cars');const rows=listData<any>(response);const found=rows.find((item:any)=>item.id===carId);if(!found)throw new Error('Автомобиль не найден или у вас нет доступа к нему');let photoUrl=found.photoUrl;if(photoUrl){try{photoUrl=await getMediaUrl('CAR_PHOTO',found.id)}catch{}}rememberPhotoUrl(photoUrl);originalVehicle.current={brand:found.brand,model:found.model};setCar({...found,photoUrl})}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить автомобиль')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[carId]);
  const save=async()=>{if(!car)return;if(!String(car.brand??'').trim()||!String(car.model??'').trim()){setError('Укажите марку и модель автомобиля');return}
- const match=(a:string,b:string)=>a.trim().replace(/\\s+/g,' ').toLocaleLowerCase('ru')===b.trim().replace(/\\s+/g,' ').toLocaleLowerCase('ru');
+ const match=(a:string,b:string)=>a.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru')===b.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
  const officialBrand=makes.find(make=>match(make,String(car.brand)));
  const officialModel=officialBrand?modelsFor(officialBrand).find(model=>match(model,String(car.model))):undefined;
  const unchangedHistoric=carId!=='new'&&!!originalVehicle.current&&match(originalVehicle.current.brand,String(car.brand))&&match(originalVehicle.current.model,String(car.model));
