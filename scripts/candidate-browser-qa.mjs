@@ -864,7 +864,7 @@ try{
       assert.equal(await page.locator('.historical-match-card').count(),2,'protected and eligible candidates should both appear');
       assert.equal(await page.locator('.historical-match-card .profile-match-action').count(),1,'only eligible candidate can self-link');
       assert.match(await page.locator('.historical-match-unavailable').innerText(),/Требуется подтверждение/);
-      await page.getByRole('button',{name:/Создать новый профиль/}).click();
+      await page.getByRole('button',{name:/Я не участвовал ранее.*создать новый профиль/i}).click();
       assert.equal(await page.getByRole('button',{name:/Подтвердить создание профиля/}).isDisabled(),true,'newcomer action requires explicit FIO');
       await page.getByPlaceholder('Иванов',{exact:true}).fill('Иванов');
       await page.getByPlaceholder('Иван',{exact:true}).fill('Иван');
