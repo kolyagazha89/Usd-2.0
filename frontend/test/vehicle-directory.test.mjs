@@ -35,7 +35,7 @@ test('invalid CSV and oversized inputs fail closed without creating suggestions'
  assert.throws(()=>parseVehicleDirectoryCsv('x'.repeat(MAX_VEHICLE_CSV_BYTES+1)),/превышает/);
 });
 
-test('all car forms use catalog suggestions; inspection enforces selected make and model',async()=>{
+test('all car forms enforce catalog selection; inspection enforces selected make and model',async()=>{
  const [admin,member,gate,hook]=await Promise.all([
   readFile(new URL('../src/admin/CarsPage.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/App.tsx',import.meta.url),'utf8'),
@@ -47,8 +47,9 @@ test('all car forms use catalog suggestions; inspection enforces selected make a
   assert.match(file,/modelsFor\(/);
  }
  for(const file of [admin,member]){
-  assert.match(file,/<datalist/);
-  assert.match(file,/list="usd-/);
+  assert.match(file,/<select/);
+  assert.match(file,/selectedModel/);
+  assert.match(file,/modelsFor\(/);
  }
  assert.match(gate,/<SearchableSelect value=\{newBrand\}/);
  assert.match(gate,/<SearchableSelect value=\{newModel\}/);
@@ -59,4 +60,6 @@ test('all car forms use catalog suggestions; inspection enforces selected make a
  assert.match(admin,/onChange=\{e=>setV\(\{\.\.\.v,brand:e\.target\.value/);
  assert.match(gate,/setNewBrand\(value\);setNewModel\(''\)/);
  assert.match(member,/brand:e\.target\.value,model:''/);
+ assert.match(member,/Выберите марку и модель из справочника USD/);
+ assert.match(admin,/Произвольный текст не сохраняется/);
 });
