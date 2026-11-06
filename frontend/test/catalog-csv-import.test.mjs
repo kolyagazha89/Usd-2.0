@@ -79,8 +79,7 @@ test('official audio CSV can be prepared inside admin without a separate manual 
   readFile(new URL('../public/catalogs/usd_audio.csv',import.meta.url),'utf8'),
   readFile(new URL('../src/admin/CatalogPage.tsx',import.meta.url),'utf8'),
  ]);
- const canonical=csv=>parseAudioCatalogCsv(csv).map(row=>`${row.category}\u0000${row.brand}\u0000${row.model}`).sort();
- assert.deepEqual(canonical(bundled),canonical(source),'admin seed must contain the reviewed official models regardless of BOM and row ordering');
+ assert.equal(source,bundled,'admin seed must be the reviewed official export');
  const rows=parseAudioCatalogCsv(bundled);
  assert.ok(rows.length>=3388,'reviewed catalog must not lose its existing models');
  const planned=planAudioCatalogImport({},rows,()=> 'new-id');
