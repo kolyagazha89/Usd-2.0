@@ -1,5 +1,6 @@
 export type RegistrationPassData={
  id:string;stageId?:string;status:string;participantNumber?:number;
+ stageInspection?:{status:string}|null;inspection?:{status:string}|null;
  participant?:{firstName?:string;lastName?:string;middleName?:string};
  stage?:{id:string;name?:string;date?:string;city?:string;venue?:string;address?:string};
  car?:{brand?:string;model?:string;registrationNumber?:string};
