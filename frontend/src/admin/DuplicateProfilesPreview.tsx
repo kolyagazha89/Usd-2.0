@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useId,useMemo,useState} from 'react';
 import {apiGet,listData} from '../api';
 
 type Candidate={id:string;lastName:string;firstName:string;middleName?:string|null;birthDate?:string|null};
@@ -13,21 +13,21 @@ type Preview={
 const fullName=(item:Candidate)=>[item.lastName,item.firstName,item.middleName].filter(Boolean).join(' ');
 function PersonPicker({label,candidates,value,onChange}:{label:string;candidates:Candidate[];value:string;onChange:(id:string)=>void}){
  const [query,setQuery]=useState(''),[active,setActive]=useState(false);
+ const listId=useId();
  const selected=candidates.find(candidate=>candidate.id===value);
  const matches=useMemo(()=>{
   const term=query.trim().toLocaleLowerCase('ru');
   if(term.length<2)return [];
   return candidates.filter(item=>(fullName(item)+' '+item.id).toLocaleLowerCase('ru').includes(term)).slice(0,9);
  },[candidates,query]);
- return <div className="duplicate-choose-profile">
+ return <div className="duplicate-choose-profile" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setActive(false)}}>
   <label>{label}
    <input type="search" value={active?query:selected?fullName(selected)+' · '+selected.id.slice(0,8):query}
-    placeholder="Введите фамилию или имя…" autoComplete="off"
+    placeholder="Введите фамилию или имя…" autoComplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls={listId} aria-expanded={active&&matches.length>0}
     onFocus={()=>{setActive(true);if(selected)setQuery('')}}
-    onChange={e=>{setActive(true);setQuery(e.target.value);onChange('')}}
-    onBlur={()=>setActive(false)}/>
+    onChange={e=>{setActive(true);setQuery(e.target.value);onChange('')}}/>
   </label>
-  {active&&matches.length>0&&<ul role="listbox" aria-label={label}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
+  {active&&matches.length>0&&<ul id={listId} role="listbox" aria-label={label}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
    onPointerDown={event=>event.preventDefault()}
    onMouseDown={event=>event.preventDefault()}
    onClick={()=>{onChange(candidate.id);setQuery(fullName(candidate)+' · '+candidate.id.slice(0,8));setActive(false)}}>
