@@ -38,7 +38,6 @@ type FirstLoginOnboardingProps={
 const readableName=(c:Candidate)=>[c.lastName,c.firstName,c.middleName].filter(Boolean).join(' ')||'Участник USD';
 const readableCar=(car:NonNullable<Candidate['cars']>[number])=>
  [car.brand,car.model].filter(Boolean).join(' ')+(car.registrationNumber?' · '+car.registrationNumber:'');
-const canOfferNewProfile=(name:string)=>name.trim().split(/\s+/).filter(Boolean).length>=2;
 
 export default function FirstLoginOnboarding({
  email,portalLogo,canAccessAdmin,searchName,candidates,loading,hasSearchedProfiles,
@@ -47,7 +46,7 @@ export default function FirstLoginOnboarding({
  onNewLastNameChange,onNewFirstNameChange,onNewMiddleNameChange,
 }:FirstLoginOnboardingProps){
  const searched=hasSearchedProfiles&&!loading;
- const canCreate=searched&&canOfferNewProfile(searchName);
+ const canCreate=true;
  const searchReady=searchName.trim().length>=2;
  return <div className="profile-match-page usd-member">
   <div className="profile-match-shell">
@@ -133,15 +132,15 @@ export default function FirstLoginOnboarding({
     </section>}
 
     {canCreate&&<section className="profile-match-new" aria-labelledby="profile-match-new-title">
-     <div className="profile-match-new-heading"><span className="profile-match-new-icon"><UserRoundPlus size={23} aria-hidden="true"/></span><div><span className="profile-match-section-kicker">НОВЫЙ УЧАСТНИК</span><h2 id="profile-match-new-title">Впервые в USD?</h2><p>Если ни один найденный профиль не ваш, создайте новый. Предыдущие выступления другого участника к нему не добавятся.</p></div></div>
+     <div className="profile-match-new-heading"><span className="profile-match-new-icon"><UserRoundPlus size={23} aria-hidden="true"/></span><div><span className="profile-match-section-kicker">НОВЫЙ УЧАСТНИК</span><h2 id="profile-match-new-title">Впервые в USD?</h2><p>Если вы никогда не участвовали в USD, создайте новый профиль. Если выступали раньше, сначала найдите свою историю через поиск выше.</p></div></div>
      {confirmNewProfile&&<div className="profile-match-new-fields">
       <label>Фамилия<input value={newLastName} onChange={e=>onNewLastNameChange(e.target.value)} autoComplete="family-name" placeholder="Иванов" required/></label>
       <label>Имя<input value={newFirstName} onChange={e=>onNewFirstNameChange(e.target.value)} autoComplete="given-name" placeholder="Иван" required/></label>
       <label>Отчество (необязательно)<input value={newMiddleName} onChange={e=>onNewMiddleNameChange(e.target.value)} autoComplete="additional-name" placeholder="Иванович"/></label>
-      <p role="status" className="profile-match-new-warning"><ShieldCheck size={17} aria-hidden="true"/> Создаётся отдельный профиль. Убедитесь, что выбранные выше записи действительно вам не принадлежат.</p>
+      <p role="status" className="profile-match-new-warning"><ShieldCheck size={17} aria-hidden="true"/> Создаётся отдельный профиль. Если вы уже участвовали, отмените создание и найдите существующий профиль.</p>
      </div>}
      <div className="profile-match-new-actions">
-      <button type="button" className={confirmNewProfile?'primary-button':'secondary-button'} onClick={onCreate} disabled={loading||confirmNewProfile&&(!newLastName.trim()||!newFirstName.trim())}>{confirmNewProfile?'Подтвердить создание профиля':'Создать новый профиль'} <ArrowRight size={18} aria-hidden="true"/></button>
+      <button type="button" className={confirmNewProfile?'primary-button':'secondary-button'} onClick={onCreate} disabled={loading||confirmNewProfile&&(!newLastName.trim()||!newFirstName.trim())}>{confirmNewProfile?'Подтвердить создание профиля':'Я не участвовал ранее — создать новый профиль'} <ArrowRight size={18} aria-hidden="true"/></button>
       {confirmNewProfile&&<button type="button" className="profile-match-cancel" onClick={onCancelCreate}>Вернуться к найденным</button>}
      </div>
     </section>}
