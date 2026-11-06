@@ -1,3 +1,4 @@
+import './profile-links.css';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch} from '../api';
 
