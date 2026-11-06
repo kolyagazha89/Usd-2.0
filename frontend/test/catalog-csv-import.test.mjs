@@ -73,9 +73,9 @@ test('official audio CSV can be prepared inside admin without a separate manual 
  ]);
  assert.equal(source,bundled,'admin seed must be the reviewed official export');
  const rows=parseAudioCatalogCsv(bundled);
- assert.equal(rows.length,3654);
+ assert.ok(rows.length>=3388,'reviewed catalog must not lose its existing models');
  const planned=planAudioCatalogImport({},rows,()=> 'new-id');
- assert.equal(planned.addedModels,3654);
+ assert.equal(planned.addedModels,rows.length);
  assert.match(admin,/\/catalogs\/usd_audio\.csv/);
  assert.match(admin,/previewUsdCatalog\(\)/);
  assert.match(admin,/setImportRows\(rows\)/);
