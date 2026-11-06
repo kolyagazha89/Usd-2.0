@@ -366,7 +366,7 @@ try{
       await flow.getByRole('alert').filter({hasText:'марку и модель'}).waitFor();
       await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
       // Support both mobile native selectors and searchable catalog comboboxes.
-      for(const [label,value] of [['Марка','Lada'],['Модель','Vesta']]){
+      for(const [label,value] of [['Марка','Лада'],['Модель','Веста']]){
        const field=flow.getByLabel(label,{exact:true});
        if(await field.evaluate(element=>element.tagName.toLowerCase()==='select')){
         await field.selectOption({label:value});
