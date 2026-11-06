@@ -118,7 +118,17 @@ def check_additive_sql(sql: str) -> None:
                     rf"CONSTRAINT\s+{IDENT}\s+PRIMARY KEY\s*\(\s*{NAMES}\s*\)",
                     item, re.I
                 )
-                if not (column or primary):
+                # Constrained status enums on a BRAND NEW table are additive:
+                # they cannot modify historical rows or objects. Only literal
+                # safe ASCII values are allowed; no expressions or functions.
+                # An ALTER CHECK on an existing table remains forbidden.
+                literal = r"'[A-Za-z0-9_ -]{1,64}'"
+                enum_check = re.fullmatch(
+                    rf"CONSTRAINT\s+{IDENT}\s+CHECK\s*\(\s*{IDENT}\s+IN\s*"
+                    rf"\(\s*{literal}(?:\s*,\s*{literal}){{1,31}}\s*\)\s*\)",
+                    item, re.I,
+                )
+                if not (column or primary or enum_check):
                     raise ValueError("Unsafe CREATE TABLE definition")
     approved = 0
     for statement in statements:

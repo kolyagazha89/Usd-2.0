@@ -49,6 +49,34 @@ class SafeSqlTests(unittest.TestCase):
               FOREIGN KEY ("id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
         """)
 
+    def test_existing_profile_link_migration_has_safe_new_table_enum(self):
+        sql = (Path(__file__).parents[2] /
+               "backend/prisma/migrations/20261106153000_profile_link_requests/migration.sql").read_text()
+        # This migration is already merged. Its checksum MUST NOT change.
+        # Accept a literal status enum only on this new table, preserving the
+        # strict no-alter/no-data-rewrite release policy.
+        module.check_additive_sql(sql)
+
+    def test_bounded_enum_checks_reject_expressions_and_existing_table_changes(self):
+        valid = """CREATE TABLE "SafeEnum" (
+            "id" TEXT NOT NULL,
+            "status" TEXT NOT NULL,
+            CONSTRAINT "SafeEnum_status_check" CHECK ("status" IN ('PENDING', 'APPROVED'))
+        );"""
+        module.check_additive_sql(valid)
+        unsafe = [
+            valid.replace("'APPROVED'", "'APPROVED' OR TRUE"),
+            valid.replace("'APPROVED'", """'APPROVED'); DROP TABLE "User"; --"""),
+            valid.replace('"status" IN', '"status" NOT IN'),
+            valid.replace("'APPROVED'", "current_user"),
+            valid.replace("'APPROVED'", "'APPROVED' || 'ROOT'"),
+            valid.replace("IN ('PENDING', 'APPROVED')", "IN ('PENDING')"),
+            'ALTER TABLE "User" ADD CONSTRAINT "User_status_check" CHECK ("status" IN (\'PENDING\', \'APPROVED\'));',
+        ]
+        for sql in unsafe:
+            with self.subTest(sql=sql), self.assertRaises(ValueError):
+                module.check_additive_sql(sql)
+
     def test_nullable_added_column_on_old_table(self):
         module.check_additive_sql('ALTER TABLE "Participant" ADD COLUMN "nickname" TEXT;')
         module.check_additive_sql('ALTER TABLE "Participant" ADD COLUMN "rating" DECIMAL(12,2) NULL;')
