@@ -41,14 +41,14 @@ describe('Car plate identity under concurrent registrations',()=>{
   return {prisma,tx,rows};
  };
  const payload=(registrationNumber:string)=>({
-  brand:'Lada',model:'Vesta',registrationCountry:'RU' as const,registrationNumber,
+  brand:'Лада',model:'Веста',registrationCountry:'RU' as const,registrationNumber,
  });
  it('refuses arbitrary vehicle names on car creation and editing before any write',async()=>{
   const {prisma,tx,rows}=makeDb(),service=new ParticipantsService(prisma);
   await expect((service as any).createCarInternal('p1',{...payload('А456ВС72'),brand:'Not-listed',model:'Something'}))
    .rejects.toBeInstanceOf(BadRequestException);
   expect(tx.car.create).not.toHaveBeenCalled();
-  rows.push({id:'car-A',participantId:'p1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А456ВС72'});
+  rows.push({id:'car-A',participantId:'p1',brand:'Лада',model:'Веста',registrationCountry:'RU',registrationNumber:'А456ВС72'});
   await expect(service.updateCar(actor,'car-A',{model:'Made-up'}))
    .rejects.toBeInstanceOf(BadRequestException);
   expect(tx.car.update).not.toHaveBeenCalled();
