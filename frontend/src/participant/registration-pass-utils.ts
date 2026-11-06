@@ -6,7 +6,7 @@ export type RegistrationPassData={
  numbers?:Array<{id:string;number:number;isPrimary?:boolean}>;
  classes?:Array<{id:string;numberId?:string;number?:{number:number};class?:{name?:string;direction?:{name?:string}}}>;
 };
-const titleName=(data:RegistrationPassData)=>[data.participant?.lastName,data.participant?.firstName,data.participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
+export const titleName=(data:RegistrationPassData)=>[data.participant?.lastName,data.participant?.firstName,data.participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
 export const registrationInspectionQrUrl=(origin:string,data:RegistrationPassData)=>
  origin+'/admin/inspections?stageId='+encodeURIComponent(data.stageId||data.stage?.id||'')+'&registrationId='+encodeURIComponent(data.id);
 export const registrationNumbers=(data:RegistrationPassData)=>
