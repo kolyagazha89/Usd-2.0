@@ -67,3 +67,34 @@ test('report routing and scoped print layout are present',async()=>{
  assert.match(css,/\.usd-stage-report-page/);
  assert.ok(qa.includes('/admin/stage-report?stageId=stage1'));
 });
+
+test('report groups shuffled classes and podiums under canonical USD directions',()=>{
+ const x=buildStageReport({...fixture,stats:{...fixture.stats,
+  registrationClasses:[
+   {class:{id:'bass',name:'139.9',direction:{name:'BassRace'}},registrations:1,participants:1,cars:1},
+   {class:{id:'b',name:'Gate 1',direction:{name:'BFSPL'}},registrations:1,participants:1,cars:1},
+   {class:{id:'spl2',name:'Wall',direction:{name:'SPL'}},registrations:2,participants:2,cars:2},
+   {class:{id:'a',name:'Limited 2.0',direction:{name:'SPL'}},registrations:2,participants:2,cars:2},
+  ],
+  classResults:[
+   {class:{name:'Gate 1',direction:{name:'BFSPL'}},results:[{id:'b1',place:1,participantNumber:1,value:123,unit:'DB'}]},
+   {class:{name:'Limited 2.0',direction:{name:'SPL'}},results:[{id:'a1',place:1,participantNumber:2,value:151,unit:'DB'}]},
+  ],
+ }});
+ assert.deepEqual(x.classGroups.map(group=>group.direction),['SPL','BFSPL','BassRace']);
+ assert.deepEqual(x.classGroups[0].rows.map(row=>row.name),['Limited 2.0','Wall']);
+ assert.deepEqual(x.directions.map(row=>row.direction),['SPL','BFSPL','BassRace']);
+ assert.deepEqual(x.podiumGroups.map(group=>group.direction),['SPL','BFSPL']);
+});
+test('stage report renders direction group headings in light admin layout',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const [page,css]=await Promise.all([
+  readFile(new URL('../src/admin/StageReportPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/admin/stage-report.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(page,/report\.classGroups\.map\(/);
+ assert.match(page,/report\.podiumGroups\.map\(/);
+ assert.match(page,/usd-report-group-row/);
+ assert.match(css,/background:linear-gradient\(115deg,#fff,#f7f8fa\)/);
+ assert.doesNotMatch(css,/background:linear-gradient\(115deg,#191b22,#29252c\)/);
+});
