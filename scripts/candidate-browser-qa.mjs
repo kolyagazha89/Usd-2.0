@@ -365,8 +365,7 @@ try{
       await flow.getByRole('button',{name:/Продолжить/}).click();
       await flow.getByRole('alert').filter({hasText:'марку и модель'}).waitFor();
       await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
-      // Car catalog fields may be a native select (mobile) or an accessible
-      // combobox. Exercise whichever verified control the editor renders.
+      // Support both mobile native selectors and searchable catalog comboboxes.
       for(const [label,value] of [['Марка','Лада'],['Модель','Веста']]){
        const field=flow.getByLabel(label,{exact:true});
        if(await field.evaluate(element=>element.tagName.toLowerCase()==='select')){

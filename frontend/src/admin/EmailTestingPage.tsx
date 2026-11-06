@@ -60,9 +60,9 @@ export default function EmailTestingPage({PageFrame,PanelTitle}:{PageFrame:React
     <div><strong>{status?.provider??'Проверяем почту'}</strong><button type="button" className="secondary-button compact" disabled={checking} onClick={()=>void refreshStatus()}>{checking?'Проверяем…':'Обновить статус'}</button></div>
     {status&&<><p>{status.note}</p>{status.missing.length>0&&<p><b>Нужно настроить на Ubuntu:</b> {status.missing.join(', ')}</p>}</>}
     {statusError&&<p>Диагностика недоступна. Проверьте API и опубликованную версию.</p>}
-    {status?.ready&&<small>Настройки заполнены, но соединение с SMTP и доставка писем пока не проверены.</small>}
+    {status?.ready&&<small>Почтовый канал настроен. Для проверки отправьте тестовое письмо и убедитесь, что оно пришло.</small>}
    </div>
-   <p className="settings-help">В релизе через почту отправляем только подтверждение email, восстановление пароля и смену адреса. Анонсы, напоминания и события этапов отправляются через PUSH, без массовых email-рассылок.</p>
+   <p className="settings-help">Почта USD используется для подтверждения аккаунтов и системных уведомлений. Доступные сценарии и шаблоны управляются настройками USD; перед публикацией проверьте отправку и внешний вид каждого письма.</p>
    <div className="button-row"><button type="button" className="secondary-button" disabled={!status?.ready||connecting} onClick={()=>void checkConnection()}><ShieldCheck size={16}/>{connecting?'Проверяем SMTP…':'Проверить SMTP и пароль приложения'}</button></div>
    {connectionNotice&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{connectionNotice}</span></div>}
   </div>

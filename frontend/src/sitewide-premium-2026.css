@@ -590,3 +590,106 @@ body .participant-portal.usd-member .team-photo-list li :is(span,button) {
   scroll-margin-top:calc(66px + 20px);
  }
 }
+
+/* Release mobile navigation: fixed viewport anchors, including iOS safe areas. */
+body .usd-live .p-public-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 110 !important;
+}
+body > .u-mobile-dock {
+  position: fixed !important;
+  inset-inline: 0 !important;
+  bottom: 0 !important;
+  z-index: 120 !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* The authentication canvas must not reveal a white page behind the card. */
+html:has(.login-page.usd-auth),
+body:has(.login-page.usd-auth),
+#root:has(.login-page.usd-auth) {
+  background: #090d14 !important;
+}
+body .login-page.usd-auth {
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+/* A fixed header is independent of transformed/overflowing page sections.
+ * Sticky positioning can detach on iOS Safari when the home content animates. */
+body .usd-live {
+  --usd-public-header-size:74px;
+  padding-top:var(--usd-public-header-size);
+}
+body .usd-live .p-public-header {
+  position:fixed!important;
+  top:0!important;
+  inset-inline:0!important;
+  width:100%!important;
+  z-index:110!important;
+}
+@media(max-width:740px) {
+ body .usd-live { --usd-public-header-size:62px; }
+}
+@media(max-width:740px) {
+ body:has(.usd-live):has(> .u-mobile-dock) .usd-live {
+  padding-bottom:calc(66px + env(safe-area-inset-bottom,0px));
+ }
+}
+/* Explicit Safari-safe search results instead of unsupported datalist popups. */
+.vehicle-catalog-field {
+ position:relative;
+ display:flex;
+ flex-direction:column;
+ gap:7px;
+ min-width:0;
+ z-index:1;
+}
+.vehicle-catalog-field:focus-within { z-index:70; }
+.vehicle-catalog-field>label { font-weight:600; }
+.vehicle-catalog-field>input { box-sizing:border-box; width:100%; min-width:0; }
+.vehicle-catalog-suggestions {
+ position:absolute;
+ left:0;right:0;top:100%;
+ z-index:80;
+ max-height:min(270px,42dvh);
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ padding:5px;
+ margin:4px 0 0;
+ list-style:none;
+ background:#151e29;
+ color:#f7f8fb;
+ border:1px solid rgba(216,230,247,.30);
+ border-radius:12px;
+ box-shadow:0 18px 45px rgba(0,0,0,.40);
+ -webkit-overflow-scrolling:touch;
+}
+.vehicle-catalog-suggestions li { margin:0; padding:0; list-style:none; }
+.vehicle-catalog-suggestions button {
+ display:block;width:100%;padding:11px 12px;
+ border:0;border-radius:8px;text-align:left;
+ font:inherit;font-size:15px;cursor:pointer;
+ background:transparent;color:inherit;
+}
+.vehicle-catalog-suggestions li[aria-selected="true"] button,
+.vehicle-catalog-suggestions button:hover,
+.vehicle-catalog-suggestions button:focus-visible {
+ background:rgba(228,47,70,.18);
+ color:#fff;
+ outline:none;
+}
+body .app-shell .vehicle-catalog-suggestions,
+body .admin-shell .vehicle-catalog-suggestions {
+ background:#fff;
+ color:#25313f;
+ border-color:#cfd6df;
+ box-shadow:0 15px 40px rgba(16,24,40,.16);
+}
+body .app-shell .vehicle-catalog-suggestions li[aria-selected="true"] button,
+body .admin-shell .vehicle-catalog-suggestions li[aria-selected="true"] button,
+body .app-shell .vehicle-catalog-suggestions button:hover,
+body .admin-shell .vehicle-catalog-suggestions button:hover {
+ color:#90152b;
+ background:#fff0f2;
+}

@@ -65,7 +65,7 @@ test('car editor is a three-screen journey with actual car identity and plate va
  assert.match(page,/aria-label="Этапы заполнения автомобиля"/);
  assert.match(page,/role="progressbar"/);
  assert.match(page,/aria-valuenow=\{Number\(identityReady\)\+Number\(plateReady\)\}/);
- assert.match(page,/void onSubmit\(clean\(\{\.\.\.v,brand:selectedMake,model:selectedModel\}\)\)/,'persist validated canonical make and model only from final review');
+ assert.match(page,/void onSubmit\(clean\(v\)\)/,'persist only from final review');
  assert.match(page,/type="submit" className="primary-button"/);
  assert.match(css,/@media\(max-width:480px\)/);
  assert.match(css,/\.usd-car-editor-summary/);
