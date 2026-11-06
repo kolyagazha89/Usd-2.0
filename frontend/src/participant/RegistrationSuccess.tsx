@@ -16,7 +16,7 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
  const copyUsdId=async()=>{if(!usdId)return;try{await navigator.clipboard.writeText(usdId);setNotice('USD ID скопирован')}catch{setNotice('Не удалось скопировать USD ID. Выделите его и скопируйте вручную.')}};
  const saveQr=()=>{const svg=document.getElementById(svgId);if(!(svg instanceof SVGSVGElement)){setNotice('QR-код пока не готов');return}
   const source=new XMLSerializer().serializeToString(svg);const file=new Blob([source],{type:'image/svg+xml;charset=utf-8'});
-  const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download='USD-pass-'+String(registration.participantNumber||registration.id.slice(0,8))+'.svg';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);setNotice('QR-код сохранён');
+  const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download='USD-pass-'+String(registration.participantNumber||registration.id.slice(0,8))+'.svg';document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1500);setNotice('QR-код сохранён');
  };
  const qr=registrationInspectionQrUrl(window.location.origin,registration);
  const numbers=registrationNumbers(registration);
