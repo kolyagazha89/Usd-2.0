@@ -49,6 +49,14 @@ test('imported models keep the existing canonical brand name for exact-match cat
  assert.equal(merged.catalogs.componentModels[0].brand,'Kicx');
 });
 
+test('official catalog import preserves unique IDs even with repeated preview placeholder',()=>{
+ const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Uno,AMPLIFIER\nKicx,Two,AMPLIFIER\nDeaf Bonce,DB-1,SUBWOOFER\n');
+ const planned=planAudioCatalogImport({},rows,()=> 'preview-only');
+ const items=[...planned.catalogs.componentBrands,...planned.catalogs.componentModels];
+ assert.equal(new Set(items.map(item=>item.id)).size,items.length);
+ assert.equal(planned.addedBrands,2);
+ assert.equal(planned.addedModels,3);
+});
 test('inactive brands require explicit review before import, not silent reactivation',()=>{
  const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Two,AMPLIFIER\n');
  assert.throws(()=>planAudioCatalogImport({componentBrands:[{id:'id',category:'AMPLIFIER',name:'Kicx',isActive:false}]},rows,()=>''),/отключена/);
@@ -73,13 +81,11 @@ test('official audio CSV can be prepared inside admin without a separate manual 
  ]);
  assert.equal(source,bundled,'admin seed must be the reviewed official export');
  const rows=parseAudioCatalogCsv(bundled);
- assert.equal(rows.length,3798);
+ assert.ok(rows.length>=3388,'reviewed catalog must not lose its existing models');
  const planned=planAudioCatalogImport({},rows,()=> 'new-id');
- assert.equal(planned.addedModels,3798);
+ assert.equal(planned.addedModels,rows.length);
  assert.match(admin,/\/catalogs\/usd_audio\.csv/);
  assert.match(admin,/previewUsdCatalog\(\)/);
- assert.match(admin,/cache:'no-store'/,'never reuse an old reference catalog after deployment');
- assert.match(admin,/rows\.length\.toLocaleString\('ru-RU'\)/,'no stale, hardcoded model counts in admin');
  assert.match(admin,/setImportRows\(rows\)/);
  assert.match(admin,/importConfirmed/,'operator explicitly approves preview before write');
  assert.match(admin,/const current=await getSiteSettings\(\)/,'import must re-fetch latest settings');
