@@ -2,12 +2,13 @@ import { PushModule } from '../push/push.module';
 import { Module } from '@nestjs/common';
 import { StagesController } from './stages.controller';
 import { StagesService } from './stages.service';
+import { VenueStageService } from './venue-stage.service';
 import { SiteSettingsModule } from '../site-settings/site-settings.module';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [SiteSettingsModule, MailModule, PushModule],
   controllers: [StagesController],
-  providers: [StagesService],
+  providers: [StagesService, VenueStageService],
 })
 export class StagesModule {}

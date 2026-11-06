@@ -6,6 +6,55 @@ RustFS bucket**, with no upstream Internet required during the event. The shared
 LAN hub is the source of on-site state. A phone's isolated encrypted browser
 package is an emergency *fallback*, never the primary judge workflow.
 
+## Stage-only handoff (signed export; NO automated import yet)
+
+The primary Ubuntu server can now create a **read-only, 72-hour, stage-only**
+JSON snapshot for the venue laptop. The Admin-only endpoint is
+`GET /stages/venue/<stage UUID>/export`, accessible in
+**Админка → День соревнований → Скачать пакет для ноутбука (LAN)**.
+Every export records a central audit event; it does not write the venue database.
+
+The file includes only the selected stage, selected classes, active entrants,
+their names, plate numbers, cars, configuration snapshots, assigned sticker
+numbers, inspections and already-entered scores. It excludes passwords,
+session tokens, emails, phone numbers, birth dates, and all unrelated stages.
+
+**Prepare signing keys independently of the laptop.** On trusted Ubuntu only:
+
+```bash
+sudo install -d -m 0700 /etc/usd-venue-export
+sudo openssl genpkey -algorithm ED25519 -out /etc/usd-venue-export/signing-private.pem
+sudo chmod 0600 /etc/usd-venue-export/signing-private.pem
+sudo openssl pkey -in /etc/usd-venue-export/signing-private.pem -pubout -out /etc/usd-venue-export/signing-public.pem
+# Store the base64 PEM as VENUE_STAGE_SIGNING_KEY_B64 in the protected Ubuntu
+# API environment with root-only permission (do not put it in git or logs).
+# The laptop gets ONLY signing-public.pem; never the private key.
+```
+
+This opt-in backend variable is deliberately **unset by default**: without a
+private key the endpoint returns HTTP 503. Configure and redeploy the API using
+the normal CI/backup/schema gates. Never copy any USD production JWT/S3/DB
+credentials to the venue laptop.
+
+After the ADMIN downloads a JSON package through HTTPS, transfer it to the
+laptop over an encrypted/trusted medium. In `deploy/venue-lan` run:
+
+```bash
+node verify-stage-package.mjs ./stage-file.json ./signing-public.pem
+```
+
+The verifier checks Ed25519 signature, payload SHA-256, public-key fingerprint,
+short validity window, origin stage consistency, numbers/class references and
+absence of account-secret fields. **Verification prints only a short stage
+summary and NEVER imports or modifies database records.** The operator must
+retain both file and public key securely and should not distribute the JSON
+through a public web link or messaging group.
+
+**Hard blocker:** this release does NOT yet implement a supervised
+stage-scoped venue PostgreSQL importer, local staff account setup,
+full bidirectional registration/inspection/result sync, conflict review
+or final physical two-judge acceptance. Do not use it to judge a live event.
+
 ## What this commit sets up
 
 - Separate `usd-venue` Docker Compose project with isolated PostgreSQL 18

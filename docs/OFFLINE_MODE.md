@@ -2,6 +2,8 @@
 
 Status: **partial P0 implementation since PR #402; explicit authenticated inspection replay added in the follow-up; full offline-event readiness NOT achieved.**
 
+**Signed stage package progress:** ADMIN now has an explicit export of a stage-scoped, Ed25519-signed 72-hour JSON snapshot with no account credentials and central audit; laptop CLI verifies integrity/expiry/references read-only. This is a **handoff foundation only**, not an operational importer or online/offline sync. The signing private key must be provisioned on trusted Ubuntu out-of-band; the venue laptop receives the public key only. See `deploy/venue-lan/README.md`.
+
 **Primary target confirmed:** one laptop running a USD local server and database, with judges' phones connected through a dedicated Wi-Fi router **without internet**. A shared venue DB is the authoritative on-site copy. The per-device encrypted IndexedDB pilot below is a *backup only*, not a replacement for the LAN hub. The first LAN container/bootstrap scaffold is in `deploy/venue-lan/`; it has **no supported stage data import, authoritatively reconciled sync, or disconnected multi-judge acceptance yet**, so it must not be used as the official event server.
 
 ### Implemented pilot — encrypted local inspection drafts

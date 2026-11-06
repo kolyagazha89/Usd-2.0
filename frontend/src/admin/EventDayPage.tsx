@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
+import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Download,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {judgingNumbers,judgingResultLink} from './results-operations-model';
 import {isPendingEquipment,walkInRegistrationPath} from './event-ops-model';
@@ -37,12 +37,13 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
  const [search,setSearch]=useState(''),[filter,setFilter]=useState<DayStatus>('ALL');
  const [savingId,setSavingId]=useState(''),[confirmPass,setConfirmPass]=useState('');
  const [failId,setFailId]=useState(''),[failureReason,setFailureReason]=useState('');
- const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false);
+ const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false),[venueExporting,setVenueExporting]=useState(false);
  const requestId=useRef(0);
  const canList=hasDayPermission(user,'registrations','view');
  const canSeeInspections=hasDayPermission(user,'inspections','view');
  const canRegister=hasDayPermission(user,'registrations','create')&&canSeeInspections;
  const canPrepareOffline=hasDayPermission(user,'inspections','create')&&canSeeInspections;
+ const canExportVenue=user.role==='ADMIN'&&canList;
  const canSeeResults=hasDayPermission(user,'results','view');
  const canEnterResult=hasDayPermission(user,'results','create')&&canSeeResults;
  const selected=stages.find(s=>s.id===stageId);
@@ -109,6 +110,25 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
   }catch(e){setError(displayError(e,'Не удалось зашифровать пакет. Возможно, на устройстве уже есть сохранённые черновики.'))}
   finally{setOfflineSaving(false)}
  };
+
+ const downloadVenuePackage=async()=>{
+  if(!selected||venueExporting||loading||!canExportVenue)return;
+  setVenueExporting(true);setError('');setNotice('');
+  try{
+   const data=await apiGet<{snapshot:{stageId:string;expiresAt:string};integrity:{signature:string;sha256:string}}>(
+    '/stages/venue/'+encodeURIComponent(selected.id)+'/export');
+   if(data?.snapshot?.stageId!==selected.id||!data?.integrity?.signature||!data?.integrity?.sha256)
+    throw new Error('Сервер не подтвердил целостность пакета площадки');
+   const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+   const url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;link.download='usd-venue-stage-'+selected.id+'.json';
+   document.body.appendChild(link);
+   try{link.click()}finally{link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),30000)}
+   setNotice('Подписанный пакет подготовлен. Передайте файл только администратору локального сервера, проверьте подпись и срок действия. Он не импортирован автоматически.');
+  }catch(e){setError(displayError(e,'Не удалось подготовить пакет локального сервера. Проверьте подпись на Ubuntu.'))}
+  finally{setVenueExporting(false)}
+ };
  const inspectionPath=(row:DayRow)=>dayPath('/admin/inspections',stageId,row.id);
  const saveInspection=async(row:DayRow,status:'PASSED'|'FAILED')=>{
   if(!canChangeDayInspection(user,row,readOnly)||savingId)return;
@@ -161,6 +181,8 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
+      {canExportVenue&&<button type="button" className="secondary-button compact" disabled={venueExporting||loading} onClick={()=>void downloadVenuePackage()}><Download size={15}/>{venueExporting?'Подписываем пакет…':'Скачать пакет для ноутбука (LAN)'}</button>}
+      {canExportVenue&&<span className="event-day-venue-export-warning">Содержит ФИО, госномера и конфигурации. Файл действителен до 72 часов и только для защищённого LAN-сервера USD.</span>}
       {canPrepareOffline&&!readOnly&&<button type="button" className="secondary-button compact" aria-expanded={offlinePrepOpen} onClick={()=>setOfflinePrepOpen(x=>!x)}><HardDrive size={15}/>Подготовить автономный пакет</button>}
       <button type="button" className="secondary-button compact" onClick={()=>go('/offline-event')}><LockKeyhole size={15}/>Открыть локальные черновики</button>
      </div>
@@ -168,7 +190,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
     {offlinePrepOpen&&canPrepareOffline&&!readOnly&&<section className="panel event-day-offline-prepare" aria-label="Подготовка автономного пакета">
      <h3><LockKeyhole size={19}/>Защищённый пакет на это устройство</h3>
      <p>Сохранится минимум данных выбранного этапа: ФИО, автомобиль, номер, классы и текущий статус осмотра. Без телефонов, email, JWT и всей базы USD. Пакет действует 72 часа и шифруется AES-GCM.</p>
-     <p className="event-day-offline-warning">Этот первый offline-режим позволяет искать участников и сохранять черновики инспекций без интернета. Несколько судей не разделяют изменения. Отправка в API пока не реализована — решения нужно сверять и переносить вручную после восстановления связи.</p>
+     <p className="event-day-offline-warning">Это резервный офлайн-режим одного устройства. Он позволяет сохранять черновики без интернета и отправлять их через защищённый API после восстановления связи. Для нескольких судей предназначен локальный сервер на ноутбуке через Wi-Fi-роутер.</p>
      <form onSubmit={e=>{e.preventDefault();void prepareOffline()}}>
       <div className="event-day-offline-fields">
        <label>Пароль пакета (от 14 символов)<input type="password" autoComplete="new-password" minLength={14} maxLength={128} value={offlinePass} onChange={e=>setOfflinePass(e.target.value)} required/></label>
