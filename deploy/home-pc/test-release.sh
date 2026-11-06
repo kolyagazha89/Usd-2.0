@@ -7,6 +7,7 @@ OLD=1111111111111111111111111111111111111111
 NEW=2222222222222222222222222222222222222222
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
+STATUS_HELPER=/usr/local/libexec/usd-deploy-status
 TRUSTED_DIR=/etc/usd-deployer/compose
 # The mock writes to fixed paths. Refuse ANY existing fixture destination,
 # including files from a previous aborted run, before installing a mock.
@@ -32,7 +33,7 @@ LOCAL_VERIFIER=/usr/local/libexec/usd-verify-local-hdd-snapshot
   { echo "Public verifier exists; refusing disposable fixture" >&2; exit 1; }
 [[ ! -e "$RESTORE_VERIFIER" && ! -L "$RESTORE_VERIFIER" ]] ||
   { echo "Existing PostgreSQL restore verifier; refusing to overwrite it in mock CI" >&2; exit 1; }
-for protected in "$ROOT/.env" \
+for protected in "$STATUS_HELPER" "$ROOT/.env" \
   "$ROOT/compose.yaml" "$ROOT/compose.local.yaml" \
   "$STATE/built-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha" \
   "$STATE/deployed-sha" "$STATE/failed-release-sha" \
@@ -53,6 +54,7 @@ fi
   { echo "Existing usd-home containers found; refusing mock rehearsal" >&2; exit 1; }
 WORK="$(mktemp -d)"
 cleanup() {
+  rm -f -- "$STATUS_HELPER"
   # Do not leak fixture credentials/approvals into the following real-Docker
   # rehearsal, or leave a misleading deployed SHA in the runner filesystem.
   rm -f -- "$ROOT/.env" \
@@ -79,6 +81,9 @@ diagnose_failure() {
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
 mkdir -p "$ROOT" "$STATE" "$WORK/bin" /usr/local/libexec
+chmod 700 "$STATE"
+install -o root -g root -m 0755 deploy/home-pc/deploy-status.py "$STATUS_HELPER"
+
 cat > "$SIGNATURE_VERIFIER" <<'SIGNATURE'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -334,7 +339,7 @@ chmod 600 "$STATE/built-sha"
 chmod 777 "$STATE"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/untrusted-state-dir.log" 2>&1; then exit 1; fi
 grep -q 'Release state directory must not be group/world writable' "$WORK/untrusted-state-dir.log"
-chmod 755 "$STATE"
+chmod 700 "$STATE"
 [[ ! -s "$USD_TEST_LOG" ]]
 # Root-run Docker Compose must reject mutable/unreviewed YAML.
 printf '\n# unreviewed local change\n' >> "$ROOT/compose.yaml"

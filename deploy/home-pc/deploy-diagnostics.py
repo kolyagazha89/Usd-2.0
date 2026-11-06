@@ -94,7 +94,7 @@ def diagnose(target):
         result['classification'] = 'public_revision_current'
     else:
         result['schema_changed'] = prisma_tree(frontend) != prisma_tree(target)
-        result['classification'] = ('schema_change_requires_supervised_review'
+        result['classification'] = ('schema_changed_host_eligibility_unknown'
                                     if result['schema_changed'] else
                                     'same_schema_deploy_failed_check_host_service')
     return result
@@ -119,7 +119,7 @@ def main(argv=None):
         print('Candidate SHA:       ' + result['target'])
         print('Classification: ' + result['classification'])
         if result['schema_changed']:
-            print('STOP: Prisma changed. Supervised off-host backup, restore, migration rehearsal and host policy approval required.')
+            print('Prisma differs; actual host eligibility is UNKNOWN. Read the trusted host attempt status: approved additive migrations may already be supported. Public trees cannot reveal the installed helpers, live migration history, schema pin or backup policy.')
         elif result['classification'] == 'same_schema_deploy_failed_check_host_service':
             print('Same Prisma tree. Check root-owned service journal, disk/RAM, image signatures, backups and failed-release quarantine.')
         elif result['classification'] == 'mixed_public_revisions':

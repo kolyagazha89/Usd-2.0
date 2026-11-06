@@ -33,8 +33,18 @@ python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-second-disk-db-ba
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-second-disk-media-backup.py").read_text())'
 python3 test-second-disk-db-backup.py -v
 python3 test-second-disk-media-backup.py -v
+python3 test-deploy-status.py -q
+python3 test-request-deploy.py -q
 bash install-cosign.sh
 install -d -o root -g root -m 0755 /usr/local/libexec
+install -o root -g root -m 0755 deploy-status.py /usr/local/libexec/usd-deploy-status
+install -o root -g root -m 0755 request-deploy.py /usr/local/libexec/usd-request-deploy
+if [[ -e /run/usd-deployer || -L /run/usd-deployer ]]; then
+  [[ -d /run/usd-deployer && ! -L /run/usd-deployer && "$(stat -c %u /run/usd-deployer)" == 0 ]] &&
+    (( (8#$(stat -c %a /run/usd-deployer) & 022) == 0 )) ||
+    { echo 'Untrusted public deployment status directory' >&2; exit 1; }
+fi
+install -d -o root -g root -m 0755 /run/usd-deployer
 install -o root -g root -m 0755 verify-image-signature.py /usr/local/libexec/usd-verify-image-signature
 install -o root -g root -m 0755 verify-main-ci.py /usr/local/libexec/usd-verify-main-ci
 install -o root -g root -m 0750 initial-schema.py /usr/local/libexec/usd-initial-schema

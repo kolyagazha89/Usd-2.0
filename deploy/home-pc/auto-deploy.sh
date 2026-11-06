@@ -5,6 +5,28 @@ umask 077
 exec 9>/run/lock/usd-home-deploy.lock
 flock -n 9 || exit 0
 
+# A successful systemd invocation is not necessarily a completed deployment.
+# Publish only closed, root-owned metadata; private approvals stay private.
+STATUS=/usr/local/libexec/usd-deploy-status
+[[ -f "$STATUS" && -x "$STATUS" && ! -L "$STATUS" && "$(stat -c %u "$STATUS")" == 0 ]] &&
+  (( (8#$(stat -c %a "$STATUS") & 022) == 0 )) ||
+  { echo "Reviewed deployment status helper missing; run the installer" >&2; exit 78; }
+ATTEMPT="$("$STATUS" start)"
+status_done=0
+publish() {
+  local args=(update "$ATTEMPT" "$1")
+  [[ -z "${SHA:-}" ]] || args+=("$SHA")
+  "$STATUS" "${args[@]}"
+}
+finish() { publish "$1"; status_done=1; }
+on_exit() {
+  local code=$?
+  trap - EXIT
+  if [[ "$status_done" == 0 ]]; then publish UNEXPECTED_FAILURE || true; fi
+  exit "$code"
+}
+trap on_exit EXIT
+
 SOURCE_DIR=/opt/usd-release-source
 STATE_DIR=/var/lib/usd-deployer
 REPO=https://github.com/kolyagazha89/Usd-2.0.git
@@ -14,6 +36,7 @@ mkdir -p "$STATE_DIR"
 if [[ ! -f /etc/usd-deploy-enabled || -L /etc/usd-deploy-enabled || "$(stat -c %u /etc/usd-deploy-enabled 2>/dev/null)" != 0 ]] ||
    (( (8#$(stat -c %a /etc/usd-deploy-enabled 2>/dev/null || echo 777) & 022) != 0 )); then
   echo "USD deploy disabled; no changes made"
+  finish DEPLOY_DISABLED
   exit 0
 fi
 
@@ -22,6 +45,7 @@ free_kb="$(df -Pk /var/lib/docker | awk 'NR==2 {print $4}')"
 if [[ ! "$free_kb" =~ ^[0-9]+$ || ! "$available_mb" =~ ^[0-9]+$ ]] ||
    (( available_mb < 1536 || free_kb < 8388608 )); then
   echo "Insufficient memory or Docker storage for image preparation and restore rehearsal" >&2
+  finish INSUFFICIENT_RESOURCES
   exit 1
 fi
 
@@ -32,6 +56,7 @@ fi
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
   if ! git clone --no-checkout --filter=blob:none "$REPO" "$SOURCE_DIR"; then
     echo "GitHub source clone unavailable; deferring release until next poll" >&2
+    finish SOURCE_UNAVAILABLE
     exit 0
   fi
 fi
@@ -46,12 +71,14 @@ done
 [[ "$(git -C "$SOURCE_DIR" remote get-url origin)" == "$REPO" ]] || { echo "Unexpected Git remote" >&2; exit 1; }
 if ! git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin main; then
   echo "GitHub main fetch unavailable; deferring release until next poll" >&2
+  finish SOURCE_UNAVAILABLE
   exit 0
 fi
 SHA="$(git -C "$SOURCE_DIR" rev-parse FETCH_HEAD)"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
 # A cached SHA is valid only while BOTH published images still exist.
 # Docker pruning can remove either tag without changing the Git commit.
+publish ACQUIRING_IMAGES
 images_cached=0
 if [[ -f "$STATE_DIR/built-sha" && "$(cat "$STATE_DIR/built-sha")" == "$SHA" ]] &&
    docker image inspect "ghcr.io/kolyagazha89/usd-2.0-api:$SHA" >/dev/null 2>&1 &&
@@ -76,6 +103,7 @@ for image in api frontend; do
   image_ref="ghcr.io/kolyagazha89/usd-2.0-$image:$SHA"
   if ! docker manifest inspect "$image_ref" >/dev/null 2>&1; then
     echo "Published image not available yet: $image_ref; deferring until next deploy request/timer"
+    finish IMAGES_PENDING
     exit 0
   fi
 done
@@ -97,6 +125,7 @@ IMAGE_VERIFIER=/usr/local/libexec/usd-verify-image-signature
 for service in api frontend; do
   if ! "$IMAGE_VERIFIER" "$service" "$SHA" >/dev/null; then
     echo 'Published signatures not verified; leaving deployment untouched until next poll' >&2
+    finish SIGNATURES_PENDING
     exit 0
   fi
 done
@@ -109,9 +138,11 @@ printf '%s\n' "$SHA" > "$STATE_DIR/built-sha"
 # after main CI, fresh second-disk backup and disposable restore rehearsal.
 # The root-owned StateDirectory is writable despite ProtectSystem=full.
 # The legacy /etc pin is only an immutable one-time bootstrap input.
+publish CHECKING_POLICY
 POLICY="$STATE_DIR/schema-pin"
 if [[ ! -f "$POLICY" ]]; then
   echo "Images built for $SHA; automatic release policy is not enabled"
+  finish SCHEMA_POLICY_MISSING
   exit 0
 fi
 [[ ! -L "$POLICY" && "$(stat -c %u "$POLICY")" == 0 ]] ||
@@ -128,13 +159,38 @@ DEPLOY_ENV=/home/usd/usd-deploy/deploy/home-pc/.env
 (( (8#$(stat -c %a "$DEPLOY_ENV") & 077) == 0 )) || { echo "Deployment environment must not be readable by group or other users" >&2; exit 1; }
 OLD_TAG="$(sed -n -E 's/^USD_IMAGE_TAG=([a-f0-9]{40})$/\1/p' "$DEPLOY_ENV")"
 [[ "$OLD_TAG" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid deployed SHA" >&2; exit 1; }
-[[ "$OLD_TAG" != "$SHA" ]] || { echo "Already deployed $SHA"; exit 0; }
+if [[ "$OLD_TAG" == "$SHA" ]]; then
+  # .env can advance before containers during an interrupted release. Prove
+  # actual identities and public revision instead of silently accepting it.
+  current_ok=1
+  for service in api frontend; do
+    ids="$(docker ps -q --filter label=com.docker.compose.project=usd-home --filter "label=com.docker.compose.service=$service")" || ids=''
+    running_tag=''; running_id=''; expected_id=''
+    if [[ -z "$ids" || "$ids" == *$'\n'* ]] ||
+       ! running_tag="$(docker inspect -f '{{.Config.Image}}' "$ids")" ||
+       ! running_id="$(docker inspect -f '{{.Image}}' "$ids")" ||
+       ! expected_id="$(docker image inspect --format '{{.Id}}' "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA")" ||
+       [[ "$running_tag" != "ghcr.io/kolyagazha89/usd-2.0-$service:$SHA" || ! "$running_id" =~ ^sha256:[a-f0-9]{64}$ || "$running_id" != "$expected_id" ]]; then
+      current_ok=0; break
+    fi
+  done
+  public=/usr/local/libexec/usd-verify-prerelease
+  if [[ "$current_ok" != 1 || ! -f "$public" || ! -x "$public" || -L "$public" || "$(stat -c %u "$public")" != 0 ]] ||
+     (( (8#$(stat -c %a "$public" 2>/dev/null || echo 777) & 022) != 0 )) ||
+     ! "$public" "$SHA" >/dev/null 2>&1; then
+    echo 'Current tag does not prove a complete release; inspect actual containers and ingress' >&2
+    finish CURRENT_RELEASE_INCONSISTENT; exit 1
+  fi
+  echo "Already deployed and publicly verified $SHA"
+  finish ALREADY_CURRENT; exit 0
+fi
 # A force-push can make the previously deployed SHA unreachable on the remote,
 # while its source tree remains safely available in the root-owned checkout.
 # Prefer that exact local object; never substitute the current candidate tree.
 if ! git -C "$SOURCE_DIR" cat-file -e "$OLD_TAG:backend/prisma" 2>/dev/null; then
   if ! git -C "$SOURCE_DIR" fetch --no-tags --depth=1 origin "$OLD_TAG"; then
     echo "GitHub previous-release fetch unavailable; deferring release until next poll" >&2
+    finish SOURCE_UNAVAILABLE
     exit 0
   fi
 fi
@@ -145,6 +201,7 @@ old_schema="$(git -C "$SOURCE_DIR" rev-parse "$OLD_TAG:backend/prisma")"
 # the old image mismatch alone does not block an unchanged candidate tree.
 if [[ "$schema_change" == 1 && "$old_schema" != "$approved_schema" ]]; then
   echo "Schema transition not based on approved live source; supervised review required" >&2
+  finish SCHEMA_BASELINE_MISMATCH
   exit 1
 fi
 if [[ "$schema_change" == 0 && "$old_schema" != "$approved_schema" ]]; then
@@ -156,15 +213,18 @@ frontend_changes="$(git -C "$SOURCE_DIR" diff --name-only "$OLD_TAG" "$SHA" -- f
   { echo "Cannot compare frontend trees for CI policy" >&2; exit 1; }
 frontend_changed=0
 [[ -z "$frontend_changes" ]] || frontend_changed=1
+publish CHECKING_CI
 if /usr/local/libexec/usd-verify-main-ci "$SHA" "$frontend_changed"; then
   :
 else
   ci_status=$?
   if [[ "$ci_status" == 75 ]]; then
     echo "Main CI not verified yet; leaving current deployment untouched" >&2
+    finish CI_PENDING
     exit 0
   fi
   echo "Main CI gate refused automatic release" >&2
+  finish CI_FAILED
   exit "$ci_status"
 fi
 # A main push may land while a large local Docker build is running. CI
@@ -173,19 +233,23 @@ fi
 # the next timer poll will build and validate the newer main commit.
 remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" || {
   echo "Cannot recheck main branch after CI; deferring release" >&2
+  finish SOURCE_UNAVAILABLE
   exit 0
 }
 latest_main="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
 [[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || {
   echo "Invalid main branch tip response; deferring release" >&2
+  finish SOURCE_UNAVAILABLE
   exit 0
 }
 if [[ "$latest_main" != "$SHA" ]]; then
   echo "Main moved from $SHA to $latest_main during build/CI; deferring stale release" >&2
+  finish MAIN_ADVANCED
   exit 0
 fi
 if [[ -f "$STATE_DIR/failed-release-sha" && "$(cat "$STATE_DIR/failed-release-sha")" == "$SHA" ]]; then
   echo "This SHA already failed release; inspect logs before explicitly clearing failed-release-sha" >&2
+  finish QUARANTINED
   exit 1
 fi
 # Operator-approved same-PC backup mode. This is not offsite recovery.
@@ -195,6 +259,7 @@ if [[ ! -f "$LOCAL_POLICY" || -L "$LOCAL_POLICY" ||
       "$(stat -c %u "$LOCAL_POLICY" 2>/dev/null)" != 0 ||
       "$(cat "$LOCAL_POLICY")" != "SAME_PC_SECOND_DISK_ACCEPTED" ]]; then
   echo "Second-disk risk acceptance missing; build-only mode"
+  finish BACKUP_POLICY_MISSING
   exit 0
 fi
 (( (8#$(stat -c %a "$LOCAL_POLICY") & 077) == 0 )) ||
@@ -205,17 +270,20 @@ fi
   { echo "Second-disk backup verifier not installed" >&2; exit 1; }
 # Verify mounted disk identity before entering the release transaction.
 [[ "$(findmnt -n -o SOURCE --mountpoint /srv/usd-s3)" == /dev/sdb1 ]] ||
-  { echo "Dedicated second disk not mounted; release deferred" >&2; exit 0; }
+  { echo "Dedicated second disk not mounted; release deferred" >&2; finish BACKUP_STORAGE_UNAVAILABLE; exit 0; }
+publish BACKING_UP
 /usr/local/libexec/usd-verify-second-disk-media-backup "media${SHA}$(date -u +%Y%m%dT%H%M%SZ)$$" ||
-  { echo "Second-disk media snapshot failed; release deferred" >&2; exit 0; }
+  { echo "Second-disk media snapshot failed; release deferred" >&2; finish BACKUP_NOT_READY; exit 0; }
 # Recheck branch tip after backup policy verification.
 remote_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" || {
   echo "Cannot recheck main after media backup; deferring release" >&2
+  finish SOURCE_UNAVAILABLE
   exit 0
 }
 latest_main="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$remote_main")"
 if [[ ! "$latest_main" =~ ^[0-9a-f]{40}$ || "$latest_main" != "$SHA" ]]; then
   echo "Main moved or became unverifiable during media backup; deferring stale release" >&2
+  finish MAIN_ADVANCED
   exit 0
 fi
 # Before approving changed schemas, require strict additive SQL, unchanged
@@ -223,47 +291,62 @@ fi
 # edits the policy during --check.
 SAFE_MIGRATOR=/usr/local/libexec/usd-safe-schema-migration
 if [[ "$schema_change" == 1 ]]; then
+  publish CHECKING_MIGRATIONS
   [[ -f "$SAFE_MIGRATOR" && -x "$SAFE_MIGRATOR" && ! -L "$SAFE_MIGRATOR" &&
      "$(stat -c %u "$SAFE_MIGRATOR")" == 0 ]] &&
     (( (8#$(stat -c %a "$SAFE_MIGRATOR") & 022) == 0 )) ||
-    { echo "Trusted additive-only migration helper not installed; supervised review required" >&2; exit 1; }
+    { echo "Trusted additive-only migration helper not installed; supervised review required" >&2; finish HELPER_UPGRADE_REQUIRED; exit 1; }
   USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --check "$SHA" "$OLD_TAG" "$approved_schema" ||
-    { printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
-      echo "Migration is not automatically safe; supervised review required" >&2; exit 1; }
+    { echo "Migration is not automatically safe; supervised review required" >&2
+      # --check is read-only: even a transient history/Docker read failure
+      # must not permanently quarantine a SHA whose schema was never applied.
+      finish MIGRATION_CHECK_FAILED; exit 1; }
 fi
+release=/usr/local/sbin/usd-release-approved
+[[ -f "$release" && -x "$release" && ! -L "$release" && "$(stat -c %u "$release")" == 0 ]] &&
+  (( (8#$(stat -c %a "$release") & 022) == 0 )) &&
+  [[ "$("$release" --protocol-version)" == 2 ]] ||
+  { finish HELPER_UPGRADE_REQUIRED; exit 1; }
 printf '%s\n' "$SHA" > "$STATE_DIR/schema-approved-sha"
 printf '%s\n' "$SHA" > "$STATE_DIR/release-approved-sha"
 if [[ "$schema_change" == 1 ]]; then
   # The SAME release helper performs an independent, full PG18 restore of a
   # FRESH production dump copied to /dev/sdb1. Its receipt binds candidate,
   # deployed source and DB container ID. No live schema is changed until PASS.
+  publish RESTORING_BACKUP
   USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA" --preflight-only ||
-    { echo "Automatic schema backup/restore preflight failed" >&2; exit 1; }
+    { echo "Automatic schema backup/restore preflight failed" >&2; finish RESTORE_REHEARSAL_FAILED; exit 1; }
   # A newer main SHA after the slow backup/restore must not authorize
   # migrating a stale candidate. This is a read-only ref check.
   post_preflight_main="$(git -C "$SOURCE_DIR" ls-remote --exit-code origin refs/heads/main)" ||
-    { echo "Cannot recheck main after schema preflight; migration deferred" >&2; exit 0; }
+    { echo "Cannot recheck main after schema preflight; migration deferred" >&2; finish SOURCE_UNAVAILABLE; exit 0; }
   post_preflight_sha="$(awk '$2 == "refs/heads/main" {print $1}' <<< "$post_preflight_main")"
   [[ "$post_preflight_sha" == "$SHA" ]] ||
-    { echo "Main advanced during schema preflight; migration deferred" >&2; exit 0; }
+    { echo "Main advanced during schema preflight; migration deferred" >&2; finish MAIN_ADVANCED; exit 0; }
   # Never attempt database rollback: migrations are forward-only. An apply
   # error needs operator review rather than an unattended repeated mutation.
+  publish APPLYING_MIGRATIONS
+  "$STATUS" guard "$SHA"
   USD_DEPLOY_LOCK_HELD=1 "$SAFE_MIGRATOR" --apply "$SHA" "$OLD_TAG" "$approved_schema" ||
-    { printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
-      echo "Automatic additive migration failed; release halted without database rollback" >&2; exit 1; }
+    { echo "Automatic additive migration failed; release halted without database rollback" >&2; finish MIGRATION_APPLY_FAILED; exit 1; }
+  rm -f "$STATE_DIR/failed-release-sha"
 fi
 # Keep the SAME lock continuously across build, CI approval and release.
 # Unlocking here allowed a second builder to replace built-sha between
 # approval and release, spuriously quarantining an otherwise healthy commit.
 # The helper verifies the inherited descriptor before reusing it.
+publish RELEASING
 if USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA"; then
   rm -f "$STATE_DIR/failed-release-sha"
+  finish RELEASED
 else
   status=$?
   # The helper acquires its own lock after we release ours. A competing
   # builder/release can win that hand-off; do not quarantine a healthy SHA.
   if [[ "$status" == 75 ]]; then
     echo "Another USD deployment acquired the lock or main advanced; retrying on next poll" >&2
+    rm -f "$STATE_DIR/failed-release-sha"
+    finish RELEASE_BUSY
     exit 0
   fi
   if [[ "$status" == 76 ]]; then
@@ -271,8 +354,14 @@ else
     # was NEVER switched. Re-evaluate signatures, CI and all backup gates
     # next timer tick. Post-switch failure remains quarantined below.
     echo "USD_DEPLOY_RETRYABLE: protected pre-switch failure; no quarantine, next timer will recheck" >&2
+    rm -f "$STATE_DIR/failed-release-sha"
+    finish PRE_SWITCH_RETRY
     exit 0
   fi
-  printf '%s\n' "$SHA" > "$STATE_DIR/failed-release-sha"
+  if [[ ! -f "$STATE_DIR/failed-release-sha" || "$(cat "$STATE_DIR/failed-release-sha")" != "$SHA" ]]; then
+    # Guard-aware executor did not reach its mutation boundary.
+    finish RELEASE_PRECHECK_FAILED; exit "$status"
+  fi
+  finish RELEASE_FAILED
   exit "$status"
 fi

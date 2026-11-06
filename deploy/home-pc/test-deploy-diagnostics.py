@@ -17,11 +17,11 @@ class DeployDiagnosticsTests(unittest.TestCase):
         self.assertEqual(result['classification'], 'public_revision_current')
         tree.assert_not_called()
 
-    def test_schema_drift_is_not_authorized_for_auto_release(self):
+    def test_public_schema_diff_does_not_invent_actual_host_blocker(self):
         with patch.object(module, 'public_revision', side_effect=[A, A]), patch.object(module, 'prisma_tree', side_effect=[B, C]):
             result = module.diagnose(C)
         self.assertTrue(result['schema_changed'])
-        self.assertEqual(result['classification'], 'schema_change_requires_supervised_review')
+        self.assertEqual(result['classification'], 'schema_changed_host_eligibility_unknown')
 
     def test_unchanged_schema_still_requires_host_diagnosis(self):
         with patch.object(module, 'public_revision', side_effect=[A, A]), patch.object(module, 'prisma_tree', side_effect=[B, B]):
@@ -86,11 +86,11 @@ class DeployDiagnosticsTests(unittest.TestCase):
     def test_separate_hosted_triage_retains_runner_privilege_boundary(self):
         workflow = (Path(__file__).parents[2] / '.github/workflows/request-home-pc-deploy.yml').read_text()
         hosted = (Path(__file__).parents[2] / '.github/workflows/failed-home-pc-deploy-triage.yml').read_text()
-        self.assertIn('sudo -n /usr/bin/systemctl start usd-auto-deploy.service', workflow)
+        self.assertIn('/usr/local/libexec/usd-request-deploy', workflow)
         self.assertNotIn('actions/checkout', workflow)
         self.assertNotIn('secrets.', workflow)
-        self.assertIn('systemctl show usd-auto-deploy.service', workflow)
-        self.assertIn('grep -E', workflow)
+        self.assertIn('USD_TRIGGER_SHA', workflow)
+        self.assertNotIn('git ls-remote', workflow)
         self.assertIn('runs-on: ubuntu-latest', hosted)
         self.assertNotIn('self-hosted', hosted.split('jobs:', 1)[-1])
         self.assertIn('persist-credentials: false', hosted)

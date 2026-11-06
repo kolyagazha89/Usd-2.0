@@ -90,6 +90,21 @@ class ReadinessTests(unittest.TestCase):
             self.assertNotIn("private-secret", json.dumps(report))
             self.assertFalse(report["ready"])
 
+    def test_readiness_uses_current_state_pin_not_immutable_bootstrap(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            current=root/'var/lib/usd-deployer/schema-pin'
+            legacy=root/'etc/usd-auto-release-schema'
+            current.parent.mkdir(parents=True);legacy.parent.mkdir(parents=True)
+            current.write_text('b'*40);legacy.write_text('old-invalid-bootstrap')
+            with patch.object(readiness, 'check_private_file', return_value=(True, 'valid')):
+                report=readiness.assess(root)
+            self.assertTrue(next(x for x in report['checks'] if x['name']=='schema-pin')['ok'])
+            current.write_text('invalid-current-pin');legacy.write_text('a'*40)
+            with patch.object(readiness, 'check_private_file', return_value=(True, 'valid')):
+                report=readiness.assess(root)
+            self.assertFalse(next(x for x in report['checks'] if x['name']=='schema-pin')['ok'])
+
     def test_live_rejected_for_synthetic_root(self):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaises(SystemExit) as raised:

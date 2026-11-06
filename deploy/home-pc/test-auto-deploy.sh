@@ -41,10 +41,29 @@ for old,new in {
  '/usr/local/sbin/usd-release-approved':work+'/release',
  '/usr/local/libexec/usd-verify-main-ci':work+'/verify-ci',
  '/usr/local/libexec/usd-verify-image-signature':work+'/verify-signature',
+ '/usr/local/libexec/usd-deploy-status':work+'/status-helper',
+ '/usr/local/libexec/usd-verify-prerelease':work+'/verify-public',
  '/var/lib/docker':work,
 }.items():s=s.replace(old,new)
 pathlib.Path(work+'/builder').write_text(s)
 PY
+# Run the actual protocol writer on an isolated filesystem, not a fake report.
+cp deploy/home-pc/deploy-status.py "$WORK/status-helper"
+sed -i "s@DIRECTORY = Path('/run/usd-deployer')@DIRECTORY = Path('$WORK/public-status')@;s@PRIVATE = Path('/var/lib/usd-deployer')@PRIVATE = Path('$WORK/state')@" "$WORK/status-helper"
+chmod 700 "$WORK/state"
+chmod 755 "$WORK/status-helper"
+cat > "$WORK/verify-public" <<'VERIFY'
+#!/usr/bin/env bash
+[[ "${USD_TEST_PUBLIC_FAIL:-0}" != 1 ]]
+VERIFY
+chmod 755 "$WORK/verify-public"
+assert_reason() {
+  python3 - "$WORK/public-status/status.json" "$1" <<'STATUS'
+import json,sys
+row=json.load(open(sys.argv[1]))
+assert row['reason']==sys.argv[2],row
+STATUS
+}
 cat > "$WORK/verify-signature" <<'SIGNATURE'
 #!/usr/bin/env bash
 [[ "${USD_TEST_FAIL_SIGNATURE:-0}" != 1 ]]
@@ -73,7 +92,17 @@ SH
 cat > "$WORK/bin/docker" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$USD_TEST_WORK/docker.log"
+if [[ "${1:-}" == ps ]]; then
+  if [[ "$*" == *service=api* ]]; then echo api-container; else echo frontend-container; fi
+fi
+if [[ "${1:-}" == inspect ]]; then
+  if [[ "$*" == *.Config.Image* ]]; then
+    if [[ "$*" == *api-container* ]]; then service=api; else service=frontend; fi
+    printf 'ghcr.io/kolyagazha89/usd-2.0-%s:%s\n' "$service" "${USD_TEST_RUNNING_SHA:-$USD_TEST_MAIN_SHA}"
+  elif [[ "$*" == *.Image* ]]; then [[ "${USD_TEST_FAIL_ID_INSPECT:-0}" != 1 ]] || exit 1; printf 'sha256:%064d\n' 1; fi
+fi
 if [[ "${1:-}" == image && "${2:-}" == inspect ]]; then
+  if [[ "$*" == *.Id* ]]; then [[ "${USD_TEST_FAIL_ID_INSPECT:-0}" != 1 ]] || exit 1; printf 'sha256:%064d\n' 1; fi
   if [[ "${USD_TEST_MISSING_IMAGE:-0}" == 1 && "$*" == *frontend* && ! -e "$USD_TEST_WORK/frontend-pulled" ]]; then exit 1; fi
   if [[ "$*" == *org.opencontainers.image.revision* ]]; then
     printf '%s\n' "${USD_TEST_IMAGE_REVISION:-$USD_TEST_MAIN_SHA}"
@@ -97,6 +126,7 @@ SH
 cat > "$WORK/release" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+[[ "${1:-}" != --protocol-version ]] || { echo 2; exit 0; }
 # The builder must not release its exclusive lock before invoking the helper.
 [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 && "${USD_LOCAL_SECOND_DISK_APPROVED:-0}" == 1 ]]
 [[ "$(readlink /proc/self/fd/9)" == "$USD_TEST_WORK/lock" ]]
@@ -111,8 +141,9 @@ if [[ "${2:-}" == "--preflight-only" ]]; then
   exit 0
 fi
 echo "$1" >> "$USD_TEST_WORK/releases.log"
-[[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 [[ "${USD_TEST_FAIL_PRE_SWITCH:-0}" != 1 ]] || exit 76
+"$USD_TEST_WORK/status-helper" guard "$1"
+[[ "${USD_TEST_FAIL_RELEASE:-0}" != 1 ]]
 sed -i "s/^USD_IMAGE_TAG=.*/USD_IMAGE_TAG=$1/" "$USD_TEST_WORK/deploy.env"
 SH
 cat > "$WORK/safe-schema-migration" <<'SH'
@@ -122,6 +153,7 @@ set -euo pipefail
 [[ "${USD_TEST_FAIL_SAFE_MIGRATION:-0}" != 1 ]] || exit 1
 echo "$1:$2:$3" >> "$USD_TEST_WORK/migration.log"
 if [[ "$1" == "--apply" ]]; then
+  if [[ "${USD_TEST_INTERRUPT_APPLY:-0}" == 1 ]]; then kill -TERM "$PPID"; exit 143; fi
   [[ -f "$USD_TEST_WORK/ready-to-migrate" ]] || exit 1
   git -C "$USD_TEST_WORK/source" rev-parse "$2:backend/prisma" > "$USD_TEST_WORK/state/schema-pin"
 fi
@@ -158,6 +190,7 @@ bash "$WORK/builder" > "$WORK/insecure-switch.log"
 grep -q 'USD deploy disabled' "$WORK/insecure-switch.log"
 [[ ! -f "$WORK/docker.log" ]]
 chmod 600 "$WORK/enabled"
+assert_reason DEPLOY_DISABLED
 # Even a root-owned checkout is unsafe if other local users can write to it.
 chmod 777 "$WORK/source"
 if bash "$WORK/builder" > "$WORK/insecure-source.log" 2>&1; then exit 1; fi
@@ -193,6 +226,7 @@ chmod 600 "$WORK/state/schema-pin"
 export USD_TEST_CI_STATUS=75
 bash "$WORK/builder" > "$WORK/pending-ci.log" 2>&1
 grep -q 'Main CI not verified yet' "$WORK/pending-ci.log"
+assert_reason CI_PENDING
 [[ ! -f "$WORK/releases.log" ]]
 export USD_TEST_CI_STATUS=1
 if bash "$WORK/builder" > "$WORK/failed-ci.log" 2>&1; then exit 1; fi
@@ -235,6 +269,7 @@ unset USD_TEST_REMOTE_SHA
 # Second-disk acceptance and a fresh media snapshot are mandatory.
 bash "$WORK/builder" > "$WORK/no-local-policy.log"
 grep -q 'Second-disk risk acceptance missing' "$WORK/no-local-policy.log"
+assert_reason BACKUP_POLICY_MISSING
 [[ ! -f "$WORK/releases.log" ]]
 printf 'SAME_PC_SECOND_DISK_ACCEPTED\n' > "$WORK/local-policy"
 chmod 666 "$WORK/local-policy"
@@ -281,6 +316,13 @@ rm -f "$WORK/frontend-pulled"
 bash "$WORK/builder" > "$WORK/pruned-image.log"
 [[ "$(grep -c '^pull ' "$WORK/docker.log")" == "$((pull_lines + 2))" ]]
 unset USD_TEST_MISSING_IMAGE
+assert_reason ALREADY_CURRENT
+USD_TEST_FAIL_ID_INSPECT=1 bash "$WORK/builder" > "$WORK/failed-id-inspection.log" 2>&1 && exit 1
+assert_reason CURRENT_RELEASE_INCONSISTENT
+USD_TEST_RUNNING_SHA="$OLD" bash "$WORK/builder" > "$WORK/interrupted-release.log" 2>&1 && exit 1
+assert_reason CURRENT_RELEASE_INCONSISTENT
+USD_TEST_PUBLIC_FAIL=1 bash "$WORK/builder" > "$WORK/public-inconsistent.log" 2>&1 && exit 1
+assert_reason CURRENT_RELEASE_INCONSISTENT
 # Lock contention is transient and must never quarantine a good build.
 printf 'USD_IMAGE_TAG=%s\n' "$OLD" > "$WORK/deploy.env"
 export USD_TEST_BUSY_RELEASE=1
@@ -297,6 +339,7 @@ export USD_TEST_FAIL_PRE_SWITCH=1
 lines="$(wc -l < "$WORK/releases.log")"
 bash "$WORK/builder" > "$WORK/preswitch-retry.log" 2>&1
 grep -q 'USD_DEPLOY_RETRYABLE' "$WORK/preswitch-retry.log"
+assert_reason PRE_SWITCH_RETRY
 [[ ! -f "$WORK/state/failed-release-sha" ]]
 [[ "$(wc -l < "$WORK/releases.log")" -eq "$((lines+1))" ]]
 unset USD_TEST_FAIL_PRE_SWITCH
@@ -362,6 +405,20 @@ export USD_TEST_FAIL_SAFE_MIGRATION=1
 before="$(wc -l < "$WORK/releases.log")"
 if bash "$WORK/builder" > "$WORK/rejected-migration.log" 2>&1; then exit 1; fi
 grep -q 'Migration is not automatically safe' "$WORK/rejected-migration.log"
-[[ "$(wc -l < "$WORK/releases.log")" == "$before" ]]
+assert_reason MIGRATION_CHECK_FAILED
+[[ ! -f "$WORK/state/failed-release-sha" || "$(cat "$WORK/state/failed-release-sha")" != "$MIGRATED" ]]
+# A subsequent timer may retry a read-only check; it has not applied SQL.
 unset USD_TEST_FAIL_SAFE_MIGRATION
+bash "$WORK/builder" > "$WORK/rechecked-migration.log"
+assert_reason RELEASED
+[[ "$(wc -l < "$WORK/releases.log")" -eq "$((before+1))" ]]
+unset USD_TEST_FAIL_SAFE_MIGRATION
+# Killing the parent during an apply must leave durable mutation intent.
+printf 'USD_IMAGE_TAG=%s\n' "$NEWER" > "$WORK/deploy.env"
+printf '%s\n' "$SCHEMA" > "$WORK/state/schema-pin"
+rm -f "$WORK/state/failed-release-sha"
+USD_TEST_INTERRUPT_APPLY=1 bash "$WORK/builder" > "$WORK/interrupted-apply.log" 2>&1 && exit 1
+[[ "$(cat "$WORK/state/failed-release-sha")" == "$MIGRATED" ]]
+bash "$WORK/builder" > "$WORK/interrupted-retry.log" 2>&1 && exit 1
+assert_reason QUARANTINED
 echo 'Published image pulls, schema transition backup/restore/migrate, refusal and quarantine tests passed'

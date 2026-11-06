@@ -19,7 +19,7 @@ SHA = re.compile(r"^[a-f0-9]{40}$")
 REQUIRED_UNITS = ("usd-auto-deploy.timer", "docker.service")
 POLICIES = (
     "etc/usd-deploy-enabled",
-    "etc/usd-auto-release-schema",
+    "var/lib/usd-deployer/schema-pin",
     "etc/usd-deployer/local-second-disk-approved",
 )
 TOOLS = ("docker", "git", "systemctl", "flock", "findmnt")
@@ -61,9 +61,10 @@ def assess(root=Path("/"), live=False):
         ok, detail = check_private_file(root, relative, require_private=relative.endswith(".conf"))
         add("policy:" + relative, ok, detail)
 
-    schema_file = root / "etc/usd-auto-release-schema"
+    schema_file = root / "var/lib/usd-deployer/schema-pin"
+    schema_trusted, _ = check_private_file(root, "var/lib/usd-deployer/schema-pin", require_private=True)
     try:
-        schema = schema_file.read_text(encoding="ascii").strip()
+        schema = schema_file.read_text(encoding="ascii").strip() if schema_trusted else ""
     except (OSError, UnicodeError):
         schema = ""
     add("schema-pin", bool(SHA.fullmatch(schema)), "valid tree SHA" if SHA.fullmatch(schema) else "missing/invalid SHA")
@@ -101,7 +102,8 @@ def assess(root=Path("/"), live=False):
     trusted_helper, detail = check_private_file(root, "usr/local/sbin/usd-release-approved")
     trusted_helper = trusted_helper and os.access(release_helper, os.X_OK)
     add("release-helper", trusted_helper, detail if trusted_helper else "missing, untrusted or not executable")
-    for relative in ("usr/local/libexec/usd-verify-image-signature", "usr/local/libexec/usd-cosign"):
+    for relative in ("usr/local/libexec/usd-deploy-status", "usr/local/libexec/usd-request-deploy",
+                     "usr/local/libexec/usd-verify-image-signature", "usr/local/libexec/usd-cosign"):
         trusted, detail = check_private_file(root, relative)
         trusted = trusted and os.access(root / relative, os.X_OK)
         if trusted and relative.endswith("usd-cosign"):
@@ -111,7 +113,7 @@ def assess(root=Path("/"), live=False):
             except OSError:
                 trusted = False
             detail = "pinned checksum verified" if trusted else "checksum mismatch"
-        add("signature-tool:" + relative.rsplit("/", 1)[1], trusted,
+        add(("signature-tool:" if relative.endswith(("usd-cosign", "usd-verify-image-signature")) else "protocol-tool:") + relative.rsplit("/", 1)[1], trusted,
             detail if trusted else "missing, untrusted or checksum mismatch")
 
     if live:
