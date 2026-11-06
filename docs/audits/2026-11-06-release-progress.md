@@ -13,8 +13,8 @@
 
 ## Operational acceptance
 - [x] Main images published for 7125e696.
-- [ ] Remaining main CI and exact-SHA deployment acceptance; deploy request workflow is in progress.
-- [ ] Live endpoint revisions and payload/privacy confirmation after rollout.
+- [x] All eight main CI checks and image publication passed on 7125e696. Deployment request [42178634554](https://github.com/kolyagazha89/Usd-2.0/actions/runs/42178634554) succeeded.
+- [x] Live frontend/API exact revision accepted at 07:14 UTC. Independent [API smoke 42179583049](https://github.com/kolyagazha89/Usd-2.0/actions/runs/42179583049) passed: protected publication route 401, DB settings query, 18 published stages, 14 records, no forbidden private fields in checked public data. Exact post-deploy record response byte size was not separately measured.
 - [ ] Full live role journey/catalog acceptance #409; fixtures do not establish all production behavior.
 - [ ] Historical intermittent API/media failure #424 root cause and long-term stability. Compact sample was 24/24 HTTP200, not proof of permanent resolution.
 
@@ -26,4 +26,4 @@
 ## Detector follow-up
 Impeccable changed-target scan: 9 warnings (8 incumbent style advisories, one pre-existing width transition on admin car progress indicator). Runtime axe checks passed; no broad redesign performed.
 
-No production database reset, replay, schema migration or apex/DNS change was made by this patch. CI success alone is not a final public-launch GO. This checkpoint must be followed by exact deployed revision evidence.
+No production database reset, replay, schema migration or apex/DNS change was made by this patch. CI success alone is not a final public-launch GO. The patch is deployed and accepted on app/api prerelease. A blanket public-launch GO is withheld while the deferred historical exposure and remaining #424/#409 acceptance are open.
