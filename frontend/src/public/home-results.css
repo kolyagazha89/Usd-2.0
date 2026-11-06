@@ -62,7 +62,7 @@
  overflow:hidden;
  position:relative;
  touch-action:pan-y;
-
+}
 .usd-live .usd-carousel-track,
 .usd-live .usd-record-track {
  display:flex;
