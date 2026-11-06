@@ -100,3 +100,11 @@ test('multi-brand CSV preview never overwrites rows when preview ID generator re
  assert.equal(resolved.models.filter(x=>x.brandId===planned.overrides.brands[0].id).length,2);
  assert.equal(resolved.models.filter(x=>x.brandId===planned.overrides.brands[1].id).length,2);
 });
+
+test('participant car editor uses native keyboard and masks plate input',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.doesNotMatch(app,/<RussianPlateKeypad/);
+ assert.match(app,/registrationNumber:formatPlateInput/);
+ assert.match(app,/inputMode="text"/);
+});
