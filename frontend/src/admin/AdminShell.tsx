@@ -14,6 +14,7 @@ const nav=[
 
  // Люди, команды и автомобили
  {section:'Участники и автопарк',label:'Участники',path:'/admin/participants',icon:Users,roles:['ADMIN']},
+ {section:'Участники и автопарк',label:'Привязка профилей',path:'/admin/profile-links',icon:UserRound,roles:['ADMIN']},
  {section:'Участники и автопарк',label:'Команды',path:'/admin/teams',icon:Users,roles:['ADMIN']},
  {section:'Участники и автопарк',label:'Автомобили',path:'/admin/cars',icon:CarFront,roles:['ADMIN']},
 
