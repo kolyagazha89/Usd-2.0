@@ -38,12 +38,14 @@ export function CarEditorPage({user,carId,go,PageFrame,LoadingPage,ErrorPanel,is
 }
 
 function CarEditorForm({value,participants,countries,saving,error,onClose,onSubmit,isValidPlate,clean}:{value:any;participants:any[];countries:string[];saving:boolean;error?:string;onClose:()=>void;onSubmit:(v:any)=>Promise<void>;isValidPlate:(country:string,plate:string)=>boolean;clean:(value:any)=>any}){
- const {makes,modelsFor}=useVehicleDirectory();
+ const {makes,modelsFor,loaded}=useVehicleDirectory();
  const [v,setV]=useState<any>({participantId:value.participantId??'',brand:value.brand??'',model:value.model??'',registrationCountry:value.registrationCountry??'RU',registrationNumber:value.registrationNumber??'',color:value.color??'',isPublic:value.isPublic??true});
  const [validationError,setValidationError]=useState('');
  const name=(p:any)=>[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ');
  const [step,setStep]=useState<0|1|2>(0);
- const identityReady=Boolean((value.id||v.participantId)&&String(v.brand??'').trim()&&String(v.model??'').trim());
+ const selectedMake=makes.find(make=>make.toLocaleLowerCase('ru')===String(v.brand??'').trim().toLocaleLowerCase('ru'));
+ const selectedModel=modelsFor(selectedMake??'').find(model=>model.toLocaleLowerCase('ru')===String(v.model??'').trim().toLocaleLowerCase('ru'));
+ const identityReady=Boolean(loaded&&(value.id||v.participantId)&&selectedMake&&selectedModel);
  const plateReady=Boolean(String(v.registrationNumber??'').trim()&&isValidPlate(String(v.registrationCountry??'RU'),String(v.registrationNumber)));
  const completeSteps=[identityReady,plateReady,false];
  const stages=[{name:'Автомобиль и владелец',hint:'Участник, марка и модель'},{name:'Регистрация',hint:'Страна, номер и цвет'},{name:'Публикация',hint:'Проверка и сохранение'}];
@@ -58,7 +60,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
   if(step===1&&!plateReady){setValidationError('Госномер не соответствует формату выбранной страны.');return}
   if(step<2){setStep((step+1) as 0|1|2);return}
   const invalid=validate();if(invalid){setValidationError(invalid);setStep(!identityReady?0:1);return}
-  void onSubmit(clean(v));
+  void onSubmit(clean({...v,brand:selectedMake,model:selectedModel}));
  };
  return <section className="panel resource-editor-page usd-car-editor-journey">
   <div className="resource-editor-heading"><div><span className="eyebrow">АВТОПАРК · КАРТОЧКА АВТОМОБИЛЯ</span><h2>{value.id?'Редактировать автомобиль':'Новый автомобиль'}</h2><p>Три коротких шага вместо одной длинной формы. До сохранения данные остаются черновиком.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>К списку</button></div>
@@ -69,7 +71,7 @@ function CarEditorForm({value,participants,countries,saving,error,onClose,onSubm
    {step===0&&<div className="usd-car-editor-panel" aria-label="Основные данные автомобиля">
     <h3>Кому принадлежит автомобиль?</h3><p>Укажите владельца и модель. Эти данные будут использоваться в регистрациях и протоколах USD.</p>
     {!value.id&&<label>Участник<select aria-label="Участник" value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{name(p)}{p.team?' · '+p.team:''}</option>)}</select></label>}
-    <div className="form-grid-2"><label>Марка<input aria-label="Марка" list="usd-admin-car-makes" value={v.brand} onChange={e=>setV({...v,brand:e.target.value,model:''})} autoComplete="off" required/></label><label>Модель<input aria-label="Модель" list="usd-admin-car-models" value={v.model} onChange={e=>setV({...v,model:e.target.value})} autoComplete="off" required/></label></div><datalist id="usd-admin-car-makes">{makes.map(make=><option key={make} value={make}/>)}</datalist><datalist id="usd-admin-car-models">{modelsFor(v.brand).map(model=><option key={model} value={model}/>)}</datalist><small className="field-help">Подсказки из каталога автомобилей USD. Редкую марку или модель можно ввести вручную.</small>
+    <div className="form-grid-2"><label>Марка<select aria-label="Марка" value={v.brand} onChange={e=>setV({...v,brand:e.target.value,model:''})} required><option value="">Выберите марку</option>{v.brand&&!makes.includes(v.brand)&&<option value={v.brand} disabled>{v.brand} (не из справочника)</option>}{makes.map(make=><option key={make} value={make}>{make}</option>)}</select></label><label>Модель<select aria-label="Модель" value={v.model} onChange={e=>setV({...v,model:e.target.value})} required disabled={!v.brand}><option value="">Выберите модель</option>{v.model&&!modelsFor(v.brand).includes(v.model)&&<option value={v.model} disabled>{v.model} (не из справочника)</option>}{modelsFor(v.brand).map(model=><option key={model} value={model}>{model}</option>)}</select></label></div><datalist id="usd-admin-car-makes">{makes.map(make=><option key={make} value={make}/>)}</datalist><datalist id="usd-admin-car-models">{modelsFor(v.brand).map(model=><option key={model} value={model}/>)}</datalist><small className="field-help">Выберите марку и модель из каталога USD. Произвольный текст не сохраняется.</small>
    </div>}
    {step===1&&<div className="usd-car-editor-panel" aria-label="Регистрационные данные">
     <h3>Госномер и внешний вид</h3><p>Номер проверяется по правилам страны регистрации. Цвет указывать необязательно.</p>

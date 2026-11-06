@@ -563,3 +563,40 @@ body .usd-member .member-config-directions button[aria-current="step"]{
     animation-duration:0s!important;
   }
 }
+
+/* Mobile configurator: keep readable gutters across all nested panels.
+   Apply at the editor boundary so sections cannot touch the viewport edge. */
+@media(max-width:760px){
+ body .usd-member .configuration-editor-page[data-member-view]{
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  padding-inline:clamp(14px,4vw,22px)!important;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] :is(
+  .configuration-subpage-header,.member-config-experience,.config-editor,
+  .config-direction-workspace,.config-section,.config-section-head,
+  .catalog-request-inline
+ ){
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] .config-editor{
+  padding-inline:0!important;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] .config-section{
+  padding-inline:clamp(12px,3.5vw,18px)!important;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] .config-section-head{
+  align-items:flex-start;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] .config-section-head>.secondary-button{
+  max-width:100%;
+ }
+ body .usd-member .configuration-editor-page[data-member-view] :is(
+  .member-config-vehicle,.member-config-directions,.config-section,.config-row
+ ){
+  overflow-wrap:anywhere;
+ }
+}
