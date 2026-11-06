@@ -217,8 +217,8 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
     member.participantId = profile.body.id;
     const car = await api('post', '/participants/me/cars', member)
       .send({
-        brand: 'Synthetic USD',
-        model: 'Journey ' + index,
+        brand: 'Toyota',
+        model: 'Camry',
         registrationCountry: 'US',
         registrationNumber: randomUUID()
           .replace(/-/g, '')
@@ -710,8 +710,8 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
       const ownCar = (
         await api('post', '/participants/me/cars', member)
           .send({
-            brand: 'Synthetic USD',
-            model: 'Personal ' + kind,
+            brand: 'Toyota',
+            model: 'Camry',
             registrationCountry: 'US',
             registrationNumber: randomUUID()
               .replace(/-/g, '')
