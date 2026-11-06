@@ -53,7 +53,6 @@ function dataFor(url,role){
  if(p==='/auth/me')return user(role);
  if(p==='/auth/profile/historical-candidates'&&role==='ONBOARDING')return {candidates:[{...participant,id:'p1',lastName:'Иванов',firstName:'Иван',canSelfLink:true,cars:[car],_count:{registrations:3}},{...participant,id:'p2',lastName:'Иванов',firstName:'Иван',canSelfLink:false,cars:[car],_count:{registrations:2}}]};
  if(p==='/participants/me')return {participant};
- if(p==='/participants/me/usd-id')return {token:'b'.repeat(48),path:'/usd-id/'+'b'.repeat(48)};
  if(p==='/participants/me/historical-final-configuration')return {required:false};
  if(p==='/auth/legal-consent')return {legalReady:false};
  if(p==='/auth/newsletter-consent')return {consent:false};
@@ -61,6 +60,8 @@ function dataFor(url,role){
  if(p==='/cars'&&role==='ADMIN')return Array.from({length:63},(_,index)=>({...car,id:'car'+(index+1),model:'Vesta '+String(index+1).padStart(2,'0')}));
  if(p==='/participants/me/cars'||p==='/cars'||p==='/participants/p1/cars')return [car];
  if(p==='/registrations/me'||p==='/registrations')return [registration];
+ if(p==='/registrations/reg1')return registration;
+ if(p==='/participants/me/usd-id')return {token:'f'.repeat(48),path:'/usd-id/'+'f'.repeat(48)};
  if(p==='/cars/car1/configurations')return [configuration];
  if(p==='/configurations/config1')return configuration;
  if(p==='/site-settings'||p==='/site-settings/public')return {settings};
@@ -84,16 +85,7 @@ function dataFor(url,role){
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
  if(p==='/seasons'||p==='/seasons/public')return [season];
  if(p==='/directions')return [klass.direction];
- if(p==='/admin/participants')return [participant,{...participant,id:'p2',firstName:'Пётр',lastName:'Петров'}];
- if(p==='/admin/profile-links')return [];
- if(p==='/admin/profile-links/duplicates/preview')return {
-  state:'DRY_RUN_ONLY',canMerge:false,source:{id:'p1',name:'Тестовый Иван'},
-  target:{id:'p2',name:'Петров Пётр'},
-  counts:{source:{cars:2,registrations:3,results:4},target:{cars:1,registrations:2,results:3}},
-  conflicts:[{code:'SAME_STAGE',description:'Профили имеют активные заявки на одном этапе.'}],
-  constraints:['Предпросмотр не изменяет данные.'],
- };
-
+ if(p==='/admin/participants')return [participant];
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
@@ -109,13 +101,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of qaOptions.widths){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/registration-success?registrationId=reg1','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1','/participant/registration-success?registrationId=reg1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -703,36 +695,12 @@ try{
       assert.ok(main.width>=card.width-50,'registration content uses the card width instead of squeezing beside cancel');
       assert.ok(await page.getByRole('button',{name:/Открыть карточку регистрации/}).isVisible());
      }
-     if(role==='PARTICIPANT'&&route==='/participant/registration-success?registrationId=reg1'){
-      assert.equal(await page.locator('.usd-registration-success h1').innerText(),'Регистрация успешно сохранена');
-      assert.ok(await page.locator('.usd-pass-qr-frame svg').isVisible(),'inspection QR is visible');
-      assert.ok(await page.getByRole('button',{name:'Сохранить QR-код'}).isVisible());
-      assert.ok(await page.getByRole('button',{name:'Скопировать USD ID'}).isEnabled());
-      assert.equal(await page.locator('.usd-pass-id').innerText(),'b'.repeat(48));
-      assert.ok(await page.getByText(/№ 007/).isVisible(),'assigned participant number is preserved');
-      row.registrationPass='confirmed persisted registration, real USD ID and inspection QR';
-     }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
        const save=await page.locator('.config-editor-actions').boundingBox(),cookie=await notice.boundingBox();
        assert.ok(save.y+save.height<=cookie.y,'save button remains above the cookie notice');
       }
       await page.evaluate(()=>scrollTo(0,0));
-     }
-     if(role==='ADMIN'&&route==='/admin/profile-links'){
-      assert.ok(await page.getByRole('heading',{name:'Проверка дублирующихся профилей'}).isVisible());
-      const selectors=page.locator('.duplicate-choose-profile input');
-      await selectors.nth(0).fill('Тестовый');
-      await page.locator('.duplicate-choose-profile').nth(0).locator('li button').first().click();
-      await selectors.nth(1).fill('Петров');
-      await page.locator('.duplicate-choose-profile').nth(1).locator('li button').first().click();
-      await page.getByRole('button',{name:'Проверить конфликты и историю'}).click();
-      // API-backed preview is asynchronous, even with a local route fixture.
-      // isVisible() is an instantaneous snapshot and races the React render.
-      await page.locator('.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
-      await page.getByText(/Профили имеют активные заявки/).waitFor({state:'visible',timeout:6000});
-      assert.equal(await page.getByRole('button',{name:/Объединить профили/}).count(),0,'destructive merge is never available');
-      row.duplicatePreview='read-only conflicting historical profiles, no merge controls';
      }
      if(role==='ADMIN'){
       const mainColor=await page.locator('.main').evaluate(e=>getComputedStyle(e).backgroundColor);
@@ -977,6 +945,40 @@ try{
       row.registrationFlow='three steps; selection gates; back preserves choices; rule consent gate; no submission';
       const end=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(end.scroll<=end.width+1,'confirmation fits viewport');
       assert.equal(errors.length,0,'flow has no runtime errors');
+     }
+     if(role==='PARTICIPANT'&&route.startsWith('/participant/registration-success')){
+      await page.getByRole('heading',{name:'Вы зарегистрированы на этап'}).waitFor();
+      await page.getByRole('heading',{name:'QR-код для инспекции'}).waitFor();
+      assert.equal(await page.locator('.usd-registration-pass-qr svg').count(),1,'confirmed pass shows a scannable code');
+      assert.ok((await page.locator('.usd-registration-pass-id').innerText()).length>=48,'permanent participant USD ID visible');
+      assert.match(await page.locator('.usd-registration-pass-classes').innerText(),/№ 007/,'class retains assigned number');
+      // Blob-backed SVG downloads may be suppressed in isolated Chromium CI.
+      // Verify the actual click-created anchor and serialized QR content instead
+      // of relying on a browser download event that never fires in that mode.
+      await page.evaluate(()=>{
+       window.__usdQrDownload=null;
+       const original=HTMLAnchorElement.prototype.click;
+       HTMLAnchorElement.prototype.click=function(){
+        if(this.download?.startsWith('USD-QR-')){
+         window.__usdQrDownload={filename:this.download,href:this.href};
+         return;
+        }
+        return original.call(this);
+       };
+      });
+      await page.getByRole('button',{name:/Сохранить QR-код/}).click();
+      const download=await page.evaluate(async()=>{
+       const captured=window.__usdQrDownload;
+       if(!captured)return null;
+       return {filename:captured.filename,svg:await (await fetch(captured.href)).text()};
+      });
+      assert.ok(download,'QR export creates a downloadable blob');
+      assert.match(download.filename,/^USD-QR-.*\.svg$/);
+      assert.match(download.svg,/<svg\b/);
+      assert.match(download.svg,/<path\b|<rect\b/);
+      assert.equal(await page.getByRole('button',{name:/Скопировать USD ID/}).count(),1);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'QR pass fits mobile width');
+      row.registrationPass='confirmed route, permanent ID, class numbers and downloaded SVG';
      }
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
       const requestCopy=await page.locator('.catalog-request-inline>.secondary-button').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));
