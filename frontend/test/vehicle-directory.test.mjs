@@ -44,8 +44,8 @@ test('vehicle editors use selectable catalog suggestions with no arbitrary value
   readFile(new URL('../src/participant/VehicleCatalogPicker.tsx',import.meta.url),'utf8'),
  ]);
  for(const file of [admin,member,gate]){
-  assert.match(file,/useVehicleDirectory\\(\\)/);
-  assert.match(file,/modelsFor\\(/);
+  assert.match(file,/useVehicleDirectory\(\)/);
+  assert.match(file,/modelsFor\(/);
  }
  for(const file of [admin,member]){
   assert.match(file,/<VehicleCatalogPicker/);
@@ -53,14 +53,14 @@ test('vehicle editors use selectable catalog suggestions with no arbitrary value
  }
  assert.match(picker,/aria-autocomplete="list"/);
  assert.match(picker,/role="listbox"/);
- assert.match(picker,/onClick=\\{\\(\\)=>choose\\(item\\)\\}/);
- assert.match(gate,/<SearchableSelect value=\\{newBrand\\}/);
- assert.match(gate,/<SearchableSelect value=\\{newModel\\}/);
- assert.match(gate,/const brandOptions=makes\\.map\\(make=>\\(\\{id:make,label:make\\}\\)\\)/);
- assert.match(gate,/const modelOptions=modelsFor\\(newBrand\\)\\.map\\(model=>\\(\\{id:model,label:model\\}\\)\\)/);
+ assert.match(picker,/onClick=\{\(\)=>choose\(item\)\}/);
+ assert.match(gate,/<SearchableSelect value=\{newBrand\}/);
+ assert.match(gate,/<SearchableSelect value=\{newModel\}/);
+ assert.match(gate,/const brandOptions=makes\.map\(make=>\(\{id:make,label:make\}\)\)/);
+ assert.match(gate,/const modelOptions=modelsFor\(newBrand\)\.map\(model=>\(\{id:model,label:model\}\)\)/);
  assert.match(gate,/carSelectionValid/);
- assert.match(hook,/fetch\\('\\/catalogs\\/usd_cars\\.csv'/);
- assert.match(admin,/onChange=\\{brand=>setV\\(\\{\\.\\.\\.v,brand,model:''\\}\\)\\}/);
+ assert.match(hook,/fetch\('\/catalogs\/usd_cars\.csv'/);
+ assert.match(admin,/onChange=\{brand=>setV\(\{\.\.\.v,brand,model:''\}\)\}/);
  assert.match(member,/brand:value,model:''/);
  assert.match(member,/officialBrand&&officialModel/);
 });
