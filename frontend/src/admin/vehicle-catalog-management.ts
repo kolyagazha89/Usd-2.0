@@ -136,12 +136,23 @@ export function enableAllVehicles(c:VehicleCatalog,o:VehicleOverrides,brandScope
 export function planVehicleImport(c:VehicleCatalog,o:VehicleOverrides,source:VehicleDirectory,makeId:()=>string){
  let addedBrands=0,addedModels=0,skipped=0;
  let next=o;
+ // Preview uses a deterministic ID supplier; keep temporary IDs unique so
+ // multiple new makes cannot overwrite one another in the preview overlay.
+ const usedIds=new Set([...c.brands,...c.models,...o.brands,...o.models].map(item=>item.id));
+ const nextId=()=>{
+  const proposed=makeId();
+  if(!proposed||typeof proposed!=='string')throw new Error('Не удалось создать идентификатор справочника.');
+  let candidate=proposed,serial=1;
+  while(usedIds.has(candidate))candidate=proposed+'-'+(++serial);
+  usedIds.add(candidate);
+  return candidate;
+ };
  const existingBrands=new Map(c.brands.map(b=>[vehicleNameKey(b.name),b] as const));
  const modelKeys=new Set(c.models.map(m=>m.brandId+'|'+vehicleNameKey(m.name)));
  for(const make of source.makes){
   let item=existingBrands.get(vehicleNameKey(make));
   if(!item){
-   const id=makeId();item={id,name:make,isActive:true};
+   const id=nextId();item={id,name:make,isActive:true};
    next=updateBrand(next,item);existingBrands.set(vehicleNameKey(make),item);addedBrands++;
   } else if(!item.isActive||item.isArchived){
    throw new Error('Марка '+make+' отключена или удалена. Сначала восстановите её.');
@@ -150,7 +161,7 @@ export function planVehicleImport(c:VehicleCatalog,o:VehicleOverrides,source:Veh
    const id=item.id+'|'+vehicleNameKey(name);
    if(modelKeys.has(id)){skipped++;continue}
    if(addedModels>=300)throw new Error('За один импорт можно добавить не более 300 новых моделей. Разделите CSV на части.');
-   next=updateModel(next,{id:makeId(),brandId:item.id,name,isActive:true});
+   next=updateModel(next,{id:nextId(),brandId:item.id,name,isActive:true});
    modelKeys.add(id);addedModels++;
   }
  }
