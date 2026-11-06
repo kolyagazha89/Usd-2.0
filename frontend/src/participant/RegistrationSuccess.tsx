@@ -21,6 +21,8 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
  const qr=registrationInspectionQrUrl(window.location.origin,registration);
  const numbers=registrationNumbers(registration);
  const stage=registration.stage||{id:registration.stageId||'',name:'',date:'',city:'',venue:'',address:''};
+ const inspection=registration.stageInspection??registration.inspection;
+ const currentStatus=registration.status==='CANCELLED'?'Отменена':inspection?.status==='PASSED'?'Активна · инспекция пройдена':inspection?.status==='FAILED'?'Активна · инспекция не пройдена':'Заявка подана · ожидает инспекции';
  return <section className="usd-registration-success" aria-labelledby="usd-pass-title">
   <div className="usd-pass-hero"><span className="usd-pass-check" aria-hidden="true">✓</span><div>
    <span className="usd-pass-kicker">USD · ПРОПУСК УЧАСТНИКА</span><h1 id="usd-pass-title">Регистрация успешно сохранена</h1>
@@ -33,8 +35,8 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
      <div><dt>Этап</dt><dd>{stage.name||'Этап USD'}</dd></div>
      <div><dt>Дата</dt><dd>{stage.date?new Date(stage.date).toLocaleDateString('ru-RU',{year:'numeric',month:'long',day:'numeric'}):'Уточняется'}</dd></div>
      <div><dt>Место</dt><dd>{[stage.city,stage.venue,stage.address].filter(Boolean).join(' · ')||'Уточняется'}</dd></div>
-     <div><dt>Статус</dt><dd>{registration.status==='CANCELLED'?'Регистрация отменена':'Заявка подана · ожидает инспекции'}</dd></div>
-     <div><dt>Оплата</dt><dd>Уточните статус оплаты у организатора на площадке</dd></div>
+     <div><dt>Статус</dt><dd>{currentStatus}</dd></div>
+     <div><dt>Оплата</dt><dd>Нет подтверждённых данных об оплате. Уточните у организатора на площадке</dd></div>
     </dl>
     <h3>Стартовые номера и классы</h3>
     <div className="usd-pass-number-grid">{numbers.map(number=><section key={number} className="usd-pass-number">
