@@ -5,7 +5,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 
-test('participant navigation and three-step registration preserve choices and submit the selected configuration',async()=>{
+test('participant navigation and three-step registration preserve choices and submit the selected configuration',async(t)=>{
   const base=path.dirname(fileURLToPath(import.meta.url));
   const scratch=await mkdtemp(path.join(base,'.participant-navigation-'));
   const dom=new JSDOM('<div id="root"></div>',{url:'https://usd.test/participant'});
@@ -40,7 +40,7 @@ test('participant navigation and three-step registration preserve choices and su
     });
     const workflow=await import(pathToFileURL(outfile).href);
     await workflow.runParticipantNavigation();
-    await workflow.runRegistrationJourney();
+    for(const mode of ['saved','lost','unsaved','other-stage','other-car','other-configuration','other-classes','rejected','cancelled','unavailable','invalid'])await t.test('registration response: '+mode,()=>workflow.runRegistrationJourney(mode));
     await workflow.runDashboardAvailability();
     await workflow.runFullyRegisteredStage();
     await workflow.runUnavailableStageRegistration();
