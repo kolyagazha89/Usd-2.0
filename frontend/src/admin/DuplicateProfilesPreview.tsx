@@ -27,12 +27,12 @@ function PersonPicker({label,candidates,value,onChange}:{label:string;candidates
     onFocus={()=>{setActive(true);if(selected)setQuery('')}}
     onChange={e=>{setActive(true);setQuery(e.target.value);onChange('')}}/>
   </label>
-  {active&&matches.length>0&&<ul id={listId} role="listbox" aria-label={label}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
+  <ul id={listId} role="listbox" aria-label={label} hidden={!active||matches.length===0}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
    onPointerDown={event=>event.preventDefault()}
    onMouseDown={event=>event.preventDefault()}
    onClick={()=>{onChange(candidate.id);setQuery(fullName(candidate)+' · '+candidate.id.slice(0,8));setActive(false)}}>
    {fullName(candidate)} <small>· {candidate.id.slice(0,8)} · {candidate.birthDate?new Date(candidate.birthDate).toLocaleDateString('ru-RU'):''}</small>
-   </button></li>)}</ul>}
+   </button></li>)}</ul>
   {selected&&<small className="duplicate-selection">Выбран профиль {selected.id}</small>}
  </div>;
 }
