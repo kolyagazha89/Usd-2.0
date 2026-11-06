@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {AlertTriangle,CalendarDays,CarFront,Check,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,FileInput,Flag,History,Loader2,Plus,RefreshCw,ShieldAlert,Trophy,UserRound,Users} from 'lucide-react';
+import {AlertTriangle,CalendarDays,CarFront,Check,CheckCircle2,ChevronLeft,ChevronRight,FileInput,Flag,History,Loader2,Plus,RefreshCw,ShieldAlert,Trophy,UserRound,Users} from 'lucide-react';
 import {apiGet,apiPost,apiPut,getDashboard,getStageStatistics,listData,type Dashboard} from '../api';
 import {formatPlateInput,formatPhoneInput} from '../profile-validation';
 
@@ -10,14 +10,8 @@ export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingP
  if(error)return <ErrorPanel message={error} retry={load}/>;
  if(!data)return <LoadingPage/>;
  if(quick)return <PageFrame title="Быстрое создание" subtitle="Создайте запись без всплывающего окна и продолжите работу в соответствующем разделе." action={<button className="secondary-button compact" onClick={()=>setQuick(null)}><ChevronLeft size={15}/>Назад к панели</button>}><QuickCreatePage kind={quick} onClose={()=>setQuick(null)} onSaved={async()=>{setQuick(null);await load()}} LoadingPage={LoadingPage}/></PageFrame>;
- const stage=data.currentStage,regs=data.activeRegistrationStats,a=data.attention,ov=data.overview;
- return <PageFrame title="Панель управления" subtitle="Операционный центр USD" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
-  <section className="dashboard-kpis">
-   <button className="dashboard-kpi" onClick={()=>go('/admin/participants')}><span><Users size={16}/>Участники</span><strong>{ov.participants.toLocaleString('ru-RU')}</strong><small>в базе</small></button>
-   <button className="dashboard-kpi" onClick={()=>go('/admin/cars')}><span><CarFront size={16}/>Автомобили</span><strong>{ov.cars.toLocaleString('ru-RU')}</strong><small>активных</small></button>
-   <button className="dashboard-kpi" onClick={()=>go('/admin/registrations')}><span><ClipboardCheck size={16}/>Регистрации</span><strong>{regs.registrations.toLocaleString('ru-RU')}</strong><small>{regs.participants} участников · {regs.cars} авто</small></button>
-   <button className="dashboard-kpi" onClick={()=>go('/admin/results')}><span><Trophy size={16}/>Результаты</span><strong>{(ov.appearances??ov.results??0).toLocaleString('ru-RU')}</strong><small>учтённых выступлений</small></button>
-  </section>
+ const stage=data.currentStage,a=data.attention,ov=data.overview;
+ return <PageFrame title="Панель управления" subtitle="Ближайший этап, подготовка и задачи, требующие внимания" action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
   <section className="dashboard-main-grid">
    <div className="panel dashboard-stage-card">
     <PanelTitle title={stage?(new Date(stage.date).toDateString()===new Date().toDateString()?'Рабочий этап':'Ближайший этап'):'Ближайший этап'} icon={Flag} action="Открыть этап" onAction={()=>stage&&go('/admin/stages/'+stage.id)}/>
@@ -53,7 +47,7 @@ export function DashboardPage({go,PageFrame,PanelTitle,Empty,ErrorPanel,LoadingP
     </div>
    </div>
   </section>
-  <section className="dashboard-alert-grid">
+  <section className="dashboard-alert-grid" aria-label="Важные задачи и контроль этапа">
    <button className={'dashboard-alert '+(a.pendingInspections?'attention':'')} onClick={()=>go('/admin/inspections')}><div><ShieldAlert size={20}/><span>Инспекции</span></div><strong>{a.pendingInspections}</strong><small>{a.pendingInspections?'ожидают проверки':'все проверены'}</small></button>
    <button className={'dashboard-alert '+(a.failedInspections?'danger':'')} onClick={()=>go('/admin/inspections')}><div><AlertTriangle size={20}/><span>Проблемные инспекции</span></div><strong>{a.failedInspections}</strong><small>{a.failedInspections?'требуют внимания':'нарушений не найдено'}</small></button>
    <button className={'dashboard-alert '+(a.unresolvedImports?'danger':'')} onClick={()=>go('/admin/import')}><div><FileInput size={20}/><span>Импорт</span></div><strong>{a.unresolvedImports}</strong><small>{a.unresolvedImports?'загрузок с предупреждениями':'очередь чистая'}</small></button>
