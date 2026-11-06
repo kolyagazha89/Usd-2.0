@@ -9,6 +9,7 @@ import {
 
 import { Roles } from '../auth/roles.decorator';
 import { StatisticsService } from './statistics.service';
+import { SeasonReportsService } from './season-reports.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
 import { AuditService } from '../common/audit/audit.service';
 
@@ -17,6 +18,7 @@ import { AuditService } from '../common/audit/audit.service';
 export class StatisticsController {
   constructor(
     private readonly statisticsService: StatisticsService,
+    private readonly seasonReportsService: SeasonReportsService,
     private readonly dataQualityService: DataQualityService,
     private readonly auditService: AuditService,
   ) {}
@@ -36,6 +38,11 @@ export class StatisticsController {
   @Roles('ADMIN')
   getDataQualityReport() {
     return this.dataQualityService.getReport();
+  }
+
+  @Get('season-report/:seasonId')
+  getSeasonReport(@Param('seasonId') seasonId:string,@Query('compare') compare?:string){
+    return this.seasonReportsService.getReport(seasonId,compare);
   }
 
   @Get('dashboard')
