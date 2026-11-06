@@ -20,7 +20,7 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
  };
  const qr=registrationInspectionQrUrl(window.location.origin,registration);
  const numbers=registrationNumbers(registration);
- const stage=registration.stage||{id:registration.stageId||''};
+ const stage=registration.stage||{id:registration.stageId||'',name:'',date:'',city:'',venue:'',address:''};
  return <section className="usd-registration-success" aria-labelledby="usd-pass-title">
   <div className="usd-pass-hero"><span className="usd-pass-check" aria-hidden="true">✓</span><div>
    <span className="usd-pass-kicker">USD · ПРОПУСК УЧАСТНИКА</span><h1 id="usd-pass-title">Регистрация успешно сохранена</h1>
