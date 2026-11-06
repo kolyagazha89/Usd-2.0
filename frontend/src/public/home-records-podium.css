@@ -180,17 +180,9 @@
  position:absolute;top:15px;right:15px;
  color:#ef8c98;font-size:16px;line-height:1;
 }
-.usd-live [data-home-block="records"] .usd-record-podium__controls{
- display:flex;justify-content:center;align-items:center;
- gap:12px;margin:15px 0 0;
- color:#d4bca7;font:650 12px 'Exo 2',sans-serif;
-}
-.usd-live [data-home-block="records"] .usd-record-podium__controls button{
- width:42px;height:42px;border:1px solid rgba(243,149,137,.36);
- background:#1a1e27;color:#f4c3ae;border-radius:11px;
-}
-.usd-live [data-home-block="records"] .usd-record-podium__controls button:hover{
- background:#2b202a;border-color:#ff7082;box-shadow:0 0 14px rgba(244,77,96,.2);
+.usd-live [data-home-block="records"] .usd-record-position{
+ text-align:center;margin:15px 0 0;color:#d4bca7;
+ font:650 12px 'Exo 2',sans-serif;
 }
 @media(max-width:680px){
  .usd-live [data-home-block="records"] .usd-record-spotlight{

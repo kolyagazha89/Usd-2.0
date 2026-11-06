@@ -46,7 +46,7 @@ test('page headers and homepage splash are stable through fonts and media load',
  assert.match(boot,/initial USD splash persists/);
 });
 
-test('LIVE classes and record carousel animate entire panels, preserving manual accessibility',async()=>{
+test('LIVE and record carousels animate panels with swipe and keyboard accessibility',async()=>{
  const [component,css]=await Promise.all([read('../src/public/HomeScoreboards.tsx'),read('../src/public/home-results.css')]);
  assert.match(component,/className="usd-carousel-viewport"/);
  assert.match(component,/className="usd-carousel-track"/);
@@ -56,8 +56,10 @@ test('LIVE classes and record carousel animate entire panels, preserving manual 
  assert.match(component,/transform:`translate3d\(-\$\{current\*100\}%,0,0\)`/);
  assert.match(component,/aria-hidden=\{g\.key!==group\.key\} inert=\{g\.key!==group\.key\}/);
  assert.match(component,/aria-hidden=\{slide!==current\} inert=\{slide!==current\}/);
- assert.match(component,/aria-label="Следующий класс"/);
- assert.match(component,/aria-label="Следующие рекорды"/);
+ assert.match(component,/useCarouselSwipe/);
+ assert.match(component,/onPointerUp/);
+ assert.match(component,/onKeyDown=\{event=>/);
+ assert.doesNotMatch(component,/aria-label="Следующий класс"|aria-label="Следующие рекорды"/);
  assert.match(component,/setPaused\(true\)/,'manual interaction stops automatic advance');
  assert.doesNotMatch(component,/className="usd-live-class-entries" key=\{group\.key\}/,'do not remount class result list on every rotation');
  assert.match(css,/\.usd-carousel-track,[\s\S]*?\.usd-record-track/);

@@ -206,12 +206,15 @@ function EntryInspection({stageId,go,user,readOnly,Empty,LoadingPage,SearchableS
 }
 
 function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,displayCarName,LoadingPage,enumLabel}:{stageId:string;onClose:()=>void;onSaved:(registrationId:string)=>Promise<void>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;LoadingPage:React.ComponentType<any>;enumLabel:(v:any)=>string}){
- const {makes,modelsFor}=useVehicleDirectory();
+ const {makes,modelsFor,loaded:directoryLoaded,error:directoryError}=useVehicleDirectory();
  const[participants,setParticipants]=useState<any[]>([]),[cars,setCars]=useState<any[]>([]),[stageClasses,setStageClasses]=useState<any[]>([]);
  const[profileQuery,setProfileQuery]=useState(''),[showAllProfiles,setShowAllProfiles]=useState(false);
  const[showNewProfile,setShowNewProfile]=useState(false),[creatingProfile,setCreatingProfile]=useState(false),[showNewCar,setShowNewCar]=useState(false),[creatingCar,setCreatingCar]=useState(false);
  const[newLastName,setNewLastName]=useState(''),[newFirstName,setNewFirstName]=useState(''),[newMiddleName,setNewMiddleName]=useState('');
  const[newBrand,setNewBrand]=useState(''),[newModel,setNewModel]=useState(''),[newCountry,setNewCountry]=useState('RU'),[newPlate,setNewPlate]=useState('');
+ const brandOptions=makes.map(make=>({value:make,label:make}));
+ const modelOptions=modelsFor(newBrand).map(model=>({value:model,label:model}));
+ const carSelectionValid=directoryLoaded&&makes.includes(newBrand)&&modelsFor(newBrand).includes(newModel);
  const pendingCreatedCarId=useRef('');
  const[participantId,setParticipantId]=useState(''),[carId,setCarId]=useState(''),[configurationVersionId,setConfigurationVersionId]=useState(''),[classIds,setClassIds]=useState<string[]>([]);
  const[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');const[legalReady,setLegalReady]=useState(false),[legalVersion,setLegalVersion]=useState<string|null>(null),[rulesAccepted,setRulesAccepted]=useState(false),[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false);
@@ -226,6 +229,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
   if(creatingProfile)return;
   if(!legalReady||!privacyConsent||!termsAccepted){setError('Перед созданием профиля подтвердите согласия участника и проверьте юридические документы ниже');return}
   if(!newLastName.trim()||!newFirstName.trim()||!newBrand.trim()||!newModel.trim()||!newPlate.trim()){setError('Введите фамилию, имя, марку, модель и госномер автомобиля');return}
+  if(!carSelectionValid){setError('Выберите марку и модель из справочника автомобилей');return}
   if(!isValidPlate(newCountry,newPlate)){setError('Проверьте формат и регион государственного номера');return}
   setCreatingProfile(true);setError('');
   try{
@@ -245,6 +249,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
   if(creatingCar||!participantId)return;
   if(!legalReady||!privacyConsent||!termsAccepted){setError('Подтвердите согласия участника перед добавлением автомобиля');return}
   if(!newBrand.trim()||!newModel.trim()||!newPlate.trim()){setError('Введите марку, модель и госномер');return}
+  if(!carSelectionValid){setError('Выберите марку и модель из справочника автомобилей');return}
   if(!isValidPlate(newCountry,newPlate)){setError('Проверьте формат и регион государственного номера');return}
   setCreatingCar(true);setError('');
   try{
@@ -281,7 +286,8 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  const submit=async()=>{if(!participantId||!carId||!classIds.length){setError('Выберите участника, автомобиль и классы');return}if(classIds.length>MAX_REGISTRATION_CLASSES||primaryNumberClassCount(classIds,stageClasses)>MAX_PRIMARY_NUMBER_CLASSES){setError('На основном номере не более 5 классов. В BassRace дополнительные классы получают новые номера.');return}if(!legalReady){setError('Регистрация временно недоступна: юридические документы не утверждены организатором');return}if(!rulesAccepted||!privacyConsent||!termsAccepted){setError('Подтвердите все обязательные согласия участника');return}setSaving(true);setError('');try{const created=await apiPost<{id:string}>('/registrations',{stageId,participantId,carId,...(configurationVersionId?{configurationVersionId}:{}),classIds,source:'ON_SITE',rulesAccepted,privacyConsent,termsAccepted});await onSaved(typeof created?.id==='string'?created.id:'')}catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать участника')}finally{setSaving(false)}};
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ВЪЕЗДНАЯ ИНСПЕКЦИЯ · РЕГИСТРАЦИЯ</span><h2>Регистрация участника на этап</h2><p>Найдите участника или создайте профиль прямо на въезде. Конфигурацию оборудования можно дополнить позже.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div>
   {error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {loading?<LoadingPage small/>:<div className="form modal-form"><datalist id="usd-gate-car-makes">{makes.map(make=><option key={make} value={make}/>)}</datalist><datalist id="usd-gate-car-models">{modelsFor(newBrand).map(model=><option key={model} value={model}/>)}</datalist>
+  {loading?<LoadingPage small/>:<div className="form modal-form">
+   {directoryError&&<div className="form-error" role="alert">Справочник автомобилей недоступен: {directoryError}. Проверьте соединение и обновите страницу.</div>}
    <section className="registration-profile-picker" aria-labelledby="registration-profile-title">
     <div className="registration-profile-picker-heading"><div><h3 id="registration-profile-title">Найти участника</h3><p>Проверьте существующий профиль перед регистрацией, чтобы не создавать дубликаты.</p></div><span>{participants.length} в базе</span></div>
     <label className="registration-profile-search">Поиск по ФИО, команде или телефону<input type="search" autoComplete="off" value={profileQuery} onChange={e=>{setProfileQuery(e.target.value);setShowAllProfiles(false)}} placeholder="Начните вводить фамилию или имя…"/></label>
@@ -297,23 +303,23 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
       <label>Фамилия<input autoComplete="family-name" value={newLastName} onChange={e=>setNewLastName(e.target.value)} maxLength={120} required/></label>
       <label>Имя<input autoComplete="given-name" value={newFirstName} onChange={e=>setNewFirstName(e.target.value)} maxLength={120} required/></label>
       <label>Отчество (необязательно)<input value={newMiddleName} onChange={e=>setNewMiddleName(e.target.value)} maxLength={120}/></label>
-      <label>Марка автомобиля<input list="usd-gate-car-makes" value={newBrand} onChange={e=>{setNewBrand(e.target.value);setNewModel('')}} maxLength={80} required/></label>
-      <label>Модель автомобиля<input list="usd-gate-car-models" value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
+      <label>Марка автомобиля<SearchableSelect value={newBrand} options={brandOptions} onChange={(value:string)=>{setNewBrand(value);setNewModel('')}} placeholder={directoryLoaded?'Начните вводить марку…':'Загружаем справочник…'} ariaLabel="Марка автомобиля" required/></label>
+      <label>Модель автомобиля<SearchableSelect value={newModel} options={modelOptions} onChange={(value:string)=>setNewModel(value)} placeholder={newBrand?'Начните вводить модель…':'Сначала выберите марку'} ariaLabel="Модель автомобиля" required/></label>
       <label>Страна регистрации<select value={newCountry} onChange={e=>{setNewCountry(e.target.value);setNewPlate('')}}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option><option value="OTHER" disabled>Другие страны — добавьте авто через профиль</option></select></label>
       <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label> 
      </div>
      <p className="field-help">Перед созданием проверьте результаты поиска и подтвердите согласия участника в нижнем блоке. Совпадающий профиль или автомобиль нельзя создавать повторно; заявка и номер оформляются следующим шагом.</p>
-     <button type="button" className="primary-button" disabled={creatingProfile||!legalReady||!privacyConsent||!termsAccepted||!newLastName.trim()||!newFirstName.trim()||!newBrand.trim()||!newModel.trim()||!newPlate.trim()} onClick={()=>void createNewProfile()}>{creatingProfile?'Сохраняем профиль…':'Создать профиль и автомобиль'}</button>
+     <button type="button" className="primary-button" disabled={creatingProfile||!legalReady||!privacyConsent||!termsAccepted||!newLastName.trim()||!newFirstName.trim()||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewProfile()}>{creatingProfile?'Сохраняем профиль…':'Создать профиль и автомобиль'}</button>
     </section>}
    </section>
    <label>Автомобиль<SearchableSelect value={carId} options={cars.map(c=>({id:c.id,label:[c.brand,c.model,c.registrationNumber].filter(Boolean).join(' · ')}))} onChange={(v:string)=>setCarId(v)} required/></label>
    {selectedParticipant&&<div className="event-ops-newcomer"><p>Автомобиля нет в списке? Можно добавить новую машину существующему участнику, не создавая второй профиль.</p><button type="button" className="secondary-button compact" onClick={()=>{setShowNewCar(v=>!v);setError('')}} aria-expanded={showNewCar}><Plus size={16}/>{showNewCar?'Скрыть добавление автомобиля':'Добавить автомобиль на въезде'}</button></div>}
    {showNewCar&&selectedParticipant&&<section className="event-ops-newcomer-form" aria-label="Новый автомобиль существующего участника"><div className="event-ops-newcomer-fields">
-    <label>Марка<input list="usd-gate-car-makes" value={newBrand} onChange={e=>{setNewBrand(e.target.value);setNewModel('')}} maxLength={80} required/></label>
-    <label>Модель<input list="usd-gate-car-models" value={newModel} onChange={e=>setNewModel(e.target.value)} maxLength={120} required/></label>
+    <label>Марка<SearchableSelect value={newBrand} options={brandOptions} onChange={(value:string)=>{setNewBrand(value);setNewModel('')}} placeholder={directoryLoaded?'Начните вводить марку…':'Загружаем справочник…'} ariaLabel="Марка автомобиля" required/></label>
+    <label>Модель<SearchableSelect value={newModel} options={modelOptions} onChange={(value:string)=>setNewModel(value)} placeholder={newBrand?'Начните вводить модель…':'Сначала выберите марку'} ariaLabel="Модель автомобиля" required/></label>
     <label>Страна<select value={newCountry} onChange={e=>{setNewCountry(e.target.value);setNewPlate('')}}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option></select></label>
     <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label> 
-   </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!newBrand.trim()||!newModel.trim()||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button></section>}
+   </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button></section>}
    <label>Конфигурация оборудования (можно заполнить позже)<select value={configurationVersionId} onChange={e=>setConfigurationVersionId(e.target.value)} disabled={!carId}><option value="">Пока не заполнена — создать черновик на этапе</option>{configurations.map((cfg:any)=><option key={cfg.id} value={cfg.id}>{cfg.label}</option>)}</select></label>
    {!configurationVersionId&&carId&&<div className="notice" role="status"><Info size={16}/><span>Участник получит номер и попадёт на инспекцию. Точные характеристики аудиосистемы пока не подтверждены, их нужно заполнить позже.</span></div>}
    <div className="config-section"><div className="config-section-head"><div className="config-section-title"><div><strong>Классы этапа</strong><small>Один класс в каждом направлении; в BassRace можно выбрать несколько</small></div></div></div><p className="field-help" role="status">Всего классов: {classIds.length}. На основном номере: {primaryNumberClassCount(classIds,stageClasses)} из {MAX_PRIMARY_NUMBER_CLASSES}. BassRace можно выбрать во всех доступных классах — для дополнительных выдаются отдельные номера.</p><div className="stage-class-modal-list">{classGroups.map((group:any)=><section key={group.name} className="registration-admin-class-group"><strong>{group.name}</strong>{group.items.map((x:any)=>{const id=x.classId??x.class?.id;const checked=classIds.includes(id);const directionId=x.class?.direction?.id??x.class?.directionId??x.directionId;const disabled=!checked&&(classIds.length>=MAX_REGISTRATION_CLASSES||(!isBassRace(x)&&selectedDirections.has(directionId))||(!isBassRace(x)&&primaryNumberClassCount([...classIds,id],stageClasses)>MAX_PRIMARY_NUMBER_CLASSES));return <label key={id} className="checkbox-row"><input type="checkbox" checked={checked} disabled={disabled} onChange={()=>toggleClass(id)}/><span><b>{x.class?.name||x.name}</b><small>{enumLabel(x.class?.unit||x.unit||'DB')}</small></span></label>})}</section>)}</div></div>

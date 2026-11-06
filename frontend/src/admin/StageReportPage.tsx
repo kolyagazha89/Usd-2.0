@@ -95,16 +95,18 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
    </div>
    <section className="usd-report-section">
     <div className="usd-report-heading"><h3>Классы и участие</h3><span>{report.classes.length} классов</span></div>
-    {report.classes.length?<div className="usd-report-table-wrap"><table className="usd-report-table"><thead><tr><th>Направление</th><th>Класс</th><th>Регистрации</th><th>Люди</th><th>Автомобили</th></tr></thead><tbody>
-     {report.classes.map(c=><tr key={c.id||c.direction+c.name}><td data-label="Направление">{c.direction}</td><td data-label="Класс"><strong>{c.name}</strong></td><td data-label="Регистрации">{number(c.registrations)}</td><td data-label="Люди">{number(c.participants)}</td><td data-label="Автомобили">{number(c.cars)}</td></tr>)}
-    </tbody></table></div>:<p className="usd-report-empty">Регистрации по классам отсутствуют.</p>}
+    {report.classGroups.length?<div className="usd-report-table-wrap"><table className="usd-report-table" aria-label="Классы по направлениям"><thead><tr><th>Класс</th><th>Регистрации</th><th>Люди</th><th>Автомобили</th></tr></thead>
+     {report.classGroups.map(group=><tbody key={group.direction} className="usd-report-direction-group"><tr className="usd-report-group-row"><th scope="rowgroup" colSpan={4}>{group.direction}</th></tr>
+      {group.rows.map(c=><tr key={c.id||c.direction+c.name}><td data-label="Класс"><strong>{c.name}</strong></td><td data-label="Регистрации">{number(c.registrations)}</td><td data-label="Люди">{number(c.participants)}</td><td data-label="Автомобили">{number(c.cars)}</td></tr>)}
+     </tbody>)}</table></div>:<p className="usd-report-empty">Регистрации по классам отсутствуют.</p>}
    </section>
    <section className="usd-report-section">
     <div className="usd-report-heading"><h3>Спортивные результаты · подиумы</h3><span>{report.podiums.length} записей</span></div>
     <p className="usd-report-help">Только допущенные результаты из внутренней статистики USD. До публикации этапа эти данные не являются официальным протоколом.</p>
-    {report.podiums.length?<div className="usd-report-table-wrap"><table className="usd-report-table usd-report-podium-table"><thead><tr><th>Направление / класс</th><th>Место</th><th>№</th><th>Участник</th><th>Результат</th></tr></thead><tbody>
-     {report.podiums.map(p=><tr key={p.id}><td data-label="Направление / класс"><strong>{p.direction}</strong><small>{p.className}</small></td><td data-label="Место"><span className={'usd-report-place p'+p.place}>{p.place}</span></td><td data-label="№">{p.number||'—'}</td><td data-label="Участник">{p.participant}<small>{p.car}</small></td><td data-label="Результат"><strong>{p.value} {p.unit}</strong></td></tr>)}
-    </tbody></table></div>:<p className="usd-report-empty">Подиумы пока не сформированы.</p>}
+    {report.podiumGroups.length?<div className="usd-report-table-wrap"><table className="usd-report-table usd-report-podium-table" aria-label="Подиумы по направлениям"><thead><tr><th>Класс</th><th>Место</th><th>№</th><th>Участник</th><th>Результат</th></tr></thead>
+     {report.podiumGroups.map(group=><tbody key={group.direction} className="usd-report-direction-group"><tr className="usd-report-group-row"><th scope="rowgroup" colSpan={5}>{group.direction}</th></tr>
+      {group.rows.map(p=><tr key={p.id}><td data-label="Класс"><strong>{p.className}</strong></td><td data-label="Место"><span className={'usd-report-place p'+p.place}>{p.place}</span></td><td data-label="№">{p.number||'—'}</td><td data-label="Участник">{p.participant}<small>{p.car}</small></td><td data-label="Результат"><strong>{p.value} {p.unit}</strong></td></tr>)}
+     </tbody>)}</table></div>:<p className="usd-report-empty">Подиумы пока не сформированы.</p>}
    </section>
    <section className="usd-report-section">
     <div className="usd-report-heading"><h3>Медали команд по зафиксированному составу</h3><span>Неофициальная сводка</span></div>

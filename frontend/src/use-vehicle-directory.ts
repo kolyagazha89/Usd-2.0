@@ -19,6 +19,7 @@ async function fetchDirectory():Promise<VehicleDirectory>{
 /** Suggestions never block typing, inspection, registration or saved historic cars. */
 export function useVehicleDirectory(){
  const [directory,setDirectory]=useState<VehicleDirectory|null>(cachedDirectory);
+ const [error,setError]=useState('');
  useEffect(()=>{
   let active=true;
   if(cachedDirectory){setDirectory(cachedDirectory);return()=>{active=false}}
@@ -27,12 +28,15 @@ export function useVehicleDirectory(){
     loading=null;throw error;
    });
   }
-  void loading.then(data=>{if(active)setDirectory(data)}).catch(()=>{});
+  void loading.then(data=>{if(active){setDirectory(data);setError('')}}).catch(reason=>{
+   if(active)setError(reason instanceof Error?reason.message:'Не удалось загрузить справочник автомобилей');
+  });
   return()=>{active=false};
  },[]);
  return {
   makes:directory?.makes??[],
   modelsFor:(make:string)=>modelsForVehicleMake(directory,make),
   loaded:directory!==null,
+  error,
  };
 }

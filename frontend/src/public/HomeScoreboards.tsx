@@ -1,11 +1,37 @@
-import {useEffect,useState} from 'react';
-import {ChevronLeft,ChevronRight,Pause,Play} from 'lucide-react';
+import {useEffect,useRef,useState,type MouseEvent,type PointerEvent} from 'react';
 import {publicResultUnit,publicResultValue} from '../public-result-utils';
 import {carName,personName} from './premium-model';
 import {getPublicEntityPhotoUrl} from './public-entity-photo-url';
 import {publicEntityPhotoSource} from './photo-source';
 import {Link,Photo} from './PremiumUI';
 import {groupLiveByClass,otherHomepageRecords,recordHolderName,resultClass,resultEntryNumber} from './home-results-model';
+
+/** Drag with a mouse or swipe on touch devices. Vertical page/list scrolling
+ * remains native; only deliberate horizontal movement changes the slide. */
+function useCarouselSwipe(onSwipe:(delta:number)=>void){
+ const origin=useRef<{id:number;x:number;y:number}|null>(null);
+ const cancelClick=useRef(false);
+ return {
+  onPointerDown:(event:PointerEvent<HTMLDivElement>)=>{
+   if(event.pointerType==='mouse'&&event.button!==0)return;
+   origin.current={id:event.pointerId,x:event.clientX,y:event.clientY};
+   cancelClick.current=false;
+  },
+  onPointerUp:(event:PointerEvent<HTMLDivElement>)=>{
+   const start=origin.current;origin.current=null;
+   if(!start||start.id!==event.pointerId)return;
+   const dx=event.clientX-start.x,dy=event.clientY-start.y;
+   if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.3)return;
+   cancelClick.current=true;
+   onSwipe(dx<0?1:-1);
+  },
+  onPointerCancel:()=>{origin.current=null},
+  onClickCapture:(event:MouseEvent<HTMLDivElement>)=>{
+   // Dragging a record link must not open the record page.
+   if(cancelClick.current){event.preventDefault();event.stopPropagation();cancelClick.current=false}
+  },
+ };
+}
 
 export function HomeResultRow({row}:{row:any}){
  const participant=row.participant??row.registration?.participant??row.result?.registration?.participant;
@@ -31,21 +57,25 @@ export function LiveClassCarousel({rows}:{rows:any[]}){
   const timer=window.setInterval(()=>setIndex(current=>(current+1)%groups.length),7000);
   return ()=>window.clearInterval(timer);
  },[keys,groups.length,paused,hovered,focused]);
+ const swipe=useCarouselSwipe(delta=>{
+  if(groups.length<2)return;
+  setPaused(true);setIndex(i=>(i+delta+groups.length)%groups.length);
+ });
  const group=groups[index%groups.length];
  if(!group)return null;
  return <div className="usd-live-carousel" aria-label="Результаты по классам" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setFocused(false)}}>
   <div className="usd-live-class-heading">
    <div><small>{group.direction||'НАПРАВЛЕНИЕ USD'}</small><h3>{group.name}</h3><span>{group.rows.length} {group.rows.length===1?'результат':group.rows.length<5?'результата':'результатов'}</span></div>
-   {groups.length>1&&<div className="usd-carousel-controls"><span>{index%groups.length+1} / {groups.length}</span><button type="button" aria-label={paused?'Возобновить смену классов':'Приостановить смену классов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={18}/>:<Pause size={18}/>}</button><button type="button" aria-label="Предыдущий класс" onClick={()=>{setPaused(true);setIndex(i=>(i-1+groups.length)%groups.length)}}><ChevronLeft size={18}/></button><button type="button" aria-label="Следующий класс" onClick={()=>{setPaused(true);setIndex(i=>(i+1)%groups.length)}}><ChevronRight size={18}/></button></div>}
+   {groups.length>1&&<span className="usd-carousel-position" aria-label={`Класс ${index%groups.length+1} из ${groups.length}`}>{index%groups.length+1} / {groups.length}</span>}
   </div>
-  <div className="usd-carousel-viewport" aria-label="Табло результатов по классам">
+  <div className="usd-carousel-viewport" role="group" tabIndex={groups.length>1?0:undefined} aria-label="Табло по классам: свайп влево или вправо, стрелки клавиатуры" {...swipe} onKeyDown={event=>{if(event.target!==event.currentTarget||groups.length<2)return;if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();setPaused(true);setIndex(i=>(i+(event.key==='ArrowRight'?1:-1)+groups.length)%groups.length)}}}>
    <div className="usd-carousel-track" style={{transform:`translate3d(-${index%groups.length*100}%,0,0)`}}>
     {groups.map(g=><div key={g.key} className="usd-carousel-slide" aria-hidden={g.key!==group.key} inert={g.key!==group.key}>
      <div className="usd-live-class-entries" onScroll={()=>setPaused(true)}>{g.rows.map((r:any,i:number)=><HomeResultRow key={r.id??i} row={r}/>)}</div>
     </div>)}
    </div>
   </div>
-  {groups.length>1&&<div className="usd-carousel-dots" role="group" aria-label="Выбор класса">{groups.map((g,i)=><button type="button" key={g.key} aria-label={'Показать класс '+g.name} aria-pressed={i===index%groups.length} onClick={()=>{setPaused(true);setIndex(i)}}/>)}</div>}
+  {groups.length>1&&<div className="usd-carousel-dots" aria-hidden="true">{groups.map((g,i)=><span key={g.key} data-active={i===index%groups.length}/>)}</div>}
  </div>;
 }
 
@@ -75,6 +105,10 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
   const timer=window.setInterval(()=>setPage(p=>(p+1)%total),8500);
   return ()=>window.clearInterval(timer);
  },[keys,total,paused,hovered,focused]);
+ const swipe=useCarouselSwipe(delta=>{
+  if(total<2)return;
+  setPaused(true);setPage(p=>(p+delta+total)%total);
+ });
  if(!records.length)return null;
  const current=page%Math.max(1,total);
  return <div className="usd-record-carousel usd-record-podium" data-columns={perPage}
@@ -85,7 +119,7 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
    <span>ЕЩЁ РЕКОРДЫ USD</span>
    <small>Лучшие результаты по классам</small>
   </div>
-  <div className="usd-record-viewport" role="group" aria-label="Карусель рекордов USD" aria-live="off">
+  <div className="usd-record-viewport" role="group" tabIndex={total>1?0:undefined} aria-label="Карусель рекордов: свайп влево или вправо, стрелки клавиатуры" aria-live="off" {...swipe} onKeyDown={event=>{if(event.target!==event.currentTarget||total<2)return;if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();setPaused(true);setPage(p=>(p+(event.key==='ArrowRight'?1:-1)+total)%total)}}}>
    <div className="usd-record-track" style={{transform:`translate3d(-${current*100}%,0,0)`}}>
     {Array.from({length:total},(_,slide)=><div key={slide}
      className="u-record-minis usd-record-slide usd-record-podium__grid"
@@ -103,11 +137,6 @@ export function RecordMinis({rows,bestId}:{rows:any[];bestId:string}){
     </div>)}
    </div>
   </div>
-  {total>1&&<div className="usd-record-controls usd-record-podium__controls">
-   <button type="button" onClick={()=>{setPaused(true);setPage(p=>(p-1+total)%total)}} aria-label="Предыдущие рекорды"><ChevronLeft size={17}/></button>
-   <span aria-label={`Страница ${current+1} из ${total}`}>{current+1} / {total}</span>
-   <button type="button" aria-label={paused?'Возобновить ротацию рекордов':'Приостановить ротацию рекордов'} aria-pressed={paused} onClick={()=>setPaused(p=>!p)}>{paused?<Play size={17}/>:<Pause size={17}/>}</button>
-   <button type="button" onClick={()=>{setPaused(true);setPage(p=>(p+1)%total)}} aria-label="Следующие рекорды"><ChevronRight size={17}/></button>
-  </div>}
+  {total>1&&<p className="usd-record-position" aria-label={`Страница ${current+1} из ${total}`}>{current+1} / {total}</p>}
  </div>;
 }
