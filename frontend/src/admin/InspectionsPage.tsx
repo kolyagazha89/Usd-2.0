@@ -212,8 +212,8 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  const[showNewProfile,setShowNewProfile]=useState(false),[creatingProfile,setCreatingProfile]=useState(false),[showNewCar,setShowNewCar]=useState(false),[creatingCar,setCreatingCar]=useState(false);
  const[newLastName,setNewLastName]=useState(''),[newFirstName,setNewFirstName]=useState(''),[newMiddleName,setNewMiddleName]=useState('');
  const[newBrand,setNewBrand]=useState(''),[newModel,setNewModel]=useState(''),[newCountry,setNewCountry]=useState('RU'),[newPlate,setNewPlate]=useState('');
- const brandOptions=makes.map(make=>({value:make,label:make}));
- const modelOptions=modelsFor(newBrand).map(model=>({value:model,label:model}));
+ const brandOptions=makes.map(make=>({id:make,label:make}));
+ const modelOptions=modelsFor(newBrand).map(model=>({id:model,label:model}));
  const carSelectionValid=directoryLoaded&&makes.includes(newBrand)&&modelsFor(newBrand).includes(newModel);
  const pendingCreatedCarId=useRef('');
  const[participantId,setParticipantId]=useState(''),[carId,setCarId]=useState(''),[configurationVersionId,setConfigurationVersionId]=useState(''),[classIds,setClassIds]=useState<string[]>([]);
