@@ -1,6 +1,16 @@
 /** Derived, non-destructive stage report. No point system is inferred from podiums. */
 type Rec=Record<string,any>;
 export type StageReportSource={stage:Rec;stats:Rec};
+const directionOrder=['SPL','BFSPL','BassRace','Storm Wall','BDW SPL'];
+const compareDirections=(left:string,right:string)=>{
+ const rank=(name:string)=>{const i=directionOrder.findIndex(value=>value.toLocaleLowerCase('ru')===name.trim().toLocaleLowerCase('ru'));return i<0?directionOrder.length:i};
+ return rank(left)-rank(right)||left.localeCompare(right,'ru',{numeric:true});
+};
+function groupByDirection<T extends {direction:string}>(items:T[]){
+ const groups=new Map<string,T[]>();
+ for(const item of items)groups.set(item.direction,[...(groups.get(item.direction)??[]),item]);
+ return [...groups].sort(([a],[b])=>compareDirections(a,b)).map(([direction,rows])=>({direction,rows}));
+}
 const safeCount=(value:unknown)=>{const n=Number(value);return Number.isFinite(n)&&n>0?Math.floor(n):0};
 const nameOf=(p:Rec|undefined)=>[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ').trim()||'Участник не указан';
 const unitOf=(unit:string)=>unit==='DB'?'дБ':unit==='MPS'?'м/с':unit==='OTHER'?'':unit||'';
@@ -18,7 +28,7 @@ export function buildStageReport(source:StageReportSource){
  const classes=(Array.isArray(stats.registrationClasses)?stats.registrationClasses:[]).map((item:Rec)=>({
   id:String(item.class?.id??''),name:String(item.class?.name??'Класс'),direction:String(item.class?.direction?.name??'Без направления'),
   registrations:safeCount(item.registrations),participants:safeCount(item.participants),cars:safeCount(item.cars)
- }));
+ })).sort((a,b)=>compareDirections(a.direction,b.direction)||a.name.localeCompare(b.name,'ru',{numeric:true}));
  const byDirection=new Map<string,{direction:string;registrations:number;classes:number}>();
  for(const c of classes){
   const row=byDirection.get(c.direction)??{direction:c.direction,registrations:0,classes:0};
@@ -42,7 +52,7 @@ export function buildStageReport(source:StageReportSource){
    });
   }
  }
- const placeOrder=(a:typeof podiums[number],b:typeof podiums[number])=>a.direction.localeCompare(b.direction,'ru')||a.className.localeCompare(b.className,'ru',{numeric:true})||a.place-b.place||a.number-b.number;
+ const placeOrder=(a:typeof podiums[number],b:typeof podiums[number])=>compareDirections(a.direction,b.direction)||a.className.localeCompare(b.className,'ru',{numeric:true})||a.place-b.place||a.number-b.number;
  podiums.sort(placeOrder);
  const medals=new Map<string,{name:string;gold:number;silver:number;bronze:number}>();
  for(const p of podiums){
@@ -69,7 +79,8 @@ export function buildStageReport(source:StageReportSource){
  if(pendingConfigurations.length)warnings.push('После этапа требуется заполнить конфигурации: '+pendingConfigurations.length+'.');
  return {stage,status,registrations,participants,cars,appearances:safeCount(stats.appearances),
   inspections:{passed,failed,pending,completed:completedInspection,percent:inspectionPercent},
-  classes,directions:[...byDirection.values()],podiums,teams,pendingConfigurations,inspectionProblems,pendingRegistrations,warnings,
+  classes,classGroups:groupByDirection(classes),directions:[...byDirection.values()].sort((a,b)=>compareDirections(a.direction,b.direction)),
+  podiums,podiumGroups:groupByDirection(podiums),teams,pendingConfigurations,inspectionProblems,pendingRegistrations,warnings,
   generatedAt:new Date().toISOString()};
 }
 export function stageReportStatusLabel(status:string){
