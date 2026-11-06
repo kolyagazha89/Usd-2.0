@@ -12,7 +12,7 @@ export type DuplicateSnapshot = {
 export type DuplicateFinding={code:string;description:string};
 const looksAlike:Record<string,string>={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
 export function canonicalPlate(country:string,plate:string):string {
- const letters=plate.toLocaleUpperCase('ru').replace(/[\\|\s.\-_/]/g,'');
+ const letters=plate.toLocaleUpperCase('ru').replace(/[^0-9A-ZА-ЯЁ]/g,'');
  return country+':'+(country==='RU'?[...letters].map(c=>looksAlike[c]??c).join(''):letters);
 }
 export function duplicatePreview(source:DuplicateSnapshot,target:DuplicateSnapshot){
