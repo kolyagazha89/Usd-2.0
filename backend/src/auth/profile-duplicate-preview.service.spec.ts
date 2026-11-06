@@ -1,3 +1,4 @@
+import {jest} from '@jest/globals';
 import {BadRequestException,NotFoundException} from '@nestjs/common';
 import {ProfileLinksService} from './profile-links.service';
 
