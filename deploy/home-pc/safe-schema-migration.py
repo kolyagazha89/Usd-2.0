@@ -124,8 +124,8 @@ def check_additive_sql(sql: str) -> None:
                 # An ALTER CHECK on an existing table remains forbidden.
                 literal = r"'[A-Za-z0-9_ -]{1,64}'"
                 enum_check = re.fullmatch(
-                    rf"CONSTRAINT\\s+{IDENT}\\s+CHECK\\s*\\(\\s*{IDENT}\\s+IN\\s*"
-                    rf"\\(\\s*{literal}(?:\\s*,\\s*{literal}){{1,31}}\\s*\\)\\s*\\)",
+                    rf"CONSTRAINT\s+{IDENT}\s+CHECK\s*\(\s*{IDENT}\s+IN\s*"
+                    rf"\(\s*{literal}(?:\s*,\s*{literal}){{1,31}}\s*\)\s*\)",
                     item, re.I,
                 )
                 if not (column or primary or enum_check):
