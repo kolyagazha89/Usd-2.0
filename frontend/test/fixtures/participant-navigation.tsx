@@ -65,6 +65,8 @@ export async function runRegistrationJourney(){
   if(path==='/stages/public')return [stage];
   if(path==='/participants/me/cars')return [car,{...car,id:'other-car',model:'Granta'}];
   if(path==='/registrations/me')return submitted?[{id:'flow-registration',stage,stageId:stage.id,car,carId:car.id,status:'ACTIVE'}]:[];
+  if(path==='/registrations/flow-registration')return {id:'flow-registration',stage,stageId:stage.id,car,carId:car.id,participant:{firstName:'Иван',lastName:'Тестовый'},participantNumber:7,status:'ACTIVE',numbers:[{id:'number7',number:7,isPrimary:true}],classes:[{id:'chosen-class',classId:cls.id,numberId:'number7',number:{id:'number7',number:7},class:cls}]};
+  if(path==='/participants/me/usd-id')return {token:'a'.repeat(48),path:'/usd-id/'+'a'.repeat(48)};
   if(path==='/stages/flow-stage/classes')return [{classId:cls.id,class:cls}];
   if(path==='/cars/flow-car/configurations'){if(firstConfigurationRequest){firstConfigurationRequest=false;return new Promise(resolve=>{releaseOld=resolve})}return [{id:'flow-configuration',name:'На сезон',versions:[version]}]}
   if(path==='/cars/other-car/configurations')return [{id:'other-configuration',name:'Другой автомобиль',versions:[{...version,id:'other-version'}]}];
@@ -99,7 +101,13 @@ export async function runRegistrationJourney(){
   await click(document.querySelector<HTMLInputElement>('.registration-rules-consent input')!);
   assert.equal(button('Подтвердить регистрацию').disabled,false);await click(button('Подтвердить регистрацию'));
   assert.deepEqual(submitted,{stageId:stage.id,participantId:'p1',carId:car.id,configurationVersionId:version.id,classIds:[cls.id],source:'PRE_REGISTRATION',rulesAccepted:true});
-  active('Регистрации');assert.match(document.body.textContent??'',/Финал USD/);
+  assert.equal(location.pathname,'/participant/registration-success','a confirmed registration opens the durable QR pass');
+  assert.equal(new URLSearchParams(location.search).get('registrationId'),'flow-registration');
+  for(let attempt=0;attempt<8&&!document.querySelector('.usd-registration-pass-qr svg');attempt++)await flush();
+  assert.match(document.querySelector('.usd-registration-pass-heading')?.textContent??'',/Вы зарегистрированы на этап/);
+  assert.match(document.querySelector('.usd-registration-pass-info')?.textContent??'',/Финал USD/);
+  assert.match(document.querySelector('.usd-registration-pass-info')?.textContent??'',/№ 007/);
+  assert.equal(document.querySelectorAll('.usd-registration-pass-qr svg').length,1,'the QR uses the saved registration ID');
  }finally{await act(async()=>root.unmount())}
 }
 
