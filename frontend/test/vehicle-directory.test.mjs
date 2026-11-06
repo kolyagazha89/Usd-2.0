@@ -35,28 +35,32 @@ test('invalid CSV and oversized inputs fail closed without creating suggestions'
  assert.throws(()=>parseVehicleDirectoryCsv('x'.repeat(MAX_VEHICLE_CSV_BYTES+1)),/превышает/);
 });
 
-test('all car forms use catalog suggestions; inspection enforces selected make and model',async()=>{
- const [admin,member,gate,hook]=await Promise.all([
+test('vehicle editors use selectable catalog suggestions with no arbitrary values',async()=>{
+ const [admin,member,gate,hook,picker]=await Promise.all([
   readFile(new URL('../src/admin/CarsPage.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/App.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/use-vehicle-directory.ts',import.meta.url),'utf8'),
+  readFile(new URL('../src/participant/VehicleCatalogPicker.tsx',import.meta.url),'utf8'),
  ]);
  for(const file of [admin,member,gate]){
-  assert.match(file,/useVehicleDirectory\(\)/);
-  assert.match(file,/modelsFor\(/);
+  assert.match(file,/useVehicleDirectory\\(\\)/);
+  assert.match(file,/modelsFor\\(/);
  }
  for(const file of [admin,member]){
-  assert.match(file,/<datalist/);
-  assert.match(file,/list="usd-/);
+  assert.match(file,/<VehicleCatalogPicker/);
+  assert.doesNotMatch(file,/Редкую марку или модель можно ввести вручную|Выберите из каталога или введите свою/);
  }
- assert.match(gate,/<SearchableSelect value=\{newBrand\}/);
- assert.match(gate,/<SearchableSelect value=\{newModel\}/);
+ assert.match(picker,/aria-autocomplete="list"/);
+ assert.match(picker,/role="listbox"/);
+ assert.match(picker,/onClick=\\{\\(\\)=>choose\\(item\\)\\}/);
+ assert.match(gate,/<SearchableSelect value=\\{newBrand\\}/);
+ assert.match(gate,/<SearchableSelect value=\\{newModel\\}/);
+ assert.match(gate,/const brandOptions=makes\\.map\\(make=>\\(\\{id:make,label:make\\}\\)\\)/);
+ assert.match(gate,/const modelOptions=modelsFor\\(newBrand\\)\\.map\\(model=>\\(\\{id:model,label:model\\}\\)\\)/);
  assert.match(gate,/carSelectionValid/);
- assert.doesNotMatch(gate,/usd-gate-car-makes|usd-gate-car-models/);
- assert.match(hook,/fetch\('\/catalogs\/usd_cars\.csv'/);
- assert.doesNotMatch(hook,/throw new Error.*Неизвестная марка|apiPatch|apiPost/);
- assert.match(admin,/onChange=\{e=>setV\(\{\.\.\.v,brand:e\.target\.value/);
- assert.match(gate,/setNewBrand\(value\);setNewModel\(''\)/);
- assert.match(member,/brand:e\.target\.value,model:''/);
+ assert.match(hook,/fetch\\('\\/catalogs\\/usd_cars\\.csv'/);
+ assert.match(admin,/onChange=\\{brand=>setV\\(\\{\\.\\.\\.v,brand,model:''\\}\\)\\}/);
+ assert.match(member,/brand:value,model:''/);
+ assert.match(member,/officialBrand&&officialModel/);
 });
