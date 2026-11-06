@@ -176,10 +176,17 @@ try{
        'champion must display public participant full name');
       assert.match(await currentSlide.locator('.usd-record-podium__holder').first().innerText(),/Тестовый Иван/,
        'smaller records must display public participant full name');
-      await podium.getByRole('button',{name:'Следующие рекорды'}).click();
+      assert.equal(await podium.locator('.usd-record-podium__controls button').count(),0,'record carousel has no arrow controls');
+      const swipeViewport=podium.locator('.usd-record-viewport');
+      await swipeViewport.dispatchEvent('pointerdown',{pointerId:11,pointerType:'touch',clientX:300,clientY:100,button:0});
+      await swipeViewport.dispatchEvent('pointerup',{pointerId:11,pointerType:'touch',clientX:100,clientY:105,button:0});
+      assert.match(await podium.locator('.usd-record-position').innerText(),/^2 \/ /,'swipe advances the record carousel');
       assert.equal(await page.locator('.usd-record-podium__grid[aria-hidden="false"] .usd-record-podium__card').count(),expectedColumns,
-       'next carousel page must preserve responsive grid');
-      row.recordPodium='hero + '+expectedColumns+' visible cards; participant name and next-page navigation';
+       'swiped carousel page must preserve responsive grid');
+      await swipeViewport.focus();
+      await page.keyboard.press('ArrowLeft');
+      assert.match(await podium.locator('.usd-record-position').innerText(),/^1 \/ /,'keyboard goes to previous records');
+      row.recordPodium='hero + '+expectedColumns+' visible cards; participant name, swipe and keyboard navigation';
 
      }
      if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
@@ -814,6 +821,28 @@ try{
       row.adminEventWorkflow='stage ID deep-link and active step preserved';
       await page.goto(base+route,{waitUntil:'networkidle'});
       row.adminEventOperations='full-width responsive roster and status controls';
+      if(route==='/admin/inspections'){
+       await page.getByRole('button',{name:'Зарегистрировать участника'}).click();
+       await page.getByRole('button',{name:'Новый участник на въезде'}).click();
+       const brandInput=page.getByRole('combobox',{name:'Марка автомобиля'});
+       await brandInput.fill('Toy');
+       await page.getByRole('option',{name:'Toyota',exact:true}).click();
+       const modelInput=page.getByRole('combobox',{name:'Модель автомобиля'});
+       await modelInput.fill('Corolla');
+       await page.getByRole('option',{name:'Corolla',exact:true}).click();
+       assert.equal(await brandInput.inputValue(),'Toyota','inspection make is chosen from catalog');
+       assert.equal(await modelInput.inputValue(),'Corolla','inspection model is filtered by make');
+       row.inspectionVehiclePicker='Toyota > Corolla searchable catalog selection; no live writes';
+      }
+     }
+     if(role==='ADMIN'&&route==='/admin/stage-report?stageId=stage1'){
+      const header=page.locator('.usd-report-hero');
+      await header.waitFor({state:'visible'});
+      const headerStyle=await header.evaluate(element=>({image:getComputedStyle(element).backgroundImage,color:getComputedStyle(element).color}));
+      assert.match(headerStyle.image,/rgb\(255, 255, 255\)/,'report header must be white, not charcoal');
+      assert.equal(await page.locator('.usd-report-group-row').count(),2,'class and podium directions get separate group headings');
+      assert.equal(await page.locator('.usd-report-group-row').first().innerText(),'SPL');
+      row.stageReport='white heading; grouped class and podium rows';
      }
      if(role==='ONBOARDING'&&route==='/participant'){
       const onboarding=page.locator('.profile-match-page.usd-member');
