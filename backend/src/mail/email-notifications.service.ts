@@ -211,53 +211,8 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     }
   }
 
-  async registrationConfirmed(registration: any) {
-    const user = await this.prisma.user.findFirst({
-      where: { participantId: registration.participantId, isActive: true },
-      select: { id: true, email: true, emailVerifiedAt: true },
-    });
-    if (!user?.email) {
-      this.logger.warn('Registration confirmation skipped: no active account with an email is linked to participant ' + String(registration.participantId ?? 'unknown'));
-      return;
-    }
-    const classItems = registration.classes ?? [];
-    const classes = classItems.map((item: any) => String(item.class?.name ?? '')).filter(Boolean);
-    const bassRaceClasses = classes.filter((name: string) => /^BassRace\b/i.test(name));
-    const regularClasses = classes.filter((name: string) => !/^BassRace\b/i.test(name));
-    const stage = registration.stage ?? {};
-    const car = registration.car ?? {};
-    const settingsRow = await this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { registration: true } }).catch(() => null);
-    const registrationSettings = (settingsRow?.registration ?? {}) as Record<string, any>;
-    const mainClassPrice = Math.max(0, Number(registrationSettings.price ?? 2000) || 0);
-    const additionalClassPrice = Math.max(0, Number(registrationSettings.additionalClassPrice ?? 2000) || 0);
-    const classCount = classItems.length;
-    const amountDue = classCount > 0 ? mainClassPrice + Math.max(0, classCount - 1) * additionalClassPrice : 0;
-    await this.dispatch({
-      eventKey: 'registration-confirmed:' + registration.id + ':' + new Date(registration.registeredAt ?? Date.now()).toISOString(),
-      type: 'REGISTRATION_CONFIRMED',
-      recipient: user.email,
-      stageId: stage.id ?? registration.stageId,
-      registrationId: registration.id,
-      subject: 'Заявка подтверждена: ' + (stage.name ?? 'этап USD'),
-      heading: 'Вы зарегистрированы на этап',
-      intro: 'Заявка успешно сохранена в системе USD. Сохраните это письмо с данными участия.',
-      details: [
-        'Этап: ' + (stage.name ?? 'Этап USD') + (stage.stageNumber ? ' · №' + stage.stageNumber : ''),
-        'Дата проведения: ' + (stage.date ? formatStageDate(stage) : 'уточняется'),
-        'Город: ' + (stage.city || 'уточняется'),
-        'Площадка и адрес: ' + [stage.venue, stage.address].filter(Boolean).join(', '),
-        'Автомобиль: ' + ([car.brand, car.model].filter(Boolean).join(' ') || 'не указан'),
-        ...(car.registrationNumber ? ['Государственный номер автомобиля: ' + car.registrationNumber] : []),
-        'Ваш номер участника на этапе: ' + (registration.participantNumber ?? 'назначается'),
-        'Основные классы (' + regularClasses.length + '): ' + (regularClasses.join(', ') || 'не указаны'),
-        ...(bassRaceClasses.length ? ['Классы BassRace (' + bassRaceClasses.length + '): ' + bassRaceClasses.map((name: string) => name.replace(/^BassRace\s*/i, '')).sort((a: string, b: string) => Number.parseFloat(a) - Number.parseFloat(b)).join(', ')] : []),
-        ...(classCount > 0 ? ['Оплата участия: ' + amountDue.toLocaleString('ru-RU') + ' ₽ на месте (' + mainClassPrice.toLocaleString('ru-RU') + ' ₽ за основной класс' + (classCount > 1 ? ' + ' + (classCount - 1) + ' доп. × ' + additionalClassPrice.toLocaleString('ru-RU') + ' ₽' : '') + '). Онлайн-регистрация бесплатна.'] : ['Оплата участия: уточняется организатором.']),
-        'Управление заявкой: откройте личный кабинет участника на сайте USD.',
-      ],
-      href: this.frontendUrl + '/participant',
-    });
-  }
-
+  // Success is confirmed by the QR-pass page. Legacy failed confirmation-email
+  // rows are retired by the background scanner, never sent to participants.
   private async notifyStageRegistrants(input: { stage: any; type: string; eventKey: string; heading: string; intro: string; details: string[]; href?: string }) {
     const registrations = await this.prisma.registration.findMany({
       where: { stageId: input.stage.id, status: 'ACTIVE' },
@@ -492,32 +447,11 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     }
   }
 
-  private async retryFailedRegistrationConfirmations() {
-    const cutoff = new Date(Date.now() - 15 * 60 * 1000);
-    const failed = await this.prisma.emailNotificationLog.findMany({
-      where: { type: 'REGISTRATION_CONFIRMED', status: 'FAILED', attempts: { lt: 5 }, updatedAt: { lte: cutoff } },
-      orderBy: { updatedAt: 'asc' },
-      take: 100,
+  private async retireFailedRegistrationConfirmations() {
+    await this.prisma.emailNotificationLog.updateMany({
+      where: { type: 'REGISTRATION_CONFIRMED', status: 'FAILED' },
+      data: { status: 'SKIPPED', lastError: null },
     });
-    for (const log of failed) {
-      if (!log.registrationId) {
-        await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
-        continue;
-      }
-      const registration = await this.prisma.registration.findUnique({
-        where: { id: log.registrationId },
-        include: { stage: true, car: true, classes: { include: { class: true } } },
-      });
-      const user = registration ? await this.prisma.user.findFirst({
-        where: { participantId: registration.participantId, isActive: true, emailVerifiedAt: { not: null } },
-        select: { id: true, email: true },
-      }) : null;
-      if (!registration || !user || user.email !== log.recipient) {
-        await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
-        continue;
-      }
-      await this.registrationConfirmed(registration);
-    }
   }
 
   async processReminders() {
@@ -525,7 +459,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     this.running = true;
     try {
       await this.retryFailedOpeningNotifications();
-      await this.retryFailedRegistrationConfirmations();
+      await this.retireFailedRegistrationConfirmations();
       const now = new Date();
       const dayMs = 24 * 60 * 60 * 1000;
       // Stage dates are calendar dates normalized to UTC noon, not event start times.
