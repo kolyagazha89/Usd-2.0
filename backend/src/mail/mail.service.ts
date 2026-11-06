@@ -348,7 +348,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     await this.sendMessage({ to: email, ...message });
-    return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Провайдер принял тестовый запрос. Проверьте входящие и папку «Спам»; фактическая доставка не подтверждена.' };
+    return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Тестовое письмо передано на отправку. Проверьте его получение в почте.' };
   }
 
   /** Administrative, credential-safe mail channel report; never exposes secrets. */
@@ -504,7 +504,7 @@ export class MailService {
         success: true as const,
         providerAccepted: true as const,
         deliveryConfirmed: false as const,
-        message: 'Почтовый провайдер принял запрос. Проверьте входящие и папку «Спам»; доставка пока не подтверждена.',
+        message: 'Письмо передано на отправку. Проверьте «Входящие» и «Спам».',
       };
     });
   }
