@@ -952,10 +952,30 @@ try{
       assert.equal(await page.locator('.usd-registration-pass-qr svg').count(),1,'confirmed pass shows a scannable code');
       assert.ok((await page.locator('.usd-registration-pass-id').innerText()).length>=48,'permanent participant USD ID visible');
       assert.match(await page.locator('.usd-registration-pass-classes').innerText(),/№ 007/,'class retains assigned number');
-      const downloadPromise=page.waitForEvent('download');
+      // Blob-backed SVG downloads may be suppressed in isolated Chromium CI.
+      // Verify the actual click-created anchor and serialized QR content instead
+      // of relying on a browser download event that never fires in that mode.
+      await page.evaluate(()=>{
+       window.__usdQrDownload=null;
+       const original=HTMLAnchorElement.prototype.click;
+       HTMLAnchorElement.prototype.click=function(){
+        if(this.download?.startsWith('USD-QR-')){
+         window.__usdQrDownload={filename:this.download,href:this.href};
+         return;
+        }
+        return original.call(this);
+       };
+      });
       await page.getByRole('button',{name:/Сохранить QR-код/}).click();
-      const downloaded=await downloadPromise;
-      assert.match(downloaded.suggestedFilename(),/^USD-QR-.*\.svg$/);
+      const download=await page.evaluate(async()=>{
+       const captured=window.__usdQrDownload;
+       if(!captured)return null;
+       return {filename:captured.filename,svg:await (await fetch(captured.href)).text()};
+      });
+      assert.ok(download,'QR export creates a downloadable blob');
+      assert.match(download.filename,/^USD-QR-.*\.svg$/);
+      assert.match(download.svg,/<svg\\b/);
+      assert.match(download.svg,/<path\\b|<rect\\b/);
       assert.equal(await page.getByRole('button',{name:/Скопировать USD ID/}).count(),1);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'QR pass fits mobile width');
       row.registrationPass='confirmed route, permanent ID, class numbers and downloaded SVG';
