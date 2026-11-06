@@ -727,8 +727,10 @@ try{
       await selectors.nth(1).fill('Петров');
       await page.locator('.duplicate-choose-profile').nth(1).locator('li button').first().click();
       await page.getByRole('button',{name:'Проверить конфликты и историю'}).click();
-      assert.ok(await page.locator('.duplicate-preview-warning').isVisible());
-      assert.ok(await page.getByText(/Профили имеют активные заявки/).isVisible());
+      // API-backed preview is asynchronous, even with a local route fixture.
+      // isVisible() is an instantaneous snapshot and races the React render.
+      await page.locator('.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+      await page.getByText(/Профили имеют активные заявки/).waitFor({state:'visible',timeout:6000});
       assert.equal(await page.getByRole('button',{name:/Объединить профили/}).count(),0,'destructive merge is never available');
       row.duplicatePreview='read-only conflicting historical profiles, no merge controls';
      }
