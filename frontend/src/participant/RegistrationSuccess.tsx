@@ -1,7 +1,7 @@
 import {useEffect,useId,useState} from 'react';
 import {QRCodeSVG} from 'qrcode.react';
 import {apiGet} from '../api';
-import {registrationInspectionQrUrl,registrationNumbers,type RegistrationPassData} from './registration-pass-utils';
+import {registrationInspectionQrUrl,registrationNumbers,titleName,type RegistrationPassData} from './registration-pass-utils';
 import './registration-success.css';
 
 
