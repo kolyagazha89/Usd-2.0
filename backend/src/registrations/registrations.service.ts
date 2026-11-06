@@ -1183,9 +1183,8 @@ export class RegistrationsService {
         });
       },
     );
-    void this.emailNotifications?.registrationConfirmed(registration).catch((error) => {
-      this.logger.error('Registration confirmation email could not be prepared: ' + (error instanceof Error ? error.name : 'UnknownError'));
-    });
+    // Success is shown in the participant account after the saved response.
+    // Do not send a duplicate registration-confirmation email.
     return registration;
   }
   // ==========================================
