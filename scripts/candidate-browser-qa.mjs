@@ -60,6 +60,8 @@ function dataFor(url,role){
  if(p==='/cars'&&role==='ADMIN')return Array.from({length:63},(_,index)=>({...car,id:'car'+(index+1),model:'Vesta '+String(index+1).padStart(2,'0')}));
  if(p==='/participants/me/cars'||p==='/cars'||p==='/participants/p1/cars')return [car];
  if(p==='/registrations/me'||p==='/registrations')return [registration];
+ if(p==='/registrations/reg1')return registration;
+ if(p==='/participants/me/usd-id')return {token:'f'.repeat(48),path:'/usd-id/'+'f'.repeat(48)};
  if(p==='/cars/car1/configurations')return [configuration];
  if(p==='/configurations/config1')return configuration;
  if(p==='/site-settings'||p==='/site-settings/public')return {settings};
@@ -98,14 +100,14 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of qaOptions.widths){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1','/participant/registration-success?registrationId=reg1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -943,6 +945,20 @@ try{
       row.registrationFlow='three steps; selection gates; back preserves choices; rule consent gate; no submission';
       const end=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(end.scroll<=end.width+1,'confirmation fits viewport');
       assert.equal(errors.length,0,'flow has no runtime errors');
+     }
+     if(role==='PARTICIPANT'&&route.startsWith('/participant/registration-success')){
+      await page.getByRole('heading',{name:'Вы зарегистрированы на этап'}).waitFor();
+      await page.getByRole('heading',{name:'QR-код для инспекции'}).waitFor();
+      assert.equal(await page.locator('.usd-registration-pass-qr svg').count(),1,'confirmed pass shows a scannable code');
+      assert.ok((await page.locator('.usd-registration-pass-id').innerText()).length>=48,'permanent participant USD ID visible');
+      assert.match(await page.locator('.usd-registration-pass-classes').innerText(),/№ 007/,'class retains assigned number');
+      const downloadPromise=page.waitForEvent('download');
+      await page.getByRole('button',{name:/Сохранить QR-код/}).click();
+      const downloaded=await downloadPromise;
+      assert.match(downloaded.suggestedFilename(),/^USD-QR-.*\.svg$/);
+      assert.equal(await page.getByRole('button',{name:/Скопировать USD ID/}).count(),1);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'QR pass fits mobile width');
+      row.registrationPass='confirmed route, permanent ID, class numbers and downloaded SVG';
      }
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
       const requestCopy=await page.locator('.catalog-request-inline>.secondary-button').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));

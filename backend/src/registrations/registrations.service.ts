@@ -1183,9 +1183,8 @@ export class RegistrationsService {
         });
       },
     );
-    void this.emailNotifications?.registrationConfirmed(registration).catch((error) => {
-      this.logger.error('Registration confirmation email could not be prepared: ' + (error instanceof Error ? error.name : 'UnknownError'));
-    });
+    // A successful registration is acknowledged in the authenticated QR-pass page.
+    // Do not send a duplicate 'registration confirmed' email.
     return registration;
   }
   // ==========================================
