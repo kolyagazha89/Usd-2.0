@@ -91,7 +91,7 @@ export default function ParticipantAccountSecurity({email,onLogout,section='all'
     try{
       await apiPost('/auth/request-email-change',{email:normalizedEmail,currentPassword:emailPassword});
       setEmailPassword('');setNewEmail(normalizedEmail);
-      setEmailSuccess(`Запрос на письмо для ${normalizedEmail} принят. Откройте ссылку в течение 30 минут. Доставка письма пока не подтверждена; проверьте также папку «Спам». До подтверждения действует текущий email.`);
+      setEmailSuccess(`Мы отправили письмо для подтверждения на ${normalizedEmail}. Перейдите по ссылке в течение 30 минут. Если письма нет, проверьте «Спам». До подтверждения используется текущий email.`);
     }catch(cause){setEmailError(message(cause,'Не удалось запросить смену email. Попробуйте ещё раз.'))}
     finally{operation.current=false;setBusy(null)}
   }
