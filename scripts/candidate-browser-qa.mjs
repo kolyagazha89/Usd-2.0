@@ -367,7 +367,7 @@ try{
       await flow.getByLabel('Участник',{exact:true}).selectOption('p1');
       // Car catalog fields may be a native select (mobile) or an accessible
       // combobox. Exercise whichever verified control the editor renders.
-      for(const [label,value] of [['Марка','Lada'],['Модель','Vesta']]){
+      for(const [label,value] of [['Марка','Лада'],['Модель','Веста']]){
        const field=flow.getByLabel(label,{exact:true});
        if(await field.evaluate(element=>element.tagName.toLowerCase()==='select')){
         await field.selectOption({label:value});
