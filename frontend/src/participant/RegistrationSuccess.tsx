@@ -46,7 +46,7 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
    </article>
    <aside className="usd-pass-qr-card">
     <span className="usd-pass-kicker">ПОКАЖИТЕ НА ИНСПЕКЦИИ</span>
-    <div className="usd-pass-qr-frame"><QRCodeSVG id={svgId} value={qr} size={236} level="M" marginSize={2}/></div>
+    <div className="usd-pass-qr-frame"><QRCodeSVG id={svgId} value={qr} size={236} level="M" marginSize={2} title="QR-код пропуска USD для инспекции" role="img" aria-label="QR-код пропуска USD для инспекции"/></div>
     <span className="usd-pass-id-caption">Постоянный USD ID участника</span>
     {usdIdLoading?<p role="status">Получаем USD ID…</p>:usdId?<code className="usd-pass-id">{usdId}</code>:<p className="usd-pass-error" role="alert">{error}</p>}
     <div className="usd-pass-buttons">
