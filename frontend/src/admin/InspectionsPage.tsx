@@ -1,3 +1,5 @@
+import './form-journey.css';
+import {walkInNextStep,walkInStepProgress} from './walk-in-form-journey';
 import {readViewState,useViewState,useListScroll,seasonYears,matchesSeason,stageYear} from './view-state';
 import {canOpenWalkInRegistration,filterInspections,summarizeInspections} from './event-ops-model';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
@@ -217,7 +219,10 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  const carSelectionValid=directoryLoaded&&makes.includes(newBrand)&&modelsFor(newBrand).includes(newModel);
  const pendingCreatedCarId=useRef('');
  const[participantId,setParticipantId]=useState(''),[carId,setCarId]=useState(''),[configurationVersionId,setConfigurationVersionId]=useState(''),[classIds,setClassIds]=useState<string[]>([]);
- const[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');const[legalReady,setLegalReady]=useState(false),[legalVersion,setLegalVersion]=useState<string|null>(null),[rulesAccepted,setRulesAccepted]=useState(false),[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false);
+ const[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ const [walkInStep,setWalkInStep]=useState<0|1|2>(0),[createdRegistrationId,setCreatedRegistrationId]=useState('');
+ const walkInTitleRef=useRef<HTMLHeadingElement>(null);
+ useEffect(()=>{if(!loading)walkInTitleRef.current?.focus()},[walkInStep]);const[legalReady,setLegalReady]=useState(false),[legalVersion,setLegalVersion]=useState<string|null>(null),[rulesAccepted,setRulesAccepted]=useState(false),[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false);
  useEffect(()=>{apiGet<any>('/site-settings/public').then(r=>{const legal=r?.settings?.legal??{};const ready=legal.legalApproved===true&&Boolean(String(legal.legalVersion??'').trim())&&Boolean(String(legal.ipName??'').trim())&&Boolean(String(legal.privacyText??'').trim())&&Boolean(String(legal.consentText??'').trim())&&Boolean(String(legal.termsText??'').trim());setLegalReady(ready);setLegalVersion(ready?String(legal.legalVersion??''):null)}).catch(()=>setLegalReady(false))},[]);
  useEffect(()=>{let cancelled=false;(async()=>{setLoading(true);setError('');try{const[p,sc]=await Promise.all([apiGet<any>('/participants/lookup'),apiGet<any>('/stages/'+encodeURIComponent(stageId)+'/classes')]);if(cancelled)return;setParticipants(listData(p));setStageClasses(listData(sc))}catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Не удалось загрузить справочники')}finally{if(!cancelled)setLoading(false)}})();return()=>{cancelled=true}},[stageId]);
  const normalizedProfileQuery=profileQuery.trim().toLocaleLowerCase('ru');
@@ -283,11 +288,40 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  const selectedDirections=new Set(classIds.map(id=>stageClasses.find((x:any)=>(x.classId??x.class?.id)===id)).filter((item:any)=>item&&!isBassRace(item)).map((item:any)=>classDirectionId(item)));
  const classGroups=Object.values(stageClasses.filter((x:any)=>x.isActive!==false).reduce((acc:Record<string,{name:string;items:any[]}>,item:any)=>{const name=item.class?.direction?.name||'Без направления';if(!acc[name])acc[name]={name,items:[]};acc[name].items.push(item);return acc},{}));
  const toggleClass=(id:string)=>{const next=nextRegistrationClassIds(classIds,id,!classIds.includes(id),stageClasses);if(next.length===classIds.length&&!classIds.includes(id)){setError('На основном номере не более 5 классов; для BassRace выделяются новые номера.');return}setError('');setClassIds(next)};
- const submit=async()=>{if(!participantId||!carId||!classIds.length){setError('Выберите участника, автомобиль и классы');return}if(classIds.length>MAX_REGISTRATION_CLASSES||primaryNumberClassCount(classIds,stageClasses)>MAX_PRIMARY_NUMBER_CLASSES){setError('На основном номере не более 5 классов. В BassRace дополнительные классы получают новые номера.');return}if(!legalReady){setError('Регистрация временно недоступна: юридические документы не утверждены организатором');return}if(!rulesAccepted||!privacyConsent||!termsAccepted){setError('Подтвердите все обязательные согласия участника');return}setSaving(true);setError('');try{const created=await apiPost<{id:string}>('/registrations',{stageId,participantId,carId,...(configurationVersionId?{configurationVersionId}:{}),classIds,source:'ON_SITE',rulesAccepted,privacyConsent,termsAccepted});await onSaved(typeof created?.id==='string'?created.id:'')}catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать участника')}finally{setSaving(false)}};
+ const walkInReady=walkInStepProgress({participantId,carId,classIds,primaryClassCount:primaryNumberClassCount(classIds,stageClasses),legalReady,privacyConsent,termsAccepted,rulesAccepted});
+ const walkInSteps=['Участник и автомобиль','Классы','Подтверждение регистрации'] as const;
+ const goWalkInStep=(value:0|1|2)=>{setWalkInStep(value);setError('')};
+ const nextWalkInStep=()=>goWalkInStep(walkInNextStep(walkInStep,walkInReady));
+ const submit=async()=>{
+  if(walkInStep!==2)return;
+  if(createdRegistrationId){
+   setSaving(true);setError('');
+   try{await onSaved(createdRegistrationId)}catch{setError('Регистрация уже сохранена. Не создавайте её повторно — попробуйте открыть сохранённую запись ещё раз.')}finally{setSaving(false)}
+   return;
+  }
+  if(!participantId||!carId||!classIds.length){setError('Выберите участника, автомобиль и классы');return}
+  if(classIds.length>MAX_REGISTRATION_CLASSES||primaryNumberClassCount(classIds,stageClasses)>MAX_PRIMARY_NUMBER_CLASSES){setError('На основном номере не более 5 классов. В BassRace дополнительные классы получают новые номера.');return}
+  if(!legalReady){setError('Регистрация временно недоступна: юридические документы не утверждены организатором');return}
+  if(!rulesAccepted||!privacyConsent||!termsAccepted){setError('Подтвердите все обязательные согласия участника');return}
+  setSaving(true);setError('');
+  try{
+   const created=await apiPost<{id:string}>('/registrations',{stageId,participantId,carId,...(configurationVersionId?{configurationVersionId}:{}),classIds,source:'ON_SITE',rulesAccepted,privacyConsent,termsAccepted});
+   if(!created?.id)throw new Error('Сервер не подтвердил идентификатор регистрации. Проверьте список перед повторной отправкой.');
+   setCreatedRegistrationId(created.id);
+   try{await onSaved(created.id)}catch{setError('Регистрация создана и сохранена. Открытие карточки временно недоступно — повторная отправка не требуется.')}
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать участника')}
+  finally{setSaving(false)}
+ };
+
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">ВЪЕЗДНАЯ ИНСПЕКЦИЯ · РЕГИСТРАЦИЯ</span><h2>Регистрация участника на этап</h2><p>Найдите участника или создайте профиль прямо на въезде. Конфигурацию оборудования можно дополнить позже.</p></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div>
   {error&&<div className="form-error"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {loading?<LoadingPage small/>:<div className="form modal-form">
+  {loading?<LoadingPage small/>:<div className="form modal-form walk-in-journey">
+   <nav className="form-wizard-nav" aria-label="Шаги регистрации на месте">{walkInSteps.map((name,index)=><button key={name} type="button" className={walkInStep===index?'is-active':''} aria-current={walkInStep===index?'step':undefined} disabled={saving||creatingProfile||creatingCar||(index>0&&!walkInReady.slice(0,index).every(Boolean))} onClick={()=>goWalkInStep(index as 0|1|2)}><span>{index+1}</span><strong>{name}</strong><small>{index<2?(walkInReady[index]?'Заполнено':'Требует заполнения'):(walkInReady[2]?'Готово':'Проверьте согласия')}</small></button>)}</nav>
+   <div className="form-wizard-progress" role="status" aria-live="polite">Шаг {walkInStep+1} из 3 · {walkInSteps[walkInStep]}</div>
+   <h3 className="form-wizard-title" tabIndex={-1} ref={walkInTitleRef}>{walkInSteps[walkInStep]}</h3>
+
    {directoryError&&<div className="form-error" role="alert">Справочник автомобилей недоступен: {directoryError}. Проверьте соединение и обновите страницу.</div>}
+   <div id="walk-in-identity" className="form-wizard-panel" hidden={walkInStep!==0}>
    <section className="registration-profile-picker" aria-labelledby="registration-profile-title">
     <div className="registration-profile-picker-heading"><div><h3 id="registration-profile-title">Найти участника</h3><p>Проверьте существующий профиль перед регистрацией, чтобы не создавать дубликаты.</p></div><span>{participants.length} в базе</span></div>
     <label className="registration-profile-search">Поиск по ФИО, команде или телефону<input type="search" autoComplete="off" value={profileQuery} onChange={e=>{setProfileQuery(e.target.value);setShowAllProfiles(false)}} placeholder="Начните вводить фамилию или имя…"/></label>
@@ -322,9 +356,26 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
    </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button></section>}
    <label>Конфигурация оборудования (можно заполнить позже)<select value={configurationVersionId} onChange={e=>setConfigurationVersionId(e.target.value)} disabled={!carId}><option value="">Пока не заполнена — создать черновик на этапе</option>{configurations.map((cfg:any)=><option key={cfg.id} value={cfg.id}>{cfg.label}</option>)}</select></label>
    {!configurationVersionId&&carId&&<div className="notice" role="status"><Info size={16}/><span>Участник получит номер и попадёт на инспекцию. Точные характеристики аудиосистемы пока не подтверждены, их нужно заполнить позже.</span></div>}
-   <div className="config-section"><div className="config-section-head"><div className="config-section-title"><div><strong>Классы этапа</strong><small>Один класс в каждом направлении; в BassRace можно выбрать несколько</small></div></div></div><p className="field-help" role="status">Всего классов: {classIds.length}. На основном номере: {primaryNumberClassCount(classIds,stageClasses)} из {MAX_PRIMARY_NUMBER_CLASSES}. BassRace можно выбрать во всех доступных классах — для дополнительных выдаются отдельные номера.</p><div className="stage-class-modal-list">{classGroups.map((group:any)=><section key={group.name} className="registration-admin-class-group"><strong>{group.name}</strong>{group.items.map((x:any)=>{const id=x.classId??x.class?.id;const checked=classIds.includes(id);const directionId=x.class?.direction?.id??x.class?.directionId??x.directionId;const disabled=!checked&&(classIds.length>=MAX_REGISTRATION_CLASSES||(!isBassRace(x)&&selectedDirections.has(directionId))||(!isBassRace(x)&&primaryNumberClassCount([...classIds,id],stageClasses)>MAX_PRIMARY_NUMBER_CLASSES));return <label key={id} className="checkbox-row"><input type="checkbox" checked={checked} disabled={disabled} onChange={()=>toggleClass(id)}/><span><b>{x.class?.name||x.name}</b><small>{enumLabel(x.class?.unit||x.unit||'DB')}</small></span></label>})}</section>)}</div></div>
    {!legalReady&&<div className="form-error"><AlertTriangle size={16}/>Юридические документы не утверждены. Регистрация на месте временно недоступна.</div>}{legalReady&&<div className="consent-stack"><strong>Подтверждение участника</strong><label className="consent-option"><input type="checkbox" checked={privacyConsent} onChange={e=>setPrivacyConsent(e.target.checked)} required/><span>Подтверждаю, что участник дал согласие на обработку персональных данных и ознакомлен с <a href="/privacy" target="_blank" rel="noreferrer">политикой</a> и <a href="/consent" target="_blank" rel="noreferrer">текстом согласия</a>.</span></label><label className="consent-option"><input type="checkbox" checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} required/><span>Подтверждаю, что участник принял <a href="/terms" target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span></label><label className="consent-option"><input type="checkbox" checked={rulesAccepted} onChange={e=>setRulesAccepted(e.target.checked)} required/><span>Подтверждаю, что участник ознакомлен с <a href="/rules" target="_blank" rel="noreferrer">регламентом USD</a> и правилами выбранных классов.</span></label><small className="muted">Версия юридических документов: {legalVersion}</small></div>}
-   <button type="button" className="primary-button save-button" disabled={saving||loading||!legalReady||!rulesAccepted||!privacyConsent||!termsAccepted} onClick={()=>void submit()}>{saving?<><Loader2 className="spin" size={16}/>Регистрируем…</>:<><Check size={16}/>Зарегистрировать</>}</button>
+
+   </div>
+   <div id="walk-in-classes" className="form-wizard-panel" hidden={walkInStep!==1}>
+   <div className="config-section"><div className="config-section-head"><div className="config-section-title"><div><strong>Классы этапа</strong><small>Один класс в каждом направлении; в BassRace можно выбрать несколько</small></div></div></div><p className="field-help" role="status">Всего классов: {classIds.length}. На основном номере: {primaryNumberClassCount(classIds,stageClasses)} из {MAX_PRIMARY_NUMBER_CLASSES}. BassRace можно выбрать во всех доступных классах — для дополнительных выдаются отдельные номера.</p><div className="stage-class-modal-list">{classGroups.map((group:any)=><section key={group.name} className="registration-admin-class-group"><strong>{group.name}</strong>{group.items.map((x:any)=>{const id=x.classId??x.class?.id;const checked=classIds.includes(id);const directionId=x.class?.direction?.id??x.class?.directionId??x.directionId;const disabled=!checked&&(classIds.length>=MAX_REGISTRATION_CLASSES||(!isBassRace(x)&&selectedDirections.has(directionId))||(!isBassRace(x)&&primaryNumberClassCount([...classIds,id],stageClasses)>MAX_PRIMARY_NUMBER_CLASSES));return <label key={id} className="checkbox-row"><input type="checkbox" checked={checked} disabled={disabled} onChange={()=>toggleClass(id)}/><span><b>{x.class?.name||x.name}</b><small>{enumLabel(x.class?.unit||x.unit||'DB')}</small></span></label>})}</section>)}</div></div>
+
+   </div>
+   <div id="walk-in-review" className="form-wizard-panel" hidden={walkInStep!==2}>
+    <div className="form-wizard-review" aria-label="Проверка регистрации"><h4>Проверьте регистрацию до выдачи номера</h4><dl>
+     <div><dt>Участник</dt><dd>{selectedParticipant?[selectedParticipant.lastName,selectedParticipant.firstName,selectedParticipant.middleName].filter(Boolean).join(' '):'Не выбран'}</dd></div>
+     <div><dt>Автомобиль</dt><dd>{selectedCar?[selectedCar.brand,selectedCar.model,selectedCar.registrationNumber].filter(Boolean).join(' · '):'Не выбран'}</dd></div>
+     <div><dt>Конфигурация</dt><dd>{configurationVersionId?'Версия подтверждена':'Черновик — заполнить после этапа'}</dd></div>
+     <div><dt>Классов</dt><dd>{classIds.length}. На основном номере: {primaryNumberClassCount(classIds,stageClasses)} из {MAX_PRIMARY_NUMBER_CLASSES}.</dd></div>
+    </dl><div className="form-wizard-class-summary">{classGroups.map(group=><section key={group.name}><strong>{group.name}</strong><ul>{group.items.filter(item=>classIds.includes(item.classId??item.class?.id)).map(item=><li key={item.classId??item.class?.id}>{item.class?.name??item.name}</li>)}</ul></section>).filter(Boolean)}</div>
+    <p role="status">{walkInReady[2]?'Все обязательные согласия подтверждены. После сохранения участник получит регистрационный номер.':'Не подтверждены все обязательные согласия. Вернитесь к первому шагу.'}</p></div>
+   </div>
+   <div className="form-wizard-actions">
+    {walkInStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>goWalkInStep((walkInStep-1) as 0|1)}>Назад</button>}
+    {walkInStep<2?<button type="button" className="primary-button" disabled={!walkInReady[walkInStep]||saving||creatingProfile||creatingCar} onClick={nextWalkInStep}><ChevronRight size={16}/>Продолжить</button>:<button type="button" className="primary-button save-button" disabled={saving||loading||!walkInReady.every(Boolean)} onClick={()=>void submit()}>{saving?<><Loader2 className="spin" size={16}/>Регистрируем…</>:createdRegistrationId?'Открыть сохранённую регистрацию':<><Check size={16}/>Подтвердить и зарегистрировать</>}</button>}
+   </div>
   </div>}
  </section>
 }
