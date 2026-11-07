@@ -1,5 +1,5 @@
 import './form-journey.css';
-import {groupFormFields,isJourneyFieldFilled,journeyRequiredProgress,missingJourneyField} from './form-journey-model';
+import {groupFormFields,isJourneyFieldFilled,journeyRequiredProgress,journeyReviewRows,missingJourneyField} from './form-journey-model';
 import {useEffect,useId,useRef,useState,type FormEvent} from 'react';
 import {AlertTriangle,Check,ChevronDown,ChevronLeft,ChevronRight,Info,Loader2,Pencil,Trash2} from 'lucide-react';
 import {formatPlateInput,formatPhoneInput,isValidInternationalPhone,isValidPlate} from '../profile-validation';
@@ -42,8 +42,11 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
 export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,enumLabel}:{fields:Field[];initial:any;saving:boolean;relationOptions?:Record<string,any[]>;onSubmit:(v:any)=>Promise<void>;enumLabel:(v:any)=>string}){
  const[v,setV]=useState<any>(initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
  const groups=groupFormFields(fields,5);
- const activeStep=Math.min(step,groups.length-1);
- const visible=groups[activeStep];
+ const hasReview=groups.length>1;
+ const reviewStep=groups.length;
+ const activeStep=Math.min(step,hasReview?reviewStep:groups.length-1);
+ const onReview=hasReview&&activeStep===reviewStep;
+ const visible=onReview?[]:groups[activeStep];
  const required=journeyRequiredProgress(fields,v);
  const renderControl=(f:Field)=>{const opts=relationOptions[f.name]??[];const inputValue=f.type==='date'&&typeof v[f.name]==='string'?v[f.name].slice(0,10):f.type==='datetime-local'&&typeof v[f.name]==='string'?v[f.name].slice(0,16):v[f.name]??'';if(f.type==='checkbox')return <div className="field-check"><input type="checkbox" checked={v[f.name]===true} onChange={e=>setV({...v,[f.name]:e.target.checked})}/><span><b>{f.label}</b>{f.help&&<small>{f.help}</small>}</span></div>;if(f.optionsPath){const options=f.name==='team'?opts.map(o=>({value:String(o.name),label:String(o.name)})):opts.map(o=>({id:o.id,label:f.optionLabel?f.optionLabel(o):o.name??o.id}));return <SearchableSelect value={v[f.name]??''} options={options} onChange={value=>setV({...v,[f.name]:value})} required={f.required} ariaLabel={f.label}/>};if(f.options)return <SearchableSelect value={v[f.name]??''} options={f.options.map(o=>({value:o,label:enumLabel(o)}))} onChange={value=>setV({...v,[f.name]:value})} required={f.required} ariaLabel={f.label}/>;if(f.type==='textarea')return <textarea aria-label={f.label} rows={4} required={f.required} value={v[f.name]??''} placeholder={fieldPlaceholder(f)} onChange={e=>setV({...v,[f.name]:e.target.value})}/>;return <input aria-label={f.label} type={f.type??(f.name==='phone'?'tel':'text')} inputMode={f.name==='phone'?'tel':f.name==='registrationNumber'?'text':undefined} autoCapitalize={f.name==='registrationNumber'?'characters':undefined} maxLength={f.name==='registrationNumber'?9:f.name==='phone'?25:undefined} value={inputValue} placeholder={fieldPlaceholder(f)} onChange={e=>setV({...v,[f.name]:f.type==='number'?(e.target.value===''?undefined:Number(e.target.value)):f.name==='registrationNumber'?formatPlateInput(String(v.registrationCountry??'RU'),e.target.value):f.name==='phone'?formatPhoneInput(e.target.value):e.target.value})} required={f.required}/>;};
  const invalidValue=()=>{
@@ -56,24 +59,36 @@ export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,en
   e.preventDefault();setValidationError('');
   const missing=missingJourneyField(visible,v);
   if(missing){setValidationError('Заполните обязательное поле: '+missing.label);return}
-  const invalid=invalidValue();
-  if(invalid){
-   const index=groups.findIndex(group=>group.some(field=>field.name===invalid.field));
-   if(index===activeStep||activeStep===groups.length-1){
-    setValidationError(invalid.message);
-    if(index>=0)setStep(index);
-    return;
+  if(!onReview&&activeStep<groups.length-1){
+   const invalid=invalidValue();
+   if(invalid&&groups[activeStep].some(f=>f.name===invalid.field)){
+    setValidationError(invalid.message);return;
    }
+   setStep(activeStep+1);return;
   }
-  if(activeStep<groups.length-1){setStep(activeStep+1);return}
   const firstMissing=missingJourneyField(fields,v);
   if(firstMissing){
    setStep(Math.max(0,groups.findIndex(group=>group.some(f=>f.name===firstMissing.name))));
-   setValidationError('Заполните обязательное поле: '+firstMissing.label);
-   return;
+   setValidationError('Заполните обязательное поле: '+firstMissing.label);return;
   }
+  const invalid=invalidValue();
+  if(invalid){
+   setStep(Math.max(0,groups.findIndex(group=>group.some(f=>f.name===invalid.field))));
+   setValidationError(invalid.message);return;
+  }
+  if(hasReview&&!onReview){setStep(reviewStep);return}
   void onSubmit(clean(v));
  };
+ const reviewValue=(name:string,value:string)=>{
+  const field=fields.find(f=>f.name===name);
+  if(!field)return value;
+  if(field.optionsPath){
+   const selected=(relationOptions[name]??[]).find(item=>String(field.name==='team'?item.name:item.id)===String(v[name]));
+   if(selected)return String(field.optionLabel?field.optionLabel(selected):selected.name??selected.id);
+  }
+  return field.options&&value!=='Не указано'?enumLabel(value):value;
+ };
+
  return <form className="form modal-form entity-form-journey" noValidate onSubmit={submit}>
   <div className="form-intro"><Info size={17}/><span>Поля со звёздочкой <b>*</b> обязательны.</span></div>
   {groups.length>1&&<nav className="entity-form-step-nav" aria-label="Этапы заполнения формы">{groups.map((group,index)=>{
@@ -81,11 +96,12 @@ export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,en
    const previousReady=!missingJourneyField(groups.slice(0,index).flat(),v);
    return <button key={index} type="button" className={'entity-form-step'+(index===activeStep?' is-active':'')+(ready?' is-complete':'')} aria-current={index===activeStep?'step':undefined} disabled={saving||!previousReady} onClick={()=>{setValidationError('');setStep(index)}}>
     <span>{index+1}</span><strong>Шаг {index+1}</strong><small>{!group.some(f=>f.required)?'Дополнительные поля':ready?'Обязательные поля заполнены':group.filter(f=>f.required).filter(f=>isJourneyFieldFilled(f,v[f.name])).length+' / '+group.filter(f=>f.required).length+' обязательных'}</small>
-   </button>})}</nav>}
-  {groups.length>1&&<div className="entity-form-journey-progress"><span>Шаг {activeStep+1} из {groups.length}</span><span>Обязательные: {required.done} из {required.total}</span><div className="entity-form-progress-track"><div role="progressbar" aria-label="Заполнение обязательных полей" aria-valuemin={0} aria-valuemax={required.total||1} aria-valuenow={required.done} style={{width:required.total?required.done/required.total*100+'%':'100%'}}/></div></div>}
+   </button>})}{hasReview&&<button type="button" className={'entity-form-step'+(onReview?' is-active':'')} aria-current={onReview?'step':undefined} disabled={saving||Boolean(missingJourneyField(fields,v))} onClick={()=>{setValidationError('');setStep(reviewStep)}}><span>{reviewStep+1}</span><strong>Проверка</strong><small>Перед сохранением</small></button>}</nav>}
+  {groups.length>1&&<div className="entity-form-journey-progress"><span>Шаг {activeStep+1} из {groups.length+(hasReview?1:0)}</span><span>Обязательные: {required.done} из {required.total}</span><div className="entity-form-progress-track"><div role="progressbar" aria-label="Заполнение обязательных полей" aria-valuemin={0} aria-valuemax={required.total||1} aria-valuenow={required.done} style={{width:required.total?required.done/required.total*100+'%':'100%'}}/></div></div>}
+  {onReview&&<section className="entity-form-review" aria-label="Проверка перед сохранением"><h3>Проверка перед сохранением</h3><p role="status">Проверьте данные. При необходимости вернитесь к нужному шагу — введённые значения сохранятся.</p><dl>{journeyReviewRows(fields,v).map(item=><div key={item.name}><dt>{item.label}</dt><dd>{reviewValue(item.name,item.value)}</dd></div>)}</dl></section>}
   <div className="entity-fields">{visible.map(f=><label key={f.name} className={f.type==='checkbox'?'checkbox-row field-wrapper':''}><span className="field-label">{f.type==='checkbox'?null:<>{f.label}{f.required&&<em>*</em>}</>}</span>{renderControl(f)}{f.type!=='checkbox'&&f.help&&<small className="field-help">{f.help}</small>}</label>)}</div>
   {validationError&&<div className="form-error" role="alert">{validationError}</div>}
-  <div className="entity-form-actions">{groups.length>1&&activeStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>{setValidationError('');setStep(activeStep-1)}}><ChevronLeft size={16}/>Назад</button>}<button type="submit" className="primary-button save-button" disabled={saving}>{saving?<><Loader2 className="spin" size={16}/>Сохраняем…</>:activeStep<groups.length-1?<><ChevronRight size={16}/>Продолжить</>:<><Check size={16}/>Сохранить изменения</>}</button></div>
+  <div className="entity-form-actions">{groups.length>1&&activeStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>{setValidationError('');setStep(activeStep-1)}}><ChevronLeft size={16}/>Назад</button>}<button type="submit" className="primary-button save-button" disabled={saving}>{saving?<><Loader2 className="spin" size={16}/>Сохраняем…</>:activeStep<groups.length-1?<><ChevronRight size={16}/>Продолжить</>:hasReview&&!onReview?<><ChevronRight size={16}/>Проверить данные</>:<><Check size={16}/>Сохранить изменения</>}</button></div>
  </form>
 }
 
