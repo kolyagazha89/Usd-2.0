@@ -87,11 +87,13 @@ test('judging never creates measurements from implicit Enter or step-navigation 
  assert.equal(canConfirmJudgingResult({...ready,explicit:true}),true,'explicit final submission');
  assert.equal(canConfirmJudgingResult({...ready,explicit:true,editing:true,hasRegistration:false,hasClass:false}),true,'admin correction with existing result');
 });
-test('result editor form blocks implicit Enter submissions and requires named final submitter',async()=>{
+test('judge wizard buttons stay non-submitting when Next is replaced by final confirmation',async()=>{
  const {readFile}=await import('node:fs/promises');
  const source=await readFile(new URL('../src/admin/ResultsPage.tsx',import.meta.url),'utf8');
- assert.match(source,/data-judging-confirm="true"/);
- assert.match(source,/submitter/);
- assert.match(source,/e\.key==='Enter'/);
- assert.match(source,/canConfirmJudgingResult/);
+ const controls=source.slice(source.indexOf('<div className="judging-submit">'),source.indexOf('</form>',source.indexOf('<div className="judging-submit">')));
+ assert.match(controls,/data-judging-confirm="true"/);
+ assert.doesNotMatch(controls,/type="submit"/,'React must not morph a clicked Next button into a submit button during the same native click');
+ assert.match(source,/const submitJudging=/);
+ assert.match(source,/onSubmit=\{e=>e.preventDefault\(\)\}/);
+ assert.match(source,/e\.key==='Enter'/,'Enter inside text or number inputs must not submit');
 });
