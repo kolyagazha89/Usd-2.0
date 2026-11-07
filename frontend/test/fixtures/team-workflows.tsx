@@ -25,12 +25,15 @@ export async function runTeamWorkflows(){
  const click=async(text:string)=>{const button=[...host.querySelectorAll('button')].find(b=>b.textContent?.trim()===text);assert.ok(button,'button '+text);await act(async()=>{button.click();await new Promise(r=>setTimeout(r,0))})};
  const input=async(label:string,value:string)=>{const field=[...host.querySelectorAll('input,textarea,select')].find(n=>n.getAttribute('aria-label')===label) as HTMLInputElement;assert.ok(field,label);await act(async()=>{const proto=field.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:field.tagName==='SELECT'?window.HTMLSelectElement.prototype:window.HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value')!.set!.call(field,value);field.dispatchEvent(new window.Event(field.tagName==='SELECT'?'change':'input',{bubbles:true}))})};
  try{
-  await render(<MyTeamPage/>);
+  window.history.replaceState({},'','/participant?tab=team&teamId=t1');await render(<MyTeamPage/>);
+  assert.equal((host.querySelector('[aria-label="Команда для заявки"]') as HTMLSelectElement)?.value,'t1');assert.equal(calls.filter(c=>c.path.endsWith('/join')).length,0,'application link never submits automatically');
   assert.match(host.textContent??'',/Моя команда/);assert.doesNotMatch(host.textContent??'',/Archive team/);
   await input('Команда для заявки','t1');await click('Подать заявку');assert.match(host.textContent??'',/Ожидает решения/);
   await click('Отменить заявку');await click('Подтвердить выход');assert.equal(calls.filter(c=>c.path==='/teams/me/leave'&&c.method==='POST').length,1);
+  window.history.replaceState({},'','/participant?tab=team&teamId=missing');await render(<MyTeamPage key="invalid-link"/>);assert.equal([...host.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent==='Подать заявку')?.disabled,true,'missing team link never enables submission');
   await render(<TeamWorkspace key="commander" team={team} admin={false} onChanged={async()=>{if(failRefreshOnce){failRefreshOnce=false;throw new Error('Synthetic refresh failure')}}}/>);
   assert.doesNotMatch(host.textContent??'',/Опубликовать/);assert.ok(!host.querySelector('[aria-label="Командир команды"]'));
+  await input('Поиск участника команды','Missing');assert.match(host.querySelector('.team-roster')?.textContent??'',/Никого не найдено/);await input('Поиск участника команды','');
   await click('Принять');assert.equal(calls.at(-1).path,'/teams/t1/memberships/m1');assert.deepEqual(calls.at(-1).body,{status:'APPROVED'});
   await click('Выступления по этапам');
   assert.match(host.textContent??'',/Выступления команды на этапах/);
@@ -68,9 +71,12 @@ export async function runTeamWorkflows(){
   await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
   await render(<PublicTeamsPage path="/teams/First%20team"/>);assert.match(host.textContent??'',/Reviewed news/);assert.match(host.textContent??'',/Public text/);
+  assert.equal([...host.querySelectorAll('a')].find(a=>a.textContent==='Вступить в команду')?.getAttribute('href'),'/participant?tab=team&teamId=t1');
+  await render(<PublicTeamsPage path="/teams"/>);await input('Публичный статус команд','ARCHIVED');assert.match(host.querySelector('.team-public-directory')?.textContent??'',/Archive team/);assert.doesNotMatch(host.querySelector('.team-public-directory')?.textContent??'',/First team/);
   const Frame=({children,action}:any)=><main>{action}{children}</main>,Error=({message,retry}:any)=><div role="alert">{message}<button onClick={()=>void retry()}>Повторить</button></div>;
   await render(<TeamsPage PageFrame={Frame} ErrorPanel={Error} LoadingPage={()=>null} Empty={({text}:any)=><p>{text}</p>}/>);
   assert.match(host.textContent??'',/Архивные названия/);assert.ok(!host.textContent?.includes('Переименование обновляет'));
+  await input('Статус команд','ARCHIVED');assert.equal(host.querySelectorAll('.team-team-list li').length,0);await input('Статус команд','PENDING');assert.equal(host.querySelectorAll('.team-team-list li').length,1);
   await act(async()=>{(host.querySelector('.team-review-list>li>button') as HTMLButtonElement).click();await new Promise(r=>setTimeout(r,0))});
   assert.match(host.textContent??'',/Проверьте заголовок, полный текст и все фотографии/);
   assert.match(host.textContent??'',/Reviewed news/);
