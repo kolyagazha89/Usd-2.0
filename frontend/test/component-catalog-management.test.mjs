@@ -70,3 +70,8 @@ test('inactive or archived parent cannot be bypassed by enabling child alone',()
  assert.equal(updated.componentModels[0].isActive,true);
  assert.equal(updated.componentModels[1].isActive,false);
 });
+test('merged brands and models cannot be restored into normal selection',()=>{
+ const data=base();data.componentBrands[0].mergedIntoId='b2';data.componentBrands[0].isArchived=true;data.componentModels[0].mergedIntoId='m2';data.componentModels[0].isArchived=true;
+ assert.throws(()=>toggleCatalogBrand(data,'b1'),/нельзя восстановить/);
+ assert.throws(()=>toggleCatalogModel(data,'m1'),/нельзя восстановить/);
+});

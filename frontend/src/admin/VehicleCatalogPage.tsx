@@ -71,7 +71,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
    const stored=catalogs.vehicleDirectory;
    const current:VehicleOverrides={brands:Array.isArray(stored?.brands)?stored.brands:[],models:Array.isArray(stored?.models)?stored.models:[]};
    const newValue=apply(resolveVehicleCatalog(seed,current),current);
-   const saved=await updateSiteSettings({catalogs:{...catalogs,vehicleDirectory:newValue}});
+   const saved=await updateSiteSettings({catalogs:{vehicleDirectory:newValue}});
    const persisted=saved?.settings?.catalogs?.vehicleDirectory??newValue;
    setOverrides({brands:persisted.brands??[],models:persisted.models??[]});
    setNotice(message);

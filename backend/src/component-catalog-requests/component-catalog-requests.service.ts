@@ -1,3 +1,4 @@
+import {lockSiteSettings} from '../site-settings/catalog-concurrency';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -78,25 +79,35 @@ export class ComponentCatalogRequestsService {
   }
 
   async approve(id: string, adminId: string, adminNote?: string) {
-    const request = await this.prisma.componentCatalogRequest.findUnique({ where: { id } });
+    const result=await this.prisma.$transaction(async tx=>{
+    await lockSiteSettings(tx);
+    const request = await tx.componentCatalogRequest.findUnique({ where: { id } });
     if (!request) throw new NotFoundException('Запрос не найден');
-    if (request.status === 'APPROVED') return { success: true, item: request, alreadyApproved: true };
+    if (request.status === 'APPROVED') return { request, alreadyApproved: true };
     if (request.status !== 'PENDING') throw new BadRequestException('Запрос уже закрыт');
-    const settings = await this.prisma.siteSettings.findUnique({ where: { id: 'default' } });
+    const settings = await tx.siteSettings.findUnique({ where: { id: 'default' } });
     if (!settings) throw new BadRequestException('Сначала сохраните настройки сайта, затем повторите добавление');
     const catalogs = (settings.catalogs && typeof settings.catalogs === 'object' ? settings.catalogs : {}) as Record<string, any>;
     const brands = Array.isArray(catalogs.componentBrands) ? [...catalogs.componentBrands] : [];
     const models = Array.isArray(catalogs.componentModels) ? [...catalogs.componentModels] : [];
-    const brandExists = brands.some((item: any) => item.category === request.category && String(item.name).toLocaleLowerCase('ru') === request.brand.toLocaleLowerCase('ru'));
-    if (!brandExists) brands.push({ id: randomUUID(), category: request.category, name: request.brand, isActive: true });
-    const duplicate = models.find((item: any) => item.category === request.category && String(item.brand).toLocaleLowerCase('ru') === request.brand.toLocaleLowerCase('ru') && String(item.model).toLocaleLowerCase('ru') === request.model.toLocaleLowerCase('ru'));
-    const entry = duplicate ?? { id: randomUUID(), category: request.category, brand: request.brand, model: request.model, isActive: true, lifecycle: 'UNKNOWN', source: 'PARTICIPANT_REQUEST', addedAt: new Date().toISOString() };
+    const norm=(v:unknown)=>String(v??'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
+    let brand=brands.find((item:any)=>item.category===request.category&&norm(item.name)===norm(request.brand));
+    const visited=new Set<string>();
+    while(brand?.mergedIntoId){if(visited.has(brand.id))throw new BadRequestException('Некорректная связь объединённой марки');visited.add(brand.id);brand=brands.find((item:any)=>item.id===brand.mergedIntoId);if(!brand)throw new BadRequestException('Целевая марка не найдена');}
+    if(!brand){brand={id:randomUUID(),category:request.category,name:request.brand,isActive:true};brands.push(brand)}
+    if(brand.isArchived||brand.isActive===false)throw new BadRequestException('Марка отключена. Сначала включите её в справочнике.');
+    const duplicate=models.find((item:any)=>item.category===request.category&&norm(item.brand)===norm(brand.name)&&norm(item.model)===norm(request.model)&&!item.isArchived);
+    const entry=duplicate??{id:randomUUID(),category:request.category,brand:brand.name,model:request.model,isActive:true,lifecycle:'UNKNOWN',source:'PARTICIPANT_REQUEST',addedAt:new Date().toISOString()};
     if (!duplicate) models.push(entry);
-    await this.prisma.siteSettings.update({ where: { id: 'default' }, data: { catalogs: { ...catalogs, componentBrands: brands, componentModels: models } } });
-    const item = await this.prisma.componentCatalogRequest.update({
+    await tx.siteSettings.update({ where: { id: 'default' }, data: { catalogs: { ...catalogs, componentBrands: brands, componentModels: models } } });
+    await tx.componentCatalogRequest.update({
       where: { id },
       data: { status: 'APPROVED', adminNote: adminNote?.trim() || null, catalogEntryId: entry.id, resolvedAt: new Date(), resolvedByUserId: adminId, participantEmailStatus: 'PENDING' },
     });
+    return {request, alreadyApproved:false};
+    });
+    const {request}=result;
+    if(result.alreadyApproved)return {success:true,item:request,alreadyApproved:true};
     let participantEmailStatus = 'FAILED';
     try {
       await this.send(request.userEmail, 'USD — комплектующее добавлено в каталог', 'Комплектующее добавлено по вашему запросу', 'Спасибо за помощь в развитии каталога USD. Запрошенное оборудование добавлено.', ['Категория: ' + (categoryLabels[request.category] ?? request.category), 'Бренд: ' + request.brand, 'Модель: ' + request.model, ...(adminNote?.trim() ? ['Комментарий администратора: ' + adminNote.trim()] : [])], this.frontendUrl + '/participant?tab=cars');

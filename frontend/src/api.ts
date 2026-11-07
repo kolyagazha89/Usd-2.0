@@ -315,3 +315,6 @@ export async function trackPublicTrafficView(path:string):Promise<void>{
  });
  if(!response.ok)throw new Error('Traffic endpoint unavailable');
 }
+
+export async function previewComponentBrandMerge(body:{sourceId:string;targetId:string;scope:string}){return apiPost<any>('/site-settings/component-brands/preview',body);}
+export async function mergeComponentBrands(body:{sourceId:string;targetId:string;scope:string;revision:string}){return apiPost<any>('/site-settings/component-brands/merge',body);}

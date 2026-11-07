@@ -55,11 +55,13 @@ export function editComponentModel(c:ComponentCatalog,id:string,rawName:string,t
 }
 export function toggleCatalogBrand(c:ComponentCatalog,id:string):ComponentCatalog {
  const item=ensureBrand(c,id),active=item.isActive===false||item.isArchived===true;
+ if(item.mergedIntoId)throw new Error('Объединённую марку нельзя восстановить.');
  return {...c,componentBrands:c.componentBrands.map(b=>b.id===id?{...b,isActive:active,isArchived:false}:b),
   componentModels:active?c.componentModels:c.componentModels.map(m=>m.category===item.category&&key(m.brand)===key(item.name)?{...m,isActive:false}:m)};
 }
 export function toggleCatalogModel(c:ComponentCatalog,id:string):ComponentCatalog {
  const item=ensureModel(c,id),active=item.isActive===false||item.isArchived===true;
+ if(item.mergedIntoId)throw new Error('Объединённую модель нельзя восстановить.');
  if(active&&!c.componentBrands.some(b=>b.category===item.category&&key(b.name)===key(item.brand)&&b.isActive!==false&&!b.isArchived))
   throw new Error('Сначала включите марку.');
  return {...c,componentModels:c.componentModels.map(m=>m.id===id?{...m,isActive:active,isArchived:false}:m)};

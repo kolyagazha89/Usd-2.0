@@ -25,7 +25,7 @@ test('real partner editor previews, saves, reopens and resets image framing',asy
    platform:'node',format:'esm',jsx:'automatic',outfile,packages:'external',loader:{'.css':'empty'},
    plugins:[{name:'partner-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:`
     export const getSiteSettings=async()=>({settings:globalThis.__partnerSettings});
-    export const updateSiteSettings=async value=>{globalThis.__partnerWrites++;globalThis.__partnerSettings=JSON.parse(JSON.stringify(value));};
+    export const updateSiteSettings=async value=>{globalThis.__partnerWrites++;globalThis.__partnerSettings={...globalThis.__partnerSettings,...JSON.parse(JSON.stringify(value))};};
     export const uploadSiteAsset=async()=>({publicPath:'/media/new-logo.webp'});
    `}))}}]});
   const {runPartnerImageEditor}=await import(pathToFileURL(outfile).href);

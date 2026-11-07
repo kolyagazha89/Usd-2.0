@@ -1,3 +1,4 @@
+import {withSettingsTransaction} from './test-transaction';
 import { BadRequestException } from '@nestjs/common';
 import { jest } from '@jest/globals';
 
@@ -33,7 +34,7 @@ describe('SiteSettingsService.getPublic', () => {
       },
     } as unknown as PrismaService;
 
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
     const response = await service.getPublic();
 
     expect(response.settings.legal).toEqual({
@@ -71,7 +72,7 @@ describe('SiteSettingsService.getPublic', () => {
     const prisma = {
       siteSettings: { findUnique: jest.fn().mockResolvedValue({ legal: { legalApproved: true, legalVersion: '2', ipName: 'Организатор USD', operatorAddress: 'г. Тюмень, тестовый адрес', personalDataEmail: 'legal@example.com', privacyText: 'Политика', consentText: 'Согласие', termsText: 'Соглашение', documents: { privacyPolicy: document } } }) },
     } as unknown as PrismaService;
-    const response = await new SiteSettingsService(prisma).getPublic();
+    const response = await new SiteSettingsService(withSettingsTransaction(prisma)).getPublic();
     expect(response.settings.legal.documents).toEqual({ privacyPolicy: document });
   });
 
@@ -88,7 +89,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
 
     await service.update({
       registration: { rulesDocument: { published: { ...oldRevision, blocks: [{ type: 'paragraph', text: 'Tampered rule' }] }, publishedVersions: [], drafts: [] } } as any,
@@ -108,7 +109,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
 
     await service.update({
       registration: { rulesDocument: { published: nextRevision, publishedVersions: [], drafts: [] } } as any,
@@ -131,7 +132,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
 
     await expect(service.update({
       registration: {
@@ -151,7 +152,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
     const logSpy = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
 
     await expect(service.update({ branding: { siteName: 'private test value' } } as any, 'admin-1')).rejects.toThrow();
@@ -170,7 +171,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn() },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
     const logSpy = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
 
     await expect(service.update({ branding: { siteName: 'private test value' } } as any, 'admin-1')).rejects.toThrow();
@@ -192,7 +193,7 @@ describe('SiteSettingsService published regulation history', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
 
     await service.update({
       registration: { rulesDocument: { published: null, publishedVersions: [], drafts: [{ id: 'draft-1', blocks: [{ type: 'paragraph', text: 'Rules', optional: undefined }] }] } } as any,
@@ -230,7 +231,7 @@ describe('SiteSettingsService default USD branding', () => {
       },
     } as unknown as PrismaService;
 
-    const response = await new SiteSettingsService(prisma).getAdmin();
+    const response = await new SiteSettingsService(withSettingsTransaction(prisma)).getAdmin();
     const settings = response.settings;
 
     expect(settings.branding.siteName).toBe('USD');
@@ -252,7 +253,7 @@ describe('SiteSettingsService homepage hero CMS', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return { service: new SiteSettingsService(prisma), prisma };
+    return { service: new SiteSettingsService(withSettingsTransaction(prisma)), prisma };
   };
 
   it('publishes edited hero scene labels and topics without requiring a schema migration', async () => {
@@ -302,7 +303,7 @@ describe('SiteSettingsService community teams CMS', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return { service: new SiteSettingsService(prisma), prisma };
+    return { service: new SiteSettingsService(withSettingsTransaction(prisma)), prisma };
   };
 
   it('keeps the teams block editable and visible on older saved homepage configurations', async () => {
@@ -351,7 +352,7 @@ describe('SiteSettingsService partner publication lifecycle', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    const service = new SiteSettingsService(prisma);
+    const service = new SiteSettingsService(withSettingsTransaction(prisma));
     const draft = { id: 'partner-1', name: 'Тестовый партнёр', tier: 'GENERAL', isActive: true, isPublished: false, sortOrder: 0 };
 
     await service.update({ partners: [draft] }, 'admin-1');
@@ -382,7 +383,7 @@ describe('SiteSettingsService partner CMS safety', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return { service: new SiteSettingsService(prisma), prisma };
+    return { service: new SiteSettingsService(withSettingsTransaction(prisma)), prisma };
   };
 
   it('publishes all three tiers but never leaks internal CMS metadata', async () => {
@@ -498,7 +499,7 @@ describe('SiteSettingsService public navigation CMS', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return { service: new SiteSettingsService(prisma), prisma };
+    return { service: new SiteSettingsService(withSettingsTransaction(prisma)), prisma };
   };
 
   it('persists renamed, reordered and hidden menu items in the public settings', async () => {
@@ -547,7 +548,7 @@ describe('SiteSettingsService editable homepage section copy', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return { service: new SiteSettingsService(prisma), prisma };
+    return { service: new SiteSettingsService(withSettingsTransaction(prisma)), prisma };
   };
 
   it('publishes updated copy and preserves intentionally empty CMS text', async () => {
@@ -585,7 +586,7 @@ describe('Vehicle catalog CMS overlay safety', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
-    return {prisma,service:new SiteSettingsService(prisma)};
+    return {prisma,service:new SiteSettingsService(withSettingsTransaction(prisma))};
   }
 
   it('publishes only small edits and retains the immutable bundled car seed outside settings', async () => {

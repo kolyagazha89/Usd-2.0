@@ -1,3 +1,4 @@
+import {withSettingsTransaction} from './test-transaction';
 import { BadRequestException } from '@nestjs/common';
 import { jest } from '@jest/globals';
 import { SiteSettingsService } from './site-settings.service';
@@ -11,7 +12,7 @@ describe('CMS battery chemistry and construction', () => {
       },
       auditLog: { create: jest.fn<any>().mockResolvedValue({}) },
     };
-    return { db, service: new SiteSettingsService(db) };
+    return { db, service: new SiteSettingsService(withSettingsTransaction(db)) };
   };
 
   it('provides separate default chemistry and construction for all seven battery types', async () => {

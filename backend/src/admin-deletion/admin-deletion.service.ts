@@ -1,3 +1,4 @@
+import {lockSiteSettings} from '../site-settings/catalog-concurrency';
 import {
   BadRequestException,
   ConflictException,
@@ -459,6 +460,7 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           if (plan.stage) {
             await tx.importJob.deleteMany({ where: { stageId: id } });
             await tx.stage.delete({ where: { id } });
+            await lockSiteSettings(tx);
             const settings = await tx.siteSettings.findUnique({
               where: { id: 'default' },
             });
