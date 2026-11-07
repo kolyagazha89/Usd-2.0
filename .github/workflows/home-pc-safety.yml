@@ -32,6 +32,7 @@ jobs:
           python3 deploy/home-pc/test-second-disk-db-backup.py -v
           python3 deploy/home-pc/test-second-disk-media-backup.py -v
           python3 deploy/home-pc/test-safe-schema-migration.py -v
+          sudo python3 deploy/home-pc/test-reviewed-recovery.py -v
           python3 deploy/home-pc/test-deploy-status.py -v
           python3 deploy/home-pc/test-request-deploy.py -v
           # Exercise real root ownership and unprivileged write refusal too.
