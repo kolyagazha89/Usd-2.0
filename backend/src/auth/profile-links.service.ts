@@ -84,7 +84,9 @@ export class ProfileLinksService {
      user:{select:{id:true}},teamMembership:{select:{teamId:true}},
      cars:{select:{id:true,registrationCountry:true,registrationNumber:true,_count:{select:{configurations:true}}}},
      registrations:{select:{id:true,stageId:true,status:true,_count:{select:{numbers:true,classes:true,results:true}}}},
-     _count:{select:{stageInspections:true,disqualifications:true,profileLinkRequests:true}},
+     stageInspections:{select:{stageId:true}},
+     _count:{select:{stageInspections:true,disqualifications:true,
+      profileLinkRequests:{where:{status:'PENDING'}}}},
     },
    }),
    this.prisma.record.count({where:{participantId:sourceId}}),
@@ -101,7 +103,9 @@ export class ProfileLinksService {
     cars:p.cars.map(car=>({id:car.id,country:car.registrationCountry,number:car.registrationNumber,configurations:car._count.configurations})),
     registrations:p.registrations.map(row=>({id:row.id,stageId:row.stageId,status:row.status,
      classes:row._count.classes,results:row._count.results,numbers:row._count.numbers})),
-    stageInspections:p._count.stageInspections,disqualifications:p._count.disqualifications,
+    stageInspections:p._count.stageInspections,
+    stageInspectionStages:p.stageInspections.map(inspection=>inspection.stageId),
+    disqualifications:p._count.disqualifications,
     records:recordCount,claims:p._count.profileLinkRequests,
    };
   };
