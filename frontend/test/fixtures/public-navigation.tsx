@@ -133,10 +133,11 @@ export async function runRulesSearch(){
   await type('Limited');
   assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/45000/,'a class search keeps the restrictions following its name');
   assert.match(document.querySelector('nav[aria-label="Оглавление регламента"]')?.textContent??'',/Классы SPL/,'search retains the matching section title');
-  assert.doesNotMatch(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/);
+  assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/,'search keeps every approved section in context');
+  assert.ok(document.querySelector('.public-rules-rich-document mark'),'search highlights matching text');
   await type('Классы SPL');assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/45000/,'parent heading search includes nested classes and limits');
   await type('Усилитель');assert.match(document.querySelector('nav[aria-label="Оглавление регламента"]')?.textContent??'',/Классы SPL/,'a nested match keeps its parent heading');assert.equal(document.querySelectorAll('.public-rules-rich-document table tr').length,2,'table context and headers are preserved');
-  await type('небывалыйпоиск');assert.match(document.querySelector('.public-rules-document')?.textContent??'',/ничего не найдено/);
+  await type('небывалыйпоиск');assert.match(document.querySelector('[role="status"]')?.textContent??'',/Ничего не найдено/);assert.match(document.querySelector('.public-rules-document')?.textContent??'',/45000/,'a failed search preserves the regulation');
   await type('');assert.match(document.querySelector('.public-rules-rich-document')?.textContent??'',/Решение принимает судья/);
  }finally{await act(async()=>root.unmount())}
 }

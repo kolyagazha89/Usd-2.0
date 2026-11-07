@@ -615,12 +615,15 @@ try{
        assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'official DOCX lists keep nested numbering');
        const search=page.getByRole('textbox',{name:'Поиск по регламенту'});
        await search.fill('Раздел Б');
-       assert.equal(await page.locator('.public-rules-list-item').count(),1,'search keeps the matching regulation section');
-       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.'],'filtered section retains its document numbering');
-       assert.equal(await page.locator('.public-rules-sidebar nav a').count(),1,'filtered contents only links to visible headings');
-       const anchor=await page.locator('.public-rules-sidebar nav a').first().getAttribute('href');
+       assert.equal(await page.locator('.public-rules-list-item').count(),5,'search keeps every approved clause visible');
+       assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'search retains original document numbering');
+       assert.equal(await page.locator('.public-rules-sidebar nav a').count(),2,'contents retains both source sections');
+       assert.equal(await page.locator('.public-rules-rich-document mark').innerText(),'Раздел Б','search highlights the matching source heading');
+       const toggle=page.getByRole('button',{name:/Оглавление ·/});
+       if(await toggle.isVisible())await toggle.click();
+       const link=page.locator('.public-rules-sidebar nav a').last();
+       const anchor=await link.getAttribute('href');
        assert.equal(await page.locator(anchor).count(),1,'table of contents anchor resolves after search');
-       const link=page.locator('.public-rules-sidebar nav a').first();
        await link.focus();
        await page.keyboard.press('Tab');
        await page.keyboard.press('Shift+Tab');
@@ -631,7 +634,7 @@ try{
        assert.equal(new URL(page.url()).hash,anchor,'keyboard activation reaches the matching heading');
        await page.getByRole('button',{name:'Сбросить поиск'}).click();
        assert.deepEqual(await page.locator('.public-rules-list-item>span:first-child').allInnerTexts(),['1.','2.','1.','3.','1.'],'reset restores the original list markers');
-       row.rulesNumbering='nested ordered markers, filtered section, keyboard focus and anchor passed';
+       row.rulesNumbering='nested ordered markers, full-context search, keyboard focus and anchor passed';
       }
       if(route==='/admin/rules'&&role==='ADMIN'){
        await page.getByRole('button',{name:'Просмотреть содержимое'}).click();
