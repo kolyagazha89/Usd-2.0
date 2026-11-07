@@ -13,5 +13,5 @@ test('post save keeps draft on API failure',()=>{
  assert.match(source,/await \(editing\?apiPatch:apiPost\)/);
  assert.match(source,/await action\(\);setConfirm\(''\)/);
  assert.match(source,/Список пока не обновился/);
- assert.match(source,/setDraft\(emptyPost\);setEditing\(''\);setPostStep\(1\)/);
+ assert.match(source,/setDraft\(emptyPost\);setEditing\(''\);setEditingStatus\('DRAFT'\);setPostStep\(1\)/);
 });
