@@ -33,3 +33,8 @@
 .usd-pass-error{color:#ff8e97;font-size:13px}
 @media(max-width:800px){.usd-pass-layout{grid-template-columns:minmax(0,1fr)}.usd-pass-qr-card{max-width:none}}
 @media(max-width:480px){.usd-pass-hero{padding:20px 17px;gap:13px;align-items:flex-start}.usd-pass-check{flex-basis:43px;width:43px;height:43px;font-size:23px}.usd-pass-card,.usd-pass-qr-card{padding:19px 15px}.usd-pass-card dl{grid-template-columns:minmax(0,1fr)}.usd-pass-qr-frame{padding:12px}.usd-pass-reminder{padding:16px}}
+
+/* Clipboard permission can be denied in iOS Safari or installed PWAs. */
+.usd-pass-qr-link-fallback{display:grid;gap:7px;width:100%;min-width:0;text-align:left;font-size:12px;color:#c4d0dd}
+.usd-pass-qr-link-fallback input{box-sizing:border-box;width:100%;max-width:100%;min-height:44px;background:#293744;color:#fff;border:1px solid #4c5968;border-radius:8px;padding:9px 11px;font-size:13px}
+.usd-pass-qr-link-fallback input:focus-visible{outline:2px solid #ff7188;outline-offset:2px}
