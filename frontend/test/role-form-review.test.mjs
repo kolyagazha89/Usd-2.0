@@ -40,3 +40,10 @@ test('admin equipment configuration offers direct sections and a final version r
  assert.match(source,/Проверить конфигурацию/);
  assert.match(css,/\.configuration-editor-page \[hidden\]/);
 });
+
+test('mobile catalog combobox chooses on touch before blur removes the option',async()=>{
+ const form=await read('../src/admin/FormComponents.tsx');
+ assert.match(form,/onPointerDown=\{event=>\{/);
+ assert.match(form,/event\.pointerType==='touch'/);
+ assert.match(form,/choose\(option\)/);
+});
