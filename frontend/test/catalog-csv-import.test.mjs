@@ -49,6 +49,14 @@ test('imported models keep the existing canonical brand name for exact-match cat
  assert.equal(merged.catalogs.componentModels[0].brand,'Kicx');
 });
 
+test('official catalog import preserves unique IDs even with repeated preview placeholder',()=>{
+ const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Uno,AMPLIFIER\nKicx,Two,AMPLIFIER\nDeaf Bonce,DB-1,SUBWOOFER\n');
+ const planned=planAudioCatalogImport({},rows,()=> 'preview-only');
+ const items=[...planned.catalogs.componentBrands,...planned.catalogs.componentModels];
+ assert.equal(new Set(items.map(item=>item.id)).size,items.length);
+ assert.equal(planned.addedBrands,2);
+ assert.equal(planned.addedModels,3);
+});
 test('inactive brands require explicit review before import, not silent reactivation',()=>{
  const rows=parseAudioCatalogCsv('бренд,модель,категория\nKicx,Two,AMPLIFIER\n');
  assert.throws(()=>planAudioCatalogImport({componentBrands:[{id:'id',category:'AMPLIFIER',name:'Kicx',isActive:false}]},rows,()=>''),/отключена/);

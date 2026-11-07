@@ -86,6 +86,21 @@ test('admin route and public suggestion hook use the same overlay',async()=>{
  assert.match(hook,/availableVehicleDirectory/);
 });
 
+test('multi-brand CSV preview never overwrites rows when preview ID generator returns one placeholder',()=>{
+ const imported=parseVehicleDirectoryCsv('марка,модель\nLada,Granta\nLada,Vesta\nGeely,Coolray\nGeely,Atlas\n');
+ const empty=emptyVehicleOverrides();
+ const planned=planVehicleImport(resolve(empty),empty,imported,()=> 'preview-only');
+ assert.equal(planned.addedBrands,2);
+ assert.equal(planned.addedModels,4);
+ assert.equal(planned.overrides.brands.length,2);
+ assert.equal(planned.overrides.models.length,4);
+ const ids=[...planned.overrides.brands,...planned.overrides.models].map(x=>x.id);
+ assert.equal(new Set(ids).size,ids.length);
+ const resolved=resolve(planned.overrides);
+ assert.equal(resolved.models.filter(x=>x.brandId===planned.overrides.brands[0].id).length,2);
+ assert.equal(resolved.models.filter(x=>x.brandId===planned.overrides.brands[1].id).length,2);
+});
+
 test('participant car editor uses native keyboard and masks plate input',async()=>{
  const {readFile}=await import('node:fs/promises');
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
