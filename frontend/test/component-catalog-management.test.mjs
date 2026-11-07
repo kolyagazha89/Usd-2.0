@@ -75,3 +75,15 @@ test('merged brands and models cannot be restored into normal selection',()=>{
  assert.throws(()=>toggleCatalogBrand(data,'b1'),/нельзя восстановить/);
  assert.throws(()=>toggleCatalogModel(data,'m1'),/нельзя восстановить/);
 });
+
+test('merged historical brand and model aliases cannot be renamed after archival',()=>{
+ const source=base();
+ source.componentBrands[0].mergedIntoId='b2';
+ source.componentBrands[0].isArchived=true;
+ source.componentModels[0].mergedIntoId='m2';
+ source.componentModels[0].isArchived=true;
+ const before=JSON.stringify(source);
+ assert.throws(()=>renameComponentBrand(source,'b1','Rename merged source'),/объединённую|архивн/i);
+ assert.throws(()=>editComponentModel(source,'m1','Rename merged model','Aura'),/объединённую|архивн/i);
+ assert.equal(JSON.stringify(source),before,'rejected operations leave archived provenance untouched');
+});
