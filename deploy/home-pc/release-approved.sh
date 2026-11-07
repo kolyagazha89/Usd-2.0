@@ -2,6 +2,7 @@
 # Manual, explicitly approved release of prebuilt images. No migrations or DB restart.
 set -Eeuo pipefail
 umask 077
+if [[ "${1:-}" == --protocol-version && $# == 1 ]]; then echo 2; exit 0; fi
 # The automatic builder passes its already-locked FD 9. Reuse that exact
 # descriptor so no second deployer can slip in during the handoff. Direct
 # supervised invocations still acquire the lock independently.
@@ -648,6 +649,12 @@ if [[ "${USD_DEPLOY_LOCK_HELD:-0}" == 1 ]]; then
     defer_stale_main
   fi
 fi
+# Persist mutation intent before .env can advance, even across SIGKILL/power loss.
+STATUS=/usr/local/libexec/usd-deploy-status
+[[ -f "$STATUS" && -x "$STATUS" && ! -L "$STATUS" && "$(stat -c %u "$STATUS")" == 0 ]] &&
+  (( (8#$(stat -c %a "$STATUS") & 022) == 0 )) ||
+  { echo 'Trusted mutation guard helper missing' >&2; false; }
+"$STATUS" guard "$NEW_TAG"
 changed=1
 mv -f "$tmp" .env
 docker compose --project-name "$PROJECT" --project-directory "$DEPLOY_DIR" --env-file .env "${compose_args[@]}" up -d --pull never --no-deps api frontend
@@ -682,3 +689,5 @@ printf '%s\n' "$NEW_TAG" > "$STATE_DIR/deployed-sha"
 rm -f "$backup" "$approval_file"
 trap - ERR TERM INT
 echo "USD release successful: $OLD_TAG -> $NEW_TAG"
+
+rm -f "$STATE_DIR/failed-release-sha"

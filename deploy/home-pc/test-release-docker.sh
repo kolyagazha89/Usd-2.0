@@ -7,6 +7,7 @@ set -Eeuo pipefail
   { echo 'Refusing to touch an existing usd-home stack' >&2; exit 1; }
 ROOT=/home/usd/usd-deploy/deploy/home-pc
 STATE=/var/lib/usd-deployer
+STATUS_HELPER=/usr/local/libexec/usd-deploy-status
 TRUSTED_DIR=/etc/usd-deployer/compose
 RESTORE_VERIFIER=/usr/local/libexec/usd-rehearse-schema-on-backup
 DB_OFFSITE_VERIFIER=/usr/local/libexec/usd-verify-db-offsite-backup
@@ -29,7 +30,7 @@ MEDIA_VERIFIER=/usr/local/libexec/usd-verify-media-backup
 # This rehearsal deliberately creates fixture credentials and state at fixed
 # paths. Never overwrite an existing installation even if CI environment
 # variables were accidentally present on a non-disposable machine.
-for protected in "$ROOT/.env" "$ROOT/compose.yaml" "$STATE/built-sha" "$STATE/deployed-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha"; do
+for protected in "$STATUS_HELPER" "$ROOT/.env" "$ROOT/compose.yaml" "$STATE/failed-release-sha" "$STATE/built-sha" "$STATE/deployed-sha" "$STATE/schema-approved-sha" "$STATE/release-approved-sha"; do
   [[ ! -e "$protected" && ! -L "$protected" ]] ||
     { echo "Existing deployment state at $protected; refusing disposable rehearsal" >&2; exit 1; }
 done
@@ -43,6 +44,7 @@ if docker volume inspect "$volume" >/dev/null 2>&1; then
   exit 1
 fi
 cleanup() {
+  rm -f "$STATE/failed-release-sha" -- "$STATUS_HELPER"
   local status=$?
   docker compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml" down --remove-orphans >/dev/null 2>&1 || true
   if [[ "$(docker volume inspect -f '{{ index .Labels "usd.qa.disposable" }}' "$volume" 2>/dev/null)" == true ]]; then
@@ -72,6 +74,9 @@ mkdir -p "$ROOT" "$STATE" "$WORK/api" /usr/local/libexec
 # release archive into a separate disposable database and checks real rows;
 # the production Prisma-enabled isolated-volume helper is exercised separately
 # against the actual API Dockerfile by Home PC safety checks.
+chmod 700 "$STATE"
+install -o root -g root -m 0755 deploy/home-pc/deploy-status.py "$STATUS_HELPER"
+
 cat > "$SIGNATURE_VERIFIER" <<'SIGNATURE'
 #!/usr/bin/env bash
 set -euo pipefail
