@@ -9,7 +9,7 @@ export function filterTeamStages<T extends TeamStageShape>(stages:readonly T[],f
   .filter(stage=>stage.performances.length>0) as T[];
 }
 export function teamStageSeasons(stages:readonly TeamStageShape[]):string[]{
- return [...new Set(stages.map(stage=>stage.date.slice(0,4)).filter(year=>/^\\d{4}$/.test(year)))].sort((a,b)=>b.localeCompare(a));
+ return [...new Set(stages.map(stage=>stage.date.slice(0,4)).filter(year=>year.length===4&&[...year].every(ch=>ch>='0'&&ch<='9')))].sort((a,b)=>b.localeCompare(a));
 }
 export function summarizeTeamStages(stages:readonly TeamStageShape[]){
  const participants=new Set<string>();let performances=0,podiums=0,firstPlaces=0;
