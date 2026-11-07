@@ -7,6 +7,7 @@ import {judgingResultLink} from './results-operations-model';
 import {useEffect,useRef,useState} from 'react';
 import jsQR from 'jsqr';
 import {parseInspectionQr} from '../participant/usd-id';
+import {readInspectionQrImage} from './qr-image-reader';
 import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,Users,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {useVehicleDirectory} from '../use-vehicle-directory';
@@ -113,7 +114,7 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
 function InspectionQrScanner({onClose,onScan,stageId,initialUsdId}:{onClose:()=>void;onScan:(stageId:string,registrationId:string)=>void;stageId:string;initialUsdId:string}){
  const videoRef=useRef<HTMLVideoElement|null>(null),busyRef=useRef(false);
  const [error,setError]=useState(''),[manual,setManual]=useState(''),[scannerMode,setScannerMode]=useState('');
- const [choices,setChoices]=useState<any[]>([]),[resolving,setResolving]=useState(false);
+ const [choices,setChoices]=useState<any[]>([]),[resolving,setResolving]=useState(false),[readingPhoto,setReadingPhoto]=useState(false);
  const parse=async(raw:string):Promise<boolean>=>{
   if(busyRef.current)return false;
   busyRef.current=true;setResolving(true);
@@ -129,6 +130,15 @@ function InspectionQrScanner({onClose,onScan,stageId,initialUsdId}:{onClose:()=>
    setChoices(registrations);return true;
   }catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать QR-код');return false}
   finally{busyRef.current=false;setResolving(false)}
+ };
+ const readPhoto=async(file:File|undefined)=>{
+  if(!file||readingPhoto||resolving)return;
+  setReadingPhoto(true);setError('');
+  try{
+   const raw=await readInspectionQrImage(file);
+   await parse(raw);
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось распознать QR-код на изображении')}
+  finally{setReadingPhoto(false)}
  };
  useEffect(()=>{if(initialUsdId)void parse(window.location.origin+'/usd-id/'+initialUsdId)},[initialUsdId]);
  useEffect(()=>{let active=true,stream:MediaStream|null=null,frame=0,timeout=0;const start=async()=>{
@@ -155,7 +165,13 @@ function InspectionQrScanner({onClose,onScan,stageId,initialUsdId}:{onClose:()=>
  };void start();return()=>{active=false;if(frame)cancelAnimationFrame(frame);if(timeout)window.clearTimeout(timeout);stream?.getTracks().forEach(track=>track.stop())}},[stageId]);
  return <section className="panel resource-editor-page qr-scanner-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ · QR</span><h2>USD ID или QR регистрации</h2></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div><div className="qr-scanner-modal">
   {error&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {choices.length>0?<div className="panel"><h3>Выберите регистрацию</h3><p>Участник зарегистрирован на нескольких автомобилях или этапах.</p>{choices.map((row:any)=><button key={row.id} type="button" className="secondary-button" style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}} onClick={()=>onScan(row.stageId,row.id)}><span>{row.stage?.name||'Этап USD'} · {[row.car?.brand,row.car?.model].filter(Boolean).join(' ')}</span><strong>№ {row.participantNumber} · {(row.stageInspection??row.inspection)?.status==='PASSED'?'Допущен':(row.stageInspection??row.inspection)?.status==='FAILED'?'Не допущен':'Ожидает инспекции'}</strong></button>)}</div>:<><div className="qr-camera-viewport"><video ref={videoRef} muted playsInline autoPlay aria-label="Камера для сканирования QR-кода"/><div className="qr-camera-overlay" aria-hidden="true"><div className="qr-camera-target"><span/><span/><span/><span/></div><small>Поместите QR-код внутрь рамки</small></div></div>{scannerMode&&<small className="field-help">{scannerMode}</small>}<p>Постоянный USD ID найдёт регистрацию на выбранный этап. Старый QR регистрации продолжает работать без изменений.</p><form className="form" onSubmit={e=>{e.preventDefault();void parse(manual)}}><label>Или вставьте ссылку из QR-кода<input value={manual} onChange={e=>setManual(e.target.value)} placeholder="https://app.usd-russia.ru/usd-id/…" /></label><button className="primary-button" disabled={!manual.trim()||resolving}>{resolving?'Ищем регистрацию…':'Открыть регистрацию'}</button></form></>}
+  {choices.length>0?<div className="panel"><h3>Выберите регистрацию</h3><p>Участник зарегистрирован на нескольких автомобилях или этапах.</p>{choices.map((row:any)=><button key={row.id} type="button" className="secondary-button" style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}} onClick={()=>onScan(row.stageId,row.id)}><span>{row.stage?.name||'Этап USD'} · {[row.car?.brand,row.car?.model].filter(Boolean).join(' ')}</span><strong>№ {row.participantNumber} · {(row.stageInspection??row.inspection)?.status==='PASSED'?'Допущен':(row.stageInspection??row.inspection)?.status==='FAILED'?'Не допущен':'Ожидает инспекции'}</strong></button>)}</div>:<><div className="qr-camera-viewport"><video ref={videoRef} muted playsInline autoPlay aria-label="Камера для сканирования QR-кода"/><div className="qr-camera-overlay" aria-hidden="true"><div className="qr-camera-target"><span/><span/><span/><span/></div><small>Поместите QR-код внутрь рамки</small></div></div>{scannerMode&&<small className="field-help">{scannerMode}</small>}<p>Постоянный USD ID найдёт регистрацию на выбранный этап. Старый QR регистрации продолжает работать без изменений.</p>
+  <div className="qr-photo-import">
+   <label className="secondary-button" htmlFor="inspection-qr-image">Выбрать QR из фотографий (без интернета)</label>
+   <input id="inspection-qr-image" type="file" accept="image/png,image/jpeg,image/webp" aria-label="Фото QR-кода из галереи"
+    disabled={readingPhoto||resolving} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';void readPhoto(file)}}/>
+   {readingPhoto&&<span role="status">Распознаём QR-код на устройстве…</span>}
+  </div><form className="form" onSubmit={e=>{e.preventDefault();void parse(manual)}}><label>Или вставьте ссылку из QR-кода<input value={manual} onChange={e=>setManual(e.target.value)} placeholder="https://app.usd-russia.ru/usd-id/…" /></label><button className="primary-button" disabled={!manual.trim()||resolving}>{resolving?'Ищем регистрацию…':'Открыть регистрацию'}</button></form></>}
  </div></section>;
 }
 function EntryInspection({stageId,go,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageId:string;go:(path:string)=>void;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
