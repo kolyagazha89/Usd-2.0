@@ -6,7 +6,7 @@ import {useViewState,matchesSeason,seasonYears,stageYear} from './view-state';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
 import {
  canJudgeRegistration,filterJudgeRegistrations,judgingInspectionStatus,judgingNumbers,
- judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,
+ judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,canConfirmJudgingResult,
 } from './results-operations-model';
 
 type Go=(path:string)=>void;
@@ -272,7 +272,18 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
     'Выберите допущенного участника по номеру, затем свободный класс и внесите значение.'}</p>
   </div><button type="button" className="secondary-button" onClick={onClose} disabled={saving}><ChevronLeft size={16}/>К протоколу</button></div>
   {error&&<div role="alert" className="form-error"><AlertTriangle size={16}/>{error}</div>}
-  <form className="form judging-entry-form" noValidate onSubmit={e=>{e.preventDefault();if(!editable&&judgingStep<2){nextJudgingStep();return}if(valid&&(editable||judgingReady[0]&&judgingReady[1]))void onSubmit(v)}}>
+  <form className="form judging-entry-form" noValidate
+   onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement)e.preventDefault()}}
+   onSubmit={e=>{
+    e.preventDefault();
+    const submitter=(e.nativeEvent as SubmitEvent).submitter;
+    // Enter in an input, navigating steps, or a programmatic submit cannot record an official result.
+    if(canConfirmJudgingResult({
+     explicit:submitter instanceof HTMLButtonElement&&submitter.dataset.judgingConfirm==='true',
+     step:judgingStep,editing:editable,valid,
+     hasRegistration:Boolean(selected),hasClass:available.some(c=>c.id===v.registrationClassId),
+    }))void onSubmit(v);
+   }}>
    {!editable&&<><nav className="form-wizard-nav" aria-label="Шаги внесения результата">{judgingSteps.map((label,index)=><button key={label} type="button" className={judgingStep===index?'is-active':''} aria-current={judgingStep===index?'step':undefined} disabled={saving||(index>0&&!judgingReady.slice(0,index).every(Boolean))} onClick={()=>setJudgingStep(index as 0|1|2)}><span>{index+1}</span><strong>{label}</strong><small>{index===0?(judgingReady[0]?'Участник выбран':'Выберите участника'):index===1?(judgingReady[1]?'Класс выбран':'Выберите класс'):'Проверка результата'}</small></button>)}</nav><p className="form-wizard-progress" role="status" aria-live="polite">Шаг {judgingStep+1} из 3 · {judgingSteps[judgingStep]}</p><h3 tabIndex={-1} ref={judgingHeadingRef} className="form-wizard-title">{judgingSteps[judgingStep]}</h3></>}
    {!editable&&<>
     <fieldset className="judging-entry-step" hidden={judgingStep!==0} disabled={saving}>
@@ -328,7 +339,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
    {judgingStep===2&&selected&&<div className="form-wizard-review judging-entry-review" role="status"><strong>Проверьте измерение</strong><p>№{judgingNumbers(selected).join(' / ')} · {participantName(selected.participant)} · {shortCar(selected.car)}</p><p>{available.find(c=>c.id===v.registrationClassId)?.class?.name??'Укажите класс'} · {v.value??'—'} {enumLabel(available.find(c=>c.id===v.registrationClassId)?.class?.unit??'DB')}</p></div>}
    <div className="judging-submit"><p>{judgingStep===2?'Измерение сохранится в протоколе этапа. Редактировать и удалять результаты может только ADMIN.':'Введённые данные сохраняются при переходе назад. Результат пока не отправлен.'}</p>
     {!editable&&judgingStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>setJudgingStep((judgingStep-1) as 0|1)}>Назад</button>}
-    {!editable&&judgingStep<2?<button className="primary-button" type="button" disabled={saving||!judgingReady[judgingStep]} onClick={nextJudgingStep}>Продолжить <ChevronRight size={16}/></button>:<button className="primary-button" type="submit" disabled={saving||!valid||(!editable&&(!selected||!available.some(c=>c.id===v.registrationClassId)))}>
+    {!editable&&judgingStep<2?<button className="primary-button" type="button" disabled={saving||!judgingReady[judgingStep]} onClick={nextJudgingStep}>Продолжить <ChevronRight size={16}/></button>:<button className="primary-button" type="submit" data-judging-confirm="true" disabled={saving||!valid||(!editable&&(!selected||!available.some(c=>c.id===v.registrationClassId)))}>
      <Trophy size={16}/>{saving?'Сохраняем…':editable?'Сохранить исправление':'Подтвердить и сохранить измерение'}
      {!saving&&<ChevronRight size={16}/>}
     </button>}
