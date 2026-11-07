@@ -22,7 +22,17 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
  const [draft,setDraft]=useState(emptyPost),[editing,setEditing]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[confirm,setConfirm]=useState('');
  useEffect(()=>{setName(team.name);setDescription(team.description);setCommander(team.commanderUserId??'')},[team]);
  const base='/teams/'+encodeURIComponent(team.id);
- const run=async(action:()=>Promise<unknown>,message:string)=>{setBusy(true);setError('');setNotice('');try{await action();setConfirm('');if(!message.startsWith('Черновик сохранён')&&!message.startsWith('Материал отправлен'))await onChanged();setNotice(message)}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить. Обновите данные и повторите действие.')}finally{setBusy(false)}};
+ const run=async(action:()=>Promise<unknown>,message:string)=>{
+  setBusy(true);setError('');setNotice('');
+  try{
+   // The write and the subsequent list refresh are separate transactions.
+   // Never ask the user to repeat a successful write just because refresh failed.
+   await action();setConfirm('');
+   try{await onChanged();setNotice(message)}
+   catch{setNotice(message+' Список пока не обновился. Обновите страницу, чтобы увидеть актуальные данные.');}
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить. Обновите данные и повторите действие.')}
+  finally{setBusy(false)}
+ };
  const addPhotos=async(files:FileList|null)=>{
   if(!editing||!files?.length)return;
   const candidates=Array.from(files);
@@ -41,7 +51,7 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
   }
   finally{setBusy(false)}
  };
- const savePost=(status:TeamPost['status'])=>run(async()=>{const path=base+'/posts'+(editing?'/'+encodeURIComponent(editing):'');await (editing?apiPatch:apiPost)(path,{...draft,status});await onChanged();setDraft(emptyPost);setEditing('');setPostStep(1)},status==='IN_REVIEW'?'Материал отправлен на проверку':'Черновик сохранён');
+ const savePost=(status:TeamPost['status'])=>run(async()=>{const path=base+'/posts'+(editing?'/'+encodeURIComponent(editing):'');await (editing?apiPatch:apiPost)(path,{...draft,status});setDraft(emptyPost);setEditing('');setPostStep(1)},status==='IN_REVIEW'?'Материал отправлен на проверку':'Черновик сохранён');
  const changePost=(post:TeamPost,status:TeamPost['status'])=>run(
   ()=>status==='PUBLISHED'
    // Publish the stored snapshot, not a stale form copy.
