@@ -4,6 +4,25 @@
  * Avoid new layout overrides in styles.css, ui-consistency.css or premium-ui.css.
  */
 
+.app-shell .partner-image-editor{min-width:0;margin:12px 0;padding:0;border:0}
+.app-shell .partner-image-editor legend{padding:0;margin-bottom:16px;font-size:18px;font-weight:750}
+.app-shell .partner-image-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr);gap:24px;align-items:start}
+.app-shell .partner-image-controls{display:grid;gap:16px;min-width:0}
+.app-shell .partner-image-controls .form-grid-2{margin:0}
+.app-shell .partner-image-range-label{display:flex;justify-content:space-between;gap:16px}
+.app-shell .partner-image-range-label output{font-variant-numeric:tabular-nums}
+body .app-shell .main .content .partner-image-controls input[type="range"]{width:100%;min-height:44px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;accent-color:var(--red,#c61634);cursor:pointer}
+body .app-shell .main .content .partner-image-controls input[type="range"]:focus-visible{outline:2px solid var(--red,#c61634);outline-offset:3px}
+.app-shell .partner-image-controls :is(input,select,button){scroll-margin-block:88px 24px}
+.app-shell .partner-image-preview{display:grid;gap:12px;min-width:0}
+.app-shell .partner-image-preview>span{font-size:13px;font-weight:650}
+.app-shell .partner-image-preview-surface{overflow:hidden;border-radius:12px;background:#1c232d;color:#f7f9fc}
+.app-shell .partner-image-editor:disabled{opacity:.65}
+@media(max-width:900px){
+ .app-shell .partner-image-editor-grid{grid-template-columns:minmax(0,1fr)}
+ .app-shell .partner-image-preview{grid-row:1}
+}
+
 /* The viewport is not 86vw just because the mobile drawer is 86vw. */
 body:has(.app-shell) { overflow-x: clip; }
 body .app-shell {

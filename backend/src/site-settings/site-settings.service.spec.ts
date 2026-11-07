@@ -435,6 +435,47 @@ describe('SiteSettingsService partner CMS safety', () => {
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
+  it('roundtrips custom partner image framing through admin and public settings', async () => {
+    const { service } = makeService();
+    const imageLayout = { mode: 'BANNER', aspectWidth: 2.5, aspectHeight: 1,
+      scale: 175, positionX: 25, positionY: 80 };
+    const partner = { id: 'custom-logo', name: 'Partner', tier: 'PREMIUM',
+      isActive: true, isPublished: true, imageLayout };
+    await service.update({ partners: [partner] } as any, 'admin-1');
+    expect((await service.getAdmin()).settings.partners[0].imageLayout).toEqual(imageLayout);
+    expect((await service.getPublic()).settings.partners[0].imageLayout).toEqual(imageLayout);
+  });
+
+  it.each([
+    null, [], 'cover', {}, { mode: 'fill' }, { mode: 'LOGO', scale: '150' },
+    { mode: 'LOGO', scale: 301 }, { mode: 'LOGO', scale: 49 },
+    { mode: 'LOGO', positionX: -1 }, { mode: 'BANNER', positionY: 101 },
+    { mode: 'LOGO', aspectWidth: 16 }, { mode: 'LOGO', aspectHeight: 9 },
+    { mode: 'LOGO', aspectWidth: 0, aspectHeight: 1 },
+    { mode: 'LOGO', aspectWidth: 101, aspectHeight: 100 },
+    { mode: 'LOGO', aspectWidth: 1, aspectHeight: 100 },
+    { mode: 'LOGO', aspectWidth: 100, aspectHeight: 1 },
+    { mode: 'LOGO', positionX: NaN }, { mode: 'LOGO', scale: Infinity },
+    { mode: 'LOGO', internalNote: 'private layout metadata' },
+    { mode: 'BANNER', constructor: 'private layout metadata' },
+  ])('rejects malformed partner image layout before persistence: %p', async imageLayout => {
+    const { service, prisma } = makeService();
+    const persist = jest.spyOn(prisma.siteSettings, 'upsert');
+    await expect(service.update({ partners: [{ id: 'invalid-logo', name: 'Partner',
+      tier: 'REGULAR', isPublished: false, imageLayout }] } as any, 'admin-1'))
+      .rejects.toThrow(BadRequestException);
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('does not expose malformed historical nested image metadata publicly', async () => {
+    const legacy = { id: 'legacy-logo', name: 'Legacy', tier: 'REGULAR',
+      imageLayout: { mode: 'BANNER', internalNote: 'private value' } };
+    const { service } = makeService({ partners: [legacy] });
+    await service.update({ partners: [legacy] } as any, 'admin-1');
+    expect((await service.getAdmin()).settings.partners[0].imageLayout).toEqual(legacy.imageLayout);
+    expect((await service.getPublic()).settings.partners[0]).not.toHaveProperty('imageLayout');
+  });
+
   it('preserves unchanged legacy partners when editing another CMS section', async () => {
     const legacy = { name: 'Старый партнёр', website: 'old.example.org', tier: 'OLD' };
     const { service } = makeService({ partners: [legacy] });

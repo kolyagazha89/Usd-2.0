@@ -21,8 +21,9 @@ test('the homepage and partner directory share the CMS-driven tier showcase',asy
  assert.match(await source('../src/public/partner-model.ts'),/sortOrder/);
  assert.match(showcase,/safeHref\(partner\.website\)/);
  assert.match(showcase,/rel="noopener noreferrer"/);
- assert.match(showcase,/:compact\?<Link className="usd-partner-visual"/);
- assert.match(showcase,/:<div className="usd-partner-visual">\{photo\}<\/div>/);
+ assert.match(showcase,/visualClass='usd-partner-visual(?:'| )/);
+ assert.match(showcase,/:compact\?<Link className=\{visualClass\}/);
+ assert.match(showcase,/:<div className=\{visualClass\}>\{photo\}<\/div>/);
 });
 
 test('general, premium and regular sponsors have distinct responsive visual priorities',async()=>{

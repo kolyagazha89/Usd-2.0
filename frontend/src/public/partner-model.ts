@@ -5,6 +5,7 @@
 export type PublicPartner={
  id?:string;name?:string;description?:string;photoUrl?:string|null;
  website?:string;isActive?:boolean;isPublished?:boolean;sortOrder?:number;tier?:string;
+ imageLayout?:unknown;
 };
 
 const order=(value:unknown):number=>{
