@@ -757,12 +757,17 @@ export class AuthService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Use the same lock order as manual ADMIN profile linking: participant,
+      // then claimant. Without both locks concurrent workflows can steal a
+      // verified historical profile or overwrite a newly created account.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+participantId}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+userId}))`;
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
+        select: { id: true, email: true, participantId: true, role: true, customRoleId: true, emailVerifiedAt: true, isActive: true },
       });
-      if (!user) {
-        throw new UnauthorizedException('Недействительная учётная запись');
+      if (!user?.isActive || !user.emailVerifiedAt) {
+        throw new UnauthorizedException('Для привязки подтвердите email активного аккаунта USD');
       }
       if (user.participantId && user.participantId !== participantId) {
         throw new ConflictException('У аккаунта уже есть профиль участника');
@@ -794,10 +799,13 @@ export class AuthService {
         throw new ConflictException('Этот исторический профиль уже связан с другим аккаунтом');
       }
 
-      await tx.user.update({
-        where: { id: userId },
+      const linked = await tx.user.updateMany({
+        where: { id: userId, participantId: null, isActive: true, emailVerifiedAt: { not: null } },
         data: { participantId: participant.id },
       });
+      if (linked.count !== 1) {
+        throw new ConflictException('Аккаунт изменился. Профиль не привязан. Обновите данные.');
+      }
 
       await tx.auditLog.create({
         data: {
