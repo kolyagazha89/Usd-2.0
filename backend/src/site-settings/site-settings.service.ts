@@ -1,4 +1,4 @@
-import {planBrandMerge, type MergeInput} from './component-brand-merge';
+import {planBrandMerge, assertMergedCatalogAliasesPreserved, type MergeInput} from './component-brand-merge';
 import {catalogRevision, lockSiteSettings} from './catalog-concurrency';
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -454,6 +454,7 @@ export class SiteSettingsService{
       const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
       if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
       if(incomingCatalogs) delete incomingCatalogs._revision;
+      if(incomingCatalogs) assertMergedCatalogAliasesPreserved(current.catalogs,incomingCatalogs);
       input={...input,catalogs:incomingCatalogs};
       phase = 'merge';
       this.validateHomepage(input.homepage);
