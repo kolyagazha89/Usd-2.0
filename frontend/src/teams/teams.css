@@ -73,3 +73,25 @@
 .team-workspace-sections button:focus-visible{outline:2px solid #b91c36;outline-offset:3px}
 .team-workspace-sections button:hover{border-color:#b91c36}
 @media(max-width:520px){.team-workspace-sections button{flex-basis:100%;text-align:left}}
+
+/* Two-step team publication editor: keep inputs mounted without showing inactive fields. */
+.team-post-fields{display:grid;gap:16px;min-width:0}
+.team-workspace [hidden]{display:none!important;}
+.team-post-review{display:grid;gap:10px;min-width:0;padding:18px;border:1px solid #c8ced8;border-radius:12px;background:#f5f6f8;color:#172133}
+.team-post-review h5{font-size:19px;margin:0;overflow-wrap:anywhere}
+.team-post-review p{margin:0;overflow-wrap:anywhere}
+.usd-member .team-post-review{background:#202933;color:#f4f5f7;border-color:#39434e}
+
+/* Team results filters wrap on phones without horizontal scrolling. */
+.team-achievement-filters{display:flex;align-items:end;flex-wrap:wrap;gap:10px;min-width:0}
+.team-achievement-filters .team-achievement-filter{flex:1 1 160px;min-width:min(100%,150px)}
+.team-filter-reset{min-height:44px;flex:0 0 auto}
+.team-achievement-empty{display:grid;justify-items:start;gap:8px;margin:16px 0}
+.team-achievement-empty p{margin:0}
+@media(max-width:520px){.team-achievement-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.team-achievement-stats p{padding:10px}.team-achievement-filters{width:100%}.team-achievement-filters .team-achievement-filter{flex:1 1 100%}.team-filter-reset{width:100%}}
+
+/* Direct paths from an achievement to the authoritative USD stage results. */
+.team-stage-protocol{display:inline-flex;min-height:40px;align-items:center;color:#ff657b;font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.team-stage-athlete{color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:#b64b60;text-underline-offset:3px;overflow-wrap:anywhere}
+.team-stage-athlete:focus-visible,.team-stage-protocol:focus-visible{outline:2px solid #ff657b;outline-offset:3px;border-radius:3px}
+.team-stage-athlete:hover,.team-stage-protocol:hover{color:#ff8598}

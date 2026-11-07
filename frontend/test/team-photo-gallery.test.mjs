@@ -13,8 +13,10 @@ test('team news and achievements attach only saved private RustFS photos through
  assert.match(api,/targetType:'SITE_ASSET',targetId,contentType:file.type/);
  assert.match(api,/await request\('\/media\/upload'/);
  assert.match(editor,/draft\.images\.length\+candidates\.length>8/);
- assert.match(editor,/сначала сохраните материал как черновик/i);
- assert.match(editor,/setDraft\(current=>\(\{\.\.\.current,images:\[\.\.\.current\.images,\.\.\.uploaded\]\}\)\)/);
+ assert.match(editor,/await apiPost<\{id:string\}>\(base\+'\/posts',\{\.\.\.draft,status:'DRAFT'\}\)/);
+ assert.match(editor,/setEditing\(postId\)/);
+ assert.match(editor,/mergeDraftImageKeys\(current\.images,uploaded\)/);
+ assert.match(editor,/mergeDraftImageKeys\(draft\.images,uploaded\)/);
  assert.match(editor,/status==='PUBLISHED'/);
  assert.match(publicPage,/Array\.isArray\(post\.images\)/);
  assert.match(publicPage,/getTeamPostPhotoUrl\(key\)/);
@@ -33,7 +35,8 @@ test('moderation cannot silently approve swapped gallery photos',async()=>{
  assert.match(media,/post\.status !== 'DRAFT'/);
  assert.match(editor,/Отозвать с проверки/);
  assert.match(editor,/if\(uploaded\.length\)setDraft/);
- assert.match(editor,/Сохраните черновик, чтобы прикрепить их/);
+ assert.match(editor,/uploadTeamPostPhoto\(postId,file\)/);
+ assert.match(editor,/Черновик создан автоматически/);
 });
 
 test('admin cannot publish a draft before moving it into the review queue',async()=>{

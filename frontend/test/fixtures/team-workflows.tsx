@@ -8,12 +8,13 @@ import TeamsPage from '../../src/admin/TeamsPage';
 
 export async function runTeamWorkflows(){
  const host=document.getElementById('root')!,root=createRoot(host);
- const calls:any[]=[];let membership:any=null,malformedAdmin=false;
+ const calls:any[]=[];let membership:any=null,malformedAdmin=false,failPostOnce=true,failRefreshOnce=false;
  const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED',updatedAt:'2026-11-03T12:00:00.000Z'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
-  if(path==='/teams/public/t1/achievements')return {teamId:'t1',teamName:'First team',scope:'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,stages:[]};
+  if(path==='/teams/t1/posts'&&method==='POST'&&failPostOnce){failPostOnce=false;throw new Error('Synthetic publication failure')}
+  if(path==='/teams/public/t1/achievements'||path==='/teams/public/t1/inspected-achievements')return {teamId:'t1',teamName:'First team',scope:path.endsWith('inspected-achievements')?'FIRST_PASSED_INSPECTION':'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,summary:{participants:0,podiums:0,firstPlaces:0,directions:[]},stages:[]};
   if(path==='/teams/admin')return malformedAdmin?[]:{teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
@@ -28,12 +29,42 @@ export async function runTeamWorkflows(){
   assert.match(host.textContent??'',/Моя команда/);assert.doesNotMatch(host.textContent??'',/Archive team/);
   await input('Команда для заявки','t1');await click('Подать заявку');assert.match(host.textContent??'',/Ожидает решения/);
   await click('Отменить заявку');await click('Подтвердить выход');assert.equal(calls.filter(c=>c.path==='/teams/me/leave'&&c.method==='POST').length,1);
-  await render(<TeamWorkspace key="commander" team={team} admin={false} onChanged={async()=>{}}/>);
+  await render(<TeamWorkspace key="commander" team={team} admin={false} onChanged={async()=>{if(failRefreshOnce){failRefreshOnce=false;throw new Error('Synthetic refresh failure')}}}/>);
   assert.doesNotMatch(host.textContent??'',/Опубликовать/);assert.ok(!host.querySelector('[aria-label="Командир команды"]'));
   await click('Принять');assert.equal(calls.at(-1).path,'/teams/t1/memberships/m1');assert.deepEqual(calls.at(-1).body,{status:'APPROVED'});
-  await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Отправить на проверку');
+  await click('Выступления по этапам');
+  assert.match(host.textContent??'',/Выступления команды на этапах/);
+  assert.match(host.textContent??'',/Это не командный зачёт по очкам/);
+  await click('Новости и достижения');await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Проверить публикацию');await click('Подтвердить отправку');
+  assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Synthetic publication failure/);
+  assert.match(host.textContent??'',/New achievement/);
+  await click('Вернуться к редактированию');
+  assert.equal((host.querySelector('[aria-label="Заголовок публикации"]') as HTMLInputElement).value,'New achievement');
+  await click('Проверить публикацию');await click('Подтвердить отправку');
   assert.equal(calls.at(-1).body.status,'IN_REVIEW');
+  // A successful create must not be re-sent if the subsequent list refresh fails.
+  await input('Заголовок публикации','Another achievement');
+  await input('Текст публикации','Different text');
+  failRefreshOnce=true;
+  await click('Проверить публикацию');await click('Подтвердить отправку');
+  assert.match(host.textContent??'',/Список пока не обновился/);
+  assert.equal((host.querySelector('[aria-label="Заголовок публикации"]') as HTMLInputElement).value,'');
+  assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts'&&c.body.title==='Another achievement').length,1);
+  // New publications can attach a photo directly: the first upload creates a private draft.
+  await input('Заголовок публикации','Photo story');await input('Текст публикации','Photo body');
+  const photoInput=host.querySelector('.team-post-editor input[type="file"]') as HTMLInputElement;
+  assert.ok(photoInput&&!photoInput.disabled,'first photo picker works before a manual save');
+  await act(async()=>{
+   Object.defineProperty(photoInput,'files',{configurable:true,value:[new window.File(['synthetic'],'photo.jpg',{type:'image/jpeg'})]});
+   photoInput.dispatchEvent(new window.Event('change',{bubbles:true}));
+   await new Promise(r=>setTimeout(r,0));
+  });
+  assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts'&&c.body.title==='Photo story'&&c.body.status==='DRAFT').length,1);
+  assert.match(host.textContent??'',/Фотографии · 1\/8/);
+  assert.ok(calls.some(c=>c.method==='PATCH'&&c.path==='/teams/t1/posts/saved'&&c.body.status==='DRAFT'&&c.body.images.includes('team-post-synthetic')),'uploads are attached to the saved draft immediately');
   await render(<TeamWorkspace key="admin" team={{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}} admin users={[]} onChanged={async()=>{}}/>);
+  await click('Новости и достижения');await click('Редактировать');
+  assert.ok((host.querySelector('.team-post-editor input[type="file"]') as HTMLInputElement).disabled,'admin must return reviewed post to draft before adding photos');
   await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
   await render(<PublicTeamsPage path="/teams/First%20team"/>);assert.match(host.textContent??'',/Reviewed news/);assert.match(host.textContent??'',/Public text/);
