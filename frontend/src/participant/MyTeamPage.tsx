@@ -4,7 +4,7 @@ import TeamWorkspace from '../teams/TeamWorkspace';
 import TeamStageAchievements from '../teams/TeamStageAchievements';
 import type {PublicTeam,Team} from '../teams/types';
 export default function MyTeamPage({canJoin=true}:{canJoin?:boolean}){
- const [teams,setTeams]=useState<PublicTeam[]>([]),[mine,setMine]=useState<{membership:any;commandedTeam:Team|null}|null>(null),[selected,setSelected]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[notice,setNotice]=useState('');
+ const [teams,setTeams]=useState<PublicTeam[]>([]),[mine,setMine]=useState<{membership:any;commandedTeam:Team|null}|null>(null),[selected,setSelected]=useState(()=>new URLSearchParams(window.location.search).get('teamId')??''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[notice,setNotice]=useState('');
  const load=async()=>{setError('');try{const [current,directory]=await Promise.all([apiGet<any>('/teams/me'),apiGet<PublicTeam[]>('/teams/public')]);setMine(current);setTeams(listData<PublicTeam>(directory).filter(t=>t.id&&t.isActive))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить команды. Попробуйте ещё раз.')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  const mutate=async(path:string,message:string)=>{setBusy(true);setNotice('');try{await apiPost(path,{});setConfirm(false);await load();setNotice(message)}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить заявку')}finally{setBusy(false)}};
