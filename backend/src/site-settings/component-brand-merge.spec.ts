@@ -32,6 +32,21 @@ describe('brand merge',()=>{
   expect(tx.siteSettings.upsert).not.toHaveBeenCalled();
   expect(tx.auditLog.create).not.toHaveBeenCalled();
  });
+ it('rejects physical removal of an ordinary brand/model and preserves their identities after an archive',async()=>{
+  const catalogs=sample();
+  const tx:any={$executeRaw:jest.fn(),siteSettings:{
+   findUnique:jest.fn().mockResolvedValue({catalogs}),upsert:jest.fn(),
+  },auditLog:{create:jest.fn()}};
+  const service=new SiteSettingsService({$transaction:(fn:any)=>fn(tx)} as any);
+  const deletedBrand=structuredClone(catalogs);
+  deletedBrand.componentBrands=deletedBrand.componentBrands.filter((b:any)=>b.id!=='b');
+  await expect(service.update({catalogs:{...deletedBrand,_revision:catalogRevision(catalogs)}},'admin')).rejects.toMatchObject({status:409});
+  const deletedModel=structuredClone(catalogs);
+  deletedModel.componentModels=deletedModel.componentModels.filter((m:any)=>m.id!=='m2');
+  await expect(service.update({catalogs:{...deletedModel,_revision:catalogRevision(catalogs)}},'admin')).rejects.toMatchObject({status:409});
+  expect(tx.siteSettings.upsert).not.toHaveBeenCalled();
+  expect(tx.auditLog.create).not.toHaveBeenCalled();
+ });
  it('restricts preview and merge routes to ADMIN',()=>{expect(Reflect.getMetadata(ROLES_KEY,SiteSettingsController.prototype.previewBrandMerge)).toEqual(['ADMIN']);expect(Reflect.getMetadata(ROLES_KEY,SiteSettingsController.prototype.mergeBrands)).toEqual(['ADMIN'])});
  it('serializes concurrent merges and rejects the stale contender',async()=>{
   let catalogs:any=sample(),tail=Promise.resolve();let writes=0;
