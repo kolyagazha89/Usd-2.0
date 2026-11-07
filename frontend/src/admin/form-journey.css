@@ -44,3 +44,12 @@ body .app-shell .main .content .form-wizard-class-summary section:has(li){paddin
 body .app-shell .main .content .form-wizard-class-summary section:not(:has(li)){display:none}
 body .app-shell .main .content .form-wizard-class-summary ul{margin:6px 0 0;padding-left:20px}
 @media(max-width:700px){body .app-shell .main .content .form-wizard-nav{grid-template-columns:minmax(0,1fr)}body .app-shell .main .content .form-wizard-nav button{min-height:49px}body .app-shell .main .content .form-wizard-nav button>span{grid-row:span 2}body .app-shell .main .content .form-wizard-review dl,body .app-shell .main .content .entity-form-review dl{grid-template-columns:minmax(0,1fr)}body .app-shell .main .content .form-wizard-actions button{flex:1 1 180px;justify-content:center}}
+
+/* Admin equipment: section visibility is authoritative, not overridden by display:grid. */
+body .app-shell .main .content .configuration-editor-page [hidden]{display:none!important}
+body .app-shell .main .content .config-admin-steps{grid-template-columns:repeat(4,minmax(0,1fr));margin:18px 0}
+body .app-shell .main .content .config-admin-review{margin:18px 0}
+body .app-shell .main .content .config-editor-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+body .app-shell .main .content .config-editor-actions button{min-height:44px}
+@media(max-width:900px){body .app-shell .main .content .config-admin-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){body .app-shell .main .content .config-admin-steps{grid-template-columns:minmax(0,1fr)}body .app-shell .main .content .config-editor-actions button{flex:1 1 100%;justify-content:center}}
