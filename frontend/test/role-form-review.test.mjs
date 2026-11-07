@@ -47,3 +47,10 @@ test('mobile catalog combobox chooses on touch before blur removes the option',a
  assert.match(form,/event\.pointerType==='touch'/);
  assert.match(form,/choose\(option\)/);
 });
+
+test('the judge editor has a single browser-QA selector, with a nested form',async()=>{
+ const source=await read('../src/admin/ResultsPage.tsx');
+ assert.equal([...source.matchAll(/className="[^"]*judging-entry-wizard[^"]*"/g)].length,1,
+  'browser locator .judging-entry-wizard must not match both section and form');
+ assert.match(source,/className="form judging-entry-form" noValidate/);
+});
