@@ -70,3 +70,20 @@ test('inactive or archived parent cannot be bypassed by enabling child alone',()
  assert.equal(updated.componentModels[0].isActive,true);
  assert.equal(updated.componentModels[1].isActive,false);
 });
+test('merged brands and models cannot be restored into normal selection',()=>{
+ const data=base();data.componentBrands[0].mergedIntoId='b2';data.componentBrands[0].isArchived=true;data.componentModels[0].mergedIntoId='m2';data.componentModels[0].isArchived=true;
+ assert.throws(()=>toggleCatalogBrand(data,'b1'),/нельзя восстановить/);
+ assert.throws(()=>toggleCatalogModel(data,'m1'),/нельзя восстановить/);
+});
+
+test('merged historical brand and model aliases cannot be renamed after archival',()=>{
+ const source=base();
+ source.componentBrands[0].mergedIntoId='b2';
+ source.componentBrands[0].isArchived=true;
+ source.componentModels[0].mergedIntoId='m2';
+ source.componentModels[0].isArchived=true;
+ const before=JSON.stringify(source);
+ assert.throws(()=>renameComponentBrand(source,'b1','Rename merged source'),/объединённую|архивн/i);
+ assert.throws(()=>editComponentModel(source,'m1','Rename merged model','Aura'),/объединённую|архивн/i);
+ assert.equal(JSON.stringify(source),before,'rejected operations leave archived provenance untouched');
+});

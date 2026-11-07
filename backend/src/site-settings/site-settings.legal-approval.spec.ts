@@ -1,3 +1,4 @@
+import {withSettingsTransaction} from './test-transaction';
 import { jest } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { SiteSettingsService } from './site-settings.service';
@@ -28,7 +29,7 @@ describe('SiteSettingsService legal approval gate', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new SiteSettingsService(prisma);
+    service = new SiteSettingsService(withSettingsTransaction(prisma));
     prisma.siteSettings.findUnique.mockResolvedValue({
       id: 'default', legal, contacts: { email: 'legal@example.com' }, footer: {}, registration: {},
     });

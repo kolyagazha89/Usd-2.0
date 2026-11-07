@@ -30,6 +30,9 @@ test('success confirmation is only entered after a saved registration response',
  assert.match(app,/registration.status==='CANCELLED'/);
  assert.match(pass,/apiGet<\{token:string\}>\('\/participants\/me\/usd-id'\)/);
  assert.match(pass,/navigator\.clipboard\.writeText\(usdId\)/);
+ assert.match(pass,/navigator\.clipboard\.writeText\(qr\)/,'copying the judge QR link must work without SVG download');
+ assert.match(pass,/Скопировать QR-ссылку/);
+ assert.match(pass,/QR-ссылка для инспекции/,'show selectable URL when clipboard is unavailable');
  assert.match(pass,/new XMLSerializer\(\)\.serializeToString\(svg\)/);
  assert.match(pass,/Сохраните пропуск/);
  assert.match(pass,/Перейти к моим регистрациям/);

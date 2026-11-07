@@ -1,4 +1,6 @@
-import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
+import {planBrandMerge, assertMergedCatalogAliasesPreserved, type MergeInput} from './component-brand-merge';
+import {catalogRevision, lockSiteSettings} from './catalog-concurrency';
+import { BadRequestException, ConflictException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
 import { readPartnerImageLayout } from './partner-image-layout';
@@ -313,7 +315,7 @@ export class SiteSettingsService{
       blocks: published.blocks,
     };
   }
-  async getAdmin(){return {success:true,settings:this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}))};}
+  async getAdmin(){const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row?.catalogs)};return {success:true,settings};}
   async getPublic() {
     const s = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
     const legal = s.legal as Record<string, any>;
@@ -421,11 +423,39 @@ export class SiteSettingsService{
       rulesDocument: { ...currentDocument, ...incomingDocument, published, publishedVersions: versions, drafts },
     };
   }
+  async previewBrandMerge(input:MergeInput){
+    const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});
+    if(!row)throw new BadRequestException('Сначала сохраните настройки сайта.');
+    const plan=planBrandMerge(row.catalogs as Record<string,unknown>,input);
+    const {catalogs,...preview}=plan;
+    return {...preview,revision:catalogRevision(row.catalogs)};
+  }
+  async mergeBrands(input:MergeInput & {revision:string},userId:string){
+    if(typeof input?.revision!=='string')throw new BadRequestException('Необходим актуальный предпросмотр.');
+    return this.prisma.$transaction(async tx=>{
+      await lockSiteSettings(tx);
+      const row=await tx.siteSettings.findUnique({where:{id:'default'}});
+      if(!row)throw new BadRequestException('Сначала сохраните настройки сайта.');
+      if(input.revision!==catalogRevision(row.catalogs))throw new ConflictException('Справочник изменился. Повторите предпросмотр.');
+      const plan=planBrandMerge(row.catalogs as Record<string,unknown>,input);
+      await tx.siteSettings.update({where:{id:'default'},data:{catalogs:plan.catalogs}});
+      await tx.auditLog.create({data:{userId,action:'COMPONENT_BRANDS_MERGED',entity:'SiteSettings',entityId:'default',metadata:{sourceId:input.sourceId,targetId:input.targetId,scope:input.scope,models:plan.models,collisions:plan.collisions}}});
+      return {success:true,models:plan.models,collisions:plan.collisions};
+    });
+  }
   async update(input:Partial<SiteSettingsShape>,userId:string){
     const sections = Object.keys(input ?? {});
     let phase: 'read' | 'merge' | 'upsert' | 'audit' = 'read';
     try {
-      const current=this.shape(await this.prisma.siteSettings.findUnique({where:{id:'default'}}));
+      return await this.prisma.$transaction(async tx=>{
+      await lockSiteSettings(tx);
+      const currentRow=await tx.siteSettings.findUnique({where:{id:'default'}});
+      const current=this.shape(currentRow);
+      const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
+      if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
+      if(incomingCatalogs) delete incomingCatalogs._revision;
+      if(incomingCatalogs) assertMergedCatalogAliasesPreserved(current.catalogs,incomingCatalogs);
+      input={...input,catalogs:incomingCatalogs};
       phase = 'merge';
       this.validateHomepage(input.homepage);
       this.validateNavigation(input.navigation);
@@ -480,14 +510,16 @@ export class SiteSettingsService{
       // optional/undefined properties and browser objects that Prisma's JSON
       // input validator rejects even though the settings themselves are valid.
       const persisted = JSON.parse(JSON.stringify(next)) as typeof next;
-      const row = await this.prisma.siteSettings.upsert({
+      const row = await tx.siteSettings.upsert({
         where: { id: 'default' },
         create: { id: 'default', ...persisted } as any,
         update: { ...persisted } as any,
       });
       phase = 'audit';
-      await this.prisma.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
-      return {success:true,settings:this.shape(row)};
+      await tx.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
+      const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row.catalogs)};
+      return {success:true,settings};
+      });
     } catch (error) {
       // Expected validation errors remain 4xx and are not logged as server failures.
       if (!(error instanceof HttpException) || error.getStatus() >= 500) {

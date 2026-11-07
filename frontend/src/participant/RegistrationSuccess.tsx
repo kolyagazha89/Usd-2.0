@@ -9,6 +9,7 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
  const svgId=useId().replace(/:/g,'');
  const [usdId,setUsdId]=useState(''),[usdIdLoading,setUsdIdLoading]=useState(true),[notice,setNotice]=useState('');
  const [error,setError]=useState('');
+ const [qrCopyFallback,setQrCopyFallback]=useState(false);
  useEffect(()=>{let active=true;setUsdId('');setError('');setUsdIdLoading(true);
   apiGet<{token:string}>('/participants/me/usd-id').then(result=>{if(active)setUsdId(result.token)}).catch(err=>{if(active)setError(err instanceof Error?err.message:'USD ID временно недоступен')}).finally(()=>{if(active)setUsdIdLoading(false)});
   return()=>{active=false};
@@ -19,6 +20,10 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
   const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download='USD-pass-'+String(registration.participantNumber||registration.id.slice(0,8))+'.svg';document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1500);setNotice('QR-код сохранён');
  };
  const qr=registrationInspectionQrUrl(window.location.origin,registration);
+ const copyQr=async()=>{
+  try{await navigator.clipboard.writeText(qr);setQrCopyFallback(false);setNotice('QR-ссылка скопирована')}
+  catch{setQrCopyFallback(true);setNotice('Не удалось автоматически скопировать ссылку. Выделите её ниже и скопируйте вручную.')}
+ };
  const numbers=registrationNumbers(registration);
  const stage=registration.stage||{id:registration.stageId||'',name:'',date:'',city:'',venue:'',address:''};
  const inspection=registration.stageInspection??registration.inspection;
@@ -51,10 +56,14 @@ function RegistrationSuccess({registration,go}:{registration:RegistrationPassDat
     {usdIdLoading?<p role="status">Получаем USD ID…</p>:usdId?<code className="usd-pass-id">{usdId}</code>:<p className="usd-pass-error" role="alert">{error}</p>}
     <div className="usd-pass-buttons">
      <button type="button" className="primary-button" onClick={saveQr}>Сохранить QR-код</button>
+     <button type="button" className="secondary-button" onClick={()=>void copyQr()}>Скопировать QR-ссылку</button>
      <button type="button" className="secondary-button" disabled={!usdId} onClick={()=>void copyUsdId()}>Скопировать USD ID</button>
      <button type="button" className="secondary-button" onClick={()=>go('/participant?tab=registrations')}>Перейти к моим регистрациям</button>
     </div>
     {notice&&<p className="usd-pass-notice" role="status">{notice}</p>}
+    {qrCopyFallback&&<label className="usd-pass-qr-link-fallback">QR-ссылка для инспекции
+     <input aria-label="QR-ссылка для инспекции" type="text" readOnly value={qr} onFocus={e=>e.currentTarget.select()} onClick={e=>e.currentTarget.select()}/>
+    </label>}
    </aside>
   </div>
   <p className="usd-pass-reminder"><strong>Сохраните пропуск:</strong> сделайте скриншот QR-кода или запишите свой USD ID. Они понадобятся для быстрого поиска регистрации на площадке, особенно при отсутствии интернета.</p>

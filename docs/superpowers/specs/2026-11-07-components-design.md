@@ -1,0 +1,3 @@
+# Component catalog and requests
+
+Administrators need a clear catalog and request queue, with archived IDs and historical snapshots preserved. The approved approach separates catalog and request views and adds a server-side previewed brand merge. A browser-side whole-catalog merge was rejected because concurrent writers could overwrite data. A merge must preserve IDs and metadata, archive duplicate source models, use an atomic revision check and audit, and reject stale or invalid inputs. Existing settings, backup gates and participant request text remain intact. No migration or new dependency is planned.
