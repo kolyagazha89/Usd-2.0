@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react';
 import {apiGet} from '../api';
+import {filterTeamStages,summarizeTeamStages,teamStageSeasons} from './team-stage-filters';
 
 export type TeamStagePerformance = {
   id: string;
@@ -18,21 +19,21 @@ export default function TeamStageAchievements({teamId,mode='current'}:{teamId:st
  const heading=inspected?'Выступления команды на этапах':'Выступления текущего состава по этапам';
  const [data,setData]=useState<TeamStageAchievementResponse|null>(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[retry,setRetry]=useState(0);
- const [direction,setDirection]=useState('');
+ const [direction,setDirection]=useState(''),[season,setSeason]=useState(''),[stageId,setStageId]=useState('');
  useEffect(()=>{
   let active=true;
-  setLoading(true);setError('');setDirection('');
+  setLoading(true);setData(null);setError('');setDirection('');setSeason('');setStageId('');
   apiGet<TeamStageAchievementResponse>('/teams/public/'+encodeURIComponent(teamId)+(inspected?'/inspected-achievements':'/achievements'))
    .then(result=>{if(!result||!Array.isArray(result.stages)||!result.summary||!Array.isArray(result.summary.directions))throw new Error('Ответ сервера не содержит статистики команды');if(active)setData(result)})
    .catch(err=>{if(active)setError(err instanceof Error?err.message:'Не удалось загрузить выступления команды')})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
  },[teamId,retry,inspected]);
- const visibleStages=data?.stages.map(stage=>({
-  ...stage,
-  performances:stage.performances.filter(result=>!direction||result.direction===direction),
- })).filter(stage=>stage.performances.length>0)??[];
- const visibleCount=visibleStages.reduce((sum,stage)=>sum+stage.performances.length,0);
+ const visibleStages=filterTeamStages(data?.stages??[],{direction,season,stageId});
+ const visibleSummary=summarizeTeamStages(visibleStages);
+ const visibleCount=visibleSummary.performances;
+ const selectedFilters=Boolean(direction||season||stageId);
+ const seasons=teamStageSeasons(data?.stages??[]);
  return <section className="p-section team-stage-achievements" aria-label={heading}>
   <h3>{heading}</h3>
   <p className="team-achievement-disclaimer">{inspected
@@ -40,19 +41,32 @@ export default function TeamStageAchievements({teamId,mode='current'}:{teamId:st
    :'Показаны опубликованные результаты участников, состоящих в команде сейчас и разрешивших публичный показ профиля. Это не исторический командный зачёт: состав на дату старых соревнований мог отличаться.'}</p>
   {!loading&&!error&&data?.stages.length?<div className="team-achievement-overview">
    <div className="team-achievement-stats" aria-label={inspected?'Статистика проверенного состава':'Статистика личных результатов текущего состава'}>
-    <p><strong>{data.summary.participants}</strong><span>участников с результатами</span></p>
-    <p><strong>{data.summary.podiums}</strong><span>личных призовых мест</span></p>
-    <p><strong>{data.summary.firstPlaces}</strong><span>личных первых мест</span></p>
+    <p><strong>{selectedFilters?visibleSummary.participants:data.summary.participants}</strong><span>участников с результатами</span></p>
+    <p><strong>{selectedFilters?visibleSummary.podiums:data.summary.podiums}</strong><span>личных призовых мест</span></p>
+    <p><strong>{selectedFilters?visibleSummary.firstPlaces:data.summary.firstPlaces}</strong><span>личных первых мест</span></p>
    </div>
-   <label className="team-achievement-filter">Направление
+   <div className="team-achievement-filters"><label className="team-achievement-filter">Направление
     <select aria-label="Фильтр выступлений по направлению" value={direction} onChange={e=>setDirection(e.target.value)}>
      <option value="">Все направления</option>
      {data.summary.directions.map(item=><option key={item.name} value={item.name}>{item.name} · {item.performances}</option>)}
     </select>
    </label>
+   <label className="team-achievement-filter">Сезон
+    <select aria-label="Фильтр выступлений по сезону" value={season} onChange={e=>{setSeason(e.target.value);setStageId('')}}>
+     <option value="">Все сезоны</option>
+     {seasons.map(year=><option key={year} value={year}>{year}</option>)}
+    </select>
+   </label>
+   <label className="team-achievement-filter">Этап
+    <select aria-label="Фильтр выступлений по этапу" value={stageId} onChange={e=>setStageId(e.target.value)}>
+     <option value="">Все этапы</option>
+     {data.stages.filter(stage=>!season||stage.date.slice(0,4)===season).map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}
+    </select>
+   </label>
+   {selectedFilters&&<button type="button" className="u-btn u-quiet team-filter-reset" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить все фильтры</button>}</div>
   </div>:null}
   {loading?<p role="status">Загружаем результаты…</p>:error?<div role="alert"><p>{error}</p><button className="u-btn u-quiet" onClick={()=>setRetry(v=>v+1)}>Повторить загрузку</button></div>:data?.stages.length?
-   <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}</p>{direction&&visibleStages.length===0&&<div role="status" className="team-achievement-empty"><p>Нет выступлений в выбранном направлении.</p><button type="button" className="u-btn u-quiet" onClick={()=>setDirection('')}>Сбросить фильтр</button></div>}
+   <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}{season?' · сезон '+season:''}{selectedFilters?' · показатели только по выбранным результатам':''}</p>{selectedFilters&&visibleStages.length===0&&<div role="status" className="team-achievement-empty"><p>Нет выступлений с выбранными фильтрами.</p><button type="button" className="u-btn u-quiet" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить фильтр</button></div>}
     <div className="team-stage-grid">{visibleStages.map(stage=><article className="team-stage-card" key={stage.id}>
      <header><h4>{stage.name}</h4><p>{[stage.city,new Date(stage.date).toLocaleDateString('ru-RU')].filter(Boolean).join(' · ')}</p></header>
      <ul>{stage.performances.map(result=><li key={result.id}>
