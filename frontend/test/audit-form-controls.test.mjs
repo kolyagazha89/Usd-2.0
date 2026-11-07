@@ -33,3 +33,9 @@ test('inventory covers all real TSX form surfaces, not just sample fixtures',()=
  const important=rows.filter(row=>['admin/FormComponents.tsx','admin/ResultsPage.tsx'].includes(row.fileName));
  assert.ok(important.every(row=>row.unlabeled.length===0),'new resource and judge inputs need accessible labels');
 });
+
+test('every native TSX form control has an accessible name',()=>{
+ const root=resolve(dirname(fileURLToPath(import.meta.url)),'../src');
+ const offenders=auditFormTree(root).flatMap(row=>row.unlabeled.map(field=>row.fileName+':'+field.line+' <'+field.tag+'>'));
+ assert.deepEqual(offenders,[]);
+});
