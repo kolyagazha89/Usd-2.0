@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
+import { readPartnerImageLayout } from './partner-image-layout';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
@@ -144,6 +145,8 @@ export class SiteSettingsService{
         throw new BadRequestException('Укажите статус публикации и видимости партнёра.');
       if(item.sortOrder!==undefined&&(!Number.isSafeInteger(item.sortOrder)||Number(item.sortOrder)<0||Number(item.sortOrder)>100000))
         throw new BadRequestException('Некорректный порядок партнёра.');
+      if(item.imageLayout!==undefined&&!readPartnerImageLayout(item.imageLayout))
+        throw new BadRequestException('Проверьте оформление изображения партнёра: пропорции, масштаб и положение.');
       if(!text('website',2048))throw new BadRequestException('Некорректная ссылка партнёра.');
       if(item.website){
         try{
@@ -343,8 +346,12 @@ export class SiteSettingsService{
         // A draft partner must never be exposed by the public settings API.
         // Missing isPublished remains public for legacy CMS records.
         partners: s.partners.filter((partner: any) => partner && typeof partner === 'object' && !Array.isArray(partner) && partner.isActive !== false && partner.isPublished !== false)
-          .map((partner: any) => Object.fromEntries(Object.entries(partner).filter(([key]) =>
-            ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key)))),
+          .map((partner: any) => {
+            const imageLayout = readPartnerImageLayout(partner.imageLayout);
+            return { ...Object.fromEntries(Object.entries(partner).filter(([key]) =>
+              ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key))),
+              ...(imageLayout ? { imageLayout } : {}) };
+          }),
         news: s.news.filter((item: any) => item.isPublished !== false),
         legal: {
           legalApproved: publicLegalApproved,

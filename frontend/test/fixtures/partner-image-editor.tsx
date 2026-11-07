@@ -1,0 +1,84 @@
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import assert from 'node:assert/strict';
+import PartnersPage from '../../src/admin/PartnersPage';
+import PartnerShowcase from '../../src/public/PartnerShowcase';
+
+export async function runPartnerImageEditor(){
+ const host=document.createElement('div');document.body.append(host);
+ const root=createRoot(host);
+ const Empty=()=>null;
+ const PageFrame=({children}:any)=><div>{children}</div>;
+ await act(async()=>root.render(<PartnersPage PageFrame={PageFrame} ErrorPanel={Empty} LoadingPage={Empty} Empty={Empty}/>));
+ const change=async(name:string,value:string)=>act(async()=>{
+  const el=host.querySelector(`[name="${name}"]`) as HTMLInputElement|HTMLSelectElement;
+  assert.ok(el,'missing control '+name);
+  const prototype=el.tagName==='SELECT'?window.HTMLSelectElement.prototype:window.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype,'value')!.set!.call(el,value);
+  el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));
+ });
+ const click=async(text:string)=>act(async()=>{
+  const button=[...host.querySelectorAll('button')].find(el=>el.textContent?.trim()===text);
+  assert.ok(button,'missing button '+text);button.click();
+ });
+ const edit=async()=>act(async()=>(host.querySelector('[title="Изменить"]') as HTMLButtonElement).click());
+ const input=(name:string)=>host.querySelector(`[name="${name}"]`) as HTMLInputElement;
+ const save=async()=>act(async()=>host.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+ await edit();
+ const selectInvalid=async(input:HTMLInputElement)=>act(async()=>{
+  Object.defineProperty(input,'files',{configurable:true,value:[new File(['bad'],'bad.gif',{type:'image/gif'})]});
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+ });
+ await selectInvalid(host.querySelector('input[type="file"]') as HTMLInputElement);
+ assert.ok(host.querySelector('[role="alert"]'));
+ await click('Отменить замену');
+ assert.equal(host.querySelector('[role="alert"]'),null);
+ await change('imageAspect','custom');
+ await change('imageAspectWidth','5');await change('imageAspectHeight','2');
+ await change('imageMode','BANNER');await change('imageScale','150');
+ await change('imagePositionX','20');await change('imagePositionY','80');
+ const frame=host.querySelector('.partner-image-frame') as HTMLElement;
+ assert.equal(frame.style.aspectRatio,'5 / 2');
+ assert.equal(frame.style.getPropertyValue('--partner-image-scale'),'1.5');
+ await save();
+ const saved=(globalThis as any).__partnerSettings.partners[0];
+ assert.deepEqual(saved.imageLayout,{mode:'BANNER',aspectWidth:5,aspectHeight:2,scale:150,positionX:20,positionY:80});
+ assert.equal(saved.photoUrl,'/media/aura.png');assert.equal(saved.internalNote,'keep');
+ assert.equal((globalThis as any).__partnerSettings.contacts.phone,'keep-phone');
+ await edit();
+ assert.equal(input('imageAspectWidth').value,'5');
+ assert.equal(input('imageAspectHeight').value,'2');
+ assert.equal(input('imageScale').value,'150');
+ const writes=(globalThis as any).__partnerWrites;
+ await change('imageAspectWidth','0');await save();
+ assert.equal((globalThis as any).__partnerWrites,writes,'invalid custom ratio must not save');
+ assert.ok(host.querySelector('[role="alert"]'));
+ await change('imageAspectWidth','5');
+ await click('Сбросить оформление');await save();
+ assert.equal((globalThis as any).__partnerSettings.partners[0].imageLayout,undefined);
+ assert.equal((globalThis as any).__partnerSettings.partners[0].photoUrl,'/media/aura.png');
+ await edit();
+ const fileInput=host.querySelector('input[type="file"]') as HTMLInputElement;
+ let nativeFileValue='C:\\fakepath\\logo.png';
+ Object.defineProperty(fileInput,'value',{configurable:true,get:()=>nativeFileValue,set:value=>{nativeFileValue=value}});
+ const upload=async()=>act(async()=>{
+  Object.defineProperty(fileInput,'files',{configurable:true,value:[new File(['image'],'logo.png',{type:'image/png'})]});
+  fileInput.dispatchEvent(new Event('change',{bubbles:true}));
+ });
+ await upload();
+ assert.ok(host.querySelector('img[src^="blob:"]'),'new upload must preview before save');
+ await selectInvalid(fileInput);
+ assert.equal(host.querySelector('img[src^="blob:"]'),null,'invalid replacement must clear the previous pending preview');
+ await click('Отменить замену');
+ assert.equal(fileInput.value,'','cancel must allow selecting the same native file again');
+ assert.equal(host.querySelector('img[src^="blob:"]'),null);
+ assert.ok((globalThis as any).__revokedUrls.length>0);
+ await upload();await change('imageAspect','16:9');await save();
+ assert.equal((globalThis as any).__partnerSettings.partners[0].photoUrl,'/media/new-logo.webp');
+ const publicHost=document.createElement('div');document.body.append(publicHost);
+ const publicRoot=createRoot(publicHost);
+ await act(async()=>publicRoot.render(<PartnerShowcase partners={(globalThis as any).__partnerSettings.partners}/>));
+ assert.equal((publicHost.querySelector('.partner-image-frame') as HTMLElement).style.aspectRatio,'16 / 9');
+ assert.ok(publicHost.querySelector('img[src="/media/new-logo.webp"]'));
+ await act(async()=>{root.unmount();publicRoot.unmount()});host.remove();publicHost.remove();
+}

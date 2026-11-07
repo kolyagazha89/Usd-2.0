@@ -52,6 +52,8 @@ jobs:
           USD_ACCOUNT_QA_OUTPUT: ${{ github.workspace }}/account-security-browser-qa
       - name: Verify logo intro waits for visible home and respects reduced motion
         run: node scripts/home-logo-browser-qa.mjs
+      - name: Verify partner image framing save, preview and responsive rendering
+        run: node scripts/partner-image-browser-qa.mjs
       - name: Save candidate screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,6 +63,7 @@ jobs:
             candidate-browser-qa/
             account-security-browser-qa/
             home-logo-browser-qa/
+            partner-image-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested

@@ -1,0 +1,54 @@
+.partner-image-frame{
+ position:relative;display:block;width:100%;min-width:0;height:95px;
+ overflow:hidden;isolation:isolate;border-radius:inherit;
+}
+.partner-image-frame[data-tier="GENERAL"]{height:160px}
+.partner-image-frame[data-tier="PREMIUM"]{height:120px}
+.partner-image-frame[data-tier="REGULAR"]{height:82px}
+.partner-image-canvas{position:absolute;inset:0}
+.partner-image-frame[data-mode="LOGO"] .partner-image-canvas{inset:12px}
+.partner-image-frame .partner-image-content{
+ display:block;width:100%;height:100%;min-width:0;padding:0;
+ object-fit:var(--partner-image-fit,contain);
+ object-position:var(--partner-image-position,50% 50%);
+}
+.partner-image-frame img.partner-image-content{
+ transform:scale(var(--partner-image-scale,1));
+ transform-origin:var(--partner-image-position,50% 50%);
+}
+.partner-image-frame .p-photo-fallback{
+ display:grid;place-items:center;text-align:center;overflow-wrap:anywhere;
+ color:var(--dv-copy,#f7f9fc);background:var(--dv-surface,#131922);
+ padding:12px;font-size:clamp(14px,2vw,23px);line-height:1.3;
+}
+body .usd-live .usd-partner-card .usd-partner-visual.usd-partner-visual--managed{
+ display:block;min-height:0;padding:0;overflow:hidden;
+}
+body .usd-live .usd-partner-card .usd-partner-visual.usd-partner-visual--managed:has(.partner-image-legacy){background:transparent}
+body .usd-live .usd-partner-card:has(.usd-partner-visual--configured){align-self:start}
+.partner-image-legacy{
+ --legacy-image-height:95px;--legacy-min-height:95px;
+ --legacy-image-padding:8px;--legacy-outer-padding:10px;
+ display:grid;place-items:center;min-width:0;width:100%;box-sizing:border-box;
+ min-height:var(--legacy-min-height);padding:var(--legacy-outer-padding);
+ border-radius:inherit;background:rgba(255,255,255,.035);
+}
+.partner-image-legacy[data-tier="GENERAL"]{--legacy-image-height:160px;--legacy-min-height:150px}
+.partner-image-legacy[data-tier="PREMIUM"]{--legacy-image-height:120px;--legacy-min-height:118px}
+.partner-image-legacy[data-tier="REGULAR"]{--legacy-image-height:82px;--legacy-min-height:80px}
+.partner-image-legacy .partner-image-legacy-content,
+body .usd-live .usd-partner-card .partner-image-legacy .partner-image-legacy-content{
+ display:block;width:100%;max-width:100%;box-sizing:border-box;
+ height:var(--legacy-image-height);padding:var(--legacy-image-padding);object-fit:contain;
+}
+.partner-image-legacy .partner-image-legacy-content.p-photo-fallback,
+body .usd-live .usd-partner-card .partner-image-legacy .partner-image-legacy-content.p-photo-fallback{
+ display:grid;place-items:center;text-align:center;overflow-wrap:anywhere;
+ font-size:clamp(15px,2vw,24px);line-height:1.1;background:none;
+}
+@media(max-width:560px){
+ .partner-image-frame[data-tier="GENERAL"]{height:132px}
+ .partner-image-frame[data-tier="REGULAR"]{height:66px}
+ .partner-image-legacy[data-tier="GENERAL"]{--legacy-image-height:132px}
+ .partner-image-legacy[data-tier="REGULAR"]{--legacy-image-height:66px;--legacy-image-padding:4px;--legacy-outer-padding:4px}
+}
