@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {apiPatch,apiPost,uploadTeamPostPhoto,getTeamPostPhotoUrl,getPrivateMediaObjectUrl,releasePrivateMediaUrl} from '../api';
 import type {Team,TeamPost,TeamUser} from './types';
 import TeamStageAchievements from './TeamStageAchievements';
+import {mergeDraftImageKeys} from './team-media-draft';
 import './teams.css';
 export function TeamPhotoPreview({targetId,alt}:{targetId:string;alt:string}){
  const [url,setUrl]=useState('');
@@ -59,7 +60,7 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
     catch(e){uploadError=e;break}
    }
    if(uploaded.length){
-    const images=[...draft.images,...uploaded];
+    const images=mergeDraftImageKeys(draft.images,uploaded);
     setDraft(current=>({...current,images}));
     // Persist completed uploads immediately, so a refresh cannot orphan media.
     await apiPatch(base+'/posts/'+encodeURIComponent(postId),{...draft,images,status:'DRAFT'});
@@ -70,7 +71,7 @@ export default function TeamWorkspace({team,admin=false,users=[],onChanged}:{tea
    catch{setNotice(message+' Список пока не обновился, но загрузка выполнена.');}
   }catch(e){
    // Successfully uploaded photos stay on the draft even if a later upload fails.
-   if(uploaded.length)setDraft(current=>({...current,images:[...current.images,...uploaded]}));
+   if(uploaded.length)setDraft(current=>({...current,images:mergeDraftImageKeys(current.images,uploaded)}));
    setError((e instanceof Error?e.message:'Не удалось загрузить фотографию')+
     (uploaded.length?' · '+uploaded.length+' фото загружено. Сохраните черновик, чтобы прикрепить их.':''));
   }
