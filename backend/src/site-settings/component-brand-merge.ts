@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 type Entry=Record<string,any>;
 export type MergeInput={sourceId:string;targetId:string;scope:string};
@@ -30,4 +30,31 @@ export function planBrandMerge(catalogs:Entry,input:MergeInput){
   moved.push({id:m.id,category:m.category,model:m.model,collision:!!canonical});
  }
  return {catalogs:{...catalogs,componentBrands:nextBrands,componentModels:nextModels},brands:sources.length,models:moved.length,collisions,moved};
+}
+
+/** Generic catalog updates may change active records, but may never rewrite or
+ * delete a historical alias created by the audited brand-merge operation.
+ * Only mergeBrands is allowed to introduce new `mergedIntoId` aliases.
+ */
+export function assertMergedCatalogAliasesPreserved(
+ previous:Record<string,unknown>, incoming:Record<string,unknown>
+):void {
+ for(const [collection,fields] of [
+  ['componentBrands',['category','name','mergedIntoId','isActive','isArchived']],
+  ['componentModels',['category','brand','model','mergedIntoId','isActive','isArchived']],
+ ] as const){
+  const rows=incoming[collection];
+  if(!Array.isArray(rows))continue; // other settings may be updated independently
+  const original=Array.isArray(previous[collection])?previous[collection] as Entry[]:[];
+  const next=rows as Entry[];
+  const known=new Map(original.filter(e=>e&&typeof e.id==='string').map(e=>[e.id,e]));
+  for(const before of original){
+   if(!before?.mergedIntoId)continue;
+   const after=next.find(e=>e?.id===before.id);
+   if(!after||fields.some(field=>after[field]!==before[field]))
+    throw new ConflictException('Объединённые записи справочника являются историческими и не могут быть изменены или удалены.');
+  }
+  if(next.some(e=>e?.mergedIntoId&&!known.get(e.id)?.mergedIntoId))
+   throw new ConflictException('Создавать исторические связи объединения можно только через подтверждённое слияние марок.');
+ }
 }
