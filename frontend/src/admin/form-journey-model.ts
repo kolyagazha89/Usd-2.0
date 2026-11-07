@@ -22,3 +22,14 @@ export function journeyRequiredProgress(fields:readonly JourneyField[],values:Re
  const required=fields.filter(field=>field.required);
  return {done:required.filter(field=>isJourneyFieldFilled(field,values[field.name])).length,total:required.length};
 }
+
+/** Review fields without echoing passwords, tokens or secrets in the DOM. */
+export function journeyReviewRows(fields:readonly JourneyField[],values:Record<string,unknown>){
+ return fields.filter(field=>field.type!=='password'&&!/(?:password|secret|token|apiKey|otp|code2fa)/i.test(field.name))
+  .map(field=>{
+   const raw=values[field.name];
+   const value=field.type==='checkbox'?(raw===true?'Да':'Нет')
+    :raw===undefined||raw===null||String(raw).trim()===''?'Не указано':String(raw).trim();
+   return {name:field.name,label:field.label,value};
+  });
+}
