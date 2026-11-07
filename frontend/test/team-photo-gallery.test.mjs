@@ -15,7 +15,8 @@ test('team news and achievements attach only saved private RustFS photos through
  assert.match(editor,/draft\.images\.length\+candidates\.length>8/);
  assert.match(editor,/await apiPost<\{id:string\}>\(base\+'\/posts',\{\.\.\.draft,status:'DRAFT'\}\)/);
  assert.match(editor,/setEditing\(postId\)/);
- assert.match(editor,/setDraft\(current=>\(\{\.\.\.current,images:\[\.\.\.current\.images,\.\.\.uploaded\]\}\)\)/);
+ assert.match(editor,/mergeDraftImageKeys\(current\.images,uploaded\)/);
+ assert.match(editor,/mergeDraftImageKeys\(draft\.images,uploaded\)/);
  assert.match(editor,/status==='PUBLISHED'/);
  assert.match(publicPage,/Array\.isArray\(post\.images\)/);
  assert.match(publicPage,/getTeamPostPhotoUrl\(key\)/);
