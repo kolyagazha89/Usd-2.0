@@ -246,7 +246,7 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
         <small>{x.isArchived?'Удалена (архив)':x.isActive===false?'Отключена':'Включена'} · {catalogs.componentModels.filter((m:any)=>m.category===category&&m.brand===x.name&&m.isActive!==false&&!m.isArchived).length} активных моделей</small>
        </button>
        <div className="catalog-row-actions">
-        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'brand',id:x.id,value:x.name,brand:x.name})}><Pencil size={13}/>Редактировать</button>
+        <button type="button" className="secondary-button compact" disabled={saving||!!x.mergedIntoId} title={x.mergedIntoId?'Объединённая марка сохраняется для истории':'Изменить марку'} onClick={()=>setEditor({kind:'brand',id:x.id,value:x.name,brand:x.name})}><Pencil size={13}/>Редактировать</button>
         <button type="button" className="secondary-button compact" disabled={saving||!!x.mergedIntoId} onClick={()=>void toggleComponentBrand(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить марку':'Отключить марку'}</button>
         {confirmRemoveKey==='brand:'+x.id?
          <div className="catalog-inline-confirm" role="group"><span>Убрать марку и её модели из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('brand',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
@@ -287,8 +287,8 @@ export function CatalogPage({mode,PageFrame,PanelTitle,LoadingPage,Empty}:{mode:
         <small>{x.brand} · {x.isArchived?'Удалена (архив)':x.isActive===false?'Отключена':'Включена'} · {(x.lifecycle??'UNKNOWN')==='DISCONTINUED'?'снята с производства':(x.lifecycle??'UNKNOWN')==='ACTIVE'?'актуальная':'статус не проверен'}</small>
        </div>
        <div className="catalog-row-actions">
-        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor({kind:'model',id:x.id,value:x.model,brand:x.brand})}><Pencil size={13}/>Редактировать</button>
-        <button type="button" className="secondary-button compact" disabled={saving} onClick={()=>void applyCatalogAction(c=>({...c,componentModels:c.componentModels.map(m=>m.id===x.id?{...m,lifecycle:m.lifecycle==='DISCONTINUED'?'ACTIVE':'DISCONTINUED'}:m)}),'Статус актуальности обновлён')}>{x.lifecycle==='DISCONTINUED'?'Вернуть в актуальные':'Снята с производства'}</button>
+        <button type="button" className="secondary-button compact" disabled={saving||!!x.mergedIntoId} title={x.mergedIntoId?'Объединённая модель сохраняется для истории':'Изменить модель'} onClick={()=>setEditor({kind:'model',id:x.id,value:x.model,brand:x.brand})}><Pencil size={13}/>Редактировать</button>
+        <button type="button" className="secondary-button compact" disabled={saving||!!x.mergedIntoId} onClick={()=>void applyCatalogAction(c=>({...c,componentModels:c.componentModels.map(m=>m.id===x.id?{...m,lifecycle:m.lifecycle==='DISCONTINUED'?'ACTIVE':'DISCONTINUED'}:m)}),'Статус актуальности обновлён')}>{x.lifecycle==='DISCONTINUED'?'Вернуть в актуальные':'Снята с производства'}</button>
         <button type="button" className="secondary-button compact" disabled={saving||!!x.mergedIntoId} onClick={()=>void toggleComponentModel(x)}>{x.isArchived?'Восстановить':x.isActive===false?'Включить модель':'Отключить модель'}</button>
         {confirmRemoveKey==='model:'+x.id?
          <div className="catalog-inline-confirm" role="group"><span>Убрать модель из выбора? История сохранится.</span><button type="button" className="danger-button compact" disabled={saving} onClick={()=>void deleteCatalogEntry('model',x.id)}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setConfirmRemoveKey('')}>Отмена</button></div>:
