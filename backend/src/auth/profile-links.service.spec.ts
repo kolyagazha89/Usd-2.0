@@ -13,7 +13,7 @@ const reviewReason='Сверены записи участника и доказ
 describe('secure manual profile link review',()=>{
  const makeDb=()=>{
   const db:any={
-   user:{findUnique:jest.fn(async()=>({id:claimantId,emailVerifiedAt:new Date(),isActive:true,participantId:null})),update:jest.fn(async()=>({id:claimantId}))},
+   user:{findUnique:jest.fn(async()=>({id:claimantId,emailVerifiedAt:new Date(),isActive:true,participantId:null})),update:jest.fn(async()=>({id:claimantId})),updateMany:jest.fn(async()=>({count:1}))},
    participant:{findUnique:jest.fn(async()=>({id:participantId,isPublic:true,user:null}))},
    profileLinkRequest:{
     findUnique:jest.fn(async()=>null),
@@ -57,7 +57,8 @@ describe('secure manual profile link review',()=>{
   expect(db.user.update).not.toHaveBeenCalled();
   const response=await service.review(requestId,reviewerId,'APPROVE',reviewReason,true);
   expect(response.status).toBe('APPROVED');
-  expect(db.user.update).toHaveBeenCalledWith({where:{id:claimantId},data:{participantId}});
+  expect(db.user.updateMany).toHaveBeenCalledWith({where:{id:claimantId,participantId:null,isActive:true,emailVerifiedAt:{not:null}},data:{participantId}});
+  expect(db.user.update).not.toHaveBeenCalled();
   // Request, historical participant AND claimant locks prevent competing
   // approvals that target separate participant IDs for the same account.
   expect(db.$executeRaw).toHaveBeenCalledTimes(3);
@@ -79,4 +80,23 @@ describe('secure manual profile link review',()=>{
   expect(db.user.update).not.toHaveBeenCalled();
   expect(db.profileLinkRequest.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({status:'REJECTED'})}));
  });
+
+ it('does not steal a profile when another workflow attached the claimant after validation',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
+  db.user.updateMany.mockResolvedValueOnce({count:0});
+  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,true)).rejects.toBeInstanceOf(ConflictException);
+  expect(db.user.update).not.toHaveBeenCalled();
+  expect(db.profileLinkRequest.update).not.toHaveBeenCalled();
+  expect(db.auditLog.create).not.toHaveBeenCalled();
+ });
+ it('does not replay the approval mutation or audit on a reviewed request',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'APPROVED',claimantUserId:claimantId,participantId});
+  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,true)).rejects.toBeInstanceOf(ConflictException);
+  expect(db.user.updateMany).not.toHaveBeenCalled();
+  expect(db.profileLinkRequest.update).not.toHaveBeenCalled();
+  expect(db.auditLog.create).not.toHaveBeenCalled();
+ });
+
 });
