@@ -99,4 +99,22 @@ describe('secure manual profile link review',()=>{
   expect(db.auditLog.create).not.toHaveBeenCalled();
  });
 
+
+ it('serializes claim submissions before checking the 24-hour quota to stop concurrent bypass',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  await service.submit(claimantId,participantId,note);
+  expect(db.$transaction).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+  expect(db.profileLinkRequest.count).toHaveBeenCalledTimes(1);
+  expect(db.profileLinkRequest.create).toHaveBeenCalledTimes(1);
+ });
+ it('a fourth claim is blocked in the same transaction as its rate-limit count',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.count.mockResolvedValueOnce(3);
+  await expect(service.submit(claimantId,participantId,note)).rejects.toBeInstanceOf(ConflictException);
+  expect(db.$transaction).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+  expect(db.profileLinkRequest.create).not.toHaveBeenCalled();
+ });
+
 });
