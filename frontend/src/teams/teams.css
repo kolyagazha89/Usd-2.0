@@ -81,3 +81,11 @@
 .team-post-review h5{font-size:19px;margin:0;overflow-wrap:anywhere}
 .team-post-review p{margin:0;overflow-wrap:anywhere}
 .usd-member .team-post-review{background:#202933;color:#f4f5f7;border-color:#39434e}
+
+/* Team results filters wrap on phones without horizontal scrolling. */
+.team-achievement-filters{display:flex;align-items:end;flex-wrap:wrap;gap:10px;min-width:0}
+.team-achievement-filters .team-achievement-filter{flex:1 1 160px;min-width:min(100%,150px)}
+.team-filter-reset{min-height:44px;flex:0 0 auto}
+.team-achievement-empty{display:grid;justify-items:start;gap:8px;margin:16px 0}
+.team-achievement-empty p{margin:0}
+@media(max-width:520px){.team-achievement-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.team-achievement-stats p{padding:10px}.team-achievement-filters{width:100%}.team-achievement-filters .team-achievement-filter{flex:1 1 100%}.team-filter-reset{width:100%}}
