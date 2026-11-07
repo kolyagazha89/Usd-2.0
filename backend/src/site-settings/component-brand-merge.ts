@@ -49,9 +49,10 @@ export function assertMergedCatalogAliasesPreserved(
   const next=rows as Entry[];
   const known=new Map(original.filter(e=>e&&typeof e.id==='string').map(e=>[e.id,e]));
   for(const before of original){
-   if(!before?.mergedIntoId)continue;
+   if(!before||typeof before.id!=='string')continue;
    const after=next.find(e=>e?.id===before.id);
-   if(!after||fields.some(field=>after[field]!==before[field]))
+   if(!after)throw new ConflictException('Нельзя удалять записи справочника с историческими ID. Архивируйте марку или модель.');
+   if(before.mergedIntoId&&fields.some(field=>after[field]!==before[field]))
     throw new ConflictException('Объединённые записи справочника являются историческими и не могут быть изменены или удалены.');
   }
   if(next.some(e=>e?.mergedIntoId&&!known.get(e.id)?.mergedIntoId))
