@@ -138,7 +138,13 @@ export class ProfileLinksService {
    if(decision==='APPROVE'&&(!claimant?.isActive||!claimant.emailVerifiedAt||claimant.participantId||!participant||participant.user))
     throw new ConflictException('Привязка заблокирована: профиль или аккаунт уже изменились.');
    if(decision==='APPROVE'){
-    await tx.user.update({where:{id:pending.claimantUserId},data:{participantId:pending.participantId}});
+    // Guard the write itself as well as the preflight checks. A separate login
+    // or profile-creation request may race with this reviewed claim.
+    const linked=await tx.user.updateMany({
+     where:{id:pending.claimantUserId,participantId:null,isActive:true,emailVerifiedAt:{not:null}},
+     data:{participantId:pending.participantId},
+    });
+    if(linked.count!==1)throw new ConflictException('Аккаунт уже изменился. Привязка не выполнена. Обновите список.');
    }
    const updated=await tx.profileLinkRequest.update({
     where:{id:pending.id},data:{status:decision==='APPROVE'?'APPROVED':'REJECTED',reviewedByUserId:reviewerId,decisionReason:cleanReason,reviewedAt:new Date()},
