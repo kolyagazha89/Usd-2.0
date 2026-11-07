@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FileClock, Search } from 'lucide-react';
 import { rulesListMarkers } from './rules-list-markers';
+import { rulesHeadingLevel, rulesOutline } from './rules-outline';
+import './rules-reader.css';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type Props = { settings: any; go: (path: string) => void; rulesText?: string };
@@ -17,10 +19,26 @@ function safeInlineHref(value: unknown): string {
   return '';
 }
 
-function renderInline(runs: InlineRun[] | undefined, fallbackText: string, keyPrefix: string) {
-  if (!Array.isArray(runs) || !runs.length) return fallbackText;
+function matchRanges(text:string,needle:string):[number,number][] {
+  if(!needle)return [];
+  const ranges:[number,number][]=[];const lower=text.toLocaleLowerCase('ru');let index=lower.indexOf(needle);
+  while(index>=0){ranges.push([index,index+needle.length]);index=lower.indexOf(needle,index+needle.length)}
+  return ranges;
+}
+function highlightRanges(text:string,ranges:[number,number][]):ReactNode {
+  if(!ranges.length)return text;
+  const result:ReactNode[]=[];let cursor=0;
+  for(const [start,end] of ranges){result.push(text.slice(cursor,start),<mark key={start}>{text.slice(start,end)}</mark>);cursor=end}
+  result.push(text.slice(cursor));return result;
+}
+const highlight=(text:string,needle:string)=>highlightRanges(text,matchRanges(text,needle));
+function renderInline(runs: InlineRun[] | undefined, fallbackText: string, keyPrefix: string,needle='') {
+  if (!Array.isArray(runs) || !runs.length) return highlight(fallbackText,needle);
+  const ranges=matchRanges(runs.map(run=>run.text).join(''),needle);let offset=0;
   return runs.map((run, index) => {
-    let content: ReactNode = run.text;
+    const start=offset;offset+=run.text.length;
+    const local=ranges.filter(([a,b])=>a<offset&&b>start).map(([a,b])=>[Math.max(a,start)-start,Math.min(b,offset)-start] as [number,number]);
+    let content: ReactNode = highlightRanges(run.text,local);
     if (run.bold) content = <strong>{content}</strong>;
     if (run.italic) content = <em>{content}</em>;
     const href = safeInlineHref(run.href);
@@ -40,18 +58,9 @@ function safeDocumentUrl(value: unknown): string {
   return '';
 }
 
-function isStructuredHeading(block: any): boolean {
-  if (block?.type === 'heading') return true;
-  if (block?.type !== 'paragraph') return false;
-  const text = String(block.text ?? '').trim();
-  if (!text || text.length > 140) return false;
-  return /^(?:раздел|глава|приложение|часть)\s+[\wА-ЯЁа-яёIVX.-]+/i.test(text)
-    || /^\d+(?:\.\d+)*[.)]?\s+\S/.test(text)
-    || /^[А-ЯЁ\s—–-]{9,}:?$/.test(text);
-}
-
 export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const [query, setQuery] = useState('');
+  const [contentsOpen,setContentsOpen]=useState(false),[matchIndex,setMatchIndex]=useState(0);
   const published = settings?.registration?.rulesDocument?.published ?? null;
   const documentBlocks = Array.isArray(published?.blocks) ? published.blocks : [];
   const listMarkers = rulesListMarkers(documentBlocks);
@@ -86,35 +95,17 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   }, [source]);
 
   const needle = query.trim().toLocaleLowerCase('ru');
-  // Keep the whole section around a match: class limits must not disappear during search.
-  type DocumentSection = {start:number;end:number;level:number;parent?:DocumentSection};
-  const documentSections:DocumentSection[] = [], stack:DocumentSection[] = [];
-  documentBlocks.forEach((block:any,index:number) => {
-    if (!isStructuredHeading(block)) return;
-    const level = block.type === 'heading' ? Math.max(1,Number(block.level)||2) : 2;
-    while(stack.length && stack[stack.length-1].level >= level) stack.pop()!.end = index;
-    const section:DocumentSection = {start:index,end:documentBlocks.length,level,parent:stack[stack.length-1]};
-    documentSections.push(section);stack.push(section);
-  });
-  const selected = new Set<number>();
-  if(needle) documentBlocks.forEach((block:any,index:number) => {
-    if(!String(block.text ?? (block.rows ?? []).flat().join(' ')).toLocaleLowerCase('ru').includes(needle)) return;
-    const section = documentSections.filter(section=>section.start<=index).at(-1);
-    const start = section?.start ?? 0, end = section?.end ?? documentSections[0]?.start ?? documentBlocks.length;
-    for(let i=start;i<end;i++) selected.add(i);
-    for(let parent=section?.parent;parent;parent=parent.parent) selected.add(parent.start);
-  });
-  const visibleDocumentEntries = documentBlocks
-    .map((block: any, index: number) => ({ block, index }))
-    .filter(({ index }: { index: number }) => !needle || selected.has(index));
-  const documentHeadings: { id: string; title: string; index: number }[] = visibleDocumentEntries
-    .filter(({ block }: { block: any }) => isStructuredHeading(block))
-    .map(({ block, index }: { block: any; index: number }) => ({
-      id: 'rules-doc-heading-' + index, title: String(block.text ?? ''), index,
-    }));
-  const filtered = sections.filter(section => !needle ||
-    [section.title, ...section.body].join(' ').toLocaleLowerCase('ru').includes(needle));
-  const sectionCount = documentBlocks.length ? documentHeadings.length : filtered.length;
+  // A search never removes another clause, class limit or table from the regulation.
+  const documentHeadings=rulesOutline(documentBlocks);
+  const entries=documentBlocks.map((block:any,index:number)=>({block,index}));
+  const matches:string[]=needle?(documentBlocks.length?entries.filter(({block}:{block:any})=>
+    String(block.type==='table'?(block.rows??[]).flat().join(' '):block.text??'').toLocaleLowerCase('ru').includes(needle)
+  ).map(({index}:{index:number})=>'rules-block-'+index):sections.filter(section=>[section.title,...section.body].join(' ').toLocaleLowerCase('ru').includes(needle)).map(section=>section.id)):[];
+  const activeMatch=Math.min(matchIndex,Math.max(0,matches.length-1));
+  const focusTarget=(id:string)=>{const el=document.getElementById(id);el?.scrollIntoView({block:'start',behavior:'instant'});el?.focus({preventScroll:true})};
+  const moveMatch=(offset:number)=>{if(!matches.length)return;const next=(activeMatch+offset+matches.length)%matches.length;setMatchIndex(next);focusTarget(matches[next])};
+  const sectionCount = documentBlocks.length ? documentHeadings.length : sections.length;
+  const date=new Date(published?.publishedAt||published?.createdAt||'');
   const sectionWord = sectionCount % 10 === 1 && sectionCount % 100 !== 11 ? 'РАЗДЕЛ' :
     sectionCount % 10 >= 2 && sectionCount % 10 <= 4 && ![12,13,14].includes(sectionCount % 100) ? 'РАЗДЕЛА' : 'РАЗДЕЛОВ';
 
@@ -125,45 +116,51 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
         <h2>Регламент <span>USD</span></h2>
         <p>Единый регламент соревнований и требования к классам для всех этапов USD. Особенности конкретного соревнования указываются в описании этапа.</p>
         <div className="public-rules-actions">
-          <button onClick={() => go('/stages')}>Выбрать этап <span aria-hidden="true">↗</span></button>
+          <a href="#rules-reader-start" onClick={()=>focusTarget('rules-reader-start')}>Читать регламент ↓</a>
           {links.some(([key]) => key === 'rulesUrl') && <a href={links.find(([key]) => key === 'rulesUrl')?.[2]} target="_blank" rel="noopener noreferrer">Открыть полный документ ↗</a>}
         </div>
       </section>
+      {publishedUrl&&<div className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a>{!Number.isNaN(date.getTime())&&<span>Редакция от {date.toLocaleDateString('ru-RU')}</span>}</div>}
       {source ? (
-        <section className="public-rules-layout">
+        <section className="public-rules-layout" id="rules-reader-start" tabIndex={-1}>
           <aside className="public-rules-sidebar">
             <div className="public-rules-sidebar-label">В ЭТОМ РАЗДЕЛЕ</div>
             <label className="public-rules-search">
               <Search size={16} aria-hidden="true" />
-              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Найти пункт…" aria-label="Поиск по регламенту" />
+              <input value={query} onChange={event => {setQuery(event.target.value);setMatchIndex(0)}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();moveMatch(e.shiftKey?-1:1)}}} placeholder="Найти пункт или класс…" aria-label="Поиск по регламенту" />
             </label>
             {needle && <button className="u-btn u-quiet" onClick={() => setQuery('')}>Сбросить поиск</button>}
-            <nav aria-label="Оглавление регламента">
-              {documentBlocks.length ? documentHeadings.map(heading => <a key={heading.id} href={'#' + heading.id}>{heading.title}</a>) : filtered.map(section => <a key={section.id} href={'#' + section.id}>{section.title}</a>)}
+            {needle&&<div className="rules-search-result"><p role="status" aria-live="polite">{matches.length?`Пункт ${activeMatch+1} из ${matches.length}`:'Ничего не найдено. Попробуйте другое слово.'}</p><div><button type="button" disabled={!matches.length} onClick={()=>moveMatch(-1)} aria-label="Предыдущее совпадение">↑</button><button type="button" disabled={!matches.length} onClick={()=>moveMatch(1)} aria-label="Следующее совпадение">↓</button><button type="button" disabled={!matches.length} onClick={()=>focusTarget(matches[activeMatch])}>К пункту</button></div></div>}
+            <button type="button" className="rules-contents-toggle" aria-expanded={contentsOpen} aria-controls="rules-contents" onClick={()=>setContentsOpen(!contentsOpen)}>Оглавление · {sectionCount} <span aria-hidden="true">{contentsOpen?'−':'+'}</span></button>
+            <nav id="rules-contents" className={contentsOpen?'is-open':''} aria-label="Оглавление регламента">
+              {documentBlocks.length ? documentHeadings.map(heading => <a data-level={heading.level} key={heading.id} href={'#' + heading.id} onClick={()=>{setContentsOpen(false);focusTarget(heading.id)}}>{heading.title}</a>) : sections.map(section => <a key={section.id} href={'#' + section.id} onClick={()=>{setContentsOpen(false);focusTarget(section.id)}}>{section.title}</a>)}
             </nav>
             <div className="public-rules-sidebar-note">Показан текст, опубликованный организаторами USD в настройках сайта.</div>
           </aside>
           <div className="public-rules-document">
             <div className="public-rules-document-top"><span>USD / REGULATIONS</span><span>{sectionCount} {sectionWord}</span></div>
-            {documentBlocks.length ? (visibleDocumentEntries.length ? <div className="public-rules-rich-document">
-              {visibleDocumentEntries.map(({ block, index }: { block: any; index: number }) => {
-                if (isStructuredHeading(block)) {
-                  const level = Math.min(4, Math.max(2, Number(block.level) || 2));
-                  const headingId = 'rules-doc-heading-' + index; return level === 2 ? <h3 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h3> : level === 3 ? <h4 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h4> : <h5 id={headingId} key={index}>{renderInline(block.runs, block.text, headingId)}</h5>;
+            {documentBlocks.length ? <div className="public-rules-rich-document">
+              {entries.map(({ block, index }: { block: any; index: number }) => {
+                const id='rules-block-'+index,match=needle&&matches.includes(id);
+                const props={id,tabIndex:-1,'data-rules-match':match?'true':undefined,'data-active-match':match&&matches[activeMatch]===id?'true':undefined};
+                const level=rulesHeadingLevel(block);
+                if (level!==null) {
+                  const headingId = 'rules-doc-heading-' + index;
+                  const content=<span {...props}>{renderInline(block.runs,block.text,headingId,needle)}</span>;
+                  return level===2?<h3 id={headingId} tabIndex={-1} key={index}>{content}</h3>:level===3?<h4 id={headingId} tabIndex={-1} key={index}>{content}</h4>:<h5 id={headingId} tabIndex={-1} key={index}>{content}</h5>;
                 }
-                if (block.type === 'list-item') return <div className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{listMarkers[index]}</span>{renderInline(block.runs, block.text, 'list-' + index)}</div>;
-                if (block.type === 'table') return <div className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => {
+                if (block.type === 'list-item') return <div {...props} className="public-rules-list-item" key={index} style={{paddingLeft: Math.min(8, Number(block.level) || 0) * 18 + 12}}><span>{listMarkers[index]}</span><div>{renderInline(block.runs, block.text, 'list-' + index,needle)}</div></div>;
+                if (block.type === 'table') return <div {...props} tabIndex={0} role="region" aria-label="Таблица регламента, прокручивается по горизонтали" className="public-rules-table-wrap" key={index}><table><tbody>{(block.rows ?? []).map((cells: string[], rowIndex: number) => <tr key={rowIndex}>{cells.map((cell: string, cellIndex: number) => {
                   const runs = block.cellRuns?.[rowIndex]?.[cellIndex];
-                  const value = renderInline(runs, cell, 'table-' + index + '-' + rowIndex + '-' + cellIndex);
+                  const value = renderInline(runs, cell, 'table-' + index + '-' + rowIndex + '-' + cellIndex,needle);
                   return rowIndex === 0 ? <th key={cellIndex}>{value}</th> : <td key={cellIndex}>{value}</td>;
                 })}</tr>)}</tbody></table></div>;
-                return <p key={index}>{renderInline(block.runs, block.text, 'paragraph-' + index)}</p>;
+                return <p {...props} key={index}>{renderInline(block.runs, block.text, 'paragraph-' + index,needle)}</p>;
               })}
-              {publishedUrl && <p className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a><span>Редакция от {new Date(published.publishedAt || published.createdAt).toLocaleDateString('ru-RU')}</span></p>}
-            </div> : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>) : filtered.length ? filtered.map((section, index) => (
-              <section className="public-rules-section" id={section.id} key={section.id}>
+            </div> : sections.length ? sections.map((section, index) => (
+              <section className="public-rules-section" id={section.id} tabIndex={-1} data-rules-match={needle&&matches.includes(section.id)?'true':undefined} key={section.id}>
                 <div className="public-rules-section-number">{String(index + 1).padStart(2, '0')}</div>
-                <div><h3>{section.title}</h3>{section.body.map((line, lineIndex) => <p key={lineIndex}>{line}</p>)}</div>
+                <div><h3>{highlight(section.title,needle)}</h3>{section.body.map((line, lineIndex) => <p key={lineIndex}>{highlight(line,needle)}</p>)}</div>
               </section>
             )) : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>}
             {links.length > 0 && <div className="public-rules-doc-links">{links.map(([key, label, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer">{label}<span aria-hidden="true">↗</span></a>)}</div>}
