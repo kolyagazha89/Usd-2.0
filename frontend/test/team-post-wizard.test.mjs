@@ -11,5 +11,7 @@ test('team post editor has a two-step review before submission',()=>{
 });
 test('post save keeps draft on API failure',()=>{
  assert.match(source,/await \(editing\?apiPatch:apiPost\)/);
- assert.match(source,/await onChanged\(\);setDraft\(emptyPost\)/);
+ assert.match(source,/await action\(\);setConfirm\(''\)/);
+ assert.match(source,/Список пока не обновился/);
+ assert.match(source,/setDraft\(emptyPost\);setEditing\(''\);setPostStep\(1\)/);
 });
