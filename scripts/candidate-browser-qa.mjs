@@ -719,6 +719,9 @@ try{
       await page.getByRole('button',{name:'Скопировать USD ID'}).click();
       await page.getByText('USD ID скопирован',{exact:true}).waitFor();
       assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'b'.repeat(48),'copy exports the permanent participant ID');
+      await page.getByRole('button',{name:'Скопировать QR-ссылку'}).click();
+      await page.getByText('QR-ссылка скопирована',{exact:true}).waitFor();
+      assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),new URL(base).origin+'/admin/inspections?stageId=stage1&registrationId=reg1','copy exports the exact judge QR URL without granting write access');
       // Observe the export anchor and fetch its real blob; isolated Chromium
       // environments do not consistently emit a download event for SVG blobs.
       await page.evaluate(()=>{
