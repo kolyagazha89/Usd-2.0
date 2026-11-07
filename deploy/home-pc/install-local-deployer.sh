@@ -4,7 +4,8 @@ set -Eeuo pipefail
 [[ "$(id -u)" == 0 ]] || { echo "Run as root" >&2; exit 1; }
 # Deliberate operator-only recovery. The normal installer NEVER edits the
 # failed-release quarantine; this option may authorize one protected retry
-# after the trusted schema pin repair. No database/containers are modified.
+# after a fresh read-only review against the current trusted schema pin.
+# No database/containers are modified.
 review_retry=0
 if (( $# )); then
   [[ $# == 1 && "$1" == "--review-quarantined-schema-release" ]] ||
@@ -92,8 +93,8 @@ install -o root -g root -m 0644 usd-auto-deploy.service /etc/systemd/system/usd-
 install -o root -g root -m 0644 usd-auto-deploy.timer /etc/systemd/system/usd-auto-deploy.timer
 systemctl daemon-reload
 if [[ "$review_retry" == 1 ]]; then
-  # Retry is permitted ONLY when the exact currently reviewed main commit
-  # failed while the original operator-approved schema pin remained frozen.
+  # Retry is permitted ONLY for the exact reviewed current main, after the
+  # current deployed source and live migration history pass a read-only review.
   # An audit copy of the quarantine is retained. All root CI / digest /
   # backup / restore and live-history gates will execute again in the service.
   marker=/var/lib/usd-deployer/failed-release-sha
@@ -147,13 +148,25 @@ if [[ "$review_retry" == 1 ]]; then
     # release. Retain its quarantine audit marker without bypassing anything.
     echo "Previous failed SHA remains quarantined; current main differs and is eligible for normal fully gated deployment."
   else
-    [[ -f "$LEGACY_PIN" && ! -L "$LEGACY_PIN" && "$(stat -c %u "$LEGACY_PIN")" == 0 ]] &&
-      (( (8#$(stat -c %a "$LEGACY_PIN") & 077) == 0 )) &&
-      cmp -s "$PIN" "$LEGACY_PIN" ||
-      { echo "Schema pin already changed or lost original approval; manual review required" >&2; exit 1; }
     reviewed_marker="/var/lib/usd-deployer/reviewed-failed-release-$failed_sha"
     [[ ! -e "$reviewed_marker" && ! -L "$reviewed_marker" ]] ||
       { echo "This quarantined release was already reviewed once; no automatic repeat" >&2; exit 1; }
+    # A legitimate earlier migration may have advanced the current pin beyond
+    # the bootstrap value. Reuse the canonical gate: it requires this pin to
+    # match the deployed source, verifies the live API identity, unchanged old
+    # migration files and live checksums, and accepts only additive SQL.
+    # Immutable-pin repair above still requires the original baseline.
+    deploy_env=/home/usd/usd-deploy/deploy/home-pc/.env
+    [[ -f "$deploy_env" && ! -L "$deploy_env" && "$(stat -c %u "$deploy_env")" == 0 ]] &&
+      (( (8#$(stat -c %a "$deploy_env") & 077) == 0 )) ||
+      { echo 'Untrusted deployment environment; quarantine retained' >&2; exit 1; }
+    deployed_sha="$(sed -n 's/^USD_IMAGE_TAG=//p' "$deploy_env")"
+    [[ "$deployed_sha" =~ ^[0-9a-f]{40}$ ]] ||
+      { echo 'Invalid or duplicated deployed SHA; quarantine retained' >&2; exit 1; }
+    approved_tree="$(cat "$PIN")"
+    USD_DEPLOY_LOCK_HELD=1 /usr/local/libexec/usd-safe-schema-migration \
+      --check "$failed_sha" "$deployed_sha" "$approved_tree" ||
+      { echo 'Current schema/live history review failed; quarantine retained' >&2; exit 1; }
     mv -T -- "$marker" "$reviewed_marker"
     echo "One supervised retry authorized for reviewed SHA; quarantine retained for audit."
     echo "The CI, signed-image, PostgreSQL backup/restore, Prisma history and public checks are still required."

@@ -37,6 +37,19 @@ systemctl cat usd-auto-deploy.service
 
 Installer берёт общий deploy lock, устанавливает проверенные root-owned helpers/service, не включает timer, не чистит quarantine, не меняет schema/backup approvals и не трогает production DB/containers. Уже включённый timer сохраняет своё состояние. Для первого нового автоматического запуска должны быть выполнены все исходные host prerequisites.
 
+Явный операторский `--review-quarantined-schema-release` допускает один повтор
+текущего проверенного main SHA. Для совпавшего quarantined SHA требуется свежий
+read-only `usd-safe-schema-migration --check` с текущим private schema-pin и
+root-only `.env`: проверяются deployed API identity, связь pin с deployed source,
+неизменность старых миграций, live history/checksums и additive SQL. Pin мог
+законно продвинуться после предыдущего релиза; сравнение только с bootstrap pin
+не подтверждает текущее состояние. Ошибка проверки сохраняет quarantine.
+Успех переносит marker в `reviewed-failed-release-<SHA>` для аудита, не применяя
+SQL и не подменяя approvals. Повторный review того же SHA запрещён. Следующий
+service launch вновь выполняет CI/signature/fresh backup/full restore gates.
+Снятие immutable/append-only атрибута по-прежнему разрешено только для исходного
+bootstrap baseline. Обычная установка без флага сохраняет карантин.
+
 После штатной попытки доступны read-only команды:
 
 ```bash
