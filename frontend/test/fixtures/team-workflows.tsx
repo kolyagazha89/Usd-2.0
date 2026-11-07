@@ -61,7 +61,10 @@ export async function runTeamWorkflows(){
   });
   assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts'&&c.body.title==='Photo story'&&c.body.status==='DRAFT').length,1);
   assert.match(host.textContent??'',/Фотографии · 1\/8/);
+  assert.ok(calls.some(c=>c.method==='PATCH'&&c.path==='/teams/t1/posts/saved'&&c.body.status==='DRAFT'&&c.body.images.includes('team-post-synthetic')),'uploads are attached to the saved draft immediately');
   await render(<TeamWorkspace key="admin" team={{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}} admin users={[]} onChanged={async()=>{}}/>);
+  await click('Новости и достижения');await click('Редактировать');
+  assert.ok((host.querySelector('.team-post-editor input[type="file"]') as HTMLInputElement).disabled,'admin must return reviewed post to draft before adding photos');
   await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
   await render(<PublicTeamsPage path="/teams/First%20team"/>);assert.match(host.textContent??'',/Reviewed news/);assert.match(host.textContent??'',/Public text/);
