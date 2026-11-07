@@ -14,7 +14,7 @@ export async function runTeamWorkflows(){
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
   if(path==='/teams/t1/posts'&&method==='POST'&&failPostOnce){failPostOnce=false;throw new Error('Synthetic publication failure')}
-  if(path==='/teams/public/t1/achievements')return {teamId:'t1',teamName:'First team',scope:'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,stages:[]};
+  if(path==='/teams/public/t1/achievements'||path==='/teams/public/t1/inspected-achievements')return {teamId:'t1',teamName:'First team',scope:path.endsWith('inspected-achievements')?'FIRST_PASSED_INSPECTION':'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,summary:{participants:0,podiums:0,firstPlaces:0,directions:[]},stages:[]};
   if(path==='/teams/admin')return malformedAdmin?[]:{teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
@@ -32,6 +32,9 @@ export async function runTeamWorkflows(){
   await render(<TeamWorkspace key="commander" team={team} admin={false} onChanged={async()=>{if(failRefreshOnce){failRefreshOnce=false;throw new Error('Synthetic refresh failure')}}}/>);
   assert.doesNotMatch(host.textContent??'',/Опубликовать/);assert.ok(!host.querySelector('[aria-label="Командир команды"]'));
   await click('Принять');assert.equal(calls.at(-1).path,'/teams/t1/memberships/m1');assert.deepEqual(calls.at(-1).body,{status:'APPROVED'});
+  await click('Выступления по этапам');
+  assert.match(host.textContent??'',/Выступления команды на этапах/);
+  assert.match(host.textContent??'',/Это не командный зачёт по очкам/);
   await click('Новости и достижения');await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Проверить публикацию');await click('Подтвердить отправку');
   assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Synthetic publication failure/);
   assert.match(host.textContent??'',/New achievement/);
