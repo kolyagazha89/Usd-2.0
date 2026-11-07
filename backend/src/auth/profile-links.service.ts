@@ -15,29 +15,35 @@ export class ProfileLinksService {
   const cleanNote=sanitize(note??'');
   if(cleanNote.length<12||cleanNote.length>1000)
    throw new BadRequestException('Опишите, как подтвердить принадлежность профиля (12–1000 символов).');
-  const [user,participant,prior]=await Promise.all([
-   this.prisma.user.findUnique({where:{id:userId},select:{id:true,emailVerifiedAt:true,isActive:true,participantId:true}}),
-   this.prisma.participant.findUnique({where:{id:participantId},select:{id:true,isPublic:true,user:{select:{id:true}}}}),
-   this.prisma.profileLinkRequest.findUnique({where:{claimantUserId_participantId:{claimantUserId:userId,participantId}},select:{id:true,status:true,createdAt:true}}),
-  ]);
-  if(!user?.isActive||!user.emailVerifiedAt)throw new UnauthorizedException('Подтвердите email аккаунта USD.');
-  if(user.participantId)throw new ConflictException('У аккаунта уже есть профиль участника.');
-  // This endpoint must not reveal private, nonexistent or already-claimed records.
-  if(!participant?.isPublic||participant.user)throw new NotFoundException('Профиль не доступен для самостоятельной заявки.');
-  if(prior){
-   if(prior.status==='PENDING')return {success:true,id:prior.id,status:prior.status};
-   throw new ConflictException('Заявка на этот профиль уже рассмотрена. Обратитесь к организатору USD.');
-  }
-  const recentCount=await this.prisma.profileLinkRequest.count({
-   where:{claimantUserId:userId,createdAt:{gte:new Date(Date.now()-24*60*60*1000)}},
-  });
-  if(recentCount>=3)throw new ConflictException('Допустимо не более трёх заявок в сутки.');
   try {
-   const request=await this.prisma.profileLinkRequest.create({
-    data:{claimantUserId:userId,participantId,note:cleanNote},
-    select:{id:true,status:true},
+   // The quota and uniqueness decisions must see a serialized claimant view.
+   // Otherwise parallel requests against different historical profiles could
+   // all observe fewer than three claims and bypass the daily protection.
+   return await this.prisma.$transaction(async tx=>{
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+userId}))`;
+    const [user,participant,prior]=await Promise.all([
+     tx.user.findUnique({where:{id:userId},select:{id:true,emailVerifiedAt:true,isActive:true,participantId:true}}),
+     tx.participant.findUnique({where:{id:participantId},select:{id:true,isPublic:true,user:{select:{id:true}}}}),
+     tx.profileLinkRequest.findUnique({where:{claimantUserId_participantId:{claimantUserId:userId,participantId}},select:{id:true,status:true,createdAt:true}}),
+    ]);
+    if(!user?.isActive||!user.emailVerifiedAt)throw new UnauthorizedException('Подтвердите email аккаунта USD.');
+    if(user.participantId)throw new ConflictException('У аккаунта уже есть профиль участника.');
+    // The error must not reveal whether a hidden participant exists or belongs to someone else.
+    if(!participant?.isPublic||participant.user)throw new NotFoundException('Профиль не доступен для самостоятельной заявки.');
+    if(prior){
+     if(prior.status==='PENDING')return {success:true,id:prior.id,status:prior.status};
+     throw new ConflictException('Заявка на этот профиль уже рассмотрена. Обратитесь к организатору USD.');
+    }
+    const recentCount=await tx.profileLinkRequest.count({
+     where:{claimantUserId:userId,createdAt:{gte:new Date(Date.now()-24*60*60*1000)}},
+    });
+    if(recentCount>=3)throw new ConflictException('Допустимо не более трёх заявок в сутки.');
+    const request=await tx.profileLinkRequest.create({
+     data:{claimantUserId:userId,participantId,note:cleanNote},
+     select:{id:true,status:true},
+    });
+    return {success:true,...request};
    });
-   return {success:true,...request};
   }catch(error){
    if(typeof error==='object'&&error!==null&&'code' in error&&(error as {code?:string}).code==='P2002'){
     const existing=await this.prisma.profileLinkRequest.findUnique({where:{claimantUserId_participantId:{claimantUserId:userId,participantId}},select:{id:true,status:true}});
@@ -138,7 +144,13 @@ export class ProfileLinksService {
    if(decision==='APPROVE'&&(!claimant?.isActive||!claimant.emailVerifiedAt||claimant.participantId||!participant||participant.user))
     throw new ConflictException('Привязка заблокирована: профиль или аккаунт уже изменились.');
    if(decision==='APPROVE'){
-    await tx.user.update({where:{id:pending.claimantUserId},data:{participantId:pending.participantId}});
+    // Guard the write itself as well as the preflight checks. A separate login
+    // or profile-creation request may race with this reviewed claim.
+    const linked=await tx.user.updateMany({
+     where:{id:pending.claimantUserId,participantId:null,isActive:true,emailVerifiedAt:{not:null}},
+     data:{participantId:pending.participantId},
+    });
+    if(linked.count!==1)throw new ConflictException('Аккаунт уже изменился. Привязка не выполнена. Обновите список.');
    }
    const updated=await tx.profileLinkRequest.update({
     where:{id:pending.id},data:{status:decision==='APPROVE'?'APPROVED':'REJECTED',reviewedByUserId:reviewerId,decisionReason:cleanReason,reviewedAt:new Date()},

@@ -133,3 +133,7 @@ jobs:
         env:
           USD_PROFILE_PRIVACY_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/profile-contact-privacy.e2e-spec.ts
+      - name: Verify historical claims, daily quota and profile-creation races on PostgreSQL 18
+        env:
+          USD_PROFILE_LINK_RACE_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/profile-link-concurrency.e2e-spec.ts

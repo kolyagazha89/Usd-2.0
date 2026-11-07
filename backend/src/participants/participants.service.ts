@@ -718,15 +718,20 @@ export class ParticipantsService {
             },
           });
 
-        await tx.user.update({
+        const linked = await tx.user.updateMany({
           where: {
             id: user.id,
+            participantId: null,
+            isActive: true,
           },
           data: {
             participantId: participant.id,
             name: `${firstName} ${lastName}`,
           },
         });
+        if (linked.count !== 1) {
+          throw new ConflictException('Профиль уже привязан или аккаунт изменился. Обновите страницу.');
+        }
 
         return tx.participant.findUniqueOrThrow({
           where: {
