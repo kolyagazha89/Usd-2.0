@@ -757,12 +757,19 @@ export class AuthService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Reuse exactly the locks and lock order of administrative claim review.
+      // Without these, two unclaimed historical profiles can race for one
+      // claimant and the second update can silently overwrite the first.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+participantId}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+userId}))`;
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, participantId: true, role: true, customRoleId: true },
+        select: { id: true, email: true, emailVerifiedAt: true, isActive: true, participantId: true, role: true, customRoleId: true },
       });
-      if (!user) {
-        throw new UnauthorizedException('Недействительная учётная запись');
+      // JWT checks identity when the request begins; recheck inside the
+      // transaction because confirmation or account status may have changed.
+      if (!user?.isActive || !user.emailVerifiedAt) {
+        throw new UnauthorizedException('Подтвердите email и убедитесь, что аккаунт активен');
       }
       if (user.participantId && user.participantId !== participantId) {
         throw new ConflictException('У аккаунта уже есть профиль участника');
