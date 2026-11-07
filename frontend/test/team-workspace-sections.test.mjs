@@ -9,9 +9,14 @@ test('team commander workspace has separate accessible membership and publicatio
  assert.match(source,/aria-controls="team-settings-panel"/);
  assert.match(source,/aria-controls="team-members-panel"/);
  assert.match(source,/aria-controls="team-posts-panel"/);
+ assert.match(source,/aria-controls="team-results-panel"/);
  assert.match(source,/id="team-settings-panel"/);
  assert.match(source,/id="team-members-panel"/);
  assert.match(source,/id="team-posts-panel"/);
+ assert.match(source,/id="team-results-panel"/);
+ assert.match(source,/mode="inspected"/);
+ assert.match(source,/mode="current"/);
+ assert.match(source,/section===\x27results\x27/);
 });
 
 test('switching team sections does not discard in-progress post draft',()=>{
