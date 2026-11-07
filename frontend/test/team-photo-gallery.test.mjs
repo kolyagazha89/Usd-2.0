@@ -13,7 +13,7 @@ test('team news and achievements attach only saved private RustFS photos through
  assert.match(api,/targetType:'SITE_ASSET',targetId,contentType:file.type/);
  assert.match(api,/await request\('\/media\/upload'/);
  assert.match(editor,/draft\.images\.length\+candidates\.length>8/);
- assert.match(editor,/await apiPost\(base\+'\/posts',\{\.\.\.draft,status:'DRAFT'\}\)/);
+ assert.match(editor,/await apiPost<\{id:string\}>\(base\+'\/posts',\{\.\.\.draft,status:'DRAFT'\}\)/);
  assert.match(editor,/setEditing\(postId\)/);
  assert.match(editor,/setDraft\(current=>\(\{\.\.\.current,images:\[\.\.\.current\.images,\.\.\.uploaded\]\}\)\)/);
  assert.match(editor,/status==='PUBLISHED'/);
