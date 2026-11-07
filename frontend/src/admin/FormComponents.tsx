@@ -35,7 +35,7 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
     if(open&&event.key==='Enter'){event.preventDefault();if(filtered[active])choose(filtered[active])}
    }}/>
   <ChevronDown className="searchable-select-chevron" aria-hidden="true"/>
-  {open&&<div ref={menu} id={id} role="listbox" className="searchable-select-menu">{filtered.length?filtered.map((option,index)=><button type="button" role="option" id={id+'-'+index} key={optionId(option)} tabIndex={-1} aria-selected={optionId(option)===String(value)} data-active={index===active} className={index===active?'is-active':''} onMouseEnter={()=>setActive(index)} onMouseDown={event=>event.preventDefault()} onClick={()=>choose(option)}>{optionLabel(option)}</button>):<span className="searchable-select-empty" role="status">Ничего не найдено</span>}</div>}
+  {open&&<div ref={menu} id={id} role="listbox" className="searchable-select-menu">{filtered.length?filtered.map((option,index)=><button type="button" role="option" id={id+'-'+index} key={optionId(option)} tabIndex={-1} aria-selected={optionId(option)===String(value)} data-active={index===active} className={index===active?'is-active':''} onMouseEnter={()=>setActive(index)} onMouseDown={event=>event.preventDefault()} onPointerDown={event=>{if(event.pointerType==='touch'){event.preventDefault();choose(option)}}} onClick={()=>choose(option)}>{optionLabel(option)}</button>):<span className="searchable-select-empty" role="status">Ничего не найдено</span>}</div>}
  </div>
 }
 
