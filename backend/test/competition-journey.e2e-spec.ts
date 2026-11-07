@@ -355,7 +355,7 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
     for (const name of [
       'processReminders',
       'registrationOpened',
-      'registrationConfirmed',
+      // Success email replaced with QR-pass page; no dispatch to track.
       'registrationCancelled',
       'stageChanged',
       'inspectionChanged',

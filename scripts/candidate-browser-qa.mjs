@@ -710,7 +710,31 @@ try{
       assert.ok(await page.getByRole('button',{name:'Скопировать USD ID'}).isEnabled());
       assert.equal(await page.locator('.usd-pass-id').innerText(),'b'.repeat(48));
       assert.ok(await page.getByText(/№ 007/).isVisible(),'assigned participant number is preserved');
-      row.registrationPass='confirmed persisted registration, real USD ID and inspection QR';
+      await context.grantPermissions(['clipboard-read','clipboard-write']);
+      await page.getByRole('button',{name:'Скопировать USD ID'}).click();
+      await page.getByText('USD ID скопирован',{exact:true}).waitFor();
+      assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'b'.repeat(48),'copy exports the permanent participant ID');
+      // Observe the export anchor and fetch its real blob; isolated Chromium
+      // environments do not consistently emit a download event for SVG blobs.
+      await page.evaluate(()=>{
+       const original=HTMLAnchorElement.prototype.click;
+       HTMLAnchorElement.prototype.click=function(){
+        if(this.download?.startsWith('USD-pass-')){
+         window.__usdQrDownload={filename:this.download,href:this.href};return;
+        }
+        return original.call(this);
+       };
+      });
+      await page.getByRole('button',{name:'Сохранить QR-код'}).click();
+      const download=await page.evaluate(async()=>{
+       const entry=window.__usdQrDownload;
+       return entry?{filename:entry.filename,svg:await(await fetch(entry.href)).text()}:null;
+      });
+      assert.ok(download,'export creates a downloadable QR blob');
+      assert.match(download.filename,/^USD-pass-.*\.svg$/);
+      assert.match(download.svg,/<svg\b/);
+      assert.match(download.svg,/<path\b/);
+      row.registrationPass='persisted registration, exact USD ID clipboard copy, inspection QR and SVG export';
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile')assert.equal(await page.locator('main h1').innerText(),'Мой профиль');
      if(role==='PARTICIPANT'&&route.includes('&edit=')){

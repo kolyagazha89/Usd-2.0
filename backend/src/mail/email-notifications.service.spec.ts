@@ -83,30 +83,18 @@ describe('EmailNotificationsService', () => {
     expect(prisma.emailNotificationLog.create).not.toHaveBeenCalled();
   });
 
-  it('sends a registration confirmation only to the verified account linked to the participant', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'user-1', email: 'driver@example.com', emailVerifiedAt: null });
-    const registration = {
-      id: 'reg-1', participantId: 'participant-1', participantNumber: 17,
-      stageId: 'stage-1', stage: { id: 'stage-1', name: 'Этап 1', stageNumber: 4, date: new Date('2026-11-10T10:00:00Z'), city: 'Тюмень', venue: 'Площадка', address: 'ул. Примерная, 1' },
-      car: { brand: 'Lada', model: '<script>', registrationNumber: 'А123АА72' },
-      classes: [{ class: { name: 'Limited 2.0' } }],
-    };
-
-    await service.registrationConfirmed(registration);
-
-    expect(prisma.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { participantId: 'participant-1', isActive: true },
-    }));
-    expect(mail.sendNotificationEmail).toHaveBeenCalledTimes(1);
-    const message = mail.sendNotificationEmail.mock.calls[0][0];
-    expect(message.to).toBe('driver@example.com');
-    expect(message.text).toContain('Ваш номер участника на этапе: 17');
-    expect(message.text).toContain('Limited 2.0');
-    expect(message.text).toContain('Оплата участия: 2 000 ₽ на месте');
-    expect(message.text).toContain('Государственный номер автомобиля: А123АА72');
-    expect(message.html).toContain('branding-logoUrl');
-    expect(message.html).toContain('&lt;script&gt;');
-    expect(message.html).not.toContain('<li style="margin:0 0 8px"><script>');
+  it('retired registration confirmations are never sent to participants', async () => {
+    // The registration-success page replaces the automatic message.
+    // Previously failed confirmation mails must not be retried on boot.
+    prisma.emailNotificationLog.updateMany.mockResolvedValue({count:2});
+    prisma.emailNotificationLog.findMany=jest.fn(async()=>[]);
+    prisma.stage.findMany.mockResolvedValue([]);
+    await service.processReminders();
+    expect(prisma.emailNotificationLog.updateMany).toHaveBeenCalledWith({
+      where:{type:'REGISTRATION_CONFIRMED',status:'FAILED'},
+      data:{status:'SKIPPED',lastError:null},
+    });
+    expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
   });
 
   it('records provider failures without claiming delivery', async () => {

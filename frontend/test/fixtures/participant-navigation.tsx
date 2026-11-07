@@ -54,24 +54,34 @@ export async function runParticipantNavigation(){
  }finally{await act(async()=>root.unmount())}
 }
 
-export async function runRegistrationJourney(){
+export async function runRegistrationJourney(mode='saved'){
  const stage={id:'flow-stage',name:'Финал USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'flow-car',brand:'Lada',model:'Vesta',isActive:true};
  const cls={id:'flow-class',name:'Limited 2.0',direction:{name:'SPL'}};
  const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12',quantity:1}]};
- let submitted:any=null;let releaseOld:((value:any)=>void)|null=null;let firstConfigurationRequest=true;
+ let submissions=0;let submitted:any=null;let releaseOld:((value:any)=>void)|null=null;let firstConfigurationRequest=true;
  state.__getPublic=async(path:string)=>{
   if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',phone:'+79001111008'}};
   if(path==='/stages/public')return [stage];
   if(path==='/participants/me/cars')return [car,{...car,id:'other-car',model:'Granta'}];
-  if(path==='/registrations/me')return submitted?[{id:'flow-registration',stage,stageId:stage.id,car,carId:car.id,status:'ACTIVE'}]:[];
+  if(path==='/participants/me/usd-id')return {token:'a'.repeat(48)};
+  if(path==='/registrations/me'){
+   if(!submitted||mode==='unsaved'||mode==='invalid')return [];
+   if(mode==='unavailable')throw new Error('Не удалось проверить заявку');
+   return [{id:'flow-registration',stage,stageId:mode==='other-stage'?'other-stage':stage.id,car,carId:mode==='other-car'?'other-car':car.id,configurationVersionId:mode==='other-configuration'?'stale-version':version.id,status:mode==='cancelled'?'CANCELLED':'ACTIVE',participant:{lastName:'Тестовый',firstName:'Иван'},participantNumber:7,numbers:[{id:'n7',number:7},{id:'n8',number:8}],classes:[{id:'c7',classId:mode==='other-classes'?'stale-class':cls.id,numberId:'n7',class:cls}]}];
+  }
   if(path==='/stages/flow-stage/classes')return [{classId:cls.id,class:cls}];
   if(path==='/cars/flow-car/configurations'){if(firstConfigurationRequest){firstConfigurationRequest=false;return new Promise(resolve=>{releaseOld=resolve})}return [{id:'flow-configuration',name:'На сезон',versions:[version]}]}
   if(path==='/cars/other-car/configurations')return [{id:'other-configuration',name:'Другой автомобиль',versions:[{...version,id:'other-version'}]}];
   if(path==='/auth/legal-consent')return {legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true};
   return [];
  };
- state.__postAction=async(path:string,body:any)=>{assert.equal(path,'/registrations/me');submitted=body;return {id:'flow-registration'}};
+ state.__postAction=async(path:string,body:any)=>{
+  assert.equal(path,'/registrations/me');submissions++;submitted=body;
+  if(mode==='invalid')return {};
+  if(mode!=='saved'){const error=Object.assign(new Error('Ответ сервера потерян'),mode==='rejected'?{status:409}:{});throw error;}
+  return {id:'flow-registration'};
+ };
  history.replaceState({},'','/participant/register?stageId=flow-stage');
  const root=createRoot(document.getElementById('root')!);
  const button=(label:string)=>{const found=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label);assert.ok(found,'Missing registration button «'+label+'». Rendered screen: '+(document.querySelector('main')?.textContent??'').slice(0,800));return found};
@@ -99,7 +109,20 @@ export async function runRegistrationJourney(){
   await click(document.querySelector<HTMLInputElement>('.registration-rules-consent input')!);
   assert.equal(button('Подтвердить регистрацию').disabled,false);await click(button('Подтвердить регистрацию'));
   assert.deepEqual(submitted,{stageId:stage.id,participantId:'p1',carId:car.id,configurationVersionId:version.id,classIds:[cls.id],source:'PRE_REGISTRATION',rulesAccepted:true});
-  active('Регистрации');assert.match(document.body.textContent??'',/Финал USD/);
+  assert.equal(submissions,1,'a lost response never automatically repeats the POST');
+  if(mode==='saved'||mode==='lost'){
+   assert.equal(location.pathname,'/participant/registration-success',mode);
+   assert.equal(new URLSearchParams(location.search).get('registrationId'),'flow-registration');
+   assert.match(document.querySelector('.usd-registration-success h1')?.textContent??'',/Регистрация успешно сохранена/);
+   assert.equal(document.querySelectorAll('.usd-pass-qr-frame svg').length,1);
+   assert.equal(document.querySelector('.usd-pass-id')?.textContent,'a'.repeat(48));
+   assert.match(document.querySelector('.usd-pass-number-grid')?.textContent??'',/№ 007/);
+   assert.match(document.querySelector('.usd-pass-number-grid')?.textContent??'',/№ 008/);
+  }else{
+   assert.equal(location.pathname,'/participant/register',mode+' must not show a success screen');
+   assert.equal(document.querySelector('.usd-pass-qr-frame svg'),null);
+   assert.ok(document.querySelector('[role="alert"]'),'an unverified write keeps an error visible');
+  }
  }finally{await act(async()=>root.unmount())}
 }
 
