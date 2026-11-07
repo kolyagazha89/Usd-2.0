@@ -7,7 +7,7 @@ export type DuplicateSnapshot = {
  teamId:string|null;
  cars:Array<{id:string;country:string;number:string;configurations:number}>;
  registrations:Array<{id:string;stageId:string;status:string;classes:number;results:number;numbers:number}>;
- stageInspections:number;disqualifications:number;records:number;claims:number;
+ stageInspections:number;stageInspectionStages?:string[];disqualifications:number;records:number;claims:number;
 };
 export type DuplicateFinding={code:string;description:string};
 const looksAlike:Record<string,string>={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
@@ -29,6 +29,10 @@ export function duplicatePreview(source:DuplicateSnapshot,target:DuplicateSnapsh
   add('TWO_USD_IDS','У обоих профилей есть действующие USD ID. Необходим безопасный механизм переадресации.');
  if(source.legacyId&&target.legacyId&&source.legacyId!==target.legacyId)
   add('TWO_LEGACY_IDS','Оба профиля содержат разные архивные идентификаторы. Нельзя терять соответствие архива.');
+ if(source.claims||target.claims)add('PENDING_CLAIMS','Есть незавершённые заявки на привязку ('+(source.claims+target.claims)+'). Сначала проверьте владельцев профилей.');
+ const inspections=new Set(target.stageInspectionStages??[]);
+ const overlaps=[...new Set((source.stageInspectionStages??[]).filter(stageId=>inspections.has(stageId)))];
+ if(overlaps.length)add('SHARED_STAGE_INSPECTION','У обоих профилей есть инспекции на одних и тех же этапах ('+overlaps.length+'). Нельзя терять решения судей.');
  const stages=new Set(target.registrations.filter(r=>r.status==='ACTIVE').map(r=>r.stageId));
  const sameStages=[...new Set(source.registrations.filter(r=>r.status==='ACTIVE'&&stages.has(r.stageId)).map(r=>r.stageId))];
  if(sameStages.length)add('SAME_STAGE','Оба участника имеют активные заявки на одних и тех же этапах ('+sameStages.length+'). Проверьте номера, результаты и классы.');
