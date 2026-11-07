@@ -43,3 +43,24 @@ describe('readonly participant duplicate analysis',()=>{
   expect(()=>duplicatePreview(base('s'),base('s'))).toThrow();
  });
 });
+
+describe('lossless merge preview blockers beyond matching names',()=>{
+ it('flags overlapping global participant inspections even if registration was cancelled',()=>{
+  const source={...base('s'),stageInspectionStages:['stage-1','stage-2'],stageInspections:2};
+  const target={...base('t'),stageInspectionStages:['stage-2'],stageInspections:1};
+  const view=duplicatePreview(source,target);
+  expect(view.conflicts.map(item=>item.code)).toContain('SHARED_STAGE_INSPECTION');
+  expect(view.canMerge).toBe(false);
+ });
+ it('prevents concurrent pending profile ownership claims from being ignored',()=>{
+  const view=duplicatePreview({...base('s'),claims:2},base('t'));
+  expect(view.conflicts.map(item=>item.code)).toContain('PENDING_CLAIMS');
+  expect(view.counts.source.pendingClaims).toBe(2);
+ });
+ it('does not invent conflicts for separate stages and no pending ownership requests',()=>{
+  const view=duplicatePreview({...base('s'),stageInspectionStages:['stage-a'],stageInspections:1},
+   {...base('t'),stageInspectionStages:['stage-b'],stageInspections:1});
+  expect(view.conflicts).toEqual([]);
+  expect(view.canMerge).toBe(false);
+ });
+});
