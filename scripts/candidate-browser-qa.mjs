@@ -355,7 +355,8 @@ try{
      if(role==='ADMIN'&&route==='/admin/stages/new'){
       const form=page.locator('.entity-form-journey');
       await form.waitFor({state:'visible'});
-      assert.equal(await form.locator('.entity-form-step').count(),2,'ten-field stage editor must split into 2 screens');
+      assert.equal(await form.locator('.entity-form-step').count(),3,'stage editor has two data pages and a separate review screen');
+      assert.match(await form.locator('.entity-form-step').last().innerText(),/Проверка/,'final confirmation is a distinct screen');
       await form.getByRole('button',{name:/Продолжить/}).click();
       await form.getByRole('alert').filter({hasText:'Номер этапа'}).waitFor();
       await form.getByLabel('Номер этапа',{exact:true}).fill('2');
@@ -363,10 +364,11 @@ try{
       await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
       await form.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
+      assert.match(await form.locator('.entity-form-journey-progress').innerText(),/Шаг 2 из 3/,'progress includes the review step');
       assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'3','required field progress survives next-screen transition');
       await form.getByRole('button',{name:/Назад/}).click();
       assert.equal(await form.getByLabel('Название этапа',{exact:true}).inputValue(),'Тестовый этап USD');
-      row.dynamicFormJourney='long stage form splits into 2 pages; preserves values, validates before advancement';
+      row.dynamicFormJourney='two data screens and final review; retains values, validates before advancement';
      }
      if(role==='ADMIN'&&route==='/admin/cars/new'){
       const flow=page.locator('.usd-car-editor-journey');
