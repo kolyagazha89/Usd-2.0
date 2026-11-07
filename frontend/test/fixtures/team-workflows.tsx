@@ -47,6 +47,17 @@ export async function runTeamWorkflows(){
   assert.match(host.textContent??'',/Список пока не обновился/);
   assert.equal((host.querySelector('[aria-label="Заголовок публикации"]') as HTMLInputElement).value,'');
   assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts'&&c.body.title==='Another achievement').length,1);
+  // New publications can attach a photo directly: the first upload creates a private draft.
+  await input('Заголовок публикации','Photo story');await input('Текст публикации','Photo body');
+  const photoInput=host.querySelector('.team-post-editor input[type="file"]') as HTMLInputElement;
+  assert.ok(photoInput&&!photoInput.disabled,'first photo picker works before a manual save');
+  await act(async()=>{
+   Object.defineProperty(photoInput,'files',{configurable:true,value:[new window.File(['synthetic'],'photo.jpg',{type:'image/jpeg'})]});
+   photoInput.dispatchEvent(new window.Event('change',{bubbles:true}));
+   await new Promise(r=>setTimeout(r,0));
+  });
+  assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/teams/t1/posts'&&c.body.title==='Photo story'&&c.body.status==='DRAFT').length,1);
+  assert.match(host.textContent??'',/Фотографии · 1\/8/);
   await render(<TeamWorkspace key="admin" team={{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}} admin users={[]} onChanged={async()=>{}}/>);
   await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
   await render(<PublicTeamsPage path="/teams/Archive%20team"/>);assert.match(host.textContent??'',/Архивные участники/);assert.match(host.textContent??'',/Historic/);
