@@ -618,7 +618,7 @@ function ImportResolutionPage({row,stageId,mode,resolution,setResolution,loading
      <div className="resolution-action-value">{normalized.class?.className??raw['Класс']??'Не определён'}</div>
      <div className="resolution-buttons">
       {classCandidates.map(c=><button key={c.id} className={currentClassId===c.id?'primary-button compact':'secondary-button compact'} onClick={()=>setClass(c.id)}>{currentClassId===c.id?<Check size={14}/>:null}{c.name}</button>)}
-      {!classCandidates.length&&<select value={currentClassId} onChange={e=>setClass(e.target.value)}><option value="">Выберите класс</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+      {!classCandidates.length&&<select aria-label="Класс для импортируемого результата" value={currentClassId} onChange={e=>setClass(e.target.value)}><option value="">Выберите класс</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}
      </div>
     </div>
 

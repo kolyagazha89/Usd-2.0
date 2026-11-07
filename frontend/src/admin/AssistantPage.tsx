@@ -62,11 +62,11 @@ function AssistantPage({go,PageFrame,enumLabel}: {go:(p:string)=>void;PageFrame:
     {confirming&&<div className="assistant-inline-confirm">
       <div className="assistant-inline-confirm-head"><div className="assistant-avatar small"><LockKeyhole size={16}/></div><div><strong>Нужно подтверждение</strong><span>Я подготовил действие, но сам его не применю без вашего согласия.</span></div></div>
       <div className="assistant-inline-confirm-body"><b>{confirming.title||'Изменение'}</b><p>{confirming.prompt||'Запрос подготовлен по вашему сообщению.'}</p><small>Риск: {assistantRiskName(confirming.risk||'Средний',enumLabel)}</small></div>
-      <div className="assistant-inline-confirm-actions"><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="Введите ПОДТВЕРЖДАЮ"/><button className="primary-button compact" onClick={()=>void confirmChange()} disabled={sending}>Подтвердить</button><button className="secondary-button compact" onClick={()=>void rejectChange()} disabled={sending}>Не выполнять</button></div>
+      <div className="assistant-inline-confirm-actions"><input aria-label="Подтверждение административного действия" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="Введите ПОДТВЕРЖДАЮ"/><button className="primary-button compact" onClick={()=>void confirmChange()} disabled={sending}>Подтвердить</button><button className="secondary-button compact" onClick={()=>void rejectChange()} disabled={sending}>Не выполнять</button></div>
     </div>}
     {error&&<div className="form-error"><AlertTriangle size={15}/>{error}</div>}
     <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}>
-     <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «проверь текущий этап и скажи, что мешает его провести»" rows={3} disabled={sending}/>
+     <textarea aria-label="Сообщение помощнику USD" value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «проверь текущий этап и скажи, что мешает его провести»" rows={3} disabled={sending}/>
      <button className="primary-button" disabled={!input.trim()||sending}>{sending?<Loader2 size={17} className="spin"/>:<Sparkles size={17}/>}Отправить</button>
     </form>
     <div className="assistant-chat-note"><LockKeyhole size={13}/><span>Обычный разговор не создаёт очередь. Если ты просишь что-то изменить, я сначала покажу действие и попрошу явное подтверждение.</span></div>

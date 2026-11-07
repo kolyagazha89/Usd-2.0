@@ -74,3 +74,10 @@ export function judgingResultLink(stageId:string,registrationId?:string){
  if(registrationId){params.set('registrationId',registrationId);params.set('entry','1');}
  return '/admin/results?'+params.toString();
 }
+
+/** A judging write requires a deliberate final confirmation, never an implicit form submit. */
+export function canConfirmJudgingResult({explicit,step,editing,valid,hasRegistration,hasClass}:{
+ explicit:boolean;step:number;editing:boolean;valid:boolean;hasRegistration:boolean;hasClass:boolean
+}):boolean{
+ return explicit&&step===2&&valid&&(editing||(hasRegistration&&hasClass));
+}

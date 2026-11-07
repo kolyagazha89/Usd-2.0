@@ -128,7 +128,7 @@ try{
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(isCandidateApiRequest(url)){
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
-      blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
+      let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
      }
      if(['/participants/missing','/cars/missing','/stages/public/missing'].includes(url.pathname))return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Не найдено'})});
      if(['/participants/offline','/stages/public/offline'].includes(url.pathname)){
@@ -355,7 +355,8 @@ try{
      if(role==='ADMIN'&&route==='/admin/stages/new'){
       const form=page.locator('.entity-form-journey');
       await form.waitFor({state:'visible'});
-      assert.equal(await form.locator('.entity-form-step').count(),2,'ten-field stage editor must split into 2 screens');
+      assert.equal(await form.locator('.entity-form-step').count(),3,'stage editor has two data pages and a separate review screen');
+      assert.match(await form.locator('.entity-form-step').last().innerText(),/Проверка/,'final confirmation is a distinct screen');
       await form.getByRole('button',{name:/Продолжить/}).click();
       await form.getByRole('alert').filter({hasText:'Номер этапа'}).waitFor();
       await form.getByLabel('Номер этапа',{exact:true}).fill('2');
@@ -363,10 +364,11 @@ try{
       await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
       await form.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
+      assert.match(await form.locator('.entity-form-journey-progress').innerText(),/Шаг 2 из 3/,'progress includes the review step');
       assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'3','required field progress survives next-screen transition');
       await form.getByRole('button',{name:/Назад/}).click();
       assert.equal(await form.getByLabel('Название этапа',{exact:true}).inputValue(),'Тестовый этап USD');
-      row.dynamicFormJourney='long stage form splits into 2 pages; preserves values, validates before advancement';
+      row.dynamicFormJourney='two data screens and final review; retains values, validates before advancement';
      }
      if(role==='ADMIN'&&route==='/admin/cars/new'){
       const flow=page.locator('.usd-car-editor-journey');
@@ -807,24 +809,35 @@ try{
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
       assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
       if(route.includes('entry=1')){
-       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
-       assert.match(await page.locator('.judging-selected').innerText(),/Тестовый Иван/);
-       assert.equal(await page.locator('.judging-entry-step').count(),3,'inspection deep link starts three-step entry');
-       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
-       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('152.34');
-       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
-       row.judgeDeeplink='approved athlete preselected, correct class and value';
+       const wizard=page.locator('.judging-entry-wizard');
+       await wizard.waitFor({state:'visible'});
+       assert.match(await wizard.locator('.judging-selected').innerText(),/Тестовый Иван/);
+       assert.equal(await wizard.locator('.judging-entry-step').count(),3,'inspection deep link starts three-step entry');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('spinbutton',{name:'Значение результата'}).fill('152.34');
+       assert.equal(await wizard.getByRole('button',{name:'Подтвердить и сохранить измерение'}).isDisabled(),false);
+       await wizard.getByRole('button',{name:'Назад'}).click();
+       assert.equal(await wizard.getByRole('combobox',{name:'Доступный класс'}).inputValue(),'rc1','class persists after going back');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       assert.equal(await wizard.getByRole('spinbutton',{name:'Значение результата'}).inputValue(),'152.34','value persists across steps');
+       row.judgeDeeplink='approved athlete preselected; class/value review and backwards persistence';
       }else if(route.includes('?stageId=stage1')){
        await page.getByRole('button',{name:'Внести результат'}).click();
-       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
-       await page.getByRole('searchbox',{name:'Поиск участника по номеру или ФИО'}).fill('7');
-       assert.equal(await page.locator('.judging-roster-item').count(),1,'exact stage participant number lookup');
-       await page.locator('.judging-roster-item').first().click();
-       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
-       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('151.1');
-       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
-       await page.getByRole('button',{name:'К протоколу'}).click();
-       row.judgeNewEntry='nameplate search, class validation and cancellation';
+       const wizard=page.locator('.judging-entry-wizard');
+       await wizard.waitFor({state:'visible'});
+       await wizard.getByRole('searchbox',{name:'Поиск участника по номеру или ФИО'}).fill('7');
+       assert.equal(await wizard.locator('.judging-roster-item').count(),1,'exact stage participant number lookup');
+       await wizard.locator('.judging-roster-item').first().click();
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('spinbutton',{name:'Значение результата'}).fill('151.1');
+       assert.equal(await wizard.getByRole('button',{name:'Подтвердить и сохранить измерение'}).isDisabled(),false);
+       assert.match(await wizard.locator('.judging-entry-review').innerText(),/151.1/);
+       await wizard.getByRole('button',{name:'К протоколу'}).click();
+       row.judgeNewEntry='search; three-step wizard; final review; safe cancellation';
       }
       const surface=await board.evaluate(el=>({
        documentWidth:document.documentElement.scrollWidth,viewport:innerWidth,

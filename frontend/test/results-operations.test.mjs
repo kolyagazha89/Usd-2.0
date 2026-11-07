@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
  judgingInspectionStatus,judgingNumbers,canJudgeRegistration,matchesJudgeSearch,
  filterJudgeRegistrations,remainingJudgingClasses,judgingOverview,matchesJudgingResult,
- judgingResultLink,
+ judgingResultLink,canConfirmJudgingResult,
 } from '../src/admin/results-operations-model.ts';
 
 const base={id:'reg1',status:'ACTIVE',participantNumber:7,numbers:[{number:7},{number:8}],
@@ -76,4 +76,24 @@ test('connected 3-step desk, role checks and mobile CSS are kept',async()=>{
  assert.match(css,/repeat\(3,minmax\(0,1fr\)\)/);
  assert.match(css,/\.judging-entry-wizard/);
  assert.match(routes,/ResultsPage path=\{path\} go=\{go\}/);
+});
+
+test('judging never creates measurements from implicit Enter or step-navigation submits',()=>{
+ const ready={step:2,editing:false,valid:true,hasRegistration:true,hasClass:true};
+ assert.equal(canConfirmJudgingResult({...ready,explicit:false}),false,'no explicit final button activation');
+ assert.equal(canConfirmJudgingResult({...ready,explicit:true,step:1}),false,'class selection is not final confirmation');
+ assert.equal(canConfirmJudgingResult({...ready,explicit:true,hasClass:false}),false,'unselected class');
+ assert.equal(canConfirmJudgingResult({...ready,explicit:true,valid:false}),false,'invalid numeric value');
+ assert.equal(canConfirmJudgingResult({...ready,explicit:true}),true,'explicit final submission');
+ assert.equal(canConfirmJudgingResult({...ready,explicit:true,editing:true,hasRegistration:false,hasClass:false}),true,'admin correction with existing result');
+});
+test('judge wizard buttons stay non-submitting when Next is replaced by final confirmation',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('../src/admin/ResultsPage.tsx',import.meta.url),'utf8');
+ const controls=source.slice(source.indexOf('<div className="judging-submit">'),source.indexOf('</form>',source.indexOf('<div className="judging-submit">')));
+ assert.match(controls,/data-judging-confirm="true"/);
+ assert.doesNotMatch(controls,/type="submit"/,'React must not morph a clicked Next button into a submit button during the same native click');
+ assert.match(source,/const submitJudging=/);
+ assert.match(source,/onSubmit=\{e=>e.preventDefault\(\)\}/);
+ assert.match(source,/e\.key==='Enter'/,'Enter inside text or number inputs must not submit');
 });

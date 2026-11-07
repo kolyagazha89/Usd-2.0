@@ -1,3 +1,4 @@
+import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
@@ -5,7 +6,7 @@ import {useViewState,matchesSeason,seasonYears,stageYear} from './view-state';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
 import {
  canJudgeRegistration,filterJudgeRegistrations,judgingInspectionStatus,judgingNumbers,
- judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,
+ judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,canConfirmJudgingResult,
 } from './results-operations-model';
 
 type Go=(path:string)=>void;
@@ -247,6 +248,9 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
  onSubmit:(v:any)=>Promise<void>;displayCarName:(v:any,fallback?:string)=>string;enumLabel:(v:any)=>string;
 }){
  const [v,setV]=useState<any>(value??{}),[term,setTerm]=useState('');
+ const [judgingStep,setJudgingStep]=useState<0|1|2>(value?.id?2:0);
+ const judgingHeadingRef=useRef<HTMLHeadingElement>(null);
+ useEffect(()=>{if(!value?.id)judgingHeadingRef.current?.focus()},[judgingStep]);
  const eligible=filterJudgeRegistrations(registrations,term,{passedOnly:true});
  const selected=registrations.find(r=>r.id===v.registrationId);
  const available=remainingJudgingClasses(selected,results).sort((a:any,b:any)=>
@@ -257,6 +261,17 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
   Number(v.value)>=0&&(v.place===''||v.place===undefined||
   (Number.isInteger(Number(v.place))&&Number(v.place)>=1&&Number(v.place)<=999));
  const editable=!!v.id;
+ const judgingSteps=['Допущенный участник','Класс регистрации','Измерение и проверка'] as const;
+ const judgingReady=[Boolean(selected),Boolean(selected&&available.some(c=>c.id===v.registrationClassId)),valid];
+ const nextJudgingStep=()=>setJudgingStep(current=>current<2&&judgingReady[current]?(current+1) as 0|1|2:current);
+ const submitJudging=()=>{
+  // An explicit button click (pointer, keyboard or assistive tech) is the only write path.
+  if(canConfirmJudgingResult({
+   explicit:true,step:judgingStep,editing:editable,valid,
+   hasRegistration:Boolean(selected),hasClass:available.some(c=>c.id===v.registrationClassId),
+  }))void onSubmit(v);
+ };
+
  return <section className="panel resource-editor-page judging-entry-wizard" aria-label="Редактор результата">
   <div className="resource-editor-heading"><div><span className="eyebrow">USD · СУДЕЙСТВО</span>
    <h2>{editable?'Исправление результата':'Новое измерение'}</h2>
@@ -264,9 +279,12 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
     'Выберите допущенного участника по номеру, затем свободный класс и внесите значение.'}</p>
   </div><button type="button" className="secondary-button" onClick={onClose} disabled={saving}><ChevronLeft size={16}/>К протоколу</button></div>
   {error&&<div role="alert" className="form-error"><AlertTriangle size={16}/>{error}</div>}
-  <form className="form judging-entry-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
+  <form className="form judging-entry-form" noValidate
+   onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement)e.preventDefault()}}
+   onSubmit={e=>e.preventDefault()}>
+   {!editable&&<><nav className="form-wizard-nav" aria-label="Шаги внесения результата">{judgingSteps.map((label,index)=><button key={label} type="button" className={judgingStep===index?'is-active':''} aria-current={judgingStep===index?'step':undefined} disabled={saving||(index>0&&!judgingReady.slice(0,index).every(Boolean))} onClick={()=>setJudgingStep(index as 0|1|2)}><span>{index+1}</span><strong>{label}</strong><small>{index===0?(judgingReady[0]?'Участник выбран':'Выберите участника'):index===1?(judgingReady[1]?'Класс выбран':'Выберите класс'):'Проверка результата'}</small></button>)}</nav><p className="form-wizard-progress" role="status" aria-live="polite">Шаг {judgingStep+1} из 3 · {judgingSteps[judgingStep]}</p><h3 tabIndex={-1} ref={judgingHeadingRef} className="form-wizard-title">{judgingSteps[judgingStep]}</h3></>}
    {!editable&&<>
-    <fieldset className="judging-entry-step" disabled={saving}>
+    <fieldset className="judging-entry-step" hidden={judgingStep!==0} disabled={saving}>
      <legend><span className="judging-step-number">01</span>Допущенный участник</legend>
      <label className="judging-entry-search"><Search size={17}/><input type="search"
       aria-label="Поиск участника по номеру или ФИО" value={term} onChange={e=>setTerm(e.target.value)}
@@ -290,7 +308,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
       {term?'Допущенных участников по запросу нет.':'Нет зарегистрированных участников с успешной инспекцией.'}
      </p>}
     </fieldset>
-    <fieldset className="judging-entry-step" disabled={saving||!selected}>
+    <fieldset className="judging-entry-step" hidden={judgingStep!==1} disabled={saving||!selected}>
      <legend><span className="judging-step-number">02</span>Класс регистрации</legend>
      <label>Доступный класс<select value={v.registrationClassId??''} required
       onChange={e=>setV({...v,registrationClassId:e.target.value})}>
@@ -305,7 +323,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
      </p>}
     </fieldset>
    </>}
-   <fieldset className="judging-entry-step" disabled={saving||(!editable&&(!selected||!available.length))}>
+   <fieldset className="judging-entry-step" hidden={judgingStep!==2} disabled={saving||(!editable&&(!selected||!available.length))}>
     <legend><span className="judging-step-number">{editable?'01':'03'}</span>Результат и место</legend>
     <div className="judging-value-grid">
      <label>Значение результата<input type="number" step="0.001" min="0" inputMode="decimal"
@@ -316,11 +334,13 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
     <label>Комментарий к измерению<textarea rows={3} value={v.notes??''}
      onChange={e=>setV({...v,notes:e.target.value})}/></label>
    </fieldset>
-   <div className="judging-submit"><p>Измерение сохранится в протоколе этапа. Редактирование и удаление доступны только ADMIN.</p>
-    <button className="primary-button" type="submit" disabled={saving||!valid||(!editable&&(!selected||!available.some(c=>c.id===v.registrationClassId)))}>
-     <Trophy size={16}/>{saving?'Сохраняем…':editable?'Сохранить исправление':'Сохранить измерение'}
+   {judgingStep===2&&selected&&<div className="form-wizard-review judging-entry-review" role="status"><strong>Проверьте измерение</strong><p>№{judgingNumbers(selected).join(' / ')} · {participantName(selected.participant)} · {shortCar(selected.car)}</p><p>{available.find(c=>c.id===v.registrationClassId)?.class?.name??'Укажите класс'} · {v.value??'—'} {enumLabel(available.find(c=>c.id===v.registrationClassId)?.class?.unit??'DB')}</p></div>}
+   <div className="judging-submit"><p>{judgingStep===2?'Измерение сохранится в протоколе этапа. Редактировать и удалять результаты может только ADMIN.':'Введённые данные сохраняются при переходе назад. Результат пока не отправлен.'}</p>
+    {!editable&&judgingStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>setJudgingStep((judgingStep-1) as 0|1)}>Назад</button>}
+    {!editable&&judgingStep<2?<button className="primary-button" type="button" disabled={saving||!judgingReady[judgingStep]} onClick={nextJudgingStep}>Продолжить <ChevronRight size={16}/></button>:<button className="primary-button" type="button" data-judging-confirm="true" onClick={submitJudging} disabled={saving||!valid||(!editable&&(!selected||!available.some(c=>c.id===v.registrationClassId)))}>
+     <Trophy size={16}/>{saving?'Сохраняем…':editable?'Сохранить исправление':'Подтвердить и сохранить измерение'}
      {!saving&&<ChevronRight size={16}/>}
-    </button>
+    </button>}
    </div>
   </form>
  </section>;
