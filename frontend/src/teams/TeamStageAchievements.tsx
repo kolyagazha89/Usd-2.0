@@ -52,7 +52,7 @@ export default function TeamStageAchievements({teamId,mode='current'}:{teamId:st
    </label>
   </div>:null}
   {loading?<p role="status">Загружаем результаты…</p>:error?<div role="alert"><p>{error}</p><button className="u-btn u-quiet" onClick={()=>setRetry(v=>v+1)}>Повторить загрузку</button></div>:data?.stages.length?
-   <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}</p>
+   <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}</p>{direction&&visibleStages.length===0&&<div role="status" className="team-achievement-empty"><p>Нет выступлений в выбранном направлении.</p><button type="button" className="u-btn u-quiet" onClick={()=>setDirection('')}>Сбросить фильтр</button></div>}
     <div className="team-stage-grid">{visibleStages.map(stage=><article className="team-stage-card" key={stage.id}>
      <header><h4>{stage.name}</h4><p>{[stage.city,new Date(stage.date).toLocaleDateString('ru-RU')].filter(Boolean).join(' · ')}</p></header>
      <ul>{stage.performances.map(result=><li key={result.id}>

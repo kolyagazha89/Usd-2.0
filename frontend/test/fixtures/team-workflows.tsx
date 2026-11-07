@@ -8,11 +8,12 @@ import TeamsPage from '../../src/admin/TeamsPage';
 
 export async function runTeamWorkflows(){
  const host=document.getElementById('root')!,root=createRoot(host);
- const calls:any[]=[];let membership:any=null,malformedAdmin=false;
+ const calls:any[]=[];let membership:any=null,malformedAdmin=false,failPostOnce=true;
  const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED',updatedAt:'2026-11-03T12:00:00.000Z'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
   if(path==='/teams/public')return [team,archive];
+  if(path==='/teams/t1/posts'&&method==='POST'&&failPostOnce){failPostOnce=false;throw new Error('Synthetic publication failure')}
   if(path==='/teams/public/t1/achievements')return {teamId:'t1',teamName:'First team',scope:'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,stages:[]};
   if(path==='/teams/admin')return malformedAdmin?[]:{teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
@@ -31,7 +32,12 @@ export async function runTeamWorkflows(){
   await render(<TeamWorkspace key="commander" team={team} admin={false} onChanged={async()=>{}}/>);
   assert.doesNotMatch(host.textContent??'',/Опубликовать/);assert.ok(!host.querySelector('[aria-label="Командир команды"]'));
   await click('Принять');assert.equal(calls.at(-1).path,'/teams/t1/memberships/m1');assert.deepEqual(calls.at(-1).body,{status:'APPROVED'});
-  await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Отправить на проверку');
+  await click('Новости и достижения');await input('Заголовок публикации','New achievement');await input('Текст публикации','Synthetic team achievement');await click('Проверить публикацию');await click('Подтвердить отправку');
+  assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Synthetic publication failure/);
+  assert.match(host.textContent??'',/New achievement/);
+  await click('Вернуться к редактированию');
+  assert.equal((host.querySelector('[aria-label="Заголовок публикации"]') as HTMLInputElement).value,'New achievement');
+  await click('Проверить публикацию');await click('Подтвердить отправку');
   assert.equal(calls.at(-1).body.status,'IN_REVIEW');
   await render(<TeamWorkspace key="admin" team={{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}} admin users={[]} onChanged={async()=>{}}/>);
   await click('Опубликовать');assert.equal(calls.at(-1).path,'/teams/t1/posts/post1/approve');assert.deepEqual(calls.at(-1).body,{reviewedAt:'2026-11-03T12:00:00.000Z'});
