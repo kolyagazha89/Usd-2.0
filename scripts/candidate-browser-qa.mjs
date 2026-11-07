@@ -807,24 +807,35 @@ try{
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
       assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
       if(route.includes('entry=1')){
-       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
-       assert.match(await page.locator('.judging-selected').innerText(),/Тестовый Иван/);
-       assert.equal(await page.locator('.judging-entry-step').count(),3,'inspection deep link starts three-step entry');
-       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
-       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('152.34');
-       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
-       row.judgeDeeplink='approved athlete preselected, correct class and value';
+       const wizard=page.locator('.judging-entry-wizard');
+       await wizard.waitFor({state:'visible'});
+       assert.match(await wizard.locator('.judging-selected').innerText(),/Тестовый Иван/);
+       assert.equal(await wizard.locator('.judging-entry-step').count(),3,'inspection deep link starts three-step entry');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('spinbutton',{name:'Значение результата'}).fill('152.34');
+       assert.equal(await wizard.getByRole('button',{name:'Подтвердить и сохранить измерение'}).isDisabled(),false);
+       await wizard.getByRole('button',{name:'Назад'}).click();
+       assert.equal(await wizard.getByRole('combobox',{name:'Доступный класс'}).inputValue(),'rc1','class persists after going back');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       assert.equal(await wizard.getByRole('spinbutton',{name:'Значение результата'}).inputValue(),'152.34','value persists across steps');
+       row.judgeDeeplink='approved athlete preselected; class/value review and backwards persistence';
       }else if(route.includes('?stageId=stage1')){
        await page.getByRole('button',{name:'Внести результат'}).click();
-       await page.locator('.judging-entry-wizard').waitFor({state:'visible'});
-       await page.getByRole('searchbox',{name:'Поиск участника по номеру или ФИО'}).fill('7');
-       assert.equal(await page.locator('.judging-roster-item').count(),1,'exact stage participant number lookup');
-       await page.locator('.judging-roster-item').first().click();
-       await page.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
-       await page.getByRole('spinbutton',{name:'Значение результата'}).fill('151.1');
-       assert.equal(await page.getByRole('button',{name:/Сохранить измерение/}).isDisabled(),false);
-       await page.getByRole('button',{name:'К протоколу'}).click();
-       row.judgeNewEntry='nameplate search, class validation and cancellation';
+       const wizard=page.locator('.judging-entry-wizard');
+       await wizard.waitFor({state:'visible'});
+       await wizard.getByRole('searchbox',{name:'Поиск участника по номеру или ФИО'}).fill('7');
+       assert.equal(await wizard.locator('.judging-roster-item').count(),1,'exact stage participant number lookup');
+       await wizard.locator('.judging-roster-item').first().click();
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('combobox',{name:'Доступный класс'}).selectOption('rc1');
+       await wizard.getByRole('button',{name:'Продолжить'}).click();
+       await wizard.getByRole('spinbutton',{name:'Значение результата'}).fill('151.1');
+       assert.equal(await wizard.getByRole('button',{name:'Подтвердить и сохранить измерение'}).isDisabled(),false);
+       assert.match(await wizard.locator('.judging-entry-review').innerText(),/151.1/);
+       await wizard.getByRole('button',{name:'К протоколу'}).click();
+       row.judgeNewEntry='search; three-step wizard; final review; safe cancellation';
       }
       const surface=await board.evaluate(el=>({
        documentWidth:document.documentElement.scrollWidth,viewport:innerWidth,
