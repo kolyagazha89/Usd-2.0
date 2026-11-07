@@ -29,3 +29,14 @@ test('entry registration, judging and long admin forms have explicit accessible 
  assert.match(admin,/Проверка перед сохранением/);
  assert.match(admin,/role="status"/);
 });
+
+test('admin equipment configuration offers direct sections and a final version review',async()=>{
+ const [source,css]=await Promise.all([read('../src/admin/ConfigurationsPage.tsx'),read('../src/admin/form-journey.css')]);
+ assert.match(source,/aria-label="Этапы редактирования конфигурации"/);
+ assert.match(source,/activeView==='REVIEW'/);
+ assert.match(source,/hidden=\{admin&&activeView!=='SETUP'\}/);
+ assert.match(source,/hidden=\{admin&&activeView!=='POWER'\}/);
+ assert.match(source,/hidden=\{admin&&activeView!==direction\}/);
+ assert.match(source,/Проверить конфигурацию/);
+ assert.match(css,/\.configuration-editor-page \[hidden\]/);
+});
