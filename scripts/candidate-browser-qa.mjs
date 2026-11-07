@@ -128,7 +128,7 @@ try{
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(isCandidateApiRequest(url)){
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
-      blocked.push({method:request.method(),path:url.pathname});return route.abort('blockedbyclient');
+      let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
      }
      if(['/participants/missing','/cars/missing','/stages/public/missing'].includes(url.pathname))return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Не найдено'})});
      if(['/participants/offline','/stages/public/offline'].includes(url.pathname)){
