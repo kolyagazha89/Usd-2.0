@@ -40,6 +40,7 @@ function ensureUniqueModel(c:ComponentCatalog,name:string,category:string,brand:
 }
 export function renameComponentBrand(c:ComponentCatalog,id:string,rawName:string):ComponentCatalog {
  const item=ensureBrand(c,id),name=validName(rawName,100);
+ if(item.mergedIntoId)throw new Error('Объединённую марку нельзя переименовать: архивная ссылка нужна для истории.');
  ensureUniqueBrand(c,name,item.category,id);
  return {...c,
   componentBrands:c.componentBrands.map(b=>b.id===id?{...b,name}:b),
@@ -48,6 +49,7 @@ export function renameComponentBrand(c:ComponentCatalog,id:string,rawName:string
 }
 export function editComponentModel(c:ComponentCatalog,id:string,rawName:string,targetBrand:string):ComponentCatalog {
  const item=ensureModel(c,id),name=validName(rawName,160);
+ if(item.mergedIntoId)throw new Error('Объединённую модель нельзя переименовать: архивная ссылка нужна для истории.');
  const brand=c.componentBrands.find(b=>b.category===item.category&&key(b.name)===key(targetBrand));
  if(!brand||brand.isArchived||(brand.isActive===false&&key(brand.name)!==key(item.brand)))throw new Error('Выберите действующую марку.');
  ensureUniqueModel(c,name,item.category,brand.name,id);
