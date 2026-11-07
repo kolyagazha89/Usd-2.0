@@ -16,6 +16,22 @@ describe('brand merge',()=>{
   await expect(service.update({catalogs:{...catalogs,_revision:'stale'}},'admin')).rejects.toMatchObject({status:409});expect(tx.siteSettings.upsert).not.toHaveBeenCalled();expect(tx.auditLog.create).not.toHaveBeenCalled();
   await service.update({catalogs:{recordVisibility:{x:false}}},'admin');expect(tx.siteSettings.upsert.mock.calls[0][0].update.catalogs.componentBrands).toEqual(catalogs.componentBrands);
  });
+ it('rejects deleting or rewriting immutable merged aliases through the generic catalog endpoint',async()=>{
+  const catalogs=planBrandMerge(sample(),{sourceId:'a',targetId:'b',scope:'AMP'}).catalogs;
+  const tx:any={$executeRaw:jest.fn(),siteSettings:{
+   findUnique:jest.fn().mockResolvedValue({catalogs}),
+   upsert:jest.fn(),
+  },auditLog:{create:jest.fn()}};
+  const service=new SiteSettingsService({$transaction:(fn:any)=>fn(tx)} as any);
+  const renamed=structuredClone(catalogs);
+  renamed.componentBrands.find((brand:any)=>brand.id==='a').name='Rewritten alias';
+  await expect(service.update({catalogs:{...renamed,_revision:catalogRevision(catalogs)}},'admin')).rejects.toMatchObject({status:409});
+  const removed=structuredClone(catalogs);
+  removed.componentModels=removed.componentModels.filter((model:any)=>model.id!=='m1');
+  await expect(service.update({catalogs:{...removed,_revision:catalogRevision(catalogs)}},'admin')).rejects.toMatchObject({status:409});
+  expect(tx.siteSettings.upsert).not.toHaveBeenCalled();
+  expect(tx.auditLog.create).not.toHaveBeenCalled();
+ });
  it('restricts preview and merge routes to ADMIN',()=>{expect(Reflect.getMetadata(ROLES_KEY,SiteSettingsController.prototype.previewBrandMerge)).toEqual(['ADMIN']);expect(Reflect.getMetadata(ROLES_KEY,SiteSettingsController.prototype.mergeBrands)).toEqual(['ADMIN'])});
  it('serializes concurrent merges and rejects the stale contender',async()=>{
   let catalogs:any=sample(),tail=Promise.resolve();let writes=0;
