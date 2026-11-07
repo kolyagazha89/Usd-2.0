@@ -10,10 +10,12 @@ const link=(label:string)=>[...nav().querySelectorAll<HTMLAnchorElement>('a')].f
 const click=async(element:HTMLElement)=>{assert.ok(element);await act(async()=>element.click());await flush()};
 function active(label:string){assert.equal(nav().querySelector('[aria-current="page"]')?.textContent,label)}
 export async function runParticipantNavigation(){
+ let profilePatch:any=null;
+ state.__patchAction=async(path:string,body:any)=>{if(path==='/participants/me')profilePatch=body;return {}};
  const stage={id:'stage1',name:'Этап USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'car1',brand:'Lada',model:'Vesta',isActive:true,configurations:[]};
  state.__getPublic=async(path:string)=>{
-  if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',lastName:'Тестовый',city:'Тюмень',phone:'+79001111008'}};
+  if(path==='/participants/me')return {participant:{id:'p1',firstName:'Иван',lastName:'Тестовый',city:'Тюмень',phone:'+79001111008',team:'Synthetic Existing Team'}};
   if(path==='/stages/public')return [stage];
   if(path==='/participants/me/cars')return [car];
   if(path==='/registrations/me')return [{id:'reg1',stageId:stage.id,stage,carId:car.id,car,status:'ACTIVE',classes:[],results:[]},{id:'cancelled1',stageId:stage.id,stage,carId:car.id,car,status:'CANCELLED',classes:[],results:[]}];
@@ -25,7 +27,10 @@ export async function runParticipantNavigation(){
  let root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<App/>));await flush();active('Профиль');assert.equal(document.querySelector('main h1')?.textContent,'Мой профиль');
+  assert.equal([...document.querySelectorAll('label')].some(label=>label.textContent?.startsWith('Команда')),false,'team membership is managed in its dedicated tab, not personal data');
   const saveProfile=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent==='Сохранить профиль');await click(saveProfile!);active('Профиль');assert.match(document.querySelector('[role="status"]')?.textContent??'',/Профиль сохранён/);
+  assert.deepEqual(profilePatch,{firstName:'Иван',lastName:'Тестовый',middleName:null,birthDate:null,city:'Тюмень',phone:'+79001111008',isPublic:true},'personal-data save must not write or clear the existing team');
+  assert.equal(link('Команда').getAttribute('href'),'/participant?tab=team');
   await click(document.querySelector<HTMLInputElement>('.participant-public-toggle input')!);assert.equal(document.querySelector('[role="status"]'),null,'changing profile visibility clears the saved confirmation');
   assert.equal(link('Мои автомобили').getAttribute('href'),'/participant?tab=cars');
   await click(link('Мои автомобили'));assert.equal(location.search,'?tab=cars');active('Мои автомобили');assert.equal(document.querySelector('main h1')?.textContent,'Мои автомобили');

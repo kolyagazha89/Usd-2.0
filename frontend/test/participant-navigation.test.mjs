@@ -15,7 +15,7 @@ test('participant navigation and three-step registration preserve choices and su
     addEventListener:dom.window.addEventListener.bind(dom.window),removeEventListener:dom.window.removeEventListener.bind(dom.window),
     requestAnimationFrame:fn=>setTimeout(fn,0),cancelAnimationFrame:clearTimeout,
     IS_REACT_ACT_ENVIRONMENT:true,
-    __accountUser:{id:'fixture-user',email:'fixture@example.test',role:'PARTICIPANT',participantId:'p1'},__postAction:null,__clearedSessions:0,__getPublic:null,
+    __accountUser:{id:'fixture-user',email:'fixture@example.test',role:'PARTICIPANT',participantId:'p1'},__postAction:null,__patchAction:null,__clearedSessions:0,__getPublic:null,
   };
   const previous=new Map(Object.keys(values).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   try{
@@ -28,6 +28,7 @@ test('participant navigation and three-step registration preserve choices and su
       apiGet:'async path=>globalThis.__getPublic(path)',
       getPublicSiteAsset:'async()=>({})',
       apiPost:'async(path,body)=>globalThis.__postAction(path,body)',
+      apiPatch:'async(path,body)=>globalThis.__patchAction?globalThis.__patchAction(path,body):{}',
       clearAuthSession:'()=>{globalThis.__clearedSessions++;globalThis.__accountUser=null}',
       listData:'value=>Array.isArray(value)?value:[]',
     };

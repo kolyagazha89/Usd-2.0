@@ -798,7 +798,7 @@ export class ParticipantsService {
       );
 
     const validatedBody = { ...body };
-    if (Object.prototype.hasOwnProperty.call(body, 'team')) {
+    if (Object.prototype.hasOwnProperty.call(body, 'team') && body.team !== undefined) {
       validatedBody.team = await this.validateTeam(body.team);
     }
     return this.updateParticipantInternal(
