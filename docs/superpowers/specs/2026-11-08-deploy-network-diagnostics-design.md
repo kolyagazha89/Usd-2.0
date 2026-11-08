@@ -1,0 +1,7 @@
+# Read-only host network diagnostics
+
+Evidence: mainbf8bdbe2 has green CI and publisher-verified signatures for both image digests, but root deploy42414500800 timed out with alternating SOURCE_UNAVAILABLE/SIGNATURES_PENDING. Both public releases still40e1f708. Public triage only established equal schemas; it did not read the host journal or prove a host cause.
+
+Add a bounded diagnostic on the already approved unprivileged home runner. Fixed HTTPS/Git probes cover GitHub source, GHCR and Sigstore trust services; read the sanitized installed attempt status and checksum of pinned cosign. Never read private caches, environment files, credentials or raw subprocess errors. Report only predefined result codes, HTTP status, validated SHA and public attempt fields. Each subprocess times out; fixed targets, no user-controlled command/URL arguments.
+
+Workflow runs only reviewed main on relevant push/manual dispatch or failed trusted deploy workflow. permissions:{}; no checkout/actions, secrets, sudo, Docker, systemctl mutation or root-helper changes. A probe result is runner-network evidence, not proof of root-service environment, signature validity or a successful deployment. Existing source/signature/CI/schema/backup/rollback gates remain unchanged. Tests verify redaction, bounded commands, target allowlist, status projection and exact inline workflow parity. Independent review before main.
