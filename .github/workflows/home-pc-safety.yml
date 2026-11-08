@@ -14,6 +14,7 @@ on:
       - 'frontend/**'
       - '.github/workflows/home-pc-safety.yml'
       - '.github/workflows/request-home-pc-deploy.yml'
+      - '.github/workflows/diagnose-home-pc-network.yml'
       - '.github/workflows/publish-home-pc-images.yml'
   workflow_dispatch:
 
@@ -35,6 +36,7 @@ jobs:
           sudo python3 deploy/home-pc/test-reviewed-recovery.py -v
           python3 deploy/home-pc/test-deploy-status.py -v
           python3 deploy/home-pc/test-request-deploy.py -v
+          python3 deploy/home-pc/test-diagnose-host-network.py -v
           # Exercise real root ownership and unprivileged write refusal too.
           sudo env PYTHONDONTWRITEBYTECODE=1 python3 deploy/home-pc/test-deploy-status.py -v
           python3 -m py_compile deploy/home-pc/safe-schema-migration.py
@@ -228,6 +230,7 @@ jobs:
           assert 'NOPASSWD: /usr/bin/systemctl start usd-auto-deploy.service' in installer
           PY
           python3 deploy/home-pc/test-request-deploy.py -v
+          python3 deploy/home-pc/test-diagnose-host-network.py -v
           python3 deploy/home-pc/test-deploy-status.py -v
           if sudo bash deploy/home-pc/install-runner-trigger.sh root >/tmp/usd-runner-refusal.log 2>&1; then
             echo 'Installer accepted root as a runner account' >&2
