@@ -14,8 +14,8 @@ test('iPhone public dock is fixed to the bottom without JS scroll offsets',async
  assert.match(shell,/<\/nav>,document\.body\)/);
  assert.match(base,/\.u-mobile-dock\{position:fixed/);
  assert.match(css,/body>\.u-mobile-dock\{/);
- assert.match(css,/top:calc\(100dvh - 66px - env\(safe-area-inset-bottom/);
- assert.doesNotMatch(css,/top:calc\\(100dvh - 66px/);
+ assert.match(css,/bottom:0!important/);
+ assert.doesNotMatch(css,/top:calc\(100dvh - 66px/);
  assert.doesNotMatch(shell,/visualViewport/);
  assert.doesNotMatch(shell,/usd-dock-visual-top/);
  assert.match(css,/env\(safe-area-inset-bottom/);
@@ -24,8 +24,8 @@ test('iPhone public dock is fixed to the bottom without JS scroll offsets',async
  assert.match(premium,/body:has\(\.usd-live\):has\(> \.u-mobile-dock\) \{ --usd-dock-height:calc\(66px/,'body must expose the dock height to the cookie notice');
  const notice=await source('../src/CookieNotice.tsx');
  assert.match(notice,/body:has\(> \.u-mobile-dock\) \.cookie-notice/);
- assert.match(notice,/top: max\(12px, calc\(100dvh/);
- assert.match(notice,/bottom: calc\\(var\\(--usd-dock-height, 79px\\) \\+ 12px\\) !important/);
+ assert.match(notice,/body:has\(> \.participant-tabs\) \.cookie-notice/);
+ assert.match(notice,/bottom: calc\(var\(--usd-dock-height, 79px\) \+ 12px\) !important/);
 });
 test('admin forms use flat search input and accessible mobile selector layout',async()=>{
  const styles=await source('../src/styles.css');
