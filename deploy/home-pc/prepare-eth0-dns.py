@@ -24,7 +24,7 @@ def render_overlay(interface: str, resolver: str) -> str:
         raise ValueError("Resolver must be one valid public IPv4 address")
     return (
         "# USD: review the existing Netplan ID/renderer before installation.\n"
-        "# No addresses, routes, gateways or DHCP leases are changed by this overlay.\n"
+        "# This overlay does not configure addresses, routes, gateways or DHCP enablement.\n"
         "network:\n"
         "  version: 2\n"
         "  ethernets:\n"
