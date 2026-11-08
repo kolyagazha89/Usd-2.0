@@ -14,6 +14,8 @@ test('admin email templates show a separate, paginated provider-acceptance journ
  assert.match(panel,/nextCursor/);
  assert.match(panel,/Показать ещё/);
  assert.match(panel,/PROVIDER_ACCEPTED/);
+ assert.match(panel,/Array\.isArray\(data\?\.entries\)/);
+ assert.match(panel,/неверный ответ API/);
  assert.match(panel,/Не подтверждает доставку/);
  assert.match(panel,/role="alert"/);
  assert.doesNotMatch(panel,/lastError|message\.html|message\.text|rawToken/);
