@@ -458,7 +458,7 @@ body .app-shell .main .car-name-button:hover { color:var(--ui-accent-text); }
 /* Shared mobile chrome sizes; reserve the notice's actual wrapped height. */
 body { --usd-dock-height:env(safe-area-inset-bottom,0px); }
 @media(max-width:760px){
- body:has(.usd-member .participant-tabs) { --usd-dock-height:calc(79px + env(safe-area-inset-bottom)); }
+ body:has(> .participant-tabs) { --usd-dock-height:calc(79px + env(safe-area-inset-bottom)); }
 }
 @media(max-width:740px){
  body:has(.usd-live):has(> .u-mobile-dock) { --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px)); }

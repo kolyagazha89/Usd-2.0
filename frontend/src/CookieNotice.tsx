@@ -88,14 +88,14 @@ export default function CookieNotice() {
           -webkit-backdrop-filter: blur(16px);
         }
         body:has(.cookie-notice) .cookie-notice { bottom: calc(var(--usd-dock-height, 0px) + 12px) !important; }
-        /* The public iOS dock is positioned from 100dvh via top, NOT bottom.
-           The cookie dialog must use the same coordinate system, or it can
-           overlap the dock when Safari collapses/expands its address bar. */
-        @media (max-width: 740px) {
-          body:has(> .u-mobile-dock) .cookie-notice {
-            top: max(12px, calc(100dvh - var(--usd-dock-height, 66px) - var(--usd-cookie-height, 180px) - 12px)) !important;
-            bottom: auto !important;
-            max-height: calc(100dvh - var(--usd-dock-height, 66px) - 24px);
+        /* Both mobile docks are bottom-fixed, so the cookie panel uses the
+           same viewport edge rather than a drifting 100dvh top offset. */
+        @media (max-width: 760px) {
+          body:has(> .u-mobile-dock) .cookie-notice,
+          body:has(> .participant-tabs) .cookie-notice {
+            top: auto !important;
+            bottom: calc(var(--usd-dock-height, 79px) + 12px) !important;
+            max-height: calc(100dvh - var(--usd-dock-height, 79px) - 24px);
             overflow-y: auto;
           }
         }
