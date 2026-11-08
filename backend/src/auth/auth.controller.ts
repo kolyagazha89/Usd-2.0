@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpException,
   Param,
   Patch,
   Post,
@@ -123,26 +122,22 @@ export class AuthController {
 
   @Public()
   @Get('verify-email')
-  async verifyEmailFromLink(
+  verifyEmailFromLink(
     @Query('token') token: string,
     @Res() response: Response,
   ) {
-    const frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
-
-    try {
-      await this.authService.verifyEmail(token);
-      return response.redirect(302, `${frontendUrl}/verify-email?status=success`);
-    } catch (error) {
-      const payload = error instanceof HttpException ? error.getResponse() : null;
-      const detail = typeof payload === 'string'
-        ? payload
-        : payload && typeof payload === 'object' && 'message' in payload
-          ? (payload as { message?: string | string[] }).message
-          : error instanceof Error ? error.message : '';
-      const message = Array.isArray(detail) ? detail.join(' ') : String(detail ?? '');
-      const status = /ист[её]к/i.test(message) ? 'expired' : 'error';
-      return response.redirect(302, `${frontendUrl}/verify-email?status=${status}`);
+    // Security crawlers may fetch GET links from mail without a user's
+    // consent. A GET must never mark the email as verified or spend a token.
+    // Preserve old API mail links by redirecting to a manual confirmation
+    // page. The fragment is not sent with subsequent HTTP requests.
+    const frontendUrl = (process.env.FRONTEND_URL ?? 'https://app.usd-russia.ru').replace(/\/+$/, '');
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+      return response.redirect(302, `${frontendUrl}/verify-email?status=error`);
     }
+    return response.redirect(302, `${frontendUrl}/verify-email#token=${encodeURIComponent(token)}`);
   }
 
   @Public()

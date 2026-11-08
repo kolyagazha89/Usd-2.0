@@ -4119,3 +4119,10 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
 @media(max-width:600px){.app-shell .mail-channel-status{padding:13px}
  .app-shell .mail-channel-status>div:first-child{align-items:flex-start}
 }
+
+/* Verification recovery stays readable within the existing auth card. */
+.verification-resend{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);text-align:left}
+.verification-resend h2{font-size:18px;margin:0 0 12px}
+.verification-resend p{line-height:1.5;margin:12px 0;overflow-wrap:anywhere}
+.verification-resend-address{font-weight:700}
+.verification-resend button{width:100%;white-space:normal}

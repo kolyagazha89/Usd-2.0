@@ -38,11 +38,32 @@ describe('AuthService explicit consents', () => {
     await service.register('driver@example.com', 'strong-password-123', true, true, false);
     const data = prisma.user.create.mock.calls[0][0].data;
     expect(data.privacyConsentAt).toBeInstanceOf(Date);
+    expect(data.lastVerificationResendAt).toBeInstanceOf(Date);
     expect(data.privacyConsentVersion).toBe('privacy-v1');
     expect(data.termsAcceptedAt).toBeInstanceOf(Date);
     expect(data.termsVersion).toBe('terms-v1');
     expect(data).not.toHaveProperty('newsletterConsentAt');
     expect(data).not.toHaveProperty('newsletterConsentVersion');
+  });
+
+  it('creates the pending account and verification token as one atomic Prisma write', async () => {
+    await service.register('driver@example.com', 'strong-password-123', true, true, false);
+    const createArgs = prisma.user.create.mock.calls[0][0];
+    expect(createArgs.data.emailVerificationTokens).toEqual({
+      create: {
+        tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        expiresAt: expect.any(Date),
+      },
+    });
+    expect(prisma.emailVerificationToken.create).not.toHaveBeenCalled();
+    expect(mail.sendVerificationEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not send SMTP or report signup success when account/token insertion fails atomically', async () => {
+    prisma.user.create.mockRejectedValueOnce(new Error('synthetic token insert failure'));
+    await expect(service.register('driver@example.com', 'strong-password-123', true, true, false)).rejects.toThrow('synthetic token insert failure');
+    expect(prisma.emailVerificationToken.create).not.toHaveBeenCalled();
+    expect(mail.sendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it('records newsletter consent only when the user explicitly opts in', async () => {

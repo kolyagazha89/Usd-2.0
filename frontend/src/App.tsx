@@ -1,3 +1,4 @@
+import VerificationResend from './VerificationResend';
 import {PushPreferences} from './push/PushPreferences';
 import ParticipantAccountSecurity from './ParticipantAccountSecurity';
 import {lazy,Suspense,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
@@ -119,7 +120,7 @@ function App(){
  if(booting&&/^\/(?:admin|participant|login)(?:\/|\?|$)/.test(path))return <Splash/>;
  const accountAction=path.split('?')[0];
  if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
- if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage key={path+location.hash} onGoLogin={()=>go('/login')}/>;
  // The offline desk is protected by its own passphrase, not by a stale JWT.
  // It must render even when auth/refresh cannot reach the central API.
  if(path.split('?')[0]==='/offline-event')return <OfflineEventPage onGoOnline={target=>go(target??'/admin/event-day')}/>;
@@ -131,54 +132,60 @@ function App(){
  return <AdminShell user={user} path={path} go={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={async()=>{await logout();setUser(null);go('/')}} PageContent={PageContent} roleName={roleName} cacheBrandLogo={cacheBrandLogo}/>;
 }
 function Splash({fixedLogo=false}:{fixedLogo?:boolean}={}){const[logo,setLogo]=useState('');useEffect(()=>{if(fixedLogo)return;let active=true;const load=async()=>{const splash=await getPublicSiteAsset('branding-splashLogoUrl').catch(()=>null);const main=splash?.url?null:await getPublicSiteAsset('branding-logoUrl').catch(()=>null);const url=splash?.url||main?.url;if(url)loadBrandLogo(url,u=>{if(active)setLogo(u)})};void load();return()=>{active=false}},[fixedLogo]);return <div className="splash"><div className="splash-brand">{(logo||fixedLogo)?<img src={logo||'/usd/usd-original.png'} alt="USD" decoding="async"/>:<div className="brand-mark">USD</div>}</div><div className="loader"/></div>}function LoginScreen({onLogin}:{onLogin:(e:string,p:string)=>Promise<void>}){
- const[logo,setLogo]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false),[mode,setMode]=useState<'login'|'register'>('login'),[forgotMode,setForgotMode]=useState(false);const[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false),[newsletterOptIn,setNewsletterOptIn]=useState(false);const[legalReady,setLegalReady]=useState(false),[legalLoading,setLegalLoading]=useState(true);
+ const[logo,setLogo]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false),[mode,setMode]=useState<'login'|'register'>('login'),[forgotMode,setForgotMode]=useState(false);const[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false),[newsletterOptIn,setNewsletterOptIn]=useState(false);const[legalReady,setLegalReady]=useState(false),[legalLoading,setLegalLoading]=useState(true);const[verificationEmail,setVerificationEmail]=useState<string|null>(null),[showVerification,setShowVerification]=useState(false);
  useEffect(()=>{getPublicSiteAsset('branding-logoUrl').then(r=>setLogo(r.url)).catch(()=>{});apiGet<any>('/site-settings/public').then(r=>{const legal=r?.settings?.legal??{};setLegalReady(legal.legalApproved===true&&Boolean(String(legal.ipName??'').trim())&&Boolean(String(legal.privacyText??'').trim())&&Boolean(String(legal.consentText??'').trim())&&Boolean(String(legal.termsText??'').trim()))}).catch(()=>setLegalReady(false)).finally(()=>setLegalLoading(false))},[]);
  const [continuationStage,setContinuationStage]=useState<any>(null);
  const nextRegistration=new URLSearchParams(location.search).get('next')??'';
  const continuationStageId=/^\/participant\/register(?:\?|$)/.test(nextRegistration)?new URLSearchParams(nextRegistration.split('?')[1]??'').get('stageId'):null;
  useEffect(()=>{let active=true;setContinuationStage(null);if(continuationStageId)apiGet<any>('/stages/public/'+encodeURIComponent(continuationStageId)).then(r=>{if(active)setContinuationStage(r?.data??r?.stage??r)}).catch(()=>{});return()=>{active=false}},[continuationStageId]);
- const submit=async(e:React.FormEvent)=>{e.preventDefault();setError('');setNotice('');if(forgotMode){setLoading(true);try{const r=await apiPost<any>('/auth/forgot-password',{email});setNotice(r?.message||'Если адрес привязан к подтверждённому аккаунту USD, мы попробуем отправить ссылку восстановления. Проверьте «Входящие» и «Спам».')}catch(x){setError(x instanceof Error?x.message:'Не удалось запросить сброс пароля')}finally{setLoading(false)}return}if(mode==='register'&&password!==confirmPassword){setError('Пароли не совпадают');return}if(mode==='register'&&!legalReady){setError('Регистрация временно недоступна: организатор USD ещё не утвердил юридические документы');return}if(mode==='register'&&!privacyConsent){setError('Подтвердите согласие на обработку персональных данных');return}if(mode==='register'&&!termsAccepted){setError('Примите пользовательское соглашение');return}if(mode==='register'&&password.length<8){setError('Пароль должен содержать минимум 8 символов');return}setLoading(true);try{if(mode==='register'){const r=await apiPost<any>('/auth/register',{email,password,privacyConsent,termsAccepted,newsletterOptIn});setPassword('');setConfirmPassword('');setMode('login');if(r?.emailSent===false){setError(r?.message||'Аккаунт создан, но письмо подтверждения не отправилось.');return}setNotice(r?.message||'Аккаунт создан! Проверьте почту и папку «Спам», чтобы подтвердить email.')}else await onLogin(email,password)}catch(x){setError(x instanceof Error?x.message:'Не удалось выполнить запрос')}finally{setLoading(false)}};
+ const submit=async(e:React.FormEvent)=>{e.preventDefault();setError('');setNotice('');if(forgotMode){setLoading(true);try{const r=await apiPost<any>('/auth/forgot-password',{email});setNotice(r?.message||'Если адрес привязан к подтверждённому аккаунту USD, мы попробуем отправить ссылку восстановления. Проверьте «Входящие» и «Спам».')}catch(x){setError(x instanceof Error?x.message:'Не удалось запросить сброс пароля')}finally{setLoading(false)}return}if(mode==='register'&&password!==confirmPassword){setError('Пароли не совпадают');return}if(mode==='register'&&!legalReady){setError('Регистрация временно недоступна: организатор USD ещё не утвердил юридические документы');return}if(mode==='register'&&!privacyConsent){setError('Подтвердите согласие на обработку персональных данных');return}if(mode==='register'&&!termsAccepted){setError('Примите пользовательское соглашение');return}if(mode==='register'&&password.length<8){setError('Пароль должен содержать минимум 8 символов');return}setLoading(true);try{if(mode==='register'){const r=await apiPost<any>('/auth/register',{email,password,privacyConsent,termsAccepted,newsletterOptIn});setPassword('');setConfirmPassword('');setMode('login');setVerificationEmail(email.trim().toLowerCase());setShowVerification(true);if(r?.emailSent===false){setError(r?.message||'Аккаунт создан, но письмо подтверждения не отправилось.');return}setNotice(r?.message||'Аккаунт создан! Проверьте почту и папку «Спам», чтобы подтвердить email.')}else await onLogin(email,password)}catch(x){setError(x instanceof Error?x.message:'Не удалось выполнить запрос')}finally{setLoading(false)}};
  return <div className="login-page usd-auth"><div className="login-grid"/><aside className="usd-auth-story"><a href="/" className="usd-auth-story-brand" aria-label="Главная USD"><img src="/usd/usd-original.png" alt="USD" width="84" height="76"/><span>ULTIMATE SOUND DESTRUCTION</span></a><div className="usd-auth-story-copy"><span className="usd-auth-eyebrow">CAR AUDIO · COMMUNITY · COMPETITION</span><h2>Звук, который<br/><em>объединяет.</em></h2><p>Ваш автомобиль. Ваша конфигурация. Ваши результаты и история выступлений — всё в одном пространстве USD.</p><div className="usd-auth-story-lines" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div></div><span className="usd-auth-story-foot">USD / PERSONAL SPACE <strong>2026</strong></span></aside><div className="login-card"><div className="brand-lockup">{logo?<img className="brand-logo-login" src={logo} alt="USD"/>:<div className="brand-mark">USD</div>}</div><h1>{forgotMode?'Восстановление пароля':mode==='login'?'С возвращением':'Создать аккаунт'}</h1><p className="muted">{forgotMode?'Укажите email подтверждённого аккаунта USD. Если адрес найден, мы попробуем отправить ссылку для восстановления доступа.':mode==='login'?'Войдите, чтобы управлять автомобилями, заявками и результатами.':'Создайте аккаунт участника. Для входа подтвердите email по ссылке из письма.'}</p>{continuationStageId&&<div className="usd-auth-context" role="status"><small>РЕГИСТРАЦИЯ НА ЭТАП</small><strong>{continuationStage?.name||'Выбранный этап USD'}</strong><p>После входа вы вернётесь к заявке. Выберите автомобиль, классы и подтвердите участие.</p></div>}<form className="form" onSubmit={submit}><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" required/></label>{!forgotMode&&<label>Пароль<input value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength={mode==='register'?8:undefined} aria-describedby={mode==='register'?'signup-password-hint':undefined} required/>{mode==='register'&&<small id="signup-password-hint">Не менее 8 символов.</small>}</label>}{!forgotMode&&mode==='register'&&<label>Повторите пароль<input value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} type="password" autoComplete="new-password" minLength={8} required/></label>}{!forgotMode&&mode==='register'&&!legalLoading&&!legalReady&&<div className="form-error" role="alert"><AlertTriangle size={16}/>Регистрация временно недоступна: юридические документы находятся на согласовании. Черновики нельзя считать утверждёнными.</div>}{!forgotMode&&mode==='register'&&<div className="consent-stack">
  <label className="consent-option"><input type="checkbox" checked={privacyConsent} onChange={e=>setPrivacyConsent(e.target.checked)} required/><span>Я даю согласие на обработку персональных данных и ознакомился(лась) с <a href="/privacy" target="_blank" rel="noreferrer">политикой обработки данных</a> и <a href="/consent" target="_blank" rel="noreferrer">текстом согласия</a>.</span></label>
  <label className="consent-option"><input type="checkbox" checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} required/><span>Я принимаю <a href="/terms" target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span></label>
  <label className="consent-option"><input type="checkbox" checked={newsletterOptIn} onChange={e=>setNewsletterOptIn(e.target.checked)}/><span>Хочу получать новости USD и уведомления об открытии регистрации на этапы. Согласие добровольное, его можно отозвать.</span></label>
- </div>}{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}{notice&&<div className={forgotMode?"notice auth-recovery-notice":"notice"}>{forgotMode?<Info size={16}/>:<CheckCircle2 size={16}/>}<span>{notice}</span></div>}<button className="primary-button" disabled={loading||(!forgotMode&&mode==='register'&&(legalLoading||!legalReady))}>{loading?(forgotMode?'Отправляем…':mode==='login'?'Входим…':'Создаём аккаунт…'):(forgotMode?'Запросить ссылку':mode==='login'?'Войти':'Зарегистрироваться')}<ChevronRight size={18}/></button></form>{forgotMode?<button type="button" className="text-button login-mode-toggle" onClick={()=>{setForgotMode(false);setError('');setNotice('')}}>← Вернуться ко входу</button>:<>{mode==='login'&&<button type="button" className="text-button login-mode-toggle" onClick={()=>{setForgotMode(true);setError('');setNotice('')}}>Забыли пароль?</button>}<button type="button" className="text-button login-mode-toggle" onClick={()=>{setMode(mode==='login'?'register':'login');setError('');setNotice('')}}>{mode==='login'?'Нет аккаунта? Зарегистрироваться':'Уже есть аккаунт? Войти'}</button></>}<div className="login-footer"><span>{logo?<img className="brand-logo-footer" src={logo} alt="USD"/>:<strong>USD</strong>}</span><span>Защищённый вход</span></div></div></div>;
+ </div>}{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}{notice&&<div className={forgotMode?"notice auth-recovery-notice":"notice"}>{forgotMode?<Info size={16}/>:<CheckCircle2 size={16}/>}<span>{notice}</span></div>}<button className="primary-button" disabled={loading||(!forgotMode&&mode==='register'&&(legalLoading||!legalReady))}>{loading?(forgotMode?'Отправляем…':mode==='login'?'Входим…':'Создаём аккаунт…'):(forgotMode?'Запросить ссылку':mode==='login'?'Войти':'Зарегистрироваться')}<ChevronRight size={18}/></button></form>{showVerification&&!forgotMode&&mode==='login'&&<VerificationResend key={verificationEmail??'recovery'} registeredEmail={verificationEmail??undefined}/>} {forgotMode?<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setForgotMode(false);setError('');setNotice('')}}>← Вернуться ко входу</button>:<>{mode==='login'&&<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setForgotMode(true);setShowVerification(false);setError('');setNotice('')}}>Забыли пароль?</button>}{mode==='login'&&!showVerification&&<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setVerificationEmail(null);setShowVerification(true)}}>Не пришло письмо подтверждения?</button>}<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setMode(mode==='login'?'register':'login');setShowVerification(false);setError('');setNotice('')}}>{mode==='login'?'Нет аккаунта? Зарегистрироваться':'Уже есть аккаунт? Войти'}</button></>}<div className="login-footer"><span>{logo?<img className="brand-logo-footer" src={logo} alt="USD"/>:<strong>USD</strong>}</span><span>Защищённый вход</span></div></div></div>;
 }
 function EmailVerificationPage({onGoLogin}:{onGoLogin:()=>void}){
- const[status,setStatus]=useState<'loading'|'success'|'error'>('loading'),[message,setMessage]=useState('Подтверждаем email…');
- useEffect(()=>{
-  let active=true;
-  const params=new URLSearchParams(location.search);
-  const linkStatus=params.get('status');
-  const token=params.get('token');
-  if(linkStatus==='success'){
-   setStatus('success');
-   setMessage('Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.');
-   return()=>{active=false};
-  }
-  if(linkStatus==='expired'){
-   setStatus('error');
-   setMessage('Срок действия ссылки истёк. Вернитесь ко входу и запросите новое письмо подтверждения.');
-   return()=>{active=false};
-  }
-  if(linkStatus==='error'){
-   setStatus('error');
-   setMessage('Ссылка недействительна или подтверждение не удалось выполнить. Запросите новое письмо и попробуйте ещё раз.');
-   return()=>{active=false};
-  }
-  if(!token){
-   setStatus('error');
-   setMessage('В ссылке отсутствует токен подтверждения. Запросите новое письмо и откройте ссылку из него.');
-   return()=>{active=false};
-  }
-  apiPost<any>('/auth/verify-email',{token}).then(r=>{
-   if(active){setStatus('success');setMessage(r?.message||'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.')}
-  }).catch(e=>{
-   if(active){setStatus('error');setMessage(e instanceof Error?e.message:'Не удалось подтвердить почту. Запросите новое письмо или попробуйте ещё раз.')}
-  });
-  return()=>{active=false};
- },[]);
- return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div><div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div><h1>{status==='loading'?'Проверяем ссылку':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1><p className="muted">{message}</p>{status==='loading'&&<div className="participant-loading"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}{status!=='loading'&&<button className="primary-button" onClick={onGoLogin}>{status==='success'?'Войти':'Вернуться ко входу'}<ChevronRight size={18}/></button>}</div></div>;
+ // Mail scanners and link-preview bots can load GET pages: never verify on
+ // mount. The signed secret is only submitted after a deliberate user click.
+ const [link]=useState(()=>{
+  const query=new URLSearchParams(location.search);
+  const fragment=new URLSearchParams(location.hash.replace(/^#/,''));
+  return {token:fragment.get('token')??query.get('token')??'',status:query.get('status')};
+ });
+ const [status,setStatus]=useState<'ready'|'confirming'|'success'|'error'>(()=>{
+  if(link.status==='success')return 'success';
+  if(link.status==='error'||link.status==='expired')return 'error';
+  return /^[a-f0-9]{64}$/i.test(link.token)?'ready':'error';
+ });
+ const [message,setMessage]=useState(()=>{
+  if(link.status==='success')return 'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.';
+  if(link.status==='expired')return 'Срок действия ссылки истёк. Вернитесь ко входу и запросите новое письмо подтверждения.';
+  if(link.status==='error'||!/^[a-f0-9]{64}$/i.test(link.token))return 'Ссылка недействительна. Запросите новое письмо подтверждения.';
+  return 'Проверьте адрес сайта и нажмите кнопку ниже, чтобы подтвердить владение email. Простое открытие ссылки ничего не меняет.';
+ });
+ const inFlight=useRef(false),mounted=useRef(true);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[]);
+ const confirm=async()=>{
+  if(status!=='ready'||inFlight.current)return;
+  inFlight.current=true;setStatus('confirming');
+  try{
+   const result=await apiPost<{message?:string}>('/auth/verify-email',{token:link.token});
+   if(mounted.current){setStatus('success');setMessage(result?.message||'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.')}
+  }catch(error){
+   if(mounted.current){setStatus('error');setMessage(error instanceof Error?error.message:'Не удалось подтвердить почту. Запросите новое письмо и повторите попытку.')}
+  }finally{inFlight.current=false}
+ };
+ return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card">
+  <div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div>
+  <div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div>
+  <h1>{status==='ready'?'Подтвердите email':status==='confirming'?'Подтверждаем email…':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1>
+  <p className="muted">{message}</p>
+  {status==='ready'&&<button type="button" className="primary-button" onClick={()=>void confirm()}>Подтвердить email<ChevronRight size={18}/></button>}
+  {status==='confirming'&&<div className="participant-loading" role="status"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}
+  {status==='success'&&<button type="button" className="primary-button" onClick={onGoLogin}>Войти<ChevronRight size={18}/></button>}
+  {status==='error'&&<button type="button" className="primary-button" onClick={onGoLogin}>Вернуться ко входу<ChevronRight size={18}/></button>}
+ </div></div>;
 }
 function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|null}){
  useEffect(()=>{

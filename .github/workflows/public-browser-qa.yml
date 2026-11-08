@@ -58,6 +58,8 @@ jobs:
         run: node scripts/rules-browser-qa.mjs
       - name: Verify team directories, roster filters and explicit application journey
         run: node scripts/team-management-browser-qa.mjs
+      - name: Verify signup email recovery and resend cooldown across screen sizes
+        run: node scripts/verification-resend-browser-qa.mjs
       - name: Save candidate screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,6 +72,7 @@ jobs:
             partner-image-browser-qa/
             rules-browser-qa/
             team-management-browser-qa/
+            verification-resend-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested

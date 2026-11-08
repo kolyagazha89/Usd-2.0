@@ -1,17 +1,22 @@
 import { jest } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 
 describe('AuthController email verification link', () => {
   const originalFrontendUrl = process.env.FRONTEND_URL;
   let authService: { verifyEmail: jest.Mock<(token: string) => Promise<unknown>> };
   let controller: AuthController;
-  let response: { redirect: jest.Mock<(status: number, url: string) => unknown> };
+  let response: {
+    redirect: jest.Mock<(status: number, url: string) => unknown>;
+    setHeader: jest.Mock<(name: string, value: string) => unknown>;
+  };
 
   beforeEach(() => {
-    process.env.FRONTEND_URL = 'https://usd-russia.ru/';
+    process.env.FRONTEND_URL = 'https://app.usd-russia.ru/';
     authService = { verifyEmail: jest.fn<(token: string) => Promise<unknown>>() };
-    response = { redirect: jest.fn<(status: number, url: string) => unknown>() };
+    response = {
+      redirect: jest.fn<(status: number, url: string) => unknown>(),
+      setHeader: jest.fn<(name: string, value: string) => unknown>(),
+    };
     controller = new AuthController(authService as never);
   });
 
@@ -20,28 +25,35 @@ describe('AuthController email verification link', () => {
     else process.env.FRONTEND_URL = originalFrontendUrl;
   });
 
-  it('confirms the token and redirects to the success page', async () => {
-    authService.verifyEmail.mockResolvedValue({ success: true, message: 'Email успешно подтверждён' });
-
-    await controller.verifyEmailFromLink('valid-token', response as never);
-
-    expect(authService.verifyEmail).toHaveBeenCalledWith('valid-token');
-    expect(response.redirect).toHaveBeenCalledWith(302, 'https://usd-russia.ru/verify-email?status=success');
+  it('GET only forwards a valid link to the explicit-confirmation page, without consuming it', async () => {
+    const token = 'a'.repeat(64);
+    await controller.verifyEmailFromLink(token, response as never);
+    expect(authService.verifyEmail).not.toHaveBeenCalled();
+    expect(response.redirect).toHaveBeenCalledWith(302, 'https://app.usd-russia.ru/verify-email#token=' + token);
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+    expect(response.setHeader).toHaveBeenCalledWith('Referrer-Policy', 'no-referrer');
   });
 
-  it('redirects expired tokens to an explanatory page state', async () => {
-    authService.verifyEmail.mockRejectedValue(new BadRequestException('Срок действия токена подтверждения истёк'));
-
-    await controller.verifyEmailFromLink('expired-token', response as never);
-
-    expect(response.redirect).toHaveBeenCalledWith(302, 'https://usd-russia.ru/verify-email?status=expired');
+  it('does not consume expired-but-well-formed links on GET, leaving validity checks to explicit POST', async () => {
+    const token='b'.repeat(64);
+    await controller.verifyEmailFromLink(token,response as never);
+    expect(authService.verifyEmail).not.toHaveBeenCalled();
+    expect(response.redirect).toHaveBeenCalledWith(302,'https://app.usd-russia.ru/verify-email#token='+token);
   });
 
-  it('does not report success for invalid tokens', async () => {
-    authService.verifyEmail.mockRejectedValue(new BadRequestException('Недействительный токен подтверждения'));
+  it.each(['', 'not-a-token', 'a'.repeat(5000), '\r\nX-Foo: injected', ['a'.repeat(64)] as unknown as string])(
+    'rejects malformed GET tokens without a database read or token-bearing redirect (%j)',
+    async token => {
+      await controller.verifyEmailFromLink(token,response as never);
+      expect(authService.verifyEmail).not.toHaveBeenCalled();
+      expect(response.redirect).toHaveBeenCalledWith(302,'https://app.usd-russia.ru/verify-email?status=error');
+    },
+  );
 
-    await controller.verifyEmailFromLink('invalid-token', response as never);
-
-    expect(response.redirect).toHaveBeenCalledWith(302, 'https://usd-russia.ru/verify-email?status=error');
+  it('only the explicit POST endpoint consumes a submitted verification token', async () => {
+    const token='c'.repeat(64);
+    authService.verifyEmail.mockResolvedValue({success:true});
+    await expect(controller.verifyEmail({token} as never)).resolves.toEqual({success:true});
+    expect(authService.verifyEmail).toHaveBeenCalledWith(token);
   });
 });
