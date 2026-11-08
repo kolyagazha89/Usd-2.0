@@ -38,6 +38,10 @@ class InstallCiCosignTests(unittest.TestCase):
             'pathlib.Path(args[args.index("-o")+1]).write_bytes(pathlib.Path(os.environ["USD_TEST_BINARY"]).read_bytes())\n'
         )
         self.fake_curl.chmod(0o755)
+        # No unit test may accidentally pull a real image when the CDN is down.
+        fake_docker = self.bin / 'docker'
+        fake_docker.write_text('#!/bin/sh\nexit 42\n')
+        fake_docker.chmod(0o755)
 
     def run_installer(self, *, replace_hash=True, fixture=None, extra_env=None):
         source = SCRIPT.read_text()
