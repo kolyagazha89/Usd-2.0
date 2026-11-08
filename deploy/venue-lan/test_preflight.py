@@ -10,7 +10,7 @@ def fixture():
         "VENUE_DB_NAME": "usd_venue",
         "VENUE_DB_USER": "usd_venue",
         "VENUE_DB_PASSWORD": "a secure private password",
-        "VENUE_DATABASE_URL": "postgresql://usd_venue:encoded@db:5432/usd_venue?schema=public",
+        "VENUE_DATABASE_URL": "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?schema=public",
         "VENUE_JWT_SECRET": "j" * 64,
         "VENUE_S3_ROOT_ACCESS": "root-venue",
         "VENUE_S3_ROOT_SECRET": "root-only-secret",
@@ -47,6 +47,32 @@ class VenuePreflightTests(unittest.TestCase):
         env["VENUE_S3_APP_ACCESS"] = env["VENUE_S3_ROOT_ACCESS"]
         with self.assertRaises(ValueError):
             validate(env)
+    def test_local_database_url_must_match_separate_venue_database_and_password(self):
+        for dsn in (
+            "postgresql://usd_venue:wrong@db:5432/usd_venue?schema=public",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_prod?schema=public",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/postgres?schema=public",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?schema=private",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?schema=public&host=production.example",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?hostaddr=10.0.0.1",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?schema=public&schema=other",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue#fragment",
+            "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?service=production",
+        ):
+            with self.subTest(dsn=dsn.split('@')[-1]):
+                env = fixture()
+                env["VENUE_DATABASE_URL"] = dsn
+                with self.assertRaises(ValueError):
+                    validate(env)
+
+    def test_venue_database_name_is_simple_nonproduction_identifier(self):
+        for name in ("usd", "postgres", "template1", "usd;DROP DATABASE usd", "", "prod_usd"):
+            with self.subTest(name=name):
+                env=fixture()
+                env["VENUE_DB_NAME"]=name
+                with self.assertRaises(ValueError):
+                    validate(env)
+
     def test_no_production_service_secrets(self):
         env = fixture()
         env["API_PUBLIC_URL"] = "https://api.usd-russia.ru"
