@@ -36,6 +36,20 @@ suite('verification resend on disposable PostgreSQL18',()=>{
    await db.user.deleteMany({where:{email}});
   }
  });
+ it('keeps an older password reset link usable after a subsequent SMTP outage on PostgreSQL18',async()=>{
+  const user=await createUser();
+  await db.user.update({where:{id:user.id},data:{emailVerifiedAt:new Date()}});
+  const oldRaw='synthetic-prior-password-reset-link';
+  const hash=createHash('sha256').update(oldRaw).digest('hex');
+  const previous=await db.passwordResetToken.create({data:{
+   userId:user.id,tokenHash:hash,expiresAt:new Date(Date.now()+20*60_000),
+  }});
+  const auth=new AuthService(db,{} as any,{sendPasswordResetEmail:async()=>{throw Error('synthetic SMTP outage')}} as any);
+  await expect(auth.requestPasswordReset(user.email)).resolves.toMatchObject({success:true});
+  expect(await db.passwordResetToken.findUnique({where:{id:previous.id}})).not.toBeNull();
+  await expect(auth.resetPassword(oldRaw,'new-synthetic-password')).resolves.toMatchObject({success:true});
+  expect((await db.passwordResetToken.findUniqueOrThrow({where:{id:previous.id}})).usedAt).not.toBeNull();
+ });
  it('twenty concurrent requests reserve and send one message',async()=>{
   const user=await createUser();let sends=0;
   const mail={sendVerificationEmail:async()=>{expect(await attempts(user.id)).toBe(1);sends++}};
