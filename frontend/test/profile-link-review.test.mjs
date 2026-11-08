@@ -37,5 +37,21 @@ test('participant can self-link only on server-approved verified historical-emai
  assert.match(app,/linkHistoricalProfile\(id\)/);
  assert.match(auth,/participantLegacyEmail\.findUnique/);
  assert.match(auth,/emailVerifiedAt/);
- assert.match(auth,/legacyEmail\.email\.trim\(\)\.toLowerCase\(\) === userEmail/);
+ assert.match(auth,/normalizeHistoricalLinkEmail\(legacyEmail\.email\) === userEmail/);
+});
+
+test('ADMIN diagnostics are explicit, protected and never return raw archived email values',async()=>{
+ const [view,controller,service,diagnosis]=await Promise.all([
+  read('../src/admin/ProfileLinksPage.tsx'),
+  read('../../backend/src/auth/profile-links.controller.ts'),
+  read('../../backend/src/auth/profile-links.service.ts'),
+  read('../../backend/src/auth/profile-link-diagnostics.ts'),
+ ]);
+ assert.match(controller,/@Controller\('admin\/profile-links'\)[\s\S]*?@Roles\('ADMIN'\)/);
+ assert.match(controller,/@Get\('diagnostics'\)/);
+ assert.match(view,/Проверить историческую привязку/);
+ assert.match(view,/\/admin\/profile-links\/diagnostics\?userId=/);
+ assert.match(service,/classifyHistoricalLink\(user,participant,legacy\)/);
+ assert.match(diagnosis,/canSelfLink:false/);
+ assert.doesNotMatch(diagnosis,/return\s*\{[^}]*email:/);
 });
