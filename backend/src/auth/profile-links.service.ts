@@ -114,14 +114,12 @@ export class ProfileLinksService {
   return duplicatePreview(snapshot(sourceId,sourceRecords),snapshot(targetId,targetRecords));
  }
 
- async review(requestId:string,reviewerId:string,decision:'APPROVE'|'REJECT',reason:string,ownershipVerified:boolean){
+ async review(requestId:string,reviewerId:string,decision:'APPROVE'|'REJECT'){
   if(!requestIdPattern.test(requestId))throw new BadRequestException('Некорректный идентификатор заявки');
   if(decision!=='APPROVE'&&decision!=='REJECT')throw new BadRequestException('Неизвестное решение');
-  const cleanReason=sanitize(reason??'');
-  if(cleanReason.length<12||cleanReason.length>1000)
-   throw new BadRequestException('Основание решения должно содержать 12–1000 символов.');
-  if(decision==='APPROVE'&&!ownershipVerified)
-   throw new ForbiddenException('Администратор должен подтвердить, что проверил доказательства принадлежности профиля.');
+  // The admin's explicit approval is the attestation. Store a structured audit
+  // reason server-side: no free-text prompt or unchecked browser boolean.
+  const cleanReason=decision==='APPROVE'?'ADMIN_VERIFIED':'ADMIN_REJECTED';
   return this.prisma.$transaction(async tx=>{
    // Advisory lock serializes concurrent reviews for the same request.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'profile-link:'+requestId}))`;
@@ -157,7 +155,7 @@ export class ProfileLinksService {
     select:{id:true,status:true,participantId:true},
    });
    await tx.auditLog.create({data:{userId:reviewerId,action:decision==='APPROVE'?'PROFILE_LINK_APPROVED':'PROFILE_LINK_REJECTED',entity:'ProfileLinkRequest',entityId:pending.id,
-    metadata:{claimantUserId:pending.claimantUserId,participantId:pending.participantId,reason:cleanReason,ownershipVerified},
+    metadata:{claimantUserId:pending.claimantUserId,participantId:pending.participantId,reason:cleanReason,ownershipVerified:decision==='APPROVE'},
    }});
    return {success:true,...updated};
   });
