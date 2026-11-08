@@ -197,6 +197,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: normalizedEmail,
+        lastVerificationResendAt: new Date(),
         passwordHash,
         name: null,
         role: 'PARTICIPANT',
@@ -229,6 +230,7 @@ export class AuthService {
     return {
       success: true,
       emailSent,
+      retryAfterSeconds: 60,
       message: emailSent
         ? 'Аккаунт создан! Мы отправили письмо для подтверждения email. Проверьте входящие и папку «Спам».'
         : 'Аккаунт создан, но отправить письмо для подтверждения не удалось. Попробуйте запросить письмо повторно.',
@@ -346,55 +348,51 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const genericResponse = {
       success: true,
-      message: 'Запрос принят. Этот ответ не подтверждает доставку письма. Если письмо не придёт, проверьте папку «Спам» и попробуйте позже.',
+      retryAfterSeconds: 60,
+      message: 'Если аккаунт с этим email ожидает подтверждения, мы попробуем отправить письмо. Проверьте «Входящие» и «Спам». Повторить запрос можно через минуту.',
     };
-
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: { id: true, email: true, emailVerifiedAt: true },
     });
-
-    // Keep the response identical for missing, verified and rate-limited accounts.
     if (!user || user.emailVerifiedAt) return genericResponse;
 
-    // Atomic per-account cooldown: concurrent requests cannot all pass this update.
-    const now = new Date();
-    const cutoff = new Date(now.getTime() - 60_000);
-    const reservation = await this.prisma.user.updateMany({
-      where: {
-        id: user.id,
-        emailVerifiedAt: null,
-        OR: [
-          { lastVerificationResendAt: null },
-          { lastVerificationResendAt: { lte: cutoff } },
-        ],
-      },
-      data: { lastVerificationResendAt: now },
-    });
-    if (reservation.count !== 1) return genericResponse;
-
-    await this.prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: 'EMAIL_VERIFICATION_RESEND_REQUESTED',
-        entity: 'User',
-        entityId: user.id,
-        metadata: { cooldownSeconds: 60 },
-      },
-    });
-
-    await this.prisma.emailVerificationToken.deleteMany({
-      where: { userId: user.id },
-    });
-
     const rawToken = this.generateToken();
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: this.hashToken(rawToken),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
+    const reserved = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      // This conditional update locks the user row until commit. The following
+      // quota read and reservation are serialized across API instances/restarts.
+      const reservation = await tx.user.updateMany({
+        where: {
+          id: user.id, email: normalizedEmail, isActive: true, emailVerifiedAt: null,
+          OR: [
+            { lastVerificationResendAt: null },
+            { lastVerificationResendAt: { lte: new Date(now.getTime() - 60_000) } },
+          ],
+        },
+        data: { lastVerificationResendAt: now },
+      });
+      if (reservation.count !== 1) return false;
+      const attempts = await tx.auditLog.count({ where: {
+        userId: user.id, action: 'EMAIL_VERIFICATION_RESEND_REQUESTED',
+        createdAt: { gte: new Date(now.getTime() - 3_600_000) },
+      } });
+      if (attempts >= 5) return false;
+      // Do not invalidate earlier unexpired links: SMTP failure or reordering
+      // must not make an already received message unusable. Verification clears
+      // the remaining tokens after a successful confirmation.
+      await tx.emailVerificationToken.create({ data: {
+        userId: user.id, tokenHash: this.hashToken(rawToken),
+        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      } });
+      await tx.auditLog.create({ data: {
+        userId: user.id, action: 'EMAIL_VERIFICATION_RESEND_REQUESTED',
+        entity: 'User', entityId: user.id,
+        metadata: { cooldownSeconds: 60, maxPerHour: 5 },
+      } });
+      return true;
     });
+    if (!reserved) return genericResponse;
 
     // The cooldown is reserved before sending, so provider failures cannot be abused
     // to hammer the mail service. Keep the public response identical to avoid account

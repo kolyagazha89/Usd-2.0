@@ -38,6 +38,7 @@ describe('AuthService explicit consents', () => {
     await service.register('driver@example.com', 'strong-password-123', true, true, false);
     const data = prisma.user.create.mock.calls[0][0].data;
     expect(data.privacyConsentAt).toBeInstanceOf(Date);
+    expect(data.lastVerificationResendAt).toBeInstanceOf(Date);
     expect(data.privacyConsentVersion).toBe('privacy-v1');
     expect(data.termsAcceptedAt).toBeInstanceOf(Date);
     expect(data.termsVersion).toBe('terms-v1');
