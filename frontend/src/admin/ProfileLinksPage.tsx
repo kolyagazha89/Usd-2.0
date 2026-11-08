@@ -5,10 +5,12 @@ import {apiGet,apiPatch} from '../api';
 
 type LinkRequest={
  id:string;status:string;note:string;createdAt:string;decisionReason?:string|null;
+ legacyEmailStatus?:'MATCH_VERIFIED'|'LEGACY_EMAIL_MISSING'|'EMAIL_DIFFERENT'|'EMAIL_NOT_VERIFIED';
  claimant:{id:string;email:string;participantId?:string|null};
  participant:{id:string;firstName:string;lastName:string;middleName?:string|null;user?:{id:string}|null};
 };
 const statusText:Record<string,string>={PENDING:'Ожидает проверки',APPROVED:'Привязан',REJECTED:'Отклонён',CONFLICT:'Конфликт'};
+const legacyStatusText:Record<string,string>={MATCH_VERIFIED:'Исторический email совпадает с подтверждённым аккаунтом. Если появилась заявка, проверьте момент отправки и статус предыдущей привязки.',LEGACY_EMAIL_MISSING:'Исторический email отсутствует в таблице привязки; автоматическая привязка недоступна.',EMAIL_DIFFERENT:'Email аккаунта отличается от сохранённого исторического email; нужна ручная проверка.',EMAIL_NOT_VERIFIED:'Email заявителя ещё не подтверждён; привязка будет отклонена сервером.'};
 function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
@@ -36,6 +38,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
     <h3>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</h3>
     <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
     <p>Сведения для проверки: {row.note}</p>
+    {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
     {row.participant.user&&<p role="alert">Профиль уже привязан к аккаунту. Не подтверждайте без расследования.</p>}
     {row.claimant.participantId&&<p role="alert">У заявителя уже есть профиль. Привязка запрещена.</p>}
     {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
