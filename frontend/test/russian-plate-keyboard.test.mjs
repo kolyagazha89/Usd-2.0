@@ -43,3 +43,15 @@ test('all car entrypoints use the native OS keyboard and shared plate input mask
  assert.match(gate,/setNewPlate\(formatPlateInput\(newCountry,/);
  assert.equal(gate.split('if(!isValidPlate(newCountry,newPlate))').length-1,2);
 });
+
+
+test('RU plate input accepts valid 2026 three-digit regional codes and rejects unknown ones',()=>{
+ for(const region of ['180','181','182','184','185']){
+  const plate='А123ВС'+region;
+  assert.equal(formatPlateInput('RU',plate),plate,region+' input mask');
+  assert.equal(isValidPlate('RU',plate),true,region+' region');
+ }
+ for(const region of ['000','100','183']){
+  assert.equal(isValidPlate('RU','А123ВС'+region),false,region+' unknown region');
+ }
+});
