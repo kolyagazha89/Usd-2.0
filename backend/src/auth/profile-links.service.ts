@@ -89,8 +89,7 @@ export class ProfileLinksService {
    const legacyEmailStatus=!verified?'EMAIL_NOT_VERIFIED':
     !historic?'LEGACY_EMAIL_MISSING':
     historic===row.claimant.email.trim().toLowerCase()?'MATCH_VERIFIED':'EMAIL_DIFFERENT';
-   const {emailVerifiedAt: _verifiedAt,...claimant}=row.claimant;
-   return {...row,claimant,legacyEmailStatus};
+   return {...row,claimant:{id:row.claimant.id,email:row.claimant.email,participantId:row.claimant.participantId},legacyEmailStatus};
   });
  }
 
