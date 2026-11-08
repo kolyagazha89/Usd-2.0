@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {PrismaService} from '../src/prisma/prisma.service';
 import {AuthService} from '../src/auth/auth.service';
 const suite=process.env.USD_VERIFICATION_RESEND_TEST==='1'?describe:describe.skip;
@@ -16,6 +16,26 @@ suite('verification resend on disposable PostgreSQL18',()=>{
   if(await db.user.count())throw Error('Refusing nonempty verification fixture');
  });
  afterAll(async()=>{if(!db)return;await db.auditLog.deleteMany({where:{userId:{in:ids}}});await db.user.deleteMany({where:{id:{in:ids}}});await db.$disconnect()});
+ it('does not orphan a new account when its initial verification token conflicts in PostgreSQL',async()=>{
+  const existing=await createUser();
+  const raw='synthetic-token-collision';
+  const tokenHash=createHash('sha256').update(raw).digest('hex');
+  await db.emailVerificationToken.create({data:{userId:existing.id,tokenHash,expiresAt:new Date(Date.now()+86_400_000)}});
+  const email=randomUUID()+'@resend.invalid';
+  let sent=0;
+  const auth=new AuthService(db,{} as any,{sendVerificationEmail:async()=>{sent++}} as any);
+  // Isolate the DB atomicity property from unrelated legal-settings seed setup.
+  (auth as any).getApprovedLegalVersion=async()=> 'synthetic';
+  (auth as any).generateToken=()=>raw;
+  try{
+   await expect(auth.register(email,'synthetic-secure-password',true,true,false)).rejects.toThrow();
+   expect(await db.user.findUnique({where:{email}})).toBeNull();
+   expect(sent).toBe(0);
+   expect(await db.emailVerificationToken.count({where:{tokenHash}})).toBe(1);
+  }finally{
+   await db.user.deleteMany({where:{email}});
+  }
+ });
  it('twenty concurrent requests reserve and send one message',async()=>{
   const user=await createUser();let sends=0;
   const mail={sendVerificationEmail:async()=>{expect(await attempts(user.id)).toBe(1);sends++}};
