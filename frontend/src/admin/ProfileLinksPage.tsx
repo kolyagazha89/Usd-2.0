@@ -10,11 +10,32 @@ type LinkRequest={
  participant:{id:string;firstName:string;lastName:string;middleName?:string|null;user?:{id:string}|null};
 };
 const statusText:Record<string,string>={PENDING:'Ожидает проверки',APPROVED:'Привязан',REJECTED:'Отклонён',CONFLICT:'Конфликт'};
+const diagnosticText:Record<string,string>={
+ SELF_LINK_AVAILABLE:'Подтверждённый email аккаунта совпадает с архивной записью. При свободном профиле доступна самостоятельная привязка.',
+ LEGACY_EMAIL_MISSING:'Для этого профиля не сохранено архивного email. Требуется проверка администратором; контактные данные не изменены.',
+ LEGACY_EMAIL_DIFFERENT:'Архивный email не совпадает с подтверждённым email аккаунта. Требуется ручная проверка.',
+ EMAIL_NOT_VERIFIED:'У аккаунта отсутствует подтверждение email.',
+ ACCOUNT_INACTIVE:'Аккаунт неактивен.',
+ ACCOUNT_ALREADY_LINKED:'К аккаунту уже прикреплён другой профиль.',
+ PROFILE_ALREADY_LINKED:'Этот профиль уже прикреплён к аккаунту.',
+ ALREADY_LINKED:'Этот аккаунт уже связан с выбранным профилем.',
+ ACCOUNT_NOT_FOUND:'Аккаунт не найден.',PROFILE_NOT_FOUND:'Профиль не найден.',
+};
 const legacyStatusText:Record<string,string>={MATCH_VERIFIED:'Исторический email совпадает с подтверждённым аккаунтом. Если появилась заявка, проверьте момент отправки и статус предыдущей привязки.',LEGACY_EMAIL_MISSING:'Исторический email отсутствует в таблице привязки; автоматическая привязка недоступна.',EMAIL_DIFFERENT:'Email аккаунта отличается от сохранённого исторического email; нужна ручная проверка.',EMAIL_NOT_VERIFIED:'Email заявителя ещё не подтверждён; привязка будет отклонена сервером.'};
 function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
  const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[status]);
+ const diagnose=async(row:LinkRequest)=>{
+  if(diagnosing)return;
+  setDiagnosing(row.id);setError('');
+  try{
+   const result=await apiGet<{code:string;canSelfLink:boolean}>('/admin/profile-links/diagnostics?userId='+encodeURIComponent(row.claimant.id)+'&participantId='+encodeURIComponent(row.participant.id));
+   setDiagnoses(current=>({...current,[row.id]:diagnosticText[result.code]||'Состояние привязки изменилось. Обновите список.'}));
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось проверить историю email')}
+  finally{setDiagnosing(null)}
+ };
  const review=async(row:LinkRequest,decision:'APPROVE'|'REJECT')=>{
   if(busy)return;
   if(decision==='APPROVE'&&(row.participant.user||row.claimant.participantId)){
@@ -39,6 +60,8 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
     <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
     <p>Сведения для проверки: {row.note}</p>
     {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
+    <button type="button" onClick={()=>void diagnose(row)} disabled={!!diagnosing||busy} aria-label="Проверить возможность самостоятельной привязки по архивной почте">{diagnosing===row.id?'Проверяем…':'Проверить историческую привязку'}</button>
+    {diagnoses[row.id]&&<p className="muted" role="status"><strong>Диагностика:</strong> {diagnoses[row.id]}</p>}
     {row.participant.user&&<p role="alert">Профиль уже привязан к аккаунту. Не подтверждайте без расследования.</p>}
     {row.claimant.participantId&&<p role="alert">У заявителя уже есть профиль. Привязка запрещена.</p>}
     {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
