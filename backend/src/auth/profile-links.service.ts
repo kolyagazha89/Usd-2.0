@@ -64,16 +64,33 @@ export class ProfileLinksService {
 
  async adminList(status?:string){
   if(status&&!PUBLIC_STATUS.has(status))throw new BadRequestException('Неизвестный статус заявки');
-  return this.prisma.profileLinkRequest.findMany({
+  const rows=await this.prisma.profileLinkRequest.findMany({
    where:status?{status}:{},
    orderBy:{createdAt:'desc'},
    take:200,
    select:{id:true,status:true,note:true,createdAt:true,reviewedAt:true,decisionReason:true,
     participantId:true,claimantUserId:true,
     participant:{select:{id:true,firstName:true,lastName:true,middleName:true,user:{select:{id:true}}}},
-    claimant:{select:{id:true,email:true,participantId:true}},
+    claimant:{select:{id:true,email:true,emailVerifiedAt:true,participantId:true}},
     reviewer:{select:{id:true,email:true}},
    },
+  });
+  if(rows.length===0)return [];
+  // Admin-only, bounded and batched; expose a classification, never the
+  // historical email address itself or a new public ownership oracle.
+  const historical=await this.prisma.participantLegacyEmail.findMany({
+   where:{participantId:{in:[...new Set(rows.map(row=>row.participantId))]}},
+   select:{participantId:true,email:true},
+  });
+  const byParticipant=new Map(historical.map(item=>[item.participantId,item.email]));
+  return rows.map(row=>{
+   const historic=byParticipant.get(row.participantId)?.trim().toLowerCase();
+   const verified=!!row.claimant.emailVerifiedAt;
+   const legacyEmailStatus=!verified?'EMAIL_NOT_VERIFIED':
+    !historic?'LEGACY_EMAIL_MISSING':
+    historic===row.claimant.email.trim().toLowerCase()?'MATCH_VERIFIED':'EMAIL_DIFFERENT';
+   const {emailVerifiedAt: _verifiedAt,...claimant}=row.claimant;
+   return {...row,claimant,legacyEmailStatus};
   });
  }
 
