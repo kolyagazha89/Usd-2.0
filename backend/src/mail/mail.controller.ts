@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { MailService } from './mail.service';
 import { EmailNotificationsService } from './email-notifications.service';
@@ -17,6 +17,13 @@ export class MailController {
     }
   }
   constructor(private readonly mailService: MailService, private readonly emailNotifications: EmailNotificationsService) {}
+
+  /** Read-only, ADMIN-only mail provider acceptance/failure history. */
+  @Roles('ADMIN')
+  @Get('journal')
+  deliveryJournal(@Query('status') status?: string, @Query('cursor') cursor?: string) {
+    return this.mailService.listDeliveryJournal(status, cursor);
+  }
 
   @Roles('ADMIN')
   @Get('status')
