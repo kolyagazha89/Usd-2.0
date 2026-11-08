@@ -500,7 +500,7 @@ body .usd-auth .primary-button{border-radius:12px!important}
 /* Admin colors, cards and topbar live only in admin/admin-shell-layout.css. */
 /* Motion: only progressive enhancement, never hide content until JS runs. */
 .usd-scroll-progress{
-  position:fixed;top:0;left:0;right:0;height:2px;z-index:150;
+  position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;height:2px;z-index:1100;
   transform:scaleX(0);transform-origin:left;
   background:linear-gradient(90deg,#ff3153,#fb153a 70%,#f4a4b1);
   box-shadow:0 0 13px rgba(255,43,79,.7);
