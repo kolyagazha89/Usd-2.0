@@ -608,6 +608,9 @@ body .usd-live {
   --usd-public-header-size:77px;
   padding-top:var(--usd-public-header-size);
 }
+body .usd-live #public-content {
+  scroll-margin-top:calc(var(--usd-public-header-size) + 12px);
+}
 body .usd-live .p-public-header {
   position:fixed!important;
   top:0!important;

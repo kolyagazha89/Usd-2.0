@@ -302,10 +302,13 @@ body .app-shell .main .topbar-actions {
   body .app-shell .main > .topbar {
     inline-size: 100% !important;
     padding: 12px clamp(10px, 3.2vw, 18px) !important;
+    padding-top:calc(12px + env(safe-area-inset-top,0px))!important;
+    height:calc(68px + env(safe-area-inset-top,0px));
     gap: 8px;
   }
   body .app-shell > .sidebar {
     inline-size: min(320px, calc(100vw - 48px)) !important;
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
     max-inline-size: calc(100vw - 48px) !important;
     height: 100dvh;
     transform: translateX(-100%);

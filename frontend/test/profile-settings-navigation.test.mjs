@@ -19,7 +19,7 @@ test('account profile has four independent deep-linkable settings pages',async()
  assert.match(app,/profileSection==='security'\|\|profileSection==='sessions'/);
  assert.match(app,/section=\{profileSection\}/);
  assert.match(app,/tab==='profile'&&profileSection==='notifications'/);
- assert.match(app,/<PushPreferences\/>/);
+ assert.match(app,/<PushPreferences adminProfileLinks=\{user\.role==='ADMIN'\}\/>/);
  assert.match(app,/newsletter-settings/);
  assert.match(intro,/безопасность, устройства и уведомления/);
  assert.match(styles,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
