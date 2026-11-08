@@ -66,6 +66,31 @@ describe('secure manual profile link review',()=>{
    data:expect.objectContaining({action:'PROFILE_LINK_APPROVED',entity:'ProfileLinkRequest'}),
   }));
  });
+ it('approves verified pending claim with one action and generated audit reason, no text or checkbox',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
+  const result=await service.review(requestId,reviewerId,'APPROVE');
+  expect(result.status).toBe('APPROVED');
+  expect(db.user.updateMany).toHaveBeenCalledTimes(1);
+  expect(db.profileLinkRequest.update).toHaveBeenCalledWith(expect.objectContaining({
+   data:expect.objectContaining({decisionReason:'ADMIN_VERIFIED'}),
+  }));
+  expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+   data:expect.objectContaining({metadata:expect.objectContaining({
+    reason:'ADMIN_VERIFIED',ownershipVerified:true,claimantUserId:claimantId,participantId,
+   })}),
+  }));
+ });
+ it('rejects pending claim with one action and generated audit reason',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
+  const result=await service.review(requestId,reviewerId,'REJECT');
+  expect(result.status).toBe('APPROVED'); // fixture returns an APPROVED row irrespective of the input
+  expect(db.profileLinkRequest.update).toHaveBeenCalledWith(expect.objectContaining({
+   data:expect.objectContaining({status:'REJECTED',decisionReason:'ADMIN_REJECTED'}),
+  }));
+  expect(db.user.updateMany).not.toHaveBeenCalled();
+ });
  it('refuses conflicts on changed ownership before modifying any profile',async()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
