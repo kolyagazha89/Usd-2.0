@@ -114,14 +114,19 @@ export class ProfileLinksService {
   return duplicatePreview(snapshot(sourceId,sourceRecords),snapshot(targetId,targetRecords));
  }
 
- async review(requestId:string,reviewerId:string,decision:'APPROVE'|'REJECT',reason:string,ownershipVerified:boolean){
+ async review(requestId:string,reviewerId:string,decision:'APPROVE'|'REJECT',reason?:string,ownershipVerified?:boolean){
   if(!requestIdPattern.test(requestId))throw new BadRequestException('Некорректный идентификатор заявки');
   if(decision!=='APPROVE'&&decision!=='REJECT')throw new BadRequestException('Неизвестное решение');
-  const cleanReason=sanitize(reason??'');
-  if(cleanReason.length<12||cleanReason.length>1000)
+  // One click by an authenticated ADMIN constitutes the explicit reviewed
+  // decision. The server generates a stable audit reason; typed text and a
+  // second checkbox are no longer mandatory. Preserve older explicit
+  // ownershipVerified=false calls as a denial, never a silent approval.
+  const suppliedReason=sanitize(reason??'');
+  if(suppliedReason.length>1000|| (suppliedReason.length>0&&suppliedReason.length<12))
    throw new BadRequestException('Основание решения должно содержать 12–1000 символов.');
-  if(decision==='APPROVE'&&!ownershipVerified)
-   throw new ForbiddenException('Администратор должен подтвердить, что проверил доказательства принадлежности профиля.');
+  if(decision==='APPROVE'&&ownershipVerified===false)
+   throw new ForbiddenException('Администратор должен подтвердить проверку принадлежности профиля.');
+  const cleanReason=suppliedReason||(decision==='APPROVE'?'ADMIN_VERIFIED':'ADMIN_REJECTED');
   return this.prisma.$transaction(async tx=>{
    // Advisory lock serializes concurrent reviews for the same request.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'profile-link:'+requestId}))`;
@@ -157,7 +162,7 @@ export class ProfileLinksService {
     select:{id:true,status:true,participantId:true},
    });
    await tx.auditLog.create({data:{userId:reviewerId,action:decision==='APPROVE'?'PROFILE_LINK_APPROVED':'PROFILE_LINK_REJECTED',entity:'ProfileLinkRequest',entityId:pending.id,
-    metadata:{claimantUserId:pending.claimantUserId,participantId:pending.participantId,reason:cleanReason,ownershipVerified},
+    metadata:{claimantUserId:pending.claimantUserId,participantId:pending.participantId,reason:cleanReason,ownershipVerified:decision==='APPROVE'},
    }});
    return {success:true,...updated};
   });
