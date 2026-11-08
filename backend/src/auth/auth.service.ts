@@ -442,12 +442,6 @@ export class AuthService {
       );
     }
 
-    if (!user.emailVerifiedAt) {
-      throw new UnauthorizedException(
-        'Email не подтверждён',
-      );
-    }
-
     const passwordValid =
       await bcrypt.compare(
         password,
@@ -457,6 +451,13 @@ export class AuthService {
     if (!passwordValid) {
       throw new UnauthorizedException(
         'Неверный email или пароль',
+      );
+    }
+
+    // Only a caller who knows the password may learn that email verification is pending.
+    if (!user.emailVerifiedAt) {
+      throw new UnauthorizedException(
+        'Email не подтверждён',
       );
     }
 
