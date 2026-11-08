@@ -39,12 +39,16 @@ jobs:
           python3 deploy/home-pc/test-diagnose-host-network.py -v
           python3 deploy/home-pc/test-prepare-eth0-dns.py -v
           python3 deploy/home-pc/test-install-ci-cosign.py -v
+          python3 deploy/home-pc/test-install-ci-cosign-oci.py -v
           bash -n deploy/home-pc/install-ci-cosign.sh
           # Exercise real root ownership and unprivileged write refusal too.
           sudo env PYTHONDONTWRITEBYTECODE=1 python3 deploy/home-pc/test-deploy-status.py -v
           python3 -m py_compile deploy/home-pc/safe-schema-migration.py
           python3 -m py_compile deploy/home-pc/verify-second-disk-db-backup.py deploy/home-pc/verify-second-disk-media-backup.py deploy/home-pc/release-readiness.py
           bash -n deploy/home-pc/auto-deploy.sh deploy/home-pc/release-approved.sh deploy/home-pc/setup-home-pc.sh deploy/home-pc/install-local-deployer.sh
+      - name: Verify pinned official GHCR Cosign OCI asset without executing it
+        if: github.event_name == 'pull_request'
+        run: bash deploy/home-pc/probe-cosign-oci.sh
       - name: Build candidate API image from production Dockerfile
         run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-api-candidate:${{ github.sha }} ./backend
       - name: Verify API artifact and no implicit migration startup
