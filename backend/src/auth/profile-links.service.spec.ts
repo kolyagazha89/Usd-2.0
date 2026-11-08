@@ -50,12 +50,10 @@ describe('secure manual profile link review',()=>{
   await expect(service.submit(claimantId,participantId,note)).rejects.toBeInstanceOf(ConflictException);
   await expect(service.submit(claimantId,participantId,'short')).rejects.toBeInstanceOf(BadRequestException);
  });
- it('allows administrative link only with verified proof and a reason, atomically audited',async()=>{
+ it('allows one-click administrative link with automatically recorded reason, atomically audited',async()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
-  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,false)).rejects.toBeInstanceOf(ForbiddenException);
-  expect(db.user.update).not.toHaveBeenCalled();
-  const response=await service.review(requestId,reviewerId,'APPROVE',reviewReason,true);
+  const response=await service.review(requestId,reviewerId,'APPROVE');
   expect(response.status).toBe('APPROVED');
   expect(db.user.updateMany).toHaveBeenCalledWith({where:{id:claimantId,participantId:null,isActive:true,emailVerifiedAt:{not:null}},data:{participantId}});
   expect(db.user.update).not.toHaveBeenCalled();
@@ -63,7 +61,7 @@ describe('secure manual profile link review',()=>{
   // approvals that target separate participant IDs for the same account.
   expect(db.$executeRaw).toHaveBeenCalledTimes(3);
   expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-   data:expect.objectContaining({action:'PROFILE_LINK_APPROVED',entity:'ProfileLinkRequest'}),
+   data:expect.objectContaining({action:'PROFILE_LINK_APPROVED',entity:'ProfileLinkRequest',metadata:expect.objectContaining({reason:'ADMIN_VERIFIED',ownershipVerified:true})}),
   }));
  });
  it('refuses conflicts on changed ownership before modifying any profile',async()=>{
@@ -76,9 +74,21 @@ describe('secure manual profile link review',()=>{
  it('rejection does not attach a profile',async()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
-  await service.review(requestId,reviewerId,'REJECT',reviewReason,false);
+  await service.review(requestId,reviewerId,'REJECT');
+  expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({metadata:expect.objectContaining({reason:'ADMIN_REJECTED'})})}));
   expect(db.user.update).not.toHaveBeenCalled();
   expect(db.profileLinkRequest.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({status:'REJECTED'})}));
+ });
+
+ it('one-click approval rejects unverified accounts and occupied profiles',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
+  db.user.findUnique.mockResolvedValueOnce({id:claimantId,emailVerifiedAt:null,isActive:true,participantId:null});
+  await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
+  db.participant.findUnique.mockResolvedValueOnce({id:participantId,user:{id:'already-attached'}});
+  await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
+  expect(db.user.updateMany).not.toHaveBeenCalled();
+  expect(db.auditLog.create).not.toHaveBeenCalled();
  });
 
  it('does not steal a profile when another workflow attached the claimant after validation',async()=>{
