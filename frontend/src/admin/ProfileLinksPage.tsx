@@ -11,22 +11,23 @@ type LinkRequest={
 const statusText:Record<string,string>={PENDING:'Ожидает проверки',APPROVED:'Привязан',REJECTED:'Отклонён',CONFLICT:'Конфликт'};
 function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const [selected,setSelected]=useState(''),[reason,setReason]=useState(''),[verified,setVerified]=useState(false);
  const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[status]);
  const review=async(row:LinkRequest,decision:'APPROVE'|'REJECT')=>{
-  if(!reason.trim()||reason.trim().length<12){setError('Укажите подробное основание решения (от 12 символов).');return}
-  if(decision==='APPROVE'&&!verified){setError('Подтвердите проверку доказательств владения историческим профилем.');return}
+  if(busy)return;
+  if(decision==='APPROVE'&&(row.participant.user||row.claimant.participantId)){
+   setError('Привязка заблокирована: профиль или аккаунт уже занят. Обновите список.');return;
+  }
   setBusy(true);setError('');
   try{
-   await apiPatch('/admin/profile-links/'+encodeURIComponent(row.id),{decision,reason:reason.trim(),ownershipVerified:verified});
-   setSelected('');setReason('');setVerified(false);await load();
+   await apiPatch('/admin/profile-links/'+encodeURIComponent(row.id),{decision});
+   await load();
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
   <DuplicateProfilesPreview/>
   <div className="profile-link-filters"><label>Статус
-   <select value={status} onChange={e=>{setStatus(e.target.value);setSelected('');setError('')}}>
+   <select value={status} onChange={e=>{setStatus(e.target.value);setError('')}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
    </select></label><button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
   {error&&<div className="form-error" role="alert">{error}</div>}
@@ -40,13 +41,11 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
     {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
    </div>
    {row.status==='PENDING'&&<div className="profile-link-actions">
-    <button type="button" disabled={busy} onClick={()=>{setSelected(selected===row.id?'':row.id);setReason('');setVerified(false)}}>{selected===row.id?'Скрыть проверку':'Рассмотреть'}</button>
-    {selected===row.id&&<div className="profile-link-review">
-     <label>Основание решения<textarea value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000} rows={3} placeholder="Какими независимыми доказательствами подтверждена личность и владение профилем?"/></label>
-     <label className="profile-link-check"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)}/>Я проверил доказательства принадлежности профиля</label>
-     <div className="profile-link-decisions"><button type="button" className="primary-button" disabled={busy||!verified||reason.trim().length<12||!!row.participant.user||!!row.claimant.participantId} onClick={()=>void review(row,'APPROVE')}>Подтвердить привязку</button>
-      <button type="button" disabled={busy||reason.trim().length<12} onClick={()=>void review(row,'REJECT')}>Отклонить</button></div>
-    </div>}
+    <p className="muted">Нажатие «Подтвердить привязку» означает, что администратор проверил принадлежность профиля. Решение автоматически сохраняется в журнале.</p>
+    <div className="profile-link-decisions">
+     <button type="button" className="primary-button" disabled={busy||!!row.participant.user||!!row.claimant.participantId} onClick={()=>void review(row,'APPROVE')}>{busy?'Сохраняем…':'Подтвердить привязку'}</button>
+     <button type="button" disabled={busy} onClick={()=>void review(row,'REJECT')}>Отклонить</button>
+    </div>
    </div>}
   </article>)}</div>}
  </PageFrame>;
