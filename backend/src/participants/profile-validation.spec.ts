@@ -40,6 +40,17 @@ describe('isValidRegistrationPlate', () => {
   it.each([
     ['RU', 'A123BC72'],
     ['RU', 'A123BC102'],
+    // New regional codes must not be rejected by the server.
+    ['RU', 'А123ВС80'],
+    ['RU', 'А123ВС180'],
+    ['RU', 'А123ВС81'],
+    ['RU', 'А123ВС181'],
+    ['RU', 'А123ВС82'],
+    ['RU', 'А123ВС182'],
+    ['RU', 'А123ВС84'],
+    ['RU', 'А123ВС184'],
+    ['RU', 'А123ВС85'],
+    ['RU', 'А123ВС185'],
     ['NO', 'AB12345'],
     ['FI', 'ABC-123'],
     ['EE', '123ABC'],
