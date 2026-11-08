@@ -10,7 +10,7 @@ import {
 
 import * as nodemailer from 'nodemailer';
 import { setDefaultResultOrder } from 'node:dns';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { renderUsdMailShell } from './mail-brand-layout';
 
@@ -89,6 +89,51 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(@Optional() private readonly prisma?: PrismaService) {}
+
+  /** A provider-accepted message is not proof of inbox delivery. Never store
+   * HTML, token-bearing URLs or a provider's raw error in the journal. */
+  async listDeliveryJournal(status?:string,cursor?:string) {
+    const allowed=new Set(['PENDING','SENDING','PROVIDER_ACCEPTED','FAILED','SKIPPED']);
+    if(status&&!allowed.has(status))throw new BadRequestException('Неизвестный статус письма');
+    if(cursor&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cursor))
+      throw new BadRequestException('Некорректный указатель журнала');
+    if(!this.prisma)throw new ServiceUnavailableException('Журнал почты недоступен');
+    const rows=await this.prisma.emailNotificationLog.findMany({
+      where:status?{status}:{},
+      orderBy:[{createdAt:'desc'},{id:'desc'}],
+      take:51,
+      ...(cursor?{cursor:{id:cursor},skip:1}:{}),
+      select:{id:true,type:true,recipient:true,status:true,stageId:true,registrationId:true,
+       attempts:true,createdAt:true,providerAcceptedAt:true},
+    });
+    return {entries:rows.slice(0,50),nextCursor:rows.length>50?rows[49].id:null};
+  }
+
+  private async recordAccountMail(type:string,recipient:string,accepted:boolean):Promise<void>{
+    if(!this.prisma?.emailNotificationLog?.create)return;
+    try{
+      await this.prisma.emailNotificationLog.create({data:{
+        eventKey:'account-mail:'+randomUUID(),type,recipient,
+        status:accepted?'PROVIDER_ACCEPTED':'FAILED',
+        attempts:1,providerAcceptedAt:accepted?new Date():null,
+        lastError:accepted?null:'MAIL_TRANSPORT_ERROR',
+      }});
+    }catch{
+      // Logging is best effort: it must never suppress a successful security
+      // mail, nor replace the original mail provider failure.
+      this.logger.warn('Account mail journal write unavailable.');
+    }
+  }
+
+  private async sendAccountMail(type:string,recipient:string,message:{subject:string;text:string;html:string}):Promise<void>{
+    try{
+      await this.sendMessage({to:recipient,...message});
+    }catch(error){
+      await this.recordAccountMail(type,recipient,false);
+      throw error;
+    }
+    await this.recordAccountMail(type,recipient,true);
+  }
 
   private async getEmailTemplate(trigger: string): Promise<Record<string, any> | undefined> {
     if (!this.prisma || typeof this.prisma.siteSettings?.findUnique !== 'function') return undefined;
@@ -347,7 +392,7 @@ export class MailService {
       note: 'Тестовая ссылка ведёт только на сайт. Настоящий токен аккаунта не создавался.',
       frontendUrl: this.frontendUrl,
     });
-    await this.sendMessage({ to: email, ...message });
+    await this.sendAccountMail('TEST_'+type,email,message);
     return { success: true, providerAccepted: true, deliveryConfirmed: false, type, message: 'Тестовое письмо передано на отправку. Проверьте его получение в почте.' };
   }
 
@@ -499,7 +544,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     return this.runAdminMailTest(async () => {
-      await this.sendMessage({ to: email, ...message });
+      await this.sendAccountMail('AUTH_TEST_CONNECTION',email,message);
       return {
         success: true as const,
         providerAccepted: true as const,
@@ -524,7 +569,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, ...message });
+      await this.sendAccountMail('AUTH_EMAIL_VERIFICATION',email,message);
     } catch (error) {
       this.logger.error(`Verification email send failed (${error instanceof Error ? error.name : 'UnknownError'}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
@@ -545,7 +590,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, ...message });
+      await this.sendAccountMail('AUTH_PASSWORD_RESET',email,message);
     } catch (error) {
       this.logger.error(`Password-reset email send failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо восстановления. Проверьте настройки почтового сервиса.');
@@ -566,7 +611,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     try {
-      await this.sendMessage({ to: email, ...message });
+      await this.sendAccountMail('AUTH_EMAIL_CHANGE',email,message);
     } catch (error) {
       this.logger.error(`Email-change message delivery failed (${error instanceof Error ? error.name : 'UnknownError'}).`);
       throw new InternalServerErrorException('Не удалось отправить письмо для изменения email. Проверьте настройки почтового сервиса.');
