@@ -32,6 +32,7 @@ export default function EmailJournalPanel(){
    if(filter)params.set('status',filter);
    if(cursor)params.set('cursor',cursor);
    const data=await apiGet<JournalResponse>('/mail/journal'+(params.size?'?'+params.toString():''));
+   if(!Array.isArray(data?.entries))throw new Error('Журнал почты: неверный ответ API. Обновите страницу.');
    setEntries(rows=>cursor?[...rows,...data.entries.filter(row=>!rows.some(previous=>previous.id===row.id))]:data.entries);
    setNextCursor(data.nextCursor);
   }catch(e){
