@@ -28,6 +28,10 @@ export class AdminProfileLinksController {
  constructor(private readonly service:ProfileLinksService){}
  @Get()
  list(@Query('status') status?:string){return this.service.adminList(status)}
+ @Get('diagnostics')
+ diagnose(@Query('userId') userId:string,@Query('participantId') participantId:string){
+  return this.service.diagnoseSelfLink(userId,participantId);
+ }
  @Get('duplicates/preview')
  previewDuplicates(@Query('sourceId') sourceId:string,@Query('targetId') targetId:string){
   return this.service.previewDuplicates(sourceId,targetId);
