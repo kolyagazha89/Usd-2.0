@@ -37,7 +37,7 @@ export function duplicatePreview(source:DuplicateSnapshot,target:DuplicateSnapsh
  const archivedOverlaps=[...new Set(source.registrations.filter(r=>
   target.registrations.some(t=>t.stageId===r.stageId &&
    (r.status!=='ACTIVE'||t.status!=='ACTIVE') &&
-   (r.results>0||t.results>0))).map(r=>r.stageId))];
+   ((r.status!=='ACTIVE'&&r.results>0)||(t.status!=='ACTIVE'&&t.results>0)))).map(r=>r.stageId))];
  if(archivedOverlaps.length)add('HISTORICAL_STAGE_OVERLAP',
   'Есть общие этапы с отменёнными/архивными регистрациями и результатами ('+archivedOverlaps.length+'). Требуется ручной разбор истории.');
  const targetPlates=new Set(target.cars.map(c=>canonicalPlate(c.country,c.number)));
