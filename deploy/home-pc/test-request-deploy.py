@@ -76,12 +76,12 @@ class RequestTests(unittest.TestCase):
 
     def test_confirmed_completion_with_failed_public_verifier_stops(self):
         self.assertNotEqual(self.execute([None, row('1', 'RELEASED')], verification=False), 0)
-        self.assertEqual(self.verified, [A, A, A])
+        self.assertEqual(self.verified, [A] * 8)
         self.assertEqual(len(self.starts), 1)
 
     def test_transient_public_probe_failure_retries_exact_completed_sha_without_new_deploy(self):
         calls, output, clock = [], [], [0]
-        attempts = iter([False, False, True])
+        attempts = iter([False] * 5 + [True])
         def verify(sha, timeout):
             calls.append(sha)
             return next(attempts)
@@ -91,8 +91,39 @@ class RequestTests(unittest.TestCase):
                            clock=lambda: clock[0], emit=output.append,
                            budget=30, interval=1, latest=lambda _: A)
         self.assertEqual(result, 0)
-        self.assertEqual(calls, [A, A, A])
+        self.assertEqual(calls, [A] * 6)
         self.assertEqual(output[-1], 'ACCEPTED ' + A)
+
+    def test_recovery_after_five_transient_public_failures_never_retriggers_root_deploy(self):
+        checks, starts, output, clock = [], [], [], [0]
+        def verify(sha, _):
+            checks.append(sha)
+            return len(checks) == 6
+        def start(_):
+            starts.append(1)
+            return 0, '1' * 32
+        result = m.request(A, read=iter([None, row('1', 'RELEASED')]).__next__,
+                           start=start, verify=verify,
+                           sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
+                           clock=lambda: clock[0], emit=output.append,
+                           budget=420, interval=30, latest=lambda _: A)
+        self.assertEqual(result, 0)
+        self.assertEqual(checks, [A] * 6)
+        self.assertEqual(starts, [1])
+        self.assertEqual(output[-1], 'ACCEPTED ' + A)
+
+    def test_persistent_public_failure_never_pretends_release_is_accepted(self):
+        checks, output, clock = [], [], [0]
+        result = m.request(A, read=iter([None, row('1', 'RELEASED')]).__next__,
+                           start=lambda _: (0, '1' * 32),
+                           verify=lambda sha, _: checks.append(sha) or False,
+                           sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
+                           clock=lambda: clock[0], emit=output.append,
+                           budget=420, interval=30, latest=lambda _: A)
+        self.assertNotEqual(result, 0)
+        self.assertEqual(checks, [A] * 8)
+        self.assertTrue(any('PUBLIC_ACCEPTANCE_FAILED' in x for x in output))
+        self.assertFalse(any(x.startswith('ACCEPTED ') for x in output))
 
     def test_public_probe_persistently_fails_closed_without_acceptance(self):
         calls, output, clock = [], [], [0]
@@ -105,7 +136,7 @@ class RequestTests(unittest.TestCase):
                            clock=lambda: clock[0], emit=output.append,
                            budget=30, interval=1, latest=lambda _: A)
         self.assertNotEqual(result, 0)
-        self.assertEqual(calls, [A, A, A])
+        self.assertEqual(calls, [A] * 8)
         self.assertTrue(any('PUBLIC_ACCEPTANCE_FAILED' in line for line in output))
         self.assertFalse(any(line.startswith('ACCEPTED ') for line in output))
 
