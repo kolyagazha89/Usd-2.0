@@ -1,3 +1,4 @@
+import {loadPublicShell} from './public-browser-qa-shell.mjs';
 import {createRequire} from 'node:module';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
@@ -53,8 +54,7 @@ try{
       const startedAt=Date.now();
       console.log('PUBLIC_QA_START '+JSON.stringify(row));
       try{
-        await page.goto(base+route,{waitUntil:'domcontentloaded',timeout:60000});
-        await page.locator('.usd-live,.public-site,.login-page').first().waitFor({state:'visible',timeout:40000});
+        await loadPublicShell(page,base+route,row);
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
         // Do not sample an unfinished auto-discovery request as an empty
