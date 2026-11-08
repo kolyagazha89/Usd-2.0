@@ -76,7 +76,7 @@ class RequestTests(unittest.TestCase):
 
     def test_confirmed_completion_with_failed_public_verifier_stops(self):
         self.assertNotEqual(self.execute([None, row('1', 'RELEASED')], verification=False), 0)
-        self.assertEqual(self.verified, [A])
+        self.assertEqual(self.verified, [A, A, A])
         self.assertEqual(len(self.starts), 1)
 
     def test_transient_public_probe_failure_retries_exact_completed_sha_without_new_deploy(self):
