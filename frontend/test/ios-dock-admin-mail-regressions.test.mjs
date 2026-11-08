@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const source=p=>readFile(new URL(p,import.meta.url),'utf8');
 
-test('iPhone public dock is CSS-anchored to 100dvh without JS scroll offsets',async()=>{
+test('iPhone public dock is fixed to the bottom without JS scroll offsets',async()=>{
  const [shell,base,css]=await Promise.all([
   source('../src/public/PremiumShell.tsx'),
   source('../src/public/premium-base.css'),
@@ -15,7 +15,7 @@ test('iPhone public dock is CSS-anchored to 100dvh without JS scroll offsets',as
  assert.match(base,/\.u-mobile-dock\{position:fixed/);
  assert.match(css,/body>\.u-mobile-dock\{/);
  assert.match(css,/top:calc\(100dvh - 66px - env\(safe-area-inset-bottom/);
- assert.match(css,/bottom:auto!important/);
+ assert.doesNotMatch(css,/top:calc\\(100dvh - 66px/);
  assert.doesNotMatch(shell,/visualViewport/);
  assert.doesNotMatch(shell,/usd-dock-visual-top/);
  assert.match(css,/env\(safe-area-inset-bottom/);
@@ -25,7 +25,7 @@ test('iPhone public dock is CSS-anchored to 100dvh without JS scroll offsets',as
  const notice=await source('../src/CookieNotice.tsx');
  assert.match(notice,/body:has\(> \.u-mobile-dock\) \.cookie-notice/);
  assert.match(notice,/top: max\(12px, calc\(100dvh/);
- assert.match(notice,/bottom: auto !important/);
+ assert.match(notice,/bottom: calc\\(var\\(--usd-dock-height, 79px\\) \\+ 12px\\) !important/);
 });
 test('admin forms use flat search input and accessible mobile selector layout',async()=>{
  const styles=await source('../src/styles.css');
