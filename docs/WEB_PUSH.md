@@ -58,3 +58,12 @@ Still required before live acceptance: legal consent text approval, protected ho
 Integrated 2026-10-31 verification with teams and current account security: all 64 migrations apply on a fresh synthetic PG18 database; all 50 push tests pass there, six real team HTTP cases pass against the combined schema, and the separate team additive rehearsal preserves its historical sentinel. The full backend passes 828 tests (seven optional PG cases skipped in that run and covered by the focused run); frontend passes 174 tests and its production build. No live records or provider traffic are involved.
 
 The root main-CI verifier now requires successful exact main-push SHA/path results from **Web push on PostgreSQL 18** and **Team commanders on PostgreSQL 18** as well as the existing release checks. Both workflows run on main pushes; their completion may request the existing guarded host service. Install the reviewed current verifier through the existing host setup before host acceptance. A changed Prisma tree still stops automatic release pending supervised backed-up migration and explicit schema approval; these changes do not authorize live migrations.
+
+
+## Administrator profile links (2026-11-08)
+
+The worker polls pending profile-link requests and successful-link audit events from the last 24 hours once per worker tick (60 seconds). Both self-link and ADMIN-approved links are covered, using stable request/audit event keys and the existing unique message key. No schema migration or change to the profile ownership transaction is needed. Pending requests already reviewed when delivery runs are skipped.
+
+Only active, email-verified `ADMIN` accounts with consented browser subscriptions and `announcements=true` receive these events. The preference label in an ADMIN cabinet explicitly includes profile links. The role and preference are checked again before sending, so revoking ADMIN or consent prevents queued delivery. Messages contain no claimant/participant personal data. Two exact administrative destinations are allowed by the push worker; all screens retain backend RBAC. Public announcement creation keeps its existing restricted destination validation.
+
+Verification: `npm test -- --runInBand src/push/`, frontend `header-size`, `push-worker`, iOS viewport tests, and the candidate browser matrix. Physical device delivery, VAPID readiness and the Ubuntu revision still require separate live evidence.

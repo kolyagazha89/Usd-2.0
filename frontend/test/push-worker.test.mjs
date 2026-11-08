@@ -60,6 +60,12 @@ test("push worker never intercepts private requests and constrains notification 
     notification: { data: { path: "/stages/123" }, close() {} },
   });
   assert.equal(opened.at(-1), "https://usd.test/stages/123");
+  for (const path of ['/admin/profile-links', '/admin/participants']) {
+    await emit('push', {data: {json: () => ({path})}});
+    assert.equal(shown.at(-1)[1].data.path, path);
+    await emit('notificationclick', {notification: {data: {path}, close() {}}});
+    assert.equal(opened.at(-1), 'https://usd.test' + path);
+  }
   await emit("push", {
     data: {
       json: () => {
@@ -72,6 +78,8 @@ test("push worker never intercepts private requests and constrains notification 
     "/news/%2e%2e/admin",
     "/participant/../../admin",
     "/admin",
+    "/admin/profile-links/../../settings",
+    "/admin/profile-links?redirect=https://evil.test",
     "//evil.example",
     "/stages\\evil",
     "/news?x=1\n",

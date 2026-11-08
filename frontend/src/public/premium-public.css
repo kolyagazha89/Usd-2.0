@@ -269,7 +269,7 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
   display:grid!important;grid-template-columns:repeat(var(--usd-dock-columns,4),minmax(0,1fr))!important;
   width:100%!important;width:100vw!important;max-width:none!important;
   min-height:66px;padding:0 0 env(safe-area-inset-bottom,0px)!important;
-  margin:0!important;transform:none!important;will-change:auto!important;
+  margin:0!important;transform:translate3d(0,0,0)!important;backface-visibility:hidden;
   background:#060d13!important;border-top:1px solid #30414e!important;
   color:#a0b1bd!important;z-index:9999!important;
   box-shadow:0 -9px 27px #03060aa0;

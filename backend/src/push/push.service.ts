@@ -21,7 +21,7 @@ import type {
   PushSubscribeDto,
 } from './push.dto';
 
-type Category = 'registrationOpen' | 'reminders' | 'announcements';
+type Category = 'registrationOpen' | 'reminders' | 'announcements' | 'profileLinks';
 function calendarDaysUntil(date: Date, now: Date) {
   const day = (value: Date) =>
     Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
@@ -60,6 +60,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     try {
       await this.schedule();
+      await this.scheduleProfileLinks();
       await this.processQueue();
       await this.db.pushMessage.deleteMany({
         where: { createdAt: { lt: new Date(Date.now() - 90 * 86400000) } },
@@ -295,7 +296,11 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     createdByUserId?: string;
     userIds?: string[];
   }) {
-    const path = safePushPath(input.path);
+    // Only internal administrative events may use these exact destinations.
+    // User-authored announcements still pass the existing public allowlist.
+    const path = input.category === 'profileLinks' &&
+      ['/admin/profile-links', '/admin/participants'].includes(input.path)
+      ? input.path : safePushPath(input.path);
     return this.db
       .$transaction(async (tx) => {
         const existing = await tx.pushMessage.findUnique({
@@ -304,8 +309,11 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         if (existing) return existing;
         const subscriptions = await tx.pushSubscription.findMany({
           where: {
-            [input.category]: true,
-            user: { isActive: true, emailVerifiedAt: { not: null } },
+            [input.category === 'profileLinks' ? 'announcements' : input.category]: true,
+            user: {
+              isActive: true, emailVerifiedAt: { not: null },
+              ...(input.category === 'profileLinks' ? { role: 'ADMIN' as const } : {}),
+            },
             ...(input.userIds ? { userId: { in: input.userIds } } : {}),
           },
           select: { id: true },
@@ -461,6 +469,46 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Durable source records close the commit-to-notification crash window.
+   * Existing announcement consent applies; never include claim text or PII.
+   * Stable event keys reuse the queue's unique constraint across workers.
+   */
+  async scheduleProfileLinks(now = new Date()) {
+    if (!this.transport.configured()) return;
+    const since = new Date(now.getTime() - 86400000);
+    const [requests, linked] = await Promise.all([
+      this.db.profileLinkRequest.findMany({
+        where: { status: 'PENDING', createdAt: { gte: since } },
+        select: { id: true },
+      }),
+      this.db.auditLog.findMany({
+        where: {
+          action: { in: ['PARTICIPANT_PROFILE_LINKED', 'PROFILE_LINK_APPROVED'] },
+          createdAt: { gte: since },
+        },
+        select: { id: true },
+      }),
+    ]);
+    for (const request of requests) {
+      await this.enqueue({
+        eventKey: 'profile-link-request:' + request.id,
+        category: 'profileLinks',
+        title: 'USD · Заявка на привязку профиля',
+        body: 'Участник запросил привязку существующего профиля. Проверьте заявку в административной панели.',
+        path: '/admin/profile-links',
+      });
+    }
+    for (const event of linked) {
+      await this.enqueue({
+        eventKey: 'profile-linked:' + event.id,
+        category: 'profileLinks',
+        title: 'USD · Профиль присоединён',
+        body: 'Существующий профиль участника успешно привязан к аккаунту USD.',
+        path: '/admin/participants',
+      });
+    }
+  }
+
   async schedule(now = new Date()) {
     if (!this.transport.configured()) return;
     const stages = await this.db.stage.findMany({
@@ -534,7 +582,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         ? await this.db.pushSubscription.findUnique({
             where: { id: row.subscriptionId },
             include: {
-              user: { select: { isActive: true, emailVerifiedAt: true } },
+              user: { select: { isActive: true, emailVerifiedAt: true, role: true } },
             },
           })
         : null;
@@ -543,8 +591,16 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         !subscription ||
         !subscription.user.isActive ||
         !subscription.user.emailVerifiedAt ||
-        !subscription[category] ||
+        !subscription[category === 'profileLinks' ? 'announcements' : category] ||
+        (category === 'profileLinks' && subscription.user.role !== 'ADMIN') ||
         row.message.createdAt.getTime() < Date.now() - 86400000;
+      if (!skip && category === 'profileLinks' && row.message.eventKey.startsWith('profile-link-request:')) {
+        const request = await this.db.profileLinkRequest.findUnique({
+          where: { id: row.message.eventKey.slice('profile-link-request:'.length) },
+          select: { status: true },
+        });
+        if (request?.status !== 'PENDING') skip = true;
+      }
       if (!skip && row.message.stageId) {
         const stage = await this.db.stage.findFirst({
           where: {

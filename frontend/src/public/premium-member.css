@@ -347,7 +347,7 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
  * content starts below it, even when the webview scrolls or collapses chrome. */
 @media(max-width:760px){
  body .participant-portal.usd-member{
-  padding-top:calc(64px + env(safe-area-inset-top,0px))!important;
+  padding-top:var(--usd-member-header-size,calc(72px + env(safe-area-inset-top,0px)))!important;
  }
  body .usd-member .participant-portal-header{
   position:fixed!important;top:0!important;left:0!important;right:0!important;
@@ -361,6 +361,7 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   * of the animated/scrolling cabinet can otherwise detach on Safari. */
  body > .participant-tabs{
   position:fixed!important;inset-inline:0!important;top:auto!important;bottom:0!important;
+  transform:translate3d(0,0,0)!important;backface-visibility:hidden;
   z-index:1001!important;box-sizing:border-box!important;
   display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
   width:100%!important;max-width:100%!important;margin:0!important;gap:2px!important;
