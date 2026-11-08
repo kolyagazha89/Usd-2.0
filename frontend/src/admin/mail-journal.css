@@ -1,0 +1,20 @@
+.usd-mail-journal{min-width:0}
+.usd-mail-journal__heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.usd-mail-journal__heading h2{font-size:23px;line-height:1.25;margin:0 0 10px}
+.usd-mail-journal__heading p{max-width:74ch;line-height:1.5}
+.usd-mail-journal__filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.usd-mail-journal__filters label{display:grid;gap:5px;font-size:13px;font-weight:700}
+.usd-mail-journal__filters select{min-height:44px;border:1px solid #cbd2db;border-radius:9px;background:white;color:#17212c;padding:9px 12px}
+.usd-mail-journal__filters button,.usd-mail-journal__more{min-height:44px}
+.usd-mail-journal__list{display:grid;gap:10px;margin-top:18px}
+.usd-mail-journal__item{min-width:0;border:1px solid #d8dce3;border-radius:12px;background:#fff;padding:15px 17px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px}
+.usd-mail-journal__primary{display:grid;gap:5px;min-width:0;color:#19212b}
+.usd-mail-journal__primary strong{font-size:15px;overflow-wrap:anywhere}
+.usd-mail-journal__primary span{font-size:14px;overflow-wrap:anywhere;color:#4b5563}
+.usd-mail-journal__meta{display:grid;justify-items:end;gap:5px;color:#465361;font-size:13px}
+.usd-mail-journal__meta [data-mail-status]{font-weight:750;color:#475569}
+.usd-mail-journal__meta [data-mail-status="PROVIDER_ACCEPTED"]{color:#176641}
+.usd-mail-journal__meta [data-mail-status="FAILED"]{color:#ae202e}
+.usd-mail-journal__meta small{font-size:12px}
+.usd-mail-journal__more{margin-top:16px}
+@media(max-width:620px){.usd-mail-journal__item{grid-template-columns:minmax(0,1fr);gap:12px}.usd-mail-journal__meta{justify-items:start}.usd-mail-journal__heading{display:grid}.usd-mail-journal__filters{align-items:stretch}.usd-mail-journal__filters label{flex:1;min-width:150px}}
