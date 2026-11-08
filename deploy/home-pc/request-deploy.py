@@ -117,17 +117,20 @@ def request(trigger, *, read=None, start=start_service, verify=verify_public,
                 # release. Retry the EXACT completed SHA without starting another
                 # deployment; permanently failed probes still fail closed.
                 accepted = False
-                for probe in range(3):
+                # Brief GitHub/edge DNS outages can outlast three probes. The
+                # exact-SHA verifier still checks routes, data, protected API and
+                # assets on every attempt; never treat root success alone as proof.
+                for probe in range(8):
                     if clock() >= deadline:
                         break
                     if verify(sha, max(1, deadline-clock())):
                         accepted = True
                         break
                     remaining = deadline-clock()
-                    if probe < 2 and remaining > 0:
+                    if probe < 7 and remaining > 0:
                         sleep(min(interval, remaining))
                 if not accepted:
-                    emit('PUBLIC_ACCEPTANCE_FAILED: exact completed SHA was not accepted after bounded retries')
+                    emit('PUBLIC_ACCEPTANCE_FAILED: exact completed SHA was not accepted after eight bounded retries')
                     return 1
                 emit('ACCEPTED ' + sha + (' (current main supersedes trigger)' if sha != trigger else ''))
                 return 0
