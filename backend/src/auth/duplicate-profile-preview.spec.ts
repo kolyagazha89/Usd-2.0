@@ -22,8 +22,8 @@ describe('readonly participant duplicate analysis',()=>{
    target:{cars:1,configurations:2,records:1},
   });
  });
- it('does not block on cancelled registrations or unrelated stages',()=>{
-  const preview=duplicatePreview({...base('s'),registrations:[registration('stage-a','CANCELLED')]},{
+ it('does not block on cancelled registrations without results or unrelated stages',()=>{
+  const preview=duplicatePreview({...base('s'),registrations:[{...registration('stage-a','CANCELLED'),results:0}]},{
    ...base('t'),registrations:[registration('stage-a'),registration('stage-b')],
   });
   expect(preview.conflicts).toEqual([]);
