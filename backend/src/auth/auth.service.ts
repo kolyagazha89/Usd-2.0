@@ -1445,9 +1445,13 @@ export class AuthService {
       };
     }
 
+    // Keep previously delivered, unexpired links valid. If SMTP rejects
+    // this request, invalidating those links would strand the account.
+    // Only expired links can be safely cleaned before sending.
     await this.prisma.passwordResetToken.deleteMany({
       where: {
         userId: user.id,
+        expiresAt: { lt: new Date() },
       },
     });
 
