@@ -692,7 +692,7 @@ try{
       },{headerSelector,shellSelector});
       await reserved();
       // Font scaling, safe-area changes and wrapped controls may grow a header.
-      const grow=await page.addStyleTag({content:`${headerSelector}{min-height:112px!important}`});
+      const grow=await page.addStyleTag({content:`body ${shellSelector} ${headerSelector}{min-height:112px!important}`});
       await reserved();
       assert.ok((await page.locator(headerSelector).boundingBox()).height>=112);
       await grow.evaluate(element=>element.remove());
