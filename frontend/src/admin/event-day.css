@@ -37,7 +37,7 @@
 .event-day-search input {flex:1;min-width:0;padding:12px 0;min-height:44px;font-size:16px;border:0!important;outline:0!important;background:transparent!important;color:#1c1e23}
 .event-day-search button {flex-shrink:0}
 .event-day-filter-tabs {display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:0 0 13px;scrollbar-width:thin}
-.event-day-filter-tabs button {white-space:nowrap;min-height:37px;flex-shrink:0}
+.event-day-filter-tabs button {min-height:44px;white-space:normal;min-width:0;flex-shrink:0;overflow-wrap:anywhere}
 .event-day-filter-tabs button.active {background:#a52233!important;border-color:#a52233!important;color:#fff!important}
 .event-day-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;min-width:0}
 .event-day-person {min-width:0;padding:17px;border:1px solid #e4e6eb;border-radius:15px;background:#fafbfc;display:flex;flex-direction:column;gap:14px}
@@ -107,3 +107,14 @@
 .event-day-venue-export-warning{display:block;flex:1 1 100%;font-size:12px;
  line-height:1.45;color:#8b5b19;padding:8px 11px;border:1px solid #e8d8b5;
  border-radius:9px;background:#fff8e8}
+
+/* Judge controls are actions, not a horizontal ticker. Fit all six status
+ * filters on narrow screens so their labels never disappear off-screen. */
+@media(max-width:1150px){
+ .event-day-filter-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow-x:visible;gap:8px}
+ .event-day-filter-tabs button{width:100%;justify-content:center;text-align:center;min-height:44px}
+}
+@media(max-width:650px){
+ .event-day-filter-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .event-day-filter-tabs button{padding-inline:7px}
+}
