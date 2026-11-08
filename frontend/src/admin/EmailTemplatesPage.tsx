@@ -2,6 +2,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {CheckCircle2,CopyPlus,Mail,Save,Send,Trash2} from 'lucide-react';
 import {apiGet,apiPost,updateSiteSettings} from '../api';
 import './mail-preview.css';
+import EmailJournalPanel from './EmailJournalPanel';
 
 type EmailVariableTexts={heading:string;intro:string;detailsBefore:string;detailsAfter:string};
 type EmailTemplate={id:string;name:string;trigger:string;enabled:boolean;subject:string;body:string;footer:string;buttonLabel:string;variableTexts?:Partial<EmailVariableTexts>};
@@ -126,6 +127,7 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
    </div>
    {error&&<div className="notice" role="alert">{error}</div>}{message&&<div className="notice" role="status"><CheckCircle2 size={16}/><span>{message}</span></div>}
   </div>
+  <EmailJournalPanel/>
   <div className="settings-section"><PanelTitle title="Как работают переменные" icon={Mail}/><p className="settings-help">Переменные — метки, которые система заменяет текстом и данными при отправке. В разделе «Тексты переменных» можно настроить заголовок и вступление, а также добавить пояснение до или после автоматических подробностей.</p><ul className="mail-test-steps"><li><strong>{'{{heading}}'}</strong> — заголовок текущего уведомления.</li><li><strong>{'{{intro}}'}</strong> — вступительный текст конкретного уведомления.</li><li><strong>Ссылка действия</strong> создаётся сервером отдельно от текста шаблона.</li><li><strong>{'{{details}}'}</strong> — безопасное пояснение к системному письму.</li></ul><p className="settings-help">Безопасность: текстовые значения экранируются, HTML и скрипты не исполняются. Системные ссылки и кнопка действия управляются отдельно и не теряются при редактировании тела письма.</p></div>
  </PageFrame>;
 }
