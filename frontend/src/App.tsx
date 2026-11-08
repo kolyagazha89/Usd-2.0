@@ -120,7 +120,7 @@ function App(){
  if(booting&&/^\/(?:admin|participant|login)(?:\/|\?|$)/.test(path))return <Splash/>;
  const accountAction=path.split('?')[0];
  if(accountAction==='/reset-password'||accountAction==='/confirm-email-change')return <AccountActionPage key={path} action={accountAction==='/reset-password'?'reset-password':'confirm-email-change'} path={path} onGoLogin={()=>go('/login')} onSessionReset={()=>{clearAuthSession();setUser(null)}}/>;
- if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage onGoLogin={()=>go('/login')}/>;
+ if(path.split('?')[0]==='/verify-email')return <EmailVerificationPage key={path+location.hash} onGoLogin={()=>go('/login')}/>;
  // The offline desk is protected by its own passphrase, not by a stale JWT.
  // It must render even when auth/refresh cannot reach the central API.
  if(path.split('?')[0]==='/offline-event')return <OfflineEventPage onGoOnline={target=>go(target??'/admin/event-day')}/>;
@@ -146,40 +146,46 @@ function Splash({fixedLogo=false}:{fixedLogo?:boolean}={}){const[logo,setLogo]=u
  </div>}{error&&<div className="form-error"><AlertTriangle size={16}/>{error}</div>}{notice&&<div className={forgotMode?"notice auth-recovery-notice":"notice"}>{forgotMode?<Info size={16}/>:<CheckCircle2 size={16}/>}<span>{notice}</span></div>}<button className="primary-button" disabled={loading||(!forgotMode&&mode==='register'&&(legalLoading||!legalReady))}>{loading?(forgotMode?'Отправляем…':mode==='login'?'Входим…':'Создаём аккаунт…'):(forgotMode?'Запросить ссылку':mode==='login'?'Войти':'Зарегистрироваться')}<ChevronRight size={18}/></button></form>{showVerification&&!forgotMode&&mode==='login'&&<VerificationResend key={verificationEmail??'recovery'} registeredEmail={verificationEmail??undefined}/>} {forgotMode?<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setForgotMode(false);setError('');setNotice('')}}>← Вернуться ко входу</button>:<>{mode==='login'&&<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setForgotMode(true);setShowVerification(false);setError('');setNotice('')}}>Забыли пароль?</button>}{mode==='login'&&!showVerification&&<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setVerificationEmail(null);setShowVerification(true)}}>Не пришло письмо подтверждения?</button>}<button type="button" disabled={loading} className="text-button login-mode-toggle" onClick={()=>{setMode(mode==='login'?'register':'login');setShowVerification(false);setError('');setNotice('')}}>{mode==='login'?'Нет аккаунта? Зарегистрироваться':'Уже есть аккаунт? Войти'}</button></>}<div className="login-footer"><span>{logo?<img className="brand-logo-footer" src={logo} alt="USD"/>:<strong>USD</strong>}</span><span>Защищённый вход</span></div></div></div>;
 }
 function EmailVerificationPage({onGoLogin}:{onGoLogin:()=>void}){
- const[status,setStatus]=useState<'loading'|'success'|'error'>('loading'),[message,setMessage]=useState('Подтверждаем email…');
- useEffect(()=>{
-  let active=true;
-  const params=new URLSearchParams(location.search);
-  const linkStatus=params.get('status');
-  const token=params.get('token');
-  if(linkStatus==='success'){
-   setStatus('success');
-   setMessage('Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.');
-   return()=>{active=false};
-  }
-  if(linkStatus==='expired'){
-   setStatus('error');
-   setMessage('Срок действия ссылки истёк. Вернитесь ко входу и запросите новое письмо подтверждения.');
-   return()=>{active=false};
-  }
-  if(linkStatus==='error'){
-   setStatus('error');
-   setMessage('Ссылка недействительна или подтверждение не удалось выполнить. Запросите новое письмо и попробуйте ещё раз.');
-   return()=>{active=false};
-  }
-  if(!token){
-   setStatus('error');
-   setMessage('В ссылке отсутствует токен подтверждения. Запросите новое письмо и откройте ссылку из него.');
-   return()=>{active=false};
-  }
-  apiPost<any>('/auth/verify-email',{token}).then(r=>{
-   if(active){setStatus('success');setMessage(r?.message||'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.')}
-  }).catch(e=>{
-   if(active){setStatus('error');setMessage(e instanceof Error?e.message:'Не удалось подтвердить почту. Запросите новое письмо или попробуйте ещё раз.')}
-  });
-  return()=>{active=false};
- },[]);
- return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card"><div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div><div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div><h1>{status==='loading'?'Проверяем ссылку':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1><p className="muted">{message}</p>{status==='loading'&&<div className="participant-loading"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}{status!=='loading'&&<button className="primary-button" onClick={onGoLogin}>{status==='success'?'Войти':'Вернуться ко входу'}<ChevronRight size={18}/></button>}</div></div>;
+ // Mail scanners and link-preview bots can load GET pages: never verify on
+ // mount. The signed secret is only submitted after a deliberate user click.
+ const [link]=useState(()=>{
+  const query=new URLSearchParams(location.search);
+  const fragment=new URLSearchParams(location.hash.replace(/^#/,''));
+  return {token:fragment.get('token')??query.get('token')??'',status:query.get('status')};
+ });
+ const [status,setStatus]=useState<'ready'|'confirming'|'success'|'error'>(()=>{
+  if(link.status==='success')return 'success';
+  if(link.status==='error'||link.status==='expired')return 'error';
+  return /^[a-f0-9]{64}$/i.test(link.token)?'ready':'error';
+ });
+ const [message,setMessage]=useState(()=>{
+  if(link.status==='success')return 'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.';
+  if(link.status==='expired')return 'Срок действия ссылки истёк. Вернитесь ко входу и запросите новое письмо подтверждения.';
+  if(link.status==='error'||!/^[a-f0-9]{64}$/i.test(link.token))return 'Ссылка недействительна. Запросите новое письмо подтверждения.';
+  return 'Проверьте адрес сайта и нажмите кнопку ниже, чтобы подтвердить владение email. Простое открытие ссылки ничего не меняет.';
+ });
+ const inFlight=useRef(false),mounted=useRef(true);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[]);
+ const confirm=async()=>{
+  if(status!=='ready'||inFlight.current)return;
+  inFlight.current=true;setStatus('confirming');
+  try{
+   const result=await apiPost<{message?:string}>('/auth/verify-email',{token:link.token});
+   if(mounted.current){setStatus('success');setMessage(result?.message||'Почта успешно подтверждена. Теперь вы можете войти в личный кабинет USD.')}
+  }catch(error){
+   if(mounted.current){setStatus('error');setMessage(error instanceof Error?error.message:'Не удалось подтвердить почту. Запросите новое письмо и повторите попытку.')}
+  }finally{inFlight.current=false}
+ };
+ return <div className="login-page usd-auth usd-auth-simple"><div className="login-grid"/><div className="login-card">
+  <div className="brand-lockup"><img className="brand-logo-login" src="/usd/usd-original.png" alt="USD"/></div>
+  <div className="eyebrow">ПОДТВЕРЖДЕНИЕ EMAIL</div>
+  <h1>{status==='ready'?'Подтвердите email':status==='confirming'?'Подтверждаем email…':status==='success'?'Почта успешно подтверждена':'Не удалось подтвердить почту'}</h1>
+  <p className="muted">{message}</p>
+  {status==='ready'&&<button type="button" className="primary-button" onClick={()=>void confirm()}>Подтвердить email<ChevronRight size={18}/></button>}
+  {status==='confirming'&&<div className="participant-loading" role="status"><Loader2 className="spin" size={18}/>Пожалуйста, подождите…</div>}
+  {status==='success'&&<button type="button" className="primary-button" onClick={onGoLogin}>Войти<ChevronRight size={18}/></button>}
+  {status==='error'&&<button type="button" className="primary-button" onClick={onGoLogin}>Вернуться ко входу<ChevronRight size={18}/></button>}
+ </div></div>;
 }
 function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|null}){
  useEffect(()=>{
