@@ -46,6 +46,8 @@ jobs:
         run: node scripts/browser-qa-routing-regression.mjs
       - name: Check candidate public, participant and admin interfaces
         run: node scripts/candidate-browser-qa.mjs
+      - name: Verify PWA safe areas with nonzero status-bar and home-indicator insets
+        run: node scripts/safe-area-browser-qa.mjs
       - name: Verify account-security actions and focused controls
         run: node scripts/account-security-browser-qa.mjs
         env:
@@ -67,6 +69,7 @@ jobs:
           name: candidate-browser-qa-${{ github.run_attempt }}
           path: |
             candidate-browser-qa/
+            safe-area-browser-qa/
             account-security-browser-qa/
             home-logo-browser-qa/
             partner-image-browser-qa/
