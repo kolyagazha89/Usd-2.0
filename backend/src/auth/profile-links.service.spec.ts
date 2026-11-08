@@ -1,5 +1,5 @@
 import {jest} from '@jest/globals';
-import {BadRequestException,ConflictException,ForbiddenException,NotFoundException} from '@nestjs/common';
+import {BadRequestException,ConflictException,NotFoundException} from '@nestjs/common';
 import {ProfileLinksService} from './profile-links.service';
 
 const uuid=(last:string)=>'123e4567-e89b-42d3-a456-'+last;
@@ -8,7 +8,6 @@ const participantId=uuid('426614174002');
 const requestId=uuid('426614174003');
 const reviewerId=uuid('426614174004');
 const note='Участвовал на этапе 2025, автомобиль Lada.';
-const reviewReason='Сверены записи участника и доказательства владельца.';
 
 describe('secure manual profile link review',()=>{
  const makeDb=()=>{
@@ -68,7 +67,7 @@ describe('secure manual profile link review',()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
   db.participant.findUnique.mockResolvedValueOnce({id:participantId,user:{id:'someone-else'}});
-  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,true)).rejects.toBeInstanceOf(ConflictException);
+  await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
   expect(db.user.update).not.toHaveBeenCalled();
  });
  it('rejection does not attach a profile',async()=>{
@@ -95,7 +94,7 @@ describe('secure manual profile link review',()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'PENDING',claimantUserId:claimantId,participantId});
   db.user.updateMany.mockResolvedValueOnce({count:0});
-  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,true)).rejects.toBeInstanceOf(ConflictException);
+  await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
   expect(db.user.update).not.toHaveBeenCalled();
   expect(db.profileLinkRequest.update).not.toHaveBeenCalled();
   expect(db.auditLog.create).not.toHaveBeenCalled();
@@ -103,7 +102,7 @@ describe('secure manual profile link review',()=>{
  it('does not replay the approval mutation or audit on a reviewed request',async()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   db.profileLinkRequest.findUnique.mockResolvedValue({id:requestId,status:'APPROVED',claimantUserId:claimantId,participantId});
-  await expect(service.review(requestId,reviewerId,'APPROVE',reviewReason,true)).rejects.toBeInstanceOf(ConflictException);
+  await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
   expect(db.user.updateMany).not.toHaveBeenCalled();
   expect(db.profileLinkRequest.update).not.toHaveBeenCalled();
   expect(db.auditLog.create).not.toHaveBeenCalled();
