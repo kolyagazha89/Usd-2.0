@@ -19,6 +19,18 @@ SHA = re.compile(r'^[a-f0-9]{40}$')
 MAX_BYTES = 128 * 1024
 
 
+class DiagnosticEndpointUnavailable(ValueError):
+    """Only a constant endpoint identifier and a numeric HTTP status may escape."""
+
+
+def endpoint_kind(host):
+    return {
+        'app.usd-russia.ru': 'frontend',
+        'api.usd-russia.ru': 'api',
+        'api.github.com': 'github_tree',
+    }[host]
+
+
 class SameOriginRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         old = urllib.parse.urlsplit(request.full_url)
@@ -44,12 +56,22 @@ def get_json(url):
         'Accept': 'application/vnd.github+json, application/json',
         'Cache-Control': 'no-cache', 'User-Agent': 'USD-read-only-deploy-triage',
     })
-    with urllib.request.build_opener(SameOriginRedirects()).open(request, timeout=12) as response:
-        if response.status != 200:
-            raise ValueError('Non-200 diagnostic endpoint')
-        body = response.read(MAX_BYTES + 1)
-        if len(body) > MAX_BYTES:
-            raise ValueError('Diagnostic response too large')
+    # A hosted diagnostic must be actionable without logging untrusted HTML,
+    # response bodies, redirected URLs, authorization headers or exception text.
+    # This is a read-only best-effort probe, not an approval/release gate.
+    origin = endpoint_kind(parsed.netloc)
+    try:
+        with urllib.request.build_opener(SameOriginRedirects()).open(request, timeout=12) as response:
+            if response.status != 200:
+                raise DiagnosticEndpointUnavailable(f'{origin}_http_unexpected')
+            body = response.read(MAX_BYTES + 1)
+            if len(body) > MAX_BYTES:
+                raise ValueError('Diagnostic response too large')
+    except urllib.error.HTTPError as error:
+        status = error.code if isinstance(error.code, int) and 400 <= error.code <= 599 else 'unexpected'
+        raise DiagnosticEndpointUnavailable(f'{origin}_http_{status}') from None
+    except (urllib.error.URLError, TimeoutError, ConnectionError):
+        raise DiagnosticEndpointUnavailable(f'{origin}_network_error') from None
     return json.loads(body)
 
 
@@ -107,6 +129,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         result = diagnose(args.target)
+    except DiagnosticEndpointUnavailable as error:
+        # All messages originate from the fixed allowlist + sanitized HTTP
+        # status, never from upstream error bodies/URLs or secrets.
+        print('Deployment triage unavailable: ' + str(error), file=sys.stderr)
+        return 2
     except (ValueError, KeyError, TypeError, OSError, urllib.error.URLError, json.JSONDecodeError) as error:
         # Do not log untrusted responses, private data, or environment values.
         print('Deployment triage unavailable: ' + type(error).__name__, file=sys.stderr)
