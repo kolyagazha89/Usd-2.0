@@ -79,6 +79,47 @@ class RequestTests(unittest.TestCase):
         self.assertEqual(self.verified, [A])
         self.assertEqual(len(self.starts), 1)
 
+    def test_transient_public_probe_failure_retries_exact_completed_sha_without_new_deploy(self):
+        calls, output, clock = [], [], [0]
+        attempts = iter([False, False, True])
+        def verify(sha, timeout):
+            calls.append(sha)
+            return next(attempts)
+        result = m.request(A, read=iter([None, row('1', 'RELEASED')]).__next__,
+                           start=lambda _: (0, '1' * 32), verify=verify,
+                           sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
+                           clock=lambda: clock[0], emit=output.append,
+                           budget=30, interval=1, latest=lambda _: A)
+        self.assertEqual(result, 0)
+        self.assertEqual(calls, [A, A, A])
+        self.assertEqual(output[-1], 'ACCEPTED ' + A)
+
+    def test_public_probe_persistently_fails_closed_without_acceptance(self):
+        calls, output, clock = [], [], [0]
+        def verify(sha, timeout):
+            calls.append(sha)
+            return False
+        result = m.request(A, read=iter([None, row('1', 'RELEASED')]).__next__,
+                           start=lambda _: (0, '1' * 32), verify=verify,
+                           sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
+                           clock=lambda: clock[0], emit=output.append,
+                           budget=30, interval=1, latest=lambda _: A)
+        self.assertNotEqual(result, 0)
+        self.assertEqual(calls, [A, A, A])
+        self.assertTrue(any('PUBLIC_ACCEPTANCE_FAILED' in line for line in output))
+        self.assertFalse(any(line.startswith('ACCEPTED ') for line in output))
+
+    def test_public_probe_retries_never_verify_an_old_or_different_sha(self):
+        checked, clock = [], [0]
+        result = m.request(A, read=iter([None, row('1', 'RELEASED', B)]).__next__,
+                           start=lambda _: (0, '1' * 32),
+                           verify=lambda sha, _: checked.append(sha) or False,
+                           sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
+                           clock=lambda: clock[0], budget=30, interval=1, latest=lambda _: A,
+                           emit=lambda _: None)
+        self.assertNotEqual(result, 0)
+        self.assertEqual(checked, [])
+
     def test_service_request_keeps_the_exact_existing_sudo_boundary(self):
         with patch.object(m.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, 'PRIVATE', 'PRIVATE')) as run:
             self.assertEqual(m.start_service(10), (1, None))
