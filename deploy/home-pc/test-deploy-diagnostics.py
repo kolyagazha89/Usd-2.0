@@ -83,6 +83,57 @@ class DeployDiagnosticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Cross-origin'):
             handler.redirect_request(req, None, 302, 'Found', {}, 'https://usd-russia.ru/')
 
+    def test_upstream_http_errors_report_only_allowlisted_endpoint_and_status(self):
+        # Current production incident: hosted triage says only HTTPError, hiding
+        # whether GitHub commit tree or one of two public revision endpoints failed.
+        from io import StringIO
+        from unittest.mock import Mock
+        import urllib.error
+        import contextlib
+        for endpoint, kind in (
+            (module.APP + '/usd-release.json', 'frontend'),
+            (module.API + '/release', 'api'),
+            (module.REPO_API + '/git/commits/' + A, 'github_tree'),
+        ):
+            for status in (403, 404, 429, 502, 504):
+                with self.subTest(endpoint=kind, status=status):
+                    response = Mock()
+                    response.open.side_effect = urllib.error.HTTPError(
+                        endpoint + '?private=SHOULD_NOT_LEAK', status, 'secret diagnostic', {}, None)
+                    with patch.object(module.urllib.request, 'build_opener', return_value=response):
+                        with self.assertRaises(module.DiagnosticEndpointUnavailable) as caught:
+                            module.get_json(endpoint)
+                    self.assertEqual(str(caught.exception), f'{kind}_http_{status}')
+                    self.assertNotIn('SHOULD_NOT_LEAK', str(caught.exception))
+
+    def test_network_failures_identify_affected_endpoint_without_leaking_urls(self):
+        import urllib.error
+        from unittest.mock import Mock
+        for endpoint, kind in (
+            (module.APP + '/usd-release.json', 'frontend'),
+            (module.API + '/release', 'api'),
+            (module.REPO_API + '/git/trees/' + A, 'github_tree'),
+        ):
+            with self.subTest(kind=kind):
+                opener = Mock()
+                opener.open.side_effect = urllib.error.URLError(
+                    'credentials@example.invalid/private')
+                with patch.object(module.urllib.request, 'build_opener', return_value=opener):
+                    with self.assertRaises(module.DiagnosticEndpointUnavailable) as caught:
+                        module.get_json(endpoint)
+                self.assertEqual(str(caught.exception), kind + '_network_error')
+                self.assertNotIn('credentials', str(caught.exception))
+
+    def test_main_prints_sanitized_origin_error_and_returns_failure(self):
+        from io import StringIO
+        import contextlib
+        stderr = StringIO()
+        with patch.object(module, 'diagnose', side_effect=module.DiagnosticEndpointUnavailable('frontend_http_504')):
+            with contextlib.redirect_stderr(stderr):
+                self.assertEqual(module.main(['--target', A]), 2)
+        self.assertIn('frontend_http_504', stderr.getvalue())
+        self.assertNotIn('Traceback', stderr.getvalue())
+
     def test_separate_hosted_triage_retains_runner_privilege_boundary(self):
         workflow = (Path(__file__).parents[2] / '.github/workflows/request-home-pc-deploy.yml').read_text()
         hosted = (Path(__file__).parents[2] / '.github/workflows/failed-home-pc-deploy-triage.yml').read_text()
