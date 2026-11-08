@@ -14,6 +14,7 @@ describe('secure manual profile link review',()=>{
   const db:any={
    user:{findUnique:jest.fn(async()=>({id:claimantId,emailVerifiedAt:new Date(),isActive:true,participantId:null})),update:jest.fn(async()=>({id:claimantId})),updateMany:jest.fn(async()=>({count:1}))},
    participant:{findUnique:jest.fn(async()=>({id:participantId,isPublic:true,user:null}))},
+   participantLegacyEmail:{findMany:jest.fn(async()=>[])},
    profileLinkRequest:{
     findUnique:jest.fn(async()=>null),
     findMany:jest.fn(async()=>[]),
@@ -88,6 +89,36 @@ describe('secure manual profile link review',()=>{
   await expect(service.review(requestId,reviewerId,'APPROVE')).rejects.toBeInstanceOf(ConflictException);
   expect(db.user.updateMany).not.toHaveBeenCalled();
   expect(db.auditLog.create).not.toHaveBeenCalled();
+ });
+
+
+ it('admin receives only sanitized historic email match status, never the private legacy address',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findMany.mockResolvedValueOnce([
+   {id:requestId,status:'PENDING',participantId,claimant:{id:claimantId,email:'OWNER@EXAMPLE.COM',emailVerifiedAt:new Date(),participantId:null},participant:{id:participantId,user:null}},
+  ]);
+  db.participantLegacyEmail.findMany.mockResolvedValueOnce([{participantId,email:' owner@example.com '}]);
+  const rows=await service.adminList('PENDING');
+  expect(rows[0].legacyEmailStatus).toBe('MATCH_VERIFIED');
+  expect(JSON.stringify(rows)).not.toContain('owner@example.com');
+  db.profileLinkRequest.findMany.mockResolvedValueOnce([
+   {id:requestId,status:'PENDING',participantId,claimant:{id:claimantId,email:'owner@example.com',emailVerifiedAt:new Date(),participantId:null}},
+  ]);
+  db.participantLegacyEmail.findMany.mockResolvedValueOnce([]);
+  expect((await service.adminList('PENDING'))[0].legacyEmailStatus).toBe('LEGACY_EMAIL_MISSING');
+ });
+ it('admin diagnostics distinguish unverified email and a different historical address',async()=>{
+  const db=makeDb(),service=new ProfileLinksService(db);
+  db.profileLinkRequest.findMany.mockResolvedValue([
+   {id:requestId,participantId,claimant:{email:'owner@example.com',emailVerifiedAt:null}},
+  ]);
+  db.participantLegacyEmail.findMany.mockResolvedValue([{participantId,email:'owner@example.com'}]);
+  expect((await service.adminList())[0].legacyEmailStatus).toBe('EMAIL_NOT_VERIFIED');
+  db.profileLinkRequest.findMany.mockResolvedValue([
+   {id:requestId,participantId,claimant:{email:'owner@example.com',emailVerifiedAt:new Date()}},
+  ]);
+  db.participantLegacyEmail.findMany.mockResolvedValue([{participantId,email:'other@example.com'}]);
+  expect((await service.adminList())[0].legacyEmailStatus).toBe('EMAIL_DIFFERENT');
  });
 
  it('does not steal a profile when another workflow attached the claimant after validation',async()=>{
