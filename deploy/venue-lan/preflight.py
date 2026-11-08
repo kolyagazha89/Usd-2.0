@@ -5,7 +5,7 @@ import os
 import pathlib
 import re
 import sys
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qsl, unquote
 
 REQUIRED = (
     "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_DB_NAME", "VENUE_DB_USER",
@@ -55,10 +55,29 @@ def validate(env: dict[str, str]) -> None:
         db = urlsplit(env["VENUE_DATABASE_URL"])
     except ValueError as exc:
         raise ValueError("Неверная ссылка локальной базы данных") from exc
-    if db.scheme not in ("postgres", "postgresql") or db.hostname != "db" or db.port not in (5432, None) or not db.path.strip("/"):
-        raise ValueError("БД должна быть только локальным сервисом db:5432")
-    if db.username != env["VENUE_DB_USER"]:
-        raise ValueError("Имя пользователя в URL базы не совпадает с VENUE_DB_USER")
+    # Never reuse production database names or default PostgreSQL identities:
+    # this compose stack must own a separate venue-only database.
+    if not re.fullmatch(r"usd_venue(?:_[a-z0-9]{1,20})?", env["VENUE_DB_NAME"]):
+        raise ValueError("Локальная база должна иметь имя usd_venue")
+    if not re.fullmatch(r"usd_venue(?:_[a-z0-9]{1,20})?", env["VENUE_DB_USER"]):
+        raise ValueError("Локальный пользователь должен иметь имя usd_venue")
+    try:
+        allowed_connection = (
+            db.scheme in ("postgres", "postgresql")
+            and db.hostname == "db" and db.port in (5432, None)
+            and db.path == "/" + env["VENUE_DB_NAME"]
+            and db.username == env["VENUE_DB_USER"]
+            and unquote(db.password or "") == env["VENUE_DB_PASSWORD"]
+            and not db.fragment
+            # Prisma accepts schema=public; prevent host/hostaddr/service and
+            # other query parameters from overriding the private DB endpoint.
+            and parse_qsl(db.query, keep_blank_values=True, strict_parsing=True) in
+            ([], [("schema", "public")])
+        )
+    except ValueError as exc:
+        raise ValueError("Неверная ссылка локальной базы данных") from exc
+    if not allowed_connection:
+        raise ValueError("URL базы должен точно соответствовать локальному db, имени и паролю площадки")
     # Never allow a production database or public S3 host from a copied .env.
     for key in env:
         if key in ("S3_ENDPOINT", "API_PUBLIC_URL", "PUBLIC_API_URL", "FRONTEND_URL", "CORS_ORIGINS", "CSRF_TRUSTED_ORIGINS"):
