@@ -591,19 +591,6 @@ body .participant-portal.usd-member .team-photo-list li :is(span,button) {
  }
 }
 
-/* Release mobile navigation: fixed viewport anchors, including iOS safe areas. */
-body .usd-live .p-public-header {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 110 !important;
-}
-body > .u-mobile-dock {
-  position: fixed !important;
-  inset-inline: 0 !important;
-  bottom: 0 !important;
-  z-index: 120 !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
 /* The authentication canvas must not reveal a white page behind the card. */
 html:has(.login-page.usd-auth),
 body:has(.login-page.usd-auth),
@@ -618,8 +605,11 @@ body .login-page.usd-auth {
 /* A fixed header is independent of transformed/overflowing page sections.
  * Sticky positioning can detach on iOS Safari when the home content animates. */
 body .usd-live {
-  --usd-public-header-size:74px;
+  --usd-public-header-size:77px;
   padding-top:var(--usd-public-header-size);
+}
+body .usd-live #public-content {
+  scroll-margin-top:calc(var(--usd-public-header-size) + 12px);
 }
 body .usd-live .p-public-header {
   position:fixed!important;
@@ -627,9 +617,11 @@ body .usd-live .p-public-header {
   inset-inline:0!important;
   width:100%!important;
   z-index:110!important;
+  padding-top:env(safe-area-inset-top,0px);
+  box-sizing:border-box;
 }
 @media(max-width:740px) {
- body .usd-live { --usd-public-header-size:62px; }
+ body .usd-live { --usd-public-header-size:67px; }
 }
 @media(max-width:740px) {
  body:has(.usd-live):has(> .u-mobile-dock) .usd-live {

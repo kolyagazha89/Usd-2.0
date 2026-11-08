@@ -19,6 +19,6 @@ test('mobile form fix loads after existing style sheets and retains pinch zoom',
   const main = read('../src/main.tsx');
   const html = read('../index.html');
   assert.ok(main.indexOf("'./ui-consistency.css'") > main.indexOf("'./participant-ui-polish.css'"));
-  assert.match(html, /name="viewport" content="width=device-width, initial-scale=1\.0"/);
+  assert.match(html, /name="viewport" content="width=device-width, initial-scale=1\.0, viewport-fit=cover"/);
   assert.doesNotMatch(html, /user-scalable=no|maximum-scale=1(?:\.0)?/i);
 });

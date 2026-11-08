@@ -681,6 +681,24 @@ try{
      if(width<=740&&role===null&&['/','/stages','/results?stageId=stage1'].includes(route)){
       assert.equal(await page.locator('.u-mobile-dock [aria-current="page"]').count(),1,'public dock marks one current section');
      }
+     if(width<=740&&((role===null&&route==='/stages')||(role==='PARTICIPANT'&&route==='/participant?tab=profile'))){
+      await page.evaluate(()=>scrollTo(0,0));
+      const publicPage=role===null;
+      const headerSelector=publicPage?'.p-public-header':'.participant-portal-header';
+      const shellSelector=publicPage?'.usd-live':'.participant-portal.usd-member';
+      const reserved=()=>page.waitForFunction(({headerSelector,shellSelector})=>{
+       const header=document.querySelector(headerSelector),shell=document.querySelector(shellSelector);
+       return header&&shell&&Math.abs(parseFloat(getComputedStyle(shell).paddingTop)-header.getBoundingClientRect().height)<=1;
+      },{headerSelector,shellSelector});
+      await reserved();
+      // Font scaling, safe-area changes and wrapped controls may grow a header.
+      const grow=await page.addStyleTag({content:`body ${shellSelector} ${headerSelector}{min-height:112px!important}`});
+      await reserved();
+      assert.ok((await page.locator(headerSelector).boundingBox()).height>=112);
+      await grow.evaluate(element=>element.remove());
+      await reserved();
+      row.headerReservation='actual border-box height before and after resize';
+     }
      if(width<=740&&role===null&&route==='/stages'){
       row.mobileChrome=[];
       for(const height of [568,844,960]){

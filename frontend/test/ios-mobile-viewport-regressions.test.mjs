@@ -21,5 +21,5 @@ test('member header covers the iPhone safe area and page reserves its height',as
  const css=await source('../src/public/premium-member.css');
  assert.match(css,/position:fixed!important/);
  assert.match(css,/safe-area-inset-top/);
- assert.match(css,/padding-top:calc\(64px \+ env\(safe-area-inset-top/);
+ assert.match(css,/padding-top:var\(--usd-member-header-size,calc\(72px \+ env\(safe-area-inset-top/);
 });

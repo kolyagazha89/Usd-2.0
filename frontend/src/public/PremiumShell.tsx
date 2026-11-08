@@ -1,5 +1,6 @@
 import {useEffect,useState,type CSSProperties,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
+import {useHeaderSize} from '../navigation/useHeaderSize';
 import {Home,CalendarDays,BarChart3,UserRound,Trophy,Users,Newspaper,BookOpen,Handshake,Car,Info,Phone,FileText} from 'lucide-react';
 import PublicNavigation from '../navigation/PublicNavigation';
 import {hasAdminPanelAccess} from '../navigation/accountAccess';
@@ -20,9 +21,10 @@ function BrandingLogo({logoUrl,mobileLogoUrl,alt}:{logoUrl?:string;mobileLogoUrl
  return <picture>{!failed&&mobile&&<source media="(max-width: 680px)" srcSet={mobile}/>}<img className="u-logo" src={failed?fallback:logo} alt={alt} width="529" height="474" onError={()=>setFailed(true)}/></picture>;
 }
 export function PremiumHeader({route,go,user,items,settings}:{route:string;go:(p:string)=>void;user?:User|null;items:string[][];settings:any}){
+ const headerRef=useHeaderSize('--usd-public-header-size');
  const account=user?'/participant':'/login';
  const adminPath=hasAdminPanelAccess(user)?'/admin':undefined;
- return <><a className="u-skip" href="#public-content" onClick={e=>{e.preventDefault();document.getElementById('public-content')?.focus();document.getElementById('public-content')?.scrollIntoView()}}>Перейти к содержимому</a><header className="u-header p-public-header"><div className="u-container u-header-inner"><Link className="u-brand" to="/" aria-label="USD — главная"><BrandingLogo logoUrl={settings?.branding?.logoUrl} mobileLogoUrl={settings?.branding?.mobileLogoUrl} alt={settings?.branding?.siteName||"USD"}/></Link>{adminPath&&<Link to="/admin" className="usd-header-admin-shortcut" aria-label="Перейти в админ-панель">Панель ↗</Link>}<PublicNavigation items={items} route={route} go={go} accountPath={account} accountLabel="Личный кабинет" adminPath={adminPath}/></div></header></>;
+ return <><a className="u-skip" href="#public-content" onClick={e=>{e.preventDefault();document.getElementById('public-content')?.focus();document.getElementById('public-content')?.scrollIntoView()}}>Перейти к содержимому</a><header ref={headerRef} className="u-header p-public-header"><div className="u-container u-header-inner"><Link className="u-brand" to="/" aria-label="USD — главная"><BrandingLogo logoUrl={settings?.branding?.logoUrl} mobileLogoUrl={settings?.branding?.mobileLogoUrl} alt={settings?.branding?.siteName||"USD"}/></Link>{adminPath&&<Link to="/admin" className="usd-header-admin-shortcut" aria-label="Перейти в админ-панель">Панель ↗</Link>}<PublicNavigation items={items} route={route} go={go} accountPath={account} accountLabel="Личный кабинет" adminPath={adminPath}/></div></header></>;
 }
 export function PremiumFooter({settings,user,route='/'}:{settings:any;user?:User|null;route?:string}){
  const year=new Date().getFullYear(),account=user?'/participant':'/login',admin=hasAdminPanelAccess(user);
