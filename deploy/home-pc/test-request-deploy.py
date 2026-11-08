@@ -111,7 +111,9 @@ class RequestTests(unittest.TestCase):
 
     def test_public_probe_retries_never_verify_an_old_or_different_sha(self):
         checked, clock = [], [0]
-        result = m.request(A, read=iter([None, row('1', 'RELEASED', B)]).__next__,
+        reports = iter([None, row('1', 'RELEASED', B), row('1', 'RELEASED', B),
+                        row('1', 'RELEASED', B), row('1', 'RELEASED', B)])
+        result = m.request(A, read=reports.__next__,
                            start=lambda _: (0, '1' * 32),
                            verify=lambda sha, _: checked.append(sha) or False,
                            sleep=lambda sec: clock.__setitem__(0, clock[0] + sec),
