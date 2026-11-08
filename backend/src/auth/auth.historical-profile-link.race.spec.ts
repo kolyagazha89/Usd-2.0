@@ -1,6 +1,6 @@
 import {jest} from '@jest/globals';
 import {AuthService} from './auth.service';
-import {ConflictException,UnauthorizedException} from '@nestjs/common';
+import {ConflictException,ForbiddenException,UnauthorizedException} from '@nestjs/common';
 
 const userId='123e4567-e89b-42d3-a456-426614174010';
 const participantId='123e4567-e89b-42d3-a456-426614174011';
@@ -43,6 +43,29 @@ describe('historical-email claim must serialize against administrative claims',(
   expect(tx.auditLog.create).not.toHaveBeenCalled();
   expect(tx.user.update).not.toHaveBeenCalled();
  });
+
+ it('links a verified email with case/whitespace differences without creating an admin request',async()=>{
+  const {service,tx}=makeDb();
+  tx.user.findUnique.mockResolvedValueOnce({id:userId,email:' VERIFIED@EXAMPLE.COM ',isActive:true,emailVerifiedAt:new Date(),participantId:null});
+  tx.participantLegacyEmail.findUnique.mockResolvedValueOnce({email:' verified@example.com '});
+  await expect(service.linkHistoricalProfile(userId,participantId)).resolves.toEqual({success:true,linked:true,participantId});
+  expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+  expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+ });
+ it('refuses a profile without a trusted historical-email mapping instead of falsely treating name as proof',async()=>{
+  const {service,tx}=makeDb();
+  tx.participantLegacyEmail.findUnique.mockResolvedValueOnce(null);
+  await expect(service.linkHistoricalProfile(userId,participantId)).rejects.toBeInstanceOf(ForbiddenException);
+  expect(tx.user.updateMany).not.toHaveBeenCalled();
+  expect(tx.auditLog.create).not.toHaveBeenCalled();
+ });
+ it('does not attach a profile whose historical email differs from the verified account',async()=>{
+  const {service,tx}=makeDb();
+  tx.participantLegacyEmail.findUnique.mockResolvedValueOnce({email:'someone-else@example.com'});
+  await expect(service.linkHistoricalProfile(userId,participantId)).rejects.toBeInstanceOf(ForbiddenException);
+  expect(tx.user.updateMany).not.toHaveBeenCalled();
+ });
+
  it('never uses an unverified email as proof of historic profile ownership',async()=>{
   const {service,tx}=makeDb();
   tx.user.findUnique.mockResolvedValueOnce({id:userId,email,isActive:true,emailVerifiedAt:null,participantId:null});

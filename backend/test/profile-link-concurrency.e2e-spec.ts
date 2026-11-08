@@ -57,7 +57,7 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
  it('serializes ADMIN review against verified self-claim for the same historical profile',async()=>{
   const [owner,claimant,admin]=await Promise.all([createUser(),createUser(),createUser('ADMIN')]);const profile=await createHistory(owner.email);
   const pending=await links.submit(claimant.id,profile,'Synthetic ownership evidence supplied to administrator');
-  const results=await Promise.allSettled([auth.linkHistoricalProfile(owner.id,profile),links.review(pending.id,admin.id,'APPROVE','Synthetic administrator verified ownership evidence',true)]);
+  const results=await Promise.allSettled([auth.linkHistoricalProfile(owner.id,profile),links.review(pending.id,admin.id,'APPROVE')]);
   expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
   expect(results.filter(r=>r.status==='rejected')).toHaveLength(1);
   expect(await db.user.count({where:{participantId:profile}})).toBe(1);
