@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {duplicatePreview,type DuplicateSnapshot} from './duplicate-profile-preview';
+import {classifyHistoricalLink,normalizeHistoricalLinkEmail} from './profile-link-diagnostics';
 
 const requestIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sanitize=(value:string)=>value.replace(/\s+/g,' ').trim();
@@ -84,13 +85,25 @@ export class ProfileLinksService {
   });
   const byParticipant=new Map(historical.map(item=>[item.participantId,item.email]));
   return rows.map(row=>{
-   const historic=byParticipant.get(row.participantId)?.trim().toLowerCase();
+   const historic=byParticipant.get(row.participantId)?normalizeHistoricalLinkEmail(byParticipant.get(row.participantId)!):null;
    const verified=!!row.claimant.emailVerifiedAt;
    const legacyEmailStatus=!verified?'EMAIL_NOT_VERIFIED':
     !historic?'LEGACY_EMAIL_MISSING':
-    historic===row.claimant.email.trim().toLowerCase()?'MATCH_VERIFIED':'EMAIL_DIFFERENT';
+    historic===normalizeHistoricalLinkEmail(row.claimant.email)?'MATCH_VERIFIED':'EMAIL_DIFFERENT';
    return {...row,claimant:{id:row.claimant.id,email:row.claimant.email,participantId:row.claimant.participantId},legacyEmailStatus};
   });
+ }
+
+ /** One-pair ADMIN diagnostic. No email or raw identifiers in the response. */
+ async diagnoseSelfLink(userId:string,participantId:string){
+  if(!requestIdPattern.test(userId)||!requestIdPattern.test(participantId))
+   throw new BadRequestException('Некорректный идентификатор профиля или аккаунта');
+  const [user,participant,legacy]=await Promise.all([
+   this.prisma.user.findUnique({where:{id:userId},select:{id:true,email:true,participantId:true,emailVerifiedAt:true,isActive:true}}),
+   this.prisma.participant.findUnique({where:{id:participantId},select:{id:true,user:{select:{id:true}}}}),
+   this.prisma.participantLegacyEmail.findUnique({where:{participantId},select:{email:true}}),
+  ]);
+  return classifyHistoricalLink(user,participant,legacy);
  }
 
  /** Read-only ADMIN comparison: no update/delete, no implicit identity claim. */
