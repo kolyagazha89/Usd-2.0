@@ -194,8 +194,17 @@ export class AuthService {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
+    // Prisma nested create commits the account and its first verification link
+    // together. A token insert error must never orphan a pending account.
+    const rawToken = this.generateToken();
     const user = await this.prisma.user.create({
       data: {
+        emailVerificationTokens: {
+          create: {
+            tokenHash: this.hashToken(rawToken),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        },
         email: normalizedEmail,
         lastVerificationResendAt: new Date(),
         passwordHash,
@@ -207,15 +216,6 @@ export class AuthService {
         termsAcceptedAt: new Date(),
         termsVersion: 'terms-v' + legalVersion,
         ...(newsletterOptIn ? { newsletterConsentAt: new Date(), newsletterConsentVersion: 'newsletter-v' + legalVersion, newsletterConsentSource: 'signup-form' } : {}),
-      },
-    });
-
-    const rawToken = this.generateToken();
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: this.hashToken(rawToken),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
