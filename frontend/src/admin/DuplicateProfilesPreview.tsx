@@ -36,7 +36,7 @@ function PersonPicker({label,candidates,value,onChange}:{label:string;candidates
   {selected&&<small className="duplicate-selection">Выбран профиль {selected.id}</small>}
  </div>;
 }
-const countNames:Record<string,string>={cars:'Автомобили',configurations:'Конфигурации',registrations:'Регистрации',classes:'Классы',results:'Результаты',registrationNumbers:'Номера',inspections:'Инспекции',records:'Рекорды',disqualifications:'Дисквалификации',pendingClaims:'Заявки на привязку'};
+const countNames:Record<string,string>={cars:'Автомобили',configurations:'Конфигурации',configurationVersions:'Версии конфигураций',profilePhotos:'Фото профиля',carPhotos:'Фото машин',mediaUploads:'Завершённые загрузки фото',teamSnapshots:'Зафиксирована команда на инспекции',registrations:'Регистрации',classes:'Классы',results:'Результаты',registrationNumbers:'Номера',inspections:'Инспекции',records:'Рекорды',disqualifications:'Дисквалификации',pendingClaims:'Заявки на привязку'};
 export default function DuplicateProfilesPreview(){
  const [people,setPeople]=useState<Candidate[]>([]),[sourceId,setSourceId]=useState(''),[targetId,setTargetId]=useState('');
  const [preview,setPreview]=useState<Preview|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
