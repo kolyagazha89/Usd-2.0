@@ -102,10 +102,11 @@ export class ProfileLinksService {
    this.prisma.participant.findMany({
     where:{id:{in:ids}},
     select:{
-     id:true,firstName:true,lastName:true,middleName:true,birthDate:true,legacyId:true,usdIdToken:true,
+     id:true,firstName:true,lastName:true,middleName:true,birthDate:true,legacyId:true,usdIdToken:true,photoUrl:true,
      user:{select:{id:true}},teamMembership:{select:{teamId:true}},
-     cars:{select:{id:true,registrationCountry:true,registrationNumber:true,_count:{select:{configurations:true}}}},
-     registrations:{select:{id:true,stageId:true,status:true,_count:{select:{numbers:true,classes:true,results:true}}}},
+     cars:{select:{id:true,registrationCountry:true,registrationNumber:true,photoUrl:true,_count:{select:{configurations:true}},
+      configurations:{select:{_count:{select:{versions:true}}}}}},
+     registrations:{select:{id:true,stageId:true,status:true,teamAffiliationCapturedAt:true,_count:{select:{numbers:true,classes:true,results:true}}}},
      _count:{select:{stageInspections:true,disqualifications:true,profileLinkRequests:true}},
     },
    }),
@@ -113,16 +114,32 @@ export class ProfileLinksService {
    this.prisma.record.count({where:{participantId:targetId}}),
   ]);
   if(participants.length!==2)throw new NotFoundException('Один или оба профиля не найдены.');
+  // Uploaded media can outlive a replaced public photo URL. Never return keys or tokens.
+  const carIds=participants.flatMap(p=>p.cars.map(car=>car.id));
+  const media=await this.prisma.mediaUpload.findMany({
+   where:{completedAt:{not:null},OR:[
+    {targetType:'PARTICIPANT_PHOTO',targetId:{in:ids}},
+    {targetType:'CAR_PHOTO',targetId:{in:carIds}},
+   ]},
+   select:{targetType:true,targetId:true},
+  });
   const snapshot=(id:string,recordCount:number):DuplicateSnapshot=>{
    const p=participants.find(item=>item.id===id)!;
    return {
     id:p.id,name:[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' '),
     birthDate:p.birthDate?.toISOString().slice(0,10)??null,
     linkedUserId:p.user?.id??null,legacyId:p.legacyId??null,usdIdExists:!!p.usdIdToken,
+    profilePhoto:!!p.photoUrl,mediaUploads:media.filter(row=>
+     (row.targetType==='PARTICIPANT_PHOTO'&&row.targetId===id)||
+     (row.targetType==='CAR_PHOTO'&&p.cars.some(car=>car.id===row.targetId))).length,
     teamId:p.teamMembership?.teamId??null,
-    cars:p.cars.map(car=>({id:car.id,country:car.registrationCountry,number:car.registrationNumber,configurations:car._count.configurations})),
+    cars:p.cars.map(car=>({id:car.id,country:car.registrationCountry,number:car.registrationNumber,
+     configurations:car._count.configurations,
+     configurationVersions:car.configurations.reduce((sum,item)=>sum+item._count.versions,0),
+     hasPhoto:!!car.photoUrl})),
     registrations:p.registrations.map(row=>({id:row.id,stageId:row.stageId,status:row.status,
-     classes:row._count.classes,results:row._count.results,numbers:row._count.numbers})),
+     classes:row._count.classes,results:row._count.results,numbers:row._count.numbers,
+     historicalTeamSnapshot:!!row.teamAffiliationCapturedAt})),
     stageInspections:p._count.stageInspections,disqualifications:p._count.disqualifications,
     records:recordCount,claims:p._count.profileLinkRequests,
    };
