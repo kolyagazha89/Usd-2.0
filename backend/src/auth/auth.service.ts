@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 import type { AuthenticatedRequest } from './authenticated-request';
+import { normalizeHistoricalLinkEmail } from './profile-link-diagnostics';
 
 @Injectable()
 export class AuthService {
@@ -712,7 +713,7 @@ export class AuthService {
      * legacy email участника должен совпадать с подтверждённым email аккаунта.
      * Профили без сохранённого legacy email привязываются только администратором.
      */
-    const userEmail = actor.email.trim().toLowerCase();
+    const userEmail = normalizeHistoricalLinkEmail(actor.email);
     const candidatesWithOwnership = await Promise.all(candidates.map(async (candidate) => {
       const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
         where: { participantId: candidate.id },
@@ -720,7 +721,7 @@ export class AuthService {
       });
       const canSelfLink = Boolean(
         legacyEmail?.email &&
-        legacyEmail.email.trim().toLowerCase() === userEmail
+        normalizeHistoricalLinkEmail(legacyEmail.email) === userEmail
       );
       // A non-public unclaimed profile is invisible to unrelated verified
       // accounts even when the name search matches. Ownership proof may reveal
@@ -785,7 +786,7 @@ export class AuthService {
       });
       if (
         !legacyEmail?.email ||
-        legacyEmail.email.trim().toLowerCase() !== user.email.trim().toLowerCase()
+        normalizeHistoricalLinkEmail(legacyEmail.email) !== normalizeHistoricalLinkEmail(user.email)
       ) {
         throw new ForbiddenException(
           'Нельзя самостоятельно привязать этот исторический профиль',
