@@ -64,9 +64,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       - name: Install checksum-verified pinned Cosign
-        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
-        with:
-          cosign-release: v3.1.3
+        run: bash deploy/home-pc/install-ci-cosign.sh
       - name: Sign immutable image digest using this main workflow identity
         env:
           USD_IMAGE: ghcr.io/kolyagazha89/${{ matrix.image }}
