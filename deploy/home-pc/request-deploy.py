@@ -117,7 +117,10 @@ def request(trigger, *, read=None, start=start_service, verify=verify_public,
                 # release. Retry the EXACT completed SHA without starting another
                 # deployment; permanently failed probes still fail closed.
                 accepted = False
-                # Brief GitHub/edge DNS outages can outlast three probes. The\n                # exact-SHA verifier still checks routes, data, protected API and\n                # assets on every attempt; never treat root success alone as proof.\n                for probe in range(8):
+                # Brief GitHub/edge DNS outages can outlast three probes. The
+                # exact-SHA verifier still checks routes, data, protected API and
+                # assets on every attempt; never treat root success alone as proof.
+                for probe in range(8):
                     if clock() >= deadline:
                         break
                     if verify(sha, max(1, deadline-clock())):
