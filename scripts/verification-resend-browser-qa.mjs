@@ -13,7 +13,7 @@ const server=createServer(async(req,res)=>{try{const p=new URL(req.url,'http://l
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch(getBrowserLaunchOptions()),report=[];
 try{for(const width of [320,390,768,1440])for(const emailSent of [true,false]){
- const ctx=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});let resendCalls=0;const recipients=[],errors=[];
+ const ctx=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});let resendCalls=0,verifyCalls=0;const recipients=[],verifiedTokens=[],errors=[];
  try{
   await ctx.route('**/*',async route=>{const req=route.request(),u=new URL(req.url());if(u.origin===base)return route.continue();
    if(u.pathname.startsWith('/media/public-file/'))return route.fulfill({contentType:'image/png',body:await readFile(path.join(root,'frontend/public/usd/usd-original.png'))});
@@ -22,6 +22,7 @@ try{for(const width of [320,390,768,1440])for(const emailSent of [true,false]){
    if(u.pathname==='/site-settings/public')data={settings:{legal:{legalApproved:true,ipName:'USD',privacyText:'policy',termsText:'terms',consentText:'consent'},branding:{}}};
    if(u.pathname==='/auth/register')data={success:true,emailSent,retryAfterSeconds:60,message:emailSent?'Аккаунт создан! Проверьте почту.':'Аккаунт создан, но письмо не отправилось.'};
    if(u.pathname==='/auth/resend-verification'){resendCalls++;recipients.push(req.postDataJSON().email);data={success:true,retryAfterSeconds:60,message:'Если аккаунт ожидает подтверждения, проверьте «Входящие» и «Спам».'}}
+   if(u.pathname==='/auth/verify-email'){verifyCalls++;verifiedTokens.push(req.postDataJSON().token);data={success:true,message:'Email успешно подтверждён'}}
    return route.fulfill({json:data});
   });
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.clock.install();await page.goto(base+'/login');
@@ -39,7 +40,20 @@ try{for(const width of [320,390,768,1440])for(const emailSent of [true,false]){
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'auth page overflow at'+width);
   await resend.scrollIntoViewIfNeeded();assert.ok(await resend.evaluate(el=>{const r=el.getBoundingClientRect();return r.width>=44&&r.height>=44}),'touch target');
   await page.screenshot({path:path.join(out,'resend-'+(emailSent?'sent':'failed')+'-'+width+'.png'),fullPage:true});assert.deepEqual(errors,[]);
-  report.push({width,initialMail:emailSent?'sent':'failed',resendCalls,recipientPreserved:true,noOverflow:true,noPageErrors:true});
+  // Mail security scanners may visit verification links via GET. Nothing is
+  // confirmed until the human explicitly presses the button.
+  await page.goto(base+'/verify-email#token='+('a'.repeat(64)));
+  const confirm=page.getByRole('button',{name:'Подтвердить email',exact:true});
+  await confirm.waitFor();
+  assert.equal(verifyCalls,0,'opening a verification link must not consume its token');
+  await page.clock.fastForward(2000);
+  assert.equal(verifyCalls,0,'page load, timers and prefetch must not consume the token');
+  await confirm.click();
+  await page.getByRole('heading',{name:'Почта успешно подтверждена'}).waitFor();
+  assert.deepEqual(verifiedTokens,['a'.repeat(64)],'explicit POST uses exact fragment token');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'verification page overflow at '+width);
+  assert.deepEqual(errors,[],'verification page has no console exceptions');
+  report.push({width,initialMail:emailSent?'sent':'failed',resendCalls,recipientPreserved:true,noOverflow:true,noPageErrors:true,explicitVerification:true});
  }finally{await ctx.close()}
 }}finally{await browser.close();await new Promise(r=>server.close(r))}
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
