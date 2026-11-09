@@ -30,12 +30,15 @@ export class SeasonReportsService {
     select:{id:true,seasonId:true,class:{select:{direction:{select:{name:true}}}}},
    }),
   ]);
+  // Index once: historical seasons can have thousands of registrations.
+  // Avoid a stage scan for every registration and each comparison season.
+  const stageSeasonById=new Map(stages.map(stage=>[stage.id,stage.seasonId]));
   const reports=ids.map(id=>{
    const season=seasons.find(item=>item.id===id);
    if(!season)throw new NotFoundException('Сезон не найден');
    return summarizeSeason({
     season,stages:stages.filter(stage=>stage.seasonId===id),
-    registrations:registrations.filter(row=>stages.some(stage=>stage.seasonId===id&&stage.id===row.stageId)),
+    registrations:registrations.filter(row=>stageSeasonById.get(row.stageId)===id),
     records:records.filter(record=>record.seasonId===id),
    });
   });
