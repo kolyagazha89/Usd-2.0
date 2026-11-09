@@ -107,3 +107,51 @@
 .usd-live .team-directory-filters{align-items:end}
 .usd-live .team-directory-filters .p-search{margin:0}
 @media(max-width:600px){.team-roster-filters,.team-directory-filters{grid-template-columns:minmax(0,1fr)}}
+
+/* Verified cross-team published protocols: no artificial points or places. */
+.team-standings{min-width:0;margin:0 0 34px}
+.team-standings h3{margin:0 0 12px}
+.team-standings .team-achievement-disclaimer{max-width:92ch}
+.team-standings-filters{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:18px 0 22px}
+.team-standings-switch{display:flex;align-items:center;gap:12px;min-width:0;margin:0;padding:10px 12px;border:1px solid #424d59;border-radius:12px}
+.team-standings-switch legend{color:#bcc6d2;font-size:12px;font-weight:700;padding:0 6px}
+.team-standings-switch label{display:inline-flex;gap:8px;align-items:center;min-height:40px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.team-standings-switch label:has(input:disabled){opacity:.55;cursor:not-allowed}
+.team-standings-switch input{accent-color:#ec2b4d;width:18px;height:18px}
+.team-standings-select{display:grid;gap:8px;flex:1 1 min(100%,300px);min-width:0;font-size:13px;font-weight:700;color:#d6e0e9}
+.team-standings-select select{width:100%;min-height:44px;padding:10px 12px;border:1px solid #586573;border-radius:10px;background:#151e28;color:#f1f5f9;font:inherit;font-size:16px}
+.team-standings :is(input,select,button,a):focus-visible{outline:2px solid #ff516d;outline-offset:3px}
+.team-standings-results{min-width:0}
+.team-standings-list{list-style:none;counter-reset:none;margin:0;padding:0;display:grid;gap:12px}
+.team-standings-row{min-width:0;padding:17px;border:1px solid #384552;border-radius:15px;background:linear-gradient(145deg,#1a2530,#111820);color:#f3f6fa}
+.team-standings-row-head{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(250px,1.2fr) auto;gap:14px;align-items:center}
+.team-standings-identity{display:grid;gap:7px;min-width:0}
+.team-standings-identity>a{font-weight:850;font-size:19px;color:#f4f7fb;overflow-wrap:anywhere;text-underline-offset:4px}
+.team-standings-identity small{font-size:12px;color:#aebdcb}
+.team-standings-numbers{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.team-standings-numbers span{display:grid;gap:5px;min-width:82px;padding:9px 12px;background:#222d38;border:1px solid #3e4c5b;border-radius:10px;color:#cbd4df;font-size:11px}
+.team-standings-numbers strong{font-size:23px;line-height:1;font-variant-numeric:tabular-nums;color:#fff}
+.team-standings-toggle{max-width:100%;min-height:44px;white-space:normal;text-align:center}
+.team-standings-performances{list-style:none;display:grid;gap:0;margin:15px 0 0;padding:0;border-top:1px solid #3a4653}
+.team-standings-performances>li{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;min-width:0;padding:13px 0;border-bottom:1px solid #323e4b}
+.team-standings-performances>li>div{display:grid;gap:5px;min-width:0;flex:1 1 210px}
+.team-standings-performances>li>div>a{color:#ff7891;overflow-wrap:anywhere}
+.team-standings-performances>li>div>span{font-size:13px;color:#b5c0ce;overflow-wrap:anywhere}
+.team-standings-performances>li>strong{font-size:14px;font-variant-numeric:tabular-nums;color:#edf2f6;overflow-wrap:anywhere}
+.team-standings-warning,.team-standings-empty{margin:16px 0;padding:15px 17px;border:1px solid #6c5361;border-radius:12px;background:#2c212a;color:#fce9ef;line-height:1.55}
+@media(max-width:960px){
+ .team-standings-row-head{grid-template-columns:1fr}
+ .team-standings-toggle{justify-self:start}
+}
+@media(max-width:600px){
+ .team-standings{margin-bottom:22px}
+ .team-standings-filters{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+ .team-standings-switch{justify-content:flex-start;flex-wrap:wrap}
+ .team-standings-select{width:100%}
+ .team-standings-row{padding:14px}
+ .team-standings-numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .team-standings-numbers span{min-width:0;padding:9px}
+ .team-standings-numbers strong{font-size:21px}
+ .team-standings-toggle{width:100%}
+ .team-standings-performances>li>strong{width:100%}
+}

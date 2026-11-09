@@ -104,6 +104,19 @@ function dataFor(url,role){
  if(p==='/results/registration/reg1')return [result];
  if(p==='/participants/teams')return [{name:'USD Team'}];
  if(p==='/teams/admin')return {teams:[],users:[]};
+ if(p==='/teams/public/standings')return {
+  scope:{type:url.searchParams.has('stageId')?'STAGE':'SEASON',id:url.searchParams.get('stageId')??url.searchParams.get('seasonId')},
+  total:2,truncated:false,order:'FIRST_PLACES_THEN_PODIUMS_THEN_RESULTS',
+  teams:[{teamId:'team-1',name:'USD Team',performances:2,participants:1,firstPlaces:1,podiums:2,
+   results:[
+    {id:'r1',participant:{id:'p1',firstName:'Иван',lastName:'Тестовый'},
+     stage:{id:'stage1',name:'Кубок USD',date:'2026-11-21T12:00:00.000Z',seasonId:'s1'},
+     direction:'SPL',classId:'class1',className:'Limited 2.0',unit:'DB',value:'150.250',place:1},
+    {id:'r2',participant:{id:'p1',firstName:'Иван',lastName:'Тестовый'},
+     stage:{id:'stage1',name:'Кубок USD',date:'2026-11-21T12:00:00.000Z',seasonId:'s1'},
+     direction:'BDW SPL',classId:'class-bdw',className:'BDW',unit:'MPS',value:'30.500',place:3},
+   ]}],
+ };
  if(p==='/teams/public')return [{id:null,name:'USD Team',description:'',isActive:false,members:[],historicalMembers:[{id:participant.id,firstName:participant.firstName,lastName:participant.lastName,city:participant.city}],posts:[]}];
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
@@ -233,6 +246,26 @@ try{
         'this is a portrait fixture, otherwise this check cannot reproduce the bug');
       }
       row.newsPhotoFit=article?'article dimensions bounded with natural aspect':'home/list preview contains full image';
+     }
+     if(role===null&&route==='/teams'){
+      const comparison=page.locator('.team-standings');
+      await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).waitFor({state:'visible'});
+      assert.equal(await comparison.getByRole('radio',{name:'Сезон'}).isChecked(),true,
+       'team comparison opens on the latest published season');
+      assert.equal(await comparison.locator('.team-standings-list>li').count(),1,
+       'team comparison lists actual teams, not points/fictional ranks');
+      await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).click();
+      assert.equal(await comparison.locator('.team-standings-performances>li').count(),2,
+       'expanded team comparison retains the original class protocol rows');
+      assert.equal(await comparison.locator('.team-standings-performances a[href^="/participants/"]').count(),2,
+       'both performances link to the original athlete');
+      assert.equal(await comparison.locator('.team-standings-performances a[href^="/results?stageId="]').count(),2,
+       'each result links to its primary stage protocol');
+      assert.match(await comparison.innerText(),/30,?\.500|30\.500/,'MPS values remain distinct from dB values');
+      await comparison.getByRole('radio',{name:'Этап'}).check();
+      await comparison.locator('select[aria-label="Выберите этап"]').waitFor();
+      await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).waitFor();
+      row.teamComparison='published results by season/stage with original protocol drilldown; no points';
      }
      if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
       const carPhoto=route==='/cars/car1';
