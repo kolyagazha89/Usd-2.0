@@ -126,14 +126,14 @@ try{
    assert.notEqual(unframed.imageRadius,'0px','round the actual logo rather than only its container');
    await page.locator('.usd-partner-card').filter({hasText:'Изображение недоступно'}).locator('.p-photo-fallback').waitFor();
    assert.equal(await page.locator('.usd-partner-card').filter({hasText:'Без настроек'}).locator('.p-partner-logo').count(),1);
-   // Directory: same-height logo slots, one column on narrow phones,
+   // Directory: equal logo slots, one column at ALL viewports (not only phones),
    // accessible teaser expansion without sending the visitor away.
    const regular=page.locator('.usd-partner-tier--regular .usd-partner-card');
    assert.equal(await regular.count(),4);
    const heights=await regular.locator('.usd-partner-visual').evaluateAll(nodes=>
     nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
    assert.ok(heights.every(h=>Math.abs(h-heights[0])<=1),'uniform directory visual slots at '+width);
-   if(width<=390){
+   {
     const first=await regular.nth(0).boundingBox(),second=await regular.nth(1).boundingBox();
     assert.ok(Math.abs(first.x-second.x)<2&&second.y>first.y,'single-column directory at '+width);
    }
@@ -155,7 +155,7 @@ try{
    assert.ok((await studioTeaser.locator('.usd-partner-description p').innerText()).length>summary.length);
    await studioTeaser.getByRole('button',{name:/Свернуть/}).click();
    assert.equal(await studioTeaser.locator('.usd-partner-description p').innerText(),summary);
-   if(width<=390){
+   {
     const a=await studioDirectory.nth(0).boundingBox();
     const b=await studioDirectory.nth(1).boundingBox();
     assert.ok(Math.abs(a.x-b.x)<2&&b.y>a.y,'studio directory is single column at '+width);

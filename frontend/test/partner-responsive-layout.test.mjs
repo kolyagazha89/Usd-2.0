@@ -74,6 +74,7 @@ test('homepage regular and studio tiers are independent swipeable carousels; dir
 test('responsive rules keep all directory partner cards in one mobile column and fixed-height media slots',async()=>{
  const css=await source('../src/dark-velocity-sitewide.css');
  assert.match(css,/\.usd-partner-showcase--full \.usd-partner-tier--regular \.usd-partner-grid/);
+ assert.match(css,/\/\* USD directory single-column across all widths \*\/[\s\S]*\.usd-partner-showcase--full :is\(\.usd-partner-tier--regular,\.usd-partner-tier--studio\) \.usd-partner-grid\s*\{[^}]*grid-template-columns:minmax\(0,1fr\)/,'both regular and studio catalog tiers must use one full-width card per row');
  assert.match(css,/\.usd-partner-showcase--full \.usd-partner-visual/);
  assert.match(css,/--usd-partner-slot-height/);
  assert.match(css,/\.usd-partner-carousel/);

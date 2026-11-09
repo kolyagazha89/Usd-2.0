@@ -1245,3 +1245,23 @@ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-p
   flex-basis:82%;width:82%;
  }
 }
+
+/* USD directory single-column across all widths */
+/* Do not reintroduce the 2/3-column desktop grid through earlier media queries.
+   The homepage alone uses swipeable carousels. */
+body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid{
+ grid-template-columns:minmax(0,1fr);
+}
+@media(min-width:721px){
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-card{
+  display:grid;
+  grid-template-columns:minmax(0,240px) minmax(0,1fr);
+  grid-template-areas:"badge badge" "visual info";
+  column-gap:clamp(16px,2.6vw,32px);
+  row-gap:12px;
+  align-items:start;
+ }
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-badge{grid-area:badge}
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-visual{grid-area:visual}
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-info{grid-area:info;min-width:0}
+}
