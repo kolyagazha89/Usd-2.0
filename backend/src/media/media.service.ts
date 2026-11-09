@@ -509,12 +509,6 @@ export class MediaService {
     });
     if (!uploads.length) throw new NotFoundException('Медиафайл не найден');
 
-    if(targetType===MediaTargetType.PARTICIPANT_PHOTO){
-      const alias=await this.prisma.participantMergeRedirect.findUnique({
-        where:{sourceId:normalizedTargetId},select:{sourceId:true},
-      });
-      if(alias)throw new ConflictException('Фото принадлежит объединённому историческому профилю и должно сохраняться для старых ссылок.');
-    }
     if (targetType === MediaTargetType.SITE_ASSET) {
       const referenced = await this.getReferencedSiteAssetIds();
       if (referenced.has(normalizedTargetId)) {
@@ -526,6 +520,12 @@ export class MediaService {
     // the asset is already detached from the public site/profile and can be retried safely.
     await this.prisma.$transaction(async (tx) => {
       if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+        // Lock the alias with the same lock family used by the merge.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+normalizedTargetId}))`;
+        const alias=await tx.participantMergeRedirect.findUnique({
+          where:{sourceId:normalizedTargetId},select:{sourceId:true},
+        });
+        if(alias)throw new ConflictException('Историческое фото используется объединённым профилем; удаление запрещено.');
         await tx.participant.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
       } else if (targetType === MediaTargetType.CAR_PHOTO) {
         await tx.car.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
@@ -634,6 +634,14 @@ export class MediaService {
     const url = this.objectUrl(finalKey);
     try {
       await this.prisma.$transaction(async (tx) => {
+      if(upload.targetType===MediaTargetType.PARTICIPANT_PHOTO){
+        // A staging PUT can complete after merging unless it locks and rechecks.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+upload.targetId}))`;
+        const alias=await tx.participantMergeRedirect.findUnique({
+          where:{sourceId:upload.targetId},select:{sourceId:true},
+        });
+        if(alias)throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+      }
       // CAS: two /media/complete calls can both read the original staging
       // token before either transaction commits. Exactly one may publish;
       // a losing transaction must not overwrite the winning final objectKey
