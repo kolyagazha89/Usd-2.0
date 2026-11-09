@@ -5,6 +5,7 @@
 .partner-image-frame[data-tier="GENERAL"]{height:160px}
 .partner-image-frame[data-tier="PREMIUM"]{height:120px}
 .partner-image-frame[data-tier="REGULAR"]{height:82px}
+.partner-image-frame[data-tier="STUDIO"]{height:108px}
 .partner-image-canvas{position:absolute;inset:0}
 .partner-image-frame[data-mode="LOGO"] .partner-image-canvas{inset:12px}
 .partner-image-frame .partner-image-content{
@@ -36,6 +37,7 @@ body .usd-live .usd-partner-card:has(.usd-partner-visual--configured){align-self
 .partner-image-legacy[data-tier="GENERAL"]{--legacy-image-height:160px;--legacy-min-height:150px}
 .partner-image-legacy[data-tier="PREMIUM"]{--legacy-image-height:120px;--legacy-min-height:118px}
 .partner-image-legacy[data-tier="REGULAR"]{--legacy-image-height:82px;--legacy-min-height:80px}
+.partner-image-legacy[data-tier="STUDIO"]{--legacy-image-height:108px;--legacy-min-height:100px}
 .partner-image-legacy .partner-image-legacy-content,
 body .usd-live .usd-partner-card .partner-image-legacy .partner-image-legacy-content{
  display:block;width:100%;max-width:100%;box-sizing:border-box;
@@ -49,6 +51,8 @@ body .usd-live .usd-partner-card .partner-image-legacy .partner-image-legacy-con
 @media(max-width:560px){
  .partner-image-frame[data-tier="GENERAL"]{height:132px}
  .partner-image-frame[data-tier="REGULAR"]{height:66px}
+ .partner-image-frame[data-tier="STUDIO"]{height:92px}
  .partner-image-legacy[data-tier="GENERAL"]{--legacy-image-height:132px}
  .partner-image-legacy[data-tier="REGULAR"]{--legacy-image-height:66px;--legacy-image-padding:4px;--legacy-outer-padding:4px}
+ .partner-image-legacy[data-tier="STUDIO"]{--legacy-image-height:92px;--legacy-min-height:90px}
 }
