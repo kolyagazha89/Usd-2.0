@@ -81,4 +81,34 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
   expect(await db.participant.count()).toBe(before+1);
   const created=(await db.user.findUniqueOrThrow({where:{id:user.id}})).participantId!;participantIds.push(created);
  });
+ it('rolls a self-claim back when verified email changes after ownership read',async()=>{
+  const user=await createUser(),profile=await createHistory(user.email);
+  const changedEmail=randomUUID()+'@profile-race.invalid';
+  const boundary={
+   $transaction:(callback:any)=>db.$transaction(async tx=>callback(new Proxy(tx,{
+    get(target,key){
+     if(key==='user')return new Proxy(target.user,{
+      get(delegate,operation){
+       if(operation==='updateMany')return async(args:any)=>{
+        // Independent connection commits a real email-confirmation write
+        // after the ownership read, before the guarded participant update.
+        await db.user.update({where:{id:user.id},data:{email:changedEmail}});
+        return delegate.updateMany(args);
+       };
+       return Reflect.get(delegate,operation);
+      },
+     });
+     return Reflect.get(target,key);
+    },
+   }))),
+  } as unknown as PrismaService;
+  const racing=new AuthService(boundary,{} as never,{} as never);
+  await expect(racing.linkHistoricalProfile(user.id,profile)).rejects.toBeInstanceOf(ConflictException);
+  const current=await db.user.findUniqueOrThrow({where:{id:user.id}});
+  expect(current.email).toBe(changedEmail);
+  expect(current.participantId).toBeNull();
+  expect(await finalAudits([user.id])).toBe(0);
+  expect(await db.profileLinkRequest.count({where:{claimantUserId:user.id}})).toBe(0);
+ });
+
 });

@@ -800,7 +800,10 @@ export class AuthService {
       }
 
       const linked = await tx.user.updateMany({
-        where: { id: userId, participantId: null, isActive: true, emailVerifiedAt: { not: null } },
+        // Compare the exact account proof read above. Email confirmation can run
+        // concurrently without the claimant lock; a newly verified address
+        // must never inherit ownership established for the previous address.
+        where: { id: userId, participantId: null, isActive: true, email: user.email, emailVerifiedAt: user.emailVerifiedAt },
         data: { participantId: participant.id },
       });
       if (linked.count !== 1) {
