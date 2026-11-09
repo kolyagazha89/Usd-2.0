@@ -139,8 +139,8 @@ export class SiteSettingsService{
       };
       if(!text('name',160,true)||!text('description',3000))
         throw new BadRequestException('Проверьте название и описание партнёра.');
-      if(!['GENERAL','PREMIUM','REGULAR'].includes(String(item.tier)))
-        throw new BadRequestException('Выберите уровень партнёра: генеральный, премиальный или обычный.');
+      if(!['GENERAL','PREMIUM','REGULAR','STUDIO'].includes(String(item.tier)))
+        throw new BadRequestException('Выберите категорию партнёра: генеральный, премиальный, обычный или студия-партнёр.');
       if(item.isActive!==undefined&&typeof item.isActive!=='boolean'
         ||item.isPublished!==undefined&&typeof item.isPublished!=='boolean'
         ||!old&&typeof item.isPublished!=='boolean')
