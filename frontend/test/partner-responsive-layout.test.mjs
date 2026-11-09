@@ -23,6 +23,7 @@ test('partner summaries do not cut words or disclose the rest before expanding',
  assert.deepEqual(partnerDescriptionPreview('   Короткий текст  ',160),{text:'Короткий текст',truncated:false});
  assert.deepEqual(partnerDescriptionPreview('',160),{text:'',truncated:false});
  assert.ok(partnerDescriptionPreview('ОченьДлинноеСлово'.repeat(30),160).text.length<=160);
+ assert.deepEqual(partnerDescriptionPreview('🔊'.repeat(40),10),{text:'🔊'.repeat(10),truncated:true},'Unicode emoji must not be split or cut in half');
 });
 
 test('homepage regular and studio tiers are independent swipeable carousels; directory remains a grid',async()=>{
