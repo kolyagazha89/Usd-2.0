@@ -144,7 +144,7 @@ describe('secure manual profile link review',()=>{
   const db=makeDb(),service=new ProfileLinksService(db);
   await service.submit(claimantId,participantId,note);
   expect(db.$transaction).toHaveBeenCalledTimes(1);
-  expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw).toHaveBeenCalledTimes(2);
   expect(db.profileLinkRequest.count).toHaveBeenCalledTimes(1);
   expect(db.profileLinkRequest.create).toHaveBeenCalledTimes(1);
  });
@@ -153,7 +153,7 @@ describe('secure manual profile link review',()=>{
   db.profileLinkRequest.count.mockResolvedValueOnce(3);
   await expect(service.submit(claimantId,participantId,note)).rejects.toBeInstanceOf(ConflictException);
   expect(db.$transaction).toHaveBeenCalledTimes(1);
-  expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw).toHaveBeenCalledTimes(2);
   expect(db.profileLinkRequest.create).not.toHaveBeenCalled();
  });
 
