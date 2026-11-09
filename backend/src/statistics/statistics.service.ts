@@ -1151,14 +1151,14 @@ export class StatisticsService {
       return emptyMarkers.has(normalized.toLowerCase()) ? null : normalized;
     };
     const withTeam = registrations.filter((r) => Boolean(r.teamIdAtInspection?.trim() || normalizeTeam(r.teamNameAtInspection))).length;
-    const teamMap = new Map<string, { name: string; registrations: number; participants: Set<string> }>();
+    const teamMap = new Map<string, { key: string; name: string; registrations: number; participants: Set<string> }>();
     for (const r of registrations) {
       const captured = normalizeTeam(r.teamNameAtInspection);
       const capturedId = r.teamIdAtInspection?.trim();
       const key = capturedId ? 'id:' + capturedId
         : captured ? 'snapshot:' + captured.toLocaleLowerCase('ru') : 'unattributed';
       const item = teamMap.get(key) ?? {
-        name: captured ?? (capturedId ? 'Команда (историческая)' : 'Без команды'),
+        key, name: captured ?? (capturedId ? 'Команда (историческая)' : 'Без команды'),
         registrations: 0, participants: new Set<string>(),
       };
       item.registrations += 1;
@@ -1193,7 +1193,7 @@ export class StatisticsService {
 
     const pct = (n: number) => total ? Number(((n / total) * 100).toFixed(1)) : 0;
     const teams = [...teamMap.values()]
-      .map(value => ({ name:value.name, registrations: value.registrations, participants: value.participants.size, percent: pct(value.registrations) }))
+      .map(value => ({ key:value.key, name:value.name, registrations: value.registrations, participants: value.participants.size, percent: pct(value.registrations) }))
       .sort((a, b) => b.registrations - a.registrations || a.name.localeCompare(b.name, 'ru'));
 
     return {
