@@ -1,4 +1,6 @@
 import {withSettingsTransaction} from './test-transaction';
+import {catalogRevision} from './catalog-concurrency';
+import {ConflictException} from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import { jest } from '@jest/globals';
 
@@ -618,7 +620,7 @@ describe('Vehicle catalog CMS overlay safety', () => {
       brands:[{id:'seed-brand:toyota',name:'Toyota USD',isActive:true}],
       models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false,isArchived:true}],
     };
-    const updated=await service.update({catalogs:{vehicleDirectory:overlay}} as any,'admin-1');
+    const updated=await service.update({catalogs:{_revision:catalogRevision(null),vehicleDirectory:overlay}} as any,'admin-1');
     expect(updated.settings.catalogs.vehicleDirectory).toEqual(overlay);
     expect((prisma as any).siteSettings.upsert).toHaveBeenCalledTimes(1);
     (prisma as any).siteSettings.findUnique.mockResolvedValueOnce({catalogs:{vehicleDirectory:overlay}});
@@ -640,9 +642,85 @@ describe('Vehicle catalog CMS overlay safety', () => {
       {brands:[],models:[{id:'model',name:'X',isActive:true}]},
       {brands:Array(10001).fill(valid),models:[]},
     ]){
-      await expect(service.update({catalogs:{vehicleDirectory:value}} as any,'admin-1')).rejects.toThrow(BadRequestException);
+      await expect(service.update({catalogs:{_revision:catalogRevision(null),vehicleDirectory:value}} as any,'admin-1')).rejects.toThrow(BadRequestException);
     }
     expect((prisma as any).siteSettings.upsert).not.toHaveBeenCalled();
     expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
   });
+});
+
+describe('SiteSettingsService car catalog integrity on ADMIN save', () => {
+ const setup=()=>{
+  const prisma={
+   siteSettings:{
+    findUnique:jest.fn().mockResolvedValue(null),
+    upsert:jest.fn().mockImplementation(async(args:any)=>({id:'default',...args.create})),
+   },
+   auditLog:{create:jest.fn().mockResolvedValue({})},
+  } as unknown as PrismaService;
+  return {prisma,service:new SiteSettingsService(withSettingsTransaction(prisma))};
+ };
+
+ it('rejects orphan override and ambiguous normalized make without persisting settings or audit',async()=>{
+  const {prisma,service}=setup();
+  for(const vehicleDirectory of [
+   {brands:[],models:[{id:'model-one',brandId:'orphan',name:'Invalid',isActive:true}]},
+   {brands:[{id:'new-make',name:'  tOYoTa ',isActive:true}],models:[]},
+   {brands:[],models:[{id:'new-model',brandId:'seed-brand:toyota',name:'cAmRy',isActive:true}]},
+  ]){
+   await expect(service.update({catalogs:{_revision:catalogRevision(null),vehicleDirectory}} as any,'admin-1')).rejects.toThrow(BadRequestException);
+  }
+  expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
+  expect(prisma.auditLog.create).not.toHaveBeenCalled();
+ });
+
+ it('persists a coherent new make and model with stable IDs and audit record',async()=>{
+  const {prisma,service}=setup();
+  const vehicleDirectory={
+   brands:[{id:'new-make',name:'USD Demo Cars',isActive:true}],
+   models:[{id:'new-model',brandId:'new-make',name:'Demo 2026',isActive:true}],
+  };
+  const result=await service.update({catalogs:{_revision:catalogRevision(null),vehicleDirectory}} as any,'admin-1');
+  expect(result.success).toBe(true);
+  expect((prisma as any).siteSettings.upsert.mock.calls[0][0].create.catalogs.vehicleDirectory).toEqual(vehicleDirectory);
+  expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+ });
+});
+
+describe('vehicle directory concurrent admin saves',()=>{
+ it('rejects a second stale catalog editor instead of silently overwriting their colleague',async()=>{
+  let row:any=null;
+  const prisma={
+   siteSettings:{
+    findUnique:jest.fn().mockImplementation(async()=>row),
+    upsert:jest.fn().mockImplementation(async(args:any)=>{row={id:'default',...args.create};return row}),
+   },
+   auditLog:{create:jest.fn().mockResolvedValue({})},
+  } as unknown as PrismaService;
+  const service=new SiteSettingsService(withSettingsTransaction(prisma));
+  const stale=(await service.getAdmin()).settings.catalogs._revision;
+  const first={brands:[{id:'admin-a',name:'USD Car One',isActive:true}],models:[]};
+  const second={brands:[{id:'admin-b',name:'USD Car Two',isActive:true}],models:[]};
+  await service.update({catalogs:{_revision:stale,vehicleDirectory:first}} as any,'admin-a');
+  await expect(service.update({catalogs:{_revision:stale,vehicleDirectory:second}} as any,'admin-b')).rejects.toThrow(ConflictException);
+  expect((prisma as any).siteSettings.upsert).toHaveBeenCalledTimes(1);
+  expect(row.catalogs.vehicleDirectory).toEqual(first);
+  expect((prisma as any).auditLog.create).toHaveBeenCalledTimes(1);
+ });
+ it('accepts the second admin after refreshing the revision and rebasing edits',async()=>{
+  let row:any=null;
+  const prisma={
+   siteSettings:{findUnique:jest.fn().mockImplementation(async()=>row),
+    upsert:jest.fn().mockImplementation(async(args:any)=>{row={id:'default',...args.create};return row})},
+   auditLog:{create:jest.fn().mockResolvedValue({})},
+  } as unknown as PrismaService;
+  const service=new SiteSettingsService(withSettingsTransaction(prisma));
+  const firstRev=(await service.getAdmin()).settings.catalogs._revision;
+  await service.update({catalogs:{_revision:firstRev,vehicleDirectory:{brands:[{id:'first',name:'USD First',isActive:true}],models:[]}}} as any,'admin-a');
+  const newRev=(await service.getAdmin()).settings.catalogs._revision;
+  expect(newRev).not.toEqual(firstRev);
+  const combined={brands:[{id:'first',name:'USD First',isActive:true},{id:'second',name:'USD Second',isActive:true}],models:[]};
+  await service.update({catalogs:{_revision:newRev,vehicleDirectory:combined}} as any,'admin-b');
+  expect(row.catalogs.vehicleDirectory).toEqual(combined);
+ });
 });

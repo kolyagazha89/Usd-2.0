@@ -4,6 +4,7 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
 import { readPartnerImageLayout } from './partner-image-layout';
+import { assertBundledVehicleDirectoryLinks } from './vehicle-overrides-validation';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
@@ -205,6 +206,7 @@ export class SiteSettingsService{
           seen.add(id);
         }
       }
+      assertBundledVehicleDirectoryLinks(directory as unknown as Parameters<typeof assertBundledVehicleDirectoryLinks>[0]);
     }
     const types=(value as Record<string,unknown>).batteryTypes;
     if(types===undefined)return;
@@ -452,7 +454,7 @@ export class SiteSettingsService{
       const currentRow=await tx.siteSettings.findUnique({where:{id:'default'}});
       const current=this.shape(currentRow);
       const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
-      if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
+      if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs || 'vehicleDirectory' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
       if(incomingCatalogs) delete incomingCatalogs._revision;
       if(incomingCatalogs) assertMergedCatalogAliasesPreserved(current.catalogs,incomingCatalogs);
       input={...input,catalogs:incomingCatalogs};
