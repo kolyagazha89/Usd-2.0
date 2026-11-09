@@ -21,7 +21,8 @@ import type {
   PushSubscribeDto,
 } from './push.dto';
 
-type Category = 'registrationOpen' | 'reminders' | 'announcements' | 'profileLinks';
+type Category = 'registrationOpen' | 'reminders' | 'announcements' | 'profileLinks' | 'catalogRequests';
+const adminCategory=(category:Category)=>category==='profileLinks'||category==='catalogRequests';
 function calendarDaysUntil(date: Date, now: Date) {
   const day = (value: Date) =>
     Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
@@ -61,6 +62,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.schedule();
       await this.scheduleProfileLinks();
+      await this.scheduleCatalogRequests();
       await this.processQueue();
       await this.db.pushMessage.deleteMany({
         where: { createdAt: { lt: new Date(Date.now() - 90 * 86400000) } },
@@ -298,8 +300,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
   }) {
     // Only internal administrative events may use these exact destinations.
     // User-authored announcements still pass the existing public allowlist.
-    const path = input.category === 'profileLinks' &&
-      ['/admin/profile-links', '/admin/participants'].includes(input.path)
+    const path = ((input.category === 'profileLinks' && ['/admin/profile-links', '/admin/participants'].includes(input.path)) || (input.category==='catalogRequests' && input.path==='/admin/inbox'))
       ? input.path : safePushPath(input.path);
     return this.db
       .$transaction(async (tx) => {
@@ -309,10 +310,10 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         if (existing) return existing;
         const subscriptions = await tx.pushSubscription.findMany({
           where: {
-            [input.category === 'profileLinks' ? 'announcements' : input.category]: true,
+            [adminCategory(input.category) ? 'announcements' : input.category]: true,
             user: {
               isActive: true, emailVerifiedAt: { not: null },
-              ...(input.category === 'profileLinks' ? { role: 'ADMIN' as const } : {}),
+              ...(adminCategory(input.category) ? { role: 'ADMIN' as const } : {}),
             },
             ...(input.userIds ? { userId: { in: input.userIds } } : {}),
           },
@@ -509,6 +510,20 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async scheduleCatalogRequests(now=new Date()) {
+    if(!this.transport.configured())return;
+    const notices=await this.db.adminNotification.findMany({
+      where:{kind:'CATALOG_REQUEST',completedAt:null,createdAt:{gte:new Date(now.getTime()-86400000)}},
+      select:{eventKey:true,sourceId:true},take:500,orderBy:{createdAt:'asc'},
+    });
+    for(const notice of notices){
+      const request=await this.db.componentCatalogRequest.findUnique({where:{id:notice.sourceId},select:{status:true}});
+      if(request?.status!=='PENDING')continue;
+      await this.enqueue({eventKey:notice.eventKey,category:'catalogRequests',title:'USD · Запрос оборудования',
+        body:'Поступил запрос на добавление комплектующего. Проверьте центр уведомлений администраторов.',path:'/admin/inbox'});
+    }
+  }
+
   async schedule(now = new Date()) {
     if (!this.transport.configured()) return;
     const stages = await this.db.stage.findMany({
@@ -591,8 +606,8 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         !subscription ||
         !subscription.user.isActive ||
         !subscription.user.emailVerifiedAt ||
-        !subscription[category === 'profileLinks' ? 'announcements' : category] ||
-        (category === 'profileLinks' && subscription.user.role !== 'ADMIN') ||
+        !subscription[adminCategory(category) ? 'announcements' : category] ||
+        (adminCategory(category) && subscription.user.role !== 'ADMIN') ||
         row.message.createdAt.getTime() < Date.now() - 86400000;
       if (!skip && category === 'profileLinks' && row.message.eventKey.startsWith('profile-link-request:')) {
         const request = await this.db.profileLinkRequest.findUnique({
@@ -600,6 +615,14 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
           select: { status: true },
         });
         if (request?.status !== 'PENDING') skip = true;
+      }
+      if(!skip&&category==='catalogRequests'){
+        const requestId=row.message.eventKey.startsWith('catalog-request:')?row.message.eventKey.slice('catalog-request:'.length):'';
+        const [request,notice]=await Promise.all([
+          this.db.componentCatalogRequest.findUnique({where:{id:requestId},select:{status:true}}),
+          this.db.adminNotification.findUnique({where:{eventKey:row.message.eventKey},select:{completedAt:true}}),
+        ]);
+        if(request?.status!=='PENDING'||!notice||notice.completedAt)skip=true;
       }
       if (!skip && row.message.stageId) {
         const stage = await this.db.stage.findFirst({

@@ -21,12 +21,12 @@ test("admin sidebar isolates active navigation and persists section disclosure",
     await build({
       entryPoints: [path.join(base, "fixtures/admin-sidebar.tsx")],
       bundle: true, platform: "node", format: "esm", jsx: "automatic",
-      outfile, packages: "external",
+      outfile, packages: "external",loader:{".css":"empty"},
       plugins: [{
         name: "mock-api",
         setup(build) {
           build.onLoad({ filter: /[\\/]api\.ts$/ }, () => ({
-            loader: "ts", contents: "export const getPublicSiteAsset=async()=>null;",
+            loader: "ts", contents: "export const getPublicSiteAsset=async()=>null;export const apiGet=async()=>({unread:0});export const apiPatch=async()=>({success:true});",
           }));
         },
       }],

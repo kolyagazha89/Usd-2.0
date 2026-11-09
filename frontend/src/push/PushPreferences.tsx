@@ -31,7 +31,7 @@ const localId = () => {
   }
 };
 export function PushPreferences({adminProfileLinks=false}:{adminProfileLinks?:boolean}={}) {
-  const topicLabels=adminProfileLinks?{...labels,announcements:'Новости, объявления и привязки профилей'}:labels;
+  const topicLabels=adminProfileLinks?{...labels,announcements:'Новости, объявления и задачи ADMIN'}:labels;
   const [settings, setSettings] = useState<Settings | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -184,7 +184,7 @@ export function PushPreferences({adminProfileLinks=false}:{adminProfileLinks?:bo
           экране блокировки. В любое время можно изменить темы или отозвать
           согласие.
         </p>
-        {adminProfileLinks&&<p className="push-help">Включите тему «Новости, объявления и привязки профилей», чтобы получать новые заявки и сообщения об успешной привязке.</p>}
+        {adminProfileLinks&&<p className="push-help">Включите тему «Новости, объявления и задачи ADMIN», чтобы получать запросы комплектующих, заявки на привязку и сообщения об успешной привязке.</p>}
       </div>
       {error && (
         <p role="alert" className="form-error">

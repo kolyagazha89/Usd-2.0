@@ -68,6 +68,7 @@ model User {
   participant              Participant?             @relation(fields: [participantId], references: [id])
   assistantRequestsCreated  AssistantRequest[]      @relation("AssistantRequestCreatedBy")
   assistantRequestsApproved AssistantRequest[]      @relation("AssistantRequestApprovedBy")
+  adminNotificationReads   AdminNotificationRead[]
   commandedTeam            Team?
   teamPosts                TeamPost[]
 
@@ -1141,4 +1142,34 @@ model ProfileLinkRequest {
   @@unique([claimantUserId,participantId])
   @@index([status,createdAt])
   @@index([participantId,status])
+}
+
+// Shared administrative tasks; read receipts belong to each administrator.
+// Completion is shared so another administrator can see work already done.
+model AdminNotification {
+  id                String   @id @default(uuid())
+  eventKey          String   @unique @db.VarChar(180)
+  kind              String   @db.VarChar(40)
+  title             String   @db.VarChar(160)
+  body              String   @db.VarChar(500)
+  path              String   @db.VarChar(300)
+  sourceId          String
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  completedAt       DateTime? @db.Timestamptz(3)
+  completedByUserId String?
+  reads             AdminNotificationRead[]
+
+  @@index([completedAt, createdAt])
+}
+
+model AdminNotificationRead {
+  id             String   @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime @default(now()) @db.Timestamptz(3)
+  notification   AdminNotification @relation(fields:[notificationId],references:[id],onDelete:Cascade)
+  user           User @relation(fields:[userId],references:[id],onDelete:Cascade)
+
+  @@unique([notificationId,userId])
+  @@index([userId,readAt])
 }
