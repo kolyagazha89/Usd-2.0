@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,CarFront,Pencil,Plus,RefreshCw,Search,Trash2,Upload} from 'lucide-react';
 import {getSiteSettings,updateSiteSettings} from '../api';
 import {parseVehicleDirectoryCsv,type VehicleDirectory} from '../vehicle-directory';
+import {invalidateVehicleDirectoryCache} from '../use-vehicle-directory';
 import {addVehicleBrand,addVehicleModel,archiveVehicleBrand,archiveVehicleModel,countDisabledVehicles,emptyVehicleOverrides,enableAllVehicles,filterVehicleCatalog,planVehicleImport,resolveVehicleCatalog,saveVehicleBrand,saveVehicleModel,toggleVehicleBrand,toggleVehicleModel,type VehicleCatalog,type VehicleOverrides} from './vehicle-catalog-management';
 
 type Editor={kind:'brand'|'model';id:string;name:string;brandId:string};
@@ -67,6 +68,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
    const saved=await updateSiteSettings({catalogs:{_revision:catalogs._revision,vehicleDirectory:newValue}});
    const persisted=saved?.settings?.catalogs?.vehicleDirectory??newValue;
    setOverrides({brands:persisted.brands??[],models:persisted.models??[]});
+   invalidateVehicleDirectoryCache();
    setNotice(message);
    return true;
   }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить справочник');return false}
