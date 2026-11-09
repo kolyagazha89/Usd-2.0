@@ -783,9 +783,10 @@ try{
       await page.getByRole('button',{name:'Проверить конфликты и историю'}).click();
       // API-backed preview is asynchronous, even with a local route fixture.
       // isVisible() is an instantaneous snapshot and races the React render.
-      await page.locator('.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+      await page.locator('.duplicate-preview-result > p.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+       await page.locator('.duplicate-preview-result > [role="alert"]').waitFor({state:'visible',timeout:6000});
       await page.getByText(/Профили имеют активные заявки/).waitFor({state:'visible',timeout:6000});
-      assert.equal(await page.getByRole('button',{name:/Объединить профили/}).count(),0,'destructive merge is never available');
+      assert.equal(await page.getByRole('button',{name:/Подтвердить атомарное объединение/}).count(),0,'a blocked merge cannot expose confirmation');
       row.duplicatePreview='read-only conflicting historical profiles, no merge controls';
      }
      if(role==='ADMIN'){
