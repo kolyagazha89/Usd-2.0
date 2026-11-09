@@ -470,6 +470,60 @@ describe('RegistrationsService', () => {
     });
   });
 
+  it('assigns 5 primary classes and all 4 BassRace entries to five distinct numbers',async()=>{
+    const regular=Array.from({length:5},(_,i)=>({
+      classId:'normal-'+i,participantLimit:null,
+      class:{directionId:'normal-direction-'+i,name:'Direction '+i,
+        direction:{name:'Direction '+i}},
+    }));
+    const bass=Array.from({length:4},(_,i)=>({
+      classId:'bass-'+i,participantLimit:null,
+      class:{directionId:'bassrace',name:i===0?'SPL BassRace 129.9':'BassRace '+i,
+        direction:{name:i===0?'SPL':'BassRace'}},
+    }));
+    const entries=[...regular,...bass];
+    const tx=baseTx({
+      stageClass:{findMany:jest.fn().mockResolvedValue(entries)},
+      carConfigurationVersion:{findFirst:jest.fn().mockResolvedValue({
+        id:'configuration-version-1',configurationId:'configuration-1',version:3,
+        vibrationIsolation:'STP',additionalDescription:'Test',
+        configuration:{id:'configuration-1',name:'Main'},
+        headUnits:[],audioComponents:[
+          {id:'sub-1',brand:'Test',model:'Sub',direction:'SUB',type:'SUBWOOFER',quantity:1},
+        ],
+        amplifiers:[],batteries:[],generators:[],
+      })},
+      registrationNumber:{
+        findFirst:jest.fn(),
+        deleteMany:jest.fn().mockResolvedValue({count:0}),
+        createMany:jest.fn().mockResolvedValue({count:5}),
+        findMany:jest.fn()
+          .mockResolvedValueOnce(Array.from({length:10},(_,i)=>({number:i+1})))
+          .mockResolvedValue(Array.from({length:5},(_,i)=>({
+            id:'number-'+(11+i),number:11+i,isPrimary:i===0,
+          }))),
+      },
+    });
+    setupTransaction(tx);
+    await service.create(participantRequest,{
+      ...requestBody,classIds:entries.map(x=>x.classId),
+    });
+    expect(tx.registrationNumber.createMany).toHaveBeenCalledWith({
+      data:Array.from({length:5},(_,i)=>expect.objectContaining({
+        number:11+i,isPrimary:i===0,registrationId:'registration-1',
+      })),
+    });
+    const write=(tx.registrationClass.createMany as jest.Mock).mock.calls[0][0] as {
+      data:Array<{classId:string;numberId:string;registrationId:string}>
+    };
+    expect(write.data).toHaveLength(9);
+    expect(write.data.filter(x=>x.classId.startsWith('normal-'))).toEqual(
+      regular.map(x=>({classId:x.classId,numberId:'number-11',registrationId:'registration-1'})),
+    );
+    expect(write.data.filter(x=>x.classId.startsWith('bass-')).map(x=>x.numberId))
+      .toEqual(['number-12','number-13','number-14','number-15']);
+  });
+
   it('rejects two classes from the same direction', async () => {
     const tx = baseTx({
       stageClass: {
