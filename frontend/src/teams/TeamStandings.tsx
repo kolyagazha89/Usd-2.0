@@ -3,6 +3,7 @@ import {apiGet,listData} from '../api';
 import {Link} from '../public/PremiumUI';
 
 type SeasonChoice={id:string;name:string;year:number};
+type DirectionChoice={name:string;sortOrder?:number;isActive?:boolean};
 type StageChoice={id:string;name:string;stageNumber:number;date:string;seasonId:string};
 type PublicTeamResult={
  id:string;participant:{id:string;firstName:string;lastName:string};
@@ -24,6 +25,8 @@ const readableDate=(value:string)=>new Date(value).toLocaleDateString('ru-RU');
 export default function TeamStandings(){
  const [seasons,setSeasons]=useState<SeasonChoice[]>([]);
  const [stages,setStages]=useState<StageChoice[]>([]);
+ const [directions,setDirections]=useState<string[]>([]);
+ const [direction,setDirection]=useState('');
  const [choicesLoading,setChoicesLoading]=useState(true);
  const [choicesError,setChoicesError]=useState('');
  const [choicesRetry,setChoicesRetry]=useState(0);
@@ -38,8 +41,8 @@ export default function TeamStandings(){
  useEffect(()=>{
   let active=true;
   setChoicesLoading(true);setChoicesError('');
-  Promise.all([apiGet('/seasons'),apiGet('/stages/public')])
-   .then(([seasonsResponse,stagesResponse])=>{
+  Promise.all([apiGet('/seasons'),apiGet('/stages/public'),apiGet('/directions')])
+   .then(([seasonsResponse,stagesResponse,directionsResponse])=>{
     if(!active)return;
     const availableSeasons=listData<SeasonChoice>(seasonsResponse)
      .filter(item=>item&&item.id&&Number.isFinite(item.year))
@@ -47,8 +50,12 @@ export default function TeamStandings(){
     const availableStages=listData<StageChoice>(stagesResponse)
      .filter(item=>item&&item.id&&item.name)
      .sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.stageNumber-a.stageNumber);
+    const availableDirections=listData<DirectionChoice>(directionsResponse)
+     .filter(item=>item&&typeof item.name==='string'&&item.name.trim()&&item.isActive!==false)
+     .sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0));
     setSeasons(availableSeasons);
     setStages(availableStages);
+    setDirections([...new Set(availableDirections.map(item=>item.name))]);
     if(availableSeasons.length){setScopeType('SEASON');setScopeId(availableSeasons[0].id)}
     else{setScopeType('STAGE');setScopeId(availableStages[0]?.id??'')}
    })
@@ -62,7 +69,7 @@ export default function TeamStandings(){
   let active=true;
   setData(null);setError('');setLoading(true);setExpanded('');
   const query=scopeType==='SEASON'?'seasonId':'stageId';
-  apiGet<TeamStandingsResponse>('/teams/public/standings?'+query+'='+encodeURIComponent(scopeId))
+  apiGet<TeamStandingsResponse>('/teams/public/standings?'+query+'='+encodeURIComponent(scopeId)+(direction?'&direction='+encodeURIComponent(direction):''))
    .then(response=>{
     if(!Array.isArray(response?.teams)||!response.scope)throw new Error('Сервер вернул неполную сводку команд');
     if(active)setData(response);
@@ -70,7 +77,7 @@ export default function TeamStandings(){
    .catch(err=>{if(active)setError(err instanceof Error?err.message:'Не удалось загрузить результаты команд')})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
- },[scopeType,scopeId,retry]);
+ },[scopeType,scopeId,direction,retry]);
 
  const changeScope=(value:'SEASON'|'STAGE')=>{
   setScopeType(value);
@@ -95,6 +102,12 @@ export default function TeamStandings(){
       <select aria-label="Выберите этап" value={scopeId} onChange={event=>setScopeId(event.target.value)} disabled={!stages.length}>
        {stages.map(stage=><option key={stage.id} value={stage.id}>{stage.name} · {readableDate(stage.date)}</option>)}
       </select>}
+    </label>
+    <label className="team-standings-select">Выберите направление
+     <select aria-label="Выберите направление" value={direction} onChange={event=>setDirection(event.target.value)}>
+      <option value="">Все направления</option>
+      {directions.map(name=><option key={name} value={name}>{name}</option>)}
+     </select>
     </label>
    </div>}
   {!choicesLoading&&!choicesError&&(!seasons.length&&!stages.length)?<p>Опубликованных сезонов и этапов пока нет.</p>:null}
