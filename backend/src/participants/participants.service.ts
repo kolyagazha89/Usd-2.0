@@ -245,10 +245,15 @@ export class ParticipantsService {
   // =========================================================
 
   async findOne(id: string) {
+    // Canonicalize historical public IDs without recursion or disclosing the alias row.
+    const alias=await this.prisma.participantMergeRedirect?.findUnique({
+      where:{sourceId:id},select:{targetId:true},
+    });
+    const canonicalId=alias?.targetId??id;
     const participant =
       await this.prisma.participant.findUnique({
         where: {
-          id,
+          id: canonicalId,
         },
         select: {
           id: true,
@@ -477,10 +482,6 @@ export class ParticipantsService {
         },
       });
 
-    // Old public profile URLs must resolve to the surviving identity.
-    if (participant?.mergeAsSource?.targetId && participant.mergeAsSource.targetId !== id) {
-      return this.findOne(participant.mergeAsSource.targetId);
-    }
     if (!participant || !participant.isPublic) {
       throw new NotFoundException(
         'Участник не найден',
