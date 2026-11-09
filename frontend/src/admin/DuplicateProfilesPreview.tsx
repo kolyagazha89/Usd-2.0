@@ -1,4 +1,4 @@
-import {useEffect,useId,useMemo,useState} from 'react';
+import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {apiGet,listData} from '../api';
 
 type Candidate={id:string;lastName:string;firstName:string;middleName?:string|null;birthDate?:string|null};
@@ -40,17 +40,23 @@ const countNames:Record<string,string>={cars:'Автомобили',configuratio
 export default function DuplicateProfilesPreview(){
  const [people,setPeople]=useState<Candidate[]>([]),[sourceId,setSourceId]=useState(''),[targetId,setTargetId]=useState('');
  const [preview,setPreview]=useState<Preview|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
- useEffect(()=>{let active=true;apiGet<any>('/admin/participants').then(data=>{if(active)setPeople(listData(data))}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Не удалось загрузить участников')});return()=>{active=false}},[]);
- const inspect=async()=>{if(!sourceId||!targetId||sourceId===targetId)return;setBusy(true);setError('');setPreview(null);
-  try{const data=await apiGet<Preview>('/admin/profile-links/duplicates/preview?sourceId='+encodeURIComponent(sourceId)+'&targetId='+encodeURIComponent(targetId));setPreview(data)}
-  catch(e){setError(e instanceof Error?e.message:'Не удалось проверить дубли')}finally{setBusy(false)}
+ const inspectionRequest=useRef(0);
+ useEffect(()=>{let active=true;apiGet<any>('/admin/participants').then(data=>{if(active)setPeople(listData(data))}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Не удалось загрузить участников')});return()=>{active=false;inspectionRequest.current++}},[]);
+ const changePair=(side:'source'|'target',id:string)=>{
+  inspectionRequest.current++;
+  if(side==='source')setSourceId(id);else setTargetId(id);
+  setPreview(null);setError('');setBusy(false);
+ };
+ const inspect=async()=>{if(!sourceId||!targetId||sourceId===targetId)return;const request=++inspectionRequest.current;setBusy(true);setError('');setPreview(null);
+  try{const data=await apiGet<Preview>('/admin/profile-links/duplicates/preview?sourceId='+encodeURIComponent(sourceId)+'&targetId='+encodeURIComponent(targetId));if(request===inspectionRequest.current)setPreview(data)}
+  catch(e){if(request===inspectionRequest.current)setError(e instanceof Error?e.message:'Не удалось проверить дубли')}finally{if(request===inspectionRequest.current)setBusy(false)}
  };
  return <section className="duplicate-profile-preview" aria-labelledby="duplicate-preview-title">
   <h2 id="duplicate-preview-title">Проверка дублирующихся профилей</h2>
   <p>Безопасный предпросмотр различий перед объединением. Выберите, какой профиль потенциально переносится и какой должен остаться.</p>
   <div className="duplicate-choose-row">
-   <PersonPicker label="Перенести из профиля" candidates={people} value={sourceId} onChange={id=>{setSourceId(id);setPreview(null)}}/>
-   <PersonPicker label="Оставить основным" candidates={people} value={targetId} onChange={id=>{setTargetId(id);setPreview(null)}}/>
+   <PersonPicker label="Перенести из профиля" candidates={people} value={sourceId} onChange={id=>changePair('source',id)}/>
+   <PersonPicker label="Оставить основным" candidates={people} value={targetId} onChange={id=>changePair('target',id)}/>
   </div>
   <button type="button" className="secondary-button" disabled={busy||!sourceId||!targetId||sourceId===targetId} onClick={()=>void inspect()}>{busy?'Проверяем…':'Проверить конфликты и историю'}</button>
   {error&&<p role="alert" className="form-error">{error}</p>}
