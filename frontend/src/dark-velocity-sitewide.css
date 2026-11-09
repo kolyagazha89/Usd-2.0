@@ -1148,8 +1148,16 @@ body .usd-live .usd-partner-expand:hover{text-decoration:underline}
 body .usd-live .usd-partner-expand:focus-visible{
  outline:2px solid #ff5777;outline-offset:3px;border-radius:3px;
 }
+/* Percentage auto-columns need a definite inline size. Otherwise the intrinsic
+   grid track can expand the entire homepage instead of making the rail scroll. */
+body .usd-live .usd-partner-showcase--home,
+body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular,
+body .usd-live .usd-partner-showcase--home .usd-partner-carousel-wrap{
+ width:100%;max-width:100%;min-width:0;
+}
 /* Only ordinary homepage partners slide. Premium / general / studios are grids. */
 body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box;
  display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 3 * 16px)/4);
  gap:16px;overflow-x:auto;overflow-y:hidden;
  scroll-snap-type:x mandatory;scroll-padding-inline:2px;

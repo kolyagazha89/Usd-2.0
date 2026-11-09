@@ -165,7 +165,8 @@ try{
     full:node.scrollWidth,visible:node.clientWidth,snap:getComputedStyle(node).scrollSnapType,
    }));
    assert.match(railMetrics.snap,/x mandatory/);
-   if(width<=390)assert.ok(railMetrics.full>railMetrics.visible+10,'phone carousel must be swipeable');
+   if(width<=390)assert.ok(railMetrics.full>railMetrics.visible+10,
+    'phone carousel must be swipeable: '+JSON.stringify(railMetrics));
    const homeHeights=await page.locator('.u-home-partners .usd-partner-carousel .usd-partner-card').evaluateAll(nodes=>
     nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
    assert.ok(homeHeights.every(h=>Math.abs(h-homeHeights[0])<=1),'uniform homepage cards at '+width);
