@@ -25,3 +25,11 @@ test('print rules preserve actual tables and hide admin controls in a readable A
  assert.match(css,/\.season-report-table-wrap thead\{display:table-header-group/);
  assert.match(css,/break-inside:avoid/);
 });
+
+test('candidate browser covers season report printing with synthetic server-only data',async()=>{
+ const qa=await file('../../scripts/candidate-browser-qa.mjs');
+ assert.match(qa,/\/admin\/season-report/);
+ assert.match(qa,/\/statistics\/season-report\/s1/);
+ assert.match(qa,/\.season-report-document/);
+ assert.match(qa,/page\.emulateMedia\(\{media:'print'\}\)/);
+});
