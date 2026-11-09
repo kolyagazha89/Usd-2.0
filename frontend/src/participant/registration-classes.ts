@@ -7,7 +7,7 @@ export type StageClassChoice={classId?:string;class?:{id?:string;name?:string;di
 export function isBassRaceStageOption(item:StageClassChoice|undefined):boolean{
  const cls=item?.class??item;
  const normalize=(text:unknown)=>String(text??'').trim().toLowerCase().replace(/[\s_-]/g,'');
- return normalize(cls?.name).startsWith('bassrace')||normalize(cls?.direction?.name).includes('bassrace');
+ return normalize(cls?.name).includes('bassrace')||normalize(cls?.direction?.name).includes('bassrace');
 }
 export function primaryNumberClassCount(ids:readonly string[],classes:readonly StageClassChoice[]):number{
  const lookup=new Map(classes.map(item=>[String(item.classId??item.class?.id??item.id),item]));

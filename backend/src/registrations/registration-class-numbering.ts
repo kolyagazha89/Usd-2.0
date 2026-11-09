@@ -13,7 +13,7 @@ export type NumberingStageClass={
 
 export function isBassRaceStageClass(className:string,directionName=''):boolean{
  const normalize=(name:string)=>String(name??'').trim().toLowerCase().replace(/[\s_-]/g,'');
- return normalize(className).startsWith('bassrace')||normalize(directionName).includes('bassrace');
+ return normalize(className).includes('bassrace')||normalize(directionName).includes('bassrace');
 }
 
 export function planRegistrationClassNumbers(

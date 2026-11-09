@@ -31,6 +31,14 @@ test('one BassRace class shares the primary sticker if fewer than five regular c
  assert.deepEqual(nextRegistrationClassIds([],'missing',true,catalog),[]);
  assert.deepEqual(nextRegistrationClassIds(['b0','b1'],'b1',false,catalog),['b0']);
 });
+test('legacy imported SPL BassRace names are selectable as an extra number, not a sixth primary class',()=>{
+ const rows=[...catalog,{classId:'imported',class:{name:'SPL BassRace 139.9',direction:{name:'SPL'}}}];
+ const five=['r0','r1','r2','r3','r4'];
+ assert.equal(isBassRaceStageOption(rows.at(-1)),true);
+ const chosen=nextRegistrationClassIds(five,'imported',true,rows);
+ assert.equal(chosen.length,6);
+ assert.equal(primaryNumberClassCount(chosen,rows),5);
+});
 test('returning competitor must review configuration before moving to classes',()=>{
  assert.equal(canContinueVehicleRegistration(false,false,'',false),false);
  assert.equal(canContinueVehicleRegistration(true,false,'',false),true);
