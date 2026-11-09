@@ -127,3 +127,10 @@ test('admin car catalog search honors active status, model make, and selected br
  assert.deepEqual(filterVehicleCatalog(c,{search:'Toyota',selectedBrand:toyota.id,status:'ALL'}).models.map(m=>m.name),['Camry','Corolla']);
  assert.deepEqual(filterVehicleCatalog(c,{search:'Camry',selectedBrand:'seed-brand:ваз',status:'ALL'}).models,[]);
 });
+
+test('car catalog admin uses model-aware shared search and clears stale selected brand when searching',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const page=await readFile(new URL('../src/admin/VehicleCatalogPage.tsx',import.meta.url),'utf8');
+ assert.match(page,/filterVehicleCatalog\(catalog,\{search,selectedBrand,status\}\)/);
+ assert.match(page,/setSearch\(e\.target\.value\);setSelectedBrand\(''\);setPage\(1\)/);
+});
