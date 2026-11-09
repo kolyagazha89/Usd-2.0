@@ -979,6 +979,43 @@ try{
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded newcomer fields fit viewport');
       row.firstLogin='dark premium identity matching, protected profile, explicit new profile, no security panel';
      }
+     if(role==='ADMIN'&&route==='/admin/cars/configurations?carId=car1'){
+      const editorButton=page.getByRole('button',{name:'Редактировать',exact:true});
+      await editorButton.click();
+      await page.locator('.configuration-editor-page .catalog-request-inline').waitFor({state:'visible'});
+      const samples=await page.evaluate(()=>{
+       const selectors=[
+        '.configuration-editor-page .catalog-request-inline',
+        '.configuration-editor-page .config-editor-intro',
+        '.configuration-editor-page .configuration-admission-guide',
+        '.configuration-editor-page .config-section',
+        '.configuration-editor-page .catalog-request-form',
+        '.configuration-editor-page .config-basic-grid > label',
+       ];
+       const luminance=color=>{
+        const match=color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        return match?(Number(match[1])+Number(match[2])+Number(match[3]))/3:null;
+       };
+       return selectors.map(selector=>{
+        const node=document.querySelector('.admin-configurations-shell '+selector);
+        if(!node)return {selector,missing:true};
+        const style=getComputedStyle(node);
+        const image=style.backgroundImage;
+        const imageColors=[...image.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)].map(m=>(Number(m[1])+Number(m[2])+Number(m[3]))/3);
+        return {selector,background:style.backgroundColor,image,backgroundLight:luminance(style.backgroundColor),textLight:luminance(style.color),imageColors};
+       });
+      });
+      for(const sample of samples){
+       assert.equal(sample.missing,undefined,'required admin car control missing: '+sample.selector);
+       if(sample.selector.endsWith('> label')){
+        assert.ok(sample.textLight!==null&&sample.textLight<150,'admin editor labels must have dark ink: '+JSON.stringify(sample));
+       }else{
+        assert.ok((sample.backgroundLight??0)>=235,'admin editor has a dark surface: '+JSON.stringify(sample));
+        assert.ok(sample.imageColors.every(value=>value>=210),'admin editor uses dark gradient: '+JSON.stringify(sample));
+       }
+      }
+      row.adminCarPalette='light configuration editor backgrounds and readable labels';
+     }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
