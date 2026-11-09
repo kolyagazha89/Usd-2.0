@@ -156,7 +156,8 @@ try{
    assert.deepEqual(resetPreview,resetPublic,'reset preview must reproduce saved legacy image geometry');
    const studios=page.locator('.usd-partner-tier--studio');
    await studios.waitFor({state:'visible'});
-   assert.equal(await studios.locator('.usd-partner-card').count(),1,'draft studio must not render');
+   assert.equal(await studios.locator('.usd-partner-card').count(),4,'draft studio must not render');
+   assert.equal(await studios.getByText('Скрытая студия').count(),0,'unpublished studio must remain hidden');
    assert.match(await studios.textContent(),/Студия Тест/);
    assert.doesNotMatch(await page.locator('.usd-partner-tier--regular').textContent(),/Студия Тест/);
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});
@@ -168,20 +169,20 @@ try{
    await page.locator('.data-table tr').filter({hasText:'Новая студия'}).waitFor();
    assert.equal(settings.partners.find(item=>item.name==='Новая студия')?.tier,'STUDIO');
    await page.goto(base+'/partners',{waitUntil:'networkidle'});
-   assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),2);
+   assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),5);
    await assertViewport();
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`studio-partners-${width}.png`),fullPage:true});
 
    // Homepage: independent swipeable rails for ordinary partners and studios.
    await page.goto(base+'/',{waitUntil:'networkidle'});
-   const homeRail=page.locator('.u-home-partners .usd-partner-carousel');
+   const homeRail=page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel');
    await homeRail.waitFor();
    assert.equal(await page.locator('.u-home-partners .usd-partner-carousel').count(),2);
    assert.equal(await page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel').count(),1);
    assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel').count(),1);
-   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel .usd-partner-card').count(),4);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel .usd-partner-card').count(),5);
    assert.equal(await page.locator('.u-home-partners .usd-partner-tier--premium .usd-partner-carousel').count(),0);
-   assert.equal(await page.locator('.u-home-partners .usd-partner-carousel .usd-partner-card').count(),4);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel .usd-partner-card').count(),4);
    for(const tier of ['regular','studio']){
     const rail=page.locator('.u-home-partners .usd-partner-tier--'+tier+' .usd-partner-carousel');
     const railMetrics=await rail.evaluate(node=>({
@@ -195,10 +196,7 @@ try{
     assert.ok(cardHeights.every(h=>Math.abs(h-cardHeights[0])<=1),
      tier+' carousel cards have uniform height at '+width);
    }
-   const homeHeights=await page.locator('.u-home-partners .usd-partner-carousel .usd-partner-card').evaluateAll(nodes=>
-    nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
-   assert.ok(homeHeights.every(h=>Math.abs(h-homeHeights[0])<=1),'uniform homepage cards at '+width);
-   if([390,1440].includes(width))await page.screenshot({path:path.join(output,`home-partners-${width}.png`),fullPage:true});
+    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`home-partners-${width}.png`),fullPage:true});
    await assertViewport();
    assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true,expandableDescription:true,homeRegularCarousel:true,homeStudioCarousel:true,studioDescription:true,uniformSlots:true});
   }catch(e){report.failures.push({width,message:String(e)});await page.screenshot({path:path.join(output,`failure-${width}.png`),fullPage:true})}
