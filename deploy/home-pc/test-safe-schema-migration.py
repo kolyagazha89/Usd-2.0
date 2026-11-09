@@ -49,6 +49,20 @@ class SafeSqlTests(unittest.TestCase):
               FOREIGN KEY ("id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
         """)
 
+    def test_participant_merge_migration_is_after_existing_admin_notifications(self):
+        """The 08:00 migration was already part of the last deployed source.
+
+        A new 06:00 merge migration silently introduced later will fail the
+        strict root-owned additive gate before SQL is ever executed.
+        """
+        root = Path(__file__).parents[2] / "backend/prisma/migrations"
+        candidate_names = [p.name for p in root.iterdir()
+                           if p.is_dir() and p.name.endswith("_participant_merge_redirect")]
+        self.assertEqual(len(candidate_names), 1)
+        self.assertGreater(candidate_names[0], "20261109080000_admin_notifications")
+        sql = (root / candidate_names[0] / "migration.sql").read_text()
+        module.check_additive_sql(sql)
+
     def test_existing_profile_link_migration_has_safe_new_table_enum(self):
         sql = (Path(__file__).parents[2] /
                "backend/prisma/migrations/20261106153000_profile_link_requests/migration.sql").read_text()
