@@ -41,7 +41,10 @@ try{
    {id:'regular-b',name:'Второй партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'LOGO',aspectWidth:1,aspectHeight:1}},
    {id:'regular-c',name:'Третий партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'BANNER',aspectWidth:16,aspectHeight:9}},
    {id:'regular-d',name:'Четвёртый партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
-   {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',description:'Профессиональная установка и настройка автозвука. '.repeat(12)},
+   {id:'studio-2',name:'Студия Вторая',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-3',name:'Студия Третья',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-4',name:'Студия Четвёртая',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
    {id:'studio-hidden',name:'Скрытая студия',tier:'STUDIO',isActive:true,isPublished:false,photoUrl:'/qa-partner-image'},
   ]};
   const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
@@ -117,6 +120,21 @@ try{
    assert.ok((await described.locator('.usd-partner-description p').innerText()).length>teaser.length);
    await described.getByRole('button',{name:/Свернуть/}).click();
    assert.equal(await described.locator('.usd-partner-description p').innerText(),teaser);
+   // Studio directory cards have the same in-card expand/collapse control.
+   const studioDirectory=page.locator('.usd-partner-tier--studio .usd-partner-card');
+   assert.equal(await studioDirectory.count(),4);
+   assert.equal(await page.locator('.usd-partner-showcase--full .usd-partner-carousel').count(),0);
+   const studioTeaser=studioDirectory.filter({hasText:'Студия Тест'});
+   const summary=await studioTeaser.locator('.usd-partner-description p').innerText();
+   await studioTeaser.getByRole('button',{name:/Читать далее/}).click();
+   assert.ok((await studioTeaser.locator('.usd-partner-description p').innerText()).length>summary.length);
+   await studioTeaser.getByRole('button',{name:/Свернуть/}).click();
+   assert.equal(await studioTeaser.locator('.usd-partner-description p').innerText(),summary);
+   if(width<=390){
+    const a=await studioDirectory.nth(0).boundingBox();
+    const b=await studioDirectory.nth(1).boundingBox();
+    assert.ok(Math.abs(a.x-b.x)<2&&b.y>a.y,'studio directory is single column at '+width);
+   }
    await assertViewport();
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`partners-${width}.png`),fullPage:true});
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});await edit();
@@ -154,25 +172,35 @@ try{
    await assertViewport();
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`studio-partners-${width}.png`),fullPage:true});
 
-   // Homepage: carousel is exclusive to ordinary partners; no carousel in directory.
+   // Homepage: independent swipeable rails for ordinary partners and studios.
    await page.goto(base+'/',{waitUntil:'networkidle'});
    const homeRail=page.locator('.u-home-partners .usd-partner-carousel');
    await homeRail.waitFor();
-   assert.equal(await page.locator('.u-home-partners .usd-partner-carousel').count(),1);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-carousel').count(),2);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel').count(),1);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel').count(),1);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel .usd-partner-card').count(),4);
    assert.equal(await page.locator('.u-home-partners .usd-partner-tier--premium .usd-partner-carousel').count(),0);
    assert.equal(await page.locator('.u-home-partners .usd-partner-carousel .usd-partner-card').count(),4);
-   const railMetrics=await homeRail.evaluate(node=>({
-    full:node.scrollWidth,visible:node.clientWidth,snap:getComputedStyle(node).scrollSnapType,
-   }));
-   assert.match(railMetrics.snap,/x mandatory/);
-   if(width<=390)assert.ok(railMetrics.full>railMetrics.visible+10,
-    'phone carousel must be swipeable: '+JSON.stringify(railMetrics));
+   for(const tier of ['regular','studio']){
+    const rail=page.locator('.u-home-partners .usd-partner-tier--'+tier+' .usd-partner-carousel');
+    const railMetrics=await rail.evaluate(node=>({
+     full:node.scrollWidth,visible:node.clientWidth,snap:getComputedStyle(node).scrollSnapType,
+    }));
+    assert.match(railMetrics.snap,/x mandatory/);
+    if(width<=390)assert.ok(railMetrics.full>railMetrics.visible+10,
+     tier+' phone carousel must be swipeable: '+JSON.stringify(railMetrics));
+    const cardHeights=await rail.locator('.usd-partner-card').evaluateAll(nodes=>
+     nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
+    assert.ok(cardHeights.every(h=>Math.abs(h-cardHeights[0])<=1),
+     tier+' carousel cards have uniform height at '+width);
+   }
    const homeHeights=await page.locator('.u-home-partners .usd-partner-carousel .usd-partner-card').evaluateAll(nodes=>
     nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
    assert.ok(homeHeights.every(h=>Math.abs(h-homeHeights[0])<=1),'uniform homepage cards at '+width);
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`home-partners-${width}.png`),fullPage:true});
    await assertViewport();
-   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true,expandableDescription:true,homeRegularCarousel:true,uniformSlots:true});
+   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true,expandableDescription:true,homeRegularCarousel:true,homeStudioCarousel:true,studioDescription:true,uniformSlots:true});
   }catch(e){report.failures.push({width,message:String(e)});await page.screenshot({path:path.join(output,`failure-${width}.png`),fullPage:true})}
   finally{await context.close()}
  }
