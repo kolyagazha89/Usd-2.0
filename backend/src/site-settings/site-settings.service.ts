@@ -4,6 +4,7 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
 import { readPartnerImageLayout } from './partner-image-layout';
+import { assertBundledVehicleDirectoryLinks } from './vehicle-overrides-validation';
 
 export type SiteSettingsShape = {
   branding:{siteName:string;logoUrl:string|null;splashLogoUrl:string|null;mobileLogoUrl:string|null;faviconUrl:string|null;organizationName:string;placeholders?:{participant:string|null;car:string|null;stage:string|null}};
@@ -205,6 +206,7 @@ export class SiteSettingsService{
           seen.add(id);
         }
       }
+      assertBundledVehicleDirectoryLinks(directory as unknown as Parameters<typeof assertBundledVehicleDirectoryLinks>[0]);
     }
     const types=(value as Record<string,unknown>).batteryTypes;
     if(types===undefined)return;
