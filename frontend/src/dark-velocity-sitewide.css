@@ -1151,12 +1151,12 @@ body .usd-live .usd-partner-expand:focus-visible{
 /* Percentage auto-columns need a definite inline size. Otherwise the intrinsic
    grid track can expand the entire homepage instead of making the rail scroll. */
 body .usd-live .usd-partner-showcase--home,
-body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular,
+body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio),
 body .usd-live .usd-partner-showcase--home .usd-partner-carousel-wrap{
  width:100%;max-width:100%;min-width:0;
 }
-/* Only ordinary homepage partners slide. Premium / general / studios are grids. */
-body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+/* Home carousels are exclusive to REGULAR and STUDIO; premium/general remain static grids. */
+body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
  display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 3 * 16px)/4);
  gap:16px;overflow-x:auto;overflow-y:hidden;
@@ -1168,7 +1168,7 @@ body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partn
 body .usd-live .usd-partner-carousel>*{
  scroll-snap-align:start;scroll-snap-stop:always;min-width:0;
 }
-body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-card{
+body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-card{
  min-height:255px;gap:12px;padding:16px;
 }
 body .usd-live .usd-partner-carousel-meta{
@@ -1180,37 +1180,37 @@ body .usd-live .usd-partner-carousel:focus-visible{
  outline:2px solid #ff5777;outline-offset:4px;border-radius:12px;
 }
 @media(max-width:1100px){
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
   grid-auto-columns:calc((100% - 2 * 16px)/3);
  }
 }
 @media(max-width:800px){
- body .usd-live .usd-partner-showcase--full .usd-partner-tier--regular .usd-partner-grid{
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid{
   grid-template-columns:repeat(2,minmax(0,1fr));
  }
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
   grid-auto-columns:calc((100% - 16px)/2);
  }
 }
 @media(max-width:560px){
  body .usd-live .usd-partner-showcase--full .usd-partner-grid,
- body .usd-live .usd-partner-showcase--full .usd-partner-tier--regular .usd-partner-grid{
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid{
   grid-template-columns:minmax(0,1fr);
  }
  body .usd-live .usd-partner-showcase--full .usd-partner-card,
- body .usd-live .usd-partner-showcase--full .usd-partner-tier--regular .usd-partner-card{
+ body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-card{
   padding:18px;gap:12px;
  }
  body .usd-live .usd-partner-showcase--full .usd-partner-visual{
   --usd-partner-slot-height:154px;
  }
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
   grid-auto-columns:minmax(0,82%);gap:12px;
  }
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-card{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-card{
   padding:16px;gap:12px;min-height:248px;
  }
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-visual{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-visual{
   --usd-partner-slot-height:132px;
  }
 }
@@ -1223,25 +1223,25 @@ body .usd-live .usd-partner-carousel:focus-visible{
 /* A flex track guarantees genuine horizontal overflow on narrow Safari and
    Chromium viewports. Explicit percentage flex bases are not collapsed into
    a four-column grid, even with nested legacy mobile grid rules. */
-body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel{
+body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
  display:flex;flex-wrap:nowrap;align-items:stretch;
 }
-body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel>.usd-partner-card{
+body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel>.usd-partner-card{
  flex:0 0 calc((100% - 3 * 16px)/4);width:calc((100% - 3 * 16px)/4);
  max-width:none;min-width:0;
 }
 @media(max-width:1100px){
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel>.usd-partner-card{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel>.usd-partner-card{
   flex-basis:calc((100% - 2 * 16px)/3);width:calc((100% - 2 * 16px)/3);
  }
 }
 @media(max-width:800px){
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel>.usd-partner-card{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel>.usd-partner-card{
   flex-basis:calc((100% - 16px)/2);width:calc((100% - 16px)/2);
  }
 }
 @media(max-width:560px){
- body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel>.usd-partner-card{
+ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel>.usd-partner-card{
   flex-basis:82%;width:82%;
  }
 }
