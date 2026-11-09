@@ -13,7 +13,7 @@ describe('equipment requests notify administrators through inbox and PUSH',()=>{
   const {db,mail,service}=fixture();const result=await service.create('user',{category:'AMPLIFIER',brand:'Brand',model:'Model'});
   expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
   expect(db.$transaction).toHaveBeenCalledTimes(1);
-  expect(db.adminNotification.create).toHaveBeenCalledWith({data:expect.objectContaining({eventKey:'catalog-request:'+result.requestId,kind:'CATALOG_REQUEST',sourceId:result.requestId,path:'/admin/components'})});
+  expect(db.adminNotification.create).toHaveBeenCalledWith({data:expect.objectContaining({eventKey:'catalog-request:'+result.requestId,kind:'CATALOG_REQUEST',sourceId:result.requestId,path:'/admin/components?tab=requests'})});
   expect(result.notificationChannel).toBe('PUSH');
   expect(result).not.toHaveProperty('emailQueued');
  });

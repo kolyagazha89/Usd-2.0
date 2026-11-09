@@ -74,7 +74,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/partners'))return <PartnersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/news'))return <NewsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} formatDate={formatDate}/>;
   if(path.startsWith('/admin/vibration'))return <CatalogPage mode="vibration" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
-  if(path.startsWith('/admin/components'))return <CatalogPage mode="components" PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
+  if(path.startsWith('/admin/components'))return <CatalogPage mode="components" routePath={path} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/email-templates'))return <EmailTemplatesPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
   if(path.startsWith('/admin/email-testing'))return <EmailTestingPage PageFrame={PageFrame} PanelTitle={PanelTitle}/>;
   if(path.startsWith('/admin/legal-documents'))return <LegalDocumentsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;

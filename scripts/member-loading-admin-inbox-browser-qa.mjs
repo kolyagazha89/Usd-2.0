@@ -18,7 +18,7 @@ try{
  for(const width of [390,1440]){
   let role='ADMIN',receipt=false,done=false,releaseProfile;
   const writes=[],errors=[];
-  const notification={id:'123e4567-e89b-42d3-a456-426614174001',kind:'CATALOG_REQUEST',title:'Запрос на добавление комплектующего',body:'Проверьте запрос оборудования.',path:'/admin/components',createdAt:'2026-11-09T08:00:00Z'};
+  const notification={id:'123e4567-e89b-42d3-a456-426614174001',kind:'CATALOG_REQUEST',title:'Запрос на добавление комплектующего',body:'Проверьте запрос оборудования.',path:'/admin/components?tab=requests',createdAt:'2026-11-09T08:00:00Z'};
   const context=await browser.newContext({viewport:{width,height:844},reducedMotion:'no-preference',serviceWorkers:'block'});
   const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   await context.route('**/*',async route=>{
@@ -60,6 +60,10 @@ try{
    await page.getByRole('button',{name:/^Не просмотрено/}).click();await page.getByRole('heading',{name:'Уведомлений нет',exact:true}).waitFor();
    await page.getByRole('button',{name:/^Выполнено/}).click();await page.getByRole('heading',{name:notification.title,exact:true}).waitFor();
    assert.deepEqual(writes,['READ','DONE']);
+   await page.getByRole('button',{name:/^Открыть раздел/}).click();
+   await page.waitForFunction(()=>document.querySelector('.component-request-queue'));
+   assert.ok(page.url().endsWith('/admin/components?tab=requests'),'notification must open the request queue directly');
+   await page.goto(base+'/admin/inbox');await page.getByRole('heading',{name:notification.title,exact:true}).waitFor();
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'inbox must not overflow on mobile');
    await page.screenshot({path:path.join(output,'inbox-'+width+'.png'),fullPage:true});
    role='PARTICIPANT';releaseProfile=null;

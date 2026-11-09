@@ -27,7 +27,7 @@ type Notice={id:string;title:string;body:string;path:string;createdAt:string;sta
 type Counts={unread:number;read:number;done:number;total:number};
 type Inbox={items:Notice[];counts:Counts;nextCursor:string|null};
 const labels={UNREAD:'Не просмотрено',READ:'Просмотрено',DONE:'Выполнено'};
-const destinations=new Set(['/admin/components','/admin/profile-links','/admin/participants']);
+const destinations=new Set(['/admin/components','/admin/components?tab=requests','/admin/profile-links','/admin/participants']);
 export default function AdminInboxPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.ComponentType<any>}){
  const [filter,setFilter]=useState('all'),[items,setItems]=useState<Notice[]>([]),[counts,setCounts]=useState<Counts|null>(null),[cursor,setCursor]=useState<string|null>(null);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[error,setError]=useState('');
