@@ -12,7 +12,7 @@ test('public teams directory includes a cross-team stage and season comparison, 
  assert.match(page,/import TeamStandings from '\.\.\/teams\/TeamStandings'/);
  assert.match(page,/<TeamStandings\s*\/>/);
  assert.match(comparison,/\/teams\/public\/standings\?/);
- assert.match(comparison,/\/seasons\/public/);
+ assert.match(comparison,/apiGet\('\\/seasons'\)/);
  assert.match(comparison,/\/stages\/public/);
  assert.match(comparison,/Выберите сезон|Сезон/);
  assert.match(comparison,/Выберите этап|Этап/);
