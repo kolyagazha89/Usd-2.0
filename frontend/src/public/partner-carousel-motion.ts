@@ -16,3 +16,12 @@ export function shouldAutoAdvancePartnerCarousel(state:PartnerCarouselMotionStat
   !state.manuallyPaused && !state.hovered && !state.focused &&
   !state.hidden && !state.reducedMotion;
 }
+
+export type PartnerGesturePoint={x:number;y:number};
+export function isIntentionalHorizontalSwipe(start:PartnerGesturePoint,end:PartnerGesturePoint):boolean{
+ const dx=Math.abs(end.x-start.x),dy=Math.abs(end.y-start.y);
+ return dx>=40&&dx>dy*1.25;
+}
+export function isHorizontalWheelGesture(dx:number,dy:number):boolean{
+ return Number.isFinite(dx)&&Number.isFinite(dy)&&Math.abs(dx)>=5&&Math.abs(dx)>Math.abs(dy);
+}
