@@ -47,6 +47,7 @@ model User {
   componentCatalogRequests ComponentCatalogRequest[]
   profileLinkClaims        ProfileLinkRequest[] @relation("ProfileLinkClaimant")
   profileLinkReviews       ProfileLinkRequest[] @relation("ProfileLinkReviewer")
+  approvedProfileMerges    ParticipantMergeRedirect[] @relation("MergeAuthorizedBy")
   lastVerificationResendAt  DateTime?                @db.Timestamptz(3)
   participantId            String?                  @unique
   auditLogs                AuditLog[]
@@ -99,6 +100,8 @@ model Participant {
   user              User?
   teamMembership    TeamMembership?
   profileLinkRequests ProfileLinkRequest[]
+  mergeAsSource       ParticipantMergeRedirect? @relation("MergeSource")
+  mergeAsTarget       ParticipantMergeRedirect[] @relation("MergeTarget")
 
   @@index([lastName])
   @@index([firstName])
@@ -848,6 +851,22 @@ model ImportRow {
   @@index([participantId])
   @@index([registrationId])
   @@index([classId])
+}
+
+// Historical profile IDs are retained as permanent aliases. Nothing is deleted
+// by a merge; recovery contains the exact affected IDs for supervised restore.
+model ParticipantMergeRedirect {
+  sourceId String @id
+  targetId String
+  mergedByUserId String
+  mergedAt DateTime @default(now()) @db.Timestamptz(3)
+  recovery Json
+  source Participant @relation("MergeSource",fields:[sourceId],references:[id],onDelete:Restrict)
+  target Participant @relation("MergeTarget",fields:[targetId],references:[id],onDelete:Restrict)
+  approvedBy User @relation("MergeAuthorizedBy",fields:[mergedByUserId],references:[id],onDelete:Restrict)
+
+  @@index([targetId])
+  @@index([mergedAt])
 }
 
 model ParticipantLegacyEmail {
