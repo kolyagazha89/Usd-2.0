@@ -41,7 +41,7 @@ const rulesBlocks=[
  {type:'heading',level:2,text:'Раздел Б'},
  {type:'list-item',ordered:true,level:0,text:'Новый список'},
 ];
-const settings={news:[{id:'news-image-fixture',title:'Проверка полного отображения постера USD',excerpt:'Фотография должна быть видна целиком',body:'Текст новости',photoUrl:'/usd/pwa-192.png',publishedAt:'2026-11-01T12:00:00Z',isPublished:true}],branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[{id:'fixture-brand-alphard',category:'SUBWOOFER',name:'Alphard',isActive:true},{id:'fixture-brand-pride',category:'SUBWOOFER',name:'Pride',isActive:false}],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true},{id:'fixture-model-pride',category:'SUBWOOFER',brand:'Pride',model:'Black 15',isActive:false}],vehicleDirectory:{brands:[],models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false}]},batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+const settings={news:[{id:'news-image-fixture',title:'Проверка полного отображения постера USD',excerpt:'Фотография должна быть видна целиком',body:'Текст новости',photoUrl:'/__qa_news_portrait.svg',publishedAt:'2026-11-01T12:00:00Z',isPublished:true}],branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[{id:'fixture-brand-alphard',category:'SUBWOOFER',name:'Alphard',isActive:true},{id:'fixture-brand-pride',category:'SUBWOOFER',name:'Pride',isActive:false}],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true},{id:'fixture-model-pride',category:'SUBWOOFER',brand:'Pride',model:'Black 15',isActive:false}],vehicleDirectory:{brands:[],models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false}]},batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 stage.rulesSnapshot={revisionId:'rules-fixture',publishedAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role:role==='ONBOARDING'?'PARTICIPANT':role,participantId:role==='PARTICIPANT'?'p1':null});
@@ -128,6 +128,8 @@ try{
    let registrationCalendarFailures=0;
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
+    // Tall synthetic artwork intentionally exposes portrait cropping on mobile.
+    if(url.pathname==='/__qa_news_portrait.svg')return route.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="#1b2934"/><rect y="1050" width="800" height="150" fill="#ec2949"/><text x="50" y="1140" font-size="65" fill="white">END OF PHOTO</text></svg>'});
     if(url.origin===base)return route.continue();
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(isCandidateApiRequest(url)){
@@ -203,9 +205,9 @@ try{
       row.recordPodium='hero + '+expectedColumns+' visible cards; participant name, swipe and keyboard navigation';
 
      }
-     if(role===null&&(route==='/news'||route==='/news/news-image-fixture')){
-      const article=route!=='/news';
-      const selector=article?'.p-article > img.p-article-cover':'.p-news-card .p-news-media > img.p-news-cover';
+     if(role===null&&['/','/news','/news/news-image-fixture'].includes(route)){
+      const article=route==='/news/news-image-fixture';
+      const selector=article?'.p-article > img.p-article-cover':route==='/'?'.u-home-news .p-news-card .p-news-media > img.p-news-cover':'.p-news-card .p-news-media > img.p-news-cover';
       await page.waitForFunction(query=>{
        const image=document.querySelector(query);
        return image instanceof HTMLImageElement&&image.complete&&image.naturalWidth>0;
@@ -223,8 +225,12 @@ try{
        assert.ok(image.width<=761&&image.height<=521,
         'full article image must be bounded smaller than the article width: '+JSON.stringify(image));
       }else{
-       assert.ok(image.width<=image.frameWidth+1&&image.height<=image.frameHeight+1,
-        'preview photo must fit completely inside its media frame: '+JSON.stringify(image));
+       assert.ok(Math.abs(image.width-image.frameWidth)<=2,
+        'mobile/desktop news photo must use full available card width: '+JSON.stringify(image));
+       assert.ok(Math.abs(image.height-image.frameHeight)<=2,
+        'news card media must grow to the entire photo instead of cropping its bottom: '+JSON.stringify(image));
+       assert.ok(image.naturalHeight>image.naturalWidth,
+        'this is a portrait fixture, otherwise this check cannot reproduce the bug');
       }
       row.newsPhotoFit=article?'article dimensions bounded with natural aspect':'home/list preview contains full image';
      }
