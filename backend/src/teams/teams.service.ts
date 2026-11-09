@@ -693,9 +693,9 @@ export class TeamsService {
       throw new BadRequestException('Некорректный идентификатор этапа');
     if (typeof direction !== 'string' || direction.length > 100 || (direction && !direction.trim()))
       throw new BadRequestException('Некорректное направление');
-    const stageWhere = {
+    const stageWhere: Prisma.StageWhereInput = {
       isDeleted: false,
-      status: { in: ['PUBLISHED', 'COMPLETED'] as const },
+      status: { in: ['PUBLISHED', 'COMPLETED'] },
       resultsPublishedAt: { not: null },
       ...(stageId ? { id: stageId } : {}),
       ...(season ? {
