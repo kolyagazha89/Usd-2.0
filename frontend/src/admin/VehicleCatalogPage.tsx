@@ -2,7 +2,7 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,CarFront,Pencil,Plus,RefreshCw,Search,Trash2,Upload} from 'lucide-react';
 import {getSiteSettings,updateSiteSettings} from '../api';
 import {parseVehicleDirectoryCsv,type VehicleDirectory} from '../vehicle-directory';
-import {addVehicleBrand,addVehicleModel,archiveVehicleBrand,archiveVehicleModel,countDisabledVehicles,emptyVehicleOverrides,enableAllVehicles,planVehicleImport,resolveVehicleCatalog,saveVehicleBrand,saveVehicleModel,toggleVehicleBrand,toggleVehicleModel,type VehicleCatalog,type VehicleOverrides} from './vehicle-catalog-management';
+import {addVehicleBrand,addVehicleModel,archiveVehicleBrand,archiveVehicleModel,countDisabledVehicles,emptyVehicleOverrides,enableAllVehicles,filterVehicleCatalog,planVehicleImport,resolveVehicleCatalog,saveVehicleBrand,saveVehicleModel,toggleVehicleBrand,toggleVehicleModel,type VehicleCatalog,type VehicleOverrides} from './vehicle-catalog-management';
 
 type Editor={kind:'brand'|'model';id:string;name:string;brandId:string};
 type Status='ALL'|'ACTIVE'|'INACTIVE'|'ARCHIVED';
@@ -36,21 +36,14 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
  },[]);
  useEffect(()=>{void load()},[load]);
  const catalog=useMemo(()=>seed?resolveVehicleCatalog(seed,overrides):null,[seed,overrides]);
- const matchesStatus=(entry:{isActive:boolean;isArchived?:boolean})=>status==='ALL'
-  ||status==='ARCHIVED'&&Boolean(entry.isArchived)
-  ||status==='ACTIVE'&&entry.isActive&&!entry.isArchived
-  ||status==='INACTIVE'&&!entry.isActive&&!entry.isArchived;
- const q=search.trim().toLocaleLowerCase('ru');
- const brands=(catalog?.brands??[]).filter(matchesStatus).filter(b=>!q||b.name.toLocaleLowerCase('ru').includes(q));
+ const filtered=useMemo(()=>catalog?filterVehicleCatalog(catalog,{search,selectedBrand,status}):{brands:[],models:[]},[catalog,search,selectedBrand,status]);
+ const {brands,models}=filtered;
  const brandNames=useMemo(()=>new Map((catalog?.brands??[]).map(b=>[b.id,b.name])),[catalog]);
  const brandModelCounts=useMemo(()=>{
   const counts=new Map<string,number>();
   for(const item of catalog?.models??[])counts.set(item.brandId,(counts.get(item.brandId)??0)+1);
   return counts;
  },[catalog]);
- const models=(catalog?.models??[]).filter(m=>!selectedBrand||m.brandId===selectedBrand)
-  .filter(matchesStatus)
-  .filter(m=>!q||(brandNames.get(m.brandId)+' '+m.name).toLocaleLowerCase('ru').includes(q));
  const pageCount=Math.max(1,Math.ceil(models.length/PAGE_SIZE));
  const actualPage=Math.min(page,pageCount);
  const visibleModels=models.slice((actualPage-1)*PAGE_SIZE,actualPage*PAGE_SIZE);
@@ -149,7 +142,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
     </div>
     {bulkScope&&<div className="catalog-inline-confirm" role="group"><span>Подтвердить включение {countDisabledVehicles(catalog,bulkScope).total} записей ({bulkScope==='ALL'?'весь справочник':brandNames.get(bulkScope)})?</span><button type="button" className="primary-button compact" disabled={saving} onClick={()=>void activate()}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setBulkScope(null)}>Отмена</button></div>}
    </section>
-   <div className="toolbar catalog-filter-bar"><div className="search-box"><Search size={15}/><input aria-label="Поиск марок и моделей" placeholder="Марка или модель" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}}/></div><label className="catalog-filter-label">Статус<select aria-label="Статус записей автомобилей" value={status} onChange={e=>{setStatus(e.target.value as Status);setPage(1)}}><option value="ALL">Все</option><option value="ACTIVE">Включены</option><option value="INACTIVE">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option></select></label></div>
+   <div className="toolbar catalog-filter-bar"><div className="search-box"><Search size={15}/><input aria-label="Поиск марок и моделей" placeholder="Марка или модель" value={search} onChange={e=>{setSearch(e.target.value);setSelectedBrand('');setPage(1)}}/></div><label className="catalog-filter-label">Статус<select aria-label="Статус записей автомобилей" value={status} onChange={e=>{setStatus(e.target.value as Status);setPage(1)}}><option value="ALL">Все</option><option value="ACTIVE">Включены</option><option value="INACTIVE">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option></select></label></div>
    <div className="catalog-two-column">
     <section className="panel">
      <PanelTitle title={'Марки · '+brands.length} icon={CarFront}/>
