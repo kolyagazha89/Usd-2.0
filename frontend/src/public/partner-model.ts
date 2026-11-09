@@ -25,9 +25,12 @@ export function visiblePartners(value:unknown):PublicPartner[]{
 /** Word-safe teaser for long public partner descriptions; full CMS copy is never discarded. */
 export function partnerDescriptionPreview(value:unknown,limit=170):{text:string;truncated:boolean}{
  const full=typeof value==='string'?value.trim():'';
- if(full.length<=limit)return {text:full,truncated:false};
- const before=full.slice(0,limit);
+ // Count complete Unicode code points rather than UTF-16 units so a logo
+ // emoji or a non-BMP letter is never sliced between its surrogate halves.
+ const characters=Array.from(full);
+ if(characters.length<=limit)return {text:full,truncated:false};
+ const before=characters.slice(0,limit);
  const space=before.lastIndexOf(' ');
- const end=space>=Math.floor(limit*.65)?space:limit;
- return {text:before.slice(0,end).trimEnd(),truncated:true};
+ const end=space>=Math.floor(limit*.65)?space:before.length;
+ return {text:before.slice(0,end).join('').trimEnd(),truncated:true};
 }
