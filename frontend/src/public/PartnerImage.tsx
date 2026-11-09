@@ -25,14 +25,16 @@ export default function PartnerImage({src,name,layout,tier='REGULAR',previewFile
   :<Photo src={src??undefined} alt={name} className={imageClass} fallback={name}/>;
  if(legacy)return <div className="partner-image-legacy" data-tier={tier}>{content}</div>;
  const position=`${framing.positionX}% ${framing.positionY}%`;
+ const hasCustomRatio=framing.aspectWidth!==undefined&&framing.aspectHeight!==undefined;
  const style={
-  ...(framing.aspectWidth!==undefined&&framing.aspectHeight!==undefined
-   ?{aspectRatio:`${framing.aspectWidth} / ${framing.aspectHeight}`,height:'auto'}:{}),
+  ...(hasCustomRatio
+   ?{aspectRatio:`${framing.aspectWidth} / ${framing.aspectHeight}`,height:'auto',
+      '--partner-custom-ratio':String(framing.aspectWidth!/framing.aspectHeight!)}:{}),
   '--partner-image-fit':framing.mode==='BANNER'?'cover':'contain',
   '--partner-image-scale':String(framing.scale/100),
   '--partner-image-position':position,
  } as CSSProperties;
- return <div className="partner-image-frame" data-mode={framing.mode} data-tier={tier} style={style}>
+ return <div className="partner-image-frame" data-mode={framing.mode} data-tier={tier} data-custom-ratio={hasCustomRatio?'true':undefined} style={style}>
   <div className="partner-image-canvas">{content}</div>
  </div>;
 }

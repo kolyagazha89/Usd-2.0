@@ -37,8 +37,14 @@ try{
   const settings={branding:{siteName:'USD'},homepage:{blocks:[]},contacts:{},catalogs:{},legal:{},partners:[
    {id:'aura',name:'Aura Sound Equipment',tier:'PREMIUM',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'LOGO',aspectWidth:16,aspectHeight:9,scale:100,positionX:50,positionY:50}},
    {id:'broken',name:'Изображение недоступно',tier:'PREMIUM',isActive:true,isPublished:true,photoUrl:'/qa-broken-image',imageLayout:{mode:'LOGO',aspectWidth:1,aspectHeight:1}},
-   {id:'legacy',name:'Без настроек',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
-   {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'legacy',name:'Без настроек',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',description:'Автомобильные технологии, звуковые системы и установка оборудования. '.repeat(10)},
+   {id:'regular-b',name:'Второй партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'LOGO',aspectWidth:1,aspectHeight:1}},
+   {id:'regular-c',name:'Третий партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'BANNER',aspectWidth:16,aspectHeight:9}},
+   {id:'regular-d',name:'Четвёртый партнёр',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',description:'Профессиональная установка и настройка автозвука. '.repeat(12)},
+   {id:'studio-2',name:'Студия Вторая',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-3',name:'Студия Третья',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-4',name:'Студия Четвёртая',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
    {id:'studio-hidden',name:'Скрытая студия',tier:'STUDIO',isActive:true,isPublished:false,photoUrl:'/qa-partner-image'},
   ]};
   const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
@@ -95,6 +101,40 @@ try{
    assert.equal(style.fit,'cover');assert.equal(style.x,style.y);assert.ok(Math.abs(style.x-1.05)<.001);
    await page.locator('.usd-partner-card').filter({hasText:'Изображение недоступно'}).locator('.p-photo-fallback').waitFor();
    assert.equal(await page.locator('.usd-partner-card').filter({hasText:'Без настроек'}).locator('.p-partner-logo').count(),1);
+   // Directory: same-height logo slots, one column on narrow phones,
+   // accessible teaser expansion without sending the visitor away.
+   const regular=page.locator('.usd-partner-tier--regular .usd-partner-card');
+   assert.equal(await regular.count(),4);
+   const heights=await regular.locator('.usd-partner-visual').evaluateAll(nodes=>
+    nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
+   assert.ok(heights.every(h=>Math.abs(h-heights[0])<=1),'uniform directory visual slots at '+width);
+   if(width<=390){
+    const first=await regular.nth(0).boundingBox(),second=await regular.nth(1).boundingBox();
+    assert.ok(Math.abs(first.x-second.x)<2&&second.y>first.y,'single-column directory at '+width);
+   }
+   const described=regular.filter({hasText:'Без настроек'});
+   const teaser=await described.locator('.usd-partner-description p').innerText();
+   const expand=described.getByRole('button',{name:/Читать далее/});
+   assert.equal(await expand.getAttribute('aria-expanded'),'false');
+   await expand.click();
+   assert.ok((await described.locator('.usd-partner-description p').innerText()).length>teaser.length);
+   await described.getByRole('button',{name:/Свернуть/}).click();
+   assert.equal(await described.locator('.usd-partner-description p').innerText(),teaser);
+   // Studio directory cards have the same in-card expand/collapse control.
+   const studioDirectory=page.locator('.usd-partner-tier--studio .usd-partner-card');
+   assert.equal(await studioDirectory.count(),4);
+   assert.equal(await page.locator('.usd-partner-showcase--full .usd-partner-carousel').count(),0);
+   const studioTeaser=studioDirectory.filter({hasText:'Студия Тест'});
+   const summary=await studioTeaser.locator('.usd-partner-description p').innerText();
+   await studioTeaser.getByRole('button',{name:/Читать далее/}).click();
+   assert.ok((await studioTeaser.locator('.usd-partner-description p').innerText()).length>summary.length);
+   await studioTeaser.getByRole('button',{name:/Свернуть/}).click();
+   assert.equal(await studioTeaser.locator('.usd-partner-description p').innerText(),summary);
+   if(width<=390){
+    const a=await studioDirectory.nth(0).boundingBox();
+    const b=await studioDirectory.nth(1).boundingBox();
+    assert.ok(Math.abs(a.x-b.x)<2&&b.y>a.y,'studio directory is single column at '+width);
+   }
    await assertViewport();
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`partners-${width}.png`),fullPage:true});
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});await edit();
@@ -116,7 +156,8 @@ try{
    assert.deepEqual(resetPreview,resetPublic,'reset preview must reproduce saved legacy image geometry');
    const studios=page.locator('.usd-partner-tier--studio');
    await studios.waitFor({state:'visible'});
-   assert.equal(await studios.locator('.usd-partner-card').count(),1,'draft studio must not render');
+   assert.equal(await studios.locator('.usd-partner-card').count(),4,'draft studio must not render');
+   assert.equal(await studios.getByText('Скрытая студия').count(),0,'unpublished studio must remain hidden');
    assert.match(await studios.textContent(),/Студия Тест/);
    assert.doesNotMatch(await page.locator('.usd-partner-tier--regular').textContent(),/Студия Тест/);
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});
@@ -128,11 +169,36 @@ try{
    await page.locator('.data-table tr').filter({hasText:'Новая студия'}).waitFor();
    assert.equal(settings.partners.find(item=>item.name==='Новая студия')?.tier,'STUDIO');
    await page.goto(base+'/partners',{waitUntil:'networkidle'});
-   assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),2);
+   assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),5);
    await assertViewport();
    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`studio-partners-${width}.png`),fullPage:true});
 
-   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true});
+   // Homepage: independent swipeable rails for ordinary partners and studios.
+   await page.goto(base+'/',{waitUntil:'networkidle'});
+   const homeRail=page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel');
+   await homeRail.waitFor();
+   assert.equal(await page.locator('.u-home-partners .usd-partner-carousel').count(),2);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel').count(),1);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel').count(),1);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--studio .usd-partner-carousel .usd-partner-card').count(),5);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--premium .usd-partner-carousel').count(),0);
+   assert.equal(await page.locator('.u-home-partners .usd-partner-tier--regular .usd-partner-carousel .usd-partner-card').count(),4);
+   for(const tier of ['regular','studio']){
+    const rail=page.locator('.u-home-partners .usd-partner-tier--'+tier+' .usd-partner-carousel');
+    const railMetrics=await rail.evaluate(node=>({
+     full:node.scrollWidth,visible:node.clientWidth,snap:getComputedStyle(node).scrollSnapType,
+    }));
+    assert.match(railMetrics.snap,/x mandatory/);
+    if(width<=390)assert.ok(railMetrics.full>railMetrics.visible+10,
+     tier+' phone carousel must be swipeable: '+JSON.stringify(railMetrics));
+    const cardHeights=await rail.locator('.usd-partner-card').evaluateAll(nodes=>
+     nodes.map(n=>Math.round(n.getBoundingClientRect().height)));
+    assert.ok(cardHeights.every(h=>Math.abs(h-cardHeights[0])<=1),
+     tier+' carousel cards have uniform height at '+width);
+   }
+    if([390,1440].includes(width))await page.screenshot({path:path.join(output,`home-partners-${width}.png`),fullPage:true});
+   await assertViewport();
+   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true,expandableDescription:true,homeRegularCarousel:true,homeStudioCarousel:true,studioDescription:true,uniformSlots:true});
   }catch(e){report.failures.push({width,message:String(e)});await page.screenshot({path:path.join(output,`failure-${width}.png`),fullPage:true})}
   finally{await context.close()}
  }
