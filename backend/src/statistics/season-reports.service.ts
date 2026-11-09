@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { compareSeasons, summarizeSeason } from './season-summary';
 
@@ -7,6 +7,10 @@ export class SeasonReportsService {
  constructor(private readonly prisma:PrismaService){}
  /** Batch reads: four queries regardless of the number of athletes or stages. */
  async getReport(seasonId:string,comparisonSeasonId?:string){
+  const validId=(value:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  if(!validId(seasonId)||(comparisonSeasonId!==undefined&&(!validId(comparisonSeasonId)||comparisonSeasonId===seasonId))){
+   throw new BadRequestException('Выберите два разных действительных сезона для сравнения');
+  }
   const ids=[...new Set([seasonId,comparisonSeasonId].filter((id):id is string=>Boolean(id)))];
   const [seasons,stages,registrations,records]=await Promise.all([
    this.prisma.season.findMany({where:{id:{in:ids}},select:{id:true,name:true,year:true}}),

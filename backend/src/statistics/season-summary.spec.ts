@@ -24,7 +24,7 @@ describe('season reporting uniqueness and actual-result semantics',()=>{
    registration('r3','p2','st1',[choice('spl','SPL','Limited 2.0','num6',1)]),
    registration('cancel','p3','st1',[choice('spl','SPL','Limited 2.0','num7',1)],'CANCELLED'),
   ]));
-  expect(report.totals).toMatchObject({stages:2,registered:2,registrations:3,classEntries:5,actualParticipants:2,results:4,podiums:4,records:1,teams:1});
+  expect(report.totals).toMatchObject({stages:2,registered:2,registrations:3,classEntries:5,actualParticipants:2,results:4,podiums:4,records:1,teams:0});
   expect(report.directions.find(d=>d.name==='BassRace')).toMatchObject({athletes:1,classEntries:2,results:2});
   expect(report.stages).toEqual([
    {id:'st1',name:'Этап 1',stageNumber:1,registered:2,actual:2},
@@ -35,6 +35,15 @@ describe('season reporting uniqueness and actual-result semantics',()=>{
   const report=summarizeSeason(input([registration('r1','p1','st1',[choice('spl','SPL','Limited 2.0','num2',null)])]));
   expect(report.totals.registered).toBe(1);
   expect(report.totals.actualParticipants).toBe(0);
+ });
+ it('counts only inspection-frozen team names, never current roster names',()=>{
+  const withoutSnapshot=registration('r1','p1','st1',[choice('spl','SPL','Limited 2.0','num2',1)]);
+  const withSnapshot={...registration('r2','p2','st1',[choice('spl','SPL','Limited 2.0','num3',1)]),
+   teamNameAtInspection:'Историческая команда'};
+  const oldMembership={...registration('r3','p3','st2',[choice('spl','SPL','Limited 2.0','num4',1)]),
+   teamNameAtInspection:'ИСТОРИЧЕСКАЯ КОМАНДА'};
+  const report=summarizeSeason(input([withoutSnapshot,withSnapshot,oldMembership]));
+  expect(report.totals.teams).toBe(1);
  });
  it('never divides by zero on empty baseline',()=>{
   const baseline=summarizeSeason(input([]));
