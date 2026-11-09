@@ -351,6 +351,8 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
  * content starts below it, even when the webview scrolls or collapses chrome. */
 @media(max-width:760px){
  body .participant-portal.usd-member{
+  /* Stable before hydration: logo and buttons must not change the layout. */
+  --usd-member-header-min-size:calc(72px + env(safe-area-inset-top,0px));
   padding-top:var(--usd-member-header-size,calc(72px + env(safe-area-inset-top,0px)))!important;
  }
  body .usd-member .participant-portal-header{

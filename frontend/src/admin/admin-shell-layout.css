@@ -1270,3 +1270,279 @@ body .app-shell .main .table-sub {
 
 /* Small counters need readable text on the light toolbar surface. */
 body .app-shell .main .row-count{color:#626a76}
+
+
+/* Car administration must not inherit the dark participant configuration skin.
+ * This file loads last; keep every correction inside the admin work area. */
+body .app-shell .main .content .usd-admin-cars-list {
+  min-width:0;
+  color:#242b36;
+  color-scheme:light;
+}
+body .app-shell .main .content .usd-admin-cars-list :is(.toolbar,.panel,.table-wrap,.entity-detail-inline) {
+  background:#fff!important;
+  background-image:none!important;
+  color:#242b36!important;
+  border-color:#dde2e9!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .toolbar {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding:12px 0;
+  background:transparent!important;
+  border:0!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .search-box {
+  min-width:min(100%,260px);
+  flex:1 1 280px;
+  background:#fff!important;
+  border:1px solid #d7dde7!important;
+  border-radius:10px;
+}
+body .app-shell .main .content .usd-admin-cars-list .data-table {
+  color:#242b36!important;
+  background:#fff!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .data-table :is(th,td) {
+  background:#fff;
+  color:#242b36;
+  border-color:#e3e8ed;
+}
+body .app-shell .main .content .usd-admin-cars-list .data-table th {
+  background:#f4f6f9!important;
+  color:#5a6674!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr {
+  background:#fff!important;
+  color:#242b36!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr:hover,
+body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr:hover td {
+  background:#fff6f7!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .row-count {
+  color:#5c6774!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .car-name-button {
+  color:#253248!important;
+}
+body .app-shell .main .content .usd-admin-cars-list .list-pagination {
+  background:#fff!important;
+  color:#4d5867!important;
+}
+body .app-shell .main .content .usd-car-editor-journey {
+  background:#fff!important;
+  background-image:none!important;
+  color:#242b36!important;
+  border-color:#dde2e9!important;
+  color-scheme:light;
+}
+body .app-shell .main .content .usd-car-editor-journey .resource-editor-heading :is(h2,p) {
+  color:#242b36!important;
+}
+body .app-shell .main .content .usd-car-editor-journey .usd-car-editor-panel {
+  background:#f8fafc!important;
+  background-image:none!important;
+  border-color:#dee4ec!important;
+}
+body .app-shell .main .content .usd-car-editor-journey .usd-car-editor-summary>div {
+  background:#fff!important;
+  color:#242b36!important;
+  border-color:#e0e5eb!important;
+}
+
+/* Participant configurations are dark intentionally. Admin configurations
+ * share component markup, but their CSS is always light and separately scoped. */
+body .app-shell .main .content .admin-configurations-shell {
+  --usd-car-ink:#242b36;
+  --usd-car-muted:#5f6c7a;
+  --usd-car-line:#dce2ea;
+  --usd-car-soft:#f7f9fc;
+  color:var(--usd-car-ink)!important;
+  color-scheme:light;
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  min-height:0;
+  width:100%;
+}
+body .app-shell .main .content .admin-configurations-shell > .participant-portal-main {
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  color:var(--usd-car-ink)!important;
+  background:transparent!important;
+}
+body .app-shell .main .content .admin-configurations-shell .configurations-page {
+  min-width:0;
+  width:100%;
+  color:var(--usd-car-ink)!important;
+  background:transparent!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .configurations-page-top,.config-modal-hero,.config-card,.config-create-button,
+  .config-empty,.configuration-subpage-header,.config-editor-intro,.config-section,
+  .config-direction-workspace,.config-details-hero,.config-stat-grid>div,
+  .config-detail-grid .detail-block,.config-admin-review,.config-version-history,
+  .configuration-compare-section,.configuration-admission-guide,.catalog-request-form,
+  .member-config-vehicle,.member-config-readiness,.member-equipment-item
+) {
+  background:#fff!important;
+  background-image:none!important;
+  color:var(--usd-car-ink)!important;
+  border:1px solid var(--usd-car-line)!important;
+  box-shadow:none!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .configurations-page-top,.configuration-subpage-header
+) {
+  border-left:3px solid #d81f3b!important;
+  background:linear-gradient(120deg,#fff,#f8fafc)!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .configurations-page-top h1,.config-modal-hero h2,.config-card h3,
+  .configuration-subpage-header h1,.config-section h3,.config-section-title strong,
+  .config-details-hero h2,.config-editor-intro strong,.config-empty strong,
+  .config-create-button strong,.config-direction-workspace h2
+) {
+  color:var(--usd-car-ink)!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .configurations-page-top p,.config-modal-hero p,.config-card-main p,
+  .configuration-subpage-header p,.config-section-title small,.config-empty span,
+  .config-count span,.config-create-button small,.config-details-hero p,
+  .config-stat-grid span,.config-detail-grid .detail-block span,
+  .registration-back-link,.field-help
+) {
+  color:var(--usd-car-muted)!important;
+}
+body .app-shell .main .content .admin-configurations-shell .eyebrow {
+  color:#be1b38!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .config-car-icon,.config-editor-icon,.config-empty-icon,.config-version,
+  .config-create-button>span,.config-details-badge,.config-section-icon
+) {
+  background:#f0f3f7!important;
+  color:#b01b37!important;
+  border-color:#e0e5ec!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-count {
+  background:#f7f9fc!important;
+  border-color:#dce2ea!important;
+  color:#242b36!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-card {
+  border-left:3px solid #d81f3b!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-card:hover {
+  background:#fff8fa!important;
+  border-color:#e9a6b3!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-create-button {
+  border-style:dashed!important;
+  text-align:left;
+}
+body .app-shell .main .content .admin-configurations-shell .config-create-button:hover {
+  background:#fff8fa!important;
+  border-color:#d81f3b!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .config-section-empty,.config-empty,.member-config-readiness,
+  .form-wizard-review,.configuration-compare-empty
+) {
+  background:var(--usd-car-soft)!important;
+  background-image:none!important;
+  color:var(--usd-car-muted)!important;
+  border-color:var(--usd-car-line)!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .config-row,.config-direction-workspace-head
+) {
+  border-color:#e5e9ef!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]),select,textarea
+) {
+  color:#242b36!important;
+  background:#fff!important;
+  border:1px solid #cfd7e2!important;
+  color-scheme:light!important;
+}
+body .app-shell .main .content .admin-configurations-shell option {
+  color:#242b36!important;
+  background:#fff!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .secondary-button,.registration-back-link,.config-direction-step
+) {
+  color:#334155!important;
+  background:#f6f8fb!important;
+  border-color:#d7dee8!important;
+}
+body .app-shell .main .content .admin-configurations-shell :is(
+  .secondary-button,.registration-back-link,.config-direction-step
+):hover:not(:disabled) {
+  background:#fff0f3!important;
+  color:#a41b36!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-admin-steps button.is-active {
+  background:#fff3f5!important;
+  color:#b21b3a!important;
+  border-color:#d81f3b!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-editor-actions {
+  position:sticky;
+  bottom:12px;
+  z-index:2;
+  background:rgba(255,255,255,.97)!important;
+  background-image:none!important;
+  border:1px solid var(--usd-car-line)!important;
+  box-shadow:0 8px 26px rgba(24,32,45,.08)!important;
+}
+body .app-shell .main .content .admin-configurations-shell .config-editor-actions :is(button,a) {
+  min-height:44px;
+}
+body .app-shell .main .content .admin-configurations-shell .config-card-main {
+  min-width:0;
+}
+body .app-shell .main .content .admin-configurations-shell .config-card-main p {
+  overflow-wrap:anywhere;
+}
+@media(max-width:760px) {
+  body .app-shell .main .content .usd-admin-cars-list .toolbar {
+    gap:8px;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .search-box {
+    flex:1 1 100%;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr {
+    background:#fff!important;
+    border:1px solid #dee4eb!important;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td {
+    background:transparent!important;
+    color:#242b36!important;
+  }
+  body .app-shell .main .content .admin-configurations-shell .config-card {
+    padding:15px!important;
+  }
+  body .app-shell .main .content .admin-configurations-shell .config-card-main p {
+    white-space:normal!important;
+    max-width:100%;
+  }
+  body .app-shell .main .content .admin-configurations-shell .config-card-actions {
+    width:100%;
+    flex-wrap:wrap;
+  }
+  body .app-shell .main .content .admin-configurations-shell .config-card-actions button {
+    flex:1 1 120px;
+    min-height:42px;
+  }
+  body .app-shell .main .content .admin-configurations-shell .config-editor-actions {
+    bottom:calc(8px + env(safe-area-inset-bottom,0px));
+    flex-wrap:wrap;
+  }
+}
