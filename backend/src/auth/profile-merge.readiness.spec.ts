@@ -39,6 +39,16 @@ describe('read-only merge readiness is a safe, PII-free hint, never an approval'
   const status=await new ProfileMergeService(db).readiness(a,b);
   expect(status.conflicts.map((x:{code:string})=>x.code)).toContain('MERGED_PROFILE');
  });
+ it('rejects a dormant or unverified target account before an identity merge',async()=>{
+  const db=makeDb();
+  db.participant.findMany.mockResolvedValue([
+   person(a),{...person(b),user:{id:'dormant-owner',isActive:false,emailVerifiedAt:null}},
+  ]);
+  const result=await new ProfileMergeService(db).readiness(a,b);
+  expect(result.canMergeNow).toBe(false);
+  expect(result.conflicts.map((conflict:{code:string})=>conflict.code)).toContain('ACCOUNT_NOT_VERIFIED');
+  expect(db.participantMergeRedirect.create).not.toHaveBeenCalled();
+ });
  it('does not issue a query for malformed ID or a self-merge',async()=>{
   const db=makeDb(),service=new ProfileMergeService(db);
   await expect(service.readiness('bad',b)).rejects.toBeInstanceOf(BadRequestException);
