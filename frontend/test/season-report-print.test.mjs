@@ -13,6 +13,9 @@ test('season report exposes PDF printing only for a loaded real report',async()=
  assert.match(source,/className="usd-season-report-page"/);
  assert.match(source,/className="season-report-document"/);
  assert.match(source,/comparison\.changes\[key\]/);
+ assert.match(source,/compareSeasonClasses\(comparison\.baseline,report\)/);
+ assert.match(source,/Динамика по классам/);
+ assert.match(source,/не сопоставим/);
  assert.match(source,/report\.notes\.join/);
 });
 test('print rules preserve actual tables and hide admin controls in a readable A4 PDF',async()=>{
