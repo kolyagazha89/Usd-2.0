@@ -312,7 +312,7 @@ export class RegistrationsService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateKey}))`;
       const sameName = await tx.participant.findFirst({
         where: { firstName: { equals: firstName, mode: 'insensitive' },
-                 lastName: { equals: lastName, mode: 'insensitive' } },
+                 lastName: { equals: lastName, mode: 'insensitive' }, mergeAsSource: { is: null } },
         select: { id: true },
       });
       if (sameName) {
@@ -375,9 +375,10 @@ export class RegistrationsService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${plateAdvisoryKey(country,number)}))`;
       const participant = await tx.participant.findUnique({
         where: { id: body.participantId },
-        select: { id: true },
+        select: { id: true, mergeAsSource: { select: { targetId: true } } },
       });
       if (!participant) throw new NotFoundException('Участник не найден');
+      if (participant.mergeAsSource) throw new ConflictException('Профиль объединён. Используйте основной профиль.');
       const cars = await tx.car.findMany({
         where: { registrationCountry: country }, select: { id: true, registrationNumber: true },
       });
@@ -763,16 +764,12 @@ export class RegistrationsService {
         // 2. Проверяем участника.
         const participant =
           await tx.participant.findUnique({
-            where: {
-              id: participantId,
-            },
+            where: { id: participantId },
+            include: { mergeAsSource: { select: { targetId: true } } },
           });
 
-        if (!participant) {
-          throw new NotFoundException(
-            'Участник не найден',
-          );
-        }
+        if (!participant) throw new NotFoundException('Участник не найден');
+        if (participant.mergeAsSource) throw new ConflictException('Профиль объединён. Используйте основной профиль.');
 
         // The first on-site competition must never be blocked by missing
         // hardware. Only a DIFFERENT stage after the previous event has taken
