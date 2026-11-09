@@ -21,6 +21,40 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 export class ProfileMergeService {
  constructor(private readonly prisma:PrismaService){}
 
+ /** Read-only hint for the ADMIN preview. Merge rechecks under locks and SERIALIZABLE isolation. */
+ async readiness(sourceId:string,targetId:string){
+  if(!uuid.test(sourceId)||!uuid.test(targetId)||sourceId===targetId)
+   throw new BadRequestException('Выберите два разных профиля.');
+  const ids=[sourceId,targetId];
+  const [people,legacy,claims,aliases]=await Promise.all([
+   this.prisma.participant.findMany({
+    where:{id:{in:ids}},select:{
+     id:true,firstName:true,lastName:true,middleName:true,birthDate:true,
+     phone:true,photoUrl:true,city:true,team:true,legacyId:true,usdIdToken:true,isPublic:true,
+     user:{select:{id:true,isActive:true,emailVerifiedAt:true}},
+     teamMembership:{select:{id:true,teamId:true,status:true}},
+     cars:{select:{id:true,registrationCountry:true,registrationNumber:true}},
+     registrations:{select:{id:true,stageId:true,status:true}},
+     stageInspections:{select:{id:true,stageId:true}},
+    },
+   }),
+   this.prisma.participantLegacyEmail.findMany({where:{participantId:{in:ids}},select:{participantId:true,email:true}}),
+   this.prisma.profileLinkRequest.findMany({where:{participantId:{in:ids},status:'PENDING'},select:{participantId:true}}),
+   this.prisma.participantMergeRedirect.findMany({where:{OR:[{sourceId:{in:ids}},{targetId:{in:ids}}]},select:{sourceId:true},take:1}),
+  ]);
+  const source=people.find(p=>p.id===sourceId),target=people.find(p=>p.id===targetId);
+  if(!source||!target)throw new NotFoundException('Один из профилей не найден.');
+  const candidate=(p:typeof source):MergeCandidate=>({
+   ...p,legacyEmail:legacy.find(row=>row.participantId===p.id)?.email??null,
+   pendingClaims:claims.filter(row=>row.participantId===p.id).length,
+  });
+  const conflicts=validateMergeCandidates(candidate(source),candidate(target));
+  if(source.user&&(!source.user.isActive||!source.user.emailVerifiedAt))
+   conflicts.push({code:'ACCOUNT_NOT_VERIFIED',description:'Аккаунт переносимого профиля неактивен либо email не подтверждён.'});
+  if(aliases.length)conflicts.push({code:'MERGED_PROFILE',description:'Один из выбранных профилей уже участвует в объединении.'});
+  return {state:'READ_ONLY' as const,canMergeNow:conflicts.length===0,conflicts};
+ }
+
  async merge(sourceId:string,targetId:string,adminUserId:string,confirmation:string){
   if(!uuid.test(sourceId)||!uuid.test(targetId)||!uuid.test(adminUserId)||sourceId===targetId)
    throw new BadRequestException('Выберите два разных действительных профиля и ADMIN.');
