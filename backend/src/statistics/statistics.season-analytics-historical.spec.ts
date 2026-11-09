@@ -31,8 +31,8 @@ describe('season analytics never rewrite historic affiliations',()=>{
   // Equal-count groups use locale sorting; correctness is independent of order.
   expect(data.teams).toHaveLength(2);
   expect(data.teams).toEqual(expect.arrayContaining([
-   {name:'Original Team',registrations:2,participants:2,percent:50},
-   {name:'Без команды',registrations:2,participants:2,percent:50},
+   expect.objectContaining({key:'snapshot:original team',name:'Original Team',registrations:2,participants:2,percent:50}),
+   expect.objectContaining({key:'unattributed',name:'Без команды',registrations:2,participants:2,percent:50}),
   ]));
  });
  it('uses frozen team IDs when a renamed team spans multiple stages',async()=>{
@@ -64,6 +64,6 @@ describe('season analytics never rewrite historic affiliations',()=>{
   ]);
   const data=await service.getSeasonAnalytics(id);
   expect(data.registrations.withTeam).toBe(0);
-  expect(data.teams).toEqual([{name:'Без команды',registrations:1,participants:1,percent:100}]);
+  expect(data.teams).toEqual([{key:'unattributed',name:'Без команды',registrations:1,participants:1,percent:100}]);
  });
 });
