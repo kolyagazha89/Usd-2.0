@@ -618,6 +618,9 @@ body .usd-live .usd-partner-tier--general .usd-partner-grid{
 body .usd-live .usd-partner-tier--premium .usd-partner-grid{
   grid-template-columns:repeat(3,minmax(0,1fr));
 }
+body .usd-live .usd-partner-tier--studio .usd-partner-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
 body .usd-live .usd-partner-card{
   position:relative;display:flex;flex-direction:column;gap:12px;min-width:0;
   padding:clamp(16px,2.2vw,26px);overflow:hidden;
@@ -682,6 +685,13 @@ body .usd-live .usd-partner-tier--premium .usd-partner-card{
 body .usd-live .usd-partner-tier--premium .usd-partner-badge{color:#e7c29d}
 body .usd-live .usd-partner-tier--premium .usd-partner-visual{min-height:118px}
 body .usd-live .usd-partner-tier--premium .p-partner-logo{height:120px}
+body .usd-live .usd-partner-tier--studio .usd-partner-card{
+  min-height:210px;border-color:rgba(115,157,173,.35)!important;
+  background:radial-gradient(ellipse at 95% 5%,rgba(241,35,69,.085),transparent 62%),linear-gradient(140deg,#15232a,#10141c)!important;
+}
+body .usd-live .usd-partner-tier--studio .usd-partner-badge{color:#a9cbd4}
+body .usd-live .usd-partner-tier--studio .usd-partner-visual{min-height:106px}
+body .usd-live .usd-partner-tier--studio .p-partner-logo{height:108px}
 body .usd-live .usd-partner-tier--regular .usd-partner-card{gap:8px}
 body .usd-live .usd-partner-tier--regular .usd-partner-visual{min-height:80px}
 body .usd-live .usd-partner-tier--regular .p-partner-logo{height:82px}
@@ -691,17 +701,21 @@ body .usd-live .usd-partner-showcase--home .usd-partner-tier--general .usd-partn
 body .usd-live .usd-partner-showcase--home .usd-partner-tier--premium .usd-partner-card{min-height:205px}
 @media(max-width:900px){
  body .usd-live .usd-partner-grid,
- body .usd-live .usd-partner-tier--premium .usd-partner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body .usd-live .usd-partner-tier--premium .usd-partner-grid,
+ body .usd-live .usd-partner-tier--studio .usd-partner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:560px){
  body .usd-live .usd-partner-tier--general .usd-partner-grid,
  body .usd-live .usd-partner-tier--premium .usd-partner-grid,
+ body .usd-live .usd-partner-tier--studio .usd-partner-grid,
  body .usd-live .usd-partner-grid{grid-template-columns:minmax(0,1fr)}
  body .usd-live .usd-partner-tier--regular .usd-partner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  body .usd-live .usd-partner-tier--general .usd-partner-card,
  body .usd-live .usd-partner-showcase--home .usd-partner-tier--general .usd-partner-card{min-height:270px}
  body .usd-live .usd-partner-tier--general .p-partner-logo{height:132px}
  body .usd-live .usd-partner-tier--premium .usd-partner-card{min-height:195px}
+ body .usd-live .usd-partner-tier--studio .usd-partner-card{min-height:175px}
+ body .usd-live .usd-partner-tier--studio .p-partner-logo{height:92px}
  body .usd-live .usd-partner-tier--regular .usd-partner-card{padding:12px;gap:6px}
  body .usd-live .usd-partner-tier--regular .usd-partner-badge{font-size:8px;letter-spacing:.04em}
  body .usd-live .usd-partner-tier--regular .usd-partner-info h3{font-size:14px}

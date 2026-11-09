@@ -38,6 +38,8 @@ try{
    {id:'aura',name:'Aura Sound Equipment',tier:'PREMIUM',isActive:true,isPublished:true,photoUrl:'/qa-partner-image',imageLayout:{mode:'LOGO',aspectWidth:16,aspectHeight:9,scale:100,positionX:50,positionY:50}},
    {id:'broken',name:'Изображение недоступно',tier:'PREMIUM',isActive:true,isPublished:true,photoUrl:'/qa-broken-image',imageLayout:{mode:'LOGO',aspectWidth:1,aspectHeight:1}},
    {id:'legacy',name:'Без настроек',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
+   {id:'studio-hidden',name:'Скрытая студия',tier:'STUDIO',isActive:true,isPublished:false,photoUrl:'/qa-partner-image'},
   ]};
   const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
   const errors=[];const saves=[];
@@ -112,6 +114,24 @@ try{
    await page.goto(base+'/partners',{waitUntil:'networkidle'});
    const resetPublic=await page.locator('.usd-partner-card').filter({hasText:'Aura Sound Equipment'}).locator('img').evaluate(imageGeometry);
    assert.deepEqual(resetPreview,resetPublic,'reset preview must reproduce saved legacy image geometry');
+   const studios=page.locator('.usd-partner-tier--studio');
+   await studios.waitFor({state:'visible'});
+   assert.equal(await studios.locator('.usd-partner-card').count(),1,'draft studio must not render');
+   assert.match(await studios.textContent(),/Студия Тест/);
+   assert.doesNotMatch(await page.locator('.usd-partner-tier--regular').textContent(),/Студия Тест/);
+   await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});
+   await page.getByRole('button',{name:'Добавить партнёра'}).click();
+   await page.getByLabel('Название',{exact:true}).fill('Новая студия');
+   await page.locator('.resource-editor-page select').first().selectOption('STUDIO');
+   await page.getByLabel('Опубликован на сайте').check();
+   await page.getByRole('button',{name:'Сохранить партнёра',exact:true}).click();
+   await page.locator('.data-table tr').filter({hasText:'Новая студия'}).waitFor();
+   assert.equal(settings.partners.find(item=>item.name==='Новая студия')?.tier,'STUDIO');
+   await page.goto(base+'/partners',{waitUntil:'networkidle'});
+   assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),2);
+   await assertViewport();
+   if([390,1440].includes(width))await page.screenshot({path:path.join(output,`studio-partners-${width}.png`),fullPage:true});
+
    assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true});
   }catch(e){report.failures.push({width,message:String(e)});await page.screenshot({path:path.join(output,`failure-${width}.png`),fullPage:true})}
   finally{await context.close()}
