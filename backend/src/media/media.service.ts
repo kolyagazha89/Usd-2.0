@@ -117,7 +117,7 @@ export class MediaService {
     return url.toString();
   }
 
-  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false, allowReviewPreview = false) {
+  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false, allowReviewPreview = false, allowMergedAliasForRead = false) {
     // Team photos share the SITE_ASSET storage infrastructure, but never its
     // broad CMS permission model. Each photo slot belongs to one real team post.
     if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')) {
@@ -141,7 +141,21 @@ export class MediaService {
     if (role === 'ADMIN') return;
     if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       const p = await this.prisma.participant.findFirst({ where: { id: targetId, user: { id: userId } }, select: { id: true } });
-      if (!p) throw new ForbiddenException('Нет доступа к профилю');
+      if (!p) {
+        // Read-only legacy media references may still point to the old ID.
+        // Upload/complete stays forbidden for that ID after merging.
+        const alias = allowMergedAliasForRead
+          ? await this.prisma.participantMergeRedirect.findUnique({
+              where:{sourceId:targetId},select:{targetId:true},
+            })
+          : null;
+        const owner = alias
+          ? await this.prisma.participant.findFirst({
+              where:{id:alias.targetId,user:{id:userId}},select:{id:true},
+            })
+          : null;
+        if (!owner) throw new ForbiddenException('Нет доступа к профилю');
+      }
       return;
     }
     const car = await this.prisma.car.findFirst({ where: { id: targetId, participant: { user: { id: userId } } }, select: { id: true } });
@@ -296,7 +310,7 @@ export class MediaService {
       throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
     // Read-only preview remains available during moderation. Upload/complete
     // always requires a DRAFT, so reviewed photos cannot be swapped.
-    await this.ensureTargetAccess(userId, role, targetType, targetId, false, true);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false, true, true);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
@@ -315,7 +329,14 @@ export class MediaService {
         where: { id: targetId, isPublic: true },
         select: { id: true },
       });
-      if (!participant) throw new ForbiddenException('Публичное фото участника недоступно');
+      if (!participant) {
+        // The original photo upload remains attached to the historical ID.
+        // Only publish it while the canonical profile is public.
+        const alias=await this.prisma.participantMergeRedirect.findUnique({
+          where:{sourceId:targetId},select:{target:{select:{isPublic:true}}},
+        });
+        if(!alias?.target.isPublic)throw new ForbiddenException('Публичное фото участника недоступно');
+      }
     } else if (targetType === MediaTargetType.CAR_PHOTO) {
       const car = await this.prisma.car.findFirst({
         where: { id: targetId, isPublic: true, participant: { isPublic: true } },
@@ -338,7 +359,7 @@ export class MediaService {
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     // Even draft previews stay behind authenticated /media/private-file.
     if (targetId.startsWith('team-post-')) throw new ForbiddenException('Фото черновиков доступны только через защищённую выдачу');
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false, false, true);
 
     const upload = await this.prisma.mediaUpload.findFirst({
       where: {
