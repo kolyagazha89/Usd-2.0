@@ -36,3 +36,14 @@ test('candidate browser covers season report printing with synthetic server-only
  assert.match(qa,/\.season-report-document/);
  assert.match(qa,/page\.emulateMedia\(\{media:'print'\}\)/);
 });
+
+test('mobile season tables become labelled cards, while printed PDF retains actual tables',async()=>{
+ const [page,css]=await Promise.all([file('../src/admin/SeasonReportPage.tsx'),file('../src/admin/season-report.css')]);
+ assert.match(page,/data-label="С заявками"/);
+ assert.match(page,/data-label="Спортсменов"/);
+ assert.match(page,/data-label="Базовый сезон"/);
+ assert.match(css,/@media\(max-width:600px\)[\s\S]*season-report-table-wrap tbody\{display:grid/);
+ assert.match(css,/\.season-report-table-wrap tbody td::before\{content:attr\(data-label\)/);
+ assert.match(css,/@media print[\s\S]*season-report-table-wrap table\{display:table!important/);
+ assert.match(css,/\.season-report-table-wrap td::before\{display:none!important/);
+});
