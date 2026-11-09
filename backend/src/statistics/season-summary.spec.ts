@@ -45,6 +45,20 @@ describe('season reporting uniqueness and actual-result semantics',()=>{
   const report=summarizeSeason(input([withoutSnapshot,withSnapshot,oldMembership]));
   expect(report.totals.teams).toBe(1);
  });
+ it('identifies a historical team by its frozen ID despite renamed snapshots',()=>{
+  const first={...registration('r1','p1','st1',[choice('spl','SPL','Limited 2.0','num2',1)]),
+   teamIdAtInspection:'team-stable',teamNameAtInspection:'Team Old'};
+  const renamed={...registration('r2','p2','st2',[choice('spl','SPL','Limited 2.0','num3',1)]),
+   teamIdAtInspection:'team-stable',teamNameAtInspection:'Team New'};
+  expect(summarizeSeason(input([first,renamed])).totals.teams).toBe(1);
+ });
+ it('does not merge two distinct inspected teams because they share a display name',()=>{
+  const first={...registration('r1','p1','st1',[choice('spl','SPL','Limited 2.0','num2',1)]),
+   teamIdAtInspection:'team-one',teamNameAtInspection:'Team Sound'};
+  const second={...registration('r2','p2','st2',[choice('spl','SPL','Limited 2.0','num3',1)]),
+   teamIdAtInspection:'team-two',teamNameAtInspection:'Team Sound'};
+  expect(summarizeSeason(input([first,second])).totals.teams).toBe(2);
+ });
  it('never divides by zero on empty baseline',()=>{
   const baseline=summarizeSeason(input([]));
   const current=summarizeSeason(input([registration('r1','p1','st1',[choice('spl','SPL','Limited 2.0','num2',1)])]));

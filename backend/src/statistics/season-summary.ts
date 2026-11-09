@@ -11,7 +11,7 @@ export type SeasonClass = {
 };
 export type SeasonRegistration = {
  id:string;stageId:string;participantId:string;status:string;participantNumber:number;
- teamNameAtInspection?:string|null;
+ teamIdAtInspection?:string|null;teamNameAtInspection?:string|null;
  participant:{createdAt:Date;city:string|null;team:string|null};
  classes:SeasonClass[];
 };
@@ -45,8 +45,13 @@ export function summarizeSeason(input:SeasonSummaryInput):SeasonReport {
   perStage.get(row.stageId)?.registered.add(row.participantId);
   // Historical attribution must come from the frozen inspection snapshot.
   // Current participant.team does not prove membership at the old stage.
-  const team=row.teamNameAtInspection;
-  if(team?.trim())teams.add(team.trim().toLocaleLowerCase('ru'));
+  const frozenId=row.teamIdAtInspection?.trim();
+  const frozenName=row.teamNameAtInspection?.trim();
+  // Stable team IDs survive renames, and two teams may share a display name.
+  // Older name-only inspection snapshots remain distinguishable from current
+  // participant.team; never reconstruct membership from today's profile.
+  if(frozenId)teams.add('id:'+frozenId);
+  else if(frozenName)teams.add('snapshot:'+frozenName.toLocaleLowerCase('ru'));
   for(const choice of row.classes){
    const direction=choice.class.direction;
    let d=directionMap.get(direction.id);
