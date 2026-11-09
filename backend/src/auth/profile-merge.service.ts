@@ -49,8 +49,8 @@ export class ProfileMergeService {
    pendingClaims:claims.filter(row=>row.participantId===p.id).length,
   });
   const conflicts=validateMergeCandidates(candidate(source),candidate(target));
-  if(source.user&&(!source.user.isActive||!source.user.emailVerifiedAt))
-   conflicts.push({code:'ACCOUNT_NOT_VERIFIED',description:'Аккаунт переносимого профиля неактивен либо email не подтверждён.'});
+  if([source,target].some(person=>person.user&&(!person.user.isActive||!person.user.emailVerifiedAt)))
+   conflicts.push({code:'ACCOUNT_NOT_VERIFIED',description:'Один из связанных аккаунтов неактивен либо email не подтверждён.'});
   if(aliases.length)conflicts.push({code:'MERGED_PROFILE',description:'Один из выбранных профилей уже участвует в объединении.'});
   return {state:'READ_ONLY' as const,canMergeNow:conflicts.length===0,conflicts};
  }
@@ -127,8 +127,8 @@ export class ProfileMergeService {
     pendingClaims:pendingRows.filter(claim=>claim.participantId===p.id).length,
    });
    const blockers=validateMergeCandidates(candidate(source),candidate(target));
-   if(source.user&&(!source.user.isActive||!source.user.emailVerifiedAt))
-    blockers.push({code:'ACCOUNT_NOT_VERIFIED',description:'Переносимый аккаунт неактивен или его email не подтверждён.'});
+   if([source,target].some(person=>person.user&&(!person.user.isActive||!person.user.emailVerifiedAt)))
+    blockers.push({code:'ACCOUNT_NOT_VERIFIED',description:'Связанный аккаунт неактивен или его email не подтверждён.'});
    if(blockers.length)
     throw new ConflictException({message:'Объединение заблокировано. Разберите конфликты и заново проверьте профили.',conflicts:blockers});
 
