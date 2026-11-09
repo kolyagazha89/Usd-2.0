@@ -1,3 +1,4 @@
+import AdminInboxPage from './AdminInbox';
 import NotificationsPage from './NotificationsPage';
 import {useMemo,useRef} from 'react';
 import {Info} from 'lucide-react';
@@ -63,6 +64,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   if(path.startsWith('/admin/records'))return <RecordsPage user={user} PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty} EntityDetailModal={EntityDetailModal} displayCarName={displayCarName} formatDate={formatDate}/>;
   if(path.startsWith('/admin/season-report'))return <SeasonReportPage PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/stage-report'))return <StageReportPage path={path} go={go} PageFrame={PageFrame} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
+  if(path.startsWith('/admin/inbox'))return user.role==='ADMIN'?<AdminInboxPage go={go} PageFrame={PageFrame}/>:<PageFrame title="Уведомления" subtitle="Раздел доступен только ADMIN"/>;
   if(path.startsWith('/admin/profile-links'))return <ProfileLinksPage PageFrame={PageFrame} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/statistics'))return <StatisticsPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} Empty={Empty} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/users'))return <UsersPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} EntityForm={EntityForm} EntityDetailModal={EntityDetailModal} formatDate={formatDate}/>;

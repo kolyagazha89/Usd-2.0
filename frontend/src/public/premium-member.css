@@ -365,7 +365,7 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   * of the animated/scrolling cabinet can otherwise detach on Safari. */
  body > .participant-tabs{
   position:fixed!important;inset-inline:0!important;top:auto!important;bottom:0!important;
-  transform:translate3d(0,0,0)!important;backface-visibility:hidden;
+  /* Solid dock: no backdrop/transform compositing layer during data loading. */
   z-index:1001!important;box-sizing:border-box!important;
   display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
   width:100%!important;max-width:100%!important;margin:0!important;gap:2px!important;
@@ -406,6 +406,8 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   margin:0!important;
   transform:none!important;-webkit-transform:none!important;
   will-change:auto!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  backface-visibility:visible!important;-webkit-backface-visibility:visible!important;
   transition:none!important;animation:none!important;
   background:#0b1017!important;
   z-index:1001!important;

@@ -68,10 +68,14 @@ jobs:
           npm run build
       - name: Check opt-in, refusal, per-device controls, iPhone install guidance and admin permissions
         run: node scripts/push-browser-qa.mjs
+      - name: Verify inbox actions and stable member dock during pending profile requests
+        run: node scripts/member-loading-admin-inbox-browser-qa.mjs
       - name: Save eight isolated browser scenarios and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: push-browser-qa-${{ github.run_attempt }}
-          path: push-browser-qa/
+          path: |
+            push-browser-qa/
+            member-inbox-browser-qa/
           retention-days: 7

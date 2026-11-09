@@ -2,7 +2,7 @@
 'use strict';
 function appPath(value) {
   // These exact same-origin screens still enforce authenticated ADMIN access.
-  if (value === '/admin/profile-links' || value === '/admin/participants') return value;
+  if (value === '/admin/profile-links' || value === '/admin/participants' || value === '/admin/inbox') return value;
   if (typeof value !== 'string' || value.length > 300 || /[\\\x00-\x20]/.test(value) || (value !== '/' && !/^\/(?:participant|stages|news)(?:[/?#]|$)/.test(value))) return '/';
   try {
     const url = new URL(value, self.location.origin);
