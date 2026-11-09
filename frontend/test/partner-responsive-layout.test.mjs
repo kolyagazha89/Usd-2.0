@@ -45,7 +45,7 @@ test('only the homepage regular tier is a swipeable carousel; directory remains 
   const home=render('home');
   const directory=render('full');
   assert.match(home,/usd-partner-tier--regular[\s\S]*?usd-partner-carousel/);
-  assert.equal((home.match(/usd-partner-carousel\b/g)??[]).length,1);
+  assert.equal((home.match(/class="usd-partner-carousel"/g)??[]).length,1);
   assert.match(home,/aria-roledescription="карусель"/);
   assert.match(home,/Первый/);
   assert.match(home,/Второй/);
