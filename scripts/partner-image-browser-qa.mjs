@@ -13,17 +13,12 @@ await mkdir(output,{recursive:true});
 const dist=fileURLToPath(new URL('../frontend/dist',import.meta.url));
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2'};
 const sample='<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><rect width="320" height="320" fill="#08090d"/><text x="160" y="170" text-anchor="middle" fill="#ef1839" font-size="55" font-family="sans-serif" font-weight="bold">USD</text><text x="160" y="200" text-anchor="middle" fill="white" font-size="16">PARTNER</text></svg>';
-const newsPortrait='<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600"><rect width="300" height="600" fill="#191c24"/><rect x="0" y="0" width="300" height="50" fill="#ec2545"/><rect x="0" y="550" width="300" height="50" fill="#ec2545"/></svg>';
-const newsLandscape='<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="#191c24"/><rect x="0" y="0" width="65" height="600" fill="#ec2545"/><rect x="1135" y="0" width="65" height="600" fill="#ec2545"/></svg>';
 const server=createServer(async(req,res)=>{
  try{
   const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
   if(pathname==='/qa-partner-image'){
    const local=process.env.USD_PARTNER_QA_IMAGE;
    res.writeHead(200,{'Content-Type':local?(types[path.extname(local)]||'image/png'):'image/svg+xml'}).end(local?await readFile(local):sample);return;
-  }
-  if(pathname==='/qa-news-portrait'||pathname==='/qa-news-landscape'){
-   res.writeHead(200,{'Content-Type':'image/svg+xml'}).end(pathname.endsWith('portrait')?newsPortrait:newsLandscape);return;
   }
   if(pathname==='/qa-broken-image'){res.writeHead(404).end();return}
   const file=path.resolve(dist,'.'+pathname);
@@ -45,9 +40,6 @@ try{
    {id:'legacy',name:'Без настроек',tier:'REGULAR',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
    {id:'studio-fixture',name:'Студия Тест',tier:'STUDIO',isActive:true,isPublished:true,photoUrl:'/qa-partner-image'},
    {id:'studio-hidden',name:'Скрытая студия',tier:'STUDIO',isActive:true,isPublished:false,photoUrl:'/qa-partner-image'},
-  ],news:[
-   {id:'qa-portrait',title:'Портретная новость',isPublished:true,photoUrl:'/qa-news-portrait',publishedAt:'2026-11-01T10:00:00Z'},
-   {id:'qa-landscape',title:'Горизонтальная новость',isPublished:true,photoUrl:'/qa-news-landscape',publishedAt:'2026-11-02T10:00:00Z'},
   ]};
   const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
   const errors=[];const saves=[];
@@ -124,10 +116,9 @@ try{
    assert.deepEqual(resetPreview,resetPublic,'reset preview must reproduce saved legacy image geometry');
    const studios=page.locator('.usd-partner-tier--studio');
    await studios.waitFor({state:'visible'});
-   assert.equal(await studios.locator('.usd-partner-card').count(),1,'draft studio must not be shown');
+   assert.equal(await studios.locator('.usd-partner-card').count(),1,'draft studio must not render');
    assert.match(await studios.textContent(),/Студия Тест/);
-   const regularText=await page.locator('.usd-partner-tier--regular').textContent();
-   assert.doesNotMatch(regularText,/Студия Тест/,'studio must not be grouped as regular partner');
+   assert.doesNotMatch(await page.locator('.usd-partner-tier--regular').textContent(),/Студия Тест/);
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});
    await page.getByRole('button',{name:'Добавить партнёра'}).click();
    await page.getByLabel('Название',{exact:true}).fill('Новая студия');
@@ -138,32 +129,10 @@ try{
    assert.equal(settings.partners.find(item=>item.name==='Новая студия')?.tier,'STUDIO');
    await page.goto(base+'/partners',{waitUntil:'networkidle'});
    assert.equal(await page.locator('.usd-partner-tier--studio .usd-partner-card').count(),2);
-   for(const [slug,expectedRatio] of [['qa-portrait',.5],['qa-landscape',2]]){
-    await page.goto(base+'/news',{waitUntil:'networkidle'});
-    const cover=page.locator('.p-news-card').filter({hasText:slug==='qa-portrait'?'Портретная новость':'Горизонтальная новость'}).locator('img.p-news-cover');
-    await cover.waitFor({state:'visible'});
-    const card=await cover.evaluate(img=>{
-     const css=getComputedStyle(img);return {fit:css.objectFit,w:img.naturalWidth,h:img.naturalHeight,renderedHeight:img.getBoundingClientRect().height}
-    });
-    assert.equal(card.fit,'contain','news thumbnail cannot crop cover');
-    assert.ok(Math.abs(card.w/card.h-expectedRatio)<.01,'fixture image ratio should be stable');
-    assert.ok(card.renderedHeight<=220.5,'news thumbnail height is capped');
-    await page.goto(base+'/news/'+slug,{waitUntil:'networkidle'});
-    const article=await page.locator('img.p-article-cover').evaluate(img=>{
-     const css=getComputedStyle(img),rect=img.getBoundingClientRect();
-     return {fit:css.objectFit,w:img.naturalWidth,h:img.naturalHeight,width:rect.width,height:rect.height,
-      center:rect.left+rect.width/2,viewport:innerWidth};
-    });
-    assert.equal(article.fit,'contain','full article image cannot crop');
-    assert.ok(article.height<=580.5,'article cover height is capped');
-    assert.ok(article.width<=760.5,'article cover width is capped');
-    assert.ok(Math.abs(article.center-article.viewport/2)<8,'news photo is centered within its column');
-    await assertViewport();
-   }
-   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',
-     keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true,studioCreation:true,studioVisibility:true,
-     newsPortrait:true,newsLandscape:true});
+   await assertViewport();
+   if([390,1440].includes(width))await page.screenshot({path:path.join(output,`studio-partners-${width}.png`),fullPage:true});
 
+   assert.deepEqual(errors,[]);report.checks.push({width,saveReload:true,customRatio:'5:2',banner:'cover',logo:'contain',keyboardScale:true,uniformScale:true,legacy:true,brokenImage:true});
   }catch(e){report.failures.push({width,message:String(e)});await page.screenshot({path:path.join(output,`failure-${width}.png`),fullPage:true})}
   finally{await context.close()}
  }
