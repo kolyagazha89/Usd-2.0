@@ -94,7 +94,11 @@ function dataFor(url,role){
   constraints:['Предпросмотр не изменяет данные.'],
  };
 
- if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
+ if(p==='/admin/profile-links/duplicates/readiness')return {
+    state:'READ_ONLY',canMergeNow:false,
+    conflicts:[{code:'STAGE_OVERLAP',description:'Заявки обоих профилей относятся к одному этапу.'}],
+  };
+  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
  if(p==='/results/registration/reg1')return [result];
