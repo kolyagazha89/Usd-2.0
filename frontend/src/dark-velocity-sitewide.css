@@ -1097,6 +1097,10 @@ body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partn
  scrollbar-width:thin;
  -webkit-overflow-scrolling:touch;
 }
+body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel .partner-image-frame{
+ height:84px!important;
+ aspect-ratio:auto!important;
+}
 body .usd-live .usd-partner-showcase--home .usd-partner-tier--regular .usd-partner-carousel .usd-partner-card{
  width:100%;height:100%;min-width:0;min-height:215px;
  box-sizing:border-box;align-self:stretch!important;
@@ -1165,7 +1169,7 @@ body .usd-live .usd-partner-read-more:focus-visible{outline:2px solid #ff7089;ou
  }
  body .usd-live .usd-partner-showcase--full .usd-partner-tier--regular .usd-partner-card{
   grid-template-columns:minmax(92px,32%) minmax(0,1fr);
-  min-height:205px;padding:14px;
+  min-height:240px;padding:14px;
  }
 }
 @media(max-width:380px){
