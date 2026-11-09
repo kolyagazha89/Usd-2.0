@@ -95,10 +95,10 @@ function dataFor(url,role){
  };
 
  if(p==='/admin/profile-links/duplicates/readiness')return {
-    state:'READ_ONLY',canMergeNow:false,
-    conflicts:[{code:'STAGE_OVERLAP',description:'Заявки обоих профилей относятся к одному этапу.'}],
-  };
-  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
+  state:'READ_ONLY',canMergeNow:false,
+  conflicts:[{code:'STAGE_OVERLAP',description:'Заявки обоих профилей относятся к одному этапу.'}],
+ };
+ if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
  if(p==='/results/registration/reg1')return [result];
@@ -982,6 +982,87 @@ try{
       assert.equal(await page.getByRole('button',{name:/Подтвердить создание профиля/}).isEnabled(),true);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'expanded newcomer fields fit viewport');
       row.firstLogin='dark premium identity matching, protected profile, explicit new profile, no security panel';
+     }
+     if(role==='ADMIN'&&route==='/admin/cars/configurations?carId=car1'){
+      const editorButton=page.getByRole('button',{name:'Редактировать',exact:true});
+      await editorButton.click();
+      await page.locator('.configuration-editor-page .catalog-request-inline').waitFor({state:'visible'});
+      await page.getByRole('button',{name:/Не нашли комплектующее\? Запросить добавление/}).click();
+      await page.locator('.configuration-editor-page .catalog-request-form').waitFor({state:'visible'});
+      const samples=await page.evaluate(()=>{
+       const selectors=[
+        '.configuration-editor-page .catalog-request-inline',
+        '.configuration-editor-page .config-editor-intro',
+        '.configuration-editor-page .configuration-admission-guide',
+        '.configuration-editor-page .config-section',
+        '.configuration-editor-page .catalog-request-form',
+        '.configuration-editor-page .config-basic-grid > label',
+       ];
+       const luminance=color=>{
+        const match=color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        return match?(Number(match[1])+Number(match[2])+Number(match[3]))/3:null;
+       };
+       return selectors.map(selector=>{
+        const node=document.querySelector('.admin-configurations-shell '+selector);
+        if(!node)return {selector,missing:true};
+        const style=getComputedStyle(node);
+        const image=style.backgroundImage;
+        const imageColors=[...image.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)].map(m=>(Number(m[1])+Number(m[2])+Number(m[3]))/3);
+        return {selector,background:style.backgroundColor,image,backgroundLight:luminance(style.backgroundColor),textLight:luminance(style.color),imageColors};
+       });
+      });
+      for(const sample of samples){
+       assert.equal(sample.missing,undefined,'required admin car control missing: '+sample.selector);
+       if(sample.selector.endsWith('> label')){
+        assert.ok(sample.textLight!==null&&sample.textLight<150,'admin editor labels must have dark ink: '+JSON.stringify(sample));
+       }else{
+        assert.ok((sample.backgroundLight??0)>=235,'admin editor has a dark surface: '+JSON.stringify(sample));
+        assert.ok(sample.imageColors.every(value=>value>=210),'admin editor uses dark gradient: '+JSON.stringify(sample));
+       }
+      }
+      row.adminCarPalette='light configuration editor backgrounds and readable labels';
+     }
+     if(role==='ADMIN'&&route==='/admin/cars/new'){
+      const fields=await page.evaluate(()=>{
+       const names=['.usd-car-editor-journey','.usd-car-editor-step','.usd-car-editor-panel'];
+       return names.map(selector=>{
+        const node=document.querySelector(selector);
+        if(!node)return {selector,missing:true};
+        const style=getComputedStyle(node);
+        return {selector,bg:style.backgroundColor,color:style.color};
+       });
+      });
+      for(const field of fields){
+       assert.equal(field.missing,undefined,'admin vehicle editor field exists: '+field.selector);
+       assert.match(field.bg,/rgb\(2(?:[3-5]\d|[4-5]\d),/,'admin car editor must have light panels: '+JSON.stringify(field));
+      }
+      row.adminCarCreationPalette='light wizard panels and steps';
+     }
+     if(width<=760&&role==='PARTICIPANT'&&route==='/participant'){
+      let delay=true;
+      await page.route('**/participants/me',async request=>{
+       if(delay){delay=false;await new Promise(resolve=>setTimeout(resolve,650))}
+       await request.fallback();
+      });
+      await page.reload({waitUntil:'domcontentloaded'});
+      const dock=page.locator('body > .participant-dock-viewport > .participant-tabs');
+      await dock.waitFor({state:'visible'});
+      const observe=()=>dock.evaluate(element=>{
+       const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
+       return {parent:element.parentElement?.parentElement===document.body,position:style.position,
+        bottom:rect.bottom,viewport:innerHeight,height:rect.height,background:style.backgroundColor};
+      });
+      const initial=await observe();
+      await page.waitForTimeout(800);
+      const loaded=await observe();
+      for(const [label,value] of [['loading',initial],['loaded',loaded]]){
+       assert.equal(value.parent,true,'member dock must be portaled before paint: '+label);
+       assert.equal(value.position,'fixed','member dock must be fixed: '+label);
+       assert.ok(Math.abs(value.bottom-value.viewport)<=1,'member dock does not touch viewport bottom: '+label+' '+JSON.stringify(value));
+      }
+      assert.ok(Math.abs(initial.height-loaded.height)<=1,'bottom navigation jumps during data load: '+JSON.stringify({initial,loaded}));
+      await page.unroute('**/participants/me');
+      row.memberDockStability='mobile dock is bottom-fixed and unchanged during delayed first data load';
      }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);

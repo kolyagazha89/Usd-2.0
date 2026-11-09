@@ -13,7 +13,7 @@ test('mobile member navigation leaves the scrolling page and is anchored to the 
  const [nav,css]=await Promise.all([source('../src/participant/ParticipantNavigation.tsx'),source('../src/public/premium-member.css')]);
  assert.match(nav,/createPortal/);
  assert.match(nav,/document\.body/);
- assert.match(css,/body\s*>\s*\.participant-tabs/);
+ assert.match(css,/body\s*>\s*\.participant-dock-viewport\s*>\s*\.participant-tabs/);
  assert.match(css,/bottom:0!important/);
 });
 
@@ -22,4 +22,10 @@ test('member header covers the iPhone safe area and page reserves its height',as
  assert.match(css,/position:fixed!important/);
  assert.match(css,/safe-area-inset-top/);
  assert.match(css,/padding-top:var\(--usd-member-header-size,calc\(72px \+ env\(safe-area-inset-top/);
+});
+
+test('standalone member dock has its own full-height viewport instead of depending on short-page svh',async()=>{
+ const [nav,css]=await Promise.all([source('../src/participant/ParticipantNavigation.tsx'),source('../src/public/premium-member.css')]);
+ assert.match(nav,/className="participant-dock-viewport"/);
+ assert.match(css,/@media[^{}]*\(display-mode:standalone\)[\s\S]*?height:100vh/);
 });

@@ -1,3 +1,4 @@
+import {catalogRequestNotification} from '../admin-notifications/admin-notification-event';
 import {lockSiteSettings} from '../site-settings/catalog-concurrency';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -62,15 +63,14 @@ export class ComponentCatalogRequestsService {
     });
     if (pending) throw new BadRequestException('Такой запрос уже находится на рассмотрении');
 
-    const request = await this.prisma.componentCatalogRequest.create({
-      data: { id: randomUUID(), userId, userEmail: user.email, category: normalized.category, brand: normalized.brand, model: normalized.model, details: input.details },
+    const request = await this.prisma.$transaction(async tx=>{
+      const saved = await tx.componentCatalogRequest.create({
+        data: { id: randomUUID(), userId, userEmail: user.email, category: normalized.category, brand: normalized.brand, model: normalized.model, details: input.details, adminEmailStatus:'DISABLED_PUSH' },
+      });
+      await tx.adminNotification.create({data:catalogRequestNotification(saved)});
+      return saved;
     });
-    const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
-    const lines = ['Категория: ' + (categoryLabels[normalized.category] ?? normalized.category), 'Бренд: ' + normalized.brand, 'Модель: ' + normalized.model, 'Участник: ' + (user.name?.trim() || user.email), 'Email участника: ' + user.email, ...(input.details ? ['Комментарий: ' + input.details] : [])];
-    const delivery = await Promise.allSettled(admins.map(admin => this.send(admin.email, 'USD — запрос на добавление комплектующего', 'Новый запрос в каталоге комплектующих', 'Участник просит добавить оборудование в справочник USD.', lines, this.frontendUrl + '/admin/components')));
-    const accepted = delivery.some(result => result.status === 'fulfilled');
-    await this.prisma.componentCatalogRequest.update({ where: { id: request.id }, data: { adminEmailStatus: accepted ? 'PROVIDER_ACCEPTED' : 'FAILED' } });
-    return { success: true, requestId: request.id, status: request.status, emailQueued: accepted, message: accepted ? 'Запрос отправлен администратору. Статус можно посмотреть в личном кабинете.' : 'Запрос сохранён, но письмо администратору не отправлено. Команда увидит его в очереди заявок.' };
+    return { success:true,requestId:request.id,status:request.status,notificationChannel:'PUSH',message:'Запрос сохранён в центре уведомлений администраторов. PUSH отправляется на подключённые устройства с разрешённой темой уведомлений. Статус запроса доступен в личном кабинете.' };
   }
 
   async list(_request: AuthenticatedRequest) {
@@ -127,11 +127,9 @@ export class ComponentCatalogRequestsService {
     let participantEmailStatus = request.participantEmailStatus;
     const category = categoryLabels[request.category] ?? request.category;
     const details = ['Категория: ' + category, 'Бренд: ' + request.brand, 'Модель: ' + request.model, 'Email участника: ' + request.userEmail];
-    if (request.status === 'PENDING' && request.adminEmailStatus === 'FAILED') {
-      const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
-      const outcomes = await Promise.allSettled(admins.map(admin => this.send(admin.email, 'USD — запрос на добавление комплектующего', 'Новый запрос в каталоге комплектующих', 'Участник просит добавить оборудование в справочник USD.', details, this.frontendUrl + '/admin/components')));
-      adminEmailStatus = outcomes.some(x => x.status === 'fulfilled') ? 'PROVIDER_ACCEPTED' : 'FAILED';
-    }
+    // Pending administrative requests use the durable inbox/PUSH channel.
+    // Retrying an old failed email must never resurrect administrative mail.
+    if (request.status === 'PENDING') adminEmailStatus='DISABLED_PUSH';
     if (request.status === 'APPROVED' && request.participantEmailStatus === 'FAILED') {
       try {
         await this.send(request.userEmail, 'USD — комплектующее добавлено в каталог', 'Комплектующее добавлено по вашему запросу', 'Запрошенное оборудование добавлено в каталог USD.', details, this.frontendUrl + '/participant?tab=cars');

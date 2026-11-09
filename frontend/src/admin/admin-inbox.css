@@ -1,0 +1,23 @@
+.admin-inbox-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px;border:1px solid #d8dfe6;border-radius:10px;color:#3d4653;background:#fff;text-decoration:none}
+.admin-inbox-bell:hover{background:#fff1f3;color:#b51c34;border-color:#edbdc6}
+.admin-inbox-badge,.admin-inbox-count-error{position:absolute;top:-5px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:#b51c34;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;box-sizing:border-box;border:2px solid #fff}
+.admin-inbox{display:grid;gap:18px;min-width:0}
+.admin-inbox-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.admin-inbox-filters{display:flex;gap:8px;flex-wrap:wrap}
+.admin-inbox-filters>button{display:flex;gap:8px;align-items:center;border:1px solid #d8dfe6;background:#fff;color:#4c5768;border-radius:9px;padding:10px 12px;min-height:44px;font:inherit;cursor:pointer}
+.admin-inbox-filters>button[aria-pressed=true]{color:#a61930;border-color:#e7a0ae;background:#fff1f3;font-weight:700}
+.admin-inbox-filters>button>span{font-size:11px;font-variant-numeric:tabular-nums}
+.admin-inbox-help{color:#586778;line-height:1.6;margin:0;max-width:85ch;font-size:13px}
+.admin-inbox-list{display:grid;gap:12px}
+.admin-inbox-card{display:grid;gap:12px;border:1px solid #dce2e9;border-radius:12px;background:#fff;padding:20px;min-width:0}
+.admin-inbox-card.is-unread{border-left:3px solid #c32941}
+.admin-inbox-card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#657386}
+.admin-inbox-status{display:inline-flex;gap:6px;align-items:center;color:#49596b;font-weight:700}
+.is-unread .admin-inbox-status{color:#a61930}.is-done .admin-inbox-status{color:#226444}
+.admin-inbox-card h2{margin:0;font-size:18px;color:#263345;overflow-wrap:anywhere}
+.admin-inbox-card p{margin:0;line-height:1.6;color:#526174;overflow-wrap:anywhere}
+.admin-inbox-card small{color:#657386}
+.admin-inbox-card-actions{display:flex;gap:8px;flex-wrap:wrap}
+.admin-inbox-empty{padding:36px 20px;background:#fff;border:1px solid #dce2e9;border-radius:12px;text-align:center;color:#657386}
+.admin-inbox-empty h2{color:#263345;font-size:19px}
+@media(max-width:600px){.admin-inbox-card{padding:16px}.admin-inbox-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.admin-inbox-filters>button{justify-content:space-between}.admin-inbox-card-actions>button{width:100%;justify-content:center}.admin-inbox-card-heading time{font-size:11px}.admin-inbox-bell{min-width:40px;min-height:40px}}

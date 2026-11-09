@@ -5,13 +5,14 @@ import {ConflictException,ForbiddenException,UnauthorizedException} from '@nestj
 const userId='123e4567-e89b-42d3-a456-426614174010';
 const participantId='123e4567-e89b-42d3-a456-426614174011';
 const email='verified@example.com';
+const verifiedAt=new Date('2026-11-08T12:00:00Z');
 
 describe('historical-email claim must serialize against administrative claims',()=>{
  const makeDb=()=>{
   const tx:any={
    $executeRaw:jest.fn(async()=>0),
    user:{
-    findUnique:jest.fn(async()=>({id:userId,email,participantId:null,role:'PARTICIPANT',isActive:true,emailVerifiedAt:new Date(),customRoleId:null})),
+    findUnique:jest.fn(async()=>({id:userId,email,participantId:null,role:'PARTICIPANT',isActive:true,emailVerifiedAt:verifiedAt,customRoleId:null})),
     updateMany:jest.fn(async()=>({count:1})),
     update:jest.fn(async()=>({id:userId})),
    },
@@ -30,7 +31,7 @@ describe('historical-email claim must serialize against administrative claims',(
   expect(tx.$executeRaw).toHaveBeenCalledTimes(2);
   expect(tx.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({select:expect.objectContaining({emailVerifiedAt:true,isActive:true})}));
   expect(tx.user.updateMany).toHaveBeenCalledWith({
-   where:{id:userId,participantId:null,isActive:true,emailVerifiedAt:{not:null}},
+   where:{id:userId,participantId:null,isActive:true,email,emailVerifiedAt:verifiedAt},
    data:{participantId},
   });
   expect(tx.user.update).not.toHaveBeenCalled();
@@ -73,4 +74,27 @@ describe('historical-email claim must serialize against administrative claims',(
   expect(tx.user.updateMany).not.toHaveBeenCalled();
   expect(tx.auditLog.create).not.toHaveBeenCalled();
  });
+ it('rejects a concurrent verified email change instead of attaching with stale proof',async()=>{
+  const {service,tx}=makeDb();
+  // Model the final conditional UPDATE against the current account state.
+  tx.user.updateMany.mockImplementation(async({where}:any)=>({
+   count:where.email===email&&where.emailVerifiedAt===verifiedAt?0:1,
+  }));
+  await expect(service.linkHistoricalProfile(userId,participantId)).rejects.toBeInstanceOf(ConflictException);
+  expect(tx.auditLog.create).not.toHaveBeenCalled();
+ });
+ it('refuses inactive accounts before reading historical contact data',async()=>{
+  const {service,tx}=makeDb();
+  tx.user.findUnique.mockResolvedValueOnce({id:userId,email,isActive:false,emailVerifiedAt:verifiedAt,participantId:null});
+  await expect(service.linkHistoricalProfile(userId,participantId)).rejects.toBeInstanceOf(UnauthorizedException);
+  expect(tx.participantLegacyEmail.findUnique).not.toHaveBeenCalled();
+ });
+ it('retries an already completed link without a second audit or request',async()=>{
+  const {service,tx}=makeDb();
+  tx.user.findUnique.mockResolvedValueOnce({id:userId,email,isActive:true,emailVerifiedAt:verifiedAt,participantId});
+  await expect(service.linkHistoricalProfile(userId,participantId)).resolves.toEqual({success:true,linked:true,participantId});
+  expect(tx.user.updateMany).not.toHaveBeenCalled();
+  expect(tx.auditLog.create).not.toHaveBeenCalled();
+ });
+
 });

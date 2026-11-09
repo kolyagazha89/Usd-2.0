@@ -1,3 +1,4 @@
+import {updateExistingPushWorker} from './push/update-existing-worker';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -20,6 +21,7 @@ import './admin/admin-shell-layout.css';
 
 // Handle CSS/chunk requests that race a SHA-pinned frontend image switch.
 installAssetPreloadRecovery();
+void updateExistingPushWorker(navigator.serviceWorker,window.location.origin);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

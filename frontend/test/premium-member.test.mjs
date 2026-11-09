@@ -67,7 +67,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(dashboard,/car\?\.photoUrl/);
  assert.match(dashboard,/currentCarAudioComponents\(car\)/,'member garage must use current version audio summary');
  assert.match(dashboard,/registrations\.filter/);
- assert.match(editor,/configurations-page-shell"\+\(admin\?" admin-configurations-shell":" usd-member"\)/);
+ assert.match(editor,/admin\?"admin-configurations-shell":"participant-portal configurations-page-shell usd-member"/,'admin config never mounts participant dark-theme roots');
  assert.match(editor,/usd-member/);
  assert.match(editor,/aria-label="Добавить оборудование"/);
  assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);

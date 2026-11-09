@@ -142,3 +142,8 @@ jobs:
         env:
           USD_VERIFICATION_RESEND_TEST: '1'
         run: npm run test:e2e -- --runInBand --runTestsByPath test/verification-resend-concurrency.e2e-spec.ts
+
+      - name: Verify ADMIN inbox, receipt isolation, concurrent completion, atomic rollback and PUSH
+        env:
+          USD_ADMIN_INBOX_TEST: '1'
+        run: npm run test:e2e -- --runInBand --runTestsByPath test/admin-inbox.e2e-spec.ts

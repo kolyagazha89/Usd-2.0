@@ -804,7 +804,7 @@ export class AuthService {
       }
 
       const linked = await tx.user.updateMany({
-        where: { id: userId, participantId: null, isActive: true, emailVerifiedAt: { not: null } },
+        where: { id: userId, participantId: null, isActive: true, email: user.email, emailVerifiedAt: user.emailVerifiedAt },
         data: { participantId: participant.id },
       });
       if (linked.count !== 1) {
