@@ -21,6 +21,15 @@ describe('USD primary number / BassRace allocation',()=>{
   expect(plan.requiredNumberCount).toBe(8);
   expect(plan.bassOnPrimaryId).toBeNull();
  });
+ it('accepts imported SPL BassRace aliases as additional numbered classes',()=>{
+  const stage=[
+   ...Array.from({length:5},(_,i)=>row('r'+i,'Regular '+i,'Direction '+i)),
+   row('legacy-br','SPL BassRace 139.9','SPL'),
+  ];
+  expect(isBassRaceStageClass('SPL BassRace 139.9','SPL')).toBe(true);
+  const planned=planRegistrationClassNumbers(stage.map(x=>x.classId),stage);
+  expect(planned).toMatchObject({primaryClassCount:5,requiredNumberCount:2,bassRaceClassIds:['legacy-br'],bassOnPrimaryId:null});
+ });
  it('rejects six regular classes even when BassRace classes also exist',()=>{
   const stage=Array.from({length:6},(_,i)=>row('r'+i,'SPL '+i,'SPL '+i));
   expect(()=>planRegistrationClassNumbers(stage.map(x=>x.classId),stage)).toThrow('не более 5');
