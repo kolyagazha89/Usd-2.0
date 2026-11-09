@@ -47,7 +47,7 @@ function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:b
 /** Homepage only: an automatically advancing, swipeable rail with equal-size cards.
  * Manual swiping, keyboard focus and reduced-motion preferences stop automatic movement.
  */
-function HomeRegularCarousel({items}:{items:Partner[]}){
+function HomePartnerCarousel({items,tier}:{items:Partner[];tier:'REGULAR'|'STUDIO'}){
  const rail=useRef<HTMLDivElement>(null);
  const manuallyPaused=useRef(false);
  const [current,setCurrent]=useState(0);
@@ -78,10 +78,10 @@ function HomeRegularCarousel({items}:{items:Partner[]}){
  };
  return <div className="usd-partner-carousel-wrap">
   <div ref={rail} className="usd-partner-carousel" role="region" aria-roledescription="карусель"
-   aria-label="Обычные партнёры чемпионата" tabIndex={0} onScroll={onScroll}
+   aria-label={tier==='STUDIO'?'Студии-партнёры':'Обычные партнёры чемпионата'} tabIndex={0} onScroll={onScroll}
    onPointerDown={()=>{manuallyPaused.current=true}} onWheel={()=>{manuallyPaused.current=true}}
    onFocusCapture={()=>{manuallyPaused.current=true}} onMouseEnter={()=>{manuallyPaused.current=true}}>
-   {items.map((partner,index)=><PartnerCard key={partner.id??'regular-'+index} partner={partner} tier="REGULAR" compact/>)}
+   {items.map((partner,index)=><PartnerCard key={partner.id??tier+'-'+index} partner={partner} tier={tier} compact/>)}
   </div>
   {items.length>1&&<div className="usd-partner-carousel-meta" aria-hidden="true">
    <span>Листайте партнёров</span><span>{String(current+1).padStart(2,'0')} / {String(items.length).padStart(2,'0')}</span>
@@ -98,7 +98,7 @@ export default function PartnerShowcase({partners,variant='full'}:{partners:Part
    if(!items.length)return null;
    return <section className={'usd-partner-tier usd-partner-tier--'+tier.id.toLowerCase()} key={tier.id} aria-label={tier.heading}>
     <div className="usd-partner-tier-heading"><span aria-hidden="true"/><h2>{tier.heading}</h2><span className="usd-partner-tier-count">{String(items.length).padStart(2,'0')}</span></div>
-    {compact&&tier.id==='REGULAR'?<HomeRegularCarousel items={items}/>:
+    {compact&&(tier.id==='REGULAR'||tier.id==='STUDIO')?<HomePartnerCarousel items={items} tier={tier.id}/>: 
      <div className="usd-partner-grid">{items.map((p,i)=><PartnerCard key={p.id??tier.id+'-'+i} partner={p} tier={tier.id} compact={compact}/>)}</div>}
    </section>;
   })}
