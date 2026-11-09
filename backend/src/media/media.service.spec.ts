@@ -54,6 +54,45 @@ describe('MediaService media library', () => {
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
   });
 
+  it('keeps original public participant photo working when a merged profile was hidden',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{isPublic:true}}))};
+    prisma.participant.findFirst=jest.fn(async()=>null);
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'original-avatar-key',contentType:'image/png'});
+    global.fetch=jest.fn(async()=>new Response(Buffer.from([137,80,78,71]),{
+      status:200,headers:{'content-type':'image/png'},
+    })) as typeof fetch;
+    const photo=await service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO,'old-profile');
+    expect(photo.contentType).toBe('image/png');
+    expect(prisma.mediaUpload.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:{targetType:MediaTargetType.PARTICIPANT_PHOTO,targetId:'old-profile',completedAt:{not:null}},
+    }));
+    expect(prisma.participantMergeRedirect.findUnique).toHaveBeenCalledWith({
+      where:{sourceId:'old-profile'},select:{target:{select:{isPublic:true}}},
+    });
+  });
+
+  it('never exposes an alias photo if the canonical profile is private',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{isPublic:false}}))};
+    prisma.participant.findFirst=jest.fn(async()=>null);
+    await expect(service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO,'old-profile'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('lets the canonical owner read (but not upload to) an old archived avatar reference',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({targetId:'current-profile'}))};
+    prisma.participant.findFirst=jest.fn(async({where}:any)=>
+      where.id==='current-profile'&&where.user?.id==='current-user'?{id:'current-profile'}:null);
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'original-avatar-key',contentType:'image/png'});
+    global.fetch=jest.fn(async()=>new Response(Buffer.from([137,80,78,71]),{
+      status:200,headers:{'content-type':'image/png'},
+    })) as typeof fetch;
+    const photo=await service.getPrivateMediaFile('current-user','PARTICIPANT',MediaTargetType.PARTICIPANT_PHOTO,'old-profile');
+    expect(photo.contentType).toBe('image/png');
+    await expect(service.prepare('current-user','PARTICIPANT',MediaTargetType.PARTICIPANT_PHOTO,'old-profile','image/png'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('never serves an unauthorized private participant photo', async () => {
     prisma.participant.findFirst = jest.fn().mockResolvedValue(null);
     await expect(service.getPrivateMediaFile('other-user', 'PARTICIPANT', MediaTargetType.PARTICIPANT_PHOTO, 'participant-1'))
