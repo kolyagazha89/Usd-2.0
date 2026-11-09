@@ -684,19 +684,24 @@ export class TeamsService {
    * passed inspection is the only source of historical team membership.
    * Never mix DB and MPS into invented team scores.
    */
-  async publicStandings(scope: { stageId?: string; seasonId?: string }) {
-    const {stageId,seasonId}=scope;
+  async publicStandings(scope: { stageId?: string; seasonId?: string; direction?: string }) {
+    const {stageId,seasonId,direction}=scope;
     const valid=(id:unknown)=>typeof id==='string'&&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     if(Boolean(stageId)===Boolean(seasonId)||
        (stageId&&!valid(stageId))||(seasonId&&!valid(seasonId))){
       throw new BadRequestException('Выберите один действительный сезон или этап');
     }
+    if(direction!==undefined && (typeof direction!=='string'||!direction.trim()||direction.length>100)){
+      throw new BadRequestException('Некорректное направление');
+    }
     const type=stageId?'STAGE':'SEASON';
     const id=stageId||seasonId!;
     const limit=1500;
     const rows=await this.prisma.result.findMany({
-      where:{registration:{
+      where:{
+       ...(direction?{registrationClass:{class:{direction:{name:direction}}}}:{}),
+       registration:{
         teamIdAtInspection:{not:null},
         teamAffiliationCapturedAt:{not:null},
         status:'ACTIVE',
@@ -731,7 +736,7 @@ export class TeamsService {
     const teams=groupPublishedTeamPerformances(displayed,
       new Map(names.map(team=>[team.id,team.name])));
     return {scope:{type,id},total:displayed.length,truncated:rows.length>limit,
-      order:'FIRST_PLACES_THEN_PODIUMS_THEN_RESULTS',teams};
+      order:'FIRST_PLACES_THEN_PODIUMS_THEN_RESULTS',direction:direction||null,teams};
   }
 
   async publicTeams() {
