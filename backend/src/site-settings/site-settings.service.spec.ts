@@ -646,3 +646,41 @@ describe('Vehicle catalog CMS overlay safety', () => {
     expect((prisma as any).auditLog.create).not.toHaveBeenCalled();
   });
 });
+
+describe('SiteSettingsService car catalog integrity on ADMIN save', () => {
+ const setup=()=>{
+  const prisma={
+   siteSettings:{
+    findUnique:jest.fn().mockResolvedValue(null),
+    upsert:jest.fn().mockImplementation(async(args:any)=>({id:'default',...args.create})),
+   },
+   auditLog:{create:jest.fn().mockResolvedValue({})},
+  } as unknown as PrismaService;
+  return {prisma,service:new SiteSettingsService(withSettingsTransaction(prisma))};
+ };
+
+ it('rejects orphan override and ambiguous normalized make without persisting settings or audit',async()=>{
+  const {prisma,service}=setup();
+  for(const vehicleDirectory of [
+   {brands:[],models:[{id:'model-one',brandId:'orphan',name:'Invalid',isActive:true}]},
+   {brands:[{id:'new-make',name:'  tOYoTa ',isActive:true}],models:[]},
+   {brands:[],models:[{id:'new-model',brandId:'seed-brand:toyota',name:'cAmRy',isActive:true}]},
+  ]){
+   await expect(service.update({catalogs:{vehicleDirectory}} as any,'admin-1')).rejects.toThrow(BadRequestException);
+  }
+  expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
+  expect(prisma.auditLog.create).not.toHaveBeenCalled();
+ });
+
+ it('persists a coherent new make and model with stable IDs and audit record',async()=>{
+  const {prisma,service}=setup();
+  const vehicleDirectory={
+   brands:[{id:'new-make',name:'USD Demo Cars',isActive:true}],
+   models:[{id:'new-model',brandId:'new-make',name:'Demo 2026',isActive:true}],
+  };
+  const result=await service.update({catalogs:{vehicleDirectory}} as any,'admin-1');
+  expect(result.success).toBe(true);
+  expect((prisma as any).siteSettings.upsert.mock.calls[0][0].create.catalogs.vehicleDirectory).toEqual(vehicleDirectory);
+  expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+ });
+});
