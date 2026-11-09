@@ -15,6 +15,9 @@ test('merge is a separate explicit ADMIN action, never a result of preview or pr
  assert.match(controller,/@IsUUID\(\) sourceId/);
  assert.match(module,/ProfileMergeService/);
  assert.match(ui,/preview\.conflicts\.length===0/);
+ assert.match(ui,/readiness\?\.canMergeNow/);
+ assert.match(ui,/\/admin\/profile-links\/duplicates\/readiness/);
+ assert.match(controller,/@Get\('duplicates\/readiness'\)/);
  assert.match(ui,/confirmation!==preview\.source\.id\.slice\(0,8\)/);
  assert.match(ui,/Подтвердить атомарное объединение/);
  assert.match(ui,/apiPost.*\/admin\/profile-links\/duplicates\/merge/);
