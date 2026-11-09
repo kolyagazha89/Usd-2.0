@@ -56,3 +56,34 @@ body .usd-live .usd-partner-card .partner-image-legacy .partner-image-legacy-con
  .partner-image-legacy[data-tier="REGULAR"]{--legacy-image-height:66px;--legacy-image-padding:4px;--legacy-outer-padding:4px}
  .partner-image-legacy[data-tier="STUDIO"]{--legacy-image-height:92px;--legacy-min-height:90px}
 }
+
+/* USD partner marks: the image is the artwork, not a plaque inside a plaque.
+   Keep the card and fixed visual slot, but remove the extra dark rectangle. */
+body .usd-live .usd-partner-showcase .usd-partner-card .usd-partner-visual,
+body .usd-live .usd-partner-showcase .usd-partner-visual.usd-partner-visual--managed,
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-legacy,
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-frame,
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-canvas{
+ background:transparent!important;
+ border:0!important;
+ box-shadow:none!important;
+}
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-frame[data-mode="LOGO"] .partner-image-canvas{
+ inset:0;
+}
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-frame{
+ border-radius:13px;
+}
+body .usd-live .usd-partner-showcase .usd-partner-visual img.partner-image-content,
+body .usd-live .usd-partner-showcase .usd-partner-visual img.partner-image-legacy-content,
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-content.p-photo-fallback,
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-legacy-content.p-photo-fallback{
+ border-radius:13px;
+}
+body .usd-live .usd-partner-showcase .usd-partner-visual .partner-image-legacy-content{
+ padding:0!important;
+}
+/* A failed or missing logo remains readable without reintroducing a dark frame. */
+body .usd-live .usd-partner-showcase .usd-partner-visual .p-photo-fallback{
+ background:rgba(255,255,255,.045)!important;
+}

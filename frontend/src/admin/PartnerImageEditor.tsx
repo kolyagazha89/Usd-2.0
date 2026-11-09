@@ -3,11 +3,19 @@ import PartnerImage from '../public/PartnerImage';
 import {normalizePartnerImageLayout,type PartnerImageLayout} from '../public/partner-image-layout';
 
 const PRESETS=['1:1','2:3','4:3','3:2','16:9','2:1','3:1'];
-export default function PartnerImageEditor({value,photoUrl,name,tier,file,disabled,onChange,onValidityChange}:{
- value?:unknown;photoUrl?:string|null;name:string;tier?:string;file?:File|null;disabled:boolean;
+const TIER_PREVIEWS=[
+ {id:'GENERAL',title:'Генеральный',badge:'ГЕНЕРАЛЬНЫЙ ПАРТНЁР'},
+ {id:'PREMIUM',title:'Премиальный',badge:'ПРЕМИАЛЬНЫЙ ПАРТНЁР'},
+ {id:'REGULAR',title:'Обычный',badge:'ПАРТНЁР USD'},
+ {id:'STUDIO',title:'Студия',badge:'СТУДИЯ-ПАРТНЁР'},
+] as const;
+export default function PartnerImageEditor({value,photoUrl,name,description,tier,file,disabled,onChange,onValidityChange}:{
+ value?:unknown;photoUrl?:string|null;name:string;description?:string;tier?:string;file?:File|null;disabled:boolean;
  onChange:(value:PartnerImageLayout|undefined)=>void;onValidityChange:(valid:boolean)=>void;
 }){
  const layout=normalizePartnerImageLayout(value);
+ const selectedTier=TIER_PREVIEWS.find(preview=>preview.id===tier)?.id??'REGULAR';
+ const previews=[...TIER_PREVIEWS].sort((a,b)=>Number(b.id===selectedTier)-Number(a.id===selectedTier));
  const [preset,setPreset]=useState(()=>{
   if(!layout.aspectWidth)return 'auto';
   const key=`${layout.aspectWidth}:${layout.aspectHeight}`;
@@ -39,7 +47,7 @@ export default function PartnerImageEditor({value,photoUrl,name,tier,file,disabl
      <label>Как показывать<select name="imageMode" value={layout.mode} onChange={e=>onChange({...layout,mode:e.target.value as PartnerImageLayout['mode']})}>
       <option value="LOGO">Логотип целиком</option><option value="BANNER">Баннер на весь блок</option>
      </select></label>
-     <label>Пропорции рамки<select name="imageAspect" value={preset} onChange={e=>choose(e.target.value)}>
+     <label>Пропорции изображения<select name="imageAspect" value={preset} onChange={e=>choose(e.target.value)}>
       <option value="auto">Авто — по уровню партнёра</option>
       {PRESETS.map(ratio=><option key={ratio} value={ratio}>{ratio}</option>)}
       <option value="custom">Свои пропорции</option>
@@ -61,11 +69,31 @@ export default function PartnerImageEditor({value,photoUrl,name,tier,file,disabl
     <label><span className="partner-image-range-label">По вертикали <output>{layout.positionY}%</output></span>
      <input name="imagePositionY" type="range" min="0" max="100" value={layout.positionY} onChange={e=>onChange({...layout,positionY:Number(e.target.value)})}/>
     </label>
-    <p className="form-hint">Меняется форма рамки, а не пропорции логотипа. Баннер заполняет рамку с обрезкой; увеличение помогает убрать лишние поля в исходном файле.</p>
+    <p className="form-hint">Настройки влияют только на отображение, исходный файл не меняется. «Логотип целиком» сохраняет изображение полностью, «Баннер» допускает обрезку. Пропорции, масштаб и позиция сохраняются для выбранного партнёра.</p>
     <button type="button" className="secondary-button compact" onClick={()=>{setPreset('auto');setWidth('16');setHeight('9');onChange(undefined)}}>Сбросить оформление</button>
    </div>
-   <div className="partner-image-preview"><span>Предпросмотр изображения</span>
-    <div className="partner-image-preview-surface"><PartnerImage src={photoUrl} name={name.trim()||'Партнёр USD'} tier={tier} layout={value} previewFile={file}/></div>
+   <div className="partner-image-preview">
+    <span>Как логотип выглядит во всех категориях</span>
+    <p className="form-hint">Выбранная категория показана первой. У каждой — собственный размер карточки. Пропорции и положение изображения общие для этого партнёра.</p>
+    <div className="partner-image-preview-gallery usd-live">
+     {previews.map(preview=><div key={preview.id} className="partner-image-preview-item" data-preview-tier={preview.id} data-selected={preview.id===selectedTier}>
+      <div className="partner-image-preview-label"><strong>{preview.title}</strong>{preview.id===selectedTier&&<span>Выбрана</span>}</div>
+      <div className="usd-partner-showcase usd-partner-showcase--full">
+       <div className={'usd-partner-tier usd-partner-tier--'+preview.id.toLowerCase()}>
+        <article className={'usd-partner-card usd-partner-card--'+preview.id.toLowerCase()+' u-panel'}>
+         <span className="usd-partner-badge">{preview.badge}</span>
+         <div className="usd-partner-visual usd-partner-visual--managed">
+          <PartnerImage src={photoUrl} name={name.trim()||'Партнёр USD'} tier={preview.id} layout={value} previewFile={file}/>
+         </div>
+         <div className="usd-partner-info"><h3>{name.trim()||'Название партнёра'}</h3>
+          {description?.trim()&&<p>{description.trim().slice(0,120)}{description.trim().length>120?'…':''}</p>}
+          <span className="usd-partner-link">Сайт партнёра ↗</span>
+         </div>
+        </article>
+       </div>
+      </div>
+     </div>)}
+    </div>
    </div>
   </div>
  </fieldset>;
