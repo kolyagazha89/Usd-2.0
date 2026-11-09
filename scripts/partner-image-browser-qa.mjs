@@ -76,11 +76,27 @@ try{
    const cookies=page.getByRole('button',{name:'Только необходимые',exact:true});
    if(await cookies.isVisible())await cookies.click();
    const edit=()=>page.locator('tr').filter({hasText:'Aura Sound Equipment'}).getByTitle('Изменить').click();
-   await edit();await page.locator('[name="imageAspect"]').selectOption('custom');
+   await edit();
+   // Every tier previews exactly the public card renderer; the current tier
+   // is first, and changing the category must not mutate other CMS partners.
+   const gallery=page.locator('.partner-image-preview-gallery');
+   assert.equal(await gallery.locator('[data-preview-tier]').count(),4);
+   for(const tier of ['GENERAL','PREMIUM','REGULAR','STUDIO']){
+    const item=gallery.locator('[data-preview-tier="'+tier+'"]');
+    assert.equal(await item.count(),1);
+    assert.equal(await item.locator('.usd-partner-card--'+tier.toLowerCase()).count(),1);
+    assert.equal(await item.locator('.partner-image-frame').count(),1);
+   }
+   assert.equal(await gallery.locator('[data-selected="true"]').getAttribute('data-preview-tier'),'PREMIUM');
+   await page.locator('[name="imageAspect"]').selectOption('custom');
    await page.locator('[name="imageAspectWidth"]').fill('5');await page.locator('[name="imageAspectHeight"]').fill('2');
    await page.locator('[name="imageMode"]').selectOption('BANNER');
    await page.locator('[name="imageScale"]').focus();await page.keyboard.press('ArrowRight');
    assert.equal(await page.locator('[name="imageScale"]').inputValue(),'105');
+   const previewFits=await gallery.locator('.partner-image-frame img').evaluateAll(imgs=>
+    imgs.map(img=>({fit:getComputedStyle(img).objectFit,radius:getComputedStyle(img).borderTopLeftRadius})));
+   assert.equal(previewFits.length,4);
+   assert.ok(previewFits.every(v=>v.fit==='cover'&&v.radius!=='0px'),'all four previews share current banner/corner settings');
    await assertViewport();
    if([390,1440].includes(width)){
     await page.evaluate(()=>scrollTo(0,0));
@@ -99,6 +115,15 @@ try{
     return {fit:css.objectFit,x:matrix.a,y:matrix.d,position:css.objectPosition};
    });
    assert.equal(style.fit,'cover');assert.equal(style.x,style.y);assert.ok(Math.abs(style.x-1.05)<.001);
+   const unframed=await card.locator('.usd-partner-visual').evaluate(el=>{
+    const frame=el.querySelector('.partner-image-frame');
+    const image=frame?.querySelector('img');
+    return {visual:getComputedStyle(el).backgroundColor,legacyFrame:frame?getComputedStyle(frame).backgroundColor:'',
+      imageRadius:image?getComputedStyle(image).borderTopLeftRadius:''};
+   });
+   assert.equal(unframed.visual,'rgba(0, 0, 0, 0)','no dark plaque around public logo');
+   assert.equal(unframed.legacyFrame,'rgba(0, 0, 0, 0)','transparent image frame');
+   assert.notEqual(unframed.imageRadius,'0px','round the actual logo rather than only its container');
    await page.locator('.usd-partner-card').filter({hasText:'Изображение недоступно'}).locator('.p-photo-fallback').waitFor();
    assert.equal(await page.locator('.usd-partner-card').filter({hasText:'Без настроек'}).locator('.p-partner-logo').count(),1);
    // Directory: same-height logo slots, one column on narrow phones,
@@ -149,7 +174,7 @@ try{
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});await edit();
    await page.getByRole('button',{name:'Сбросить оформление',exact:true}).click();
    const imageGeometry=img=>{const s=getComputedStyle(img);return {height:s.height,paddingTop:s.paddingTop,paddingBottom:s.paddingBottom,fit:s.objectFit}};
-   const resetPreview=await page.locator('.partner-image-preview img').evaluate(imageGeometry);
+   const resetPreview=await page.locator('.partner-image-preview-item[data-selected="true"] img').evaluate(imageGeometry);
    await page.getByRole('button',{name:'Сохранить партнёра',exact:true}).click();await page.locator('.data-table').waitFor();
    await page.goto(base+'/partners',{waitUntil:'networkidle'});
    const resetPublic=await page.locator('.usd-partner-card').filter({hasText:'Aura Sound Equipment'}).locator('img').evaluate(imageGeometry);
