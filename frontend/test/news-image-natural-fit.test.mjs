@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const source=path=>readFile(new URL(path,import.meta.url),'utf8');
 
-test('a news thumbnail centers the full original photo in a bounded preview instead of cropping it',async()=>{
+test('a news thumbnail displays the complete original photo at natural aspect ratio, not in a crop frame',async()=>{
  const [markup,base,finish]=await Promise.all([
   source('../src/public/PremiumUI.tsx'),
   source('../src/public/premium-public.css'),
   source('../src/sitewide-premium-2026.css'),
  ]);
  assert.match(markup,/className="p-news-media"[^>]*>\s*<Photo\b[^>]*className="p-news-cover"/);
- assert.match(finish,/body \.usd-live \.p-news-card \.p-news-media\s*\{[^}]*aspect-ratio:16\/9/s);
+ assert.match(finish,/body \.usd-live \.p-news-card \.p-news-media\s*\{[^}]*aspect-ratio:auto/s);
  assert.match(finish,/body \.usd-live \.p-news-card \.p-news-media > img\.p-news-cover\s*\{[^}]*object-fit:contain!important/s);
  assert.doesNotMatch(base,/\.usd-live \.p-news-cover\{[^}]*object-fit:cover/);
 });

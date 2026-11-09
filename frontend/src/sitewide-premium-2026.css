@@ -687,26 +687,25 @@ body .admin-shell .vehicle-catalog-suggestions button:hover {
 }
 
 
-/* USD news photos: a published poster or portrait is never cropped to a
- * landscape banner. Limit the *frame* of previews and the actual dimensions
- * in article view while respecting the original image aspect ratio. */
+/* A news card must grow with the picture's own aspect ratio. A fixed
+ * 16:9 clipping frame previously hid the bottom of portrait cover artwork on
+ * mobile and desktop. The fallback alone retains a fixed 16:9 placeholder. */
 body .usd-live .p-news-card .p-news-media {
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:block;
   width:100%;
-  aspect-ratio:16/9;
-  max-height:220px;
-  overflow:hidden;
+  aspect-ratio:auto;
+  max-height:none;
+  overflow:visible;
   background:#10151d;
   border-bottom:1px solid #293742;
 }
 body .usd-live .p-news-card .p-news-media > img.p-news-cover {
   display:block;
-  width:auto!important;
+  width:100%!important;
   height:auto!important;
   max-width:100%!important;
-  max-height:100%!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
   object-fit:contain!important;
   border:0!important;
   border-radius:0!important;
@@ -714,9 +713,11 @@ body .usd-live .p-news-card .p-news-media > img.p-news-cover {
 }
 body .usd-live .p-news-card .p-news-media > .p-news-cover.p-photo-fallback {
   width:100%!important;
-  height:100%!important;
+  height:auto!important;
   max-width:100%!important;
-  max-height:100%!important;
+  max-height:none!important;
+  aspect-ratio:16/9;
+  min-height:190px;
   border:0!important;
   border-radius:0!important;
 }
@@ -737,7 +738,7 @@ body .usd-live .p-article > .p-article-cover.p-photo-fallback {
   margin-inline:auto!important;
 }
 @media(max-width:740px) {
-  body .usd-live .p-news-card .p-news-media {max-height:210px}
+  /* Portrait thumbnails remain fully visible at narrow viewport widths. */
   body .usd-live .p-article > img.p-article-cover {
     max-height:min(48vh,400px)!important;
     margin-block:20px!important;
