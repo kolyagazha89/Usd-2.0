@@ -4,6 +4,7 @@ import {PrismaService} from '../src/prisma/prisma.service';
 import {AuthService} from '../src/auth/auth.service';
 import {ProfileLinksService} from '../src/auth/profile-links.service';
 import {ParticipantsService} from '../src/participants/participants.service';
+import {ProfileMergeService} from '../src/auth/profile-merge.service';
 import type {AuthenticatedRequest} from '../src/auth/authenticated-request';
 const suite=process.env.USD_PROFILE_LINK_RACE_TEST==='1'?describe:describe.skip;
 suite('historical profile ownership races on disposable PostgreSQL18',()=>{
@@ -32,6 +33,7 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
   if(!db)return;
   await db.auditLog.deleteMany({where:{userId:{in:userIds}}});
   await db.profileLinkRequest.deleteMany({where:{claimantUserId:{in:userIds}}});
+  await db.participantMergeRedirect.deleteMany({where:{sourceId:{in:participantIds}}});
   await db.user.deleteMany({where:{id:{in:userIds}}});
   await db.participantLegacyEmail.deleteMany({where:{participantId:{in:participantIds}}});
   await db.participant.deleteMany({where:{id:{in:participantIds}}});await db.$disconnect();
@@ -80,5 +82,80 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
   expect(results.filter(r=>r.status==='rejected')).toHaveLength(1);
   expect(await db.participant.count()).toBe(before+1);
   const created=(await db.user.findUniqueOrThrow({where:{id:user.id}})).participantId!;participantIds.push(created);
+ });
+
+ it('atomically joins a real registration and record while the old public profile and USD QR still resolve',async()=>{
+  const admin=await createUser('ADMIN'),owner=await createUser();
+  const sourceId=await createHistory(owner.email),targetId=await createHistory();
+  const ids=Object.fromEntries(['season','stage','direction','class','car','config','version','reg','number','regClass','result','record'].map(key=>[key,randomUUID()]));
+  const originalToken='a'.repeat(48);
+  await db.user.update({where:{id:owner.id},data:{participantId:sourceId}});
+  await db.participant.update({where:{id:sourceId},data:{usdIdToken:originalToken}});
+  await db.season.create({data:{id:ids.season,name:'Synthetic identity history',year:2099}});
+  await db.stage.create({data:{id:ids.stage,seasonId:ids.season,stageNumber:99,name:'Synthetic merged stage',date:new Date('2099-05-06'),status:'COMPLETED',resultsPublishedAt:new Date()}});
+  await db.direction.create({data:{id:ids.direction,name:'SPL'}});
+  await db.class.create({data:{id:ids.class,directionId:ids.direction,name:'Synthetic merge class',code:'MERGE-'+ids.class}});
+  await db.car.create({data:{id:ids.car,participantId:sourceId,brand:'Synthetic',model:'Test',registrationNumber:'A123AA72'}});
+  await db.carConfiguration.create({data:{id:ids.config,carId:ids.car,name:'Synthetic audio'}});
+  await db.carConfigurationVersion.create({data:{id:ids.version,configurationId:ids.config,version:1}});
+  await db.registration.create({data:{id:ids.reg,participantId:sourceId,carId:ids.car,stageId:ids.stage,configurationVersionId:ids.version,configurationSnapshot:{original:true},participantNumber:1,source:'PRE_REGISTRATION'}});
+  await db.registrationNumber.create({data:{id:ids.number,registrationId:ids.reg,stageId:ids.stage,number:1,isPrimary:true}});
+  await db.registrationClass.create({data:{id:ids.regClass,registrationId:ids.reg,classId:ids.class,numberId:ids.number}});
+  await db.result.create({data:{id:ids.result,registrationId:ids.reg,registrationClassId:ids.regClass,value:161.7,unit:'DB',place:1}});
+  await db.record.create({data:{id:ids.record,classId:ids.class,stageId:ids.stage,seasonId:ids.season,participantId:sourceId,carId:ids.car,resultId:ids.result,value:161.7,unit:'DB',achievedAt:new Date('2099-05-06')}});
+  try{
+   const service=new ProfileMergeService(db);
+   const moved=await service.merge(sourceId,targetId,admin.id,sourceId.slice(0,8));
+   expect(moved).toMatchObject({success:true,alreadyMerged:false,moved:{cars:1,registrations:1,records:1}});
+   const [registration,record,oldParticipant,alias,member]=await Promise.all([
+    db.registration.findUniqueOrThrow({where:{id:ids.reg}}),
+    db.record.findUniqueOrThrow({where:{id:ids.record}}),
+    db.participant.findUniqueOrThrow({where:{id:sourceId}}),
+    db.participantMergeRedirect.findUniqueOrThrow({where:{sourceId}}),
+    db.user.findUniqueOrThrow({where:{id:owner.id}}),
+   ]);
+   expect(registration.participantId).toBe(targetId);
+   expect(registration.configurationSnapshot).toEqual({original:true});
+   expect(record.participantId).toBe(targetId);
+   expect(member.participantId).toBe(targetId);
+   expect(oldParticipant.id).toBe(sourceId);
+   expect(oldParticipant.usdIdToken).toBe(originalToken);
+   expect(alias.targetId).toBe(targetId);
+   const publicService=new ParticipantsService(db);
+   expect((await publicService.findOne(sourceId)).id).toBe(targetId);
+   expect((await publicService.findPublicByUsdId(originalToken)).id).toBe(targetId);
+   expect(await service.merge(sourceId,targetId,admin.id,sourceId.slice(0,8))).toMatchObject({alreadyMerged:true});
+   expect(await db.participantMergeRedirect.count({where:{sourceId}})).toBe(1);
+  }finally{
+   await db.auditLog.deleteMany({where:{entity:'ParticipantMergeRedirect',entityId:sourceId}});
+   await db.participantMergeRedirect.deleteMany({where:{sourceId}});
+   await db.record.deleteMany({where:{id:ids.record}});
+   await db.registration.deleteMany({where:{id:ids.reg}});
+   await db.car.deleteMany({where:{id:ids.car}});
+   await db.stage.deleteMany({where:{id:ids.stage}});
+   await db.class.deleteMany({where:{id:ids.class}});
+   await db.direction.deleteMany({where:{id:ids.direction}});
+   await db.season.deleteMany({where:{id:ids.season}});
+  }
+ });
+ it('rolls back moved cars if a later database write throws, without creating an alias or audit',async()=>{
+  const admin=await createUser('ADMIN'),sourceId=await createHistory(),targetId=await createHistory(),carId=randomUUID();
+  await db.car.create({data:{id:carId,participantId:sourceId,brand:'Synthetic',model:'Rollback',registrationNumber:'B123CC72'}});
+  const failingDb:any={
+   $transaction:(callback:any,options:any)=>db.$transaction(async(tx:any)=>{
+    const decorated=new Proxy(tx,{get(target,key){
+     if(key==='record')return {...target.record,updateMany:async()=>{throw new Error('synthetic-mid-transaction-DB-failure')}};
+     return Reflect.get(target,key);
+    }});
+    return callback(decorated);
+   },options),
+  };
+  try{
+   await expect(new ProfileMergeService(failingDb).merge(sourceId,targetId,admin.id,sourceId.slice(0,8)))
+    .rejects.toThrow('synthetic-mid-transaction-DB-failure');
+   expect((await db.car.findUniqueOrThrow({where:{id:carId}})).participantId).toBe(sourceId);
+   expect(await db.participantMergeRedirect.count({where:{sourceId}})).toBe(0);
+   expect(await db.auditLog.count({where:{entity:'ParticipantMergeRedirect',entityId:sourceId}})).toBe(0);
+  }finally{await db.car.delete({where:{id:carId}});}
  });
 });
