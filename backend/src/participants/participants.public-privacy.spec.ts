@@ -96,6 +96,32 @@ describe('ParticipantsService public profile privacy', () => {
     expect(profile.registrations[2].car).toMatchObject({ id: 'public-car', brand: 'Lada', model: 'Vesta' });
   });
 
+
+  it('resolves a merged historic public URL without disclosing the archived source', async () => {
+    prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
+    prisma.participant.findUnique.mockResolvedValue({
+      id:'canonical',isPublic:true,firstName:'Иван',lastName:'Иванов',
+      mergeAsSource:null,cars:[],registrations:[],
+    });
+    try {
+      const profile=await service.findOne('historical');
+      expect(profile.id).toBe('canonical');
+      expect(profile).not.toHaveProperty('mergeAsSource');
+      const query=prisma.participant.findUnique.mock.calls.at(-1)[0];
+      expect(query.where.id).toBe('canonical');
+      expect(query.select).not.toHaveProperty('phone');
+    } finally { delete prisma.participantMergeRedirect; }
+  });
+  it('old permanent USD QR resolves to canonical profile even though source identity is hidden',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
+    prisma.participant.findUnique.mockImplementation(async({where}:any)=>
+      where.usdIdToken?{id:'historical',isPublic:false,mergeAsSource:{targetId:'canonical'}}:
+      {id:'canonical',isPublic:true,mergeAsSource:null,cars:[],registrations:[]});
+    try {
+      expect((await service.findPublicByUsdId('a'.repeat(48))).id).toBe('canonical');
+    } finally { delete prisma.participantMergeRedirect; }
+  });
+
   it('omits the plate and contact details from the public car response', async () => {
     prisma.car.findUnique.mockResolvedValue({
       id: 'public-car',
