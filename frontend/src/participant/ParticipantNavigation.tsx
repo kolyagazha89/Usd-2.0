@@ -22,5 +22,5 @@ export default function ParticipantNavigation({tab,go}:{tab:ParticipantTab;go:(p
  const mobile=useSyncExternalStore(subscribeToViewport,isMobileViewport,()=>false);
  const items=[['overview','Обзор',LayoutDashboard],['profile','Профиль',UserRound],['cars','Мои автомобили',CarFront],['registrations','Регистрации',ClipboardCheck],['team','Команда',Users]] as const;
  const navigation=<nav className="participant-tabs participant-tabs-with-team" aria-label="Разделы личного кабинета">{items.map(([key,label,Icon])=><InternalLink key={key} href={'/participant?tab='+key} go={go} className={tab===key?'active':''} aria-current={tab===key?'page':undefined}><Icon size={19} aria-hidden="true"/><span>{label}</span></InternalLink>)}</nav>;
- return mobile?createPortal(navigation,document.body):navigation;
+ return mobile?createPortal(<div className="participant-dock-viewport">{navigation}</div>,document.body):navigation;
 }

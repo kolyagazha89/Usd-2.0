@@ -92,7 +92,7 @@ export default function CookieNotice() {
            same viewport edge rather than a drifting 100dvh top offset. */
         @media (max-width: 760px) {
           body:has(> .u-mobile-dock) .cookie-notice,
-          body:has(> .participant-tabs) .cookie-notice {
+          body:has(> .participant-dock-viewport) .cookie-notice {
             top: auto !important;
             bottom: calc(var(--usd-dock-height, 79px) + 12px) !important;
             max-height: calc(100dvh - var(--usd-dock-height, 79px) - 24px);

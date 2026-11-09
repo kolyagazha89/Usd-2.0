@@ -24,7 +24,7 @@ test('iPhone public dock is fixed to the bottom without JS scroll offsets',async
  assert.match(premium,/body:has\(\.usd-live\):has\(> \.u-mobile-dock\) \{ --usd-dock-height:calc\(66px/,'body must expose the dock height to the cookie notice');
  const notice=await source('../src/CookieNotice.tsx');
  assert.match(notice,/body:has\(> \.u-mobile-dock\) \.cookie-notice/);
- assert.match(notice,/body:has\(> \.participant-tabs\) \.cookie-notice/);
+ assert.match(notice,/body:has\(> \.participant-dock-viewport\) \.cookie-notice/);
  assert.match(notice,/bottom: calc\(var\(--usd-dock-height, 79px\) \+ 12px\) !important/);
 });
 test('admin forms use flat search input and accessible mobile selector layout',async()=>{

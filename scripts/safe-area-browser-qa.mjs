@@ -31,7 +31,7 @@ try{
     (member?'<header class="participant-portal-header usd-member-header"><button class="public-brand"><span class="participant-brand-logo">USD</span><span>Личный кабинет</span></button><div class="participant-header-actions">'+controls+'</div></header>':
      '<header class="u-header p-public-header"><div class="u-container u-header-inner"><button class="u-brand">USD</button><nav class="public-nav"><button class="public-nav-toggle">Меню</button></nav></div></header>')+
     '<main id="public-content" class="'+(member?'participant-portal-main':'u-container p-inner-page')+'" style="min-height:2400px"><h1>Проверка шапки</h1></main></div>'+
-    '<nav class="'+(member?'participant-tabs participant-tabs-with-team':'u-mobile-dock')+'" aria-label="Навигация"><a href="#">Обзор</a><a href="#">Профиль</a><a href="#">Автомобили</a><a href="#">Регистрации</a><a href="#">Команда</a></nav><div class="usd-scroll-progress" style="transform:scaleX(1)"></div>');
+    (member?'<div class="participant-dock-viewport">':'')+'<nav class="'+(member?'participant-tabs participant-tabs-with-team':'u-mobile-dock')+'" aria-label="Навигация"><a href="#">Обзор</a><a href="#">Профиль</a><a href="#">Автомобили</a><a href="#">Регистрации</a><a href="#">Команда</a></nav>'+(member?'</div>':'')+'<div class="usd-scroll-progress" style="transform:scaleX(1)"></div>');
    await page.addStyleTag({content:css});
    await page.addScriptTag({content:observer.code});
    await page.evaluate(({header,member})=>window.HeaderSize.observeHeaderSize(document.querySelector(header),member?'--usd-member-header-size':'--usd-public-header-size'),{header,member});
@@ -42,7 +42,7 @@ try{
      await page.evaluate(()=>scrollTo(0,0));
      await page.waitForFunction(({header,shell})=>Math.abs(parseFloat(getComputedStyle(document.querySelector(shell)).paddingTop)-document.querySelector(header).getBoundingClientRect().height)<=1,{header,shell});
      const geometry=await page.evaluate(({header,shell})=>{
-      const h=document.querySelector(header),p=document.querySelector('.usd-scroll-progress'),dock=document.querySelector('body>nav');
+      const h=document.querySelector(header),p=document.querySelector('.usd-scroll-progress'),dock=document.querySelector('.participant-tabs,.u-mobile-dock');
       return {header:h.getBoundingClientRect().toJSON(),content:document.querySelector('main').getBoundingClientRect().toJSON(),
        controls:[...h.querySelectorAll('button')].filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect().toJSON()),
        progress:p.getBoundingClientRect().toJSON(),progressLayer:Number(getComputedStyle(p).zIndex),headerLayer:Number(getComputedStyle(h).zIndex),
