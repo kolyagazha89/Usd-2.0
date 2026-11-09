@@ -169,6 +169,14 @@ export class MediaService {
     }
     if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
     await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
+    // Even ADMIN must upload the new profile's avatar to its canonical ID.
+    // A source alias is read-only; completion performs a separate locked recheck.
+    if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const alias = await this.prisma.participantMergeRedirect.findUnique({
+        where: { sourceId: targetId }, select: { sourceId: true },
+      });
+      if (alias) throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+    }
     const token = crypto.randomBytes(32).toString('hex');
     const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
     const key = `usd/${prefix}/${targetId}/${crypto.randomUUID()}`;
