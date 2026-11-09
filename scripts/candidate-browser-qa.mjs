@@ -1018,6 +1018,48 @@ try{
       }
       row.adminCarPalette='light configuration editor backgrounds and readable labels';
      }
+     if(role==='ADMIN'&&route==='/admin/cars/new'){
+      const fields=await page.evaluate(()=>{
+       const names=['.usd-car-editor-journey','.usd-car-editor-step','.usd-car-editor-panel'];
+       return names.map(selector=>{
+        const node=document.querySelector(selector);
+        if(!node)return {selector,missing:true};
+        const style=getComputedStyle(node);
+        return {selector,bg:style.backgroundColor,color:style.color};
+       });
+      });
+      for(const field of fields){
+       assert.equal(field.missing,undefined,'admin vehicle editor field exists: '+field.selector);
+       assert.match(field.bg,/rgb\(2(?:[3-5]\d|[4-5]\d),/,'admin car editor must have light panels: '+JSON.stringify(field));
+      }
+      row.adminCarCreationPalette='light wizard panels and steps';
+     }
+     if(width<=760&&role==='PARTICIPANT'&&route==='/participant'){
+      let delay=true;
+      await page.route('**/participants/me',async request=>{
+       if(delay){delay=false;await new Promise(resolve=>setTimeout(resolve,650))}
+       await request.fallback();
+      });
+      await page.reload({waitUntil:'domcontentloaded'});
+      const dock=page.locator('body > .participant-tabs');
+      await dock.waitFor({state:'visible'});
+      const observe=()=>dock.evaluate(element=>{
+       const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
+       return {parent:element.parentElement===document.body,position:style.position,
+        bottom:rect.bottom,viewport:innerHeight,height:rect.height,background:style.backgroundColor};
+      });
+      const initial=await observe();
+      await page.waitForTimeout(800);
+      const loaded=await observe();
+      for(const [label,value] of [['loading',initial],['loaded',loaded]]){
+       assert.equal(value.parent,true,'member dock must be portaled before paint: '+label);
+       assert.equal(value.position,'fixed','member dock must be fixed: '+label);
+       assert.ok(Math.abs(value.bottom-value.viewport)<=1,'member dock does not touch viewport bottom: '+label+' '+JSON.stringify(value));
+      }
+      assert.ok(Math.abs(initial.height-loaded.height)<=1,'bottom navigation jumps during data load: '+JSON.stringify({initial,loaded}));
+      await page.unroute('**/participants/me');
+      row.memberDockStability='mobile dock is bottom-fixed and unchanged during delayed first data load';
+     }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
