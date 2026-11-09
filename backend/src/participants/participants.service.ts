@@ -75,6 +75,7 @@ export class ParticipantsService {
     const actor = await this.requireAdmin(request);
 
     return this.prisma.participant.findMany({
+      where: { mergeAsSource: { is: null } },
       orderBy: [
         { lastName: 'asc' },
         { firstName: 'asc' },
@@ -193,6 +194,7 @@ export class ParticipantsService {
     return this.prisma.participant.findMany({
       where: {
         isPublic: true,
+        mergeAsSource: { is: null },
       },
       orderBy: [
         {
@@ -257,6 +259,7 @@ export class ParticipantsService {
           city: true,
           photoUrl: true,
           isPublic: true,
+          mergeAsSource: { select: { targetId: true } },
 
           cars: {
             where: {
@@ -474,14 +477,19 @@ export class ParticipantsService {
         },
       });
 
+    // Old public profile URLs must resolve to the surviving identity.
+    if (participant?.mergeAsSource?.targetId && participant.mergeAsSource.targetId !== id) {
+      return this.findOne(participant.mergeAsSource.targetId);
+    }
     if (!participant || !participant.isPublic) {
       throw new NotFoundException(
         'Участник не найден',
       );
     }
 
+    const { mergeAsSource: _mergedAlias, ...publicParticipant } = participant;
     return {
-      ...participant,
+      ...publicParticipant,
       registrations: participant.registrations?.map((registration) => ({
         ...registration,
         car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
@@ -493,9 +501,11 @@ export class ParticipantsService {
   async findPublicByUsdId(token: string) {
     if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('Профиль не найден');
     const participant = await this.prisma.participant.findUnique({
-      where: { usdIdToken: token }, select: { id: true, isPublic: true },
+      where: { usdIdToken: token }, select: { id: true, isPublic: true, mergeAsSource: { select: { targetId: true } } },
     });
-    if (!participant?.isPublic) throw new NotFoundException('Профиль не найден');
+    if (!participant) throw new NotFoundException('Профиль не найден');
+    if (participant.mergeAsSource?.targetId) return this.findOne(participant.mergeAsSource.targetId);
+    if (!participant.isPublic) throw new NotFoundException('Профиль не найден');
     return this.findOne(participant.id);
   }
 
@@ -2059,11 +2069,11 @@ export class ParticipantsService {
   ) {
     const participant =
       await this.prisma.participant.findUnique({
-        where: {
-          id,
-        },
+        where: { id },
+        include: { mergeAsSource: { select: { targetId: true } } },
       });
 
+    if (participant?.mergeAsSource) throw new ConflictException('Профиль объединён. Используйте основной профиль.');
     if (!participant) {
       throw new NotFoundException(
         'Участник не найден',
