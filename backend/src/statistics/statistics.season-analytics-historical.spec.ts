@@ -28,10 +28,12 @@ describe('season analytics never rewrite historic affiliations',()=>{
    select:expect.objectContaining({teamNameAtInspection:true}),
   }));
   expect(data.registrations).toEqual({total:4,withTeam:2,withoutTeam:2,withoutTeamPercent:50});
-  expect(data.teams).toEqual([
+  // Equal-count groups use locale sorting; correctness is independent of order.
+  expect(data.teams).toHaveLength(2);
+  expect(data.teams).toEqual(expect.arrayContaining([
    {name:'Original Team',registrations:2,participants:2,percent:50},
    {name:'Без команды',registrations:2,participants:2,percent:50},
-  ]);
+  ]));
  });
  it('retains no team attribution when old registrations have no captured affiliation',async()=>{
   db.registration.findMany.mockResolvedValue([
