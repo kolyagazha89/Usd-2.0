@@ -43,7 +43,9 @@ export function summarizeSeason(input:SeasonSummaryInput):SeasonReport {
  const perStage=new Map(input.stages.map(stage=>[stage.id,{id:stage.id,name:stage.name,stageNumber:stage.stageNumber,registered:new Set<string>(),actual:new Set<string>()}]));
  for(const row of enrolled){
   perStage.get(row.stageId)?.registered.add(row.participantId);
-  const team=row.teamNameAtInspection||row.participant.team;
+  // Historical attribution must come from the frozen inspection snapshot.
+  // Current participant.team does not prove membership at the old stage.
+  const team=row.teamNameAtInspection;
   if(team?.trim())teams.add(team.trim().toLocaleLowerCase('ru'));
   for(const choice of row.classes){
    const direction=choice.class.direction;
