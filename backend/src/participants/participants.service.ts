@@ -173,6 +173,7 @@ export class ParticipantsService {
   async findAllForOperations(request: AuthenticatedRequest) {
     await this.requireAdminOrCustomRole(request);
     return this.prisma.participant.findMany({
+      where: { mergeAsSource: { is: null } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: {
         id: true,
