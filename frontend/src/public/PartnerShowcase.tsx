@@ -3,14 +3,15 @@ import {safeHref} from './premium-model';
 import {visiblePartners,type PublicPartner} from './partner-model';
 import PartnerImage from './PartnerImage';
 
-type Tier = 'GENERAL' | 'PREMIUM' | 'REGULAR';
+type Tier = 'GENERAL' | 'PREMIUM' | 'REGULAR' | 'STUDIO';
 type Partner=PublicPartner;
 const TIERS:{id:Tier;heading:string;badge:string}[]=[
  {id:'GENERAL',heading:'Генеральный партнёр',badge:'ГЕНЕРАЛЬНЫЙ ПАРТНЁР'},
  {id:'PREMIUM',heading:'Премиальные партнёры',badge:'ПРЕМИАЛЬНЫЙ ПАРТНЁР'},
  {id:'REGULAR',heading:'Партнёры чемпионата',badge:'ПАРТНЁР USD'},
+ {id:'STUDIO',heading:'Студии-партнёры',badge:'СТУДИЯ-ПАРТНЁР'},
 ];
-const normalizeTier=(tier:unknown):Tier=>tier==='GENERAL'||tier==='PREMIUM'?tier:'REGULAR';
+const normalizeTier=(tier:unknown):Tier=>tier==='GENERAL'||tier==='PREMIUM'||tier==='STUDIO'?tier:'REGULAR';
 const displayName=(partner:Partner)=>String(partner.name??'').trim()||'Партнёр USD';
 
 function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:boolean}){
