@@ -38,6 +38,10 @@ export class AdminProfileLinksController {
  diagnose(@Query('userId') userId:string,@Query('participantId') participantId:string){
   return this.service.diagnoseSelfLink(userId,participantId);
  }
+ @Get('duplicates/readiness')
+ readiness(@Query('sourceId') sourceId:string,@Query('targetId') targetId:string){
+  return this.merges.readiness(sourceId,targetId);
+ }
  @Post('duplicates/merge')
  mergeDuplicates(@Req() request:AuthenticatedRequest,@Body() body:MergeProfilesDto){
   return this.merges.merge(body.sourceId,body.targetId,request.user.sub,body.confirmation);
