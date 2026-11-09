@@ -359,7 +359,7 @@ export class MediaService {
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     // Even draft previews stay behind authenticated /media/private-file.
     if (targetId.startsWith('team-post-')) throw new ForbiddenException('Фото черновиков доступны только через защищённую выдачу');
-    await this.ensureTargetAccess(userId, role, targetType, targetId, false, false, true);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets, false, true);
 
     const upload = await this.prisma.mediaUpload.findFirst({
       where: {
@@ -473,6 +473,12 @@ export class MediaService {
       return true;
     });
     const referenced = await this.getReferencedSiteAssetIds();
+    const archivedParticipantIds=latest.filter(item=>item.targetType===MediaTargetType.PARTICIPANT_PHOTO).map(item=>item.targetId);
+    const archived=archivedParticipantIds.length
+      ?await this.prisma.participantMergeRedirect.findMany({
+        where:{sourceId:{in:archivedParticipantIds}},select:{sourceId:true},
+      }):[];
+    const archivedIds=new Set(archived.map(row=>row.sourceId));
     return {
       success: true,
       items: latest.map((upload) => ({
@@ -485,7 +491,8 @@ export class MediaService {
         isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
           ? referenced.has(upload.targetId)
           : true,
-        canDelete: upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId),
+        canDelete: !archivedIds.has(upload.targetId)&&
+          (upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId)),
       })),
     };
   }
@@ -502,6 +509,12 @@ export class MediaService {
     });
     if (!uploads.length) throw new NotFoundException('Медиафайл не найден');
 
+    if(targetType===MediaTargetType.PARTICIPANT_PHOTO){
+      const alias=await this.prisma.participantMergeRedirect.findUnique({
+        where:{sourceId:normalizedTargetId},select:{sourceId:true},
+      });
+      if(alias)throw new ConflictException('Фото принадлежит объединённому историческому профилю и должно сохраняться для старых ссылок.');
+    }
     if (targetType === MediaTargetType.SITE_ASSET) {
       const referenced = await this.getReferencedSiteAssetIds();
       if (referenced.has(normalizedTargetId)) {
