@@ -983,6 +983,8 @@ try{
       const editorButton=page.getByRole('button',{name:'Редактировать',exact:true});
       await editorButton.click();
       await page.locator('.configuration-editor-page .catalog-request-inline').waitFor({state:'visible'});
+      await page.getByRole('button',{name:/Не нашли комплектующее\? Запросить добавление/}).click();
+      await page.locator('.configuration-editor-page .catalog-request-form').waitFor({state:'visible'});
       const samples=await page.evaluate(()=>{
        const selectors=[
         '.configuration-editor-page .catalog-request-inline',
