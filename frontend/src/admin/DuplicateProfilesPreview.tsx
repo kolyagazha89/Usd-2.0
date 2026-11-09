@@ -1,4 +1,4 @@
-import {useEffect,useId,useMemo,useState} from 'react';
+import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {apiGet,apiPost,listData} from '../api';
 
 type Candidate={id:string;lastName:string;firstName:string;middleName?:string|null;birthDate?:string|null};
@@ -12,7 +12,7 @@ type Preview={
  constraints:string[];
 };
 const fullName=(item:Candidate)=>[item.lastName,item.firstName,item.middleName].filter(Boolean).join(' ');
-function PersonPicker({label,candidates,value,onChange}:{label:string;candidates:Candidate[];value:string;onChange:(id:string)=>void}){
+function PersonPicker({label,candidates,value,onChange,disabled=false}:{label:string;candidates:Candidate[];value:string;onChange:(id:string)=>void;disabled?:boolean}){
  const [query,setQuery]=useState(''),[active,setActive]=useState(false);
  const listId=useId();
  const selected=candidates.find(candidate=>candidate.id===value);
@@ -24,14 +24,14 @@ function PersonPicker({label,candidates,value,onChange}:{label:string;candidates
  return <div className="duplicate-choose-profile" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setActive(false)}}>
   <label>{label}
    <input type="search" value={active?query:selected?fullName(selected)+' · '+selected.id.slice(0,8):query}
-    placeholder="Введите фамилию или имя…" autoComplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls={listId} aria-expanded={active&&matches.length>0}
+    placeholder="Введите фамилию или имя…" autoComplete="off" disabled={disabled} role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls={listId} aria-expanded={active&&matches.length>0}
     onFocus={()=>{setActive(true);if(selected)setQuery('')}}
     onChange={e=>{setActive(true);setQuery(e.target.value);onChange('')}}/>
   </label>
   <ul id={listId} role="listbox" aria-label={label} hidden={!active||matches.length===0}>{matches.map(candidate=><li key={candidate.id} role="option" aria-selected={candidate.id===value}><button type="button"
    onPointerDown={event=>event.preventDefault()}
    onMouseDown={event=>event.preventDefault()}
-   onClick={()=>{onChange(candidate.id);setQuery(fullName(candidate)+' · '+candidate.id.slice(0,8));setActive(false)}}>
+   disabled={disabled} onClick={()=>{if(disabled)return;onChange(candidate.id);setQuery(fullName(candidate)+' · '+candidate.id.slice(0,8));setActive(false)}}>
    {fullName(candidate)} <small>· {candidate.id.slice(0,8)} · {candidate.birthDate?new Date(candidate.birthDate).toLocaleDateString('ru-RU'):''}</small>
    </button></li>)}</ul>
   {selected&&<small className="duplicate-selection">Выбран профиль {selected.id}</small>}
@@ -44,18 +44,37 @@ export default function DuplicateProfilesPreview(){
  const [confirmation,setConfirmation]=useState(''),[merging,setMerging]=useState(false);
  const [mergeDone,setMergeDone]=useState(''),[mergeBlockers,setMergeBlockers]=useState<Conflict[]>([]);
  const [readiness,setReadiness]=useState<Readiness|null>(null);
- useEffect(()=>{let active=true;apiGet<any>('/admin/participants').then(data=>{if(active)setPeople(listData(data))}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Не удалось загрузить участников')});return()=>{active=false}},[]);
- const inspect=async()=>{if(!sourceId||!targetId||sourceId===targetId)return;setBusy(true);setError('');setPreview(null);setReadiness(null);setConfirmation('');setMergeDone('');setMergeBlockers([]);
+ const inspectionRequest=useRef(0);
+ useEffect(()=>{let active=true;apiGet<any>('/admin/participants').then(data=>{if(active)setPeople(listData(data))}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Не удалось загрузить участников')});return()=>{active=false;inspectionRequest.current++}},[]);
+ const changePair=(side:'source'|'target',id:string)=>{
+  if(merging)return;
+  inspectionRequest.current++;
+  if(side==='source')setSourceId(id);else setTargetId(id);
+  setPreview(null);setReadiness(null);setConfirmation('');setMergeDone('');setMergeBlockers([]);
+  setBusy(false);setError('');
+ };
+ const inspect=async()=>{
+  if(!sourceId||!targetId||sourceId===targetId||merging)return;
+  const request=++inspectionRequest.current;
+  const selectedSource=sourceId,selectedTarget=targetId;
+  setBusy(true);setError('');setPreview(null);setReadiness(null);setConfirmation('');setMergeDone('');setMergeBlockers([]);
   try{
-   const query='?sourceId='+encodeURIComponent(sourceId)+'&targetId='+encodeURIComponent(targetId);
+   const query='?sourceId='+encodeURIComponent(selectedSource)+'&targetId='+encodeURIComponent(selectedTarget);
    const [data,safety]=await Promise.all([
     apiGet<Preview>('/admin/profile-links/duplicates/preview'+query),
     apiGet<Readiness>('/admin/profile-links/duplicates/readiness'+query),
    ]);
-   setPreview(data);setReadiness(safety);
-  }
-  catch(e){setError(e instanceof Error?e.message:'Не удалось проверить дубли')}finally{setBusy(false)}
+   // Malformed or outdated server responses must not unlock an irreversible action.
+   if(!data?.source||!data?.target||data.source.id!==selectedSource||data.target.id!==selectedTarget||
+      !data.counts?.source||!data.counts?.target||!Array.isArray(data.conflicts)||!Array.isArray(data.constraints)||
+      !safety||typeof safety.canMergeNow!=='boolean'||!Array.isArray(safety.conflicts))
+    throw new Error('Некорректный ответ проверки. Объединение недоступно.');
+   if(request===inspectionRequest.current){setPreview(data);setReadiness(safety)}
+  }catch(e){
+   if(request===inspectionRequest.current)setError(e instanceof Error?e.message:'Не удалось проверить дубли');
+  }finally{if(request===inspectionRequest.current)setBusy(false)}
  };
+
  const merge=async()=>{
   if(!preview||!readiness?.canMergeNow||merging||preview.conflicts.length||confirmation!==preview.source.id.slice(0,8))return;
   setMerging(true);setError('');setMergeBlockers([]);setMergeDone('');
@@ -80,10 +99,10 @@ export default function DuplicateProfilesPreview(){
   <h2 id="duplicate-preview-title">Проверка дублирующихся профилей</h2>
   <p>Безопасный предпросмотр различий перед объединением. Выберите, какой профиль потенциально переносится и какой должен остаться.</p>
   <div className="duplicate-choose-row">
-   <PersonPicker label="Перенести из профиля" candidates={people} value={sourceId} onChange={id=>{setSourceId(id);setPreview(null);setReadiness(null);setConfirmation('');setMergeDone('')}}/>
-   <PersonPicker label="Оставить основным" candidates={people} value={targetId} onChange={id=>{setTargetId(id);setPreview(null);setReadiness(null);setConfirmation('');setMergeDone('')}}/>
+   <PersonPicker label="Перенести из профиля" candidates={people} value={sourceId} disabled={merging} onChange={id=>changePair('source',id)}/>
+   <PersonPicker label="Оставить основным" candidates={people} value={targetId} disabled={merging} onChange={id=>changePair('target',id)}/>
   </div>
-  <button type="button" className="secondary-button" disabled={busy||!sourceId||!targetId||sourceId===targetId} onClick={()=>void inspect()}>{busy?'Проверяем…':'Проверить конфликты и историю'}</button>
+  <button type="button" className="secondary-button" disabled={busy||merging||!sourceId||!targetId||sourceId===targetId} onClick={()=>void inspect()}>{busy?'Проверяем…':'Проверить конфликты и историю'}</button>
   {error&&<p role="alert" className="form-error">{error}</p>}
   {mergeBlockers.length>0&&<ul className="duplicate-preview-warning" role="alert">{mergeBlockers.map(row=><li key={row.code}>{row.description}</li>)}</ul>}
   {mergeDone&&<p role="status" className="duplicate-selection">{mergeDone}</p>}
