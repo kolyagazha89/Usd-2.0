@@ -407,6 +407,29 @@ describe('SiteSettingsService partner CMS safety', () => {
     });
   });
 
+  it('preserves the existing partner tiers and publishes studios only as an explicit fourth category', async () => {
+    const { service } = makeService();
+    const original = (['GENERAL', 'PREMIUM', 'REGULAR'] as const).map((tier, index) => ({
+      id: 'old-' + index, name: 'Existing ' + tier, tier,
+      isActive: true, isPublished: true, sortOrder: index,
+    }));
+    const studio = { id: 'studio-1', name: 'Ателье автозвука', tier: 'STUDIO',
+      website: 'https://studio.example.org', isActive: true, isPublished: false,
+      sortOrder: 5, photoUrl: '/media/studio.webp',
+      imageLayout: {mode:'LOGO',scale:100,positionX:50,positionY:50} };
+    await service.update({ partners: [...original, studio] } as any, 'admin-1');
+    expect((await service.getAdmin()).settings.partners.map(p => p.tier))
+      .toEqual(['GENERAL', 'PREMIUM', 'REGULAR', 'STUDIO']);
+    expect((await service.getPublic()).settings.partners.map(p => p.tier))
+      .toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
+    await service.update({ partners: [...original, {...studio,isPublished:true}] } as any, 'admin-1');
+    expect((await service.getPublic()).settings.partners.find(p => p.id === 'studio-1'))
+      .toMatchObject({tier:'STUDIO',photoUrl:'/media/studio.webp',sortOrder:5});
+    await service.update({ partners: [...original, {...studio,isPublished:true,isActive:false}] } as any, 'admin-1');
+    expect((await service.getPublic()).settings.partners.map(p => p.tier))
+      .toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
+  });
+
   it('rejects invalid tiers, unsafe links, duplicates and accidental publication before persistence', async () => {
     const { service, prisma } = makeService();
     const valid = { id: 'partner-1', name: 'USD Partner', tier: 'GENERAL', isActive: true,
