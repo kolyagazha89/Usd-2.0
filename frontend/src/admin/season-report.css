@@ -2,7 +2,7 @@
 .season-report-filters label{display:flex;flex-direction:column;gap:8px;font-weight:650;min-width:min(100%,240px)}
 .season-report-filters select{min-height:42px;background:#fff;border:1px solid #d3dbe3;border-radius:10px;padding:9px 12px;color:#192435}
 .season-report-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;color:#243245}
-.season-report-intro small{color:#66788c}
+.season-report-intro small{color:#4e6075}
 .season-report-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,188px),1fr));gap:12px}
 .season-report-metric{background:#fff;border:1px solid #dae1e8;border-radius:15px;padding:18px;display:flex;flex-direction:column;gap:9px;min-height:112px}
 .season-report-metric span{color:#5c6c7e;font-size:13px}
