@@ -107,32 +107,36 @@ export class InspectionsService {
    * Registration QR lookup remains unchanged.
    */
   async resolveUsdId(token: string, stageId?: string) {
-    if (!/^[a-f0-9]{48}$/.test(token)) {
-      throw new NotFoundException('USD ID не найден');
-    }
-    const participant = await this.prisma.participant.findUnique({
-      where: { usdIdToken: token },
-      select: {
-        id: true, firstName: true, lastName: true, middleName: true,
-        registrations: {
-          where: {
-            status: 'ACTIVE',
-            stage: { isDeleted: false },
-            ...(stageId ? { stageId } : {}),
-          },
-          orderBy: { registeredAt: 'desc' },
-          take: 30,
-          select: {
-            id: true, stageId: true, participantNumber: true,
-            inspection: { select: { status: true } },
-            stageInspection: { select: { status: true } },
-            stage: { select: { id: true, name: true, date: true } },
-            car: { select: { brand: true, model: true, registrationNumber: true } },
-          },
+    if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('USD ID не найден');
+    const select={
+      id: true, firstName: true, lastName: true, middleName: true,
+      mergeAsSource: { select: { targetId: true } },
+      registrations: {
+        where: {
+          status: 'ACTIVE' as const,
+          stage: { isDeleted: false },
+          ...(stageId ? { stageId } : {}),
+        },
+        orderBy: { registeredAt: 'desc' as const },
+        take: 30,
+        select: {
+          id: true, stageId: true, participantNumber: true,
+          inspection: { select: { status: true } },
+          stageInspection: { select: { status: true } },
+          stage: { select: { id: true, name: true, date: true } },
+          car: { select: { brand: true, model: true, registrationNumber: true } },
         },
       },
+    } as const;
+    const original=await this.prisma.participant.findUnique({
+      where:{usdIdToken:token},select,
     });
-    if (!participant) throw new NotFoundException('USD ID не найден или перевыпущен');
+    if (!original) throw new NotFoundException('USD ID не найден или перевыпущен');
+    const resolved=original.mergeAsSource?.targetId
+      ?await this.prisma.participant.findUnique({where:{id:original.mergeAsSource.targetId},select})
+      :original;
+    if(!resolved)throw new NotFoundException('Профиль USD ID не найден');
+    const {mergeAsSource:_alias,...participant}=resolved;
     return participant;
   }
 

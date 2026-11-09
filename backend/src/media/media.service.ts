@@ -117,7 +117,7 @@ export class MediaService {
     return url.toString();
   }
 
-  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false, allowReviewPreview = false) {
+  private async ensureTargetAccess(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false, allowReviewPreview = false, allowMergedAliasForRead = false) {
     // Team photos share the SITE_ASSET storage infrastructure, but never its
     // broad CMS permission model. Each photo slot belongs to one real team post.
     if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')) {
@@ -141,7 +141,21 @@ export class MediaService {
     if (role === 'ADMIN') return;
     if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       const p = await this.prisma.participant.findFirst({ where: { id: targetId, user: { id: userId } }, select: { id: true } });
-      if (!p) throw new ForbiddenException('Нет доступа к профилю');
+      if (!p) {
+        // Read-only legacy media references may still point to the old ID.
+        // Upload/complete stays forbidden for that ID after merging.
+        const alias = allowMergedAliasForRead
+          ? await this.prisma.participantMergeRedirect.findUnique({
+              where:{sourceId:targetId},select:{targetId:true},
+            })
+          : null;
+        const owner = alias
+          ? await this.prisma.participant.findFirst({
+              where:{id:alias.targetId,user:{id:userId}},select:{id:true},
+            })
+          : null;
+        if (!owner) throw new ForbiddenException('Нет доступа к профилю');
+      }
       return;
     }
     const car = await this.prisma.car.findFirst({ where: { id: targetId, participant: { user: { id: userId } } }, select: { id: true } });
@@ -155,6 +169,14 @@ export class MediaService {
     }
     if (!isAllowedType(contentType.toLowerCase(), targetType)) throw new BadRequestException('Разрешены JPG, PNG, WebP и DOCX для регламентов сайта');
     await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets);
+    // Even ADMIN must upload the new profile's avatar to its canonical ID.
+    // A source alias is read-only; completion performs a separate locked recheck.
+    if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const alias = await this.prisma.participantMergeRedirect.findUnique({
+        where: { sourceId: targetId }, select: { sourceId: true },
+      });
+      if (alias) throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+    }
     const token = crypto.randomBytes(32).toString('hex');
     const prefix = targetType === MediaTargetType.PARTICIPANT_PHOTO ? 'participants' : targetType === MediaTargetType.CAR_PHOTO ? 'cars' : 'site';
     const key = `usd/${prefix}/${targetId}/${crypto.randomUUID()}`;
@@ -296,7 +318,7 @@ export class MediaService {
       throw new ForbiddenException('Нет доступа к закрытым файлам сайта');
     // Read-only preview remains available during moderation. Upload/complete
     // always requires a DRAFT, so reviewed photos cannot be swapped.
-    await this.ensureTargetAccess(userId, role, targetType, targetId, false, true);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, false, true, true);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { targetType, targetId, completedAt: { not: null } },
       orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
@@ -315,7 +337,14 @@ export class MediaService {
         where: { id: targetId, isPublic: true },
         select: { id: true },
       });
-      if (!participant) throw new ForbiddenException('Публичное фото участника недоступно');
+      if (!participant) {
+        // The original photo upload remains attached to the historical ID.
+        // Only publish it while the canonical profile is public.
+        const alias=await this.prisma.participantMergeRedirect.findUnique({
+          where:{sourceId:targetId},select:{target:{select:{isPublic:true}}},
+        });
+        if(!alias?.target.isPublic)throw new ForbiddenException('Публичное фото участника недоступно');
+      }
     } else if (targetType === MediaTargetType.CAR_PHOTO) {
       const car = await this.prisma.car.findFirst({
         where: { id: targetId, isPublic: true, participant: { isPublic: true } },
@@ -338,7 +367,7 @@ export class MediaService {
   async getSignedViewUrl(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
     // Even draft previews stay behind authenticated /media/private-file.
     if (targetId.startsWith('team-post-')) throw new ForbiddenException('Фото черновиков доступны только через защищённую выдачу');
-    await this.ensureTargetAccess(userId, role, targetType, targetId);
+    await this.ensureTargetAccess(userId, role, targetType, targetId, canManageSiteAssets, false, true);
 
     const upload = await this.prisma.mediaUpload.findFirst({
       where: {
@@ -452,6 +481,12 @@ export class MediaService {
       return true;
     });
     const referenced = await this.getReferencedSiteAssetIds();
+    const archivedParticipantIds=latest.filter(item=>item.targetType===MediaTargetType.PARTICIPANT_PHOTO).map(item=>item.targetId);
+    const archived=archivedParticipantIds.length
+      ?await this.prisma.participantMergeRedirect.findMany({
+        where:{sourceId:{in:archivedParticipantIds}},select:{sourceId:true},
+      }):[];
+    const archivedIds=new Set(archived.map(row=>row.sourceId));
     return {
       success: true,
       items: latest.map((upload) => ({
@@ -464,7 +499,8 @@ export class MediaService {
         isReferenced: upload.targetType === MediaTargetType.SITE_ASSET
           ? referenced.has(upload.targetId)
           : true,
-        canDelete: upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId),
+        canDelete: !archivedIds.has(upload.targetId)&&
+          (upload.targetType !== MediaTargetType.SITE_ASSET || !referenced.has(upload.targetId)),
       })),
     };
   }
@@ -492,6 +528,12 @@ export class MediaService {
     // the asset is already detached from the public site/profile and can be retried safely.
     await this.prisma.$transaction(async (tx) => {
       if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+        // Lock the alias with the same lock family used by the merge.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+normalizedTargetId}))`;
+        const alias=await tx.participantMergeRedirect.findUnique({
+          where:{sourceId:normalizedTargetId},select:{sourceId:true},
+        });
+        if(alias)throw new ConflictException('Историческое фото используется объединённым профилем; удаление запрещено.');
         await tx.participant.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
       } else if (targetType === MediaTargetType.CAR_PHOTO) {
         await tx.car.updateMany({ where: { id: normalizedTargetId }, data: { photoUrl: null } });
@@ -572,6 +614,14 @@ export class MediaService {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
+    // Fail before publishing to S3; retain the transactional, lock-protected
+    // recheck below for a merge that races with upload verification.
+    if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const alias = await this.prisma.participantMergeRedirect.findUnique({
+        where: { sourceId: upload.targetId }, select: { sourceId: true },
+      });
+      if (alias) throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+    }
     const object = await this.headObject(upload.objectKey);
     if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
@@ -600,6 +650,14 @@ export class MediaService {
     const url = this.objectUrl(finalKey);
     try {
       await this.prisma.$transaction(async (tx) => {
+      if(upload.targetType===MediaTargetType.PARTICIPANT_PHOTO){
+        // A staging PUT can complete after merging unless it locks and rechecks.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+upload.targetId}))`;
+        const alias=await tx.participantMergeRedirect.findUnique({
+          where:{sourceId:upload.targetId},select:{sourceId:true},
+        });
+        if(alias)throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+      }
       // CAS: two /media/complete calls can both read the original staging
       // token before either transaction commits. Exactly one may publish;
       // a losing transaction must not overwrite the winning final objectKey

@@ -61,6 +61,17 @@ describe('permanent USD ID security and stage resolution', () => {
   expect(query.select.registrations.where).toEqual({ status: 'ACTIVE', stage: { isDeleted: false }, stageId: 'stage-1' });
  });
 
+ it('resolves archived permanent QR to the canonical participant and their stage registrations',async()=>{
+  prisma.participant.findUnique
+   .mockResolvedValueOnce({id:'archived',mergeAsSource:{targetId:'canonical'},registrations:[]})
+   .mockResolvedValueOnce({id:'canonical',mergeAsSource:null,registrations:[{id:'existing-reg'}]});
+  const found=await new InspectionsService(prisma).resolveUsdId('a'.repeat(48),'stage-1');
+  expect(found.id).toBe('canonical');
+  expect(found.registrations).toEqual([{id:'existing-reg'}]);
+  expect(found).not.toHaveProperty('mergeAsSource');
+  expect(prisma.participant.findUnique.mock.calls[1][0].where).toEqual({id:'canonical'});
+ });
+
  it('does not reveal a private profile from a valid USD ID token', async () => {
   prisma.participant.findUnique.mockResolvedValue({ id: 'p1', isPublic: false });
   await expect(new ParticipantsService(prisma).findPublicByUsdId('e'.repeat(48))).rejects.toBeInstanceOf(NotFoundException);

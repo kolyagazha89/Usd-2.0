@@ -18,9 +18,11 @@ describe('MediaService media library', () => {
       siteSettings: { findUnique: jest.fn().mockResolvedValue({}) },
       teamPost: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null), findUnique: jest.fn().mockResolvedValue(null) },
       participant: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      participantMergeRedirect:{findUnique:jest.fn().mockResolvedValue(null),findMany:jest.fn().mockResolvedValue([])},
       car: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
       $transaction: jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(prisma)),
+      $executeRaw:jest.fn(async()=>0),
     };
     service = new MediaService(prisma);
     (service as any).presignedUrl = jest.fn(() => 'https://storage.example/signed');
@@ -52,6 +54,116 @@ describe('MediaService media library', () => {
     await expect(service.getPublicMediaFile(MediaTargetType.SITE_ASSET, targetId))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('keeps original public participant photo working when a merged profile was hidden',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{isPublic:true}}))};
+    prisma.participant.findFirst=jest.fn(async()=>null);
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'original-avatar-key',contentType:'image/png'});
+    global.fetch=jest.fn(async()=>new Response(Buffer.from([137,80,78,71]),{
+      status:200,headers:{'content-type':'image/png'},
+    })) as typeof fetch;
+    const photo=await service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO,'old-profile');
+    expect(photo.contentType).toBe('image/png');
+    expect(prisma.mediaUpload.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:{targetType:MediaTargetType.PARTICIPANT_PHOTO,targetId:'old-profile',completedAt:{not:null}},
+    }));
+    expect(prisma.participantMergeRedirect.findUnique).toHaveBeenCalledWith({
+      where:{sourceId:'old-profile'},select:{target:{select:{isPublic:true}}},
+    });
+  });
+
+  it('never exposes an alias photo if the canonical profile is private',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{isPublic:false}}))};
+    prisma.participant.findFirst=jest.fn(async()=>null);
+    await expect(service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO,'old-profile'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('lets the canonical owner read (but not upload to) an old archived avatar reference',async()=>{
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({targetId:'current-profile'}))};
+    prisma.participant.findFirst=jest.fn(async({where}:any)=>
+      where.id==='current-profile'&&where.user?.id==='current-user'?{id:'current-profile'}:null);
+    prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'original-avatar-key',contentType:'image/png'});
+    global.fetch=jest.fn(async()=>new Response(Buffer.from([137,80,78,71]),{
+      status:200,headers:{'content-type':'image/png'},
+    })) as typeof fetch;
+    const photo=await service.getPrivateMediaFile('current-user','PARTICIPANT',MediaTargetType.PARTICIPANT_PHOTO,'old-profile');
+    expect(photo.contentType).toBe('image/png');
+    await expect(service.prepare('current-user','PARTICIPANT',MediaTargetType.PARTICIPANT_PHOTO,'old-profile','image/png'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('never allows deletion of merged-source avatar media needed by historic links',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({targetId:'canonical'});
+    prisma.mediaUpload.findMany.mockResolvedValue([{id:'historic-photo',objectKey:'historic-object',contentType:'image/png'}]);
+    await expect(service.deleteMediaAsset('admin','ADMIN',MediaTargetType.PARTICIPANT_PHOTO,'old-profile'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.deleteMany).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('marks merged-source media as not deletable in the ADMIN library',async()=>{
+    prisma.participantMergeRedirect.findMany.mockResolvedValue([{sourceId:'old-profile'}]);
+    prisma.mediaUpload.findMany.mockResolvedValue([{
+      id:'historic',targetType:MediaTargetType.PARTICIPANT_PHOTO,targetId:'old-profile',
+      contentType:'image/jpeg',completedAt:new Date(),createdAt:new Date(),objectKey:'object',
+    }]);
+    const result=await service.listMediaLibrary('ADMIN');
+    expect(result.items[0]).toMatchObject({isReferenced:true,canDelete:false});
+  });
+
+  it('rejects preparing a new avatar upload for a merged source even for ADMIN',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({sourceId:'old-profile'});
+    prisma.mediaUpload.create=jest.fn();
+    await expect(service.prepare('admin','ADMIN',MediaTargetType.PARTICIPANT_PHOTO,'old-profile','image/png'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.create).not.toHaveBeenCalled();
+  });
+
+  it('rechecks aliases under the shared lock after S3 publication, not only before',async()=>{
+    prisma.participantMergeRedirect.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({sourceId:'old-profile'});
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'upload',userId:'admin',targetType:MediaTargetType.PARTICIPANT_PHOTO,
+      targetId:'old-profile',contentType:'image/png',objectKey:'staged-photo',
+      expiresAt:new Date(Date.now()+60_000),completedAt:null,
+    });
+    prisma.mediaUpload.updateMany=jest.fn();
+    prisma.participant.update=jest.fn();
+    (service as any).headObject=jest.fn(async()=>({size:8,contentType:'image/png'}));
+    (service as any).readStagedUpload=jest.fn(async()=>Buffer.from([137,80,78,71,13,10,26,10]));
+    (service as any).validateImageSignature=jest.fn();
+    (service as any).objectUrl=jest.fn(()=>'/media/private-file/PARTICIPANT_PHOTO/old-profile');
+    (service as any).deleteStoredObjects=jest.fn(async()=>{});
+    await expect(service.complete('admin','ADMIN','synthetic-upload-token'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.participantMergeRedirect.findUnique).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.mediaUpload.updateMany).not.toHaveBeenCalled();
+    expect(prisma.participant.update).not.toHaveBeenCalled();
+    expect((service as any).deleteStoredObjects).toHaveBeenCalledWith([expect.stringMatching(/-published-/)]);
+  });
+
+  it('rejects an in-flight photo completion if the target became a merged alias before the commit',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({sourceId:'old-profile'});
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'upload',userId:'admin',targetType:MediaTargetType.PARTICIPANT_PHOTO,
+      targetId:'old-profile',contentType:'image/png',objectKey:'staged-photo',
+      expiresAt:new Date(Date.now()+60_000),completedAt:null,
+    });
+    prisma.mediaUpload.updateMany=jest.fn().mockResolvedValue({count:1});
+    prisma.participant.update=jest.fn();
+    (service as any).headObject=jest.fn(async()=>({size:8,contentType:'image/png'}));
+    (service as any).readStagedUpload=jest.fn(async()=>Buffer.from([137,80,78,71,13,10,26,10]));
+    (service as any).validateImageSignature=jest.fn();
+    (service as any).deleteStoredObjects=jest.fn(async()=>{});
+    await expect(service.complete('admin','ADMIN','synthetic-upload-token'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.updateMany).not.toHaveBeenCalled();
+    expect(prisma.participant.update).not.toHaveBeenCalled();
   });
 
   it('never serves an unauthorized private participant photo', async () => {

@@ -94,6 +94,10 @@ function dataFor(url,role){
   constraints:['Предпросмотр не изменяет данные.'],
  };
 
+ if(p==='/admin/profile-links/duplicates/readiness')return {
+  state:'READ_ONLY',canMergeNow:false,
+  conflicts:[{code:'STAGE_OVERLAP',description:'Заявки обоих профилей относятся к одному этапу.'}],
+ };
  if(p==='/participants'||p==='/participants/lookup'||p==='/participants/public')return [{...participant,cars:[car]}];
  if(p==='/participants/p1')return {...participant,photoUrl:'https://private-object-store.invalid/usd/participants/p1/opaque-photo',cars:[car],registrations:[registration]};
  if(p==='/cars/car1')return {...car,photoUrl:'https://private-object-store.invalid/usd/cars/car1/opaque-photo'};
@@ -779,9 +783,10 @@ try{
       await page.getByRole('button',{name:'Проверить конфликты и историю'}).click();
       // API-backed preview is asynchronous, even with a local route fixture.
       // isVisible() is an instantaneous snapshot and races the React render.
-      await page.locator('.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+      await page.locator('.duplicate-preview-result > p.duplicate-preview-warning').waitFor({state:'visible',timeout:6000});
+       await page.locator('.duplicate-preview-result > [role="alert"]').waitFor({state:'visible',timeout:6000});
       await page.getByText(/Профили имеют активные заявки/).waitFor({state:'visible',timeout:6000});
-      assert.equal(await page.getByRole('button',{name:/Объединить профили/}).count(),0,'destructive merge is never available');
+      assert.equal(await page.getByRole('button',{name:/Подтвердить атомарное объединение/}).count(),0,'a blocked merge cannot expose confirmation');
       row.duplicatePreview='read-only conflicting historical profiles, no merge controls';
      }
      if(role==='ADMIN'){

@@ -21,7 +21,7 @@ const preview=(targetId:string)=>({state:'DRY_RUN_ONLY',canMerge:false,source:sn
 
 export async function runPreviewRace(mode:string){
  const requests:Array<{resolve:(value:unknown)=>void;reject:(error:Error)=>void;path:string}>=[];
- (globalThis as any).__previewGet=(path:string)=>path==='/admin/participants'?Promise.resolve(people):new Promise((resolve,reject)=>requests.push({resolve,reject,path}));
+ (globalThis as any).__previewGet=(path:string)=>path==='/admin/participants'?Promise.resolve(people):path.startsWith('/admin/profile-links/duplicates/readiness')?Promise.resolve({state:'READ_ONLY',canMergeNow:false,conflicts:[]}):new Promise((resolve,reject)=>requests.push({resolve,reject,path}));
  const root=createRoot(document.getElementById('root')!);let mounted=true;
  try{
   await act(async()=>root.render(<DuplicateProfilesPreview/>));

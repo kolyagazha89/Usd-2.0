@@ -21,6 +21,8 @@ export class ProfileLinksService {
    // Otherwise parallel requests against different historical profiles could
    // all observe fewer than three claims and bypass the daily protection.
    return await this.prisma.$transaction(async tx=>{
+    // Claim creation shares the participant lock with self-link and merges.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+participantId}))`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+userId}))`;
     const [user,participant,prior]=await Promise.all([
      tx.user.findUnique({where:{id:userId},select:{id:true,emailVerifiedAt:true,isActive:true,participantId:true}}),
