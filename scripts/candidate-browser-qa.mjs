@@ -522,6 +522,18 @@ try{
       const doc=page.locator('.season-report-document');
       await doc.waitFor({state:'visible'});
       assert.equal(await page.locator('.season-report-metric').count(),9,'season report retains all real KPI slots');
+      if(width<=390){
+       const card=doc.locator('.season-report-table-wrap table').first();
+       const mobileMetrics=await card.evaluate(table=>({
+        display:getComputedStyle(table).display,
+        firstCellLabel:table.querySelector('tbody td')?.getAttribute('data-label'),
+        fullWidth:table.getBoundingClientRect().width,
+        viewport:document.documentElement.clientWidth,
+       }));
+       assert.equal(mobileMetrics.display,'block','phone reports use stacked cards instead of scrolling tables');
+       assert.equal(mobileMetrics.firstCellLabel,'С заявками');
+       assert.ok(mobileMetrics.fullWidth<=mobileMetrics.viewport,'report card stays within iPhone viewport');
+      }
       const printButton=page.getByRole('button',{name:/Печать \/ PDF/});
       assert.equal(await printButton.isDisabled(),false,'print action only enabled after report is ready');
       await page.emulateMedia({media:'print'});
@@ -533,6 +545,8 @@ try{
       assert.equal(printed.sidebar,'none','ADMIN sidebar must disappear from PDF');
       assert.equal(printed.heading,'none','interactive heading must not print');
       assert.equal(printed.overflow,'visible','season tables must not clip in PDF');
+      assert.equal(await doc.locator('.season-report-table-wrap table').first().evaluate(el=>getComputedStyle(el).display),
+       'table','print stylesheet must restore real table layout after mobile card CSS');
       await page.emulateMedia({media:'screen'});
       row.seasonReport='read-only season snapshot, guarded action, A4 PDF print geometry';
      }
