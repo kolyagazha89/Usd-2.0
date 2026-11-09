@@ -21,3 +21,13 @@ export function visiblePartners(value:unknown):PublicPartner[]{
  ).slice().sort((a,b)=>order(a.sortOrder)-order(b.sortOrder)
   ||String(a.name??'').localeCompare(String(b.name??''),'ru'));
 }
+
+/** Word-safe teaser for long public partner descriptions; full CMS copy is never discarded. */
+export function partnerDescriptionPreview(value:unknown,limit=170):{text:string;truncated:boolean}{
+ const full=typeof value==='string'?value.trim():'';
+ if(full.length<=limit)return {text:full,truncated:false};
+ const before=full.slice(0,limit);
+ const space=before.lastIndexOf(' ');
+ const end=space>=Math.floor(limit*.65)?space:limit;
+ return {text:before.slice(0,end).trimEnd(),truncated:true};
+}
