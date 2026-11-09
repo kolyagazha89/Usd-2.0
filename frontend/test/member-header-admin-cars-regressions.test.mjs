@@ -4,20 +4,21 @@ import {readFile} from 'node:fs/promises';
 
 const source = path => readFile(new URL(path,import.meta.url),'utf8');
 
-test('iOS member header reserves the same fixed safe-area height before the first paint',async()=>{
+test('iOS member header pre-reserves safe-area height and can still grow for accessibility',async()=>{
  const [app,member,experience] = await Promise.all([
   source('../src/App.tsx'),
   source('../src/public/premium-member.css'),
   source('../src/participant/member-experience.css'),
  ]);
- assert.doesNotMatch(app,/headerRef=useHeaderSize\('--usd-member-header-size'\)/,
-  'measuring after mounting causes the first-load header jump');
- assert.match(member,/--usd-member-header-size:calc\(72px \+ env\(safe-area-inset-top,0px\)\)/,
-  'reserve the height before any data or image has loaded');
+ assert.match(app,/headerRef=useHeaderSize\('--usd-member-header-size'\)/,
+  'track dynamic growth for text zoom, without modifying the base height');
+ assert.match(member,/--usd-member-header-min-size:calc\(72px \+ env\(safe-area-inset-top,0px\)\)/,
+  'reserve the header minimum before any data or image has loaded');
  assert.match(member,/padding-top:var\(--usd-member-header-size,/);
- assert.match(experience,/height:var\(--usd-member-header-size,[^;]+\)!important/,
-  'rendered mobile header must use exactly its pre-reserved height');
- assert.match(experience,/min-height:0!important/);
+ assert.match(experience,/height:auto!important/,
+  'let the header grow beyond its default size when needed');
+ assert.match(experience,/min-height:var\(--usd-member-header-min-size,[^;]+\)!important/,
+  'the initial header height must match the reserved height');
 });
 
 test('admin car configuration uses the existing admin topbar, not a second dark member header',async()=>{
