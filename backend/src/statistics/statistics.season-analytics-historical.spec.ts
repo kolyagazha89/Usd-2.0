@@ -56,6 +56,7 @@ describe('season analytics never rewrite historic affiliations',()=>{
   const data=await service.getSeasonAnalytics(id);
   expect(data.teams).toHaveLength(2);
   expect(data.teams.map(team=>team.registrations)).toEqual([1,1]);
+  expect(data.teams.map(team=>team.key).sort()).toEqual(['id:team-one','id:team-two']);
  });
  it('retains no team attribution when old registrations have no captured affiliation',async()=>{
   db.registration.findMany.mockResolvedValue([
