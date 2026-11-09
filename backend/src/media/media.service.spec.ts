@@ -22,6 +22,7 @@ describe('MediaService media library', () => {
       car: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
       $transaction: jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(prisma)),
+      $executeRaw:jest.fn(async()=>0),
     };
     service = new MediaService(prisma);
     (service as any).presignedUrl = jest.fn(() => 'https://storage.example/signed');
@@ -111,6 +112,25 @@ describe('MediaService media library', () => {
     }]);
     const result=await service.listMediaLibrary('ADMIN');
     expect(result.items[0]).toMatchObject({isReferenced:true,canDelete:false});
+  });
+
+  it('rejects an in-flight photo completion if the target became a merged alias before the commit',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({sourceId:'old-profile'});
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'upload',userId:'admin',targetType:MediaTargetType.PARTICIPANT_PHOTO,
+      targetId:'old-profile',contentType:'image/png',objectKey:'staged-photo',
+      expiresAt:new Date(Date.now()+60_000),completedAt:null,
+    });
+    prisma.mediaUpload.updateMany=jest.fn().mockResolvedValue({count:1});
+    prisma.participant.update=jest.fn();
+    (service as any).headObject=jest.fn(async()=>({size:8,contentType:'image/png'}));
+    (service as any).readStagedUpload=jest.fn(async()=>Buffer.from([137,80,78,71,13,10,26,10]));
+    (service as any).validateImageSignature=jest.fn();
+    (service as any).deleteStoredObjects=jest.fn(async()=>{});
+    await expect(service.complete('admin','ADMIN','synthetic-upload-token'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.updateMany).not.toHaveBeenCalled();
+    expect(prisma.participant.update).not.toHaveBeenCalled();
   });
 
   it('never serves an unauthorized private participant photo', async () => {
