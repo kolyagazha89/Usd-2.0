@@ -1135,7 +1135,9 @@ export class StatisticsService {
         id: true,
         participantId: true,
         carId: true,
-        participant: { select: { id: true, firstName: true, lastName: true, middleName: true, team: true } },
+        // The past inspection, not today's participant.team, defines team history.
+        teamNameAtInspection: true,
+        participant: { select: { id: true, firstName: true, lastName: true, middleName: true } },
         configurationSnapshot: true,
       },
     });
@@ -1147,14 +1149,17 @@ export class StatisticsService {
       const emptyMarkers = new Set(['-', '—', 'нет', 'нет команды', 'без команды', 'n/a', 'na']);
       return emptyMarkers.has(normalized.toLowerCase()) ? null : normalized;
     };
-    const withTeam = registrations.filter((r) => Boolean(normalizeTeam(r.participant.team))).length;
-    const teamMap = new Map<string, { registrations: number; participants: Set<string> }>();
+    const withTeam = registrations.filter((r) => Boolean(normalizeTeam(r.teamNameAtInspection))).length;
+    const teamMap = new Map<string, { name: string; registrations: number; participants: Set<string> }>();
     for (const r of registrations) {
-      const team = normalizeTeam(r.participant.team) || 'Без команды';
-      const item = teamMap.get(team) ?? { registrations: 0, participants: new Set<string>() };
+      const captured = normalizeTeam(r.teamNameAtInspection);
+      const key = captured ? 'team:' + captured.toLocaleLowerCase('ru') : 'unattributed';
+      const item = teamMap.get(key) ?? {
+        name: captured ?? 'Без команды', registrations: 0, participants: new Set<string>(),
+      };
       item.registrations += 1;
       item.participants.add(r.participantId);
-      teamMap.set(team, item);
+      teamMap.set(key, item);
     }
 
     const isolationMap = new Map<string, number>();
@@ -1183,8 +1188,8 @@ export class StatisticsService {
     registrations.forEach((r) => readSnapshot(r.configurationSnapshot));
 
     const pct = (n: number) => total ? Number(((n / total) * 100).toFixed(1)) : 0;
-    const teams = [...teamMap.entries()]
-      .map(([name, value]) => ({ name, registrations: value.registrations, participants: value.participants.size, percent: pct(value.registrations) }))
+    const teams = [...teamMap.values()]
+      .map(value => ({ name:value.name, registrations: value.registrations, participants: value.participants.size, percent: pct(value.registrations) }))
       .sort((a, b) => b.registrations - a.registrations || a.name.localeCompare(b.name, 'ru'));
 
     return {
