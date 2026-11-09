@@ -1,5 +1,6 @@
 import './season-report.css';
 import {useEffect,useState} from 'react';
+import {Printer} from 'lucide-react';
 import {apiGet,listData} from '../api';
 
 type Totals={stages:number;registered:number;registrations:number;classEntries:number;actualParticipants:number;results:number;teams:number;podiums:number;records:number};
@@ -36,18 +37,19 @@ function SeasonReportPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   return()=>{alive=false};
  },[seasonId,baselineId]);
  const selectedYear=seasons.find(s=>s.id===seasonId)?.year;
- return <PageFrame title="Отчёт по сезону" subtitle="Участники, классы, направления и сравнение сезонов. Данные из USD без расчётной выручки.">
+ return <PageFrame className="usd-season-report-page" title="Отчёт по сезону" subtitle="Участники, классы, направления и сравнение сезонов. Данные из USD без расчётной выручки."
+  action={<button type="button" className="primary-button compact" disabled={!report||busy||loading} onClick={()=>window.print()}><Printer size={16} aria-hidden="true"/>Печать / PDF</button>}>
   <section className="season-report-filters">
    <label>Сезон<select value={seasonId} onChange={event=>setSeasonId(event.target.value)}><option value="">Выберите сезон</option>{seasons.map(s=><option value={s.id} key={s.id}>{s.year} · {s.name}</option>)}</select></label>
    <label>Сравнить с<select value={baselineId} onChange={event=>setBaselineId(event.target.value)}><option value="">Без сравнения</option>{seasons.filter(s=>s.id!==seasonId).map(s=><option value={s.id} key={s.id}>{s.year} · {s.name}</option>)}</select></label>
   </section>
-  {loading||busy?<LoadingPage/>:error?<ErrorPanel message={error}/>:!report?<p className="muted">Пока нет данных для выбранного сезона.</p>:<>
+  {loading||busy?<LoadingPage/>:error?<ErrorPanel message={error}/>:!report?<p className="muted">Пока нет данных для выбранного сезона.</p>:<article className="season-report-document" aria-label="Сводка сезона USD">
    <div className="season-report-intro"><strong>Сезон {selectedYear}</strong><small>Сформировано {new Date(report.generatedAt).toLocaleString('ru-RU')}</small></div>
    <div className="season-report-metrics">{(Object.keys(labels) as Array<keyof Totals>).map(key=><div className="season-report-metric" key={key}><span>{labels[key]}</span><strong>{report.totals[key].toLocaleString('ru-RU')}</strong>{comparison&&<small>К {comparison.baseline.season.year}: {formatChange(comparison.changes[key])}</small>}</div>)}</div>
    <section className="season-report-section"><h2>Этапы сезона</h2><div className="season-report-table-wrap"><table><thead><tr><th>Этап</th><th>Спортсмены с заявками</th><th>С результатами</th></tr></thead><tbody>{report.stages.map(stage=><tr key={stage.id}><th scope="row">{stage.stageNumber}. {stage.name}</th><td>{stage.registered}</td><td>{stage.actual}</td></tr>)}</tbody></table></div></section>
    <section className="season-report-section"><h2>Направления и классы</h2>{report.directions.length===0?<p>Нет зарегистрированных классов в сезоне.</p>:report.directions.map(direction=><div className="season-report-direction" key={direction.id}><h3>{direction.name}</h3><p>{direction.athletes} уникальных спортсменов · {direction.classEntries} заявок в классы · {direction.actualAthletes} с результатами</p><div className="season-report-table-wrap"><table><thead><tr><th>Класс</th><th>Спортсменов</th><th>Заявок</th><th>С результатами</th></tr></thead><tbody>{direction.classes.map(item=><tr key={item.id}><th scope="row">{item.name}</th><td>{item.athletes}</td><td>{item.classEntries}</td><td>{item.actualAthletes}</td></tr>)}</tbody></table></div></div>)}</section>
    <p className="season-report-notes">{report.notes.join(' ')}</p>
-  </>}
+  </article>}
  </PageFrame>;
 }
 export default SeasonReportPage;
