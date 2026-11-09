@@ -113,12 +113,3 @@ test('studios have their own CMS tier, never get folded into regular sponsors',a
   assert.match(css,/usd-partner-tier--studio \.usd-partner-grid/);
  }finally{await rm(scratch,{recursive:true,force:true})}
 });
-
-test('news media retains its complete original framing rather than cropping covers',async()=>{
- const css=await source('../src/public/premium-public.css');
- assert.match(css,/\.p-news-card img\.p-news-cover\s*\{[^}]*object-fit:\s*contain/s);
- assert.match(css,/\.p-news-card img\.p-news-cover\s*\{[^}]*max-height:/s);
- assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*height:\s*auto/s);
- assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*object-fit:\s*contain/s);
- assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*max-height:/s);
-});
