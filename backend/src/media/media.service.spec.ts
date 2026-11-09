@@ -18,6 +18,7 @@ describe('MediaService media library', () => {
       siteSettings: { findUnique: jest.fn().mockResolvedValue({}) },
       teamPost: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null), findUnique: jest.fn().mockResolvedValue(null) },
       participant: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      participantMergeRedirect:{findUnique:jest.fn().mockResolvedValue(null),findMany:jest.fn().mockResolvedValue([])},
       car: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
       $transaction: jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(prisma)),
@@ -91,6 +92,25 @@ describe('MediaService media library', () => {
     expect(photo.contentType).toBe('image/png');
     await expect(service.prepare('current-user','PARTICIPANT',MediaTargetType.PARTICIPANT_PHOTO,'old-profile','image/png'))
       .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('never allows deletion of merged-source avatar media needed by historic links',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({targetId:'canonical'});
+    prisma.mediaUpload.findMany.mockResolvedValue([{id:'historic-photo',objectKey:'historic-object',contentType:'image/png'}]);
+    await expect(service.deleteMediaAsset('admin','ADMIN',MediaTargetType.PARTICIPANT_PHOTO,'old-profile'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.deleteMany).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('marks merged-source media as not deletable in the ADMIN library',async()=>{
+    prisma.participantMergeRedirect.findMany.mockResolvedValue([{sourceId:'old-profile'}]);
+    prisma.mediaUpload.findMany.mockResolvedValue([{
+      id:'historic',targetType:MediaTargetType.PARTICIPANT_PHOTO,targetId:'old-profile',
+      contentType:'image/jpeg',completedAt:new Date(),createdAt:new Date(),objectKey:'object',
+    }]);
+    const result=await service.listMediaLibrary('ADMIN');
+    expect(result.items[0]).toMatchObject({isReferenced:true,canDelete:false});
   });
 
   it('never serves an unauthorized private participant photo', async () => {
