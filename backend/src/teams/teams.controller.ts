@@ -4,6 +4,7 @@ import {
   Get,
   Header,
   Param,
+  Query,
   Patch,
   Post,
   Req,
@@ -27,6 +28,16 @@ export class TeamsController {
   @Get('public')
   publicTeams() {
     return this.service.publicTeams();
+  }
+  @Public()
+  @Get('public/standings')
+  @Header('Cache-Control', 'public, max-age=30')
+  publicTeamStandings(
+    @Query('season') season?: string,
+    @Query('stageId') stageId?: string,
+    @Query('direction') direction?: string,
+  ) {
+    return this.service.publicTeamStandings({ season, stageId, direction });
   }
   @Public()
   @Get('public/:teamId/achievements')
