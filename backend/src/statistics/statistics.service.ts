@@ -1136,6 +1136,7 @@ export class StatisticsService {
         participantId: true,
         carId: true,
         // The past inspection, not today's participant.team, defines team history.
+        teamIdAtInspection: true,
         teamNameAtInspection: true,
         participant: { select: { id: true, firstName: true, lastName: true, middleName: true } },
         configurationSnapshot: true,
@@ -1149,13 +1150,16 @@ export class StatisticsService {
       const emptyMarkers = new Set(['-', '—', 'нет', 'нет команды', 'без команды', 'n/a', 'na']);
       return emptyMarkers.has(normalized.toLowerCase()) ? null : normalized;
     };
-    const withTeam = registrations.filter((r) => Boolean(normalizeTeam(r.teamNameAtInspection))).length;
+    const withTeam = registrations.filter((r) => Boolean(r.teamIdAtInspection?.trim() || normalizeTeam(r.teamNameAtInspection))).length;
     const teamMap = new Map<string, { name: string; registrations: number; participants: Set<string> }>();
     for (const r of registrations) {
       const captured = normalizeTeam(r.teamNameAtInspection);
-      const key = captured ? 'team:' + captured.toLocaleLowerCase('ru') : 'unattributed';
+      const capturedId = r.teamIdAtInspection?.trim();
+      const key = capturedId ? 'id:' + capturedId
+        : captured ? 'snapshot:' + captured.toLocaleLowerCase('ru') : 'unattributed';
       const item = teamMap.get(key) ?? {
-        name: captured ?? 'Без команды', registrations: 0, participants: new Set<string>(),
+        name: captured ?? (capturedId ? 'Команда (историческая)' : 'Без команды'),
+        registrations: 0, participants: new Set<string>(),
       };
       item.registrations += 1;
       item.participants.add(r.participantId);
