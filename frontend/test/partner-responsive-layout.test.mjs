@@ -25,7 +25,7 @@ test('partner summaries do not cut words or disclose the rest before expanding',
  assert.ok(partnerDescriptionPreview('ОченьДлинноеСлово'.repeat(30),160).text.length<=160);
 });
 
-test('only the homepage regular tier is a swipeable carousel; directory remains a grid',async()=>{
+test('homepage regular and studio tiers are independent swipeable carousels; directory remains a grid',async()=>{
  const scratch=await mkdtemp(path.join(root,'.partner-carousel-'));
  try{
   const outfile=path.join(scratch,'showcase.mjs');
@@ -38,14 +38,20 @@ test('only the homepage regular tier is a swipeable carousel; directory remains 
    {id:'premium',name:'Премиальный',tier:'PREMIUM',isPublished:true},
    {id:'regular-a',name:'Первый',tier:'REGULAR',isPublished:true,description:'Очень длинное описание '.repeat(20)},
    {id:'regular-b',name:'Второй',tier:'REGULAR',isPublished:true,description:'Очень длинное описание '.repeat(20)},
-   {id:'studio',name:'Студия',tier:'STUDIO',isPublished:true},
+   {id:'studio',name:'Студия',tier:'STUDIO',isPublished:true,description:'Студия по настройке аудиосистем. '.repeat(18)},
+   {id:'studio-b',name:'Студия Вторая',tier:'STUDIO',isPublished:true,description:'Установка и настройка автозвука. '.repeat(18)},
   ];
   const render=(variant)=>renderToString(React.createElement(MemoryRouter,null,
    React.createElement(PartnerShowcase,{partners,variant})));
   const home=render('home');
   const directory=render('full');
   assert.match(home,/usd-partner-tier--regular[\s\S]*?usd-partner-carousel/);
-  assert.equal((home.match(/class="usd-partner-carousel"/g)??[]).length,1);
+  assert.equal((home.match(/class="usd-partner-carousel"/g)??[]).length,2);
+  assert.match(home,/usd-partner-tier--studio[\s\S]*?usd-partner-carousel/);
+  assert.match(home,/aria-label="Студии-партнёры"/);
+  assert.match(home,/Студия Вторая/);
+  assert.match(home,/aria-label="Обычные партнёры чемпионата"/);
+  assert.equal((home.match(/aria-roledescription="карусель"/g)??[]).length,2);
   assert.match(home,/aria-roledescription="карусель"/);
   assert.match(home,/Первый/);
   assert.match(home,/Второй/);
@@ -57,6 +63,11 @@ test('only the homepage regular tier is a swipeable carousel; directory remains 
   assert.match(directory,/aria-controls=/);
   assert.doesNotMatch(directory,/Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание Очень длинное описание/);
   assert.match(directory,/usd-partner-tier--studio/);
+  const studioSection=directory.match(/<section class="usd-partner-tier usd-partner-tier--studio"[\s\S]*?<\/section>/)?.[0]??'';
+  assert.match(studioSection,/Студия Вторая/);
+  assert.match(studioSection,/Читать далее/);
+  assert.match(studioSection,/aria-expanded="false"/);
+  assert.doesNotMatch(studioSection,/usd-partner-carousel/);
  }finally{await rm(scratch,{recursive:true,force:true})}
 });
 
@@ -66,6 +77,8 @@ test('responsive rules keep all directory partner cards in one mobile column and
  assert.match(css,/\.usd-partner-showcase--full \.usd-partner-visual/);
  assert.match(css,/--usd-partner-slot-height/);
  assert.match(css,/\.usd-partner-carousel/);
+ assert.match(css,/usd-partner-tier--studio/);
+ assert.match(css,/\.usd-partner-showcase--home :is\(\.usd-partner-tier--regular,\.usd-partner-tier--studio\) \.usd-partner-carousel/);
  assert.match(css,/scroll-snap-type:x mandatory/);
  assert.match(css,/prefers-reduced-motion:reduce/);
 });
