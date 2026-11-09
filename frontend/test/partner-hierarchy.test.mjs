@@ -72,3 +72,53 @@ test('home, directory and showcase use the same published partner predicate',asy
  assert.deepEqual(visiblePartners(undefined),[]);
  assert.deepEqual(visiblePartners([null,false,'invalid',[]]),[]);
 });
+
+
+test('studios have their own CMS tier, never get folded into regular sponsors',async()=>{
+ const {build}=await import('esbuild');
+ const {mkdtemp,rm}=await import('node:fs/promises');
+ const path=(await import('node:path')).default;
+ const {fileURLToPath,pathToFileURL}=await import('node:url');
+ const React=(await import('react')).default;
+ const {renderToString}=await import('react-dom/server');
+ const {MemoryRouter}=await import('react-router-dom');
+ const base=path.dirname(fileURLToPath(import.meta.url));
+ const scratch=await mkdtemp(path.join(base,'.studio-partners-'));
+ try{
+  const outfile=path.join(scratch,'showcase.mjs');
+  await build({entryPoints:[path.join(base,'../src/public/PartnerShowcase.tsx')],bundle:true,platform:'node',
+   format:'esm',jsx:'automatic',packages:'external',outfile,loader:{'.css':'empty'}});
+  const {default:PartnerShowcase}=await import(pathToFileURL(outfile).href);
+  const partners=[
+   {id:'regular',name:'Обычный партнёр',tier:'REGULAR',isActive:true,isPublished:true},
+   {id:'studio',name:'Установочный центр',tier:'STUDIO',isActive:true,isPublished:true,sortOrder:2},
+   {id:'hidden-studio',name:'Непубличная студия',tier:'STUDIO',isActive:true,isPublished:false},
+   {id:'legacy',name:'Legacy',tier:'UNKNOWN',isActive:true,isPublished:true},
+  ];
+  const html=renderToString(React.createElement(MemoryRouter,null,React.createElement(PartnerShowcase,{partners,variant:'full'})));
+  assert.match(html,/usd-partner-tier--studio/);
+  assert.match(html,/Студии-партнёры/);
+  assert.match(html,/usd-partner-card--studio/);
+  assert.match(html,/Установочный центр/);
+  assert.doesNotMatch(html,/Непубличная студия/);
+  const regularSection=html.match(/<section class="usd-partner-tier usd-partner-tier--regular"[\s\S]*?<\/section>/)?.[0]??'';
+  assert.match(regularSection,/Обычный партнёр/);
+  assert.match(regularSection,/Legacy/,'unknown old categories still fallback to regular');
+  assert.doesNotMatch(regularSection,/Установочный центр/);
+  const [admin,backend,css]=await Promise.all([
+   source('../src/admin/PartnersPage.tsx'),source('../../backend/src/site-settings/site-settings.service.ts'),source('../src/dark-velocity-sitewide.css'),
+  ]);
+  assert.match(admin,/<option value="STUDIO">Студии-партнёры<\/option>/);
+  assert.match(backend,/['"]STUDIO['"]/);
+  assert.match(css,/usd-partner-tier--studio \.usd-partner-grid/);
+ }finally{await rm(scratch,{recursive:true,force:true})}
+});
+
+test('news media retains its complete original framing rather than cropping covers',async()=>{
+ const css=await source('../src/public/premium-public.css');
+ assert.match(css,/\.p-news-card img\.p-news-cover\s*\{[^}]*object-fit:\s*contain/s);
+ assert.match(css,/\.p-news-card img\.p-news-cover\s*\{[^}]*max-height:/s);
+ assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*height:\s*auto/s);
+ assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*object-fit:\s*contain/s);
+ assert.match(css,/\.p-article img\.p-article-cover\s*\{[^}]*max-height:/s);
+});
