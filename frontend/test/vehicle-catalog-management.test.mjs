@@ -134,3 +134,9 @@ test('car catalog admin uses model-aware shared search and clears stale selected
  assert.match(page,/filterVehicleCatalog\(catalog,\{search,selectedBrand,status\}\)/);
  assert.match(page,/setSearch\(e\.target\.value\);setSelectedBrand\(''\);setPage\(1\)/);
 });
+
+test('car catalog admin sends fresh catalog revision so concurrent editors cannot clobber each other',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const page=await readFile(new URL('../src/admin/VehicleCatalogPage.tsx',import.meta.url),'utf8');
+ assert.match(page,/updateSiteSettings\(\{catalogs:\{_revision:catalogs\._revision,vehicleDirectory:newValue\}\}\)/);
+});
