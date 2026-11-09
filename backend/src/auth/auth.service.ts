@@ -686,6 +686,7 @@ export class AuthService {
         city: true,
         isPublic: true,
         user: { select: { id: true } },
+        mergeAsSource: { select: { targetId: true } },
         cars: {
           where: { isActive: true, isPublic: true },
           orderBy: { createdAt: 'asc' },
@@ -715,6 +716,8 @@ export class AuthService {
      */
     const userEmail = normalizeHistoricalLinkEmail(actor.email);
     const candidatesWithOwnership = await Promise.all(candidates.map(async (candidate) => {
+      // A merged alias must never become claimable by a second account.
+      if(candidate.mergeAsSource) return null;
       const legacyEmail = await this.prisma.participantLegacyEmail.findUnique({
         where: { participantId: candidate.id },
         select: { email: true },
@@ -727,7 +730,7 @@ export class AuthService {
       // accounts even when the name search matches. Ownership proof may reveal
       // the private candidate only to its verified legacy-email owner.
       if (!candidate.isPublic && !canSelfLink) return null;
-      const { user: _user, isPublic: _isPublic, ...safeCandidate } = candidate;
+      const { user: _user, isPublic: _isPublic, mergeAsSource: _alias, ...safeCandidate } = candidate;
       return {
         ...safeCandidate,
         // City and team are personal metadata; only ownership-verified
@@ -778,7 +781,7 @@ export class AuthService {
 
       const participant = await tx.participant.findUnique({
         where: { id: participantId },
-        select: { id: true, user: { select: { id: true } } },
+        select: { id: true, user: { select: { id: true } }, mergeAsSource: { select: { targetId: true } } },
       });
       const legacyEmail = await tx.participantLegacyEmail.findUnique({
         where: { participantId },
@@ -795,6 +798,7 @@ export class AuthService {
       if (!participant) {
         throw new NotFoundException('Исторический профиль не найден');
       }
+      if (participant.mergeAsSource) throw new ConflictException('Профиль объединён с другим. Выберите основной профиль.');
       if (participant.user) {
         throw new ConflictException('Этот исторический профиль уже связан с другим аккаунтом');
       }
