@@ -34,8 +34,8 @@ test('member bottom navigation has a stable size and immediately matches mobile 
  assert.match(nav,/useSyncExternalStore/,
   'viewport match state must be consistent at first render, not reparented by useEffect');
  assert.match(theme,/--usd-member-dock-size:calc\(/);
- assert.match(theme,/body\s*>\s*\.participant-tabs\s*\{[\s\S]*?height:var\(--usd-member-dock-size\)/,
+ assert.match(theme,/body\s*>\s*\.participant-dock-viewport\s*>\s*\.participant-tabs\s*\{[\s\S]*?height:var\(--usd-member-dock-size\)/,
   'portaled navigation must reserve stable height while initial data/fonts load');
- assert.match(theme,/body\s*>\s*\.participant-tabs\s*\{[\s\S]*?transform:none!important/,
+ assert.match(theme,/body\s*>\s*\.participant-dock-viewport\s*>\s*\.participant-tabs\s*\{[\s\S]*?transform:none!important/,
   'a fixed dock must not also be transformed on iOS');
 });

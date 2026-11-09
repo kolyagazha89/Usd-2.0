@@ -2,7 +2,7 @@ import {useHeaderSize} from './navigation/useHeaderSize';
 import VerificationResend from './VerificationResend';
 import {PushPreferences} from './push/PushPreferences';
 import ParticipantAccountSecurity from './ParticipantAccountSecurity';
-import {lazy,Suspense,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
+import {lazy,Suspense,useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import { AsYouType, getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { QRCodeSVG } from 'qrcode.react';
 import PublicRulesPage from './PublicRulesPage';
@@ -485,10 +485,11 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
  if(routePath==='/participant/registration-success'){
   const registrationId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('registrationId')??''}catch{return''}})();
   const registration=registrations.find((item:any)=>item.id===registrationId);
-  if((loading||stagesState==='loading')&&!registration)return <div className="participant-portal usd-member"><main className="participant-portal-main"><LoadingPage/></main></div>;
-  if(!registration)return <div className="participant-portal usd-member"><ParticipantPortalHeader user={user} portalLogo={portalLogo} setPortalLogo={setPortalLogo} onGoSite={()=>go('/')} onGoAdmin={()=>go('/admin')} onLogout={onLogout}/><main className="participant-portal-main"><div className="participant-empty"><ClipboardCheck size={28}/><h2>Пропуск не найден</h2><p>Обновите страницу или откройте регистрацию в личном кабинете.</p><button type="button" className="primary-button" onClick={()=>go('/participant?tab=registrations')}>Мои регистрации</button></div></main></div>;
-  if(registration.status==='CANCELLED')return <div className="participant-portal usd-member"><main className="participant-portal-main"><div className="participant-empty"><h2>Регистрация отменена</h2><p>Пропуск для отменённой заявки недействителен.</p><button type="button" className="primary-button" onClick={()=>go('/participant?tab=registrations')}>Мои регистрации</button></div></main></div>;
-  return <div className="participant-portal usd-member"><ParticipantPortalHeader user={user} portalLogo={portalLogo} setPortalLogo={setPortalLogo} onGoSite={()=>go('/')} onGoAdmin={()=>go('/admin')} onLogout={onLogout}/><main className="participant-portal-main"><ParticipantNavigation tab="registrations" go={go}/><RegistrationSuccess registration={registration} go={go}/></main></div>;
+  const registrationShell=(content:ReactNode)=><div className="participant-portal usd-member"><ParticipantPortalHeader user={user} portalLogo={portalLogo} setPortalLogo={setPortalLogo} onGoSite={()=>go('/')} onGoAdmin={()=>go('/admin')} onLogout={onLogout}/><main className="participant-portal-main"><ParticipantNavigation tab="registrations" go={go}/>{content}</main></div>;
+  if((loading||stagesState==='loading')&&!registration)return registrationShell(<LoadingPage/>);
+  if(!registration)return registrationShell(<div className="participant-empty"><ClipboardCheck size={28}/><h2>Пропуск не найден</h2><p>Обновите страницу или откройте регистрацию в личном кабинете.</p><button type="button" className="primary-button" onClick={()=>go('/participant?tab=registrations')}>Мои регистрации</button></div>);
+  if(registration.status==='CANCELLED')return registrationShell(<div className="participant-empty"><h2>Регистрация отменена</h2><p>Пропуск для отменённой заявки недействителен.</p><button type="button" className="primary-button" onClick={()=>go('/participant?tab=registrations')}>Мои регистрации</button></div>);
+  return registrationShell(<RegistrationSuccess registration={registration} go={go}/>);
  }
  if(path.startsWith('/participant/registration')){
   const registrationId=(()=>{try{return new URLSearchParams(path.split('?')[1]??'').get('registrationId')??''}catch{return''}})();

@@ -363,7 +363,7 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
  }
  /* Navigation is portaled directly into body on mobile: fixed descendants
   * of the animated/scrolling cabinet can otherwise detach on Safari. */
- body > .participant-tabs{
+ body > .participant-dock-viewport > .participant-tabs{
   position:fixed!important;inset-inline:0!important;top:auto!important;bottom:0!important;
   /* Solid dock: no backdrop/transform compositing layer during data loading. */
   z-index:1001!important;box-sizing:border-box!important;
@@ -373,7 +373,7 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   border:0!important;border-top:1px solid #3d4b54!important;border-radius:0!important;
   background:#0b1017!important;box-shadow:0 -12px 34px #0008!important;
  }
- body > .participant-tabs a{
+ body > .participant-dock-viewport > .participant-tabs a{
   min-width:0;min-height:57px;padding:7px 2px!important;
   display:flex!important;flex-direction:column!important;align-items:center;justify-content:center;
   gap:4px!important;border:0!important;border-radius:4px!important;
@@ -381,19 +381,19 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   font-size:10px!important;line-height:1.2!important;text-align:center;
   text-decoration:none;white-space:normal!important;
  }
- body > .participant-tabs a[aria-current="page"]{
+ body > .participant-dock-viewport > .participant-tabs a[aria-current="page"]{
   color:#fff!important;background:#2a101a!important;
   box-shadow:inset 0 -2px 0 #f20c2e!important;
  }
- body > .participant-tabs a svg{width:19px;height:19px;flex:none}
- body > .participant-tabs a span{white-space:normal;text-align:center;line-height:1.2}
+ body > .participant-dock-viewport > .participant-tabs a svg{width:19px;height:19px;flex:none}
+ body > .participant-dock-viewport > .participant-tabs a span{white-space:normal;text-align:center;line-height:1.2}
 }
 
 /* Persistent iOS dock: the first loading frame and the loaded frame have
  * identical geometry, independent of logo/fonts and Safari toolbar collapse. */
 @media(max-width:760px){
  :root{--usd-member-dock-size:calc(80px + env(safe-area-inset-bottom,0px))}
- body > .participant-tabs{
+ body > .participant-dock-viewport > .participant-tabs{
   position:fixed!important;
   inset-inline:0!important;top:auto!important;bottom:0!important;
   box-sizing:border-box!important;
@@ -412,11 +412,31 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   background:#0b1017!important;
   z-index:1001!important;
  }
- body > .participant-tabs > a{
+ body > .participant-dock-viewport > .participant-tabs > a{
   box-sizing:border-box!important;
   height:100%!important;
   min-height:0!important;
   max-height:100%!important;
   justify-content:center!important;
+ }
+}
+
+/* A full-height, top-anchored PWA layer avoids WebKit's short-page fixed-bottom
+ * viewport. In installed iOS apps svh can exclude safe areas (WebKit 254868);
+ * vh includes them. No visualViewport/scroll offsets or content measurements.
+ * Ordinary browser navigation keeps native bottom:0 and dynamic toolbar behavior.
+ */
+.participant-dock-viewport{display:contents}
+@media(max-width:760px) and (display-mode:standalone){
+ html:has(.participant-portal.usd-member),
+ body:has(.participant-portal.usd-member),
+ #root:has(.participant-portal.usd-member),
+ body .participant-portal.usd-member{min-height:100vh!important}
+ body > .participant-dock-viewport{
+  display:block;position:fixed;top:0;left:0;right:0;bottom:auto;
+  height:100vh;pointer-events:none;z-index:1001;
+ }
+ body > .participant-dock-viewport > .participant-tabs{
+  position:absolute!important;pointer-events:auto;
  }
 }

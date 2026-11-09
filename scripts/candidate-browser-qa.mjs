@@ -1041,11 +1041,11 @@ try{
        await request.fallback();
       });
       await page.reload({waitUntil:'domcontentloaded'});
-      const dock=page.locator('body > .participant-tabs');
+      const dock=page.locator('body > .participant-dock-viewport > .participant-tabs');
       await dock.waitFor({state:'visible'});
       const observe=()=>dock.evaluate(element=>{
        const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
-       return {parent:element.parentElement===document.body,position:style.position,
+       return {parent:element.parentElement?.parentElement===document.body,position:style.position,
         bottom:rect.bottom,viewport:innerHeight,height:rect.height,background:style.backgroundColor};
       });
       const initial=await observe();
