@@ -454,7 +454,7 @@ export class SiteSettingsService{
       const currentRow=await tx.siteSettings.findUnique({where:{id:'default'}});
       const current=this.shape(currentRow);
       const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
-      if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
+      if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs || 'vehicleDirectory' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
       if(incomingCatalogs) delete incomingCatalogs._revision;
       if(incomingCatalogs) assertMergedCatalogAliasesPreserved(current.catalogs,incomingCatalogs);
       input={...input,catalogs:incomingCatalogs};
