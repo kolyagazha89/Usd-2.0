@@ -76,7 +76,7 @@ export default function DuplicateProfilesPreview(){
   {mergeBlockers.length>0&&<ul className="duplicate-preview-warning" role="alert">{mergeBlockers.map(row=><li key={row.code}>{row.description}</li>)}</ul>}
   {mergeDone&&<p role="status" className="duplicate-selection">{mergeDone}</p>}
   {preview&&<div className="duplicate-preview-result">
-   <p className="duplicate-preview-warning"><strong>Только предпросмотр.</strong> Никакие профили не объединены. Автоматическое слияние отключено до подтверждения всех требований безопасности и сохранения истории.</p>
+   <p className="duplicate-preview-warning"><strong>Только предпросмотр.</strong> Никакие профили не объединены. Выполнение возможно только после явного подтверждения ADMIN и повторной серверной проверки истории.</p>
    <div className="duplicate-preview-metrics"><div><h3>{preview.source.name} <small>источник</small></h3>{Object.entries(preview.counts.source).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div>
    <div><h3>{preview.target.name} <small>основной</small></h3>{Object.entries(preview.counts.target).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div></div>
    <h3>Конфликты: {preview.conflicts.length}</h3>
