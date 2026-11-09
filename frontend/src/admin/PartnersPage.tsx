@@ -33,7 +33,7 @@ function PartnerForm({value,saving,onSubmit}:{value:any;saving:boolean;onSubmit:
   <label>Фото / логотип<input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0]??null;const error=file?validateImageUpload(file):null;setFileError(error??'');setV({...v,file:error?null:file});if(error)e.currentTarget.value=''}}/></label>
   {fileError&&<p className="form-error" role="alert">{fileError}</p>}
   {(v.file||fileError)&&<button type="button" className="secondary-button compact" onClick={()=>{setV({...v,file:null});setFileError('');if(fileInput.current)fileInput.current.value=''}}>Отменить замену</button>}
-  <PartnerImageEditor value={v.imageLayout} photoUrl={v.photoUrl} name={String(v.name??'')} tier={v.tier} file={v.file} disabled={saving} onChange={imageLayout=>setV({...v,imageLayout})} onValidityChange={setImageValid}/>
+  <PartnerImageEditor value={v.imageLayout} photoUrl={v.photoUrl} name={String(v.name??'')} description={String(v.description??'')} tier={v.tier} file={v.file} disabled={saving} onChange={imageLayout=>setV({...v,imageLayout})} onValidityChange={setImageValid}/>
   <button className="primary-button" disabled={saving||!imageValid||!!fileError}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:'Сохранить партнёра'}</button>
  </form>
 }
