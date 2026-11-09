@@ -14,7 +14,7 @@ test('duplicate preview follows the selected pair across out-of-order responses'
   for(const [key,value] of Object.entries(values))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
   const outfile=path.join(scratch,'preview.mjs');
   await build({entryPoints:[path.join(base,'fixtures/duplicate-preview-race.tsx')],bundle:true,platform:'node',format:'esm',jsx:'automatic',outfile,packages:'external',
-   plugins:[{name:'mock-preview-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:'export const apiGet=(path)=>globalThis.__previewGet(path);export const listData=value=>Array.isArray(value)?value:[];'}))}}]});
+   plugins:[{name:'mock-preview-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:'export const apiGet=(path)=>globalThis.__previewGet(path);export const apiPost=()=>Promise.reject(new Error("Preview test must never merge profiles"));export const listData=value=>Array.isArray(value)?value:[];'}))}}]});
   const workflow=await import(pathToFileURL(outfile).href);
   for(const mode of ['stale-success','stale-error','discarded-selection','unmounted'])await t.test(mode,()=>workflow.runPreviewRace(mode));
  }finally{
