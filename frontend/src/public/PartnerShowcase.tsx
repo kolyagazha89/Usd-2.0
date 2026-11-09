@@ -3,7 +3,7 @@ import {Link} from './PremiumUI';
 import {safeHref} from './premium-model';
 import {partnerDescriptionPreview,visiblePartners,type PublicPartner} from './partner-model';
 import PartnerImage from './PartnerImage';
-import {shouldAutoAdvancePartnerCarousel} from './partner-carousel-motion';
+import {shouldAutoAdvancePartnerCarousel,isIntentionalHorizontalSwipe,isHorizontalWheelGesture} from './partner-carousel-motion';
 
 type Tier = 'GENERAL' | 'PREMIUM' | 'REGULAR' | 'STUDIO';
 type Partner=PublicPartner;
@@ -53,6 +53,7 @@ function HomePartnerCarousel({items,tier}:{items:Partner[];tier:'REGULAR'|'STUDI
  const manuallyPaused=useRef(false);
  const hovered=useRef(false);
  const focused=useRef(false);
+ const gesture=useRef<{id:number;x:number;y:number}|null>(null);
  const [current,setCurrent]=useState(0);
  useEffect(()=>{
   const el=rail.current;
@@ -86,7 +87,15 @@ function HomePartnerCarousel({items,tier}:{items:Partner[];tier:'REGULAR'|'STUDI
  return <div className="usd-partner-carousel-wrap">
   <div ref={rail} className="usd-partner-carousel" role="region" aria-roledescription="карусель"
    aria-label={tier==='STUDIO'?'Студии-партнёры':'Обычные партнёры чемпионата'} tabIndex={0} onScroll={onScroll}
-   onPointerDown={()=>{manuallyPaused.current=true}} onWheel={()=>{manuallyPaused.current=true}}
+   onPointerDown={event=>{gesture.current={id:event.pointerId,x:event.clientX,y:event.clientY}}}
+   onPointerUp={event=>{
+    const start=gesture.current;gesture.current=null;
+    if(start&&start.id===event.pointerId&&
+      isIntentionalHorizontalSwipe(start,{x:event.clientX,y:event.clientY}))
+      manuallyPaused.current=true;
+   }}
+   onPointerCancel={()=>{gesture.current=null}}
+   onWheel={event=>{if(isHorizontalWheelGesture(event.deltaX,event.deltaY))manuallyPaused.current=true}}
    onFocusCapture={()=>{focused.current=true}}
    onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))focused.current=false}}
    onMouseEnter={()=>{hovered.current=true}} onMouseLeave={()=>{hovered.current=false}}>
