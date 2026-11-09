@@ -122,7 +122,7 @@ try{
    await page.goto(base+'/admin/partners',{waitUntil:'networkidle'});
    await page.getByRole('button',{name:'Добавить партнёра'}).click();
    await page.getByLabel('Название',{exact:true}).fill('Новая студия');
-   await page.getByLabel('Уровень',{exact:true}).selectOption('STUDIO');
+   await page.locator('.resource-editor-page select').first().selectOption('STUDIO');
    await page.getByLabel('Опубликован на сайте').check();
    await page.getByRole('button',{name:'Сохранить партнёра',exact:true}).click();
    await page.locator('.data-table tr').filter({hasText:'Новая студия'}).waitFor();
