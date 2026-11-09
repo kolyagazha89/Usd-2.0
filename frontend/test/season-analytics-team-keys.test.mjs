@@ -8,6 +8,7 @@ test('both statistics routes use frozen team identity for list keys, not display
   assert.match(source,/analytics\.teams\.map\(/);
   assert.match(source,/key=\{x\.key\?\?x\.name\}/,
    'two teams with the same display name must not collide');
-  assert.doesNotMatch(source,/statistics-bar-row" key=\{x\.name\}/);
+  // Other charts (e.g. vibration) legitimately use their own unique names as keys.
+  assert.doesNotMatch(source,/analytics\.teams\.map\(\(x:any\)=><div className="statistics-bar-row" key=\{x\.name\}/);
  }
 });
