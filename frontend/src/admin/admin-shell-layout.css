@@ -538,6 +538,9 @@ body .app-shell .main .content .admin-partner-tier--premium{
 body .app-shell .main .content .admin-partner-tier--regular{
  color:#536276!important;background:#f0f3f8!important;border:1px solid #e0e6ee!important;
 }
+body .app-shell .main .content .admin-partner-tier--studio{
+ color:#23566a!important;background:#eaf6fa!important;border:1px solid #b4dce9!important;
+}
 body .app-shell .modal-backdrop .modal{
  min-width:0;max-width:min(960px,100%)!important;
  max-height:calc(100dvh - 24px)!important;
