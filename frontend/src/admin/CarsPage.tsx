@@ -17,6 +17,7 @@ function CarsPage({user,go,PageFrame,Empty,LoadingPage,EntityDetailModal,display
  const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize)),currentPage=Math.min(page,pageCount),start=(currentPage-1)*pageSize,visibleCars=filtered.slice(start,start+pageSize);
  useEffect(()=>setPage(value=>Math.min(value,pageCount)),[pageCount]);
  return <PageFrame title="Автомобили" subtitle="Автомобили участников и их конфигурации" action={canEdit&&!detail?<button className="primary-button compact" onClick={()=>go('/admin/cars/new')}><Plus size={15}/>Добавить автомобиль</button>:undefined}>
+  <section className="usd-admin-cars-list" aria-label="Список автомобилей участников">
   {detail ? <EntityDetailModal title="Автомобиль" item={detail} columns={[{key:'brand',label:'Марка'},{key:'model',label:'Модель'},{key:'registrationNumber',label:'Госномер'},{key:'registrationCountry',label:'Страна регистрации'},{key:'color',label:'Цвет'},{key:'isActive',label:'Статус'}]} inline onClose={()=>setDetail(null)} onEdit={canEdit?()=>go('/admin/cars/edit?carId='+encodeURIComponent(detail.id)):undefined} onDelete={canEdit&&detail.isActive?()=>{setDetail(null);setDeactivateTarget(detail.id)}:undefined} extra={<button className="secondary-button" onClick={()=>{setDetail(null);go('/admin/cars/configurations?carId='+encodeURIComponent(detail.id))}}>Открыть конфигурации</button>}/> : <>
   <div className="toolbar"><div className="search-box"><Search size={15}/><input value={search} aria-label="Поиск автомобилей" onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="Марка, модель, госномер, участник"/></div><button className="secondary-button compact" aria-label="Обновить список автомобилей" onClick={()=>void load()}><RefreshCw size={14}/></button><span className="row-count">{filtered.length} автомобилей</span></div>
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
@@ -25,6 +26,7 @@ function CarsPage({user,go,PageFrame,Empty,LoadingPage,EntityDetailModal,display
   
 
   </>}
+  </section>
  </PageFrame>
 }
 export function CarEditorPage({user,carId,go,PageFrame,LoadingPage,ErrorPanel,isValidPlate,clean}:{user:User;carId:string;go:(path:string)=>void;PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;isValidPlate:(country:string,plate:string)=>boolean;clean:(value:any)=>any}){
