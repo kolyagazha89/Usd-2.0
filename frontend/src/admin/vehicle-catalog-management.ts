@@ -38,6 +38,32 @@ export function resolveVehicleCatalog(seed:VehicleDirectory,overrides?:Partial<V
  return {brands:[...brands.values()].sort((a,b)=>a.name.localeCompare(b.name,'ru')),
   models:[...models.values()].sort((a,b)=>a.name.localeCompare(b.name,'ru'))};
 }
+export type VehicleCatalogStatus='ALL'|'ACTIVE'|'INACTIVE'|'ARCHIVED';
+
+/** Keep make and model filters consistent: a model hit must surface its make. */
+export function filterVehicleCatalog(
+ catalog:VehicleCatalog,
+ {search='',selectedBrand='',status='ALL'}:{
+  search?:string;selectedBrand?:string;status?:VehicleCatalogStatus;
+ }={},
+):VehicleCatalog {
+ const q=vehicleNameKey(search);
+ const nameByBrand=new Map(catalog.brands.map(b=>[b.id,b.name]));
+ const matchesStatus=(item:{isActive:boolean;isArchived?:boolean})=>
+  status==='ALL'||status==='ARCHIVED'&&Boolean(item.isArchived)
+  ||status==='ACTIVE'&&item.isActive&&!item.isArchived
+  ||status==='INACTIVE'&&!item.isActive&&!item.isArchived;
+ const modelNameHits=new Set(catalog.models.filter(model=>matchesStatus(model)
+  &&q&&vehicleNameKey(model.name).includes(q)).map(model=>model.brandId));
+ return {
+  brands:catalog.brands.filter(matchesStatus).filter(brand=>!q
+   ||vehicleNameKey(brand.name).includes(q)||modelNameHits.has(brand.id)),
+  models:catalog.models.filter(model=>(!selectedBrand||model.brandId===selectedBrand)
+   &&matchesStatus(model)).filter(model=>!q||vehicleNameKey(
+    (nameByBrand.get(model.brandId)??'')+' '+model.name).includes(q)),
+ };
+}
+
 export function availableVehicleDirectory(seed:VehicleDirectory,overrides?:Partial<VehicleOverrides>|null):VehicleDirectory {
  const {brands,models}=resolveVehicleCatalog(seed,overrides);
  const activeBrands=brands.filter(b=>b.isActive&&!b.isArchived);
