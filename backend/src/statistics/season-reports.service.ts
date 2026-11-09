@@ -17,7 +17,7 @@ export class SeasonReportsService {
    this.prisma.stage.findMany({where:{seasonId:{in:ids},isDeleted:false},select:{id:true,seasonId:true,stageNumber:true,name:true,status:true,date:true},orderBy:[{seasonId:'asc'},{stageNumber:'asc'}]}),
    this.prisma.registration.findMany({
     where:{stage:{seasonId:{in:ids},isDeleted:false}},
-    select:{id:true,stageId:true,participantId:true,status:true,participantNumber:true,teamNameAtInspection:true,
+    select:{id:true,stageId:true,participantId:true,status:true,participantNumber:true,teamIdAtInspection:true,teamNameAtInspection:true,
      participant:{select:{createdAt:true,city:true,team:true}},
      classes:{select:{id:true,classId:true,numberId:true,
       class:{select:{id:true,name:true,sortOrder:true,direction:{select:{id:true,name:true,sortOrder:true}}}},
