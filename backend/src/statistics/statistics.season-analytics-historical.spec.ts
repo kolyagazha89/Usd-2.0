@@ -35,6 +35,28 @@ describe('season analytics never rewrite historic affiliations',()=>{
    {name:'Без команды',registrations:2,participants:2,percent:50},
   ]));
  });
+ it('uses frozen team IDs when a renamed team spans multiple stages',async()=>{
+  db.registration.findMany.mockResolvedValue([
+   {...entry('a','Modern Team','Old Label'),teamIdAtInspection:'team-stable'},
+   {...entry('b','Modern Team','New Label'),teamIdAtInspection:'team-stable'},
+  ]);
+  const data=await service.getSeasonAnalytics(id);
+  expect(db.registration.findMany).toHaveBeenCalledWith(expect.objectContaining({
+   select:expect.objectContaining({teamIdAtInspection:true}),
+  }));
+  expect(data.registrations.withTeam).toBe(2);
+  expect(data.teams).toHaveLength(1);
+  expect(data.teams[0]).toMatchObject({registrations:2,participants:2,percent:100});
+ });
+ it('keeps two frozen teams distinct even when their display names are equal',async()=>{
+  db.registration.findMany.mockResolvedValue([
+   {...entry('a','Today','Sound Team'),teamIdAtInspection:'team-one'},
+   {...entry('b','Today','Sound Team'),teamIdAtInspection:'team-two'},
+  ]);
+  const data=await service.getSeasonAnalytics(id);
+  expect(data.teams).toHaveLength(2);
+  expect(data.teams.map(team=>team.registrations)).toEqual([1,1]);
+ });
  it('retains no team attribution when old registrations have no captured affiliation',async()=>{
   db.registration.findMany.mockResolvedValue([
    entry('a','Team Today',null),
