@@ -22,6 +22,18 @@
 .season-report-notes{margin:22px 0;color:#58677a;line-height:1.65;max-width:980px}
 @media(max-width:600px){.season-report-section{padding:14px}.season-report-metric{padding:14px;min-height:95px}.season-report-filters label{flex:1 1 100%}}
 
+/* Long season reports use readable stacked cards rather than sideways tables on phones. */
+@media(max-width:600px){
+ .season-report-table-wrap{overflow:visible;max-width:100%}
+ .season-report-table-wrap table{display:block;width:100%;min-width:0}
+ .season-report-table-wrap thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .season-report-table-wrap tbody{display:grid;gap:12px}
+ .season-report-table-wrap tbody tr{display:grid;gap:8px;padding:13px;border:1px solid #dfe5ec;border-radius:12px;background:#fbfcfe;min-width:0}
+ .season-report-table-wrap tbody th{display:block;padding:0 0 8px;border-bottom:1px solid #e3e7ee;color:#192435;overflow-wrap:anywhere}
+ .season-report-table-wrap tbody td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:0;border:0;min-width:0;text-align:right;overflow-wrap:anywhere}
+ .season-report-table-wrap tbody td::before{content:attr(data-label);flex:0 0 44%;text-align:left;color:#627287;font-size:12px;font-weight:700}
+}
+
 /* USD season report PDF print contract */
 @media print{
  @page{size:A4 portrait;margin:12mm}
@@ -47,4 +59,11 @@
  body:has(.usd-season-report-page) .season-report-table-wrap :is(th,td){padding:6px 5px!important}
  body:has(.usd-season-report-page) .season-report-intro{padding-bottom:9px;border-bottom:2px solid #ae1835}
  body:has(.usd-season-report-page) .season-report-notes{font-size:11px;line-height:1.5}
+ body:has(.usd-season-report-page) .season-report-table-wrap table{display:table!important}
+ body:has(.usd-season-report-page) .season-report-table-wrap thead{position:static!important;width:auto!important;height:auto!important;clip-path:none!important;overflow:visible!important;display:table-header-group!important}
+ body:has(.usd-season-report-page) .season-report-table-wrap tbody{display:table-row-group!important}
+ body:has(.usd-season-report-page) .season-report-table-wrap tbody tr{display:table-row!important;padding:0!important;border:0!important;background:#fff!important}
+ body:has(.usd-season-report-page) .season-report-table-wrap tbody :is(th,td){display:table-cell!important;text-align:left!important;border-bottom:1px solid #ddd!important}
+ body:has(.usd-season-report-page) .season-report-table-wrap td::before{display:none!important}
+
 }
