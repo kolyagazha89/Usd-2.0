@@ -606,6 +606,14 @@ export class MediaService {
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
+    // Fail before publishing to S3; retain the transactional, lock-protected
+    // recheck below for a merge that races with upload verification.
+    if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const alias = await this.prisma.participantMergeRedirect.findUnique({
+        where: { sourceId: upload.targetId }, select: { sourceId: true },
+      });
+      if (alias) throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
+    }
     const object = await this.headObject(upload.objectKey);
     if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
