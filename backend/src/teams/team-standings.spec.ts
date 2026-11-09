@@ -69,6 +69,22 @@ describe('TeamsService.publicStandings scope and data protection',()=>{
   expect(db.team.findMany).toHaveBeenCalledWith({where:{id:{in:[A,B]}},select:{id:true,name:true}});
   expect(data).toMatchObject({scope:{type:'SEASON',id:SEASON},truncated:false,teams:[{teamId:A},{teamId:B}]});
  });
+ it('limits the published team summary to a selected direction',async()=>{
+  const data=await service.publicStandings({seasonId:SEASON,direction:'BFSPL'});
+  expect(db.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
+   where:expect.objectContaining({
+    registrationClass:{class:{direction:{name:'BFSPL'}}},
+    registration:expect.objectContaining({participant:{isPublic:true},teamIdAtInspection:{not:null}}),
+   }),
+   take:1501,
+  }));
+  expect(data).toMatchObject({direction:'BFSPL',scope:{type:'SEASON',id:SEASON}});
+ });
+ it('rejects malicious or empty direction filters before querying the database',async()=>{
+  await expect(service.publicStandings({stageId:STAGE,direction:' '.repeat(101)})).rejects.toBeInstanceOf(BadRequestException);
+  await expect(service.publicStandings({stageId:STAGE,direction:' '})).rejects.toBeInstanceOf(BadRequestException);
+  expect(db.result.findMany).not.toHaveBeenCalled();
+ });
  it('filters a single stage, retains primary protocol IDs, signals partial result if bounded',async()=>{
   db.result.findMany.mockResolvedValue(Array.from({length:1501},(_,i)=>performance('r'+i,A,i%3+1)));
   const data=await service.publicStandings({stageId:STAGE});

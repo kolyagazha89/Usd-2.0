@@ -14,6 +14,11 @@ test('public teams directory includes a cross-team stage and season comparison, 
  assert.match(comparison,/\/teams\/public\/standings\?/);
  assert.match(comparison,/apiGet\('\/seasons'\)/);
  assert.match(comparison,/\/stages\/public/);
+ assert.match(comparison,/apiGet\('\/directions'\)/);
+ assert.match(comparison,/Все направления/);
+ assert.match(comparison,/direction=/);
+ assert.match(comparison,/encodeURIComponent\(direction\)/);
+
  assert.match(comparison,/Выберите сезон|Сезон/);
  assert.match(comparison,/Выберите этап|Этап/);
  assert.match(comparison,/aria-expanded=\{/);

@@ -31,8 +31,12 @@ export class TeamsController {
   }
   @Public()
   @Get('public/standings')
-  publicStandings(@Query('stageId') stageId?: string, @Query('seasonId') seasonId?: string) {
-    return this.service.publicStandings({stageId,seasonId});
+  publicStandings(
+    @Query('stageId') stageId?: string,
+    @Query('seasonId') seasonId?: string,
+    @Query('direction') direction?: string,
+  ) {
+    return this.service.publicStandings({stageId,seasonId,direction});
   }
   @Public()
   @Get('public/:teamId/achievements')
