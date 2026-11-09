@@ -299,3 +299,19 @@ body .usd-live .usd-footer-account-links{display:inline-flex;gap:12px;flex-wrap:
   --usd-dock-height:calc(66px + env(safe-area-inset-bottom,0px));
  }
 }
+
+/* CMS news images use their actual aspect ratio: no center-crop on portrait or landscape photos.
+   Keep the fallback poster treatment intact, and cap tall images on small screens. */
+body .usd-live .p-news-card img.p-news-cover{
+ display:block;width:auto;max-width:100%;height:auto;max-height:220px;
+ margin-inline:auto;object-fit:contain;object-position:center;
+}
+body .usd-live .p-article img.p-article-cover{
+ display:block;width:auto;max-width:min(100%,760px);height:auto;
+ max-height:min(70svh,580px);object-fit:contain;object-position:center;
+ margin:clamp(18px,3vw,28px) auto;background:#0a1115;
+}
+@media(max-width:560px){
+ body .usd-live .p-news-card img.p-news-cover{max-height:190px}
+ body .usd-live .p-article img.p-article-cover{max-width:100%;max-height:min(65svh,460px)}
+}
