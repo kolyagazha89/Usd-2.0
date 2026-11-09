@@ -76,6 +76,13 @@ function dataFor(url,role){
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stage:{...stage,resultsPublishedAt:null},stats:{registrations:1,participants:1,cars:1,appearances:1,inspections:{total:0,pending:1,passed:0,failed:0},registrationClasses:[{class:klass,registrations:1,participants:1,cars:1}],pendingConfigurations:[],inspectionDetails:[],pendingRegistrations:[{registrationId:'reg1',participantNumber:1,participant}],classResults:[{class:klass,results:[{id:'result1',place:1,value:'151.2',unit:'DB',participant,participantNumber:1,car,teamAtInspection:'USD Team'}]}]}};
+ if(p==='/statistics/season-report/s1')return {success:true,report:{
+  season:{id:'s1',name:'Сезон 2026',year:2026},generatedAt:'2026-11-09T10:00:00.000Z',
+  totals:{stages:1,registered:2,registrations:2,classEntries:2,actualParticipants:1,results:1,teams:1,podiums:1,records:0},
+  stages:[{id:'stage1',name:'Кубок USD',stageNumber:1,registered:2,actual:1}],
+  directions:[{id:'dir1',name:'SPL',athletes:2,classEntries:2,actualAthletes:1,results:1,classes:[{id:'class1',name:'Limited 2.0',athletes:2,classEntries:2,actualAthletes:1,results:1}]}],
+  notes:['Только опубликованные исходные данные USD. Не отображать фиктивные платежи.']
+ }};
  if(p==='/statistics/overview')return {stats:dashboard.overview};
  if(p.startsWith('/statistics/seasons/'))return {registrations:{total:1,withTeam:1,withoutTeam:0,withoutTeamPercent:0},teams:[{name:'USD Team',registrations:1,percent:100,participants:1}],vibrationIsolation:[],configurationBrands:[]};
  if(p.startsWith('/statistics/audit'))return {items:[],total:0,page:1,totalPages:1};
@@ -126,13 +133,13 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/news/news-image-fixture','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/season-report','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
  for(const width of qaOptions.widths){
   for(const [role,routeSet]of [[null,publicRoutes],['PARTICIPANT',participantRoutes],['ONBOARDING',['/participant']],['ADMIN',adminRoutes]]){
-   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/registration-success?registrationId=reg1','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
+   const routes=[1440,390].includes(width)?(role===null?[...routeSet,'/participant/register?stageId=stage1']:routeSet):(role===null?['/','/stages','/results?stageId=stage1','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participant/register?stageId=stage1','/consent','/participants/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A']:role==='PARTICIPANT'?['/participants','/participants/p1','/participants/missing','/participants/offline','/stages/offline','/teams/USD%20Team','/cars','/cars/car1','/stages','/results?stageId=stage1','/participant','/participant?tab=profile','/participant/registration-success?registrationId=reg1','/participant/configurations?carId=car1&edit=config1','/participant/register?stageId=stage1']:role==='ONBOARDING'?['/participant']:['/admin','/admin/event-day?stageId=stage1','/admin/registrations','/admin/inspections','/admin/results?stageId=stage1','/admin/notifications','/admin/stage-report?stageId=stage1','/admin/season-report','/admin/data-quality','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/cars/new','/admin/components','/admin/vehicle-catalog']);
    // Layout checks exercise the supported accessible experience. Software WebGL
    // can starve the CI renderer; graphics acceptance needs a separate browser.
    const reducedMotion='reduce';
@@ -510,6 +517,24 @@ try{
        await page.locator('.sidebar.open').waitFor({state:'detached'});
        row.adminDrawer='open/close, graphite, no shell shrink';
       }
+     }
+     if(role==='ADMIN'&&route==='/admin/season-report'){
+      const doc=page.locator('.season-report-document');
+      await doc.waitFor({state:'visible'});
+      assert.equal(await page.locator('.season-report-metric').count(),9,'season report retains all real KPI slots');
+      const printButton=page.getByRole('button',{name:/Печать \/ PDF/});
+      assert.equal(await printButton.isDisabled(),false,'print action only enabled after report is ready');
+      await page.emulateMedia({media:'print'});
+      const printed=await page.evaluate(()=>({
+       sidebar:getComputedStyle(document.querySelector('.app-shell > .sidebar')).display,
+       overflow:getComputedStyle(document.querySelector('.season-report-table-wrap')).overflowX,
+       heading:getComputedStyle(document.querySelector('.usd-season-report-page > .page-heading')).display,
+      }));
+      assert.equal(printed.sidebar,'none','ADMIN sidebar must disappear from PDF');
+      assert.equal(printed.heading,'none','interactive heading must not print');
+      assert.equal(printed.overflow,'visible','season tables must not clip in PDF');
+      await page.emulateMedia({media:'screen'});
+      row.seasonReport='read-only season snapshot, guarded action, A4 PDF print geometry';
      }
      if(role==='ADMIN'&&route.startsWith('/admin/stage-report')){
       await page.locator('.usd-report-document').waitFor({state:'visible'});
