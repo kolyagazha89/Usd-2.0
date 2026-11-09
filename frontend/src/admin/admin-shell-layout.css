@@ -1639,3 +1639,83 @@ body .app-shell .main .content .admin-configurations-shell :is(
   display:flex;flex-wrap:wrap;gap:8px;
  }
 }
+
+/* WYSIWYG partner media gallery: same markup and tier styling as public cards.
+   The selected category is first; all four stay available without changing CMS data. */
+body .app-shell .main .content .partner-image-editor-grid{
+ grid-template-columns:minmax(260px,.8fr) minmax(480px,1.2fr);
+ align-items:start;gap:24px;
+}
+body .app-shell .main .content .partner-image-preview{
+ display:grid;gap:10px;min-width:0;
+}
+body .app-shell .main .content .partner-image-preview>span{
+ font-size:17px;font-weight:800;color:#18202b;
+}
+body .app-shell .main .content .partner-image-preview>.form-hint{
+ margin:0 0 6px;line-height:1.5;
+}
+body .app-shell .main .content .partner-image-preview-gallery.usd-live{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+ min-width:0;width:100%;background:transparent!important;color:#18202b;
+}
+body .app-shell .main .content .partner-image-preview-item{
+ display:flex;flex-direction:column;gap:9px;min-width:0;
+ padding:10px;border:1px solid #d9dfe7;border-radius:15px;
+ background:#f7f9fb;
+}
+body .app-shell .main .content .partner-image-preview-item[data-selected="true"]{
+ border-color:#df3152;background:#fff7f9;
+ box-shadow:0 0 0 1px rgba(223,49,82,.14);
+}
+body .app-shell .main .content .partner-image-preview-label{
+ display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+ color:#283342;font:750 13px/1.3 'Exo 2',sans-serif;
+}
+body .app-shell .main .content .partner-image-preview-label span{
+ margin-left:auto;color:#ba2443;font-size:10px;font-weight:800;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-showcase{
+ display:block;min-width:0;flex:1;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-tier,
+body .app-shell .main .content .partner-image-preview-item .usd-partner-card{
+ width:100%;min-width:0;height:100%;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-card{
+ min-height:245px!important;
+ padding:14px!important;gap:11px!important;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-tier--general .usd-partner-card{
+ min-height:280px!important;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-badge{
+ font-size:9px;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-info h3{
+ font-size:18px;overflow-wrap:anywhere;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-info p{
+ display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+ overflow:hidden;font-size:12px;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-visual{
+ --usd-partner-slot-height:145px;
+}
+body .app-shell .main .content .partner-image-preview-item .usd-partner-link{
+ font-size:11px;text-decoration:none;
+}
+@media(max-width:1240px){
+ body .app-shell .main .content .partner-image-editor-grid{
+  grid-template-columns:minmax(0,1fr);
+ }
+ body .app-shell .main .content .partner-image-preview{grid-row:1}
+}
+@media(max-width:620px){
+ body .app-shell .main .content .partner-image-preview-gallery.usd-live{
+  grid-template-columns:minmax(0,1fr);
+ }
+ body .app-shell .main .content .partner-image-preview-item{
+  padding:9px;
+ }
+}
