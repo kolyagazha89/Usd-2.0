@@ -31,7 +31,7 @@ export class TeamsController {
   }
   @Public()
   @Get('public/standings')
-  @Header('Cache-Control', 'public, max-age=30')
+  @Header('Cache-Control', 'no-store')
   publicTeamStandings(
     @Query('season') season?: string,
     @Query('stageId') stageId?: string,
