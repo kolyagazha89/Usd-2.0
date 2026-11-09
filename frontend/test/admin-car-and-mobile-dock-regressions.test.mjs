@@ -9,7 +9,7 @@ test('dark vehicle configuration rules cannot style the light admin workspace',a
   source('../src/participant-ui-polish.css'),
   source('../src/admin/ConfigurationsPage.tsx'),
  ]);
- assert.match(component,/admin\?'admin-configurations-shell'/,
+ assert.match(component,/admin\?["']admin-configurations-shell["']/,
   'admin rendering must not mount the public/participant dark theme roots');
  for(const selector of [
   'configuration-editor-page .config-editor-intro',
