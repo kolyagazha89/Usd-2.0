@@ -41,7 +41,7 @@ const rulesBlocks=[
  {type:'heading',level:2,text:'Раздел Б'},
  {type:'list-item',ordered:true,level:0,text:'Новый список'},
 ];
-const settings={branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[{id:'fixture-brand-alphard',category:'SUBWOOFER',name:'Alphard',isActive:true},{id:'fixture-brand-pride',category:'SUBWOOFER',name:'Pride',isActive:false}],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true},{id:'fixture-model-pride',category:'SUBWOOFER',brand:'Pride',model:'Black 15',isActive:false}],vehicleDirectory:{brands:[],models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false}]},batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
+const settings={news:[{id:'news-image-fixture',title:'Проверка полного отображения постера USD',excerpt:'Фотография должна быть видна целиком',body:'Текст новости',photoUrl:'/usd/pwa-192.png',publishedAt:'2026-11-01T12:00:00Z',isPublished:true}],branding:{siteName:'USD'},homepage:{blocks:[]},legal:{},registration:{rulesDocument:{published:{id:'rules-fixture',fileName:'regulation-fixture.docx',createdAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks}}},catalogs:{componentBrands:[{id:'fixture-brand-alphard',category:'SUBWOOFER',name:'Alphard',isActive:true},{id:'fixture-brand-pride',category:'SUBWOOFER',name:'Pride',isActive:false}],componentModels:[{id:'00000000-0000-4000-8000-000000000001',category:'SUBWOOFER',brand:'Alphard',model:'Machete',isActive:true},{id:'fixture-model-pride',category:'SUBWOOFER',brand:'Pride',model:'Black 15',isActive:false}],vehicleDirectory:{brands:[],models:[{id:'seed-model:toyota|camry',brandId:'seed-brand:toyota',name:'Camry',isActive:false}]},batteryTypes:[{code:'AGM',name:'AGM (свинцово-кислотный)',isActive:true}],vibrationBrands:[]},contacts:{},partners:[{id:'pg',name:'Генеральный тестовый',tier:'GENERAL',isActive:true,sortOrder:1},{id:'pp',name:'Премиальный тестовый',tier:'PREMIUM',isActive:true,sortOrder:1},{id:'pr',name:'Обычный тестовый',tier:'REGULAR',isActive:true,sortOrder:1},{id:'ph',name:'Скрытый тестовый',tier:'GENERAL',isActive:false,sortOrder:0}]};
 stage.rulesSnapshot={revisionId:'rules-fixture',publishedAt:'2026-10-01T00:00:00Z',blocks:rulesBlocks};
 const dashboard={success:true,generatedAt:new Date().toISOString(),overview:{participants:1,cars:1,stages:1,registrations:1,results:1,records:0,currentRecords:0},currentStage:stage,attention:{openStages:1,pendingInspections:1,failedInspections:0,resultsToday:0,activeDisqualifications:0,unresolvedImports:0},activeRegistrationStats:{registrations:1,participants:1,cars:1},upcomingStages:[stage],recentStages:[]};
 const user=role=>({id:'fixture-user',email:'fixture@example.test',role:role==='ONBOARDING'?'PARTICIPANT':role,participantId:role==='PARTICIPANT'?'p1':null});
@@ -111,7 +111,7 @@ function dataFor(url,role){
  if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
  return [];
 }
-const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/partners','/contacts','/documents','/about'];
+const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/news/news-image-fixture','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
@@ -202,6 +202,31 @@ try{
       assert.match(await podium.locator('.usd-record-position').innerText(),/^1 \/ /,'keyboard goes to previous records');
       row.recordPodium='hero + '+expectedColumns+' visible cards; participant name, swipe and keyboard navigation';
 
+     }
+     if(role===null&&(route==='/news'||route==='/news/news-image-fixture')){
+      const article=route!=='/news';
+      const selector=article?'.p-article > img.p-article-cover':'.p-news-card .p-news-media > img.p-news-cover';
+      await page.waitForFunction(query=>{
+       const image=document.querySelector(query);
+       return image instanceof HTMLImageElement&&image.complete&&image.naturalWidth>0;
+      },selector);
+      const image=await page.locator(selector).first().evaluate(img=>{
+       const rect=img.getBoundingClientRect(),style=getComputedStyle(img),frame=img.parentElement.getBoundingClientRect();
+       return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+        width:rect.width,height:rect.height,fit:style.objectFit,
+        frameWidth:frame.width,frameHeight:frame.height};
+      });
+      assert.equal(image.fit,'contain','news posters must never be cropped in previews or articles');
+      assert.ok(Math.abs(image.width/image.height-image.naturalWidth/image.naturalHeight)<.03,
+       'news image must preserve source aspect ratio: '+JSON.stringify(image));
+      if(article){
+       assert.ok(image.width<=761&&image.height<=521,
+        'full article image must be bounded smaller than the article width: '+JSON.stringify(image));
+      }else{
+       assert.ok(image.width<=image.frameWidth+1&&image.height<=image.frameHeight+1,
+        'preview photo must fit completely inside its media frame: '+JSON.stringify(image));
+      }
+      row.newsPhotoFit=article?'article dimensions bounded with natural aspect':'home/list preview contains full image';
      }
      if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
       const carPhoto=route==='/cars/car1';
