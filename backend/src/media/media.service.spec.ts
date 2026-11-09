@@ -114,6 +114,39 @@ describe('MediaService media library', () => {
     expect(result.items[0]).toMatchObject({isReferenced:true,canDelete:false});
   });
 
+  it('rejects preparing a new avatar upload for a merged source even for ADMIN',async()=>{
+    prisma.participantMergeRedirect.findUnique.mockResolvedValue({sourceId:'old-profile'});
+    prisma.mediaUpload.create=jest.fn();
+    await expect(service.prepare('admin','ADMIN',MediaTargetType.PARTICIPANT_PHOTO,'old-profile','image/png'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.mediaUpload.create).not.toHaveBeenCalled();
+  });
+
+  it('rechecks aliases under the shared lock after S3 publication, not only before',async()=>{
+    prisma.participantMergeRedirect.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({sourceId:'old-profile'});
+    prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
+      id:'upload',userId:'admin',targetType:MediaTargetType.PARTICIPANT_PHOTO,
+      targetId:'old-profile',contentType:'image/png',objectKey:'staged-photo',
+      expiresAt:new Date(Date.now()+60_000),completedAt:null,
+    });
+    prisma.mediaUpload.updateMany=jest.fn();
+    prisma.participant.update=jest.fn();
+    (service as any).headObject=jest.fn(async()=>({size:8,contentType:'image/png'}));
+    (service as any).readStagedUpload=jest.fn(async()=>Buffer.from([137,80,78,71,13,10,26,10]));
+    (service as any).validateImageSignature=jest.fn();
+    (service as any).objectUrl=jest.fn(()=>'/media/private-file/PARTICIPANT_PHOTO/old-profile');
+    (service as any).deleteStoredObjects=jest.fn(async()=>{});
+    await expect(service.complete('admin','ADMIN','synthetic-upload-token'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.participantMergeRedirect.findUnique).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.mediaUpload.updateMany).not.toHaveBeenCalled();
+    expect(prisma.participant.update).not.toHaveBeenCalled();
+    expect((service as any).deleteStoredObjects).toHaveBeenCalledWith([expect.stringMatching(/-published-/)]);
+  });
+
   it('rejects an in-flight photo completion if the target became a merged alias before the commit',async()=>{
     prisma.participantMergeRedirect.findUnique.mockResolvedValue({sourceId:'old-profile'});
     prisma.mediaUpload.findUnique=jest.fn().mockResolvedValue({
