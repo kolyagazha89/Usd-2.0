@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseVehicleDirectoryCsv,modelsForVehicleMake} from '../src/vehicle-directory.ts';
-import {emptyVehicleOverrides,resolveVehicleCatalog,availableVehicleDirectory,addVehicleBrand,addVehicleModel,saveVehicleBrand,saveVehicleModel,toggleVehicleBrand,toggleVehicleModel,archiveVehicleBrand,archiveVehicleModel,countDisabledVehicles,enableAllVehicles,planVehicleImport} from '../src/admin/vehicle-catalog-management.ts';
+import {emptyVehicleOverrides,resolveVehicleCatalog,availableVehicleDirectory,addVehicleBrand,addVehicleModel,saveVehicleBrand,saveVehicleModel,toggleVehicleBrand,toggleVehicleModel,archiveVehicleBrand,archiveVehicleModel,countDisabledVehicles,enableAllVehicles,planVehicleImport,filterVehicleCatalog} from '../src/admin/vehicle-catalog-management.ts';
 const csv='марка,модель\nToyota,Camry\nToyota,Corolla\nВАЗ,2107\n';
 const seed=parseVehicleDirectoryCsv(csv);
 const resolve=(overrides)=>resolveVehicleCatalog(seed,overrides);
@@ -107,4 +107,23 @@ test('participant car editor uses native keyboard and masks plate input',async()
  assert.doesNotMatch(app,/<RussianPlateKeypad/);
  assert.match(app,/registrationNumber:formatPlateInput/);
  assert.match(app,/inputMode="text"/);
+});
+
+test('admin car catalog search finds brands by their model names (no empty make list for Camry)',()=>{
+ const c=resolve(emptyVehicleOverrides());
+ const filtered=filterVehicleCatalog(c,{search:'  CaMrY  ',status:'ALL'});
+ assert.deepEqual(filtered.brands.map(b=>b.name),['Toyota']);
+ assert.deepEqual(filtered.models.map(m=>m.name),['Camry']);
+});
+
+test('admin car catalog search honors active status, model make, and selected brand',()=>{
+ const c=resolve(emptyVehicleOverrides());
+ const toyota=c.brands.find(b=>b.name==='Toyota');
+ const old=emptyVehicleOverrides();
+ const off=toggleVehicleModel(c,old,c.models.find(m=>m.name==='Camry').id);
+ const inactive=resolve(off);
+ assert.deepEqual(filterVehicleCatalog(inactive,{search:'Camry',status:'ACTIVE'}).models,[]);
+ assert.deepEqual(filterVehicleCatalog(inactive,{search:'Camry',status:'INACTIVE'}).models.map(m=>m.name),['Camry']);
+ assert.deepEqual(filterVehicleCatalog(c,{search:'Toyota',selectedBrand:toyota.id,status:'ALL'}).models.map(m=>m.name),['Camry','Corolla']);
+ assert.deepEqual(filterVehicleCatalog(c,{search:'Camry',selectedBrand:'seed-brand:ваз',status:'ALL'}).models,[]);
 });
