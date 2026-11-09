@@ -388,3 +388,33 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
  body > .participant-tabs a svg{width:19px;height:19px;flex:none}
  body > .participant-tabs a span{white-space:normal;text-align:center;line-height:1.2}
 }
+
+/* Persistent iOS dock: the first loading frame and the loaded frame have
+ * identical geometry, independent of logo/fonts and Safari toolbar collapse. */
+@media(max-width:760px){
+ :root{--usd-member-dock-size:calc(80px + env(safe-area-inset-bottom,0px))}
+ body > .participant-tabs{
+  position:fixed!important;
+  inset-inline:0!important;top:auto!important;bottom:0!important;
+  box-sizing:border-box!important;
+  height:var(--usd-member-dock-size)!important;
+  min-height:var(--usd-member-dock-size)!important;
+  max-height:var(--usd-member-dock-size)!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  align-items:stretch!important;
+  padding:7px 7px calc(7px + env(safe-area-inset-bottom,0px))!important;
+  margin:0!important;
+  transform:none!important;-webkit-transform:none!important;
+  will-change:auto!important;
+  transition:none!important;animation:none!important;
+  background:#0b1017!important;
+  z-index:1001!important;
+ }
+ body > .participant-tabs > a{
+  box-sizing:border-box!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:100%!important;
+  justify-content:center!important;
+ }
+}

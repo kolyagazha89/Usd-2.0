@@ -264,7 +264,7 @@ body .participant-portal.usd-member :is(.config-tab-button.active,.config-sectio
  body .participant-portal.usd-member .participant-brand-logo img{width:42px!important;max-height:38px!important}
  body .participant-portal.usd-member .participant-header-actions{gap:6px!important}
  body .participant-portal.usd-member .participant-header-actions .secondary-button{background:#1c232c!important;padding:10px!important;font-size:11px!important}
- body .participant-portal.usd-member .participant-portal-main{padding-top:22px!important;padding-bottom:calc(100px + var(--usd-cookie-height,0px))!important}
+ body .participant-portal.usd-member .participant-portal-main{padding-top:22px!important;padding-bottom:calc(var(--usd-member-dock-size,calc(80px + env(safe-area-inset-bottom,0px))) + 24px + var(--usd-cookie-height,0px))!important}
  body .participant-portal.usd-member .participant-page-intro{margin-bottom:24px!important}
  body .participant-portal.usd-member .participant-page-intro h1{font-size:30px!important}
  body .participant-portal.usd-member .participant-tabs{position:fixed;gap:0!important;margin:0!important;border:0!important;border-top:1px solid #252c36!important;background:#0e1218!important;padding:7px 8px calc(7px + env(safe-area-inset-bottom))!important}
