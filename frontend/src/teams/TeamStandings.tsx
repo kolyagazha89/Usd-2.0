@@ -38,7 +38,7 @@ export default function TeamStandings(){
  useEffect(()=>{
   let active=true;
   setChoicesLoading(true);setChoicesError('');
-  Promise.all([apiGet('/seasons/public'),apiGet('/stages/public')])
+  Promise.all([apiGet('/seasons'),apiGet('/stages/public')])
    .then(([seasonsResponse,stagesResponse])=>{
     if(!active)return;
     const availableSeasons=listData<SeasonChoice>(seasonsResponse)
