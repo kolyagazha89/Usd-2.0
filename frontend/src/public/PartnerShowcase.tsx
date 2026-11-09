@@ -3,6 +3,7 @@ import {Link} from './PremiumUI';
 import {safeHref} from './premium-model';
 import {partnerDescriptionPreview,visiblePartners,type PublicPartner} from './partner-model';
 import PartnerImage from './PartnerImage';
+import {shouldAutoAdvancePartnerCarousel,isIntentionalHorizontalSwipe,isHorizontalWheelGesture} from './partner-carousel-motion';
 
 type Tier = 'GENERAL' | 'PREMIUM' | 'REGULAR' | 'STUDIO';
 type Partner=PublicPartner;
@@ -50,12 +51,19 @@ function PartnerCard({partner,tier,compact}:{partner:Partner;tier:Tier;compact:b
 function HomePartnerCarousel({items,tier}:{items:Partner[];tier:'REGULAR'|'STUDIO'}){
  const rail=useRef<HTMLDivElement>(null);
  const manuallyPaused=useRef(false);
+ const hovered=useRef(false);
+ const focused=useRef(false);
+ const gesture=useRef<{id:number;x:number;y:number}|null>(null);
  const [current,setCurrent]=useState(0);
  useEffect(()=>{
   const el=rail.current;
   if(!el||items.length<2||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const timer=window.setInterval(()=>{
-   if(manuallyPaused.current||document.hidden||el.scrollWidth<=el.clientWidth+2)return;
+   if(!shouldAutoAdvancePartnerCarousel({
+    itemsCount:items.length,hasOverflow:el.scrollWidth>el.clientWidth+2,
+    manuallyPaused:manuallyPaused.current,hovered:hovered.current,focused:focused.current,
+    hidden:document.hidden,reducedMotion:window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+   }))return;
    const cards=Array.from(el.children) as HTMLElement[];
    const first=cards[0]?.offsetLeft??0;
    const closest=cards.reduce((best,card,index)=>
@@ -79,8 +87,18 @@ function HomePartnerCarousel({items,tier}:{items:Partner[];tier:'REGULAR'|'STUDI
  return <div className="usd-partner-carousel-wrap">
   <div ref={rail} className="usd-partner-carousel" role="region" aria-roledescription="карусель"
    aria-label={tier==='STUDIO'?'Студии-партнёры':'Обычные партнёры чемпионата'} tabIndex={0} onScroll={onScroll}
-   onPointerDown={()=>{manuallyPaused.current=true}} onWheel={()=>{manuallyPaused.current=true}}
-   onFocusCapture={()=>{manuallyPaused.current=true}} onMouseEnter={()=>{manuallyPaused.current=true}}>
+   onPointerDown={event=>{gesture.current={id:event.pointerId,x:event.clientX,y:event.clientY}}}
+   onPointerUp={event=>{
+    const start=gesture.current;gesture.current=null;
+    if(start&&start.id===event.pointerId&&
+      isIntentionalHorizontalSwipe(start,{x:event.clientX,y:event.clientY}))
+      manuallyPaused.current=true;
+   }}
+   onPointerCancel={()=>{gesture.current=null}}
+   onWheel={event=>{if(isHorizontalWheelGesture(event.deltaX,event.deltaY))manuallyPaused.current=true}}
+   onFocusCapture={()=>{focused.current=true}}
+   onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))focused.current=false}}
+   onMouseEnter={()=>{hovered.current=true}} onMouseLeave={()=>{hovered.current=false}}>
    {items.map((partner,index)=><PartnerCard key={partner.id??tier+'-'+index} partner={partner} tier={tier} compact/>)}
   </div>
   {items.length>1&&<div className="usd-partner-carousel-meta" aria-hidden="true">
