@@ -82,7 +82,7 @@ function dataFor(url,role){
  if(p==='/stages'||p==='/stages/public')return [stage];
  if(p.endsWith('/classes'))return p.startsWith('/stages/')?[{id:'sc1',classId:'class1',class:klass}]:[klass];
  if(p==='/stages/stage1'||p==='/stages/public/stage1')return stage;
- if(p==='/seasons'||p==='/seasons/public')return [season];
+ if(p==='/seasons')return [season];
  if(p==='/directions')return [klass.direction];
  if(p==='/admin/participants')return [participant,{...participant,id:'p2',firstName:'Пётр',lastName:'Петров'}];
  if(p==='/admin/profile-links')return [];
@@ -149,6 +149,7 @@ try{
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
       let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
      }
+     if(url.pathname==='/seasons/public')return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Сезон не найден'})});
      if(['/participants/missing','/cars/missing','/stages/public/missing'].includes(url.pathname))return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'Не найдено'})});
      if(['/participants/offline','/stages/public/offline'].includes(url.pathname)){
       if(!failuresSeen.has(url.pathname)){failuresSeen.add(url.pathname);return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic outage'})})}
