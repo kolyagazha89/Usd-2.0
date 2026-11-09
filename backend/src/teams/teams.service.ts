@@ -10,6 +10,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import { teamPostIdFromAssetKey } from './team-photo-keys';
+import { assembleTeamStandings } from './team-standings';
 import type {
   CreateTeamDto,
   UpdateTeamDto,
@@ -676,6 +677,81 @@ export class TeamsService {
       take: 501,
     });
     return formatTeamAchievements(team.id, team.name, 'FIRST_PASSED_INSPECTION', results);
+  }
+
+  /**
+   * Public, factual cross-team standings for an individual stage or season.
+   * Never recompute past affiliations from current membership or from free text.
+   * Team rank / championship points are intentionally not assigned: no
+   * cross-class ordering rule has been approved.
+   */
+  async publicTeamStandings(filters: { season?: string; stageId?: string; direction?: string }) {
+    const { season = '', stageId = '', direction = '' } = filters;
+    if (typeof season !== 'string' || (season && !/^(19|20)\d{2}$/.test(season)))
+      throw new BadRequestException('Некорректный сезон');
+    if (typeof stageId !== 'string' || (stageId && !/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(stageId)))
+      throw new BadRequestException('Некорректный идентификатор этапа');
+    if (typeof direction !== 'string' || direction.length > 100 || (direction && !direction.trim()))
+      throw new BadRequestException('Некорректное направление');
+    const stageWhere = {
+      isDeleted: false,
+      status: { in: ['PUBLISHED', 'COMPLETED'] as const },
+      resultsPublishedAt: { not: null },
+      ...(stageId ? { id: stageId } : {}),
+      ...(season ? {
+        date: {
+          gte: new Date(Date.UTC(Number(season), 0, 1)),
+          lt: new Date(Date.UTC(Number(season) + 1, 0, 1)),
+        },
+      } : {}),
+    };
+    const [results, teams, availableStages, directions] = await Promise.all([
+      this.prisma.result.findMany({
+        where: {
+          registration: {
+            teamIdAtInspection: { not: null },
+            teamAffiliationCapturedAt: { not: null },
+            participant: { isPublic: true },
+            status: 'ACTIVE',
+            stage: stageWhere,
+          },
+          ...(direction ? { registrationClass: { class: { direction: { name: direction } } } } : {}),
+        },
+        select: {
+          id: true, place: true, value: true, unit: true,
+          registration: {
+            select: {
+              teamIdAtInspection: true, teamNameAtInspection: true,
+              participant: { select: { id: true, firstName: true, lastName: true } },
+              stage: { select: { id: true, name: true, city: true, date: true } },
+            },
+          },
+          registrationClass: {
+            select: { class: { select: { id: true, name: true, direction: { select: { name: true } } } } },
+          },
+        },
+        orderBy: [
+          { registration: { stage: { date: 'desc' } } },
+          { place: 'asc' }, { id: 'asc' },
+        ],
+        take: 5001,
+      }),
+      this.prisma.team.findMany({ select: { id: true, name: true } }),
+      this.prisma.stage.findMany({
+        where: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
+        select: { id: true, name: true, city: true, date: true },
+        orderBy: [{ date: 'desc' }, { id: 'asc' }],
+      }),
+      this.prisma.direction.findMany({ select: { name: true }, orderBy: { sortOrder: 'asc' } }),
+    ]);
+    return {
+      ...assembleTeamStandings(results.slice(0, 5000), teams, results.length > 5000),
+      season: season || null,
+      stageId: stageId || null,
+      direction: direction || null,
+      availableStages,
+      directions: [...new Set(directions.map(row => row.name))],
+    };
   }
 
   async publicTeams() {
