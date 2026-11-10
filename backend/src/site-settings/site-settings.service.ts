@@ -178,6 +178,56 @@ export class SiteSettingsService{
       }
     }
   }
+  /** News drafts never become public by omission; old unchanged imports remain editable. */
+  private validateNews(value:unknown,previous:Record<string,unknown>[]){
+    if(value===undefined)return;
+    if(!Array.isArray(value)||value.length>200)
+      throw new BadRequestException('Некорректный список новостей (максимум 200).');
+    if(JSON.stringify(value)===JSON.stringify(previous))return;
+    const ids=new Set<string>();
+    for(const [index,raw] of value.entries()){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))
+        throw new BadRequestException('Некорректная запись новости.');
+      const item=raw as Record<string,unknown>;
+      const id=item.id;
+      const old=previous.find(row=>row?.id===id);
+      if((id===undefined||id===null)&&previous[index]&&JSON.stringify(previous[index])===JSON.stringify(item))
+        continue;
+      if(typeof id!=='string'||!id.trim()||id.length>100||/[\u0000-\u001f\u007f]/.test(id)||ids.has(id))
+        throw new BadRequestException('У новости должен быть уникальный идентификатор.');
+      ids.add(id);
+      if(old&&JSON.stringify(old)===JSON.stringify(item))continue;
+      const text=(field:string,max:number,required=false)=>{
+        const v=item[field];
+        return (!required&&(v===undefined||v===null))||(typeof v==='string'&&v.length<=max
+          &&(!required||v.trim().length>0)
+          &&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v));
+      };
+      if(!text('title',160,true)||!text('excerpt',500)||!text('body',30000))
+        throw new BadRequestException('Проверьте заголовок, описание и текст новости.');
+      if(typeof item.isPublished!=='boolean')
+        throw new BadRequestException('Укажите публикацию новости явно. Черновик не публикуется автоматически.');
+      const validDate=(value:unknown)=>typeof value==='string'&&
+        /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/.test(value)&&Number.isFinite(Date.parse(value));
+      if(item.createdAt!==undefined&&item.createdAt!==null&&!validDate(item.createdAt)
+        ||item.publishedAt!==undefined&&item.publishedAt!==null&&!validDate(item.publishedAt)
+        ||item.isPublished===true&&!validDate(item.publishedAt))
+        throw new BadRequestException('Неверная дата публикации новости.');
+      for(const field of ['url','photoUrl']){
+        const value=item[field];
+        if(value===undefined||value===null||value==='')continue;
+        if(!text(field,2048)||typeof value!=='string'||/\s|\\/.test(value))
+          throw new BadRequestException('Некорректная ссылка новости.');
+        if(field==='photoUrl'&&value.startsWith('/')&&!value.startsWith('//'))continue;
+        try{
+          const parsed=new URL(value);
+          if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password)
+            throw new Error('unsafe');
+        }catch{throw new BadRequestException('Ссылка новости должна быть безопасным HTTPS-адресом.');}
+      }
+    }
+  }
+
   private validateCatalogs(value:unknown){
     if(value===undefined)return;
     if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
@@ -357,7 +407,9 @@ export class SiteSettingsService{
               ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key))),
               ...(imageLayout ? { imageLayout } : {}) };
           }),
-        news: s.news.filter((item: any) => item.isPublished !== false),
+        news: s.news.filter((item: any) => item&&typeof item==='object'&&!Array.isArray(item)&&item.isPublished!==false)
+          .map((item: any) => Object.fromEntries(Object.entries(item).filter(([key])=>
+            ['id','title','excerpt','body','photoUrl','url','isPublished','publishedAt','createdAt'].includes(key)))),
         legal: {
           legalApproved: publicLegalApproved,
           legalVersion: publicLegalApproved ? (legal.legalVersion ?? null) : null,
@@ -472,6 +524,7 @@ export class SiteSettingsService{
       this.validateNavigation(input.navigation);
       this.validateCatalogs(input.catalogs);
       this.validatePartners(input.partners,current.partners);
+      this.validateNews(input.news,current.news);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
