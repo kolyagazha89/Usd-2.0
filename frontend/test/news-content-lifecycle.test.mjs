@@ -8,7 +8,7 @@ test('new article starts as an unpublished draft without a publication timestamp
  const draft=newNewsDraft();
  assert.equal(draft.isPublished,false);
  assert.equal(draft.publishedAt,null);
- const saved=prepareNewsItem(draft,'story-1',date);
+ const saved=prepareNewsItem({...draft,title:'Новая новость'},'story-1',date);
  assert.equal(saved.isPublished,false);
  assert.equal(saved.publishedAt,null);
  assert.equal(saved.createdAt,date);
