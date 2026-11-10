@@ -1,5 +1,6 @@
 import {planBrandMerge, assertMergedCatalogAliasesPreserved, type MergeInput} from './component-brand-merge';
 import {catalogRevision, lockSiteSettings} from './catalog-concurrency';
+import {siteContentRevision} from './site-content-concurrency';
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
@@ -177,6 +178,56 @@ export class SiteSettingsService{
       }
     }
   }
+  /** News drafts never become public by omission; old unchanged imports remain editable. */
+  private validateNews(value:unknown,previous:Record<string,unknown>[]){
+    if(value===undefined)return;
+    if(!Array.isArray(value)||value.length>200)
+      throw new BadRequestException('Некорректный список новостей (максимум 200).');
+    if(JSON.stringify(value)===JSON.stringify(previous))return;
+    const ids=new Set<string>();
+    for(const [index,raw] of value.entries()){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))
+        throw new BadRequestException('Некорректная запись новости.');
+      const item=raw as Record<string,unknown>;
+      const id=item.id;
+      const old=previous.find(row=>row?.id===id);
+      if((id===undefined||id===null)&&previous[index]&&JSON.stringify(previous[index])===JSON.stringify(item))
+        continue;
+      if(typeof id!=='string'||!id.trim()||id.length>100||/[\u0000-\u001f\u007f]/.test(id)||ids.has(id))
+        throw new BadRequestException('У новости должен быть уникальный идентификатор.');
+      ids.add(id);
+      if(old&&JSON.stringify(old)===JSON.stringify(item))continue;
+      const text=(field:string,max:number,required=false)=>{
+        const v=item[field];
+        return (!required&&(v===undefined||v===null))||(typeof v==='string'&&v.length<=max
+          &&(!required||v.trim().length>0)
+          &&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v));
+      };
+      if(!text('title',160,true)||!text('excerpt',500)||!text('body',30000))
+        throw new BadRequestException('Проверьте заголовок, описание и текст новости.');
+      if(typeof item.isPublished!=='boolean')
+        throw new BadRequestException('Укажите публикацию новости явно. Черновик не публикуется автоматически.');
+      const validDate=(value:unknown)=>typeof value==='string'&&
+        /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/.test(value)&&Number.isFinite(Date.parse(value));
+      if(item.createdAt!==undefined&&item.createdAt!==null&&!validDate(item.createdAt)
+        ||item.publishedAt!==undefined&&item.publishedAt!==null&&!validDate(item.publishedAt)
+        ||item.isPublished===true&&!validDate(item.publishedAt))
+        throw new BadRequestException('Неверная дата публикации новости.');
+      for(const field of ['url','photoUrl']){
+        const value=item[field];
+        if(value===undefined||value===null||value==='')continue;
+        if(!text(field,2048)||typeof value!=='string'||/\s|\\/.test(value))
+          throw new BadRequestException('Некорректная ссылка новости.');
+        if(field==='photoUrl'&&value.startsWith('/')&&!value.startsWith('//'))continue;
+        try{
+          const parsed=new URL(value);
+          if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password)
+            throw new Error('unsafe');
+        }catch{throw new BadRequestException('Ссылка новости должна быть безопасным HTTPS-адресом.');}
+      }
+    }
+  }
+
   private validateCatalogs(value:unknown){
     if(value===undefined)return;
     if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('Некорректный каталог.');
@@ -317,7 +368,7 @@ export class SiteSettingsService{
       blocks: published.blocks,
     };
   }
-  async getAdmin(){const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row?.catalogs)};return {success:true,settings};}
+  async getAdmin(){const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row?.catalogs)};return {success:true,settings:{...settings,_newsRevision:siteContentRevision(settings.news),_partnersRevision:siteContentRevision(settings.partners)}};}
   async getPublic() {
     const s = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
     const legal = s.legal as Record<string, any>;
@@ -356,7 +407,9 @@ export class SiteSettingsService{
               ['id','name','description','photoUrl','website','isActive','isPublished','sortOrder','tier'].includes(key))),
               ...(imageLayout ? { imageLayout } : {}) };
           }),
-        news: s.news.filter((item: any) => item.isPublished !== false),
+        news: s.news.filter((item: any) => item&&typeof item==='object'&&!Array.isArray(item)&&item.isPublished!==false)
+          .map((item: any) => Object.fromEntries(Object.entries(item).filter(([key])=>
+            ['id','title','excerpt','body','photoUrl','url','isPublished','publishedAt','createdAt'].includes(key)))),
         legal: {
           legalApproved: publicLegalApproved,
           legalVersion: publicLegalApproved ? (legal.legalVersion ?? null) : null,
@@ -453,6 +506,14 @@ export class SiteSettingsService{
       await lockSiteSettings(tx);
       const currentRow=await tx.siteSettings.findUnique({where:{id:'default'}});
       const current=this.shape(currentRow);
+      // Compare-and-swap under the same PostgreSQL advisory transaction lock.
+      // A stale ADMIN page must not silently replace another ADMIN's news,
+      // partner logo layout, publishing status or historical CMS content.
+      const contentInput=input as Partial<SiteSettingsShape>&{_newsRevision?:string;_partnersRevision?:string};
+      if(input.news!==undefined&&contentInput._newsRevision!==siteContentRevision(current.news))
+        throw new ConflictException('Новости изменились другим администратором. Обновите страницу и повторите действие.');
+      if(input.partners!==undefined&&contentInput._partnersRevision!==siteContentRevision(current.partners))
+        throw new ConflictException('Партнёры изменились другим администратором. Обновите страницу и повторите действие.');
       const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
       if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs || 'vehicleDirectory' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
       if(incomingCatalogs) delete incomingCatalogs._revision;
@@ -463,6 +524,7 @@ export class SiteSettingsService{
       this.validateNavigation(input.navigation);
       this.validateCatalogs(input.catalogs);
       this.validatePartners(input.partners,current.partners);
+      this.validateNews(input.news,current.news);
       const currentLegal = current.legal as Record<string, any>;
       const incomingLegal = input.legal && typeof input.legal === 'object' ? input.legal as Record<string, any> : null;
       const incomingContacts = input.contacts as Record<string, any> | undefined;
@@ -520,7 +582,7 @@ export class SiteSettingsService{
       phase = 'audit';
       await tx.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
       const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row.catalogs)};
-      return {success:true,settings};
+      return {success:true,settings:{...settings,_newsRevision:siteContentRevision(settings.news),_partnersRevision:siteContentRevision(settings.partners)}};
       });
     } catch (error) {
       // Expected validation errors remain 4xx and are not logged as server failures.
