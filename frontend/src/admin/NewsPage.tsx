@@ -93,7 +93,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
      value={editing.body??''} onChange={e=>setEditing({...editing,body:e.target.value})}/></label>
     <label>Обложка новости<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving}
      onChange={e=>setEditing({...editing,file:e.target.files?.[0]??null})}/></label>
-    <label className="checkbox-row"><input type="checkbox" checked={editing.isPublished===true}
+    <label className="checkbox-row"><input type="checkbox" checked={editing.isPublished!==false}
      onChange={e=>setEditing({...editing,isPublished:e.target.checked})}/>Опубликована на сайте</label>
    </div>
    <div className="page-actions">
@@ -101,7 +101,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
      onClick={()=>setPreview(x=>!x)}>{preview?'Закрыть предпросмотр':'Предпросмотр'}</button>
    </div>
    {preview&&<section className="panel" aria-label="Предпросмотр новости">
-    <span className="eyebrow">{editing.isPublished===true?'ПРОВЕРКА ПУБЛИКАЦИИ':'ЧЕРНОВИК · НЕ ВИДЕН ГОСТЯМ'}</span>
+    <span className="eyebrow">{editing.isPublished!==false?'ПРОВЕРКА ПУБЛИКАЦИИ':'ЧЕРНОВИК · НЕ ВИДЕН ГОСТЯМ'}</span>
     {previewImage&&<img src={previewImage} alt="Предпросмотр обложки" style={{width:'100%',maxHeight:320,objectFit:'contain',borderRadius:12}}/>}
     <h3>{String(editing.title??'').trim()||'Заголовок новости'}</h3>
     {editing.excerpt&&<p>{editing.excerpt}</p>}
@@ -109,7 +109,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
    </section>}
    <div className="page-actions">
     <button type="button" className="primary-button compact" disabled={saving}
-     onClick={()=>void save()}>{saving?'Сохраняем…':editing.isPublished===true?'Сохранить и опубликовать':'Сохранить черновик'}</button>
+     onClick={()=>void save()}>{saving?'Сохраняем…':editing.isPublished!==false?'Сохранить и опубликовать':'Сохранить черновик'}</button>
     <button type="button" className="secondary-button compact" disabled={saving}
      onClick={()=>{setEditing(null);setPreview(false)}}>Отмена</button>
    </div>
