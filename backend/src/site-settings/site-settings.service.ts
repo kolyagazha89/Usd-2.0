@@ -1,5 +1,6 @@
 import {planBrandMerge, assertMergedCatalogAliasesPreserved, type MergeInput} from './component-brand-merge';
 import {catalogRevision, lockSiteSettings} from './catalog-concurrency';
+import {siteContentRevision} from './site-content-concurrency';
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
@@ -317,7 +318,7 @@ export class SiteSettingsService{
       blocks: published.blocks,
     };
   }
-  async getAdmin(){const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row?.catalogs)};return {success:true,settings};}
+  async getAdmin(){const row=await this.prisma.siteSettings.findUnique({where:{id:'default'}});const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row?.catalogs)};return {success:true,settings:{...settings,_newsRevision:siteContentRevision(settings.news),_partnersRevision:siteContentRevision(settings.partners)}};}
   async getPublic() {
     const s = this.shape(await this.prisma.siteSettings.findUnique({ where: { id: 'default' } }));
     const legal = s.legal as Record<string, any>;
@@ -453,6 +454,14 @@ export class SiteSettingsService{
       await lockSiteSettings(tx);
       const currentRow=await tx.siteSettings.findUnique({where:{id:'default'}});
       const current=this.shape(currentRow);
+      // Compare-and-swap under the same PostgreSQL advisory transaction lock.
+      // A stale ADMIN page must not silently replace another ADMIN's news,
+      // partner logo layout, publishing status or historical CMS content.
+      const contentInput=input as Partial<SiteSettingsShape>&{_newsRevision?:string;_partnersRevision?:string};
+      if(input.news!==undefined&&contentInput._newsRevision!==siteContentRevision(current.news))
+        throw new ConflictException('Новости изменились другим администратором. Обновите страницу и повторите действие.');
+      if(input.partners!==undefined&&contentInput._partnersRevision!==siteContentRevision(current.partners))
+        throw new ConflictException('Партнёры изменились другим администратором. Обновите страницу и повторите действие.');
       const incomingCatalogs=input.catalogs && typeof input.catalogs==='object' ? {...input.catalogs} : undefined;
       if(incomingCatalogs && ('componentBrands' in incomingCatalogs || 'componentModels' in incomingCatalogs || 'vehicleDirectory' in incomingCatalogs) && incomingCatalogs._revision!==catalogRevision(currentRow?.catalogs)) throw new ConflictException('Справочник изменился. Обновите страницу и повторите действие.');
       if(incomingCatalogs) delete incomingCatalogs._revision;
@@ -520,7 +529,7 @@ export class SiteSettingsService{
       phase = 'audit';
       await tx.auditLog.create({data:{userId,action:'SITE_SETTINGS_UPDATED',entity:'SiteSettings',entityId:'default',metadata:{sections}}});
       const settings=this.shape(row);settings.catalogs={...settings.catalogs,_revision:catalogRevision(row.catalogs)};
-      return {success:true,settings};
+      return {success:true,settings:{...settings,_newsRevision:siteContentRevision(settings.news),_partnersRevision:siteContentRevision(settings.partners)}};
       });
     } catch (error) {
       // Expected validation errors remain 4xx and are not logged as server failures.
