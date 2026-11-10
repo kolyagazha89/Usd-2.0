@@ -7,6 +7,17 @@ import { jest } from '@jest/globals';
 import { PrismaService } from '../prisma/prisma.service';
 import { SiteSettingsService } from './site-settings.service';
 
+/** Existing CMS tests opt in to the same compare-and-swap revisions as the UI. */
+async function updateContentSettings(service:SiteSettingsService,input:any,userId:string){
+ const {settings}=await service.getAdmin();
+ return service.update({
+  ...input,
+  ...(input.news!==undefined?{_newsRevision:settings._newsRevision}:{}),
+  ...(input.partners!==undefined?{_partnersRevision:settings._partnersRevision}:{}),
+ } as any,userId);
+}
+
+
 describe('SiteSettingsService.getPublic', () => {
   it('exposes only the allowlisted public legal fields', async () => {
     const prisma = {
@@ -203,7 +214,7 @@ describe('SiteSettingsService published regulation history', () => {
     const registrationData = (prisma as any).siteSettings.upsert.mock.calls[0][0].create.registration;
     expect(registrationData.rulesDocument.drafts[0].blocks[0]).not.toHaveProperty('optional');
 
-    await service.update({
+    await updateContentSettings(service,{
       branding: { siteName: 'USD' },
       homepage: {},
       stream: {},
@@ -357,15 +368,15 @@ describe('SiteSettingsService partner publication lifecycle', () => {
     const service = new SiteSettingsService(withSettingsTransaction(prisma));
     const draft = { id: 'partner-1', name: 'Тестовый партнёр', tier: 'GENERAL', isActive: true, isPublished: false, sortOrder: 0 };
 
-    await service.update({ partners: [draft] }, 'admin-1');
+    await updateContentSettings(service,{ partners: [draft] }, 'admin-1');
     expect((await service.getAdmin()).settings.partners).toEqual([draft]);
     expect((await service.getPublic()).settings.partners).toEqual([]);
 
     const published = { ...draft, isPublished: true };
-    await service.update({ partners: [published] }, 'admin-1');
+    await updateContentSettings(service,{ partners: [published] }, 'admin-1');
     expect((await service.getPublic()).settings.partners).toEqual([published]);
 
-    await service.update({ partners: [{ ...published, isActive: false }] }, 'admin-1');
+    await updateContentSettings(service,{ partners: [{ ...published, isActive: false }] }, 'admin-1');
     expect((await service.getPublic()).settings.partners).toEqual([]);
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(3);
   });
@@ -398,7 +409,7 @@ describe('SiteSettingsService partner CMS safety', () => {
       sortOrder: index, isActive: true, isPublished: true,
       internalNote: 'Внутренняя информация — не для публичного API',
     }));
-    await service.update({ partners } as any, 'admin-1');
+    await updateContentSettings(service,{ partners } as any, 'admin-1');
     expect((await service.getAdmin()).settings.partners[0]).toHaveProperty('internalNote');
     const publicPartners = (await service.getPublic()).settings.partners;
     expect(publicPartners.map(partner => partner.tier)).toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
@@ -419,15 +430,15 @@ describe('SiteSettingsService partner CMS safety', () => {
       website: 'https://studio.example.org', isActive: true, isPublished: false,
       sortOrder: 5, photoUrl: '/media/studio.webp',
       imageLayout: {mode:'LOGO',scale:100,positionX:50,positionY:50} };
-    await service.update({ partners: [...original, studio] } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [...original, studio] } as any, 'admin-1');
     expect((await service.getAdmin()).settings.partners.map(p => p.tier))
       .toEqual(['GENERAL', 'PREMIUM', 'REGULAR', 'STUDIO']);
     expect((await service.getPublic()).settings.partners.map(p => p.tier))
       .toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
-    await service.update({ partners: [...original, {...studio,isPublished:true}] } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [...original, {...studio,isPublished:true}] } as any, 'admin-1');
     expect((await service.getPublic()).settings.partners.find(p => p.id === 'studio-1'))
       .toMatchObject({tier:'STUDIO',photoUrl:'/media/studio.webp',sortOrder:5});
-    await service.update({ partners: [...original, {...studio,isPublished:true,isActive:false}] } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [...original, {...studio,isPublished:true,isActive:false}] } as any, 'admin-1');
     expect((await service.getPublic()).settings.partners.map(p => p.tier))
       .toEqual(['GENERAL', 'PREMIUM', 'REGULAR']);
   });
@@ -455,7 +466,7 @@ describe('SiteSettingsService partner CMS safety', () => {
       Array.from({ length: 201 }, (_, index) => ({ ...valid, id: 'partner-' + index })),
     ];
     for (const partners of invalid) {
-      await expect(service.update({ partners } as any, 'admin-1')).rejects.toThrow(BadRequestException);
+      await expect(updateContentSettings(service,{ partners } as any, 'admin-1')).rejects.toThrow(BadRequestException);
     }
     expect(prisma.siteSettings.upsert).not.toHaveBeenCalled();
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
@@ -467,7 +478,7 @@ describe('SiteSettingsService partner CMS safety', () => {
       scale: 175, positionX: 25, positionY: 80 };
     const partner = { id: 'custom-logo', name: 'Partner', tier: 'PREMIUM',
       isActive: true, isPublished: true, imageLayout };
-    await service.update({ partners: [partner] } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [partner] } as any, 'admin-1');
     expect((await service.getAdmin()).settings.partners[0].imageLayout).toEqual(imageLayout);
     expect((await service.getPublic()).settings.partners[0].imageLayout).toEqual(imageLayout);
   });
@@ -487,7 +498,7 @@ describe('SiteSettingsService partner CMS safety', () => {
   ])('rejects malformed partner image layout before persistence: %p', async imageLayout => {
     const { service, prisma } = makeService();
     const persist = jest.spyOn(prisma.siteSettings, 'upsert');
-    await expect(service.update({ partners: [{ id: 'invalid-logo', name: 'Partner',
+    await expect(updateContentSettings(service,{ partners: [{ id: 'invalid-logo', name: 'Partner',
       tier: 'REGULAR', isPublished: false, imageLayout }] } as any, 'admin-1'))
       .rejects.toThrow(BadRequestException);
     expect(persist).not.toHaveBeenCalled();
@@ -497,7 +508,7 @@ describe('SiteSettingsService partner CMS safety', () => {
     const legacy = { id: 'legacy-logo', name: 'Legacy', tier: 'REGULAR',
       imageLayout: { mode: 'BANNER', internalNote: 'private value' } };
     const { service } = makeService({ partners: [legacy] });
-    await service.update({ partners: [legacy] } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [legacy] } as any, 'admin-1');
     expect((await service.getAdmin()).settings.partners[0].imageLayout).toEqual(legacy.imageLayout);
     expect((await service.getPublic()).settings.partners[0]).not.toHaveProperty('imageLayout');
   });
@@ -505,7 +516,7 @@ describe('SiteSettingsService partner CMS safety', () => {
   it('preserves unchanged legacy partners when editing another CMS section', async () => {
     const legacy = { name: 'Старый партнёр', website: 'old.example.org', tier: 'OLD' };
     const { service } = makeService({ partners: [legacy] });
-    await service.update({ partners: [legacy], homepage: { heroTitle: 'Новый USD' } } as any, 'admin-1');
+    await updateContentSettings(service,{ partners: [legacy], homepage: { heroTitle: 'Новый USD' } } as any, 'admin-1');
     expect((await service.getAdmin()).settings.partners).toEqual([legacy]);
     expect((await service.getPublic()).settings.partners).toEqual([legacy]);
   });
