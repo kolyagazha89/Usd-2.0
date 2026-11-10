@@ -1,14 +1,16 @@
 # USD 2.0 production security
 
-## Required architecture
+## Actual online prerelease architecture (verified 10.11.2026)
 
 Internet
--> Cloudflare DNS proxy / WAF / DDoS protection
--> HTTPS reverse proxy
+-> **CloudPub public tunnel**, with public DNS CNAMEs for both `app.usd-russia.ru` and `api.usd-russia.ru` under `*.cname.cloudpub.ru`
+-> host HTTPS reverse proxy / Docker Compose services, subject to actual host inspection
 -> NestJS API
--> PostgreSQL on a private network
+-> private PostgreSQL 18 and RustFS services on the local Ubuntu/Hyper-V installation
 
-The PostgreSQL port must never be exposed to the public Internet.
+This supersedes the old aspirational Cloudflare path below: **the current prerelease does not require or claim Cloudflare**. CloudPub's own marketing says its servers are in Russia, but location/logging/processing and deployment security require operator/provider confirmation. See [live flow audit](legal/2026-11-10-cloudpub-data-flows-audit.md).
+
+Never expose PostgreSQL or RustFS private management ports to the public Internet. Keep the original `usd-russia.ru` domain untouched until release authorization.
 
 ## Required production environment
 
@@ -23,19 +25,18 @@ The PostgreSQL port must never be exposed to the public Internet.
 - TRUST_PROXY_HOPS: exact number of trusted reverse proxies
 - REQUEST_BODY_LIMIT: keep at 5mb or lower unless an import endpoint receives a justified larger payload
 
-## Edge protection
+## Edge protection: actual CloudPub tunnel
 
-Cloudflare should proxy the API hostname.
+CloudPub publishes the application/API through a tunnel. **Do not claim that CloudPub includes a configured Cloudflare-style WAF, active DDoS mitigations, managed rules or a specific logging location without checking the live account and supplier contract.**
 
-Recommended controls:
+Recommended verified controls:
 
-- WAF managed rules enabled
-- DDoS protection enabled
-- rate limiting rules for /auth/*
-- bot protection where appropriate
-- only HTTPS exposed
-- origin firewall rules allow traffic only from the reverse proxy/Cloudflare path
-- PostgreSQL is not publicly routable
+- Require TLS/HTTPS for both public subdomains; check certificate renewal, HSTS and real client-IP trust boundaries.
+- Determine whether CloudPub terminates external TLS and which request headers, IP addresses and cookies appear in its logs; confirm storage location and data-processing terms.
+- Configure only the necessary ingress publications; check authentication, rate limiting, IP/filter policies where CloudPub actually supports them.
+- Re-test `/auth/*` throttling, API body limits and upstream rate protection on the live route without disruptive load tests.
+- Firewall local management ports, PostgreSQL, RustFS administration and SSH from public access.
+- Monitor upstream outage/latency and the maximum traffic quota; perform a safe DDoS resilience review before mass-public use.
 
 ## Application protection
 
@@ -68,12 +69,12 @@ The API implements:
 
 ## Important limitation
 
-NestJS application controls cannot stop a large volumetric DDoS before traffic reaches the origin. Cloudflare/WAF and network-level controls are therefore mandatory for production.
+NestJS application controls cannot stop a large volumetric DDoS before traffic reaches the origin. Confirm actual CloudPub/tunnel-provider protection and network-level mitigation; **passing application tests is not proof of upstream DDoS protection**.
 
 
 ## Final release gate
 
-Production release is blocked until CI passes build, lint, unit tests, E2E tests, and the high-severity dependency audit. The API origin must remain behind Cloudflare/WAF and the PostgreSQL origin must not be publicly reachable.
+Production release is blocked until CI passes build, lint, unit tests, E2E tests, and the high-severity dependency audit. The API must remain behind the reviewed **CloudPub or equally approved secure ingress**, and PostgreSQL/private S3 must not be publicly routable. Confirm real backup/restore, operator-approved legal texts and actual external recipients of user data (WebPush, Google Fonts, optional Google OAuth and backups).
 
 - Security regression tests cover registration configuration binding and duplicate-registration protections.
 
