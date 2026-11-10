@@ -228,10 +228,10 @@ describe('SiteSettingsService published regulation history', () => {
       registration: { enabled: true },
       catalogs: {},
       partners: [],
-      news: [{ id: 'news-1', title: 'News', body: 'Text', file: undefined }],
+      news: [{ id: 'news-1', title: 'News', body: 'Text', isPublished: false, file: undefined }],
     } as any, 'admin-1');
     const newsData = (prisma as any).siteSettings.upsert.mock.calls[1][0].create.news;
-    expect(newsData).toEqual([{ id: 'news-1', title: 'News', body: 'Text' }]);
+    expect(newsData).toEqual([{ id: 'news-1', title: 'News', body: 'Text', isPublished: false }]);
   });
 
 });
