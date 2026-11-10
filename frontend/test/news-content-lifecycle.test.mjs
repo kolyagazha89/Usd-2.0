@@ -50,3 +50,9 @@ test('partners editor includes revision guard so deleting another ADMIN changes 
  assert.match(page,/_partnersRevision/);
  assert.match(page,/updateSiteSettings\(\{_partnersRevision:/);
 });
+
+test('legacy publicly visible news without isPublished flag stays visibly checked for editor',async()=>{
+ const page=await readFile(new URL('../src/admin/NewsPage.tsx',import.meta.url),'utf8');
+ assert.match(page,/checked=\{editing\.isPublished!==false\}/);
+ assert.doesNotMatch(page,/checked=\{editing\.isPublished===true\}/);
+});
