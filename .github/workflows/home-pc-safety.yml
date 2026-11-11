@@ -13,7 +13,6 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - '.github/workflows/home-pc-safety.yml'
-      - '.github/actions/ubuntu-archive/**'
       - '.github/workflows/request-home-pc-deploy.yml'
       - '.github/workflows/diagnose-home-pc-network.yml'
       - '.github/workflows/publish-home-pc-images.yml'
@@ -189,8 +188,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare reliable Ubuntu package mirror
-        uses: ./.github/actions/ubuntu-archive
       - name: Validate shell syntax
         run: |
           set -euo pipefail

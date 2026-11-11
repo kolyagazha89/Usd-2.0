@@ -54,14 +54,15 @@
   19 Node-тестов и синтаксис 22 deployment shell-скриптов прошли.
   9 root-only случаев пропущены из-за отсутствия sudo.
 - Маркеров незавершённого merge в отслеживаемых исходниках не обнаружено.
-- CI выявил независимый сетевой сбой: `azure.archive.ubuntu.com` не разрешался
-  при установке rclone и зависимостей Chromium (Home PC run 43036813253,
-  Daily backup run 43036813773). Добавлен общий CI-only action, заменяющий
-  только этот mirror на официальный `archive.ubuntu.com` на GitHub-hosted
-  Linux. Три офлайн-теста проверяют границы запуска, сохранение остальных
-  настроек, прав файла и отказ от symlink. Подписи APT и тестовые gates
-  не отключаются. Источник зеркала:
-  <https://ubuntu.com/project/docs/how-ubuntu-is-made/concepts/package-archive/>.
+- CI на `881ec9d` подтвердил PostgreSQL 18 RBAC и все три регрессии сохранения
+  результата, команды, справочники и Backend/Frontend CI. Home PC и Daily
+  backup остановились до своих тестов: runner не разрешал
+  `azure.archive.ubuntu.com` при установке rclone. Проверка официального
+  `archive.ubuntu.com` на `0755480` дала такой же DNS-сбой; временный mirror
+  workaround удалён из итогового изменения, проверки не ослаблены.
+  На `0755480` также прошли Backend/Frontend CI, команды, справочники и
+  competition journey; production Docker-образы успешно собраны и проверены.
+  Не прошедшие установку пакетов browser/backup задания не считаются приёмкой.
 - Главная действующего предрелизного сайта открылась в отдельном браузере,
   горизонтального переполнения на наблюдаемом desktop viewport не было.
   WebGL этого браузера отключён; отобразился статический fallback логотипа.
