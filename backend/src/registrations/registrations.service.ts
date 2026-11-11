@@ -1189,55 +1189,54 @@ export class RegistrationsService {
   // ==========================================
 
   async cancel(id: string, request: AuthenticatedRequest) {
-    const registration =
+    const identity =
       await this.prisma.registration.findUnique({
         where: {
           id,
         },
-        include: {
-          results: {
-            select: { id: true },
-          },
-          stage: {
-            select: {
-              id: true,
-              status: true,
-            },
-          },
-        },
+        select: { stageId: true },
       });
 
-    if (!registration) {
+    if (!identity) {
       throw new NotFoundException(
         'Регистрация не найдена',
       );
     }
 
-    if (
-      registration.status === 'CANCELLED'
-    ) {
-      throw new BadRequestException(
-        'Регистрация уже отменена',
-      );
-    }
-
-    if (registration.results.length > 0) {
-      throw new ConflictException(
-        'Нельзя отменить регистрацию: по ней уже внесён результат',
-      );
-    }
-
-    if (registration.stage.status === 'COMPLETED') {
-      throw new ConflictException(
-        'Нельзя отменить регистрацию после завершения этапа',
-      );
-    }
-
     const updated = await this.prisma.$transaction(async (tx) => {
-      // Serialize cancellation with registration creation for this stage.
+      // Stage allocation takes the stage lock first. Result entry and pending
+      // configuration confirmation take the registration lock. Hold both before
+      // checking mutable state or deleting classes (which cascade to results).
       await tx.$executeRaw`
-        SELECT pg_advisory_xact_lock(hashtext(${registration.stage.id}))
+        SELECT pg_advisory_xact_lock(hashtext(${identity.stageId}))
       `;
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${id}))
+      `;
+      const registration = await tx.registration.findUnique({
+        where: { id },
+        include: {
+          results: { select: { id: true } },
+          stage: { select: { id: true, status: true } },
+        },
+      });
+      if (!registration) throw new NotFoundException('Регистрация не найдена');
+
+      if (registration.status === 'CANCELLED') {
+        throw new BadRequestException('Регистрация уже отменена');
+      }
+
+      if (registration.results.length > 0) {
+        throw new ConflictException(
+          'Нельзя отменить регистрацию: по ней уже внесён результат',
+        );
+      }
+
+      if (registration.stage.status === 'COMPLETED') {
+        throw new ConflictException(
+          'Нельзя отменить регистрацию после завершения этапа',
+        );
+      }
 
       // Keep the cancelled registration and audit log, but release every
       // sticker number so another active registration can use it.

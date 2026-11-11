@@ -196,3 +196,67 @@ test('login, refresh and logout work when browser storage access throws',()=>wit
   await api.logout();
   assert.equal(calls.filter(call=>call.url.endsWith('/auth/logout')).length,1);
 }));
+
+test('login waits for an older refresh cookie response before changing accounts',()=>withApi(async api=>{
+  const response=deferred();const reading=deferred();const calls=[];
+  globalThis.fetch=async url=>{
+    calls.push(url);
+    if(url.endsWith('/auth/refresh'))return {status:200,ok:true,json:()=>{reading.resolve();return response.promise}};
+    if(url.endsWith('/auth/login'))return auth('next');
+    throw Error(url);
+  };
+  const refreshing=api.refresh();await reading.promise;
+  const loggingIn=api.login('next@example.test','synthetic-password');
+  await Promise.resolve();
+  const beforeRefresh=calls.filter(url=>url.endsWith('/auth/login')).length;
+  response.resolve({accessToken:'previous-access',user:{id:'previous',role:'PARTICIPANT'}});
+  await refreshing;
+  assert.equal((await loggingIn).id,'next');
+  assert.equal(beforeRefresh,0,'old refresh Set-Cookie must settle before the next account login begins');
+  assert.equal(calls.filter(url=>url.endsWith('/auth/login')).length,1);
+}));
+
+test('login excludes concurrent refresh and duplicate login cookie writers',()=>withApi(async api=>{
+  const response=deferred();const calls=[];
+  globalThis.fetch=async url=>{calls.push(url);if(url.endsWith('/auth/login'))return response.promise;throw Error(url)};
+  const loggingIn=api.login('next@example.test','synthetic-password');
+  assert.equal(await api.refresh(),null,'a refresh must not overwrite the cookie from pending login');
+  await assert.rejects(api.login('other@example.test','synthetic-password'),/Вход уже выполняется/);
+  response.resolve(auth('next'));
+  assert.equal((await loggingIn).id,'next');
+  assert.equal(calls.filter(url=>url.endsWith('/auth/login')).length,1);
+}));
+
+test('logout cancels a login waiting for the older refresh without issuing login',()=>withApi(async api=>{
+  const response=deferred();const calls=[];
+  globalThis.fetch=async url=>{
+    calls.push(url);
+    if(url.endsWith('/auth/refresh'))return response.promise;
+    if(url.endsWith('/auth/logout'))return new Response('{}');
+    if(url.endsWith('/auth/login'))return auth('next');
+    throw Error(url);
+  };
+  const refreshing=api.refresh();
+  const loggingIn=api.login('next@example.test','synthetic-password');
+  const rejected=assert.rejects(loggingIn,/Сеанс.*завершён/);
+  const loggingOut=api.logout();
+  response.resolve(auth('previous'));
+  await refreshing;await rejected;await loggingOut;
+  assert.equal(calls.filter(url=>url.endsWith('/auth/login')).length,0);
+  assert.equal(calls.filter(url=>url.endsWith('/auth/logout')).length,1);
+}));
+
+test('an expired older refresh cannot prevent the next explicit login',()=>withApi(async api=>{
+  const response=deferred();const calls=[];
+  globalThis.fetch=async url=>{
+    calls.push(url);
+    if(url.endsWith('/auth/refresh'))return response.promise;
+    if(url.endsWith('/auth/login'))return auth('next');
+    throw Error(url);
+  };
+  const refreshing=api.refresh();
+  const loggingIn=api.login('next@example.test','synthetic-password');
+  response.resolve(new Response('{}',{status:401}));
+  assert.equal(await refreshing,null);
+  assert.equal((await loggingIn).id,'next');
+}));

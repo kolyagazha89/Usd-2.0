@@ -74,4 +74,29 @@ describe('SecurityMiddleware', () => {
     middleware.use(createRequest('203.0.113.12','/auth/login'),response,next);
     expect(response.status).not.toHaveBeenCalledWith(429);
   });
+
+  it.each(['/AUTH/LOGIN', '/auth/login/', '/Auth/Login/'])(
+    'shares the login budget with the Express route variant %s',
+    (path) => {
+      const middleware = new SecurityMiddleware();
+      const next = jest.fn();
+      for (let i = 0; i < 60; i += 1) {
+        middleware.use(createRequest('203.0.113.13', '/auth/login'), createResponse(), next);
+      }
+      const response = createResponse();
+      middleware.use(createRequest('203.0.113.13', path), response, next);
+      expect(response.status).toHaveBeenCalledWith(429);
+    },
+  );
+
+  it('applies the recovery quota to mixed-case routes with a trailing slash', () => {
+    const middleware = new SecurityMiddleware();
+    const next = jest.fn();
+    for (let i = 0; i < 60; i += 1) {
+      middleware.use(createRequest('203.0.113.14', '/AUTH/FORGOT-PASSWORD/'), createResponse(), next);
+    }
+    const response = createResponse();
+    middleware.use(createRequest('203.0.113.14', '/auth/reset-password'), response, next);
+    expect(response.status).toHaveBeenCalledWith(429);
+  });
 });

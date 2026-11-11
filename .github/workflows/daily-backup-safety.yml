@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install local fixture transport
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+        run: bash scripts/ci-install-rclone-from-oci.sh
       - name: Run root-owned synthetic policies and inert installer fixtures
         run: sudo python3 -B deploy/home-pc/test-daily-backup.py -v
       - name: Check syntax and systemd unit parsing
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install local fixture transport
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+        run: bash scripts/ci-install-rclone-from-oci.sh
       - name: Build current API image for isolated restore rehearsal
         run: docker build --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-daily-backup-ci:${{ github.sha }} ./backend
       - name: Restore real synthetic PostgreSQL 18 and media fixtures

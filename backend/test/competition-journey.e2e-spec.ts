@@ -9,6 +9,8 @@ import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/roles.guard';
 import { MailService } from '../src/mail/mail.service';
 import { EmailNotificationsService } from '../src/mail/email-notifications.service';
+import { RegistrationsService } from '../src/registrations/registrations.service';
+import { InspectionsService } from '../src/inspections/inspections.service';
 import type { CreateConfigurationDto } from '../src/configurations/dto/create-configuration.dto';
 
 // Acceptance: USD_MASTER_PLAN sections 7–10 and 14. Run only after migrations on
@@ -451,6 +453,14 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
     // container outside this suite. Never truncate or delete neighbouring data.
   });
 
+  it('keeps mixed-case user administration routes inaccessible to custom judges', async () => {
+    await api('get', '/AUTH/ADMIN/users/', judge).expect(403);
+    await api('patch', `/AUTH/admin/users/${judge.userId}/role`, judge)
+      .send({ role: 'ADMIN' })
+      .expect(403);
+    expect(await db.user.findUniqueOrThrow({ where: { id: judge.userId } })).toMatchObject({ role: 'PARTICIPANT' });
+  });
+
   it('takes a participant through inspection, judging, publication and immutable personal history', async () => {
     const stageId = await createStage();
     const registration = (
@@ -879,6 +889,65 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
     expect(await db.registration.count({ where: { stageId } })).toBe(1);
     expect(await db.registrationNumber.count({ where: { stageId } })).toBe(1);
   }, 30000);
+
+  it.each(['cancel', 'fail-inspection', 'remove-inspection'] as const)(
+    'preserves a result committed between the initial lookup and %s transaction',
+    async (action) => {
+      const stageId = await createStage();
+      const registration = (
+        await api('post', '/registrations/me', neighbour)
+          .send(registrationBody(stageId, neighbour, [classIds[0]]))
+          .expect(201)
+      ).body;
+      const inspection = (
+        await api('post', '/inspections', judge)
+          .send({ registrationId: registration.id, status: 'PASSED' })
+          .expect(201)
+      ).body;
+      let releaseLookup!: () => void;
+      let observedLookup!: () => void;
+      const held = new Promise<void>((resolve) => { releaseLookup = resolve; });
+      const observed = new Promise<void>((resolve) => { observedLookup = resolve; });
+      const model = action === 'cancel' ? 'registration' : 'inspection';
+      // Keep real PostgreSQL transactions and services; hold only the initial
+      // non-transactional lookup to reproduce the stale-read race deterministically.
+      const gated = new Proxy(db, {
+        get(target, key) {
+          if (key === '$transaction') return target.$transaction.bind(target);
+          if (key === model) return {
+            findUnique: async (args: any) => {
+              const row = await (target[model].findUnique as any)(args);
+              observedLookup();
+              await held;
+              return row;
+            },
+          };
+          return Reflect.get(target, key);
+        },
+      });
+      const actor = { userId: admin.userId, role: 'ADMIN' as const };
+      const pending = action === 'cancel'
+        ? new RegistrationsService(gated).cancel(registration.id, { user: { sub: admin.userId, role: 'ADMIN' } } as any)
+        : action === 'fail-inspection'
+          ? new InspectionsService(gated).update(inspection.id, { status: 'FAILED', notes: 'Synthetic late revocation' }, actor)
+          : new InspectionsService(gated).remove(inspection.id, actor);
+      const outcome = pending.then(() => null, (error: unknown) => error);
+      try {
+        await observed;
+        await api('post', '/results', judge)
+          .send({ registrationId: registration.id, registrationClassId: registration.classes[0].id, value: 149.125, confirmed: true })
+          .expect(201);
+      } finally {
+        releaseLookup();
+      }
+      expect(await outcome).toMatchObject({ status: 409 });
+      expect(await db.result.count({ where: { registrationId: registration.id } })).toBe(1);
+      expect(await db.registrationNumber.count({ where: { registrationId: registration.id } })).toBe(1);
+      expect(await db.registration.findUniqueOrThrow({ where: { id: registration.id } })).toMatchObject({ status: 'ACTIVE' });
+      expect(await db.inspection.findUniqueOrThrow({ where: { id: inspection.id } })).toMatchObject({ status: 'PASSED' });
+    },
+    30000,
+  );
 
   it('releases cancelled sticker numbers and re-registers without duplicate active reservations', async () => {
     const stageId = await createStage();

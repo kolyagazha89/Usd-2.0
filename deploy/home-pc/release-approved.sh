@@ -128,6 +128,13 @@ try:
         values[key] = val
     if values.keys() != critical:
         raise ValueError("missing deployment setting")
+    # pg_dump -d accepts a libpq connection string as well as a database name.
+    # An encoded API URL path matching POSTGRES_DB must not authorize a dump
+    # redirected by e.g. POSTGRES_DB='host=remote-db dbname=usd'. Match the
+    # daily-backup policy before passing either identifier to PostgreSQL tools.
+    if not all(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}", values[key])
+               for key in ("POSTGRES_DB", "POSTGRES_USER")):
+        raise ValueError("database and user must be plain PostgreSQL identifiers")
     if values["APP_DOMAIN"] != "app.usd-russia.ru" or values["API_DOMAIN"] != "api.usd-russia.ru":
         raise ValueError("deployment targets are not the approved prerelease domains")
     db = urlsplit(values["DATABASE_URL"])

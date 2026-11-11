@@ -750,6 +750,19 @@ export class InspectionsService {
         throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
       }
       const saved = await this.prisma.$transaction(async (tx) => {
+        // Read the result guard inside SERIALIZABLE isolation as well: a
+        // measurement committed after the outer lookup must prevent revocation.
+        const vehicleInspection = await tx.inspection.findUnique({
+          where: { id },
+          include: { registration: { include: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+        });
+        if (!vehicleInspection) throw new NotFoundException('Инспекция не найдена');
+        this.assertCanEdit(vehicleInspection.createdByUserId ?? vehicleInspection.checkedByUserId, actor);
+        const nextStatus = data.status ?? vehicleInspection.status;
+        this.validateNotes(nextStatus, data.notes === undefined ? vehicleInspection.notes : data.notes);
+        if (nextStatus === 'FAILED' && (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length))) {
+          throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
+        }
         const updated = await tx.inspection.update({
           where: { id },
           data: {
@@ -800,6 +813,17 @@ export class InspectionsService {
       throw new ConflictException('Нельзя отказать в допуске: у участника уже есть результат на этом этапе');
     }
     return this.prisma.$transaction(async (tx) => {
+      const current = await tx.participantStageInspection.findUnique({
+        where: { id },
+        include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+      });
+      if (!current) throw new NotFoundException('Инспекция не найдена');
+      this.assertCanEdit(current.createdByUserId ?? current.checkedByUserId, actor);
+      const nextStatus = data.status ?? current.status;
+      this.validateNotes(nextStatus, data.notes === undefined ? current.notes : data.notes);
+      if (nextStatus === 'FAILED' && current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
+        throw new ConflictException('Нельзя отказать в допуске: у участника уже есть результат на этом этапе');
+      }
       const updated = await tx.participantStageInspection.update({
         where: { id },
         data: { ...(data.status !== undefined ? { status: data.status } : {}), ...(data.notes !== undefined ? { notes: this.normalizeNotes(data.notes ?? undefined) } : {}), checkedByUserId: actor.userId },
@@ -830,6 +854,14 @@ export class InspectionsService {
         throw new ConflictException('Нельзя удалить инспекцию: по этому автомобилю уже есть результат');
       }
       await this.prisma.$transaction(async (tx) => {
+        const vehicleInspection = await tx.inspection.findUnique({
+          where: { id },
+          include: { registration: { include: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+        });
+        if (!vehicleInspection) throw new NotFoundException('Инспекция не найдена');
+        if (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length)) {
+          throw new ConflictException('Нельзя удалить инспекцию: по этому автомобилю уже есть результат');
+        }
         await tx.inspection.delete({ where: { id } });
         await tx.auditLog.create({
           data: { userId: actor.userId, action: 'VEHICLE_INSPECTION_DELETED', entity: 'Inspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { registrationId: vehicleInspection.registrationId, status: vehicleInspection.status, notes: vehicleInspection.notes } },
@@ -854,6 +886,14 @@ export class InspectionsService {
       throw new ConflictException('Нельзя удалить инспекцию: у участника уже есть результат на этом этапе');
     }
     return this.prisma.$transaction(async (tx) => {
+      const current = await tx.participantStageInspection.findUnique({
+        where: { id },
+        include: { registrations: { select: { results: { select: { id: true } }, classes: { select: { results: { select: { id: true } } } } } } },
+      });
+      if (!current) throw new NotFoundException('Инспекция не найдена');
+      if (current.registrations.some((item: any) => item.results.length || item.classes.some((cls: any) => cls.results.length))) {
+        throw new ConflictException('Нельзя удалить инспекцию: у участника уже есть результат на этом этапе');
+      }
       await tx.participantStageInspection.delete({ where: { id } });
       await tx.auditLog.create({
         data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_DELETED', entity: 'ParticipantStageInspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: current.participantId, stageId: current.stageId, status: current.status, notes: current.notes } },

@@ -85,6 +85,14 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow('Управление пользователями и ролями доступно только ADMIN');
     expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
+  it.each(['/AUTH/admin/users/custom/role', '/Auth/ADMIN/roles/'])(
+    'keeps the ADMIN boundary for the Express route variant %s',
+    async (path) => {
+      const ctx = context({ method: 'PATCH', path, user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'AuthController');
+      await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.role.findUnique).not.toHaveBeenCalled();
+    },
+  );
   it('allows staff self-service without granting unrelated admin permissions', async () => {
     prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
     for (const [name,path,method] of [
@@ -134,6 +142,29 @@ describe('RolesGuard', () => {
     ]) {
       await expect(guard.canActivate(context({...request,user:{sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'}},request.path.startsWith('/media')?'MediaController':'StagesController'))).rejects.toBeInstanceOf(ForbiddenException);
     }
+  });
+
+  it.each([
+    '/media/view/PARTICIPANT_PHOTO/person-1',
+    '/media/view/CAR_PHOTO/car-1',
+    '/media/private-file/SITE_ASSET/team-post-post-1',
+    '/MeDiA/ViEw/PARTICIPANT_PHOTO/person-1/',
+    '/MeDiA/ViEw/CAR_PHOTO/car-1/',
+    '/MeDiA/PrIvAtE-FiLe/SITE_ASSET/team-post-post-1/',
+  ])('allows custom staff personal media access through %s', async (path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const ctx = context({ method: 'GET', path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '/media/view/SITE_ASSET/other-asset',
+    '/media/private-file/SITE_ASSET/other-asset',
+  ])('keeps unrelated private site media permission-protected at %s', async (path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const ctx = context({ method: 'GET', path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
 });

@@ -13,6 +13,11 @@ import { PrismaService } from '../prisma/prisma.service';
 type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 type PermissionMap = Record<string, unknown>;
 
+// Match Express's default case-insensitive, non-strict route semantics before
+// deciding whether a request belongs to a privileged or personal-account path.
+const permissionPath = (request: Request): string =>
+  request.path.toLowerCase().replace(/\/+$/, '') || '/';
+
 const CONTROLLER_MODULES: Record<string, string> = {
   PushAdminController: 'notifications',
   StagesController: 'stages',
@@ -42,11 +47,11 @@ const CONTROLLER_MODULES: Record<string, string> = {
 
 function actionFor(request: Request): PermissionAction {
   const method = request.method.toUpperCase();
-  if (request.path.startsWith('/media/upload')) return 'create';
+  if (permissionPath(request).startsWith('/media/upload')) return 'create';
   if (method === 'GET' || method === 'HEAD') return 'view';
   if (method === 'DELETE') return 'delete';
   if (method === 'PUT' || method === 'PATCH') return 'update';
-  const path = request.path.toLowerCase();
+  const path = permissionPath(request);
   if (/(publish|unpublish|close|open|cancel|restore|activate|deactivate|status|verify|resolve|revoke|approve|reject|toggle|commit|rollback)/.test(path)) return 'update';
   return 'create';
 }
@@ -73,7 +78,7 @@ function hasPermission(permissions: PermissionMap, module: string, action: Permi
  * to edit another participant. Services still verify resource ownership.
  */
 function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionContext): boolean {
- const path=request.path;
+ const path=permissionPath(request);
  const method=request.method.toUpperCase();
  const name=context.getClass().name;
  if(name==='PushController')return (path==='/push/subscriptions'&&['GET','PUT'].includes(method))||(/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method));
@@ -111,8 +116,8 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
 
   if(path==='/media/complete'&&method==='POST')return true;
   if(path==='/media/upload'&&method==='PUT')return true;
-  if(/^\/media\/view\/(PARTICIPANT_PHOTO|CAR_PHOTO)\/[^/]+$/.test(path)&&method==='GET')return true;
-  if(/^\/media\/private-file\/SITE_ASSET\/team-post-[^/]+$/.test(path)&&method==='GET')return true;
+  if(/^\/media\/view\/(participant_photo|car_photo)\/[^/]+$/.test(path)&&method==='GET')return true;
+  if(/^\/media\/private-file\/site_asset\/team-post-[^/]+$/.test(path)&&method==='GET')return true;
   return false;
  }
  return false;
@@ -144,7 +149,7 @@ export class RolesGuard implements CanActivate {
       // User/role administration stays reserved to the permanent ADMIN role.
       // A custom permission matrix must never grant the ability to assign ADMIN
       // or manage the role system itself.
-      if (context.getClass().name === 'AuthController' && request.path.startsWith('/auth/admin/')) {
+      if (context.getClass().name === 'AuthController' && permissionPath(request).startsWith('/auth/admin/')) {
         throw new ForbiddenException('Управление пользователями и ролями доступно только ADMIN');
       }
       if(isSelfServiceAction(request,context))return true;

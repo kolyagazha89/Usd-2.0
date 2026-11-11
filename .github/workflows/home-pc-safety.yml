@@ -33,6 +33,7 @@ jobs:
           python3 deploy/home-pc/test-second-disk-db-backup.py -v
           python3 deploy/home-pc/test-second-disk-media-backup.py -v
           python3 deploy/home-pc/test-safe-schema-migration.py -v
+          python3 deploy/home-pc/test-release-environment.py -v
           sudo python3 deploy/home-pc/test-reviewed-recovery.py -v
           python3 deploy/home-pc/test-deploy-status.py -v
           python3 deploy/home-pc/test-request-deploy.py -v
@@ -288,8 +289,9 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq rclone
+          # Pull the official static rclone binary from a versioned OCI image.
+          # The fixture remains unchanged; apt mirror DNS is not a test prerequisite.
+          bash scripts/ci-install-rclone-from-oci.sh
           root="$(mktemp -d)"
           trap 'rm -rf "$root"' EXIT
           mkdir -p "$root/source/sub"

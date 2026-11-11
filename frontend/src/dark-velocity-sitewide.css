@@ -1155,10 +1155,11 @@ body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-p
 body .usd-live .usd-partner-showcase--home .usd-partner-carousel-wrap{
  width:100%;max-width:100%;min-width:0;
 }
-/* Home carousels are exclusive to REGULAR and STUDIO; premium/general remain static grids. */
+/* Home carousels are exclusive to REGULAR and STUDIO; premium/general remain static grids.
+   A flex track keeps percentage card widths scrollable on narrow Safari screens. */
 body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
- display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 3 * 16px)/4);
+ display:flex;flex-wrap:nowrap;align-items:stretch;
  gap:16px;overflow-x:auto;overflow-y:hidden;
  scroll-snap-type:x mandatory;scroll-padding-inline:2px;
  overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
@@ -1179,19 +1180,6 @@ body .usd-live .usd-partner-carousel-meta{
 body .usd-live .usd-partner-carousel:focus-visible{
  outline:2px solid #ff5777;outline-offset:4px;border-radius:12px;
 }
-@media(max-width:1100px){
- body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
-  grid-auto-columns:calc((100% - 2 * 16px)/3);
- }
-}
-@media(max-width:800px){
- body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr));
- }
- body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
-  grid-auto-columns:calc((100% - 16px)/2);
- }
-}
 @media(max-width:560px){
  body .usd-live .usd-partner-showcase--full .usd-partner-grid,
  body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid{
@@ -1205,7 +1193,7 @@ body .usd-live .usd-partner-carousel:focus-visible{
   --usd-partner-slot-height:154px;
  }
  body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
-  grid-auto-columns:minmax(0,82%);gap:12px;
+  gap:12px;
  }
  body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-card{
   padding:16px;gap:12px;min-height:248px;
@@ -1220,12 +1208,6 @@ body .usd-live .usd-partner-carousel:focus-visible{
  }
 }
 
-/* A flex track guarantees genuine horizontal overflow on narrow Safari and
-   Chromium viewports. Explicit percentage flex bases are not collapsed into
-   a four-column grid, even with nested legacy mobile grid rules. */
-body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel{
- display:flex;flex-wrap:nowrap;align-items:stretch;
-}
 body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel>.usd-partner-card{
  flex:0 0 calc((100% - 3 * 16px)/4);width:calc((100% - 3 * 16px)/4);
  max-width:none;min-width:0;

@@ -20,7 +20,10 @@ export class SecurityMiddleware implements NestMiddleware {
     this.cleanup(now);
 
     const ip = request.ip || request.socket.remoteAddress || 'unknown';
-    const path = request.path || request.originalUrl.split('?')[0] || '/';
+    // Express accepts mixed-case routes and an optional trailing slash.
+    // All spellings of a sensitive endpoint must consume the same quota.
+    const path = (request.path || request.originalUrl.split('?')[0] || '/')
+      .toLowerCase().replace(/\/+$/, '') || '/';
 
     const isAuthRoute = path.startsWith('/auth/');
     // Shared venue Wi-Fi must not make background refreshes exhaust the
