@@ -39,7 +39,8 @@ try{
      assert.equal(row.styles.background,'rgb(255, 240, 242)');
     }else{
      assert.equal(row.styles.list,'rgb(21, 30, 41)','public/member popup must stay dark');
-     assert.equal(row.styles.color,'rgb(255, 255, 255)');
+     assert.equal(row.styles.color,'rgb(255, 255, 255)','public/member keyboard focus remains white over selected state');
+     assert.equal(row.styles.background,'rgba(228, 47, 70, 0.18)','public/member selected item must use the shared burgundy emphasis');
     }
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'popup must fit the viewport');
     row.status='passed';
