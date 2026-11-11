@@ -7,6 +7,7 @@ def fixture():
     return {
         "VENUE_BIND_IP": "192.168.50.10",
         "VENUE_IMAGE_TAG": "a" * 40,
+        "VENUE_STAGE_ID": "c510f672-79f7-44eb-8173-2a8ff94b1c0e",
         "VENUE_DB_NAME": "usd_venue",
         "VENUE_DB_USER": "usd_venue",
         "VENUE_DB_PASSWORD": "a secure private password",
@@ -36,6 +37,13 @@ class VenuePreflightTests(unittest.TestCase):
         for label in ("main", "latest", "a" * 8, "REPLACE_SHA"):
             env = fixture()
             env["VENUE_IMAGE_TAG"] = label
+            with self.assertRaises(ValueError):
+                validate(env)
+    def test_stage_pin_required(self):
+        for stage in ("", "REPLACE_WITH_STAGE_UUID", "not-a-uuid",
+                      "00000000-0000-0000-0000-000000000000"):
+            env=fixture()
+            env["VENUE_STAGE_ID"]=stage
             with self.assertRaises(ValueError):
                 validate(env)
     def test_production_db_and_media_root_key_rejected(self):

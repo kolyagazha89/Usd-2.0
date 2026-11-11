@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Header,
   Get,
   Param,
   Patch,
@@ -22,6 +23,14 @@ export class ResultsController {
     private readonly resultsService: ResultsService,
     private readonly resultDeletionService: ResultDeletionService,
   ) {}
+
+  // Unpublished on-site measurements are visible ONLY from the venue LAN.
+  @Public()
+  @Header('Cache-Control', 'no-store, max-age=0')
+  @Get('venue-live')
+  venueLive() {
+    return this.resultsService.findVenueLive();
+  }
 
   @Public()
   @Get('stage/:stageId')

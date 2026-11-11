@@ -8,7 +8,7 @@ import sys
 from urllib.parse import urlsplit, parse_qsl, unquote
 
 REQUIRED = (
-    "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_DB_NAME", "VENUE_DB_USER",
+    "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_STAGE_ID", "VENUE_DB_NAME", "VENUE_DB_USER",
     "VENUE_DB_PASSWORD", "VENUE_DATABASE_URL", "VENUE_JWT_SECRET",
     "VENUE_S3_ROOT_ACCESS", "VENUE_S3_ROOT_SECRET",
     "VENUE_S3_APP_ACCESS", "VENUE_S3_APP_SECRET",
@@ -45,6 +45,11 @@ def validate(env: dict[str, str]) -> None:
         raise ValueError("Публикация разрешена только на частном IPv4 интерфейсе роутера")
     if not re.fullmatch(r"[0-9a-f]{40}", env["VENUE_IMAGE_TAG"]):
         raise ValueError("Разрешены только образы, закреплённые полным SHA коммита")
+    if not re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+        env["VENUE_STAGE_ID"], re.IGNORECASE,
+    ):
+        raise ValueError("VENUE_STAGE_ID должен быть UUID единственного этапа")
     if len(env["VENUE_JWT_SECRET"].encode("utf-8")) < 32:
         raise ValueError("VENUE_JWT_SECRET слишком короткий")
     if len(env["VENUE_DB_PASSWORD"]) < 20:
@@ -100,6 +105,8 @@ def main() -> int:
         )
         if bad_port:
             raise ValueError("Сервис БД/медиа или WAN-порт открыт небезопасно")
+        if 'USD_VENUE_LAN_MODE: "true"' not in compose or "VENUE_STAGE_ID: ${VENUE_STAGE_ID" not in compose:
+            raise ValueError("Локальное табло не ограничено площадкой и этапом")
         bootstrap = (root / "config" / "venue-config.js").read_text(encoding="utf-8")
         if "__USD_VENUE_MODE__ = true" not in bootstrap or "'/venue-api'" not in bootstrap:
             raise ValueError("Локальный frontend не настроен на свой API")

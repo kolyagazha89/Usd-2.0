@@ -501,6 +501,65 @@ export class ResultsService {
     }).then((results) => results.map((result) => this.sanitizePublicResult(result)));
   }
 
+  /** Local LAN scoreboard: independent of central public-results publication. */
+  async findVenueLive() {
+    const stageId = process.env.VENUE_STAGE_ID ?? '';
+    if (process.env.USD_VENUE_LAN_MODE !== 'true'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stageId)) {
+      throw new NotFoundException('Локальное табло недоступно');
+    }
+    const stage = await this.prisma.stage.findFirst({
+      where: { id: stageId, isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] } },
+      select: { id: true, name: true, city: true, date: true },
+    });
+    if (!stage) throw new NotFoundException('Этап для локального табло не найден');
+    const scores = await this.prisma.result.findMany({
+      where: { registration: { stageId, status: 'ACTIVE' } },
+      select: {
+        id: true, value: true, unit: true, place: true,
+        registration: {
+          select: {
+            participantNumber: true,
+            participant: { select: { firstName: true, lastName: true, middleName: true, isPublic: true } },
+            car: { select: { brand: true, model: true, isPublic: true, isActive: true } },
+          },
+        },
+        registrationClass: {
+          select: {
+            number: { select: { number: true } },
+            class: {
+              select: {
+                id: true, name: true, unit: true, sortOrder: true,
+                direction: { select: { name: true, sortOrder: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { registrationClass: { class: { direction: { sortOrder: 'asc' } } } },
+        { registrationClass: { class: { sortOrder: 'asc' } } },
+        { place: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+    return {
+      stage, updatedAt: new Date().toISOString(),
+      rows: scores.map((score) => {
+        const participant = score.registration.participant, car = score.registration.car;
+        return {
+          id: score.id, value: score.value.toString(), unit: score.unit, place: score.place,
+          number: score.registrationClass.number?.number ?? score.registration.participantNumber,
+          participant: participant?.isPublic === false ? 'Участник скрыт'
+            : [participant?.lastName, participant?.firstName, participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
+          car: !car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
+            : [car.brand, car.model].filter(Boolean).join(' ') || 'Автомобиль USD',
+          class: score.registrationClass.class,
+        };
+      }),
+    };
+  }
+
   async findByStageAdmin(stageId: string) {
     const stage = await this.prisma.stage.findUnique({
       where: { id: stageId },
