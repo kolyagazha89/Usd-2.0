@@ -237,12 +237,13 @@ export async function applyVenueStageImport(plan,prisma){
    await tx.participant.create({data:{
     id:person.id,firstName:person.firstName,lastName:person.lastName,
     middleName:person.middleName??null,city:person.city??null,team:person.team??null,
+    isPublic:person.isPublic===true,
    }});
   for(const car of [...cars.values()].sort(sortById))
    await tx.car.create({data:{
     id:car.id,participantId:car.participantId,brand:car.brand,model:car.model,
     registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
-    color:car.color??null,
+    color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
    }});
   for(const r of regs){
    // A local FK placeholder, NOT a claim that the full historical equipment

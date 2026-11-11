@@ -46,9 +46,9 @@ const snapshot=()=>({
   configurationVersionId:uuid.version,configurationSnapshot:{venue:true},participantNumber:6,
   source:'ON_SITE',status:'ACTIVE',registeredAt:'2026-11-10T12:00:00.000Z',
   teamIdAtInspection:null,teamNameAtInspection:null,
-  participant:{id:uuid.person,firstName:'Иван',lastName:'Иванов',middleName:null,city:'Тюмень',team:null},
+  participant:{id:uuid.person,firstName:'Иван',lastName:'Иванов',middleName:null,city:'Тюмень',team:null,isPublic:true},
   car:{id:uuid.car,participantId:uuid.person,brand:'Lada',model:'Vesta',registrationCountry:'RU',
-   registrationNumber:'А123ВС55',color:null},
+   registrationNumber:'А123ВС55',color:null,isPublic:true,isActive:true},
   numbers:[{id:uuid.number,number:6,isPrimary:true}],
   classes:[{id:uuid.regClass,classId:uuid.cls,numberId:uuid.number,
    class:{id:uuid.cls,code:'L20',name:'Limited 2.0',directionId:uuid.direction},
@@ -116,8 +116,19 @@ test('transactionally inserts the signed one-stage roster in FK order and logs a
   'inspection','participantStageInspection','registration','registrationClassInspection','result','auditLog'
  ]);
  assert.equal(log.find(x=>x.model==='result').data.value,'151.750');
+ assert.equal(log.find(x=>x.model==='participant').data.isPublic,true);
+ assert.equal(log.find(x=>x.model==='car').data.isPublic,true);
  assert.equal(log.find(x=>x.model==='auditLog').data.metadata.sha256,plan.packageHash);
  assert.ok(!JSON.stringify(log.find(x=>x.model==='auditLog')).includes('Иванов'));
+});
+test('missing privacy flags in old signed exports are imported hidden, never made public by defaults',async()=>{
+ const data=snapshot();delete data.registrations[0].participant.isPublic;
+ delete data.registrations[0].car.isPublic;delete data.registrations[0].car.isActive;
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,log}=mockDb();await applyVenueStageImport(plan,db);
+ assert.equal(log.find(x=>x.model==='participant').data.isPublic,false);
+ assert.equal(log.find(x=>x.model==='car').data.isPublic,false);
+ assert.equal(log.find(x=>x.model==='car').data.isActive,false);
 });
 test('a nonempty local event database refuses to apply or overwrite participants/results',async()=>{
  const plan=planVenueStageImport(signed(),publicPem,env,now);
