@@ -62,6 +62,16 @@ test('valid signature alone does not permit cross-stage numbers, classes or secr
  const duplicate=structuredClone(base);duplicate.registrations.push(structuredClone(duplicate.registrations[0]));
  assert.throws(()=>verifyVenueStageHandoff(pack(duplicate),pem,now),/регистрация/);
 });
+test('signed privacy flags are allowed but malformed flags are rejected',()=>{
+ const publicData=structuredClone(base);
+ publicData.registrations[0].participant.isPublic=false;
+ publicData.registrations[0].car.isPublic=false;
+ publicData.registrations[0].car.isActive=false;
+ assert.doesNotThrow(()=>verifyVenueStageHandoff(pack(publicData),pem,now));
+ const invalid=structuredClone(publicData);
+ invalid.registrations[0].participant.isPublic='false';
+ assert.throws(()=>verifyVenueStageHandoff(pack(invalid),pem,now),/приватность/);
+});
 test('a signed result cannot be attached to a class outside the registration',()=>{
  const snapshot=structuredClone(base);
  snapshot.registrations[0].results[0].registrationClassId='not-here';

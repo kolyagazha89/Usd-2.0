@@ -62,6 +62,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Validate signed import planning, replay rejection and transactional writes without any DB
+        run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB
         run: node --test deploy/venue-lan/test-verify-stage-package.mjs
       - name: Check frontend runtime API selection stays local in venue mode
