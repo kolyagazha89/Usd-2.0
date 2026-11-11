@@ -22,10 +22,11 @@ the isolated laptop can enable it. The `VENUE_STAGE_ID` in the venue
 `.env` must equal the signed stage UUID, and preflight rejects placeholders.
 This is not official publication on `app.usd-russia.ru`.
 
-**Blocker:** The signed package is not yet imported into the local DB, and
-there is no local judge login, official write journal or central sync.
-Therefore the board can display already-available local results but the
-venue hub cannot yet operate a real competition. Do not use it with real
+**Blocker:** The signed package now has a guarded local import procedure (below), but
+the hub lacks local staff login/roles, complete equipment/media transfer,
+a durable offline write journal and central result reconciliation. The board
+will display imported measurements and local edits when those workflows are
+available; the venue hub cannot yet operate a real competition. Do not use it with real
 participant data until the following milestones and field acceptance pass.
 
 ## Stage-only handoff (signed export; NO automated import yet)
@@ -72,10 +73,16 @@ summary and NEVER imports or modifies database records.** The operator must
 retain both file and public key securely and should not distribute the JSON
 through a public web link or messaging group.
 
-**Hard blocker:** this release does NOT yet implement a supervised
-stage-scoped venue PostgreSQL importer, local staff account setup,
-full bidirectional registration/inspection/result sync, conflict review
-or final physical two-judge acceptance. Do not use it to judge a live event.
+**Implementation checkpoint:** a controlled stage-only PostgreSQL importer
+is available with a default no-write dry run and explicit single-stage apply.
+It reconstructs minimal relational dependencies, preserves the signed
+registration configuration snapshot and public-visibility flags, imports
+inspections, classes, numbers and existing results in one transaction, and
+refuses any nonempty local competition database. Equipment configurations
+are only FK placeholders, **not** copies of the complete equipment history.
+There are still **NO** local staff account/role setup, actual media transfer,
+bidirectional central sync, conflict review or two-phone acceptance. Do not
+use this build for official on-site judging.
 
 ## What this commit sets up
 
@@ -124,9 +131,21 @@ this scaffold with real participant data or as the active judging authority.
    at `http://127.0.0.1:19000` and the local RustFS Console on
    `http://127.0.0.1:19001`. Create `usd-venue-media` and its scoped IAM
    credentials before starting the API. Do not expose these ports to the AP.
-6. Local schema migration/import is **not automated**. Never run database
-   reset/resolve commands against Ubuntu production. A supervised venue-only
-   migration and signed stage import are blocking tasks before any real use.
+6. Before any writes, download the signed stage snapshot and trusted Ed25519
+   **public** key onto the laptop from separate trusted sources. Inspect the
+   selected stage UUID, approved Docker image SHA and RFC1918 IP in `.env`.
+   From `deploy/venue-lan`, run the **read-only** command:
+   ```bash
+   bash ./bootstrap-local-stage.sh ./stage-file.json ./signing-public.pem --dry-run
+   ```
+   To migrate the **isolated empty venue DB** and import the stage exactly
+   once, use the same script with `--apply`. It requires a real terminal
+   and exact stage UUID confirmation, runs `prisma migrate deploy` only
+   inside `usd-venue`, checks the signed packet and refuses any existing
+   venue competition data. Keep an encrypted backup of the package and
+   verify the stage result counts. Never run database reset/resolve commands
+   or copy secrets/volumes from production Ubuntu. Applying is a DEV
+   demonstration until local role and sync acceptance is complete.
 7. Local gateway uses Caddy `tls internal`: clients must explicitly trust
    the **venue's own CA** to access `https://<laptop-LAN-ip>`, use secure
    refresh cookies and enable camera-based QR scanning. Export its certificate
@@ -140,9 +159,9 @@ this scaffold with real participant data or as the active judging authority.
 
 ## Mandatory release blockers
 
-- Reviewed stage-only signed export from central Ubuntu, validation and import
-  into isolated venue DB, media integrity verification and expiry/revocation
-  policy. Imported stage, role permissions and rules must agree on both sides.
+- Validate the new signed-stage import with a **real** isolated PostgreSQL
+  on the laptop; complete equipment/media integrity transfer and package
+  revocation policy. Imported stage, RBAC and rules must agree on both sides.
 - Single-site multi-judge workflow (check-in, registration, inspection,
   configuration exceptions, result entry) with a durable venue operation log.
 - Safe, idempotent central sync with per-operation acknowledgments, RBAC,
