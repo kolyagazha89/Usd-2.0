@@ -116,8 +116,8 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
 
   if(path==='/media/complete'&&method==='POST')return true;
   if(path==='/media/upload'&&method==='PUT')return true;
-  if(/^\/media\/view\/(PARTICIPANT_PHOTO|CAR_PHOTO)\/[^/]+$/.test(path)&&method==='GET')return true;
-  if(/^\/media\/private-file\/SITE_ASSET\/team-post-[^/]+$/.test(path)&&method==='GET')return true;
+  if(/^\/media\/view\/(participant_photo|car_photo)\/[^/]+$/.test(path)&&method==='GET')return true;
+  if(/^\/media\/private-file\/site_asset\/team-post-[^/]+$/.test(path)&&method==='GET')return true;
   return false;
  }
  return false;

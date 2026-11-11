@@ -144,4 +144,27 @@ describe('RolesGuard', () => {
     }
   });
 
+  it.each([
+    '/media/view/PARTICIPANT_PHOTO/person-1',
+    '/media/view/CAR_PHOTO/car-1',
+    '/media/private-file/SITE_ASSET/team-post-post-1',
+    '/MeDiA/ViEw/PARTICIPANT_PHOTO/person-1/',
+    '/MeDiA/ViEw/CAR_PHOTO/car-1/',
+    '/MeDiA/PrIvAtE-FiLe/SITE_ASSET/team-post-post-1/',
+  ])('allows custom staff personal media access through %s', async (path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const ctx = context({ method: 'GET', path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '/media/view/SITE_ASSET/other-asset',
+    '/media/private-file/SITE_ASSET/other-asset',
+  ])('keeps unrelated private site media permission-protected at %s', async (path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const ctx = context({ method: 'GET', path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'MediaController');
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
 });
