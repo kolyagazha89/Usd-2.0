@@ -1,6 +1,10 @@
 # USD 2.0 — Offline operation and synchronization
 
-Status: **partial P0 implementation since PR #402; explicit authenticated inspection replay added in the follow-up; full offline-event readiness NOT achieved.**
+Status: **owner reopened the laptop LAN hub on 2026-11-11** (supersedes
+the temporary 2026-11-09 postponement). P0 remains partial; the first
+venue-side milestone is a read-only LAN LIVE scoreboard and stage-pinned
+API. **There is still no supervised local stage importer, local staff bootstrap
+or complete sync. NOT ready for official offline judging.**
 
 **Signed stage package progress:** ADMIN now has an explicit export of a stage-scoped, Ed25519-signed 72-hour JSON snapshot with no account credentials and central audit; laptop CLI verifies integrity/expiry/references read-only. This is a **handoff foundation only**, not an operational importer or online/offline sync. The signing private key must be provisioned on trusted Ubuntu out-of-band; the venue laptop receives the public key only. See `deploy/venue-lan/README.md`.
 

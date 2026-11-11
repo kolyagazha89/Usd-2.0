@@ -6,6 +6,28 @@ RustFS bucket**, with no upstream Internet required during the event. The shared
 LAN hub is the source of on-site state. A phone's isolated encrypted browser
 package is an emergency *fallback*, never the primary judge workflow.
 
+## LIVE results on the isolated Wi-Fi — first vertical slice
+
+Once the server has a **properly provisioned local stage and results**, open
+`https://<laptop-LAN-IP>/venue/live` from phones, tablets or a screen on
+the same router Wi-Fi. No public Internet, DNS, or public API is required.
+The board refreshes every 4 seconds; on connection loss it keeps the last
+successful snapshot and marks it stale. It shows directions, classes,
+start numbers, places and scores, and hides non-public participant/car names.
+The event-day workspace links to it when venue mode is enabled.
+
+`GET /venue-api/results/venue-live` is **404 on the normal Ubuntu API**:
+only `USD_VENUE_LAN_MODE=true` plus a valid pinned `VENUE_STAGE_ID` on
+the isolated laptop can enable it. The `VENUE_STAGE_ID` in the venue
+`.env` must equal the signed stage UUID, and preflight rejects placeholders.
+This is not official publication on `app.usd-russia.ru`.
+
+**Blocker:** The signed package is not yet imported into the local DB, and
+there is no local judge login, official write journal or central sync.
+Therefore the board can display already-available local results but the
+venue hub cannot yet operate a real competition. Do not use it with real
+participant data until the following milestones and field acceptance pass.
+
 ## Stage-only handoff (signed export; NO automated import yet)
 
 The primary Ubuntu server can now create a **read-only, 72-hour, stage-only**

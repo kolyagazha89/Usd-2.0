@@ -42,6 +42,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      USD_VENUE_LAN_MODE: "true"
+      VENUE_STAGE_ID: ${VENUE_STAGE_ID:?set VENUE_STAGE_ID}
       DATABASE_URL: ${VENUE_DATABASE_URL:?set VENUE_DATABASE_URL}
       JWT_SECRET: ${VENUE_JWT_SECRET:?set VENUE_JWT_SECRET}
       AUTH_COOKIE_SECURE: "true"

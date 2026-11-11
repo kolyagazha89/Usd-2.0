@@ -15,6 +15,7 @@ import {VehicleCatalogPicker} from './participant/VehicleCatalogPicker';
 import {recordConsentedTrafficVisit} from './public/traffic-tracking';
 import PublicCommunity,{communityRoutes,communityTitle} from './public/PublicCommunity';
 import UsdIdLanding from './public/UsdIdLanding';
+import VenueLiveResults from './public/VenueLiveResults';
 import {PremiumProvider,PremiumHeader,PremiumFooter,PublicMetadata} from './public/PremiumShell';
 import {visiblePublicNavigationItems} from './public/navigation-model';
 import PublicNavigation from './navigation/PublicNavigation';
@@ -125,6 +126,9 @@ function App(){
  // The offline desk is protected by its own passphrase, not by a stale JWT.
  // It must render even when auth/refresh cannot reach the central API.
  if(path.split('?')[0]==='/offline-event')return <OfflineEventPage onGoOnline={target=>go(target??'/admin/event-day')}/>;
+ // A spectator board is available ONLY on a deliberately bootstrapped venue LAN.
+ if(path.split('?')[0]==='/venue/live' && (window as Window & {__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true)
+  return <VenueLiveResults/>;
  if(!user){if(/^\/participant(?:\/|\?|$)/.test(path))return <Splash/>;if(path.startsWith('/login')||path.startsWith('/admin'))return <LoginScreen onLogin={async(e,p)=>{const loggedInUser=await login(e,p);setUser(loggedInUser);const next=new URLSearchParams(path.split('?')[1]??'').get('next');go(accountLanding(loggedInUser,next,path.startsWith('/admin')))}}/>;return <PublicSite path={path} go={go} user={user}/>;}
  if(/^\/participant(?:\/|\?|$)/.test(path)||(path.startsWith('/admin')&&!hasAdminPanelAccess(user)))return <ParticipantPortal user={user} path={path} go={go} onUserChange={setUser} onLogout={async()=>{const signingOut=logout();setUser(null);await signingOut}}/>;
  // Public routes must remain public even when an ADMIN or custom-role session is active.
