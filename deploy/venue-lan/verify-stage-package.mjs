@@ -72,9 +72,14 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
    ||!Array.isArray(r.numbers)||!Array.isArray(r.classes)||!Array.isArray(r.results))
    throw new Error('Некорректная регистрация');
   ids.add(r.id);
-  fields(r.participant,['id','firstName','lastName','middleName','city','team'],'участник');
+  fields(r.participant,['id','firstName','lastName','middleName','city','team','isPublic'],'участник');
+  if(r.participant.isPublic!==undefined&&typeof r.participant.isPublic!=='boolean')
+   throw new Error('Некорректная приватность участника');
   fields(r.car,['id','participantId','brand','model','registrationCountry',
-   'registrationNumber','color'],'автомобиль');
+   'registrationNumber','color','isPublic','isActive'],'автомобиль');
+  if((r.car.isPublic!==undefined&&typeof r.car.isPublic!=='boolean')
+   ||(r.car.isActive!==undefined&&typeof r.car.isActive!=='boolean'))
+   throw new Error('Некорректная приватность автомобиля');
   if(r.participant.id!==r.participantId||r.car.id!==r.carId||r.car.participantId!==r.participantId)
    throw new Error('Участник или автомобиль принадлежат другой записи');
   const localNumbers=new Set();

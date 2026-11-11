@@ -42,6 +42,7 @@ jobs:
             'VENUE_BIND_IP':'192.168.50.10',
             'VENUE_IMAGE_TAG':'a'*40,
             'VENUE_STAGE_ID':'c510f672-79f7-44eb-8173-2a8ff94b1c0e',
+            'VENUE_SIGNING_KEY_FINGERPRINT':'b'*64,
             'VENUE_DB_NAME':'usd_venue',
             'VENUE_DB_USER':'usd_venue',
             'VENUE_DB_PASSWORD':'test-venue-only-password-12345',
@@ -62,6 +63,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Validate laptop-only migration/import wrapper syntax
+        run: bash -n deploy/venue-lan/bootstrap-local-stage.sh
+      - name: Validate signed import planning, replay rejection and transactional writes without any DB
+        run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB
         run: node --test deploy/venue-lan/test-verify-stage-package.mjs
       - name: Check frontend runtime API selection stays local in venue mode
