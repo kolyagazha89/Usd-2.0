@@ -162,6 +162,10 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
    {notice&&<div className="notice" role="status"><Check size={16}/>{notice}</div>}
    {stagesBusy?<LoadingPage small/>:!selected?<section className="panel"><Empty text={stageId?'Выбранный этап не найден или недоступен для вашей роли. Укажите другой этап.':'Выберите этап для работы'}/></section>:<>
     <section className="event-day-stage-context" aria-label="Информация об этапе"><Flag size={17}/><strong>{selected.name}</strong><span>{selected.city||'Город не указан'} · {dateLabel(selected.date)}</span>{readOnly&&<span className="event-day-read-only"><Info size={14}/>Архив: изменения инспекций отключены</span>}</section>
+    {(window as Window & {__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true&&
+     <p className="event-day-live-link"><a href="/venue/live" target="_blank" rel="noopener noreferrer">
+      <Trophy size={17}/>Открыть локальное LIVE-табло этапа ↗
+     </a><small>Только Wi-Fi площадки; результаты обновляются автоматически.</small></p>}
     <section className="event-day-overview" aria-label="Сводка дня соревнований">
      {([
       ['ALL','Активных',counts.active],
