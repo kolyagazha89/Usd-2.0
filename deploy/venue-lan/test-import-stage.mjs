@@ -27,6 +27,7 @@ const env={
  USD_VENUE_LAN_MODE:'true',VENUE_STAGE_ID:uuid.stage,
  DATABASE_URL:'postgresql://usd_venue:venue-password@db:5432/usd_venue?schema=public',
  VENUE_DB_NAME:'usd_venue',VENUE_DB_USER:'usd_venue',VENUE_DB_PASSWORD:'venue-password',
+ VENUE_SIGNING_KEY_FINGERPRINT:createHash('sha256').update(publicKey.export({type:'spki',format:'der'})).digest('hex'),
 };
 const snapshot=()=>({
  format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:uuid.stage,
@@ -79,6 +80,7 @@ test('reject invalid origin, wrong key, expired package, wrong stage and externa
  assert.throws(()=>planVenueStageImport(p,generateKeyPairSync('ed25519').publicKey.export({type:'spki',format:'pem'}).toString(),env,now),/подпись/);
  assert.throws(()=>planVenueStageImport(p,publicPem,env,now+72*60*60*1000),/просрочен/);
  assert.throws(()=>planVenueStageImport(p,publicPem,{...env,VENUE_STAGE_ID:uuid.season},now),/этап/);
+ assert.throws(()=>planVenueStageImport(p,publicPem,{...env,VENUE_SIGNING_KEY_FINGERPRINT:'f'.repeat(64)},now),/отпечаток/);
  assert.throws(()=>planVenueStageImport(p,publicPem,{...env,USD_VENUE_LAN_MODE:'false'},now),/площадк/);
  assert.throws(()=>planVenueStageImport(p,publicPem,{...env,DATABASE_URL:'postgresql://usd:prod@production.example:5432/usd'},now),/баз/);
 });

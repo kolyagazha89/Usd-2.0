@@ -8,6 +8,7 @@ def fixture():
         "VENUE_BIND_IP": "192.168.50.10",
         "VENUE_IMAGE_TAG": "a" * 40,
         "VENUE_STAGE_ID": "c510f672-79f7-44eb-8173-2a8ff94b1c0e",
+        "VENUE_SIGNING_KEY_FINGERPRINT": "b"*64,
         "VENUE_DB_NAME": "usd_venue",
         "VENUE_DB_USER": "usd_venue",
         "VENUE_DB_PASSWORD": "a secure private password",
@@ -39,6 +40,13 @@ class VenuePreflightTests(unittest.TestCase):
             env["VENUE_IMAGE_TAG"] = label
             with self.assertRaises(ValueError):
                 validate(env)
+    def test_signing_public_key_fingerprint_required(self):
+        for fingerprint in ("", "REPLACE_SHA", "a"*8, "x"*64):
+            env=fixture()
+            env["VENUE_SIGNING_KEY_FINGERPRINT"]=fingerprint
+            with self.assertRaises(ValueError):
+                validate(env)
+
     def test_stage_pin_required(self):
         for stage in ("", "REPLACE_WITH_STAGE_UUID", "not-a-uuid",
                       "00000000-0000-0000-0000-000000000000"):

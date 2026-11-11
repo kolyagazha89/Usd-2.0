@@ -73,6 +73,9 @@ export function assertVenueImportEnvironment(env,stageId){
 export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
  const verified=verifyVenueStageHandoff(signed,publicPem,now);
  assertVenueImportEnvironment(env,verified.stageId);
+ if(!/^[a-f0-9]{64}$/.test(env.VENUE_SIGNING_KEY_FINGERPRINT??'')
+  ||env.VENUE_SIGNING_KEY_FINGERPRINT!==verified.publicKeyFingerprint)
+  throw new Error('Доверенный отпечаток ключа подписи не совпадает с пакетом');
  const snapshot=signed.snapshot,stage=snapshot.stage;
  const season=stage.season;
  if(!isObject(season)||assertUuid(stage.seasonId,'сезон')!==assertUuid(season.id,'сезон')

@@ -8,7 +8,7 @@ import sys
 from urllib.parse import urlsplit, parse_qsl, unquote
 
 REQUIRED = (
-    "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_STAGE_ID", "VENUE_DB_NAME", "VENUE_DB_USER",
+    "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_STAGE_ID", "VENUE_SIGNING_KEY_FINGERPRINT", "VENUE_DB_NAME", "VENUE_DB_USER",
     "VENUE_DB_PASSWORD", "VENUE_DATABASE_URL", "VENUE_JWT_SECRET",
     "VENUE_S3_ROOT_ACCESS", "VENUE_S3_ROOT_SECRET",
     "VENUE_S3_APP_ACCESS", "VENUE_S3_APP_SECRET",
@@ -50,6 +50,8 @@ def validate(env: dict[str, str]) -> None:
         env["VENUE_STAGE_ID"], re.IGNORECASE,
     ):
         raise ValueError("VENUE_STAGE_ID должен быть UUID единственного этапа")
+    if not re.fullmatch(r"[a-f0-9]{64}", env["VENUE_SIGNING_KEY_FINGERPRINT"]):
+        raise ValueError("Нужен SHA-256 SPKI публичного ключа из доверенного канала")
     if len(env["VENUE_JWT_SECRET"].encode("utf-8")) < 32:
         raise ValueError("VENUE_JWT_SECRET слишком короткий")
     if len(env["VENUE_DB_PASSWORD"]) < 20:
