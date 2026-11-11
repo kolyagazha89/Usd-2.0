@@ -9,6 +9,7 @@ on:
       - "scripts/*browser-qa*.mjs"
       - "scripts/online-release-preflight*.mjs"
       - ".github/workflows/public-browser-qa.yml"
+      - ".github/actions/ubuntu-archive/**"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,8 @@ jobs:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare reliable Ubuntu package mirror
+        uses: ./.github/actions/ubuntu-archive
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -93,6 +96,8 @@ jobs:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare reliable Ubuntu package mirror
+        uses: ./.github/actions/ubuntu-archive
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -119,6 +124,8 @@ jobs:
       USD_CANDIDATE_QA_AXE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare reliable Ubuntu package mirror
+        uses: ./.github/actions/ubuntu-archive
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -7,11 +7,13 @@ on:
       - 'deploy/home-pc/**'
       - 'backend/**'
       - '.github/workflows/daily-backup-safety.yml'
+      - '.github/actions/ubuntu-archive/**'
   pull_request:
     paths:
       - 'deploy/home-pc/**'
       - 'backend/**'
       - '.github/workflows/daily-backup-safety.yml'
+      - '.github/actions/ubuntu-archive/**'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare reliable Ubuntu package mirror
+        uses: ./.github/actions/ubuntu-archive
       - name: Install local fixture transport
         run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
       - name: Run root-owned synthetic policies and inert installer fixtures
@@ -48,6 +52,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare reliable Ubuntu package mirror
+        uses: ./.github/actions/ubuntu-archive
       - name: Install local fixture transport
         run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
       - name: Build current API image for isolated restore rehearsal
