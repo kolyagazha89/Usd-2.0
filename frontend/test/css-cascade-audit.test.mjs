@@ -23,6 +23,37 @@ function rules(css,source){
 function propertyBlock(r,property){
  return r.decls.find(x=>x.prop===property)?.value??null;
 }
+const staffOnlySelector=/\.(?:app-shell|admin-shell)(?:$|[\s.#>:])/;
+
+test('staff selector guard detects real descendant selectors while allowing shared surface tokens',()=>{
+ for(const selector of ['body .app-shell .panel','.app-shell>.main','.app-shell.admin','.app-shell','.admin-shell .panel']){
+  assert.ok(staffOnlySelector.test(selector),'must detect '+selector);
+ }
+ assert.ok(!staffOnlySelector.test('body :is(.usd-live,.usd-member,.app-shell) button'));
+ assert.ok(!staffOnlySelector.test('body:has(.app-shell)'));
+});
+
+test('all stylesheets reject duplicate declarations within one rule',async()=>{
+ for(const file of await cssFiles()){
+  postcss.parse(await readFile(file,'utf8'),{from:file}).walkRules(rule=>{
+   const seen=new Map();
+   for(const decl of rule.nodes.filter(node=>node.type==='decl')){
+    assert.ok(!seen.has(decl.prop),`${file}:${decl.source.start.line}: duplicate ${decl.prop} in ${rule.selector}`);
+    seen.set(decl.prop,decl.value);
+   }
+  });
+ }
+});
+
+test('partner carousels have one flex owner and no dormant grid track rules',async()=>{
+ const css=await read('dark-velocity-sitewide.css');
+ const selector='body .usd-live .usd-partner-showcase--home :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-carousel';
+ const trackRules=rules(css,'dark-velocity-sitewide.css').filter(rule=>rule.selector===selector);
+ assert.deepEqual(trackRules.flatMap(rule=>rule.decls.filter(d=>d.prop==='display').map(d=>d.value)),['flex']);
+ assert.ok(!trackRules.some(rule=>rule.decls.some(d=>d.prop.startsWith('grid-'))));
+ const directory=rules(css,'dark-velocity-sitewide.css').filter(rule=>rule.selector==='body .usd-live .usd-partner-showcase--full :is(.usd-partner-tier--regular,.usd-partner-tier--studio) .usd-partner-grid');
+ assert.deepEqual(directory.flatMap(rule=>rule.decls.filter(d=>d.prop==='grid-template-columns').map(d=>d.value)),['minmax(0,1fr)']);
+});
 
 test('all frontend stylesheets parse, with no malformed blocks or missing imports',async()=>{
  const files=await cssFiles();
@@ -75,7 +106,7 @@ test('all staff-only paint is defined once in the final admin sheet; shared fini
   read('admin/admin-shell-layout.css'),read('main.tsx'),
  ]);
  for(const [name,css] of [['sitewide-finish.css',finish],['sitewide-premium-2026.css',premium]]){
-  const leaked=rules(css,name).filter(rule=>/(?:body\\s+)?\\.app-shell(?:\\s|\\.|>|:)/.test(rule.selector));
+  const leaked=rules(css,name).filter(rule=>staffOnlySelector.test(rule.selector));
   assert.deepEqual(leaked.map(x=>x.selector),[],
    name+' may keep shared :is(.usd-live,.usd-member,.app-shell) tokens but not staff-specific paint');
  }

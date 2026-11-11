@@ -671,20 +671,6 @@ body .usd-live .p-public-header {
  color:#fff;
  outline:none;
 }
-body .app-shell .vehicle-catalog-suggestions,
-body .admin-shell .vehicle-catalog-suggestions {
- background:#fff;
- color:#25313f;
- border-color:#cfd6df;
- box-shadow:0 15px 40px rgba(16,24,40,.16);
-}
-body .app-shell .vehicle-catalog-suggestions li[aria-selected="true"] button,
-body .admin-shell .vehicle-catalog-suggestions li[aria-selected="true"] button,
-body .app-shell .vehicle-catalog-suggestions button:hover,
-body .admin-shell .vehicle-catalog-suggestions button:hover {
- color:#90152b;
- background:#fff0f2;
-}
 
 
 /* A news card must grow with the picture's own aspect ratio. A fixed

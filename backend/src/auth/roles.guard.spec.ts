@@ -85,6 +85,14 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow('Управление пользователями и ролями доступно только ADMIN');
     expect(prisma.role.findUnique).not.toHaveBeenCalled();
   });
+  it.each(['/AUTH/admin/users/custom/role', '/Auth/ADMIN/roles/'])(
+    'keeps the ADMIN boundary for the Express route variant %s',
+    async (path) => {
+      const ctx = context({ method: 'PATCH', path, user: { sub: 'custom', role: 'PARTICIPANT', customRoleId: 'role-1' } }, 'AuthController');
+      await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.role.findUnique).not.toHaveBeenCalled();
+    },
+  );
   it('allows staff self-service without granting unrelated admin permissions', async () => {
     prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
     for (const [name,path,method] of [

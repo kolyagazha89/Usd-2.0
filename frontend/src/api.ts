@@ -9,6 +9,7 @@ type ApiError = Error & { status?: number; debug?: string; responseBody?: unknow
 let accessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
 let logoutPromise: Promise<void> | null = null;
+let loginInProgress = false;
 // These promises settle only after both response headers (Set-Cookie) and body.
 const pendingAuthRequests = new Set<Promise<AuthResponse>>();
 // Prevent an in-flight refresh response from restoring credentials after logout.
@@ -95,17 +96,26 @@ function requestAuth(path:string,init:RequestInit){
 }
 export async function login(email:string,password:string){
   purgeLegacyRefreshToken();
-  if(logoutPromise)await logoutPromise;
-  const generation=authGeneration;
-  const r=await requestAuth('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
-  if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');
-  authGeneration++;
-  accessToken=r.accessToken;
-  return r.user;
+  if(loginInProgress)throw new Error('Вход уже выполняется. Дождитесь завершения запроса.');
+  loginInProgress=true;
+  try{
+    if(logoutPromise)await logoutPromise;
+    const generation=++authGeneration;
+    accessToken=null;
+    clearPrivateMediaUrls();
+    // Generation checks cannot undo an older response's Set-Cookie. Finish
+    // refresh before login, and prevent new refreshes until login settles.
+    if(refreshPromise)await refreshPromise;
+    if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');
+    const r=await requestAuth('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
+    if(generation!==authGeneration)throw new Error('Сеанс был завершён во время входа. Повторите попытку.');
+    accessToken=r.accessToken;
+    return r.user;
+  }finally{loginInProgress=false;}
 }
 export async function refresh(){
   purgeLegacyRefreshToken();
-  if(logoutPromise)return null;
+  if(logoutPromise||loginInProgress)return null;
   if(refreshPromise)return refreshPromise;
   const generation=authGeneration;
   const pending=requestAuth('/auth/refresh',{method:'POST'})

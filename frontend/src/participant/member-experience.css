@@ -209,7 +209,7 @@ body .participant-portal.usd-member .entry-event{padding:24px;border:1px solid #
 body .participant-portal.usd-member .entry-event>h2{font-size:22px!important;margin:16px 0 20px}
 body .participant-portal.usd-member .entry-event>p{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#a2acba;margin:12px 0}
 body .participant-portal.usd-member .entry-event svg{flex-shrink:0;color:#7f8b9e}
-body .participant-portal.usd-member .entry-event-selection{border-top:1px solid #2a313c;margin:22px 0;padding-top:4px;display:grid;gap:16px;padding-top:20px}
+body .participant-portal.usd-member .entry-event-selection{border-top:1px solid #2a313c;margin:22px 0;display:grid;gap:16px;padding-top:20px}
 body .participant-portal.usd-member .entry-event-selection>div{display:grid;gap:6px}
 body .participant-portal.usd-member .entry-event-selection small{font-size:10px;color:#818d9e}
 body .participant-portal.usd-member .entry-event-selection strong{font-size:12px;line-height:1.5;color:#ced5e0;font-weight:500;overflow-wrap:anywhere}

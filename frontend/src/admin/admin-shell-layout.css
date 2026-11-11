@@ -4,6 +4,21 @@
  * Avoid new layout overrides in styles.css, ui-consistency.css or premium-ui.css.
  */
 
+/* Staff catalog paint belongs to the staff layer, including keyboard focus. */
+body .app-shell .vehicle-catalog-suggestions,
+body .admin-shell .vehicle-catalog-suggestions {
+ background:#fff;
+ color:#25313f;
+ border-color:#cfd6df;
+ box-shadow:0 15px 40px rgba(16,24,40,.16);
+}
+body :is(.app-shell,.admin-shell) .vehicle-catalog-suggestions li[aria-selected="true"] button,
+body :is(.app-shell,.admin-shell) .vehicle-catalog-suggestions button:hover,
+body :is(.app-shell,.admin-shell) .vehicle-catalog-suggestions button:focus-visible {
+ color:#90152b;
+ background:#fff0f2;
+}
+
 .app-shell .partner-image-editor{min-width:0;margin:12px 0;padding:0;border:0}
 .app-shell .partner-image-editor legend{padding:0;margin-bottom:16px;font-size:18px;font-weight:750}
 .app-shell .partner-image-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr);gap:24px;align-items:start}

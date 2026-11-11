@@ -64,6 +64,7 @@ describe('InspectionsService', () => {
       inspection: { findUnique: jest.fn().mockResolvedValue(existing) },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
     };
+    tx.inspection.findUnique = prisma.inspection.findUnique;
     service = new InspectionsService(prisma as PrismaService);
   });
 
@@ -254,6 +255,31 @@ describe('InspectionsService', () => {
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: 'VEHICLE_INSPECTION_DELETED' }),
     }));
+  });
+
+  it.each(['update', 'remove'] as const)('blocks vehicle inspection %s if a result was committed after the initial read', async (action) => {
+    tx.inspection.findUnique = jest.fn().mockResolvedValue({
+      ...existing, registration: { ...existing.registration, results: [{ id: 'new-result' }] },
+    });
+    const pending = action === 'update'
+      ? service.update('inspection-1', { status: 'FAILED', notes: 'Проблема с электрикой' }, actor)
+      : service.remove('inspection-1', actor);
+    await expect(pending).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.inspection.update).not.toHaveBeenCalled();
+    expect(tx.inspection.delete).not.toHaveBeenCalled();
+  });
+
+  it.each(['update', 'remove'] as const)('blocks legacy inspection %s if a result was committed after the initial read', async (action) => {
+    prisma.inspection.findUnique.mockResolvedValue(null);
+    tx.participantStageInspection.findUnique.mockResolvedValue({
+      ...existing, registrations: [{ results: [{ id: 'new-result' }], classes: [] }],
+    });
+    const pending = action === 'update'
+      ? service.update('inspection-1', { status: 'FAILED', notes: 'Проблема с электрикой' }, actor)
+      : service.remove('inspection-1', actor);
+    await expect(pending).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.participantStageInspection.update).not.toHaveBeenCalled();
+    expect(tx.participantStageInspection.delete).not.toHaveBeenCalled();
   });
 
   it('returns not found for a missing inspection', async () => {

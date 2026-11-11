@@ -51,6 +51,8 @@ jobs:
         run: node scripts/candidate-browser-qa.mjs
       - name: Verify PWA safe areas with nonzero status-bar and home-indicator insets
         run: node scripts/safe-area-browser-qa.mjs
+      - name: Verify production CSS themes, keyboard focus and partner tracks
+        run: node scripts/css-cascade-browser-qa.mjs
       - name: Verify account-security actions and focused controls
         run: node scripts/account-security-browser-qa.mjs
         env:
@@ -73,6 +75,7 @@ jobs:
           path: |
             candidate-browser-qa/
             safe-area-browser-qa/
+            css-cascade-browser-qa/
             account-security-browser-qa/
             home-logo-browser-qa/
             partner-image-browser-qa/
