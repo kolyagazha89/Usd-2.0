@@ -134,6 +134,13 @@ this scaffold with real participant data or as the active judging authority.
 6. Before any writes, download the signed stage snapshot and trusted Ed25519
    **public** key onto the laptop from separate trusted sources. Inspect the
    selected stage UUID, approved Docker image SHA and RFC1918 IP in `.env`.
+   Authenticate the public signing key over a **separate trusted channel**,
+   then pin its DER/SPKI SHA-256 in `VENUE_SIGNING_KEY_FINGERPRINT`:
+   ```bash
+   openssl pkey -pubin -in signing-public.pem -outform DER | sha256sum
+   ```
+   Never trust the fingerprint provided **inside** the downloaded JSON by
+   itself. The dry run and importer refuse a mismatch with the pinned key.
    From `deploy/venue-lan`, run the **read-only** command:
    ```bash
    bash ./bootstrap-local-stage.sh ./stage-file.json ./signing-public.pem --dry-run
