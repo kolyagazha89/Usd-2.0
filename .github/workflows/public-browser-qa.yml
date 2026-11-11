@@ -21,6 +21,9 @@ concurrency:
 jobs:
   candidate-ui:
     runs-on: ubuntu-latest
+    # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     # The full responsive route matrix and account-security flows can exceed
     # 15 minutes on shared runners. Keep every QA scenario, not a reduced set.
     timeout-minutes: 30
@@ -33,8 +36,6 @@ jobs:
           node-version: 22
       - name: Install isolated browser tooling
         run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1
-      - name: Install Chromium
-        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
       - name: Build and test candidate frontend
         working-directory: frontend
         run: |
@@ -88,6 +89,9 @@ jobs:
   # candidate result and artifacts available for review.
   live-public-layout:
     runs-on: ubuntu-latest
+    # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     timeout-minutes: 15
     env:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
@@ -98,8 +102,6 @@ jobs:
           node-version: 22
       - name: Install isolated browser tooling
         run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1
-      - name: Install Chromium
-        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
       - name: Check deployed anonymous pages at desktop and mobile widths
         run: node scripts/public-browser-qa.mjs
       - name: Save live screenshots and structured report
@@ -112,6 +114,9 @@ jobs:
 
   candidate-accessibility:
     runs-on: ubuntu-latest
+    # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     timeout-minutes: 15
     env:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
@@ -124,8 +129,6 @@ jobs:
           node-version: 22
       - name: Install pinned free browser and accessibility tooling
         run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1 @axe-core/playwright@4.14.0
-      - name: Install Chromium
-        run: '"$USD_BROWSER_TOOLING/node_modules/.bin/playwright" install --with-deps chromium'
       - name: Build candidate and verify viewport configuration
         run: |
           npm ci --ignore-scripts --prefix frontend
