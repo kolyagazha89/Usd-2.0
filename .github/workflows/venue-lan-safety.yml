@@ -88,6 +88,8 @@ jobs:
         run: node --test deploy/venue-lan/test-preview-venue-reconciliation.mjs
       - name: Verify central return result apply, replay and pending journal safeguards
         run: node --test deploy/venue-lan/test-central-return-apply.mjs
+      - name: Syntax check central operator apply (no database or credentials)
+        run: node --check backend/scripts/apply-venue-return.mjs
       - name: Check synthetic signed demo stage can be validated and imported safely
         run: node --test deploy/venue-lan/test-make-demo-stage.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
