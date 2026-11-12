@@ -24,10 +24,12 @@ const CIPHER_PURPOSE='USD_VENUE_RETURN_ENCRYPTED';
 const allowed=new Set([
  'Stage','Participant','Car','CarConfiguration','CarConfigurationVersion',
  'CarAmplifier','CarAudioComponent','CarBattery','CarGenerator','CarHeadUnit',
+ 'CarAmplifierComponent',
  'Registration','RegistrationNumber','RegistrationClass',
  'Inspection','ParticipantStageInspection','RegistrationClassInspection',
  'Result','Disqualification',
 ]);
+export const FULL_RETURN_COVERAGE_TABLES=Object.freeze([...allowed].sort());
 const hash=buf=>createHash('sha256').update(buf).digest('hex');
 const exactly=(value,fields,context)=>{
  if(value===null||typeof value!=='object'||Array.isArray(value)
@@ -79,11 +81,19 @@ function validateSnapshot(snapshot,now=Date.now()){
  exactly(snapshot,[
   'format','purpose','stageId','baselineSha256','generatedAt','expiresAt',
   'eventCount','journalEndHash','events',
+  ...(snapshot.format===2?['journalCoverage']:[]),
  ],'снимок операций');
- if(snapshot.format!==1||snapshot.purpose!==PURPOSE
+ if(![1,2].includes(snapshot.format)||snapshot.purpose!==PURPOSE
   ||!UUID.test(snapshot.stageId)||!SHA.test(snapshot.baselineSha256)
   ||!SHA.test(snapshot.journalEndHash))
   throw new Error('Неверный формат возвратного пакета');
+ if(snapshot.format===2){
+  exactly(snapshot.journalCoverage,['fromSequence','tables'],'охват журнала');
+  if(snapshot.journalCoverage.fromSequence!==0
+   ||!Array.isArray(snapshot.journalCoverage.tables)
+   ||JSON.stringify(snapshot.journalCoverage.tables)!==JSON.stringify(FULL_RETURN_COVERAGE_TABLES))
+   throw new Error('Неполное покрытие журнала площадки: полный возврат запрещён');
+ }
  const created=dateMs(snapshot.generatedAt,'создание пакета');
  const expires=dateMs(snapshot.expiresAt,'срок возвратного пакета');
  if(expires<=created||expires-created>TTL
@@ -96,11 +106,13 @@ function validateSnapshot(snapshot,now=Date.now()){
   throw new Error('Слишком большой возвратный пакет');
  return snapshot;
 }
-export function makeVenueReturnSnapshot({stageId,baselineSha256,events,generatedAt=new Date().toISOString()}){
+export function makeVenueReturnSnapshot({stageId,baselineSha256,events,
+ generatedAt=new Date().toISOString(),journalCoverage}){
  const end=validateEvents(events,stageId);
  const start=dateMs(generatedAt,'создание возвратного пакета');
  return validateSnapshot({
-  format:1,purpose:PURPOSE,stageId,baselineSha256,generatedAt,
+  format:journalCoverage===undefined?1:2,purpose:PURPOSE,stageId,baselineSha256,generatedAt,
+  ...(journalCoverage===undefined?{}:{journalCoverage}),
   expiresAt:new Date(start+TTL).toISOString(),
   eventCount:events.length,journalEndHash:end,events,
  },start);

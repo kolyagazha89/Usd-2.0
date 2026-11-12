@@ -32,8 +32,8 @@ export async function finalizeVenueStage(stageId: string, connectionString: stri
       throw new Error('Центральный этап уже опубликован или неактивен');
     }
     const receipts=await prisma.$queryRawUnsafe<Array<{id:string}>>(
-      'SELECT DISTINCT "entityId" AS id FROM "AuditLog" WHERE action=$1 AND entity=$2 AND metadata->>\'stageId\'=$3 AND "entityId" IS NOT NULL',
-      'VENUE_RESULT_IMPORTED','Result',stageId);
+      'SELECT DISTINCT "entityId" AS id FROM "AuditLog" WHERE action IN ($1,$2) AND entity=$3 AND metadata->>\'stageId\'=$4 AND "entityId" IS NOT NULL',
+      'VENUE_RESULT_IMPORTED','VENUE_FULL_EVENT_IMPORTED','Result',stageId);
     const ids=receipts.map(x=>x.id);
     if (!ids.every(id=>UUID.test(id)))throw new Error('Неверная запись журнала переноса');
     for (const id of ids) {

@@ -351,6 +351,13 @@ function Start-Local {
   $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint -or
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
+ # Existing installations may have an older 18-trigger journal. Bring the
+ # root-owned link trigger up to date WITHOUT clearing historic journal rows.
+ # The coverage watermark prevents treating earlier untracked links as complete.
+ Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start local DB for journal coverage check'
+ Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
+  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+ Assert-Exit 'upgrade durable amplifier link journal'
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
@@ -450,7 +457,28 @@ function Export-VenueReturn {
   'НЕ УДАЛЯЙТЕ ДАННЫЕ НОУТБУКА.')
 }
 function Return-Online {
- # Online switching never implies synchronization. Preserve all unsynced data.
+ # Real competition: one button first creates an encrypted signed USB return
+ # package, then switches to the official site. It NEVER claims the central
+ # server has imported anything. If export fails, local LAN stays intact.
+ $state=Read-State
+ if($state -and $state.phase -eq 'READY' -and (-not $state.demo)){
+  if($Silent){throw 'Для настоящего этапа возврат онлайн требует подписанного экспорта с подтверждением администратора'}
+  if(-not(Confirm-VenueAction ('Перед возвратом на сайт сохранить все изменения этапа в зашифрованный файл?'+[Environment]::NewLine+
+   'Без успешного экспорта локальный сервер не остановится. Передайте готовый файл ответственному администратору Ubuntu.'))){
+    throw 'Оператор отменил безопасный экспорт. Офлайн-сервер не остановлен.'
+  }
+  # Freeze judge writes BEFORE the signed MVCC snapshot. Without this pause,
+  # a late result could arrive after export but before the online switch.
+  Ensure-DockerReady
+  Invoke-Compose @('stop','api') 'pause judging for consistent return export'
+  try{
+   Export-VenueReturn
+  }catch{
+   # Do not strand the operator with a stopped LAN API when export failed.
+   try{Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after export failure'}catch{}
+   throw
+  }
+ }
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
   if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){

@@ -43,7 +43,7 @@ export class PrismaService
         "SELECT count(*)::int AS count FROM pg_trigger " +
         "WHERE tgname LIKE 'usd_venue_%_journal' AND tgenabled='O' AND NOT tgisinternal",
       );
-      if (journal.length!==1 || journal[0].count!==18) {
+      if (journal.length!==1 || journal[0].count!==19) {
         throw new Error('USD VENUE BLOCKED: durable operation journal is not installed');
       }
     }

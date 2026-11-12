@@ -7,7 +7,7 @@ test('venue journal logs all competition mutations and never stores credentials'
  const required=['Participant','Car','Registration','RegistrationNumber',
   'RegistrationClass','Inspection','ParticipantStageInspection',
   'RegistrationClassInspection','Result','Disqualification',
-  'CarConfiguration','CarConfigurationVersion'];
+  'CarConfiguration','CarConfigurationVersion','CarAmplifierComponent'];
  for(const table of required)assert.match(sql,new RegExp("'"+table+"'"));
  for(const excluded of ["'User'","'RefreshSession'","'Role'","'EmailVerificationToken'"])
   assert.ok(!sql.includes(excluded),'No auth secrets in judge mutation journal');
@@ -24,7 +24,16 @@ test('no API writes allowed unless offline journal was installed and triggers ar
   source('./bootstrap-local-stage.sh'),
   source('../../.github/workflows/venue-db-acceptance.yml'),
  ]);
- assert.match(prisma,/journal\[0\]\.count!==18/);
+ assert.match(prisma,/journal\[0\]\.count!==19/);
  assert.match(bootstrap,/install-journal\.sql/);
  assert.match(workflow,/Install trusted append-only venue write journal/);
+});
+
+test('upgrade journals amplifier links without falsely backdating completeness',async()=>{
+ const upgrade=await source('./upgrade-journal-links.sql');
+ assert.match(upgrade,/CREATE OR REPLACE FUNCTION venue_private\.capture_change/);
+ assert.match(upgrade,/CREATE TRIGGER usd_venue_caramplifiercomponent_journal/);
+ assert.match(upgrade,/coalesce\(max\(sequence\),0\)/);
+ assert.match(upgrade,/WHERE NOT EXISTS \(SELECT 1 FROM venue_private\.journal_coverage\)/);
+ assert.doesNotMatch(upgrade,/TRUNCATE|DROP TABLE|DELETE FROM venue_private\.operation_journal/);
 });

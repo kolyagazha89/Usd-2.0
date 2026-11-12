@@ -43,6 +43,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, venue_pr
 DECLARE
   v_stage_id TEXT;
   v_row_id TEXT;
+  v_link_md5 TEXT;
   v_before JSONB;
   v_after JSONB;
   v_payload JSONB;
@@ -67,6 +68,20 @@ BEGIN
     v_after:=to_jsonb(NEW);
   END IF;
   v_row_id:=coalesce(v_after->>'id', v_before->>'id');
+  IF TG_TABLE_NAME='CarAmplifierComponent' THEN
+    v_link_md5:=md5(
+      coalesce(v_after->>'amplifierId',v_before->>'amplifierId') || '/' ||
+      coalesce(v_after->>'componentId',v_before->>'componentId'));
+    v_row_id:=(
+      substr(v_link_md5,1,12)||'5'||substr(v_link_md5,14,3)||
+      '8'||substr(v_link_md5,18))::uuid::text;
+    IF v_before IS NOT NULL THEN
+      v_before:=v_before||jsonb_build_object('id',v_row_id);
+    END IF;
+    IF v_after IS NOT NULL THEN
+      v_after:=v_after||jsonb_build_object('id',v_row_id);
+    END IF;
+  END IF;
   IF v_row_id IS NULL OR length(v_row_id)>200 THEN
     RAISE EXCEPTION 'USD VENUE journal requires a stable entity identifier';
   END IF;
@@ -122,6 +137,7 @@ BEGIN
   FOREACH tab IN ARRAY ARRAY[
     'Stage','Participant','Car','CarConfiguration','CarConfigurationVersion',
     'CarAmplifier','CarAudioComponent','CarBattery','CarGenerator','CarHeadUnit',
+    'CarAmplifierComponent',
     'Registration','RegistrationNumber','RegistrationClass',
     'Inspection','ParticipantStageInspection','RegistrationClassInspection',
     'Result','Disqualification'
@@ -134,4 +150,15 @@ BEGIN
       'usd_venue_'||lower(tab)||'_journal',tab);
   END LOOP;
 END $$;
+-- A root-owned coverage watermark proves the link trigger was installed
+-- BEFORE the first competition-day journal event. Existing installations
+-- upgraded later must not claim a complete automatic sync.
+CREATE TABLE venue_private.journal_coverage (
+  format_version SMALLINT NOT NULL DEFAULT 2 CHECK(format_version=2),
+  from_sequence BIGINT NOT NULL CHECK(from_sequence>=0),
+  installed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO venue_private.journal_coverage(from_sequence) VALUES (0);
+REVOKE ALL ON venue_private.journal_coverage FROM PUBLIC;
+GRANT SELECT ON venue_private.journal_coverage TO usd_venue;
 COMMIT;
