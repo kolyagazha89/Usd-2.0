@@ -21,6 +21,15 @@ export class DisqualificationsController {
     private readonly disqualificationsService: DisqualificationsService,
   ) {}
 
+  /** A participant cannot choose whose disciplinary record to read. */
+  @Get('me')
+  @Roles('PARTICIPANT', 'ADMIN')
+  listActiveForOwnProfile(@Req() request: AuthenticatedRequest) {
+    return this.disqualificationsService.listActiveForOwnProfile(
+      request.user.participantId,
+    );
+  }
+
   @Get()
   findAll(
     @Query('participantId')
