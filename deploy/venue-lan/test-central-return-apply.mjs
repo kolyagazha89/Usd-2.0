@@ -180,6 +180,14 @@ test('normal local ranking UPDATE after INSERT imports only final score and rece
  const replay=await applyVenueReturnSnapshot(pack,db,options);
  assert.equal(replay.counts.ALREADY_APPLIED,2);
 });
+test('central re-ranking may change place but signed receipt remains idempotent',async()=>{
+ const db=fakeDb();
+ await applyVenueReturnSnapshot(packet(),db,options);
+ db.result.place=3;db.result.isBest=true;
+ const replay=await applyVenueReturnSnapshot(packet(),db,options);
+ assert.equal(replay.counts.ALREADY_APPLIED,1);
+ assert.equal(db.operations.filter(x=>x==='INSERT').length,1);
+});
 test('broken local result history never imports and never acknowledges',async()=>{
  const db=fakeDb();
  const created=event();
