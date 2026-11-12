@@ -37,5 +37,5 @@ test('ADMIN participants list exposes account or historical email, not public pa
   assert.match(participants, /\{key:'email',label:'Email'\}/);
   assert.match(participants, /Архивный email/);
   assert.match(service, /participantLegacyEmail\.findMany/);
-  assert.match(service, /actor\.role === 'ADMIN'/);
+  assert.match(service, /actor\.role !== 'ADMIN'/);
 });
