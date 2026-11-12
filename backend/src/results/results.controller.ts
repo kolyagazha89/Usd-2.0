@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Header,
   Get,
@@ -12,7 +13,8 @@ import {
 import { ResultsService } from './results.service';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
-import { CreateResultDto, UpdateResultDto } from './dto/result.dto';
+import { CreateResultDto, UpdateResultDto, PreviewBassRaceTextDto, CommitBassRaceTextDto } from './dto/result.dto';
+import { BassRaceTextImportService } from './bassrace-text-import.service';
 import { DeleteResultDto } from './dto/delete-result.dto';
 import { ResultDeletionService } from './result-deletion.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -22,7 +24,21 @@ export class ResultsController {
   constructor(
     private readonly resultsService: ResultsService,
     private readonly resultDeletionService: ResultDeletionService,
+    private readonly bassRaceTextImport: BassRaceTextImportService,
   ) {}
+
+  @Roles('ADMIN')
+  @Post('admin/bassrace/preview')
+  previewBassRace(@Body() body: PreviewBassRaceTextDto) {
+    return this.bassRaceTextImport.preview(body.stageId, body.text);
+  }
+
+  @Roles('ADMIN')
+  @Post('admin/bassrace/commit')
+  commitBassRace(@Body() body: CommitBassRaceTextDto, @Req() request: AuthenticatedRequest) {
+    if (body.confirmed !== true) throw new ConflictException('Подтвердите сохранение протокола BassRace');
+    return this.bassRaceTextImport.commit(body.stageId, body.text, body.previewHash, request);
+  }
 
   // Unpublished on-site measurements are visible ONLY from the venue LAN.
   @Public()
