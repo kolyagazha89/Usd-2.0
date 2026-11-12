@@ -8,10 +8,10 @@ import {stageDate} from '../public/premium-model';
 import {publicResultUnit,publicResultValue} from '../public-result-utils';
 import './member-result-cards.css';
 
-type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void;registrationBlockForStage:(stage:any)=>string|null;placeholders?:PhotoPlaceholders};
+type Props={participant:any;cars:any[];registrations:any[];stages:any[];onGo:(path:string)=>void;onAddCar:()=>void;onRegistration:()=>void;onStageRegistration:(stage:any)=>void;registrationBlockForStage?:(stage:any)=>string|null;placeholders?:PhotoPlaceholders};
 const name=(car:any)=>[car?.brand,car?.model].filter(Boolean).join(' ');
 const date=(value:any)=>stageDate(value,false);
-export default function MemberDashboard({participant,cars,registrations,stages,onGo,onAddCar,onRegistration,onStageRegistration,registrationBlockForStage,placeholders}:Props){
+export default function MemberDashboard({participant,cars,registrations,stages,onGo,onAddCar,onRegistration,onStageRegistration,registrationBlockForStage=()=>null,placeholders}:Props){
  const [selectedCarId,setSelectedCarId]=useState('');
  const active=cars.filter(c=>c.isActive!==false),car=active.find(c=>c.id===selectedCarId)??active[0];
  const components=currentCarAudioComponents(car);
