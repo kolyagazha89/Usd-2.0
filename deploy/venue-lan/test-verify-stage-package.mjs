@@ -72,6 +72,16 @@ test('signed privacy flags are allowed but malformed flags are rejected',()=>{
  invalid.registrations[0].participant.isPublic='false';
  assert.throws(()=>verifyVenueStageHandoff(pack(invalid),pem,now),/приватность/);
 });
+test('a signed, minimal approved venue policy is accepted; injected private fields rejected',()=>{
+ const approved=structuredClone(base);
+ approved.venuePolicy={legal:{legalApproved:true,legalVersion:'1',ipName:'USD',
+  privacyText:'public privacy',consentText:'public consent',termsText:'public terms'},
+  contactEmail:'contact@example.org',
+  rulesPublished:{id:'rules-1',blocks:[{type:'paragraph',text:'public text'}]}};
+ assert.doesNotThrow(()=>verifyVenueStageHandoff(pack(approved),pem,now));
+ approved.venuePolicy.smtpPassword='secret';
+ assert.throws(()=>verifyVenueStageHandoff(pack(approved),pem,now),/Лишние|личные/);
+});
 test('a signed result cannot be attached to a class outside the registration',()=>{
  const snapshot=structuredClone(base);
  snapshot.registrations[0].results[0].registrationClassId='not-here';
