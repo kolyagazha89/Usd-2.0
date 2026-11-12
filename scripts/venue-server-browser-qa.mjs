@@ -60,6 +60,8 @@ try{
   await page.goto(base+'/admin/venue-server?stageId=one');
   await page.getByRole('heading',{name:'Офлайн-сервер',exact:true}).waitFor();
   const main=page.locator('.venue-server-page');
+  await main.getByRole('heading',{name:'Сохраните результаты в защищённый файл'}).waitFor();
+  await main.getByText('USD-Export.cmd',{exact:true}).waitFor();
   await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
   await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).waitFor();
   assert.equal(await page.locator('select option').filter({hasText:'Черновик'}).count(),0);
