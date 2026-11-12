@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routeScrollKey,routeScrollTarget} from '../src/navigation/route-scroll-model.ts';
+import {liveRoutePath,routeScrollKey,routeScrollTarget} from '../src/navigation/route-scroll-model.ts';
+test('stage selectors that replace the URL retain their actual selected stage',()=>{
+ assert.equal(liveRoutePath('/admin/registrations?stageId=old',{pathname:'/admin/registrations',search:'?stageId=selected&view=entry'}),'/admin/registrations?stageId=selected&view=entry');
+ assert.equal(liveRoutePath('/admin/records?view=record',{pathname:'/admin/cars',search:'?carId=car'}),'/admin/records?view=record');
+});
 test('new public pages start at the top even if visited previously',()=>{
  assert.equal(routeScrollTarget('/stages','push',1400,900),0);
  assert.equal(routeScrollTarget('/stages','pop',1400,900),900);

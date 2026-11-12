@@ -1,5 +1,8 @@
 import {createContext,useContext,useState,type ReactNode} from 'react';
 import {adminEntityPath,relatedAdminEntities,safeAdminReturn,type AdminEntityKind} from './entity-navigation';
+import {liveRoutePath} from '../navigation/route-scroll-model';
+
+function currentNavigationPath(path:string){return typeof window==='undefined'?path:liveRoutePath(path,window.location)}
 
 export const AdminNavigationContext=createContext<{go:(path:string)=>void;path:string}|null>(null);
 // Store the selected card in its URL so returning from another section or
@@ -7,14 +10,15 @@ export const AdminNavigationContext=createContext<{go:(path:string)=>void;path:s
 export function useAdminDetail(items:any[]){
  const navigation=useContext(AdminNavigationContext);
  const [local,setLocal]=useState<any|null>(null);
- const params=new URLSearchParams(navigation?.path.split('?')[1]??'');
+ const path=navigation?currentNavigationPath(navigation.path):'';
+ const params=new URLSearchParams(path.split('?')[1]??'');
  const view=params.get('view');
  const detail=navigation?(view?items.find(item=>item.id===view)??null:null):local;
  const setDetail=(item:any|null)=>{
   if(!navigation){setLocal(item);return}
   if(item)params.set('view',item.id);else params.delete('view');
-  const next=navigation.path.split('?')[0]+(params.size?'?'+params.toString():'');
-  if(next!==navigation.path)navigation.go(next);
+  const next=path.split('?')[0]+(params.size?'?'+params.toString():'');
+  if(next!==path)navigation.go(next);
  };
  return [detail,setDetail] as const;
 }
@@ -26,7 +30,7 @@ export function AdminRouteLink({to,children}:{to:string;children:ReactNode}){
  const navigation=useContext(AdminNavigationContext);
  const destination=safeAdminReturn(to);
  if(!navigation||!destination)return <>{children}</>;
- const from=safeAdminReturn(navigation.path);
+ const from=safeAdminReturn(currentNavigationPath(navigation.path));
  const href=destination+(from?(destination.includes('?')?'&':'?')+'returnTo='+encodeURIComponent(from):'');
  return <a className="admin-entity-link" href={href} onClick={event=>{
   event.stopPropagation();
@@ -40,6 +44,6 @@ export function AdminRelatedEntities({item}:{item:any}){
 }
 export function AdminReturnLink(){
  const navigation=useContext(AdminNavigationContext);
- const from=navigation?safeAdminReturn(new URLSearchParams(navigation.path.split('?')[1]??'').get('returnTo')):null;
+ const from=navigation?safeAdminReturn(new URLSearchParams(currentNavigationPath(navigation.path).split('?')[1]??'').get('returnTo')):null;
  return from&&navigation?<a className="admin-entity-link admin-return-link" href={from} onClick={event=>{if(!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey){event.preventDefault();navigation.go(from)}}}>← Вернуться к исходной карточке</a>:null;
 }
