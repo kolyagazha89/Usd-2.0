@@ -488,3 +488,31 @@ the venue DB, reset the journal, publish official results or announce release.
 reconciliation; end-to-end verified record/ranking rebuild; durable central acknowledgements
 covering the whole journal; reviewed issue/conflict resolution UI; physical
 Windows + router + two phones with WAN unplugged; reboot and exact-state checks.
+
+
+## Windows one-click signed encrypted return (operator kit)
+
+For a **real signed stage only**, the reviewed Windows distribution includes
+`USD-Export.cmd` and the desktop shortcut `USD — Экспорт`. It runs the
+same read-only, encrypted USB journal exporter as the Linux recovery workflow.
+No central production credentials or key material are stored in the laptop.
+
+- The launcher requires the original READY stage identity and refuses DEMO.
+- A network-disabled, one-shot Docker process creates an Ed25519 signing key
+  only once in the separate persistent `usd-venue_venue_return_keys` volume;
+  the private key is mode 0600 and the service uses uid 1000 afterwards.
+- Only the **public** key and its independently verifiable SHA-256 fingerprint
+  are copied to `local-private/return-output` on Windows. Keep the private
+  Docker volume protected and back it up securely.
+- The operator enters a separate strong transfer passphrase in a masked dialog.
+  It passes over stdin, not the command line, and never appears in logs.
+- The helper exports a new, non-overwriting `usd-venue-return-*.json` containing
+  the authenticated and AES-256-GCM encrypted journal. Do not email the password
+  alongside the USB file.
+- The action never calls the central API, makes no synchronization claim,
+  and does not remove the local database, journal, media or private key.
+
+A package can be reviewed using the existing independently pinned central
+preview and partial import tools. **This is a recovery/return export, not
+automatic full synchronization.** New registrations, classes, participants
+and media remain release blockers until the central importer acknowledges them.

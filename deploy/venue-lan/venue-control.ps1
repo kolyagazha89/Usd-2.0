@@ -5,7 +5,7 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export')][string]$Action,
  [switch]$Silent
 )
 Set-StrictMode -Version Latest
@@ -156,7 +156,7 @@ function Remove-Autostart {
 function Save-DesktopShortcuts {
  $desktop=[Environment]::GetFolderPath('Desktop')
  $shell=New-Object -ComObject WScript.Shell
- foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'))){
+ foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'))){
   $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
   $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
   $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
@@ -379,6 +379,76 @@ function Test-VenueApiReady {
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
 }
+function Export-VenueReturn {
+ # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
+ # Never run in DEMO, use a central secret, or delete local durable records.
+ if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
+ Assert-VenueCompose
+ $state=Read-State
+ if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку сервера USD'}
+ if($state.demo){throw 'ДЕМО не может отправляться на основной сервер'}
+ $cfg=Read-Env
+ if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or
+  $cfg['VENUE_IMAGE_TAG'] -ne $state.image -or
+  $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint){
+  throw 'Идентификатор этапа или его исходная подпись изменились'
+ }
+ Ensure-DockerReady
+ $directory=Join-Path $PrivateDir 'return-output'
+ New-Item -ItemType Directory -Path $directory -Force|Out-Null
+ $volume='usd-venue_venue_return_keys'
+ $keyTool=Join-Path $Root 'ensure-return-keys.mjs'
+ $keyMounts=@('--volume',($volume+':/app/venue-return-keys:rw'),
+  '--volume',($directory+':/app/venue-return-output:rw'),
+  '--volume',($keyTool+':/app/ensure-return-keys.mjs:ro'))
+ # Root is used only by an isolated, networkless one-shot key provisioner;
+ # it hands the key volume to the regular non-root (node:1000) API image user.
+ Invoke-Docker (@('run','--rm','--network','none','--user','root')+
+  $keyMounts+@('--entrypoint','node',
+  ('ghcr.io/kolyagazha89/usd-2.0-api:'+$state.image),
+  '/app/ensure-return-keys.mjs','/app/venue-return-keys',
+  '/app/venue-return-output')) 'create protected signing key'
+ $publicKey=Join-Path $directory 'USD-Venue-Return-Public.pem'
+ $fingerprintFile=Join-Path $directory 'USD-Venue-Return-Fingerprint.txt'
+ if(!(Test-Path -LiteralPath $publicKey -PathType Leaf) -or
+  !(Test-Path -LiteralPath $fingerprintFile -PathType Leaf)){
+  throw 'Не удалось подготовить открытый ключ возвратного пакета'
+ }
+ $fingerprint=(Get-Content -LiteralPath $fingerprintFile -Raw -Encoding UTF8).Trim()
+ if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Некорректный отпечаток ключа'}
+ Invoke-Compose @('up','-d','--wait','db') 'start isolated DB for safe export'
+ $date=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
+ $filename=('usd-venue-return-'+$state.stageId+'-'+$date+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)+'.json')
+ $secret=Read-VenuePassword 'шифрования возвратного файла'
+ try{
+  $args=@('compose','-p','usd-venue','-f',(Join-Path $Root 'compose.yaml'),
+   'run','--rm','--no-deps','-T',
+   '--volume',($volume+':/app/venue-return-keys:ro'),
+   '--volume',($directory+':/app/venue-return-output:rw'),
+   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
+   '--volume',((Join-Path $Root 'venue-return-package.mjs')+':/app/venue-return-package.mjs:ro'),
+   '--volume',((Join-Path $Root 'export-venue-return.mjs')+':/app/export-venue-return.mjs:ro'),
+   '--entrypoint','node','api','/app/export-venue-return.mjs',
+   '/app/venue-return-keys/venue-return-private.pem',
+   ('/app/venue-return-output/'+$filename))
+  # Password is sent over stdin ONLY, never exposed in arguments or logs.
+  $secret | & docker @args | Out-Host
+  Assert-Exit 'signed encrypted USB return export'
+ }finally{$secret=$null}
+ $returnFile=Join-Path $directory $filename
+ if(!(Test-Path -LiteralPath $returnFile -PathType Leaf)){throw 'Экспорт не создан — журнал сохранён'}
+ Write-Host ('ЗАШИФРОВАННЫЙ ФАЙЛ: '+$returnFile)
+ Write-Host ('ОТКРЫТЫЙ КЛЮЧ: '+$publicKey)
+ Write-Host ('ОТПЕЧАТОК КЛЮЧА: '+$fingerprint)
+ Write-Host 'ЭТО НЕ СИНХРОНИЗАЦИЯ. Данные останутся на ноутбуке до подтверждения Ubuntu.'
+ Show-VenueMessage ('Возвратный файл создан.'+[Environment]::NewLine+
+  'Папка: '+$directory+[Environment]::NewLine+
+  'Передайте шифрованный файл ответственному администратору USD.'+[Environment]::NewLine+
+  'Открытый ключ и его отпечаток сверяются отдельно.'+[Environment]::NewLine+
+  'Пароль сообщайте отдельно. Синхронизация НЕ завершена.'+[Environment]::NewLine+
+  'НЕ УДАЛЯЙТЕ ДАННЫЕ НОУТБУКА.')
+}
 function Return-Online {
  # Online switching never implies synchronization. Preserve all unsynced data.
  Remove-Autostart
@@ -396,6 +466,7 @@ try{
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
+ elseif($Action -eq 'export'){Export-VenueReturn}
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
