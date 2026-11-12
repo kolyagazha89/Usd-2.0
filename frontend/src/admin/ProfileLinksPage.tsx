@@ -61,6 +61,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
    {!coverage&&!coverageError&&<p role="status">Загружаем статистику…</p>}
    {coverage&&<div className="profile-email-coverage-grid">
     <div><small>Всего профилей</small><strong>{coverage.totalProfiles}</strong></div>
+    <div><small>Всего с архивным email</small><strong>{coverage.profilesWithLegacyEmail}</strong></div>
     <div><small>Уже привязаны к аккаунту</small><strong>{coverage.linkedProfiles}</strong></div>
     <div><small>Архивный email есть (без привязки)</small><strong>{coverage.unlinkedWithLegacyEmail}</strong></div>
     <div><small>Без архивного email (без привязки)</small><strong>{coverage.unlinkedWithoutLegacyEmail}</strong></div>
