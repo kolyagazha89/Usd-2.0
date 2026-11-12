@@ -14,7 +14,7 @@ $Root=$PSScriptRoot
 $PrivateDir=Join-Path $Root 'local-private'
 $StateFile=Join-Path $PrivateDir 'setup-state.json'
 $EnvFile=Join-Path $Root '.env'
-$StartupFile=Join-Path ([Environment]::GetFolderPath('Startup')) 'USD-Venue-Autostart.cmd'
+$StartupFile=Join-Path ([Environment]::GetFolderPath('Startup')) 'USD-Venue-Autostart.lnk'
 $OnlineUrl='https://app.usd-russia.ru'
 $Phases=@('CONFIGURED','STORAGE_READY','SCHEMA_READY','IMPORTED','JOURNAL_READY','ADMIN_READY','STAFF_READY','READY')
 
@@ -124,10 +124,15 @@ function Ensure-Firewall([string]$Ip){
  }
 }
 function Save-Autostart {
+ # A real Windows shortcut preserves non-ASCII paths in the repo/user profile.
  $script=Join-Path $Root 'venue-control.ps1'
- $line='powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$script+'" -Action offline -Silent'
- $contents='@echo off'+[Environment]::NewLine+$line+[Environment]::NewLine
- [IO.File]::WriteAllText($StartupFile,$contents,(New-Object System.Text.ASCIIEncoding))
+ $shell=New-Object -ComObject WScript.Shell
+ $shortcut=$shell.CreateShortcut($StartupFile)
+ $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
+ $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$script+'" -Action offline -Silent'
+ $shortcut.WorkingDirectory=$Root
+ $shortcut.Description='USD: restart venue LAN server after Windows sign-in'
+ $shortcut.Save()
 }
 function Remove-Autostart {
  if(Test-Path -LiteralPath $StartupFile){Remove-Item -LiteralPath $StartupFile -Force}
