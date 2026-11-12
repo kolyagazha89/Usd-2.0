@@ -37,7 +37,7 @@ export function postgresVenueAdapter(client){
      },
      async result(id,classId){
       const {rows}=await client.query(
-       'SELECT id,"registrationId","registrationClassId",value::text AS value,unit,place,"isBest" FROM "Result" WHERE id=$1 OR "registrationClassId"=$2 FOR UPDATE',
+       'SELECT id,"registrationId","registrationClassId",value::text AS value,unit,place,"isBest",notes,"isHistorical","verificationStatus" FROM "Result" WHERE id=$1 OR "registrationClassId"=$2 FOR UPDATE',
        [id,classId]);
       return {byId:rows.find(r=>r.id===id),byClass:rows.find(r=>r.registrationClassId===classId)};
      },
