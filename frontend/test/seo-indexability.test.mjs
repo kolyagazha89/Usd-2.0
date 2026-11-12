@@ -48,6 +48,8 @@ test('nginx serves robots as text, dynamic sitemap as XML and rejects unknown SP
  assert.match(conf,/location = \/robots\.txt/);
  assert.match(conf,/return 404/);
  assert.match(conf,/X-Robots-Tag/);
+ assert.match(conf,/~\^\/venue\/live\/?\$/);
+ assert.match(conf,/offline-event/);
  assert.match(robots,/Sitemap: https:\/\/app\.usd-russia\.ru\/sitemap\.xml/);
  assert.match(robots,/Disallow: \/admin/);
  assert.match(robots,/Disallow: \/participant/);
