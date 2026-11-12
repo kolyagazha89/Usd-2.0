@@ -1,4 +1,4 @@
-import {AdminEntityLink} from './AdminEntityLink';
+import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,Check,ChevronLeft,Info,Loader2,Pencil,RefreshCw} from 'lucide-react';
 import {apiGet,apiPatch,getSiteSettings,updateSiteSettings,listData,type User} from '../api';
@@ -11,7 +11,7 @@ function RecordsPage({user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailMo
  const[visibilityError,setVisibilityError]=useState('');
  const[loading,setLoading]=useState(true);
  const[error,setError]=useState('');
- const[detail,setDetail]=useState<any|null>(null);
+ const[detail,setDetail]=useAdminDetail(data);
  const[editRecord,setEditRecord]=useState<any|null>(null);
  const[candidates,setCandidates]=useState<any[]>([]);
  const[selectedResultId,setSelectedResultId]=useState('');

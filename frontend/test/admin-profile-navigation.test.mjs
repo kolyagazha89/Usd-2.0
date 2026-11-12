@@ -25,7 +25,7 @@ test('ADMIN users identify and open their linked participant profiles', async ()
   assert.match(auth, /participant:\s*\{\s*select:\s*\{\s*id:\s*true/);
   assert.match(users, /Профиль USD/);
   assert.match(users, /Не привязан/);
-  assert.match(users, /\/admin\/participants\?view=/);
+  assert.match(users, /<AdminEntityLink kind="participant"/);
   assert.match(routes, /<UsersPage[^>]*go=\{go\}/);
 });
 

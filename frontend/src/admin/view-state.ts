@@ -40,3 +40,9 @@ export function useListScroll(key:string,active:boolean,ready:boolean) {
   return()=>{stop();window.removeEventListener('scroll',save)};
  },[key,active,ready]);
 }
+
+// Full-page editors driven by local state need the same roundtrip as URL editors.
+export function useEditorScroll(key:string,editing:boolean,ready:boolean){
+ useListScroll(key,!editing,ready);
+ useLayoutEffect(()=>{if(editing)window.scrollTo({top:0,behavior:'instant'})},[editing]);
+}

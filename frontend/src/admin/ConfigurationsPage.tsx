@@ -1,3 +1,4 @@
+import {useEditorScroll} from './view-state';
 import {AdminEntityLink} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
@@ -22,6 +23,7 @@ export function ConfigurationsPage({carId,go,admin=false,LoadingPage,displayCarN
 
 function ConfigurationsWorkspace({car,canEdit,admin,onBack,displayCarName}:{car:any;canEdit:boolean;admin:boolean;onBack:()=>void;displayCarName:(car:any,fallback?:string)=>string}){
  const [configs,setConfigs]=useState<any[]>(car.configurations??[]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[editing,setEditing]=useState<any|null>(null),[details,setDetails]=useState<any|null>(null),[versionBusy,setVersionBusy]=useState(false);
+ useEditorScroll('configurations:'+car.id,editing!==null||details!==null,!loading);
  const load=async()=>{setLoading(true);setError('');try{setConfigs(listData(await apiGet<any>('/cars/'+car.id+'/configurations')))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки конфигураций')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[car.id]);
  const open=async(id:string)=>{try{setDetails(await apiGet<any>('/configurations/'+id))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки конфигурации')}};

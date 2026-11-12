@@ -1,4 +1,4 @@
-import {AdminEntityLink} from './AdminEntityLink';
+import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle} from 'lucide-react';
@@ -79,7 +79,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
 }){
  const [results,setResults]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const [editor,setEditor]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[editorError,setEditorError]=useState('');
+ const [editor,setEditor]=useState<any|null>(null),[detail,setDetail]=useAdminDetail(results),[editorError,setEditorError]=useState('');
  const [saving,setSaving]=useState(false),[deleteTargetId,setDeleteTargetId]=useState(''),[deleteReason,setDeleteReason]=useState('');
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');

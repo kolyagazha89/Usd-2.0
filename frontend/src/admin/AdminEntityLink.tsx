@@ -1,7 +1,23 @@
-import {createContext,useContext,type ReactNode} from 'react';
+import {createContext,useContext,useState,type ReactNode} from 'react';
 import {adminEntityPath,relatedAdminEntities,safeAdminReturn,type AdminEntityKind} from './entity-navigation';
 
 export const AdminNavigationContext=createContext<{go:(path:string)=>void;path:string}|null>(null);
+// Store the selected card in its URL so returning from another section or
+// reloading does not silently reopen the parent list instead of that card.
+export function useAdminDetail(items:any[]){
+ const navigation=useContext(AdminNavigationContext);
+ const [local,setLocal]=useState<any|null>(null);
+ const params=new URLSearchParams(navigation?.path.split('?')[1]??'');
+ const view=params.get('view');
+ const detail=navigation?(view?items.find(item=>item.id===view)??null:null):local;
+ const setDetail=(item:any|null)=>{
+  if(!navigation){setLocal(item);return}
+  if(item)params.set('view',item.id);else params.delete('view');
+  const next=navigation.path.split('?')[0]+(params.size?'?'+params.toString():'');
+  if(next!==navigation.path)navigation.go(next);
+ };
+ return [detail,setDetail] as const;
+}
 export function AdminEntityLink({kind,id,children}:{kind:AdminEntityKind;id:unknown;children:ReactNode}){
  const navigation=useContext(AdminNavigationContext);
  const destination=adminEntityPath(kind,id);

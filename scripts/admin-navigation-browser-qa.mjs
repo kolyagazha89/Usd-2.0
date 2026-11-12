@@ -18,6 +18,7 @@ try{
   const participant={id:'person-1',lastName:'Тестовый',firstName:'Участник',isPublic:true};
   const cars=Array.from({length:60},(_,i)=>({id:'car-'+i,brand:'Lada',model:'Vesta '+i,participantId:participant.id,participant,registrationNumber:'А001АА181',registrationCountry:'RU',isActive:true,configurations:[]}));
   const stage={id:'stage-1',stageNumber:1,name:'Проверочный этап',date:'2026-11-29T12:00:00Z',status:'PUBLISHED',registrationOpen:true,season:{year:2026}};
+  const news=Array.from({length:45},(_,i)=>({id:'news-'+i,title:'Проверочная новость '+i,excerpt:'Тестовая запись',body:'Текст новости',isPublished:false}));
   const registration={id:'reg-1',participantId:participant.id,participant,carId:cars[50].id,car:cars[50],stageId:stage.id,stage,participantNumber:1,status:'ACTIVE',classes:[]};
   let failCars=false,delay=0;
   await context.route('**/*',async route=>{
@@ -34,7 +35,7 @@ try{
    else if(url.pathname.startsWith('/registrations'))data=[registration];
    else if(url.pathname==='/records/admin/current')data=[{id:'record',stage,stageId:stage.id,value:150,unit:'DB',achievedAt:stage.date,class:{id:'c',name:'Limited',direction:{name:'SPL'}},result:{registration}}];
    else if(url.pathname==='/seasons')data=[{id:'season',year:2026}];
-   else if(url.pathname.startsWith('/site-settings'))data={settings:{branding:{},homepage:{blocks:[]},legal:{privacyText:Array.from({length:80},(_,i)=>'Раздел '+i+'\n'+('Текст политики обработки данных. '.repeat(20))).join('\n\n')}}};
+   else if(url.pathname.startsWith('/site-settings'))data={settings:{branding:{},homepage:{blocks:[]},news,legal:{privacyText:Array.from({length:80},(_,i)=>'Раздел '+i+'\n'+('Текст политики обработки данных. '.repeat(20))).join('\n\n')}}};
    return route.fulfill({json:data});
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -50,6 +51,7 @@ try{
   await page.goto(base+'/admin/participants?view=person-1');await page.locator('.participant-history-event h4 a').waitFor();await page.locator('.participant-history-event h4 a').click();await page.getByRole('heading',{name:'Этап №1 · Проверочный этап',exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/admin/stages/stage-1');
   await page.getByRole('link',{name:'← Вернуться к исходной карточке',exact:true}).click();await page.locator('.participant-history-event h4 a').waitFor();
   await page.goto(base+'/admin/registrations?stageId=stage-1');await page.locator('tbody tr').waitFor();await page.locator('td[data-label="Автомобиль"] a').click();await page.getByRole('heading',{name:'Автомобиль',exact:true}).waitFor();assert.ok(page.url().includes('carId=car-50'));
+  await page.goto(base+'/admin/records');await page.locator('td[data-label="Класс"]').click();await page.getByRole('heading',{name:'Рекорд',exact:true}).waitFor();await page.locator('.admin-related-entities a[href^="/admin/cars?"]').click();await page.getByRole('heading',{name:'Автомобиль',exact:true}).waitFor();await page.getByRole('link',{name:'← Вернуться к исходной карточке',exact:true}).click();await page.getByRole('heading',{name:'Рекорд',exact:true}).waitFor();assert.ok(page.url().includes('view=record'));
   await page.goto(base+'/admin/records');await page.locator('td[data-label="Этап"] a').click();await page.getByRole('heading',{name:'Этап №1 · Проверочный этап',exact:true}).waitFor();
   // Saving an edit opened deep down an admin list must return to that row.
   await page.goto(base+'/admin/participants');await page.locator('tbody tr').first().waitFor();
@@ -58,6 +60,8 @@ try{
   for(let step=0;step<5;step++){const save=page.locator('.entity-form-actions button[type="submit"]');if(!await save.count())break;await save.click();await page.waitForTimeout(100)}
   await page.waitForURL(base+'/admin/participants');await page.locator('tbody tr').nth(50).waitFor();await page.waitForTimeout(300);
   const after=await page.evaluate(()=>scrollY);assert.ok(Math.abs(after-before)<5,JSON.stringify({width,before,after}));
+  // An editor driven by local state must also restore its original list.
+  await page.goto(base+'/admin/news');await page.locator('tbody tr').nth(35).getByRole('button',{name:'Изменить',exact:true}).scrollIntoViewIfNeeded();await scroll(40);const newsBefore=await page.evaluate(()=>scrollY);await page.locator('tbody tr').nth(35).getByRole('button',{name:'Изменить',exact:true}).click();await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('.news-editor'));await page.waitForTimeout(200);const newsAfter=await page.evaluate(()=>scrollY);assert.ok(Math.abs(newsAfter-newsBefore)<5,JSON.stringify({newsBefore,newsAfter}));
   // Missing and failed direct targets must not silently show an unrelated list.
   await page.goto(base+'/admin/cars?carId=missing');await page.getByRole('alert').filter({hasText:'Автомобиль не найден'}).waitFor();
   failCars=true;await page.goto(base+'/admin/cars?carId=car-50');await page.getByRole('alert').filter({hasText:'Временная ошибка'}).waitFor();failCars=false;await page.getByRole('button',{name:'Повторить загрузку'}).click();await page.getByRole('heading',{name:'Автомобиль',exact:true}).waitFor();
@@ -69,7 +73,7 @@ try{
   await page.goBack();await page.waitForURL(base+'/privacy');await page.waitForTimeout(600);const restored=await page.evaluate(()=>scrollY);assert.ok(Math.abs(restored-privacyTop)<5,JSON.stringify({privacyTop,restored}));
   await page.goForward();await page.waitForURL(base+'/stages');await page.waitForTimeout(500);await expectTop();
   assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-  report.push({width,adminScroll:{before,after},publicHistory:{before:privacyTop,after:restored},errors});await context.close();
+  report.push({width,adminScroll:{before,after,newsBefore,newsAfter},publicHistory:{before:privacyTop,after:restored},errors});await context.close();
  }
  await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }catch(error){for(const context of browser.contexts())for(const page of context.pages()){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true}).catch(()=>{});await writeFile(path.join(out,'failure.txt'),String(error)+'\n'+await page.locator('body').innerText().catch(()=>''));}throw error;}finally{await browser.close();await new Promise(r=>server.close(r))}

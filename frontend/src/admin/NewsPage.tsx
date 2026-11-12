@@ -1,3 +1,4 @@
+import {useEditorScroll} from './view-state';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,Bell,Plus,Pencil,Trash2} from 'lucide-react';
 import {getSiteSettings,updateSiteSettings,uploadSiteAsset} from '../api';
@@ -14,6 +15,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  const [previewPhoto,setPreviewPhoto]=useState('');
  const [confirmDeleteId,setConfirmDeleteId]=useState('');
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ useEditorScroll('news',editing!==null,!loading);
  const load=async()=>{
   setLoading(true);setError('');
   try{

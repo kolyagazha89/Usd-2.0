@@ -1,3 +1,4 @@
+import {useViewState} from './view-state';
 import {safeAdminReturn} from './entity-navigation';
 import {AdminEntityLink} from './AdminEntityLink';
 import './car-editor-journey.css';
@@ -10,8 +11,8 @@ import {VehicleCatalogPicker} from '../participant/VehicleCatalogPicker';
 
 function CarsPage({user,go,path,PageFrame,Empty,LoadingPage,EntityDetailModal,displayCarName}: {user:User;path:string;go:(path:string)=>void;PageFrame:React.ComponentType<any>;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string}){
  const canEdit=user.role==='ADMIN';const pageSize=25;const requestedCarId=new URLSearchParams(path.split('?')[1]??'').get('carId')??'';
- const [page,setPage]=useState(1);
- const [cars,setCars]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[detail,setDetail]=useState<any|null>(null),[deactivateTarget,setDeactivateTarget]=useState('');
+ const [page,setPage]=useViewState('cars:page',1);
+ const [cars,setCars]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useViewState('cars:search',''),[detail,setDetail]=useState<any|null>(null),[deactivateTarget,setDeactivateTarget]=useState('');
  const load=async()=>{setLoading(true);setError('');try{setCars(listData(await apiGet<any>('/cars')))}catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки автомобилей')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  useEffect(()=>{

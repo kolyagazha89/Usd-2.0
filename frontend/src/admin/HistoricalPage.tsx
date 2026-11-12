@@ -1,11 +1,11 @@
-import {AdminEntityLink} from './AdminEntityLink';
+import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import {useViewState,useListScroll} from './view-state';
 import {useState,useEffect,useCallback,useRef} from 'react';
 import {AlertTriangle,Check,CheckCircle2,FileClock,RefreshCw} from 'lucide-react';
 import {apiGet,apiPost,listData} from '../api';
 
 function HistoricalPage({PageFrame,ErrorPanel,LoadingPage,Empty,PanelTitle,EntityDetailModal,enumLabel,formatDate}: {PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;enumLabel:(value:any)=>string;formatDate:(value:string)=>string}){
- const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[detail,setDetail]=useState<any|null>(null),[confirmVerifyAll,setConfirmVerifyAll]=useState(false),[busy,setBusy]=useState(false),[page,setPage]=useState(1),[meta,setMeta]=useState({total:0,pending:0,seasons:[] as string[]});
+ const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[detail,setDetail]=useAdminDetail(data),[confirmVerifyAll,setConfirmVerifyAll]=useState(false),[busy,setBusy]=useState(false),[page,setPage]=useState(1),[meta,setMeta]=useState({total:0,pending:0,seasons:[] as string[]});
  const[season,setSeason]=useViewState('history:season','ALL'),[status,setStatus]=useViewState('history:status','ALL');
  const requestId=useRef(0),mounted=useRef(true);
  const filtered=data;
