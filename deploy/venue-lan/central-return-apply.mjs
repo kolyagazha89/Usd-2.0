@@ -158,8 +158,8 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
        &&existing.byId.registrationClassId===r.registrationClassId
        &&String(existing.byId.value)===r.value
        &&existing.byId.unit===r.unit
-       &&existing.byId.place===r.place
-       &&existing.byId.isBest===r.isBest
+       // Re-ranking is a central derived write; it may change place/isBest
+       // after the signed event was imported. Never treat it as a replay conflict.
        &&existing.byId.notes===null
        &&existing.byId.isHistorical===false
        &&existing.byId.verificationStatus==='NOT_REQUIRED';
