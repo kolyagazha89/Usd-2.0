@@ -128,12 +128,14 @@ try{
         if(route==='/privacy'){
           await navigatePublic(page,'Главная');
           await page.waitForURL(base+'/');
-          await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
+          // Each live read can be dropped by ingress independently. Reuse the
+          // already-tested one bounded GET retry after BOTH navigation hops.
+          // Persistent blanks still fail release QA and save screenshots.
+          await loadPublicShell(page,base+'/privacy',row);
           await navigatePublic(page,'Этапы');
           await page.waitForURL(/\/stages(?:\?|$)/);
           row.privacyNavigation='Home and Stages clicks passed';
-          await page.goto(base+'/privacy',{waitUntil:'domcontentloaded'});
-          await page.locator('.usd-live,.public-site').waitFor();
+          await loadPublicShell(page,base+'/privacy',row);
         }
         if(route==='/'||route==='/results'){
           const before=originalResultText;

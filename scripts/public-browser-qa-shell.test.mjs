@@ -30,3 +30,11 @@ test('does not reload an already healthy shell',async()=>{
  assert.deepEqual(calls,{goto:1,reload:0,wait:1});
  assert.equal('shellReadRetried' in row,false);
 });
+
+test('privacy route uses bounded shell recovery after BOTH anonymous navigation roundtrips',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('./public-browser-qa.mjs',import.meta.url),'utf8');
+ const segment=source.slice(source.indexOf("if(route==='/privacy'){"),source.indexOf("if(route==='/'||route==='/results')",source.indexOf("if(route==='/privacy'){")));
+ assert.equal((segment.match(/loadPublicShell\(page,base\+'\/privacy',row\)/g)??[]).length,2);
+ assert.doesNotMatch(segment,/page\.goto\(base\+'\/privacy'/);
+});
