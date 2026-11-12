@@ -474,13 +474,17 @@ An accepted inspection or result and its `AuditLog` provenance receipt commit to
 retry recognizes the **same signed event** and avoids duplicate writes. An identical
 central score with no matching receipt is a conflict, not proof of successful sync.
 
-The program deliberately exits with status **3 even if scores were inserted**:
-derived rankings/records, official publication, media and all non-Result venue
+After applying verified scores, the CLI attempts a retryable rebuild of rankings
+and records using the existing backend services (run `npm run build` before use).
+If that step fails, it reports `finalization=REQUIRES_ADMIN_RETRY`; re-running
+the **same signed package** resumes without duplicating measurements. The
+program deliberately exits with status **3 even if scores were inserted**:
+official publication, media and all non-supported venue
 events still need central reconciliation and a separate verification. Do not
 interpret a zero pending count as a completed competition import. Do not delete
 the venue DB, reset the journal, publish official results or announce release.
 
 **Release still blocked:** full registration/class/number/inspection/media
-reconciliation; automatic record/ranking rebuild; durable central acknowledgements
+reconciliation; end-to-end verified record/ranking rebuild; durable central acknowledgements
 covering the whole journal; reviewed issue/conflict resolution UI; physical
 Windows + router + two phones with WAN unplugged; reboot and exact-state checks.
