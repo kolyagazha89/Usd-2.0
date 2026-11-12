@@ -1,0 +1,35 @@
+/* Keep stage controls inside their table cell; quick actions live in the card. */
+body .app-shell .main .content .table-wrap[data-resource="/stages"] .row-actions {
+ flex-wrap:wrap;
+ align-items:center;
+ min-width:220px;
+ max-width:none;
+ white-space:normal;
+ overflow:visible;
+}
+body .app-shell .main .content .table-wrap[data-resource="/stages"] .stage-registration-action {
+ flex:1 1 160px;
+ min-width:0;
+ max-width:100%;
+}
+body .app-shell .main .content .table-wrap[data-resource="/stages"] .stage-registration-toggle {
+ width:100%;
+ height:auto;
+ min-height:40px;
+ white-space:normal;
+ padding:8px 10px;
+}
+body .app-shell .main .content .stage-card-actions {
+ flex:1 0 100%;
+ width:100%;
+ min-width:0;
+ padding-bottom:16px;
+ border-bottom:1px solid var(--usd-control-border,#cfd3d7);
+}
+.stage-card-actions h3 {margin:0 0 12px;font-size:14px}
+body .app-shell .main .content .stage-card-actions .page-actions {justify-content:flex-start}
+body .app-shell .main .content .stage-card-actions button {max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left}
+body .app-shell .main .content .stage-card-actions p {margin:12px 0 0}
+@media(max-width:700px){
+ body .app-shell .main .content .table-wrap[data-resource="/stages"] .row-actions {min-width:0}
+}
