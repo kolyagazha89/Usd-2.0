@@ -20,7 +20,7 @@ describe('ADMIN participant email visibility', () => {
       ]) },
     };
     const profiles = await new ParticipantsService(db).findAllAdmin(req('admin'));
-    expect(profiles.map(profile => [profile.id, profile.email, profile.emailSource])).toEqual([
+    expect((profiles as Array<{ id: string; email?: string | null; emailSource?: string | null }>).map(profile => [profile.id, profile.email, profile.emailSource])).toEqual([
       ['linked', 'new@usd.invalid', 'ACCOUNT'],
       ['historical', 'saved@usd.invalid', 'HISTORICAL'],
       ['empty', null, null],
