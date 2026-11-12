@@ -288,7 +288,7 @@ Only the bootstrap `usd_venue_root` account installs its own
 The API's `usd_venue` DB account can only **SELECT** it; attempts to
 UPDATE/DELETE the log are rejected by PostgreSQL permissions. On startup
 the Nest API verifies that exactly the pinned stage is present, its
-DB user is **not** superuser, and all **18** trusted journal triggers are
+DB user is **not** superuser, and all **19** trusted journal triggers are
 enabled, otherwise the local API refuses to start.
 
 Mutations of stage, participants, cars, equipment FK rows,
@@ -307,9 +307,11 @@ publish this table or send it to unrelated users. It deliberately omits
 local password, refresh-session and role tables.
 
 **IMPORTANT:** the journal is a durable *source* for future reconciliation,
-**NOT a working return-sync implementation**. A venue-signed export,
-central authorization and dry-run, replay-safe stage/ID/number conflict
-resolution, local photo transfer and Ubuntu import are STILL MISSING.
+**NOT an automatic internet sync**. A venue-signed export and controlled
+central full-journal import are available; see COMPLETE-RETURN-UBUNTU.md.
+Photo uploads are intentionally disabled in venue LAN mode, and no photo
+transfer is required for a normal competition day. Physical LAN acceptance
+and Ubuntu deployment checks are still required.
 Do not erase the venue volume after competition until every accepted result
 is independently verified on the central server.
 
@@ -497,26 +499,4 @@ For a **real signed stage only**, the reviewed Windows distribution includes
 same read-only, encrypted USB journal exporter as the Linux recovery workflow.
 No central production credentials or key material are stored in the laptop.
 
-- The launcher requires the original READY stage identity and refuses DEMO.
-- A network-disabled, one-shot Docker process creates an Ed25519 signing key
-  only once in the separate persistent `usd-venue_venue_return_keys` volume;
-  the private key is mode 0600 and the service uses uid 1000 afterwards.
-- Only the **public** key and its independently verifiable SHA-256 fingerprint
-  are copied to `local-private/return-output` on Windows. Keep the private
-  Docker volume protected and back it up securely.
-- The operator enters a separate strong transfer passphrase in a masked dialog.
-  It passes over stdin, not the command line, and never appears in logs.
-- The helper exports a new, non-overwriting `usd-venue-return-*.json` containing
-  the authenticated and AES-256-GCM encrypted journal. Do not email the password
-  alongside the USB file.
-- The action never calls the central API, makes no synchronization claim,
-  and does not remove the local database, journal, media or private key.
-
-A package can be reviewed using the existing independently pinned central
-preview and partial import tools. **This is a recovery/return export, not
-automatic full synchronization.** New registrations, classes, participants
-and media remain release blockers until the central importer acknowledges them.
-
-## Full signed central return (v2 journal, human acceptance)
-
-For a signed real stage use `COMPLETE-RETURN-UBUNTU.md`. Windows `USD â€” ĞĞ½Ğ»Ğ°Ğ¹Ğ½` now creates the encrypted USB return file **before** stopping the local server; a failed export keeps the LAN stack running. Central `apply-complete-venue-return.mjs` validates signed table coverage, inserts participant/car/configurations/equipment/numbers/registrations/inspections/results in one PostgreSQL SERIALIZABLE transaction, fails atomically on data or policy conflicts, and uses auditable idempotent receipts. This is **not** an automatic media migration or a completed field release. Signed v1 packages and journals with incomplete link coverage remain blocked from full import. Do not erase local data until media and all central results are independently accepted.
+- The launcher requires the original READY stage identity and ref¢ëiºÛkºwµç_ºYhºÚn¶Æ¯yÛhşiíıø¥zÏÜ¢jh²*?¢ëiºßÛjÈ[jYlµÚ.¶ÜmFéÜjßæßßŠW¬ıÊ&¦‹"£ú.¶›­ı¶¬…¶¥–Ë]¢ëmÆÛh¾'°¶ŸºYhºÚn¶Šî±è^iÙõÓOæßßŠW¬ıÊ&¦‹"£ú.¶›­ı¶¬…¶¥–Ë]¢ëmÆßíj)g×M?š{~)^³÷(šš,ŠèºÚn·öÚ²Ú–[-v‹­·m¢øÂ–«¶ÊŠ

@@ -17,6 +17,15 @@ export class MediaService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // The on-site LAN journal deliberately excludes MediaUpload and binary RustFS
+  // objects. Keep judging available offline without silently creating photos
+  // or site assets that could never be returned to the central server.
+  private assertWritableMediaMode() {
+    if (process.env.USD_VENUE_LAN_MODE === 'true') {
+      throw new ForbiddenException('На площадке фото и файлы не загружаются. Добавьте их позже на основном сайте USD.');
+    }
+  }
+
   private config() {
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION ?? 'auto';
@@ -163,6 +172,7 @@ export class MediaService {
   }
 
   async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-') &&
         !ALLOWED_IMAGE_TYPES.has(contentType.toLowerCase())) {
       throw new BadRequestException('Для фотографий команды разрешены только JPG, PNG и WebP');
@@ -506,6 +516,7 @@ export class MediaService {
   }
 
   async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на удаление медиа');
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     const normalizedTargetId = targetId.trim();
@@ -557,131 +568,4 @@ export class MediaService {
           action: 'MEDIA_ASSET_DELETED',
           entity: 'MediaUpload',
           entityId: normalizedTargetId,
-          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending, objectKeys: storageCleanupPending ? uploads.map((upload) => upload.objectKey) : [] },
-        },
-      });
-    } catch {
-      // Media deletion should remain successful if audit storage is temporarily unavailable.
-    }
-    return { success: true, targetType, targetId: normalizedTargetId, deletedVersions: uploads.length, storageCleanupPending };
-  }
-
-  async getSiteAssetBuffer(targetId: string) {
-    const upload = await this.prisma.mediaUpload.findFirst({
-      where: { targetType: MediaTargetType.SITE_ASSET, targetId, contentType: DOCX_TYPE, completedAt: { not: null } },
-      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
-      select: { objectKey: true },
-    });
-    if (!upload) throw new BadRequestException('Загруженный документ не найден');
-    // Reuse bounded, timeout-protected storage reads. An untrusted S3 reply
-    // must never be buffered without a size limit before DOCX conversion.
-    const bytes = await this.readStoredMedia(upload.objectKey);
-    this.validateDocxSignature(bytes);
-    return bytes;
-  }
-
-  async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string, canManageSiteAssets = false) {
-    if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
-    }
-    const upload = await this.prisma.mediaUpload.findUnique({
-      where: { tokenHash: this.hashToken(uploadToken) },
-    });
-    if (!upload || (upload.userId !== userId && role !== 'ADMIN') || upload.completedAt || upload.expiresAt < new Date()) {
-      throw new BadRequestException('Недействительная загрузка');
-    }
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
-    if (upload.contentType !== contentType.toLowerCase()) {
-      throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
-    }
-    const response = await fetch(this.presignedUrl('PUT', upload.objectKey, upload.contentType, 120), {
-      method: 'PUT',
-      headers: { 'Content-Type': upload.contentType },
-      body: body as unknown as BodyInit,
-    });
-    if (!response.ok) {
-      // Never return storage XML, internal bucket/endpoint names or signed URL
-      // fragments to an upload client. The status is sufficient for a
-      // sanitized operator diagnostic without logging credentials.
-      await response.body?.cancel().catch(() => undefined);
-      this.logger.warn('Media S3 upload rejected (HTTP ' + response.status + ')');
-      throw new ServiceUnavailableException('Хранилище временно не приняло файл');
-    }
-    return this.complete(userId, role, uploadToken, canManageSiteAssets);
-  }
-
-  async complete(userId: string, role: string, uploadToken: string, canManageSiteAssets = false) {
-    const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
-    if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
-    await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);
-    // Fail before publishing to S3; retain the transactional, lock-protected
-    // recheck below for a merge that races with upload verification.
-    if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
-      const alias = await this.prisma.participantMergeRedirect.findUnique({
-        where: { sourceId: upload.targetId }, select: { sourceId: true },
-      });
-      if (alias) throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
-    }
-    const object = await this.headObject(upload.objectKey);
-    if (!Number.isFinite(object.size) || object.size <= 0 || object.size > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
-    }
-    if (object.contentType !== upload.contentType) {
-      throw new BadRequestException('Тип загруженного файла не совпадает с заявленным');
-    }
-    const verifiedBytes = await this.readStagedUpload(upload.objectKey);
-    if (ALLOWED_IMAGE_TYPES.has(upload.contentType)) {
-      this.validateImageSignature(verifiedBytes, upload.contentType);
-    } else if (upload.contentType === DOCX_TYPE && upload.targetType === MediaTargetType.SITE_ASSET) {
-      this.validateDocxSignature(verifiedBytes);
-    } else {
-      throw new BadRequestException('Недопустимый тип файла для этой загрузки');
-    }
-
-    // An already issued presigned staging PUT must NEVER be able to overwrite
-    // published content, even if its 10-minute URL is replayed after complete.
-    // We publish validated bytes to a fresh, never presigned-for-clients key.
-    const finalKey = upload.objectKey + '-published-' + crypto.randomUUID();
-    const published = await fetch(this.presignedUrl('PUT', finalKey, upload.contentType, 60), {
-      method: 'PUT', headers: { 'Content-Type': upload.contentType },
-      body: verifiedBytes as unknown as BodyInit, signal: AbortSignal.timeout(15000),
-    });
-    if (!published.ok) throw new ServiceUnavailableException('Не удалось сохранить проверенную копию файла');
-    const url = this.objectUrl(finalKey);
-    try {
-      await this.prisma.$transaction(async (tx) => {
-      if(upload.targetType===MediaTargetType.PARTICIPANT_PHOTO){
-        // A staging PUT can complete after merging unless it locks and rechecks.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'participant-claim:'+upload.targetId}))`;
-        const alias=await tx.participantMergeRedirect.findUnique({
-          where:{sourceId:upload.targetId},select:{sourceId:true},
-        });
-        if(alias)throw new ConflictException('Нельзя изменить фото объединённого исторического профиля.');
-      }
-      // CAS: two /media/complete calls can both read the original staging
-      // token before either transaction commits. Exactly one may publish;
-      // a losing transaction must not overwrite the winning final objectKey
-      // or change the vehicle's photo URL.
-      const claimed = await tx.mediaUpload.updateMany({
-        where: { id: upload.id, completedAt: null, objectKey: upload.objectKey },
-        data: { objectKey: finalKey, completedAt: new Date() },
-      });
-      if (claimed.count !== 1) {
-        throw new ConflictException('Загрузка уже завершена другим запросом');
-      }
-      if (upload.targetType === MediaTargetType.PARTICIPANT_PHOTO) {
-        await tx.participant.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-      } else if (upload.targetType === MediaTargetType.CAR_PHOTO) {
-        await tx.car.update({ where: { id: upload.targetId }, data: { photoUrl: url } });
-      }
-      });
-    } catch (error) {
-      // Database rollback: remove the unpublished final object best effort.
-      await this.deleteStoredObjects([finalKey]);
-      throw error;
-    }
-    // Best-effort staging cleanup. Failure cannot re-open the published key.
-    await this.deleteStoredObjects([upload.objectKey]);
-    return { success: true, photoUrl: url, targetType: upload.targetType, targetId: upload.targetId };
-  }
-}
+          metadata: { targetType, versionsDeleted: uploads.length, storageCleanupPending, objectKeys: storageCleanupPending ? ��i��k�w��_�Yh��n�Ưy�h�i����z�ܢjh�*?��i���j�ij�l��.��mF��j���ߊW���&��"��.�����������]��m��h�'����Yh��n����^i���O��ߊW���&��"��.�����������]��m���j)g�M?�{~)^��(��,����n��ڲZ��-v���m�������

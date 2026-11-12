@@ -222,3 +222,20 @@ test('a centrally deleted participant prevents false replay acknowledgement',asy
  await assert.rejects(
   ()=>applyCompleteVenueJournal(full(),db,opts),/CENTRAL_CHANGED/);
 });
+
+test('offline return never wipes an existing central photo reference', async()=>{
+ const prior={...participant,photoUrl:'https://central.example/profile-photo'};
+ const changed={...prior,photoUrl:null};
+ const db=memoryDb({existing:{Participant:[prior]}});
+ const signed=full();
+ signed.events[0]=event(1,'Participant','UPDATE',changed,prior);
+ await assert.rejects(()=>applyCompleteVenueJournal(signed,db,opts),/MEDIA/);
+ assert.equal(db.rows.get('Participant').get(prior.id).photoUrl,prior.photoUrl);
+});
+test('photo-free stage requires no media transfer despite having competition results',async()=>{
+ const db=memoryDb();
+ const report=await applyCompleteVenueJournal(full(),db,opts);
+ assert.equal(report.mediaTransferRequired,false);
+ assert.equal(report.mediaSynchronized,false);
+ assert.equal(report.databaseSynchronized,true);
+});

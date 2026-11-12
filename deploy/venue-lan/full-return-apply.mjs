@@ -158,9 +158,8 @@ function validateSnapshot(snapshot,options){
   }
   if(p.table==='Participant'||p.table==='Car'){
    if(p.operation==='INSERT'&&p.after.photoUrl
-    ||p.operation==='UPDATE'&&p.after.photoUrl!==p.before.photoUrl
-      &&p.after.photoUrl!==null)
-    reject('MEDIA: import actual image blobs before changing photo URLs');
+    ||p.operation==='UPDATE'&&p.after.photoUrl!==p.before.photoUrl)
+    reject('MEDIA: offline photo changes are unsupported; preserve venue database for manual review');
   }
   if(p.table==='Registration'&&(p.after??p.before).stageId!==options.stageId)
    reject('foreign stage registration');
@@ -217,7 +216,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    }
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
     appliedEvents:0,readyEvents:0,totalEvents:snapshot.events.length,
-    journalEndHash:snapshot.journalEndHash,mediaSynchronized:false};
+    journalEndHash:snapshot.journalEndHash,mediaSynchronized:false,mediaTransferRequired:false};
   }
   if(stage.resultsPublishedAt)reject('central results are published');
   const original=await tx.linkedIds(stageId);
@@ -264,7 +263,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   return {stageId,databaseSynchronized:Boolean(apply),
    alreadyApplied:false,appliedEvents:apply?readyEvents:0,
    readyEvents:apply?0:readyEvents,totalEvents:snapshot.events.length,
-   journalEndHash:snapshot.journalEndHash,mediaSynchronized:false,
-   published:false,notice:'No media object transfer or final field acceptance is claimed'};
+   journalEndHash:snapshot.journalEndHash,mediaSynchronized:false,mediaTransferRequired:false,
+   published:false,notice:'Offline photo uploads are disabled; no media transfer for photo-free stage; field acceptance is separate'};
  },{readOnly:!apply});
 }
