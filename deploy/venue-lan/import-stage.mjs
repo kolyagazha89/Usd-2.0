@@ -225,7 +225,7 @@ export async function applyVenueStageImport(plan,prisma){
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
   await assertVenueDatabaseRole(tx);
-  const domain=['stage','season','direction','class','stageClass','siteSettings','participant','car',
+  const domain=['stage','season','direction','class','stageClass','participant','car',
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));
   if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
@@ -261,13 +261,36 @@ export async function applyVenueStageImport(plan,prisma){
    }});
   if(plan.snapshot.venuePolicy){
    const policy=plan.snapshot.venuePolicy;
-   await tx.siteSettings.create({data:{
-    id:'default',branding:{},homepage:{},stream:{},liveResults:{},
-    navigation:{items:[]},contacts:{email:policy.contactEmail},social:{},seo:{},
-    legal:policy.legal,footer:{},
-    registration:{enabled:true,rulesDocument:{published:policy.rulesPublished}},
-    catalogs:{},partners:[],news:[],
-   }});
+   // The official Prisma migrations seed SiteSettings/default with component
+   // catalogs. It is not participant/competition data and may already exist.
+   // Preserve those catalogs, but never overwrite a previously approved
+   // local/central legal policy or any other settings row.
+   const settingsCount=await tx.siteSettings.count();
+   if(settingsCount>1)throw new Error('Посторонние настройки в локальной базе');
+   const current=await tx.siteSettings.findUnique({
+    where:{id:'default'},select:{legal:true,contacts:true,registration:true},
+   });
+   if(settingsCount===1&&!current)
+    throw new Error('Посторонний ID настроек в локальной базе');
+   const currentLegal=current?.legal??{};
+   if(currentLegal&&typeof currentLegal==='object'
+    &&currentLegal.legalApproved===true)
+    throw new Error('Нельзя перезаписывать действующую юридическую политику');
+   const update={
+    legal:policy.legal,
+    contacts:{...(current?.contacts??{}),email:policy.contactEmail},
+    registration:{...(current?.registration??{}),
+     enabled:true,rulesDocument:{published:policy.rulesPublished}},
+   };
+   if(current){
+    await tx.siteSettings.update({where:{id:'default'},data:update});
+   }else{
+    await tx.siteSettings.create({data:{
+     id:'default',branding:{},homepage:{},stream:{},liveResults:{},
+     navigation:{items:[]},social:{},seo:{},footer:{},catalogs:{},
+     partners:[],news:[],...update,
+    }});
+   }
   }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
   for(const r of regs){
