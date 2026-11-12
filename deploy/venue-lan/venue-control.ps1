@@ -34,6 +34,15 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
  Invoke-Docker (@('compose','-p','usd-venue','-f',(Join-Path $Root 'compose.yaml'))+$Arguments) $Purpose
 }
+function Assert-VenueCompose {
+ $compose=[IO.File]::ReadAllText((Join-Path $Root 'compose.yaml'))
+ $expected='VENUE_STAGE_ID: '+[char]36+'{VENUE_STAGE_ID'
+ if(-not $compose.Contains('name: usd-venue') -or
+  -not $compose.Contains('USD_VENUE_LAN_MODE: "true"') -or
+  -not $compose.Contains($expected)){
+  throw 'Compose must be isolated and pinned to one offline stage'
+ }
+}
 function Read-Env {
  if(-not(Test-Path -LiteralPath $EnvFile -PathType Leaf)){throw 'Нет локальной конфигурации. Запустите установку.'}
  $result=@{}
@@ -253,6 +262,7 @@ function Create-Staff([string]$Kind,[string]$Login){
  }finally{$password=$null}
 }
 function Install-Local {
+ Assert-VenueCompose
  Ensure-DockerReady
  if(!(Test-Path -LiteralPath $PrivateDir)){
   New-Item -ItemType Directory -Path $PrivateDir|Out-Null
@@ -320,6 +330,7 @@ function Install-Local {
  Start-Local
 }
 function Start-Local {
+ Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку USD-Install.cmd'}
  $cfg=Read-Env
