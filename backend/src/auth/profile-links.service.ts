@@ -11,6 +11,36 @@ const PUBLIC_STATUS=new Set(['PENDING','APPROVED','REJECTED','CONFLICT']);
 export class ProfileLinksService {
  constructor(private readonly prisma:PrismaService){}
 
+ /** ADMIN-only aggregate. Historical email presence is not proof of a matching new account. */
+ async adminEmailCoverage(){
+  const rows=await this.prisma.$queryRaw<Array<{
+   totalProfiles:number;linkedProfiles:number;unlinkedProfiles:number;
+   profilesWithLegacyEmail:number;unlinkedWithLegacyEmail:number;unlinkedWithoutLegacyEmail:number;
+  }>>`
+   SELECT
+    COUNT(*)::int AS "totalProfiles",
+    COUNT(*) FILTER (WHERE u.id IS NOT NULL)::int AS "linkedProfiles",
+    COUNT(*) FILTER (WHERE u.id IS NULL)::int AS "unlinkedProfiles",
+    COUNT(*) FILTER (WHERE NULLIF(BTRIM(e.email),'') IS NOT NULL)::int AS "profilesWithLegacyEmail",
+    COUNT(*) FILTER (WHERE u.id IS NULL AND NULLIF(BTRIM(e.email),'') IS NOT NULL)::int AS "unlinkedWithLegacyEmail",
+    COUNT(*) FILTER (WHERE u.id IS NULL AND NULLIF(BTRIM(e.email),'') IS NULL)::int AS "unlinkedWithoutLegacyEmail"
+   FROM "Participant" p
+   LEFT JOIN "User" u ON u."participantId" = p.id
+   LEFT JOIN "_ParticipantLegacyEmail" e ON e."participantId" = p.id
+   LEFT JOIN "ParticipantMergeRedirect" m ON m."sourceId" = p.id
+   WHERE m."sourceId" IS NULL
+  `;
+  const row=rows[0];
+  return {
+   totalProfiles:Number(row?.totalProfiles??0),
+   linkedProfiles:Number(row?.linkedProfiles??0),
+   unlinkedProfiles:Number(row?.unlinkedProfiles??0),
+   profilesWithLegacyEmail:Number(row?.profilesWithLegacyEmail??0),
+   unlinkedWithLegacyEmail:Number(row?.unlinkedWithLegacyEmail??0),
+   unlinkedWithoutLegacyEmail:Number(row?.unlinkedWithoutLegacyEmail??0),
+  };
+ }
+
  async submit(userId:string,participantId:string,note:string){
   if(!requestIdPattern.test(participantId))throw new BadRequestException('Некорректный профиль участника');
   const cleanNote=sanitize(note??'');
