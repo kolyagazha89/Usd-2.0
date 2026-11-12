@@ -18,6 +18,8 @@ test('bucket IAM policy grants only the isolated media bucket and no admin right
  const json=JSON.stringify(policy);
  assert.match(json,/usd-venue-media/);
  assert.doesNotMatch(json,/usd-home|arn:aws:s3:::\*|admin:\*|s3:\*/);
+ assert.ok(policy.Statement.some(row=>row.Effect==='Deny'
+  &&row.Action.includes('s3:ListAllMyBuckets')&&row.Resource.includes('*')));
  assert.equal(policy.Statement.some(row=>row.Resource.includes('arn:aws:s3:::usd-venue-media/*')),true);
  assert.equal(policy.Statement.some(row=>row.Resource.includes('arn:aws:s3:::usd-venue-media')),true);
 });
