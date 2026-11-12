@@ -59,4 +59,14 @@ fi
   migrate deploy --config ./prisma7.config.ts
 "${COMPOSE[@]}" run --rm --no-deps "${IMPORT_MOUNTS[@]}" --entrypoint node api \
   /app/import-stage.mjs /app/venue-stage.json /app/venue-signing-public.pem --apply "$STAGE_ID"
-echo "USD VENUE: signed stage copied. Local staff roles, media and central sync remain separate requirements."
+# PostgreSQL root is only used INSIDE the isolated db service to install
+# an append-only journal that the API can SELECT but cannot alter.
+"${COMPOSE[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d \
+  "$(python3 - <<'PY'
+from pathlib import Path
+from preflight import load_env
+print(load_env(Path('.env'))['VENUE_DB_NAME'])
+PY
+)" < "$ROOT/install-journal.sql"
+echo "USD VENUE: signed stage copied and durable journal installed."
+echo "Local staff accounts, media and secure reverse sync still require acceptance."
