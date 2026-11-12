@@ -118,3 +118,50 @@ test('two local result identities targeting the same class cannot be imported',a
  assert.equal(report.counts.PENDING_MANUAL,2);
  assert.deepEqual(db.operations,[]);
 });
+
+test('on-site passed inspection of an existing entrant may be inserted before its result',async()=>{
+ const participant='e510f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const inspection='d510f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const row={id:inspection,stageId:stage,participantId:participant,status:'PASSED',
+  notes:null,checkedByName:'Judge 1',checkedAt:'2026-11-12T12:00:00.000Z'};
+ const prior=event('ParticipantStageInspection','INSERT',row);
+ prior.payload.recordId=inspection;
+ const reading={...event(),sequence:2,hash:'c'.repeat(64)};
+ const db=fakeDb({valid:false});
+ db.transaction=async callback=>{
+  let savedInspection=null,recorded=false;
+  const tx={
+   stage:async()=>({id:stage,status:'PUBLISHED',isDeleted:false,resultsPublishedAt:null}),
+   stageInspection:async()=>({byId:savedInspection,byParticipant:savedInspection}),
+   inspectionContext:async()=>({total:1,unlinked:1}),
+   insertStageInspection:async saved=>{savedInspection=saved},
+   recordReceipt:async()=>{recorded=true},
+   receipt:async()=>recorded,
+   result:async()=>({byId:null,byClass:null}),
+   context:async()=>({stageId:stage,registrationStatus:'ACTIVE',classId:cls,unit:'DB',
+    inspectionStatus:savedInspection?.status??null}),
+   insertResult:async()=>{},
+  };
+  return callback(tx);
+ };
+ const report=await applyVenueReturnSnapshot({...packet([prior,reading]),journalEndHash:reading.hash},db,options);
+ assert.equal(report.counts.APPLIED,2);
+ assert.equal(report.pending,0);
+});
+test('inspection with later local correction is never imported mid-history',async()=>{
+ const participant='e510f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const inspection='d510f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const first=event('ParticipantStageInspection','INSERT',{
+  id:inspection,stageId:stage,participantId:participant,status:'FAILED',
+  notes:'Предписание',checkedByName:'Judge 1',checkedAt:'2026-11-12T12:00:00.000Z',
+ });
+ first.payload.recordId=inspection;
+ const next={...first,hash:'c'.repeat(64),sequence:2,payload:{
+  ...first.payload,operation:'UPDATE',
+  before:first.payload.after,after:{...first.payload.after,status:'PASSED'},
+ }};
+ const db=fakeDb();
+ const report=await applyVenueReturnSnapshot({...packet([first,next]),journalEndHash:next.hash},db,options);
+ assert.equal(report.counts.PENDING_MANUAL,2);
+ assert.equal(report.counts.APPLIED,0);
+});
