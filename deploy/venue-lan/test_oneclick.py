@@ -39,6 +39,18 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)
         self.assertNotIn("VENUE_JWT_SECRET=REPLACE_",source)
+    def test_real_stage_online_button_exports_signed_journal_before_stopping_local(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        begin=source.index('function Return-Online')
+        end=source.index("if($MyInvocation.InvocationName",begin)
+        section=source[begin:end]
+        self.assertIn('Export-VenueReturn',section)
+        self.assertIn('(-not $state.demo)',section)
+        self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
+        self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
+        self.assertIn('if($Silent)',section)
+        self.assertIn('unsynced',section.lower())
+
     def test_back_online_never_automatically_imports_or_deletes_offline_data(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         offline=source.index("function Start-Local")

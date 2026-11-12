@@ -206,3 +206,19 @@ test('signed amplifier-to-speaker linkage is transferred with new configuration'
  assert.equal(db.rows.get('CarAmplifierComponent').get(link).quantity,1);
  assert.equal(db.receipt.size,12);
 });
+
+test('a changed central score cannot be accepted merely because its signed receipt exists',async()=>{
+ const db=memoryDb();
+ await applyCompleteVenueJournal(full(),db,opts);
+ db.rows.get('Result').get(ids.result).value='110.000';
+ await assert.rejects(
+  ()=>applyCompleteVenueJournal(full(),db,opts),/CENTRAL_CHANGED/);
+ assert.equal(db.receipt.size,9);
+});
+test('a centrally deleted participant prevents false replay acknowledgement',async()=>{
+ const db=memoryDb();
+ await applyCompleteVenueJournal(full(),db,opts);
+ db.rows.get('Participant').delete(ids.participant);
+ await assert.rejects(
+  ()=>applyCompleteVenueJournal(full(),db,opts),/CENTRAL_CHANGED/);
+});

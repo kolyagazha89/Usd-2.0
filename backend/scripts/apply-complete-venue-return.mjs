@@ -67,8 +67,23 @@ export async function applyCompleteVenueReturn({
   const report=await applyCompleteVenueJournal(snapshot,postgresFullVenueAdapter(client),{
    apply,stageId,baselineSha256,operator:environment.VENUE_RETURN_OPERATOR,
   });
+  let derivedRankingsRebuilt=false;
+  if(apply&&report.databaseSynchronized&&report.totalEvents>0){
+   try{
+    // Idempotent derived records/re-ranking step after all DB receipts commit.
+    // An interrupted rebuild can be retried with the same signed package.
+    const entry=await import('../dist/scripts/finalize-venue-return.js');
+    const finalize=entry.finalizeVenueStage??entry.default?.finalizeVenueStage;
+    if(typeof finalize!=='function')throw Error('Central ranking finalizer missing');
+    const state=await finalize(stageId,environment.DATABASE_URL);
+    derivedRankingsRebuilt=Boolean(state?.recalculated);
+   }catch{
+    report.finalization='REQUIRES_ADMIN_RETRY';
+   }
+  }
   onReport(JSON.stringify({...report,
-   officialReleaseAccepted:false,rankingsNeedRebuild:apply&&snapshot.events.length>0,
+   derivedRankingsRebuilt,officialReleaseAccepted:false,
+   rankingsNeedRebuild:apply&&snapshot.events.length>0&&!derivedRankingsRebuilt,
    onSiteFieldAcceptanceRequired:true},null,2));
   // Status 4 signals "database imported but no media/field acceptance":
   // never accidentally mark the entire contest as RELEASED.

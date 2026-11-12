@@ -457,7 +457,18 @@ function Export-VenueReturn {
   'НЕ УДАЛЯЙТЕ ДАННЫЕ НОУТБУКА.')
 }
 function Return-Online {
- # Online switching never implies synchronization. Preserve all unsynced data.
+ # Real competition: one button first creates an encrypted signed USB return
+ # package, then switches to the official site. It NEVER claims the central
+ # server has imported anything. If export fails, local LAN stays intact.
+ $state=Read-State
+ if($state -and $state.phase -eq 'READY' -and (-not $state.demo)){
+  if($Silent){throw 'Для настоящего этапа возврат онлайн требует подписанного экспорта с подтверждением администратора'}
+  if(-not(Confirm-VenueAction ('Перед возвратом на сайт сохранить все изменения этапа в зашифрованный файл?'+[Environment]::NewLine+
+   'Без успешного экспорта локальный сервер не остановится. Передайте готовый файл ответственному администратору Ubuntu.'))){
+    throw 'Оператор отменил безопасный экспорт. Офлайн-сервер не остановлен.'
+  }
+  Export-VenueReturn
+ }
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
   if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){

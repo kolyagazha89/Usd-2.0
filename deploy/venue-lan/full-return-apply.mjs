@@ -190,6 +190,31 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
        &&r.sequence===e.sequence&&r.baselineSha256===baselineSha256
        &&r.journalEndHash===snapshot.journalEndHash)))
     reject('partial, unknown or different journal receipts');
+   // Audit receipts alone do not prove the current DB still matches the
+   // signed event. Admins may have changed or deleted rows after import.
+   // Inspect FINAL states (not intermediate UPDATEs), with one exception:
+   // rank and best flags are derived centrally and may legitimately change.
+   const finalStates=new Map();
+   for(const event of snapshot.events){
+    const p=event.payload;
+    finalStates.set(p.table+':'+p.recordId,{table:p.table,id:p.recordId,after:p.after});
+   }
+   for(const {table,id,after} of finalStates.values()){
+    const actual=await tx.getRow(table,id);
+    if(after===null){
+     if(actual!==null)reject('CENTRAL_CHANGED: deleted signed row restored '+table);
+     continue;
+    }
+    if(actual===null)reject('CENTRAL_CHANGED: signed row disappeared '+table);
+    const signed=await tx.canonical(table,normalize(table,after));
+    const current=await tx.canonical(table,actual);
+    if(table==='Result'){
+     for(const k of ['place','isBest','updatedAt']){
+      delete signed[k];delete current[k];
+     }
+    }
+    if(!same(signed,current))reject('CENTRAL_CHANGED: signed row modified '+table);
+   }
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
     appliedEvents:0,readyEvents:0,totalEvents:snapshot.events.length,
     journalEndHash:snapshot.journalEndHash,mediaSynchronized:false};
@@ -225,9 +250,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     const number=await tx.numberOwner(stageId,after.number);
     if(number&&number.id!==p.recordId)reject('номер занят: '+after.number);
    }
-   // Even dry-run must simulate all previous rows in the same isolated
-   // SERIALIZABLE transaction; it is unconditionally ROLLED BACK at exit.
-   // Otherwise a new participant's inspection/result looks absent until apply.
+   // Dry-run exercises actual FK/UNIQUE checks before rolling back atomically.
    await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
    if(apply){
     await tx.receipt({

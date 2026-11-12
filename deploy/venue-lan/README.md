@@ -516,3 +516,7 @@ A package can be reviewed using the existing independently pinned central
 preview and partial import tools. **This is a recovery/return export, not
 automatic full synchronization.** New registrations, classes, participants
 and media remain release blockers until the central importer acknowledges them.
+
+## Full signed central return (v2 journal, human acceptance)
+
+For a signed real stage use `COMPLETE-RETURN-UBUNTU.md`. Windows `USD — Онлайн` now creates the encrypted USB return file **before** stopping the local server; a failed export keeps the LAN stack running. Central `apply-complete-venue-return.mjs` validates signed table coverage, inserts participant/car/configurations/equipment/numbers/registrations/inspections/results in one PostgreSQL SERIALIZABLE transaction, fails atomically on data or policy conflicts, and uses auditable idempotent receipts. This is **not** an automatic media migration or a completed field release. Signed v1 packages and journals with incomplete link coverage remain blocked from full import. Do not erase local data until media and all central results are independently accepted.
