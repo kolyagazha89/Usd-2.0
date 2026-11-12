@@ -53,7 +53,7 @@
 .profile-email-coverage-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
 .profile-email-coverage-heading h2{margin:0 0 4px;color:#1d2a39;font-size:19px}
 .profile-email-coverage-heading p{margin:0 0 12px;color:#596a7d;font-size:13px}
-.profile-email-coverage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.profile-email-coverage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
 .profile-email-coverage-grid>div{min-width:0;background:#f6f8fa;border:1px solid #e0e7ed;border-radius:12px;padding:13px}
 .profile-email-coverage-grid small{display:block;line-height:1.45;color:#536478}
 .profile-email-coverage-grid strong{display:block;font-variant-numeric:tabular-nums;font-size:27px;color:#26384d;margin-top:6px}
