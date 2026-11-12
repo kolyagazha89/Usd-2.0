@@ -51,7 +51,10 @@ test('first provisioning creates private bucket, policy and app account with res
   if(url.endsWith('/usd-venue-media')&&init.method==='PUT')return {status:200,ok:true,text:async()=>''};
   if(url.includes('/rustfs/admin/v3/')&&init.method==='PUT')return {status:200,ok:true,text:async()=>''};
   if(url.endsWith('/usd-venue-media')&&init.method==='GET')return {status:200,ok:true,text:async()=>''};
-  if(url.endsWith('/')&&init.method==='GET')return {status:403,ok:false,text:async()=>''};
+  if(url.endsWith('/')&&init.method==='GET'){
+   const root=init.headers.Authorization.includes('Credential=venue-root-example/');
+   return {status:root?200:403,ok:root,text:async()=>''};
+  }
   return {status:200,ok:true,text:async()=>''};
  };
  const result=await provisionVenueMedia(cfg,{fetcher,endpoint,now:new Date('2026-11-12T10:30:00Z')});
