@@ -302,6 +302,44 @@ for the future ADMIN-supervised sync. Never delete or reinitialize the
 venue database after creating the package, and never declare official
 public results imported until the central acceptance is verified.
 
+## Read-only centralized conflict preview (still NO synchronization)
+
+The USD administrator must independently download a **fresh centrally
+signed** snapshot for the *same stage* after the event. The venue return
+bundle and this new signed central snapshot MUST be authenticated using
+**different trusted Ed25519 public keys and fingerprints**. Use the
+original source signed-stage SHA-256 from the venue import audit log as the
+`ORIGINAL_IMPORT_SHA256` baseline. The encrypted return package is opened
+with the separate transfer passphrase supplied via stdin:
+
+```bash
+node deploy/venue-lan/preview-venue-reconciliation-cli.mjs \
+  USB_RETURN_ENCRYPTED.json VENUE_PUBLIC.pem CURRENT_CENTRAL_STAGE.json \
+  CENTRAL_EXPORT_PUBLIC.pem STAGE_UUID ORIGINAL_IMPORT_SHA256 \
+  PINNED_VENUE_PUBLIC_FINGERPRINT PINNED_CENTRAL_PUBLIC_FINGERPRINT
+```
+
+The script performs **zero** network requests and **zero** database writes.
+It verifies the return AES-GCM envelope, Ed25519 signature and expected
+stage/baseline, then independently verifies the latest centrally signed
+stage roster. It compares Result writes and number allocations by stable
+IDs and registration-class links; it flags duplicate classes, stale
+values, occupied sticker numbers, deleted registrations or already
+published central results. The report contains only technical SHA-256
+record identifiers, counts and machine-readable reasons, no PII or scores.
+
+Categories are: `READY_FOR_REVIEW`, `ALREADY_PRESENT`, `CONFLICT` and
+`MANUAL_REVIEW`. Even a READY result is **NOT imported**. Participant,
+vehicle, equipment, extra numbers, inspections and cancellations always
+require manual reconciliation because a signed central stage export
+does not contain all dependencies and privacy fields. A central roster
+contains ACTIVE registrations only, so a missing entry is NOT proof it
+can be safely inserted.
+
+**This is preparation for the final stage-authoritative write/ack API,
+not a way to apply offline records.** Do not declare the venue synchronized
+or delete its database on the basis of a successful preview.
+
 ## Mandatory release blockers
 
 - Validate the new signed-stage import with a **real** isolated PostgreSQL
