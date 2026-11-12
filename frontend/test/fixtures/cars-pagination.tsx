@@ -13,9 +13,12 @@ export async function runCarsPagination(){
  let cars=Array.from({length:63},(_,index)=>({id:'car-'+(index+1),brand:'Lada',model:'Модель '+String(index+1).padStart(2,'0'),isActive:true,configurations:[],participant:{firstName:'Тест',lastName:'Участник'}}));
  state.__getPublic=async(path:string)=>path==='/cars'?cars:[];
  history.replaceState({},'','/admin/cars');
+ sessionStorage.setItem('usd:view:cars:page','2');
  const root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<App/>));await flush();
+  assert.match(rows()[0].textContent??'',/Модель 26/,'saved list page survives asynchronous reload');
+  await click(previous());
   assert.equal(rows().length,25);assert.equal(previous().disabled,true);assert.match(rows()[0].textContent??'',/Модель 01/);
   await click(next());assert.equal(rows().length,25);assert.match(rows()[0].textContent??'',/Модель 26/);
   await click(rows()[0].querySelector<HTMLButtonElement>('.car-name-button')!);
