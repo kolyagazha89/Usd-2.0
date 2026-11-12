@@ -142,9 +142,25 @@ export async function provisionVenueMedia(env,{
  }),'назначение ограниченной политики');
  const verify=await call(fetcher,opts,{method:'GET',path:'/'+BUCKET,...app});
  await okResponse(verify,'проверка доступа к bucket');
- const escape=await call(fetcher,opts,{method:'GET',path:'/',...app});
- if(escape.status!==403)
-  throw new Error('Ограниченная роль RustFS может обращаться к чужим bucket: проверка не прошла');
+ // RustFS may return HTTP 200 for a filtered bucket listing. Check the
+ // administrator boundary directly instead of treating a 200 on "/" as
+ // proof of global bucket access.
+ const adminProbe=await call(fetcher,opts,{
+  method:'GET',path:'/rustfs/admin/v3/list-users',...app,
+ });
+ if(adminProbe.status!==403)
+  throw new Error('Ограниченный RustFS пользователь может читать IAM: проверка не прошла');
+ const listing=await call(fetcher,opts,{method:'GET',path:'/',...app});
+ if(listing.ok){
+  const body=await listing.text();
+  const buckets=[...body.matchAll(/<Name>([^<]+)<\/Name>/g)].map(match=>match[1]);
+  // A bucket owner name can appear as XML Name? Refuse explicitly foreign
+  // buckets in the returned metadata; the only allowed name is USD venue.
+  if(buckets.some(name=>name!==BUCKET))
+   throw new Error('RustFS показывает посторонние buckets');
+ }else if(listing.status!==403){
+  throw new Error('RustFS не подтвердил ограничения на перечисление buckets');
+ }
  return {bucket:BUCKET,restricted:true};
 }
 async function main(){
