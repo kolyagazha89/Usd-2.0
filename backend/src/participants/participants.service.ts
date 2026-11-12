@@ -74,7 +74,7 @@ export class ParticipantsService {
   async findAllAdmin(request: AuthenticatedRequest) {
     const actor = await this.requireAdmin(request);
 
-    return this.prisma.participant.findMany({
+    const profiles = await this.prisma.participant.findMany({
       where: { mergeAsSource: { is: null } },
       orderBy: [
         { lastName: 'asc' },
@@ -110,6 +110,21 @@ export class ParticipantsService {
         },
       },
     });
+    // Delegated roles retain the existing redacted list. Only ADMIN can
+    // inspect archived contact addresses and associated account email.
+    if (actor.role !== 'ADMIN') return profiles;
+    const historical = await this.prisma.participantLegacyEmail.findMany({
+      where: { participantId: { in: profiles.map((profile) => profile.id) } },
+      select: { participantId: true, email: true },
+    });
+    const historicalById = new Map(historical.map((entry) => [
+      entry.participantId, entry.email?.trim() || null,
+    ]));
+    return profiles.map((profile) => ({
+      ...profile,
+      email: profile.user?.email || historicalById.get(profile.id) || null,
+      emailSource: profile.user?.email ? 'ACCOUNT' : historicalById.get(profile.id) ? 'HISTORICAL' : null,
+    }));
   }
 
   async findTeams(request: AuthenticatedRequest) {
