@@ -4,6 +4,7 @@ import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {useViewState,matchesSeason,seasonYears,stageYear} from './view-state';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
+import BassRaceTextImport from './BassRaceTextImport';
 import {
  canJudgeRegistration,filterJudgeRegistrations,judgingInspectionStatus,judgingNumbers,
  judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,canConfirmJudgingResult,
@@ -179,6 +180,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
      setDetail(null);setEditor({id:detail.id,value:Number(detail.value),place:detail.place??'',notes:detail.notes??''});
     }:undefined}/>:
    <>
+    {user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}
     <div className="judging-toolbar" role="search" aria-label="Поиск результата">
      <label className="judging-search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
