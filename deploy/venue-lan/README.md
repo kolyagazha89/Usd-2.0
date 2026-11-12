@@ -1,5 +1,11 @@
 # USD venue LAN hub — laptop + Wi-Fi router (foundation, NOT event-ready)
 
+> **Windows 10/11:** двойной щелчок по `USD-Install.cmd` (первый раз),
+> `USD-Offline.cmd` (включить LAN) и `USD-Online.cmd` (вернуться к
+> основному сайту). Автостарт после входа в Windows. Подробности:
+> **[START-WINDOWS.md](./START-WINDOWS.md)**. Это переключение, **НЕ перенос
+> результатов в центральную БД**.
+
 **Agreed primary architecture:** the laptop is a local USD server; a dedicated
 router/AP connects every judge's phone to **the same local API, PostgreSQL and
 RustFS bucket**, with no upstream Internet required during the event. The shared
