@@ -53,7 +53,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
    'consentText','termsText','operatorAddress','personalDataEmail'],'законодательство');
   if(policy.legal.legalApproved!==true
    ||typeof policy.contactEmail!=='string'
-   ||!/^\\S+@\\S+\\.\\S+$/.test(policy.contactEmail)
+   ||!/^\S+@\S+\.\S+$/.test(policy.contactEmail)
    ||Object.entries(policy.legal).some(([name,value])=>name!=='legalApproved'
     &&(typeof value!=='string'||!value.trim()||value.length>500000)))
    throw new Error('Некорректные юридические документы и контактный email');

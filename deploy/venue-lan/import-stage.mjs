@@ -94,7 +94,7 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
    ||!String(policy.legal.privacyText??'').trim()
    ||!String(policy.legal.consentText??'').trim()
    ||!String(policy.legal.termsText??'').trim()
-   ||!/^\\S+@\\S+\\.\\S+$/.test(policy.contactEmail??'')
+   ||!/^\S+@\S+\.\S+$/.test(policy.contactEmail??'')
    ||!isObject(policy.rulesPublished)||!String(policy.rulesPublished.id??'').trim()
    ||!Array.isArray(policy.rulesPublished.blocks)||!policy.rulesPublished.blocks.length)
    throw new Error('Не утверждены юридические документы, контакт или регламент');

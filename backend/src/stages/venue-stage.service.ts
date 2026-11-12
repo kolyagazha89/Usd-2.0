@@ -61,7 +61,7 @@ export class VenueStageService {
   const published=(settings?.registration as Record<string,any>|null)?.rulesDocument?.published;
   const legalFields=['ipName','privacyText','consentText','termsText','operatorAddress','personalDataEmail'];
   const approved=legal.legalApproved===true&&String(legal.legalVersion??'').trim()
-   &&/^\\S+@\\S+\\.\\S+$/.test(contactEmail)
+   &&/^\S+@\S+\.\S+$/.test(contactEmail)
    &&legalFields.every(key=>String(legal[key]??'').trim())
    &&published&&String(published.id??'').trim()
    &&Array.isArray(published.blocks)&&published.blocks.length>0;
