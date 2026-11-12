@@ -46,12 +46,27 @@ class VenueLauncherContracts(unittest.TestCase):
         section=source[begin:end]
         self.assertIn('Export-VenueReturn',section)
         self.assertIn('(-not $state.demo)',section)
-        self.assertLess(section.index("Invoke-Compose @('stop','api')"),section.index('Export-VenueReturn'))
-        self.assertIn("Invoke-Compose @('up','-d','--no-build','--pull','never','api')",section)
         self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
         self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
         self.assertIn('if($Silent)',section)
         self.assertIn('unsynced',section.lower())
+
+    def test_direct_export_quiesces_judges_and_restores_only_the_originally_running_api(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        start=source.index('function Export-VenueReturn')
+        end=source.index('function Return-Online',start)
+        export=source[start:end]
+        self.assertIn('[switch]$LeaveApiStopped',export)
+        self.assertIn('ps --status running -q api',export)
+        self.assertIn("Invoke-Compose @('stop','api')",export)
+        self.assertIn("Invoke-Compose @('up','-d','--no-build','--pull','never','api')",export)
+        self.assertLess(export.index("Invoke-Compose @('stop','api')"), export.index("'/app/export-venue-return.mjs'"))
+        self.assertIn('finally{',export)
+        self.assertIn('$apiWasRunning',export)
+        online=source[end:source.index('if($MyInvocation.InvocationName',end)]
+        self.assertIn('Export-VenueReturn -LeaveApiStopped',online)
+        self.assertNotIn("Invoke-Compose @('stop','api')",online)
+        self.assertIn("Invoke-Compose @('stop')",online)
 
     def test_back_online_never_automatically_imports_or_deletes_offline_data(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
