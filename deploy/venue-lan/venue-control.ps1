@@ -85,6 +85,15 @@ function Set-SetupPhase([object]$State,[string]$Phase){
  Write-PrivateFile $temp ($State|ConvertTo-Json -Depth 8)
  Move-Item -LiteralPath $temp -Destination $StateFile -Force
 }
+function Test-DockerReady {
+ $prior=$ErrorActionPreference
+ $ErrorActionPreference='Continue'
+ try {
+  & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
+  return ($LASTEXITCODE -eq 0)
+ }catch{return $false}
+ finally{$ErrorActionPreference=$prior}
+}
 function Ensure-DockerReady {
  if(-not(Get-Command docker -ErrorAction SilentlyContinue)){
   if($Action -eq 'install' -and (Get-Command winget -ErrorAction SilentlyContinue)){
@@ -98,14 +107,12 @@ function Ensure-DockerReady {
   }
   throw 'Нужен Docker Desktop: https://docs.docker.com/desktop/setup/install/windows-install/'
  }
- & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
- if($LASTEXITCODE -eq 0){return}
+ if(Test-DockerReady){return}
  $executable=Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
  if(Test-Path -LiteralPath $executable){Start-Process -FilePath $executable|Out-Null}
  for($i=0;$i -lt 60;$i++){
   Start-Sleep -Seconds 2
-  & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-  if($LASTEXITCODE -eq 0){return}
+  if(Test-DockerReady){return}
  }
  throw 'Docker Desktop не готов. Проверьте WSL2, лицензию и режим Linux containers.'
 }
@@ -358,8 +365,7 @@ function Return-Online {
  # Online switching never implies synchronization. Preserve all unsynced data.
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
-  & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-  if($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $EnvFile)){
+  if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
    Invoke-Compose @('stop') 'stop without deleting local DB and journal'
   }
  }
@@ -378,9 +384,12 @@ try{
  exit 1
 }
 ){return}
- & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
- if($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $destination)){
-  Remove-Item -LiteralPath $destination -Force
+ try {
+  & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
+  if($LASTEXITCODE -ne 0){throw 'CA certificate not ready'}
+ }catch{
+  if(Test-Path -LiteralPath $destination){Remove-Item -LiteralPath $destination -Force}
+  if(-not $Silent){Write-Host 'Caddy CA ещё не экспортирован — нужен доверенный сертификат для телефонов.'}
  }
 }
 function Start-Local {
