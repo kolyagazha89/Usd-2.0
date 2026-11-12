@@ -499,4 +499,36 @@ For a **real signed stage only**, the reviewed Windows distribution includes
 same read-only, encrypted USB journal exporter as the Linux recovery workflow.
 No central production credentials or key material are stored in the laptop.
 
-- The launcher requires the original READY stage identity and ref¢ëiºÛkºwµç_ºYhºÚn¶Æ¯yÛhşiíıø¥zÏÜ¢jh²*?¢ëiºßÛjÈ[jYlµÚ.¶ÜmFéÜjßæßßŠW¬ıÊ&¦‹"£ú.¶›­ı¶¬…¶¥–Ë]¢ëmÆÛh¾'°¶ŸºYhºÚn¶Šî±è^iÙõÓOæßßŠW¬ıÊ&¦‹"£ú.¶›­ı¶¬…¶¥–Ë]¢ëmÆßíj)g×M?š{~)^³÷(šš,ŠèºÚn·öÚ²Ú–[-v‹­·m¢øÂ–«¶ÊŠ
+- The launcher requires the original READY stage identity and refuses DEMO.
+- A network-disabled, one-shot Docker process creates an Ed25519 signing key
+  only once in the separate persistent `usd-venue_venue_return_keys` volume;
+  the private key is mode 0600 and the service uses uid 1000 afterwards.
+- Only the **public** key and its independently verifiable SHA-256 fingerprint
+  are copied to `local-private/return-output` on Windows. Keep the private
+  Docker volume protected and back it up securely.
+- The operator enters a separate strong transfer passphrase in a masked dialog.
+  It passes over stdin, not the command line, and never appears in logs.
+- The helper exports a new, non-overwriting `usd-venue-return-*.json` containing
+  the authenticated and AES-256-GCM encrypted journal. Do not email the password
+  alongside the USB file.
+- The action never calls the central API, makes no synchronization claim,
+  and does not remove the local database, journal, media or private key.
+
+A package can be reviewed using the existing independently pinned central
+preview and partial import tools. **This is a recovery/return export, not
+automatic full synchronization.** New registrations, classes, participants
+and media remain release blockers until the central importer acknowledges them.
+
+## Full signed central return (v2 journal, human acceptance)
+
+For a signed real stage use `COMPLETE-RETURN-UBUNTU.md`. Windows `USD â€” ĞĞ½Ğ»Ğ°Ğ¹Ğ½` now creates the encrypted USB return file **before** stopping the local server; a failed export keeps the LAN stack running. Central `apply-complete-venue-return.mjs` validates signed table coverage, inserts participant/car/configurations/equipment/numbers/registrations/inspections/results in one PostgreSQL SERIALIZABLE transaction, fails atomically on data or policy conflicts, and uses auditable idempotent receipts. This is **not** an automatic media migration or a completed field release. Signed v1 packages and journals with incomplete link coverage remain blocked from full import. Do not erase local data until media and all central results are independently accepted.
+
+### Offline photos policy (release decision)
+
+Offline judging does not use photographs: the API rejects photo or file
+upload, completion and removal in `USD_VENUE_LAN_MODE=true`. Existing images
+remain on the central service, and organizers can add new photos after the
+competition on the main website. The signed journal continues to reject
+changed local photo URLs rather than incorrectly marking broken references
+as synchronized. Therefore copying binary photos from the laptop is **not**
+a requirement for accepting a photo-free stage.
