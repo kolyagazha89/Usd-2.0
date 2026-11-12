@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {adminEntityPath,relationForColumn,relatedAdminEntities,safeAdminReturn} from '../src/admin/entity-navigation.ts';
+import {adminCarEditorPath,adminEntityPath,relationForColumn,relatedAdminEntities,safeAdminReturn} from '../src/admin/entity-navigation.ts';
+
+test('vehicle edits retain the exact referring list or card as their save destination',()=>{
+ for(const from of ['/admin/cars','/admin/cars?carId=car-30&returnTo=%2Fadmin%2Fparticipants%3Fview%3Dp']){
+  const url=new URL(adminCarEditorPath('car/30',from),'https://usd.test');
+  assert.equal(url.pathname,'/admin/cars/edit');
+  assert.equal(url.searchParams.get('carId'),'car/30');
+  assert.equal(url.searchParams.get('returnTo'),from);
+ }
+ assert.equal(new URL(adminCarEditorPath('c','https://evil.test'),'https://usd.test').searchParams.has('returnTo'),false);
+});
 
 test('links use exact encoded identifiers, never names or plates',()=>{
  assert.equal(adminEntityPath('car','a/b?'),'/admin/cars?carId=a%2Fb%3F');
