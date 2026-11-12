@@ -210,7 +210,7 @@ async function probe(){
    "encode(digest(previous_hash || payload::text,'sha256'),'hex') AS calculated "+
    "FROM venue_private.operation_journal ORDER BY sequence",
   );
-  assert.ok(chain.length>=6,'Entry + inspection + score + correction must be journaled' and ADMIN correction must be durably journaled');
+  assert.ok(chain.length>=6,'New entrant, inspection, score and ADMIN correction must be journaled');
   assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='INSERT'));
   assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='UPDATE'));
   let previous='0'.repeat(64);
