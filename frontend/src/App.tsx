@@ -1,3 +1,5 @@
+import {AdminEntityLink} from './admin/AdminEntityLink';
+import {useRouteScroll} from './navigation/useRouteScroll';
 import {useHeaderSize} from './navigation/useHeaderSize';
 import VerificationResend from './VerificationResend';
 import {PushPreferences} from './push/PushPreferences';
@@ -97,14 +99,10 @@ function App(){
  // iOS Safari can pin /participant even when the manifest starts at /.
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(()=>initialInstalledPath()),[mobileOpen,setMobileOpen]=useState(false); useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
  useEffect(()=>{const route=path.split('?')[0];if(!/^\/(?:admin|participant|offline-event|login|reset-password|confirm-email-change|verify-email)(?:\/|$)/.test(route))return;document.title=route==='/offline-event'?'День соревнований — USD':route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
- useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>setPath(location.pathname+location.search);addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
+ const {beforeNavigate,onHistoryNavigation}=useRouteScroll(path);
+ useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>{onHistoryNavigation();setPath(location.pathname+location.search)};addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  useEffect(()=>{const onExpired=()=>{setUser(null);const current=location.pathname+location.search;if(/^\/(?:admin|participant)(?:\/|\?|$)/.test(current)){const target='/login?next='+encodeURIComponent(current);history.replaceState({},'',target);setPath(target)}};window.addEventListener('usd:session-expired',onExpired);return()=>window.removeEventListener('usd:session-expired',onExpired)},[]);
- // Reset after the old screen has detached its scroll listener. Resetting inside
- // go() overwrites the saved list position before React can close the list.
- const navigationParams=new URLSearchParams(path.split('?')[1]??'');
- const navigationScreen=path.split('?')[0]+'?'+['id','view','rowId'].map(key=>navigationParams.get(key)??'').join(':');
- useLayoutEffect(()=>{window.scrollTo({top:0,behavior:'instant'})},[navigationScreen]);
- const go=(p:string)=>{history.pushState({},'',p);setPath(p);setMobileOpen(false)};
+ const go=(p:string)=>{beforeNavigate();history.pushState({usdScrollY:0},'',p);setPath(p);setMobileOpen(false)};
  useEffect(()=>{if(!booting&&!user&&/^\/participant(?:\/|\?|$)/.test(path)){const next='/login?next='+encodeURIComponent(path);history.replaceState({},'',next);setPath(next)}},[booting,user,path]);
  useEffect(()=>{if(user&&path.split('?')[0]==='/login'){
   const next=new URLSearchParams(path.split('?')[1]??'').get('next');
@@ -293,7 +291,8 @@ function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'
  return <div className={`public-result-grid public-result-grid-${variant}`}>{rows.map((r:any,i:number)=>{
   const participant=r.participant||r.registration?.participant;
   const name=[participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ')||'Участник USD';
-  const car=[r.registration?.car?.brand,r.registration?.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
+  const resultCar=r.registration?.car??r.car;
+  const car=[resultCar?.brand,resultCar?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
   const classItem=r.registrationClass?.class||r.class;
   const className=classItem?.name||'Класс не указан';
   const value=publicResultValue(r.value??r.score??r.result?.value??(typeof r.result==='string'||typeof r.result==='number'?r.result:null));
@@ -308,7 +307,7 @@ function PublicResultCards({rows,variant,go}:{rows:any[];variant:'live'|'latest'
   return <article className={"public-result-card"+(interactive?' is-interactive':'')} key={r.id||i} role={interactive?'link':undefined} tabIndex={interactive?0:undefined} aria-label={interactive?`Результат: ${className}, место ${placeLabel}. Открыть результаты этапа.`:undefined} onClick={interactive?()=>go?.(target):undefined} onKeyDown={interactive?(e)=>{if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();go?.(target)}}:undefined}>
    <div className="public-result-card-top"><span className="public-result-place">{placeLabel}<small>МЕСТО</small></span><span className="public-result-class">{className}</span></div>
    <div className="public-result-measure"><strong>{value}</strong><span>{publicResultUnit(r.unit||classItem?.unit,classItem)}</span></div>
-   <div className="public-result-card-bottom"><div className="public-result-person">{participant?.id&&participant.isPublic!==false?<PublicLink to={'/participants/'+encodeURIComponent(participant.id)} onClick={(e:React.MouseEvent<HTMLAnchorElement>)=>e.stopPropagation()} className="public-result-profile-link"><strong>{name}</strong></PublicLink>:<strong>{name}</strong>}<span>{car}</span>{context&&<span className="public-result-context">{context}</span>}</div>{interactive&&<span className="public-result-arrow" aria-hidden>↗</span>}</div>
+   <div className="public-result-card-bottom"><div className="public-result-person">{variant==='stage'&&location.pathname.startsWith('/admin')?<AdminEntityLink kind="participant" id={participant?.id}><strong>{name}</strong></AdminEntityLink>:participant?.id&&participant.isPublic!==false?<PublicLink to={'/participants/'+encodeURIComponent(participant.id)} onClick={(e:React.MouseEvent<HTMLAnchorElement>)=>e.stopPropagation()} className="public-result-profile-link"><strong>{name}</strong></PublicLink>:<strong>{name}</strong>}<span>{variant==='stage'&&location.pathname.startsWith('/admin')?<AdminEntityLink kind="car" id={resultCar?.id??r.registration?.carId}>{car}</AdminEntityLink>:car}</span>{context&&<span className="public-result-context">{context}</span>}</div>{interactive&&<span className="public-result-arrow" aria-hidden>↗</span>}</div>
   </article>
  })}</div>;
 }

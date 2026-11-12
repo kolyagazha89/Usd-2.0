@@ -1,3 +1,4 @@
+import {AdminEntityLink,AdminRouteLink} from '../admin/AdminEntityLink';
 import {useEffect,useState} from 'react';
 import {apiGet} from '../api';
 import {Link} from '../public/PremiumUI';
@@ -15,7 +16,7 @@ export type TeamStageAchievementResponse = {
   stages:Array<{id:string;name:string;city:string|null;date:string;performances:TeamStagePerformance[]}>;
 };
 
-export default function TeamStageAchievements({teamId,mode='current'}:{teamId:string;mode?:'current'|'inspected'}) {
+export default function TeamStageAchievements({teamId,mode='current',admin=false}:{teamId:string;mode?:'current'|'inspected';admin?:boolean}) {
  const inspected=mode==='inspected';
  const heading=inspected?'Выступления команды на этапах':'Выступления текущего состава по этапам';
  const [data,setData]=useState<TeamStageAchievementResponse|null>(null);
@@ -69,9 +70,9 @@ export default function TeamStageAchievements({teamId,mode='current'}:{teamId:st
   {loading?<p role="status">Загружаем результаты…</p>:error?<div role="alert"><p>{error}</p><button className="u-btn u-quiet" onClick={()=>setRetry(v=>v+1)}>Повторить загрузку</button></div>:data?.stages.length?
    <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}{season?' · сезон '+season:''}{selectedFilters?' · показатели только по выбранным результатам':''}</p>{selectedFilters&&visibleStages.length===0&&<div role="status" className="team-achievement-empty"><p>Нет выступлений с выбранными фильтрами.</p><button type="button" className="u-btn u-quiet" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить фильтр</button></div>}
     <div className="team-stage-grid">{visibleStages.map(stage=><article className="team-stage-card" key={stage.id}>
-     <header><h4>{stage.name}</h4><p>{[stage.city,new Date(stage.date).toLocaleDateString('ru-RU')].filter(Boolean).join(' · ')}</p><Link className="team-stage-protocol" to={'/results?stageId='+encodeURIComponent(stage.id)} aria-label={'Результаты этапа '+stage.name}>Все результаты этапа</Link></header>
+     <header><h4>{admin?<AdminEntityLink kind="stage" id={stage.id}>{stage.name}</AdminEntityLink>:stage.name}</h4><p>{[stage.city,new Date(stage.date).toLocaleDateString('ru-RU')].filter(Boolean).join(' · ')}</p>{admin?<AdminRouteLink to={'/admin/results?stageId='+encodeURIComponent(stage.id)}>Все результаты этапа</AdminRouteLink>:<Link className="team-stage-protocol" to={'/results?stageId='+encodeURIComponent(stage.id)} aria-label={'Результаты этапа '+stage.name}>Все результаты этапа</Link>}</header>
      <ul>{stage.performances.map(result=><li key={result.id}>
-      <div><Link className="team-stage-athlete" to={'/participants/'+encodeURIComponent(result.participant.id)}>{result.participant.lastName} {result.participant.firstName}</Link><span>{result.direction} · {result.className}</span></div>
+      <div><>{admin?<AdminEntityLink kind="participant" id={result.participant.id}>{result.participant.lastName} {result.participant.firstName}</AdminEntityLink>:<Link className="team-stage-athlete" to={'/participants/'+encodeURIComponent(result.participant.id)}>{result.participant.lastName} {result.participant.firstName}</Link>}</><span>{result.direction} · {result.className}</span></div>
       <div className="team-achievement-measure"><strong>{result.value} {result.unit==='DB'?'дБ':result.unit==='MPS'?'м/с':result.unit}</strong>{result.place&&result.place>0?<span>{result.place}-е место</span>:<span>Результат опубликован</span>}</div>
      </li>)}</ul>
     </article>)}</div>

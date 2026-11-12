@@ -1,3 +1,4 @@
+import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,Check,ChevronLeft,Info,Loader2,Pencil,RefreshCw} from 'lucide-react';
 import {apiGet,apiPatch,getSiteSettings,updateSiteSettings,listData,type User} from '../api';
@@ -10,7 +11,7 @@ function RecordsPage({user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailMo
  const[visibilityError,setVisibilityError]=useState('');
  const[loading,setLoading]=useState(true);
  const[error,setError]=useState('');
- const[detail,setDetail]=useState<any|null>(null);
+ const[detail,setDetail]=useAdminDetail(data);
  const[editRecord,setEditRecord]=useState<any|null>(null);
  const[candidates,setCandidates]=useState<any[]>([]);
  const[selectedResultId,setSelectedResultId]=useState('');
@@ -50,11 +51,11 @@ function RecordsPage({user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailMo
    {loading?<LoadingPage small/>:data.length?<table className="data-table"><thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Ед.</th><th>Этап</th><th>Дата</th>{user.role==='ADMIN'&&<th>Действие</th>}</tr></thead><tbody>
     {data.map((r:any)=>{const p=r.result?.registration?.participant;const car=r.result?.registration?.car;const st=r.stage;const cls=r.class;return <tr key={r.id} className="clickable-row" onClick={()=>setDetail(r)}>
       <td data-label="Класс"><strong>{cls?.name??'—'}</strong>{cls?.direction?.name&&<small className="table-sub">{cls.direction.name}</small>}{r.isManualOverride&&<small className="table-sub">Назначен вручную</small>}</td>
-      <td data-label="Участник"><strong>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td>
-      <td data-label="Автомобиль">{displayCarName(car)||'—'}</td>
+      <td data-label="Участник"><strong><AdminEntityLink kind="participant" id={p?.id??r.result?.registration?.participantId}>{[p?.lastName,p?.firstName,p?.middleName].filter(Boolean).join(' ')||'—'}</AdminEntityLink></strong>{p?.team&&<small className="table-sub">{p.team}</small>}</td>
+      <td data-label="Автомобиль"><AdminEntityLink kind="car" id={car?.id??r.result?.registration?.carId}>{displayCarName(car)||'—'}</AdminEntityLink></td>
       <td data-label="Результат"><strong>{r.value??r.result?.value??'—'}</strong></td>
       <td data-label="Ед.">{r.unit??r.result?.unit??'—'}</td>
-      <td data-label="Этап">{st?<><strong>№{st.stageNumber} · {st.name}</strong>{st.city&&<small className="table-sub">{st.city}</small>}</>:'—'}</td>
+      <td data-label="Этап">{st?<><strong><AdminEntityLink kind="stage" id={st.id??r.stageId}>№{st.stageNumber} · {st.name}</AdminEntityLink></strong>{st.city&&<small className="table-sub">{st.city}</small>}</>:'—'}</td>
       <td data-label="Дата">{formatDate(r.achievedAt)}</td>
       {user.role==='ADMIN'&&<td data-label="Действие"><button className="secondary-button compact" onClick={e=>{e.stopPropagation();void beginEdit(r)}}><Pencil size={14}/>Изменить</button></td>}
     </tr>})}

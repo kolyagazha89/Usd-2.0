@@ -25,9 +25,9 @@ export function matchesSeason(stage:any,season:string):boolean {return season===
 export function restoreScroll(top:number) {
  let frame=0;
  const apply=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>window.scrollTo({top,behavior:'instant'}))};
- const observer=new ResizeObserver(apply);
- const stop=()=>{observer.disconnect();cancelAnimationFrame(frame);for(const event of ['wheel','touchstart','pointerdown','keydown'])window.removeEventListener(event,stop)};
- observer.observe(document.body);apply();
+ const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(apply);
+ const stop=()=>{observer?.disconnect();cancelAnimationFrame(frame);for(const event of ['wheel','touchstart','pointerdown','keydown'])window.removeEventListener(event,stop)};
+ observer?.observe(document.body);apply();
  for(const event of ['wheel','touchstart','pointerdown','keydown'])window.addEventListener(event,stop,{once:true});
  return stop;
 }
@@ -39,4 +39,10 @@ export function useListScroll(key:string,active:boolean,ready:boolean) {
   window.addEventListener('scroll',save);
   return()=>{stop();window.removeEventListener('scroll',save)};
  },[key,active,ready]);
+}
+
+// Full-page editors driven by local state need the same roundtrip as URL editors.
+export function useEditorScroll(key:string,editing:boolean,ready:boolean){
+ useListScroll(key,!editing,ready);
+ useLayoutEffect(()=>{if(editing)window.scrollTo({top:0,behavior:'instant'})},[editing]);
 }

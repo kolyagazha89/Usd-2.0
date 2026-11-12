@@ -9,7 +9,7 @@ test('ADMIN participant details open the actual vehicle card by ID', async () =>
     read('../src/admin/CarsPage.tsx'),
     read('../src/admin/AdminRoutes.tsx'),
   ]);
-  assert.match(participants, /\/admin\/cars\?carId=/);
+  assert.match(participants, /<AdminEntityLink kind="car" id=\{car\.id\}/);
   assert.match(participants, /encodeURIComponent\(car\.id\)/);
   assert.match(cars, /URLSearchParams\(path\.split\('\?'\)\[1\]/);
   assert.match(cars, /cars\.find\(.*\.id===carId\)/);
@@ -25,7 +25,7 @@ test('ADMIN users identify and open their linked participant profiles', async ()
   assert.match(auth, /participant:\s*\{\s*select:\s*\{\s*id:\s*true/);
   assert.match(users, /Профиль USD/);
   assert.match(users, /Не привязан/);
-  assert.match(users, /\/admin\/participants\?view=/);
+  assert.match(users, /<AdminEntityLink kind="participant"/);
   assert.match(routes, /<UsersPage[^>]*go=\{go\}/);
 });
 

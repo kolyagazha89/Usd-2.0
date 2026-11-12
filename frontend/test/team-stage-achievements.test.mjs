@@ -52,5 +52,7 @@ test('each historical team performance links to its public profile and original 
  const source=await readFile(new URL('../src/teams/TeamStageAchievements.tsx',import.meta.url),'utf8');
  assert.match(source,/to=\{'\/participants\/'\+encodeURIComponent\(result\.participant\.id\)\}/);
  assert.match(source,/to=\{'\/results\?stageId='\+encodeURIComponent\(stage\.id\)\}/);
+ assert.match(source,/<AdminRouteLink to=\{'\/admin\/results\?stageId='/);
+ assert.match(source,/encodeURIComponent\(stage\.id\)/);
  assert.match(source,/aria-label=\{'Результаты этапа '/);
 });

@@ -1,3 +1,4 @@
+import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle} from 'lucide-react';
@@ -78,7 +79,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
 }){
  const [results,setResults]=useState<any[]>([]),[registrations,setRegistrations]=useState<any[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const [editor,setEditor]=useState<any|null>(null),[detail,setDetail]=useState<any|null>(null),[editorError,setEditorError]=useState('');
+ const [editor,setEditor]=useState<any|null>(null),[detail,setDetail]=useAdminDetail(results),[editorError,setEditorError]=useState('');
  const [saving,setSaving]=useState(false),[deleteTargetId,setDeleteTargetId]=useState(''),[deleteReason,setDeleteReason]=useState('');
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
@@ -161,7 +162,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
    ].map(metric=><div key={metric.key} className="judging-summary-card"><metric.icon size={20}/><strong>{loading?'—':metric.value}</strong><span>{metric.name}</span></div>)}
   </section>
   <section className="judging-context" aria-label="Состояние этапа">
-   <div><strong>{stage.name}</strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
+   <div><strong><AdminEntityLink kind="stage" id={stageId}>{stage.name}</AdminEntityLink></strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
    {stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}
   </section>
   {notice&&<div className="notice judging-notice" role="status"><CheckCircle2 size={16}/>{notice}</div>}
@@ -215,9 +216,9 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
         <tr key={'direction-'+group.name} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов</span></td></tr>,
         ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" onClick={()=>setDetail(row)}>
          <td data-label="Класс">{row.registrationClass?.class?.name||'—'}</td>
-         <td data-label="Участник"><strong>{participantName(row.registration?.participant)}</strong>
+         <td data-label="Участник"><strong><AdminEntityLink kind="participant" id={row.registration?.participant?.id??row.registration?.participantId}>{participantName(row.registration?.participant)}</AdminEntityLink></strong>
           <small className="table-sub">№{row.registrationClass?.number?.number??judgingNumbers(row.registration??{})[0]??row.registration?.participantNumber??'—'}</small></td>
-         <td data-label="Авто">{displayCarName(row.registration?.car)||'—'}</td>
+         <td data-label="Авто"><AdminEntityLink kind="car" id={row.registration?.car?.id??row.registration?.carId}>{displayCarName(row.registration?.car)||'—'}</AdminEntityLink></td>
          <td data-label="Результат"><strong>{row.value}</strong>{row.registrationClass?.class?.unit&&
           <small className="table-sub">{enumLabel(row.registrationClass.class.unit)}</small>}</td>
          <td data-label="Место">{row.place??'—'}</td>

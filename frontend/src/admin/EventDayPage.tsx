@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Download,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
@@ -219,7 +220,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
        return <article className="event-day-person" key={row.id}>
         <div className="event-day-person-head">
          <div className="event-day-number"><span>НОМЕР</span><strong>{numbers.length?numbers.map(n=>String(n).padStart(3,'0')).join(' / '):'—'}</strong></div>
-         <div className="event-day-person-details"><h4>{participantLabel(row)}</h4><p><CarFront size={14}/>{carLabel(row)}{row.car?.registrationNumber?' · '+row.car.registrationNumber:''}</p>{incomplete&&<small className="event-day-equipment">Конфигурация ожидает заполнения после этапа</small>}</div>
+         <div className="event-day-person-details"><h4><AdminEntityLink kind="participant" id={row.participantId}>{participantLabel(row)}</AdminEntityLink></h4><p><CarFront size={14}/><AdminEntityLink kind="car" id={row.car?.id??row.carId}>{carLabel(row)}</AdminEntityLink>{row.car?.registrationNumber?' · '+row.car.registrationNumber:''}</p>{incomplete&&<small className="event-day-equipment">Конфигурация ожидает заполнения после этапа</small>}</div>
          <span className={'event-day-status '+statusClass(inspected)}>{inspected==='PASSED'?'Допущен':inspected==='FAILED'?'Не прошёл':inspected==='CANCELLED'?'Отменена':'Ожидает осмотра'}</span>
         </div>
         <div className="event-day-classes">{classes.length?classes.map((name,i)=><span key={i}>{name}</span>):<span>Классы не назначены</span>}</div>

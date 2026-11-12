@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
 import {useEffect,useState} from 'react';
@@ -76,7 +77,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   {error&&<div className="form-error" role="alert">{error}</div>}
   {loading?<LoadingPage/>:rows.length===0?<p className="muted">Заявок с выбранным статусом нет.</p>:<div className="profile-link-list">{rows.map(row=><article className="profile-link-card" key={row.id}>
    <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
-    <h3>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</h3>
+    <h3><AdminEntityLink kind="participant" id={row.participant.id}>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</AdminEntityLink></h3>
     <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
     <p>Сведения для проверки: {row.note}</p>
     {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
