@@ -94,6 +94,61 @@ def validate(env: dict[str, str]) -> None:
         if key in ("S3_ENDPOINT", "API_PUBLIC_URL", "PUBLIC_API_URL", "FRONTEND_URL", "CORS_ORIGINS", "CSRF_TRUSTED_ORIGINS"):
             raise ValueError("Удалите внешнюю настройку: " + key)
 
+def validate_compose_network_exposure(compose: str) -> None:
+    """Every exposed port must match an explicitly reviewed LAN-only mapping."""
+    match = re.search(r"(?m)^services:\s*$", compose)
+    if not match:
+        raise ValueError("Отсутствует блок services")
+    section = re.split(r"(?m)^(?:volumes|networks):\s*$", compose[match.end():], maxsplit=1)[0]
+    parts = re.split(r"(?m)^  ([a-z][a-z0-9_-]*):\s*\n", section)
+    services = {parts[i]: parts[i + 1] for i in range(1, len(parts), 2)}
+    if set(services) != {"db", "rustfs", "api", "frontend", "gateway"}:
+        raise ValueError("Непроверенный сервис в локальном Compose")
+    if re.search(r"(?m)^\s*network_mode\s*:", compose):
+        raise ValueError("Режим network_mode недопустим")
+    if not re.search(r"(?m)^name: usd-venue\s*$", compose):
+        raise ValueError("Запуск разрешён только для отдельного проекта usd-venue")
+    # Production data must never be mounted into a temporary venue database.
+    volumes_section = re.split(r"(?m)^volumes:\s*$", compose)
+    if len(volumes_section) != 2 or re.search(r"(?m)^\s*external\s*:", volumes_section[1]):
+        raise ValueError("Нельзя подключать внешние Docker volumes площадки")
+    db_storage = services["db"]
+    if len(re.findall(r"(?m)^\s*-\s*venue_db:/var/lib/postgresql\s*$", db_storage)) != 1 or len(re.findall(r"/var/lib/postgresql", db_storage)) != 1:
+        raise ValueError("БД площадки обязана использовать отдельный named volume")
+    media_storage = services["rustfs"]
+    if not re.search(r"(?m)^    volumes: \[venue_media:/data\]\s*$", media_storage):
+        raise ValueError("RustFS обязан использовать отдельный локальный volume")
+    if media_storage.count("volumes:") != 1:
+        raise ValueError("Неожиданное дополнительное хранилище RustFS")
+    allowed = {
+        "db": set(), "api": set(), "frontend": set(),
+        "rustfs": {"127.0.0.1:19000:9000/tcp", "127.0.0.1:19001:9001/tcp"},
+        "gateway": {"${VENUE_BIND_IP}:443:443/tcp"},
+    }
+    for name, body in services.items():
+        port_blocks = list(re.finditer(r"(?m)^    ports:\s*$", body))
+        if len(port_blocks) != (1 if allowed[name] else 0):
+            raise ValueError("Недопустимая публикация портов: " + name)
+        if not port_blocks:
+            continue
+        following = body[port_blocks[0].end():]
+        mappings = []
+        for line in following.splitlines():
+            if line and not line.startswith(" "):
+                break
+            if line.startswith("    ") and not line.startswith("      "):
+                break
+            row = line.strip()
+            if not row or row.startswith("#"):
+                continue
+            found = re.fullmatch(r'-\s*["\x27]([^"\x27]+)["\x27]', row)
+            if not found:
+                raise ValueError("Неизвестный формат портов: " + name)
+            mappings.append(found.group(1))
+        if len(mappings) != len(allowed[name]) or set(mappings) != allowed[name]:
+            raise ValueError("Опасный внешний порт: " + name)
+
+
 def main() -> int:
     root = pathlib.Path(__file__).resolve().parent
     config = root / ".env"
@@ -103,14 +158,7 @@ def main() -> int:
     try:
         validate(load_env(config))
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
-        # Exact port mapping only. A local-only '127.0.0.1:19000:9000'
-        # is intentionally allowed for laptop-side RustFS provisioning.
-        bad_port = re.search(
-            r"""(?m)^\s*-\s*["']?(?:0\.0\.0\.0:)?(?:443:443|5432:5432|9000:9000)(?:/tcp|/udp)?["']?\s*$""",
-            compose,
-        )
-        if bad_port:
-            raise ValueError("Сервис БД/медиа или WAN-порт открыт небезопасно")
+        validate_compose_network_exposure(compose)
         if 'USD_VENUE_LAN_MODE: "true"' not in compose or "VENUE_STAGE_ID: ${VENUE_STAGE_ID" not in compose:
             raise ValueError("Локальное табло не ограничено площадкой и этапом")
         if "POSTGRES_USER: ${VENUE_DB_ROOT_USER" not in compose or "POSTGRES_PASSWORD: ${VENUE_DB_ROOT_PASSWORD" not in compose:

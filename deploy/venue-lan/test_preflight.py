@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import ipaddress
 import unittest
-from preflight import validate
+from preflight import validate, validate_compose_network_exposure
 
 def fixture():
     return {
@@ -111,6 +111,39 @@ class VenuePreflightTests(unittest.TestCase):
         env["API_PUBLIC_URL"] = "https://api.usd-russia.ru"
         with self.assertRaises(ValueError):
             validate(env)
+
+
+    def test_compose_port_exposure_policy(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parent/"compose.yaml").read_text(encoding="utf-8")
+        validate_compose_network_exposure(source)
+        variants=[]
+        for service in ("db","api","frontend"):
+            variants.append(source.replace("  "+service+":\n","  "+service+":\n    ports:\n      - \"0.0.0.0:54320:5432\"\n",1))
+        for port in ('"0.0.0.0:19000:9000/tcp"','"192.168.50.10:19000:9000/tcp"','"127.0.0.1:19999:9000/tcp"'):
+            variants.append(source.replace('"127.0.0.1:19000:9000/tcp"',port))
+        variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "0.0.0.0:443:443/tcp"'))
+        variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "${VENUE_BIND_IP}:443:443/tcp"\n      - "0.0.0.0:8080:80"'))
+        variants.append(source.replace("  gateway:\n","  gateway:\n    network_mode: host\n",1))
+        for index,variant in enumerate(variants):
+            with self.subTest(attack=index),self.assertRaises(ValueError):
+                validate_compose_network_exposure(variant)
+
+
+    def test_compose_refuses_production_volumes_and_project_name(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parent/"compose.yaml").read_text(encoding="utf-8")
+        variants=(
+            source.replace("name: usd-venue","name: usd-home",1),
+            source.replace("- venue_db:/var/lib/postgresql", "- /var/lib/postgresql:/var/lib/postgresql"),
+            source.replace("- venue_db:/var/lib/postgresql", "- venue_db:/var/lib/postgresql\n      - ../production-db:/var/lib/postgresql"),
+            source.replace("volumes: [venue_media:/data]", "volumes: [/srv/production-media:/data]"),
+            source.replace("volumes: [venue_media:/data]", "volumes: [venue_media:/data, /srv/production-media:/data]"),
+            source.replace("  venue_db:\n", "  venue_db:\n    external: true\n"),
+        )
+        for index,variant in enumerate(variants):
+            with self.subTest(attack=index),self.assertRaises(ValueError):
+                validate_compose_network_exposure(variant)
 
 if __name__ == "__main__":
     unittest.main()
