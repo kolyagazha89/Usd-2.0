@@ -79,6 +79,7 @@ jobs:
           docker compose -p usd-venue up -d rustfs
           docker compose -p usd-venue run --rm --no-deps \
             -e VENUE_S3_ROOT_ACCESS -e VENUE_S3_ROOT_SECRET \
+            -e USD_VENUE_CI_DIAG=true \
             --volume "$PWD/provision-rustfs.mjs:/app/provision-rustfs.mjs:ro" \
             --entrypoint node api /app/provision-rustfs.mjs
       - name: Start disposable isolated PostgreSQL 18 and run real migrations
