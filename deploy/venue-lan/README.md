@@ -209,6 +209,40 @@ This is first-stage development: staff account provisioning is covered
 by regression tests, but full local acceptance and central reconciliation
 are not yet complete.
 
+## Durable offline operation journal — prerequisite for safe return sync
+
+The signed-stage installer now executes `install-journal.sql` **after**
+the one-time signed stage import and **before** the local API is usable.
+Only the bootstrap `usd_venue_root` account installs its own
+`venue_private.operation_journal` table and append-only trigger functions.
+The API's `usd_venue` DB account can only **SELECT** it; attempts to
+UPDATE/DELETE the log are rejected by PostgreSQL permissions. On startup
+the Nest API verifies that exactly the pinned stage is present, its
+DB user is **not** superuser, and all **18** trusted journal triggers are
+enabled, otherwise the local API refuses to start.
+
+Mutations of stage, participants, cars, equipment FK rows,
+registrations, primary/extra numbers (including BassRace), inspections,
+results and disqualifications are recorded with before/after JSONB.
+Every entry stores a predecessor SHA-256 hash and its own digest;
+the global PostgreSQL transaction advisory lock serializes appends and
+the log rolls back when a judging transaction fails. The real PG18
+acceptance verifies that a judge's new result **and** an admin correction
+produce contiguous, cryptographically matching entries, while the
+independent API account cannot erase the journal.
+
+**Privacy warning:** this journal contains participant/vehicle details
+from the venue data. Encrypt the laptop disk and offline backups, never
+publish this table or send it to unrelated users. It deliberately omits
+local password, refresh-session and role tables.
+
+**IMPORTANT:** the journal is a durable *source* for future reconciliation,
+**NOT a working return-sync implementation**. A venue-signed export,
+central authorization and dry-run, replay-safe stage/ID/number conflict
+resolution, local photo transfer and Ubuntu import are STILL MISSING.
+Do not erase the venue volume after competition until every accepted result
+is independently verified on the central server.
+
 ## Mandatory release blockers
 
 - Validate the new signed-stage import with a **real** isolated PostgreSQL
