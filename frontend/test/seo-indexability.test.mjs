@@ -52,7 +52,8 @@ test('nginx serves robots as text, dynamic sitemap as XML and rejects unknown SP
  // request URI can reliably keep private routes noindexed.
  assert.match(conf,/map \$request_uri \$usd_robots_tag/);
  assert.match(conf,/login\|verify-email/);
- assert.match(conf,/~\^\/venue\/live\/?\$/);
+ assert.ok(conf.includes('~^/venue/live/?$ 1;'));
+ assert.ok(conf.includes('~^/venue/live([?]|$) "noindex, nofollow";'));
  assert.match(conf,/offline-event/);
  assert.match(robots,/Sitemap: https:\/\/app\.usd-russia\.ru\/sitemap\.xml/);
  assert.match(robots,/Disallow: \/admin/);
