@@ -102,11 +102,15 @@ export async function runCentralApply({files,environment=process.env,stdin=readP
  const client=new pg.Client({connectionString:environment.DATABASE_URL,application_name:'usd_venue_return_operator'});
  try{
   await client.connect();
+  const identity=await client.query('SELECT current_database() AS dbname');
+  if(/^usd_venue(?:_|$)/.test(identity.rows[0]?.dbname??''))
+   throw Error('CENTRAL APPLY не может работать с отдельной БД площадки');
   const report=await applyVenueReturnSnapshot(snapshot,postgresVenueAdapter(client),{
    apply,stageId,baselineSha256,operator:environment.VENUE_RETURN_OPERATOR??'',
   });
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
-  if(report.pending>0)process.exitCode=3;
+  // A database receipt is not official ranking, record publication or full sync.
+  process.exitCode=3;
   return report;
  }finally{await client.end()}
 }
