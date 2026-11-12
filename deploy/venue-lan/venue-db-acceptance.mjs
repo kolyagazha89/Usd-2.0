@@ -52,7 +52,7 @@ function syntheticSignedStage(){
   venuePolicy:{
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
     privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
-    termsText:'Тестовые условия USD'},
+    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org'},
    contactEmail:'venue@example.org',
    rulesPublished:{id:'ci-rules-1',blocks:[{type:'paragraph',text:'Тестовый регламент'}]},
   },

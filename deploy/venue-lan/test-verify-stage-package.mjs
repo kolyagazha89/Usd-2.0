@@ -75,7 +75,8 @@ test('signed privacy flags are allowed but malformed flags are rejected',()=>{
 test('a signed, minimal approved venue policy is accepted; injected private fields rejected',()=>{
  const approved=structuredClone(base);
  approved.venuePolicy={legal:{legalApproved:true,legalVersion:'1',ipName:'USD',
-  privacyText:'public privacy',consentText:'public consent',termsText:'public terms'},
+  privacyText:'public privacy',consentText:'public consent',termsText:'public terms',
+  operatorAddress:'public address',personalDataEmail:'privacy@example.org'},
   contactEmail:'contact@example.org',
   rulesPublished:{id:'rules-1',blocks:[{type:'paragraph',text:'public text'}]}};
  assert.doesNotThrow(()=>verifyVenueStageHandoff(pack(approved),pem,now));

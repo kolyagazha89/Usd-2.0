@@ -22,8 +22,17 @@ the isolated laptop can enable it. The `VENUE_STAGE_ID` in the venue
 `.env` must equal the signed stage UUID, and preflight rejects placeholders.
 This is not official publication on `app.usd-russia.ru`.
 
+**New event-day fix (2026-11-12):** the signed export carries the published
+ legal/consent/regulation texts and the exact season status. The importer
+ creates local site settings from only centrally approved public documents
+ and keeps the local season ACTIVE only when the signed source says ACTIVE.
+ This fixes the former on-site profile/registration failure caused by missing
+ local legal settings and a default DRAFT season. If central legal approval
+ or published rules are missing, local on-site registration stays blocked;
+ never invent an approval.
+
 **Blocker:** The signed package now has a guarded local import procedure (below), but
-the hub lacks local staff login/roles, complete equipment/media transfer,
+the hub has locally provisioned staff accounts and the read-only journal, but still lacks complete equipment/media transfer,
 a durable offline write journal and central result reconciliation. The board
 will display imported measurements and local edits when those workflows are
 available; the venue hub cannot yet operate a real competition. Do not use it with real

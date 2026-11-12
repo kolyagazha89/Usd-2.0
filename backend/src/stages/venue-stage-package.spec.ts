@@ -40,7 +40,16 @@ describe('Signed LAN stage export',()=>{
  });
  it('projects the minimum stage roster without passwords, phone, DOB, tokens or login details',async()=>{
   const stageId='b3097399-97b2-4d4e-83a9-e953ab97bd16';
-  const prisma:any={stage:{findFirst:jest.fn<() => Promise<any>>().mockResolvedValue({
+  const prisma:any={siteSettings:{findUnique:jest.fn<() => Promise<any>>().mockResolvedValue({
+   legal:{legalApproved:true,legalVersion:'2',ipName:'Организатор USD',
+    privacyText:'Published privacy',consentText:'Published consent',termsText:'Published terms',
+    operatorAddress:'Published address',personalDataEmail:'data@example.org'},
+   contacts:{email:'organizer@example.org'},footer:{},
+   registration:{rulesDocument:{
+    published:{id:'rules-v2',blocks:[{type:'paragraph',text:'Public rules'}]},
+    draft:{id:'private-draft',blocks:[{type:'paragraph',text:'DO_NOT_EXPORT'}]},
+   }},
+  })},stage:{findFirst:jest.fn<() => Promise<any>>().mockResolvedValue({
    id:stageId,seasonId:'season1',stageNumber:5,name:'USD stage',city:'Омск',
    date:new Date('2026-11-05T10:00:00Z'),venue:null,address:null,status:'PUBLISHED',
    registrationOpen:true,registrationStartsAt:null,registrationEndsAt:null,
@@ -61,8 +70,13 @@ describe('Signed LAN stage export',()=>{
    const service=new VenueStageService(prisma);
    const pkg=await service.exportStage(stageId,admin as any);
    expect(verifyVenueStagePackage(pkg,publicPem,Date.parse(pkg.snapshot.generatedAt)).stageId).toBe(stageId);
+   expect((pkg.snapshot as any).venuePolicy).toMatchObject({
+    contactEmail:'organizer@example.org',
+    legal:{legalApproved:true,legalVersion:'2'},
+    rulesPublished:{id:'rules-v2'},
+   });
    const data=JSON.stringify(pkg);
-   for(const forbidden of ['passwordHash','phone','birthDate','email','refreshToken','usdIdToken'])
+   for(const forbidden of ['passwordHash','phone','birthDate','refreshToken','usdIdToken','DO_NOT_EXPORT'])
     expect(data).not.toContain(forbidden);
    expect(prisma.stage.findFirst).toHaveBeenCalledWith(expect.objectContaining({
     where:{id:stageId,isDeleted:false,status:{in:['PUBLISHED','COMPLETED']}},

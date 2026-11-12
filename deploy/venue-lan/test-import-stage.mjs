@@ -45,7 +45,8 @@ const snapshot=()=>({
  },
  venuePolicy:{
   legal:{legalApproved:true,legalVersion:'7',ipName:'Организатор USD',privacyText:'Опубликованная политика USD',
-   consentText:'Опубликованное согласие USD',termsText:'Опубликованные условия USD'},
+   consentText:'Опубликованное согласие USD',termsText:'Опубликованные условия USD',
+   operatorAddress:'Тестовый адрес',personalDataEmail:'data@example.org'},
   contactEmail:'organizer@example.org',
   rulesPublished:{id:'rules-v7',blocks:[{type:'paragraph',text:'Правила этапа'}]},
  },
