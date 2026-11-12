@@ -78,11 +78,14 @@ export class HistoricalEmailReconciliationService{
   if(!candidates.length)return {...summary,applied:true,updatedProfiles};
   await this.prisma.$transaction(async tx=>{
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('usd-reconcile-historical-email'))`;
-   const retired=await tx.participantMergeRedirect.findMany({where:{sourceId:{in:candidates.map(c=>c.participantId)}},select:{sourceId:true}});
+   // Retired source profiles may still hold the same archival email. They
+   // represent one identity and must not block restoring it on the canonical
+   // participant. Still refuse collisions with *other active* identities.
+   const retired=await tx.participantMergeRedirect.findMany({select:{sourceId:true}});
    const retiredIds=new Set(retired.map(r=>r.sourceId));
    for(const entry of candidates){
     if(retiredIds.has(entry.participantId))continue;
-    const other=await tx.participantLegacyEmail.findFirst({where:{participantId:{not:entry.participantId},email:{equals:entry.email,mode:'insensitive'}},select:{participantId:true}});
+    const other=await tx.participantLegacyEmail.findFirst({where:{participantId:{notIn:[entry.participantId,...retiredIds]},email:{equals:entry.email,mode:'insensitive'}},select:{participantId:true}});
     if(other)continue;
     const existing=await tx.participantLegacyEmail.findUnique({where:{participantId:entry.participantId},select:{email:true}});
     if(existing?.email?.trim())continue;
