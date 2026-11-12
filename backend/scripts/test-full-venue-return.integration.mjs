@@ -61,6 +61,13 @@ async function createFixtures(numberValue=42){
 test.before(async()=>{
  await client.connect();
  assert.equal((await query('SELECT current_database() AS name')).rows[0].name,'usd_venue_ci');
+ // Prisma @updatedAt is managed by the application, not by PostgreSQL itself.
+ // These isolated fixture inserts are made through raw SQL; supply its
+ // ordinary application-side timestamp explicitly in the disposable test DB.
+ for(const table of ['Season','Stage','Direction','Class','Participant','Car',
+  'CarConfiguration','Inspection','Result']){
+  await query('ALTER TABLE "'+table+'" ALTER COLUMN "updatedAt" SET DEFAULT now()');
+ }
  await query('INSERT INTO "Season"(id,name,year,status) VALUES ($1,$2,$3,$4)',
   [season,'Venue 2026',2026,'ACTIVE']);
  await query('INSERT INTO "Stage"(id,"seasonId","stageNumber",name,date,status) VALUES ($1,$2,$3,$4,$5,$6)',
