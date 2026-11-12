@@ -106,6 +106,20 @@ def validate_compose_network_exposure(compose: str) -> None:
         raise ValueError("Непроверенный сервис в локальном Compose")
     if re.search(r"(?m)^\s*network_mode\s*:", compose):
         raise ValueError("Режим network_mode недопустим")
+    if not re.search(r"(?m)^name: usd-venue\s*$", compose):
+        raise ValueError("Запуск разрешён только для отдельного проекта usd-venue")
+    # Production data must never be mounted into a temporary venue database.
+    volumes_section = re.split(r"(?m)^volumes:\s*$", compose)
+    if len(volumes_section) != 2 or re.search(r"(?m)^\s*external\s*:", volumes_section[1]):
+        raise ValueError("Нельзя подключать внешние Docker volumes площадки")
+    db_storage = services["db"]
+    if len(re.findall(r"(?m)^\s*-\s*venue_db:/var/lib/postgresql\s*$", db_storage)) != 1 or len(re.findall(r"/var/lib/postgresql", db_storage)) != 1:
+        raise ValueError("БД площадки обязана использовать отдельный named volume")
+    media_storage = services["rustfs"]
+    if not re.search(r"(?m)^    volumes: \[venue_media:/data\]\s*$", media_storage):
+        raise ValueError("RustFS обязан использовать отдельный локальный volume")
+    if media_storage.count("volumes:") != 1:
+        raise ValueError("Неожиданное дополнительное хранилище RustFS")
     allowed = {
         "db": set(), "api": set(), "frontend": set(),
         "rustfs": {"127.0.0.1:19000:9000/tcp", "127.0.0.1:19001:9001/tcp"},
