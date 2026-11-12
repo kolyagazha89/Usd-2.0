@@ -172,7 +172,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
    detail?<EntityDetailModal inline title="Результат" item={detail}
     columns={[{key:'registrationClass.class.name',label:'Класс'},{key:'registrationClass.class.unit',label:'Единица'},
      {key:'registration.participant.lastName',label:'Фамилия'},{key:'registration.participant.firstName',label:'Имя'},
-     {key:'registration.participantNumber',label:'Номер участника'},{key:'registration.car.brand',label:'Марка'},
+     {key:'registrationClass.number.number',label:'Номер класса'},{key:'registration.participantNumber',label:'Основной номер'},{key:'registration.car.brand',label:'Марка'},
      {key:'registration.car.model',label:'Модель'},{key:'value',label:'Результат'},
      {key:'place',label:'Место'},{key:'notes',label:'Комментарий'}]}
     onClose={()=>setDetail(null)}
@@ -216,7 +216,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
         ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" onClick={()=>setDetail(row)}>
          <td data-label="Класс">{row.registrationClass?.class?.name||'—'}</td>
          <td data-label="Участник"><strong>{participantName(row.registration?.participant)}</strong>
-          <small className="table-sub">№{judgingNumbers(row.registration??{})[0]??row.registration?.participantNumber??'—'}</small></td>
+          <small className="table-sub">№{row.registrationClass?.number?.number??judgingNumbers(row.registration??{})[0]??row.registration?.participantNumber??'—'}</small></td>
          <td data-label="Авто">{displayCarName(row.registration?.car)||'—'}</td>
          <td data-label="Результат"><strong>{row.value}</strong>{row.registrationClass?.class?.unit&&
           <small className="table-sub">{enumLabel(row.registrationClass.class.unit)}</small>}</td>
