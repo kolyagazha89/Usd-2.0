@@ -203,6 +203,12 @@ function New-InitialState {
   # Trusted fingerprint comes independently from the authenticated admin page.
   $fingerprint=(Read-VenueFingerprint).Trim()
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
+  if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
+   throw 'Скачайте новый подписанный пакет этапа для автоматической синхронизации'
+  }
+  $privateStage=Join-Path $PrivateDir 'signed-real-stage.json'
+  Write-PrivateFile $privateStage ([IO.File]::ReadAllText($file))
+  $file=$privateStage
  }
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
   throw 'Неверный UUID этапа'
@@ -387,7 +393,7 @@ function Test-VenueApiReady {
  finally{$ErrorActionPreference=$prior}
 }
 function Export-VenueReturn {
- param([switch]$LeaveApiStopped)
+ param([switch]$LeaveApiStopped,[switch]$Automatic)
  # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
  # Never run in DEMO, use a central secret, or delete local durable records.
  if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
@@ -427,7 +433,18 @@ function Export-VenueReturn {
  Invoke-Compose @('up','-d','--wait','db') 'start isolated DB for safe export'
  $date=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
  $filename=('usd-venue-return-'+$state.stageId+'-'+$date+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)+'.json')
- $secret=Read-VenuePassword 'шифрования возвратного файла'
+ $secret=$null
+ if($Automatic){
+  if(!(Test-Path -LiteralPath $state.package -PathType Leaf)){throw 'Нет исходного подписанного этапа'}
+  $originalStage=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
+  $syncToken=[string]$originalStage.snapshot.syncAuthorization.token
+  if($originalStage.snapshot.stageId -ne $state.stageId -or
+   $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}$' -or
+   ([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime() -le [DateTime]::UtcNow){
+   throw 'Пакет не разрешает автоматическую синхронизацию. Загрузите новый подписанный этап.'
+  }
+  $secret='UsdSync!1-'+$syncToken
+ }else{$secret=Read-VenuePassword 'шифрования возвратного файла'}
  # A direct Export click is as important as the Online button: do NOT export
  # while a judge can still enter a result. Detect the prior API state so
  # export from a stopped server never starts it unexpectedly.
@@ -454,8 +471,16 @@ function Export-VenueReturn {
    '/app/venue-return-keys/venue-return-private.pem',
    ('/app/venue-return-output/'+$filename))
   # Password is sent over stdin ONLY, never exposed in arguments or logs.
-  $secret | & docker @args | Out-Host
+  $output=@($secret | & docker @args)
   Assert-Exit 'signed encrypted USB return export'
+  foreach($line in $output){Write-Host $line}
+  $summaryLine=$output|Where-Object {$_ -match '^\{.*\}$'}|Select-Object -Last 1
+  if(!$summaryLine){throw 'Экспорт не вернул контрольную сумму журнала'}
+  $summary=$summaryLine|ConvertFrom-Json
+  if([string]$summary.stageId -ne $state.stageId -or
+   [string]$summary.journalEndHash -cnotmatch '^[a-f0-9]{64}$'){
+   throw 'Неверный контрольный хеш экспортированного журнала'
+  }
   if(!(Test-Path -LiteralPath $returnFile -PathType Leaf) -or
    (Get-Item -LiteralPath $returnFile).Length -lt 1){
    throw 'Экспорт не создан — журнал сохранён'
@@ -470,6 +495,12 @@ function Export-VenueReturn {
    Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after return export'
   }
  }
+ if($Automatic){
+  return [pscustomobject]@{
+   path=$returnFile;publicKey=$publicKey;stageId=$state.stageId
+   journalEndHash=[string]$summary.journalEndHash
+  }
+ }
  Write-Host ('ЗАШИФРОВАННЫЙ ФАЙЛ: '+$returnFile)
  Write-Host ('ОТКРЫТЫЙ КЛЮЧ: '+$publicKey)
  Write-Host ('ОТПЕЧАТОК КЛЮЧА: '+$fingerprint)
@@ -481,44 +512,17 @@ function Export-VenueReturn {
   'Пароль сообщайте отдельно. Синхронизация НЕ завершена.'+[Environment]::NewLine+
   'НЕ УДАЛЯЙТЕ ДАННЫЕ НОУТБУКА.')
 }
-function Return-Online {
- # Real competition: one button first creates an encrypted signed USB return
- # package, then switches to the official site. It NEVER claims the central
- # server has imported anything. If export fails, local LAN stays intact.
+function Sync-VenueReturn([object]$Bundle){
  $state=Read-State
- if($state -and $state.phase -eq 'READY' -and (-not $state.demo)){
-  if($Silent){throw 'Для настоящего этапа возврат онлайн требует подписанного экспорта с подтверждением администратора'}
-  if(-not(Confirm-VenueAction ('Перед возвратом на сайт сохранить все изменения этапа в зашифрованный файл?'+[Environment]::NewLine+
-   'Без успешного экспорта локальный сервер не остановится. Передайте готовый файл ответственному администратору Ubuntu.'))){
-    throw 'Оператор отменил безопасный экспорт. Офлайн-сервер не остановлен.'
-  }
-  # Export handles the quiescent judge API and restores it after failure.
-  # On success it deliberately stays frozen until all LAN services stop.
-  Export-VenueReturn -LeaveApiStopped
+ if(!$state -or $state.demo -or $state.stageId -ne $Bundle.stageId){throw 'Неверный этап для центральной синхронизации'}
+ $signed=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
+ $token=[string]$signed.snapshot.syncAuthorization.token
+ if($token -cnotmatch '^[A-Za-z0-9_-]{43}$' -or
+  ([DateTime]$signed.snapshot.syncAuthorization.expiresAt).ToUniversalTime() -le [DateTime]::UtcNow){
+  throw 'Право автоматического возврата истекло. Данные ноутбука не удалены.'
  }
- Remove-Autostart
- if(Get-Command docker -ErrorAction SilentlyContinue){
-  if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
-   Invoke-Compose @('stop') 'stop without deleting local DB and journal'
-  }
- }
- Write-Host 'USD ONLINE. Local DB and journal preserved, all changes UNSYNCED.'
- Write-Host 'Это только возврат на сайт. Обратная синхронизация требует отдельной проверки.'
- if(-not $Silent){Start-Process $OnlineUrl}
-}
-if($MyInvocation.InvocationName -eq '.'){return}
-try{
- if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
- if($Action -eq 'install'){Install-Local}
- elseif($Action -eq 'offline'){Start-Local}
- elseif($Action -eq 'export'){Export-VenueReturn}
- else{Return-Online}
-}catch{
- Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
- if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
- if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
-  Show-VenueMessage ('Действие не завершено.'+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
- }
- Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
- exit 1
-}
+ $encrypted=[IO.File]::ReadAllText($Bundle.path).Trim()
+ $pem=[IO.File]::ReadAllText($Bundle.publicKey)
+ # Preserve the exact authenticated AES-GCM envelope JSON: ConvertTo-Json
+ # of a large nested object can truncate it on Windows PowerShell 5.1.
+ $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId��i��k�w��_�Yh��n�Ưy�h�i����z�ܢjh�*?��i���j�[��,��.��mF��j���ߊW���&��"��.��������(��]��m��h�'����Yh��n����^i���O��ߊW���&��"��.��������(��]��m���j)g�M?�{~)^��(��,����n��ڲ�K-v���m�������

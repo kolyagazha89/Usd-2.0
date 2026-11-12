@@ -1,6 +1,7 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Patch, Post, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Req } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
+import {VenueAutoSyncService} from './venue-auto-sync.service';
 import { StagesService } from './stages.service';
 import { VenueStageService } from './venue-stage.service';
 import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
@@ -8,7 +9,9 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('stages')
 export class StagesController {
-  constructor(private readonly stagesService: StagesService, private readonly venueStageService: VenueStageService) {}
+  constructor(private readonly stagesService: StagesService,
+ private readonly venueStageService: VenueStageService,
+ private readonly venueAutoSyncService: VenueAutoSyncService) {}
 
   @Roles('ADMIN')
   @Get()
@@ -28,6 +31,13 @@ export class StagesController {
     return this.stagesService.findPublishedOne(id);
   }
 
+
+  @Public()
+  @Post('venue/sync')
+  @Header('Cache-Control','no-store')
+  venueSync(@Headers('authorization') token:string|undefined,@Body() body:unknown){
+   return this.venueAutoSyncService.accept(token,body);
+  }
 
   @Roles('ADMIN')
   @Get('venue/setup')

@@ -36,6 +36,6 @@ describe('Venue administration setup',()=>{
   });
   expect(JSON.stringify(setup)).not.toContain('PRIVATE KEY');
   expect(JSON.stringify(setup)).not.toContain(pem);
-  expect(setup.centralSyncReady).toBe(false);
+  expect(setup.centralSyncReady).toBe(true);
  });
 });

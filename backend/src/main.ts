@@ -74,6 +74,14 @@ async function bootstrap() {
     securityMiddleware.use(request, response, next),
   );
 
+  // 25,000 signed venue operations can exceed the ordinary 5 MiB limit.
+  // Reject missing device capability BEFORE parsing the bounded large body.
+  expressApp.use('/stages/venue/sync',(request:Request,response:Response,next:NextFunction)=>{
+    if(request.method!=='POST'||!/^Venue [A-Za-z0-9_-]{43}$/.test(request.headers.authorization??'')){
+     response.status(401).json({message:'Требуется ключ площадки'});return;
+    }
+    next();
+  },express.json({limit:'44mb',strict:true}));
   expressApp.use(
     express.json({
       limit:
