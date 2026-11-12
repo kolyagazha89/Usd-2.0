@@ -356,6 +356,19 @@ export class DisqualificationsService {
    * Возвращает активные дисквалификации,
    * действующие для участника на конкретном этапе.
    */
+  /** Self-service read-only sanctions. The owner ID comes only from the authenticated session. */
+  async listActiveForOwnProfile(participantId?: string | null) {
+    if (!participantId) return [];
+    return this.prisma.disqualification.findMany({
+      where: { participantId, status: 'ACTIVE' },
+      select: {
+        id: true, scope: true, stageId: true, seasonId: true,
+        reason: true, createdAt: true, status: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async getActiveForParticipantAtStage(
     participantId: string,
     stageId: string,

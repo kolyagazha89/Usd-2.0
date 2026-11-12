@@ -83,6 +83,7 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  const name=context.getClass().name;
  if(name==='PushController')return (path==='/push/subscriptions'&&['GET','PUT'].includes(method))||(/^\/push\/subscriptions\/[^/]+$/.test(path)&&['PATCH','DELETE'].includes(method));
  if(name==='AuthController')return !path.startsWith('/auth/admin/');
+ if(name==='DisqualificationsController')return path==='/disqualifications/me'&&method==='GET';
  if(name==='TeamsController') {
   if(path==='/teams/me')return method==='GET';
   if(path==='/teams/me/leave')return method==='POST';
