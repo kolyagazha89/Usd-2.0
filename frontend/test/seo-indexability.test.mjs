@@ -48,6 +48,10 @@ test('nginx serves robots as text, dynamic sitemap as XML and rejects unknown SP
  assert.match(conf,/location = \/robots\.txt/);
  assert.match(conf,/return 404/);
  assert.match(conf,/X-Robots-Tag/);
+ // $uri changes to /index.html after SPA rewrite. Only the immutable original
+ // request URI can reliably keep private routes noindexed.
+ assert.match(conf,/map \$request_uri \$usd_robots_tag/);
+ assert.match(conf,/login\|verify-email/);
  assert.match(conf,/~\^\/venue\/live\/?\$/);
  assert.match(conf,/offline-event/);
  assert.match(robots,/Sitemap: https:\/\/app\.usd-russia\.ru\/sitemap\.xml/);
