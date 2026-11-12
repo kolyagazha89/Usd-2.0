@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /participant
+Disallow: /login
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /confirm-email-change
+Disallow: /usd-id/
+
+Sitemap: https://app.usd-russia.ru/sitemap.xml

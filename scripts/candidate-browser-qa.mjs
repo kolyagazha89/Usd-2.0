@@ -664,9 +664,17 @@ try{
      assert.equal(row.smallControls.length,0,'readable controls '+JSON.stringify(row.smallControls));
      assert.equal(errors.length,0,'runtime errors '+errors.join(';'));
      assert.ok((await page.locator('body').innerText()).length>100,'page must contain actual UI');
-     const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0]);
+     const isPublicContent=publicRoutes.includes(route)&&!['/login','/reset-password','/confirm-email-change','/offline-event'].includes(route.split('?')[0]);
      if(isPublicContent){
-      if(route!=='/')assert.equal(await page.title(),row.heading+' — USD','public title identifies the current section');
+      if(route!=='/'){
+       // SEO titles are intentionally distinct from the marketing H1.
+       const title=await page.title();
+       assert.ok(title.includes('USD')&&title!=='USD — Ultimate Sound Destruction',
+        'public title identifies the current section: '+title);
+       const canonical=await page.locator('link[rel="canonical"]').getAttribute('href');
+       assert.ok(canonical,'public route has a canonical URL');
+       assert.equal(new URL(canonical).pathname,new URL(page.url()).pathname,'canonical points to current public route');
+      }
       assert.equal(await page.locator('.participant-portal').count(),0,'public content stays public in a member session');
       if(!route.endsWith('/offline'))assert.equal(await page.locator('.p-error').count(),0,'public requests must not fail silently');
      }

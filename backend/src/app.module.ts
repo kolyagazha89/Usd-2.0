@@ -1,3 +1,4 @@
+import { SeoModule } from './seo/seo.module';
 import {AdminNotificationsModule} from './admin-notifications/admin-notifications.module';
 import { PushModule } from './push/push.module';
 import {AdminDeletionModule} from './admin-deletion/admin-deletion.module';
@@ -38,6 +39,7 @@ import { TeamsModule } from './teams/teams.module';
 @Module({
   imports: [
     PrismaModule,
+    SeoModule,
     AdminNotificationsModule,
     AdminDeletionModule,
     AuthModule,
