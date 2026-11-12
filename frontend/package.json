@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/generate-offline-worker.mjs",
+    "build": "tsc -b && vite build && node --experimental-strip-types scripts/generate-seo-pages.mjs && node scripts/generate-offline-worker.mjs",
     "preview": "vite preview",
     "postinstall": "npm run build",
     "test": "node --experimental-strip-types --test test/*.test.mjs"
