@@ -1,6 +1,6 @@
 import {RETURN_COLUMNS} from '../../deploy/venue-lan/full-return-apply.mjs';
 const TABLES=new Set(Object.keys(RETURN_COLUMNS));
-const LINK_SQL="(substr(md5("amplifierId"::text || '/' || "componentId"::text),1,12)||'5'||substr(md5("amplifierId"::text || '/' || "componentId"::text),14,3)||'8'||substr(md5("amplifierId"::text || '/' || "componentId"::text),18))::uuid";
+const LINK_SQL=`(substr(md5("amplifierId"::text || '/' || "componentId"::text),1,12)||'5'||substr(md5("amplifierId"::text || '/' || "componentId"::text),14,3)||'8'||substr(md5("amplifierId"::text || '/' || "componentId"::text),18))::uuid`;
 const ident=table=>{
  if(!TABLES.has(table))throw Error('VENUE DB: table is not allowlisted');
  return '"'+table+'"';
@@ -68,7 +68,7 @@ export function postgresFullVenueAdapter(client){
      async getRow(table,id){
       if(table==='CarAmplifierComponent'){
        const {rows}=await client.query(
-        'SELECT to_jsonb(t)||jsonb_build_object('id',$1::uuid) AS data FROM "CarAmplifierComponent" t WHERE '+LINK_SQL+'=$1::uuid',[id]);
+        `SELECT to_jsonb(t)||jsonb_build_object('id',$1::uuid) AS data FROM "CarAmplifierComponent" t WHERE `+LINK_SQL+'=$1::uuid',[id]);
        return rows[0]?.data??null;
       }
       const {rows}=await client.query(
@@ -78,7 +78,7 @@ export function postgresFullVenueAdapter(client){
      async canonical(table,row){
       await assertSchema(table,row);
       const {rows}=await client.query(
-       'SELECT to_jsonb(t)'+(table==='CarAmplifierComponent'?'||jsonb_build_object('id',$2::uuid)':'')+
+       'SELECT to_jsonb(t)'+(table==='CarAmplifierComponent'?`||jsonb_build_object('id',$2::uuid)`:'')+
        ' AS data FROM jsonb_populate_record(NULL::'+ident(table)+', $1::jsonb) t',
        table==='CarAmplifierComponent'?[JSON.stringify(row),row.id]:[JSON.stringify(row)]);
       return rows[0].data;
