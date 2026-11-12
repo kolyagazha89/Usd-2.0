@@ -197,3 +197,28 @@ test('broken local result history never imports and never acknowledges',async()=
  assert.equal(report.counts.PENDING_MANUAL,2);
  assert.deepEqual(db.operations,[]);
 });
+
+test('changed registrations prevent falsely importing other measurements from stale central roster',async()=>{
+ const db=fakeDb();
+ const altered={sequence:2,hash:'c'.repeat(64),payload:{
+  table:'RegistrationClass',operation:'UPDATE',recordId:cls,
+  before:{id:cls},after:{id:cls},
+ }};
+ const report=await applyVenueReturnSnapshot({
+  ...packet([event(),altered]),journalEndHash:altered.hash,
+ },db,options);
+ assert.equal(report.counts.APPLIED,0);
+ assert.equal(report.counts.PENDING_MANUAL,2);
+ assert.equal(report.rows[0].reason,'UNRECONCILED_VENUE_DEPENDENCIES');
+ assert.deepEqual(db.operations,[]);
+ assert.equal(report.complete,false);
+});
+test('no journal events is not evidence of an accepted stage release',async()=>{
+ const db=fakeDb();
+ const report=await applyVenueReturnSnapshot({
+  ...packet([]),journalEndHash:'0'.repeat(64),
+ },db,options);
+ assert.equal(report.applied,false);
+ assert.equal(report.complete,false);
+ assert.equal(report.centralReleaseAccepted,false);
+});
