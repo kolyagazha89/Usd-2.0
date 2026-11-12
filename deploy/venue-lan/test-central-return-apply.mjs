@@ -42,6 +42,8 @@ test('signed event is applied once, with an audit receipt, then replay is idempo
  const db=fakeDb();
  const first=await applyVenueReturnSnapshot(packet(),db,options);
  assert.equal(first.counts.APPLIED,1);
+ assert.equal(first.centralReleaseAccepted,false);
+ assert.equal(first.derivedRankingsRebuilt,false);
  assert.deepEqual(db.operations,['INSERT','RECEIPT']);
  const retry=await applyVenueReturnSnapshot(packet(),db,options);
  assert.equal(retry.counts.ALREADY_APPLIED,1);
