@@ -106,6 +106,7 @@ function mockDb(){
   'registration','registrationNumber','registrationClass','inspection','participantStageInspection','registrationClassInspection','result','auditLog']){
   tx[name]={
    count:async()=>0,
+   findUnique:async()=>null,
    create:async value=>{log.push({model:name,data:value.data});return {id:value.data?.id??uuid.version}},
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
@@ -160,6 +161,28 @@ test('a legacy signed package without venue legal remains read-only and season d
  const {db,log}=mockDb();await applyVenueStageImport(plan,db);
  assert.equal(log.find(x=>x.model==='siteSettings'),undefined);
  assert.equal(log.find(x=>x.model==='season').data.status,'DRAFT');
+});
+test('preseeded migration SiteSettings preserves component catalogs and gains only signed legal',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.siteSettings.count=async()=>1;
+ tx.siteSettings.findUnique=async()=>({
+  legal:{},contacts:{},registration:{emailTemplates:['seeded']},
+ });
+ await applyVenueStageImport(plan,db);
+ const changed=log.find(x=>x.model==='siteSettings');
+ assert.ok(changed?.update);
+ assert.equal(changed.update.registration.rulesDocument.published.id,'rules-v7');
+ assert.deepEqual(changed.update.registration.emailTemplates,['seeded']);
+ assert.equal(log.filter(x=>x.model==='siteSettings').length,1);
+});
+test('a pre-approved local legal policy cannot be overwritten by another signed stage',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.siteSettings.count=async()=>1;
+ tx.siteSettings.findUnique=async()=>({legal:{legalApproved:true}});
+ await assert.rejects(()=>applyVenueStageImport(plan,db),/перезапис/);
+ assert.equal(log.some(x=>x.model==='siteSettings'),false);
 });
 test('a nonempty local event database refuses to apply or overwrite participants/results',async()=>{
  const plan=planVenueStageImport(signed(),publicPem,env,now);
