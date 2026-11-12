@@ -8,6 +8,8 @@ import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
+import {collectVenueJournal} from './export-venue-return.mjs';
+import {signVenueReturnSnapshot,encryptVenueReturn,openVenueReturn} from './venue-return-package.mjs';
 
 const require=createRequire(import.meta.url);
 const {PrismaPg}=require('@prisma/adapter-pg');
@@ -188,6 +190,21 @@ async function probe(){
    assert.equal(event.payload.stageId,ID.stage);
    previous=event.hash;
   }
+  const returnSnapshot=await collectVenueJournal(verifyClient,process.env,Date.now());
+  assert.equal(returnSnapshot.eventCount,chain.length);
+  const {privateKey:venueSigning,publicKey:venueTrust}=generateKeyPairSync('ed25519');
+  const privatePem=venueSigning.export({type:'pkcs8',format:'pem'}).toString();
+  const publicPem=venueTrust.export({type:'spki',format:'pem'}).toString();
+  const fingerprint=createHash('sha256').update(venueTrust.export({type:'spki',format:'der'})).digest('hex');
+  const encrypted=encryptVenueReturn(signVenueReturnSnapshot(returnSnapshot,privatePem),'Venue-USB!Strong#2026');
+  assert.ok(!JSON.stringify(encrypted).includes('Тестовый'));
+  assert.ok(!JSON.stringify(encrypted).includes('А123ВС55'));
+  const opened=openVenueReturn(encrypted,'Venue-USB!Strong#2026',publicPem,{
+   stageId:ID.stage,baselineSha256:returnSnapshot.baselineSha256,
+   trustedFingerprint:fingerprint,now:Date.now(),
+  });
+  assert.equal(opened.eventCount,chain.length);
+  assert.equal(opened.journalEndHash,returnSnapshot.journalEndHash);
   await assert.rejects(()=>verifyClient.$executeRawUnsafe(
    'DELETE FROM venue_private.operation_journal'),/permission|P2010|denied/i);
  }finally{await verifyClient.$disconnect()}

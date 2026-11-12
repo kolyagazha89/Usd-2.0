@@ -72,6 +72,10 @@ jobs:
       - name: Enforce venue journaling installation before official judging
         run: |
           node --test deploy/venue-lan/test-journal-contract.mjs
+      - name: Verify encrypted, signed venue-to-Ubuntu return contract without Internet
+        run: node --test deploy/venue-lan/test-venue-return-package.mjs deploy/venue-lan/test-export-venue-return.mjs
+      - name: Check encrypted USB return helper syntax
+        run: bash -n deploy/venue-lan/export-venue-return.sh
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
         run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB

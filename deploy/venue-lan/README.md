@@ -243,6 +243,65 @@ resolution, local photo transfer and Ubuntu import are STILL MISSING.
 Do not erase the venue volume after competition until every accepted result
 is independently verified on the central server.
 
+## Secure USB return-package export (read-only, does NOT apply to central)
+
+After the venue day, use a **separate local Ed25519 keypair**, created
+once on the laptop and kept outside Git and the running Nest API:
+
+```bash
+mkdir -p ~/usd-venue-private
+chmod 700 ~/usd-venue-private
+openssl genpkey -algorithm ED25519 -out ~/usd-venue-private/venue-return-private.pem
+chmod 600 ~/usd-venue-private/venue-return-private.pem
+openssl pkey -in ~/usd-venue-private/venue-return-private.pem -pubout \
+  -out ~/usd-venue-private/venue-return-public.pem
+openssl pkey -pubin -in ~/usd-venue-private/venue-return-public.pem \
+  -outform DER | sha256sum
+```
+
+Deliver the **public key and verified DER-SPKI SHA-256 fingerprint** to
+the USD central administrator over a separately authenticated channel
+**before** the competition. Never put the private key on the USB stick.
+On the laptop (Linux, with Docker, same private Wi-Fi), after judges
+finish and stop making changes:
+
+```bash
+bash deploy/venue-lan/export-venue-return.sh \
+  ~/usd-venue-private/venue-return-private.pem ~/usd-venue-private/return-output
+```
+
+The interactive command takes a separate strong passphrase twice. It
+reads one transactionally consistent journal snapshot (REPEATABLE READ),
+checks the complete PostgreSQL SHA-256 chain and the original signed
+stage import's `sha256`, signs the snapshot using Ed25519 and encrypts
+the entire payload with **scrypt + AES-256-GCM**. It writes a new
+`usd-venue-return-*.json` at mode `0600`, refusing overwrites. All
+participant names, vehicle details and measurements remain hidden
+inside the ciphertext. Only a short non-personal summary is printed.
+Use encrypted media; send the encryption passphrase separately.
+
+The central administrator can check the file **without a database**.
+Use Node 22+ and the trusted public key, stage UUID, central signed
+baseline SHA-256 and separately verified public-key fingerprint:
+
+```bash
+node deploy/venue-lan/verify-venue-return.mjs \
+  ENCRYPTED_RETURN.json TRUSTED_VENUE_PUBLIC.pem \
+  ORIGINAL_STAGE_UUID ORIGINAL_IMPORT_SHA256 TRUSTED_PUBLIC_KEY_FINGERPRINT
+```
+
+The verifier reads the passphrase from standard input. Do not type it
+on the command line or put it in a script or Git repository. Successful
+verification reports `READ ONLY, NOT APPLIED`.
+
+**A return export is NOT a sync.** The central USD server does not yet
+apply any return event or acknowledge central conflicts, additional
+registrations, changed numbers or media attachments. This workflow
+provides an encrypted, authenticated and integrity-checked transport
+for the future ADMIN-supervised sync. Never delete or reinitialize the
+venue database after creating the package, and never declare official
+public results imported until the central acceptance is verified.
+
 ## Mandatory release blockers
 
 - Validate the new signed-stage import with a **real** isolated PostgreSQL

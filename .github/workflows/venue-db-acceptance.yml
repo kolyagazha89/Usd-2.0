@@ -91,6 +91,8 @@ jobs:
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
+            --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             --entrypoint node api /app/venue-db-acceptance.mjs seed
       - name: Install trusted append-only venue write journal as isolated database root
         working-directory: deploy/venue-lan
@@ -107,6 +109,8 @@ jobs:
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
+            --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             --entrypoint node api /app/venue-db-acceptance.mjs probe
       - name: Destroy disposable venue database and configuration
         if: always()
