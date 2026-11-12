@@ -63,8 +63,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate laptop-only migration/import wrapper syntax
-        run: bash -n deploy/venue-lan/bootstrap-local-stage.sh
+      - name: Validate laptop-only migration/import and staff wrappers syntax
+        run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh
+      - name: Verify staff accounts, fixed judge RBAC, and independent local identities
+        run: node --test deploy/venue-lan/test-provision-staff.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
         run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB
