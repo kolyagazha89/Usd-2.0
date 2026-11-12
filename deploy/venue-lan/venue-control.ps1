@@ -339,12 +339,15 @@ function Install-Local {
 function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  if(Test-Path -LiteralPath $destination){return}
- $container=(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
- if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
-  $container -notmatch '^[a-f0-9]{12,64}$'){return}
- & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
- if($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $destination)){
-  Remove-Item -LiteralPath $destination -Force
+ try{
+  $container=(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
+  if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
+   $container -notmatch '^[a-f0-9]{12,64}$'){return}
+  & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
+  if($LASTEXITCODE -ne 0){throw 'Caddy CA not ready'}
+ }catch{
+  if(Test-Path -LiteralPath $destination){Remove-Item -LiteralPath $destination -Force}
+  if(-not $Silent){Write-Host 'Сертификат Caddy ещё не готов — повторите запуск позже.'}
  }
 }
 function Start-Local {
@@ -358,6 +361,7 @@ function Start-Local {
  Ensure-DockerReady
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  Save-Autostart
+ Export-VenueCA
  if(-not $Silent){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
@@ -370,8 +374,7 @@ function Return-Online {
  # Online switching never implies synchronization. Preserve all unsynced data.
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
-  & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-  if($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $EnvFile)){
+  if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
    Invoke-Compose @('stop') 'stop without deleting local DB and journal'
   }
  }
