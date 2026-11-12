@@ -428,3 +428,59 @@ or delete its database on the basis of a successful preview.
 - Central `app.usd-russia.ru` release and Ubuntu acceptance remain separate.
 
 Do not call USD offline-ready before the above acceptance.
+
+## Central operator import of existing-class measurements (partial, NOT a full sync)
+
+A controlled central PostgreSQL operation can now review and insert **only** signed
+new `Result` records when the same participant registration, class and PASSED
+inspection already exist on Ubuntu. It never accepts new registrations, inspections,
+numbers, deleted/updated results, equipment or photos automatically. Every such
+event stays `PENDING_MANUAL` and remains in the encrypted USB package. An earlier
+result INSERT with later local corrections is also pending (do not import stale
+intermediate scores). Central results must NOT already be published.
+
+**Before attempting this operation:** the ADMIN should confirm the original
+signed-stage SHA-256 baseline, trust the venue Ed25519 key/fingerprint through a
+separate channel, make and verify an Ubuntu database backup, review the previous
+read-only conflict report, and retain the laptop database and USB copy. Do not
+export or log the private signing key or the decryption password.
+
+Run the command on a trusted central Ubuntu maintenance environment with Node,
+backend `pg` dependency and an authorized **central** `DATABASE_URL`. The
+environment must not point to the venue database:
+
+```bash
+cd backend
+export VENUE_RETURN_STAGE_ID='UUID-OF-ONE-STAGE'
+export VENUE_RETURN_BASELINE_SHA256='64-hex-original-stage-package-sha256'
+export VENUE_RETURN_TRUSTED_FINGERPRINT='64-hex-trusted-venue-public-key-fingerprint'
+export VENUE_RETURN_OPERATOR='USD ADMIN responsible for import'
+# DATABASE_URL is loaded securely from existing central server maintenance config.
+read -r -s -p 'USB transfer passphrase: ' TRANSFER_PASSPHRASE; printf '\n'
+printf '%s' "$TRANSFER_PASSPHRASE" | node scripts/apply-venue-return.mjs \
+  /secure/RETURN.json /secure/TRUSTED_VENUE_PUBLIC.pem --dry-run
+# Only after explicit review, reliable backup and a second independent check:
+export VENUE_RETURN_APPLY_CONFIRM="$VENUE_RETURN_STAGE_ID"
+printf '%s' "$TRANSFER_PASSPHRASE" | node scripts/apply-venue-return.mjs \
+  /secure/RETURN.json /secure/TRUSTED_VENUE_PUBLIC.pem --apply
+unset TRANSFER_PASSPHRASE
+```
+
+The command verifies AES-GCM, the Ed25519 venue signature, fixed fingerprint,
+stage ID, original baseline, TTL and all journal-event ordering. A serializable
+transaction locks the central stage, rechecks current unpublished state, existing
+result identity and class uniqueness, participant admission and PASSED inspection.
+An accepted result and its `AuditLog` provenance receipt commit together; a
+retry recognizes the **same signed event** and avoids duplicate writes. An identical
+central score with no matching receipt is a conflict, not proof of successful sync.
+
+The program deliberately exits with status **3 even if scores were inserted**:
+derived rankings/records, official publication, media and all non-Result venue
+events still need central reconciliation and a separate verification. Do not
+interpret a zero pending count as a completed competition import. Do not delete
+the venue DB, reset the journal, publish official results or announce release.
+
+**Release still blocked:** full registration/class/number/inspection/media
+reconciliation; automatic record/ranking rebuild; durable central acknowledgements
+covering the whole journal; reviewed issue/conflict resolution UI; physical
+Windows + router + two phones with WAN unplugged; reboot and exact-state checks.
