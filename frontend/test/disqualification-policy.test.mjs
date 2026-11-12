@@ -33,7 +33,7 @@ test('participant portal loads own bans before offering the wizard and displays 
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
  const dashboard=await readFile(new URL('../src/participant/MemberDashboard.tsx',import.meta.url),'utf8');
  assert.match(app,/apiGet<any>\('\/disqualifications\/me'\)/);
- assert.match(app,/blockingDisqualification\(disqualifications,stage\)/);
+ assert.match(app,/blockingDisqualification\(activeDisqualifications,stage\)/);
  assert.match(app,/member-disqualification-alert/);
  assert.match(app,/registrationBlockForStage\(registerStage\)/);
  assert.match(app,/registrationBlockForStage\(s\)/);
