@@ -153,8 +153,16 @@ async function main(){
  process.stdout.write('USD VENUE MEDIA READY — BUCKET '+result.bucket+'; scoped IAM verified\n');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- main().catch(()=>{
+ main().catch(error=>{
   console.error('USD VENUE MEDIA BLOCKED: check private Docker network, empty bucket and fresh restricted credentials');
+  if(process.env.USD_VENUE_CI_DIAG==='true'){
+   const message=error instanceof Error?error.message:'Unknown';
+   let safe=message;
+   for(const value of [process.env.VENUE_S3_ROOT_SECRET,process.env.VENUE_S3_APP_SECRET]){
+    if(value)safe=safe.replaceAll(value,'[REDACTED]');
+   }
+   console.error('USD VENUE MEDIA CI DIAG: '+safe);
+  }
   process.exitCode=1;
  });
 }
