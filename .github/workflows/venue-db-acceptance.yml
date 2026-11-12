@@ -83,6 +83,16 @@ jobs:
           docker compose -p usd-venue run --rm --no-deps \
             --entrypoint ./node_modules/.bin/prisma api \
             migrate deploy --config ./prisma7.config.ts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Provision and verify scoped RustFS for the Windows one-click setup
+        working-directory: deploy/venue-lan
+        env:
+          USD_VENUE_ONECLICK_CI_RUSTFS: 'true'
+        run: |
+          docker compose -p usd-venue up -d rustfs
+          node test-one-click-rustfs-integration.mjs
       - name: Verify Ed25519 stage import, replay rejection and offline staff on real database
         working-directory: deploy/venue-lan
         run: |

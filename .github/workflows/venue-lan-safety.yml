@@ -78,6 +78,11 @@ jobs:
         run: bash -n deploy/venue-lan/export-venue-return.sh
       - name: Verify central sync dry-run reports conflicts without network or database
         run: node --test deploy/venue-lan/test-preview-venue-reconciliation.mjs
+      - name: Validate Windows one-click launcher prerequisites, IAM and guarded return
+        run: |
+          node --check deploy/venue-lan/one-click-core.mjs
+          node --check deploy/venue-lan/one-click-runner.mjs
+          node --test deploy/venue-lan/test-one-click-core.mjs
       - name: Check synthetic signed demo stage can be validated and imported safely
         run: node --test deploy/venue-lan/test-make-demo-stage.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB

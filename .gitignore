@@ -41,3 +41,7 @@ usd_backup_before_participant_car.sql
 /candidate-browser-a11y/
 
 /home-logo-browser-qa/
+
+# Disposable Windows USD LAN demo (signed synthetic roster and private local config).
+/deploy/venue-lan/.venue-oneclick-demo/
+/deploy/venue-lan/usd-venue-demo-test/
