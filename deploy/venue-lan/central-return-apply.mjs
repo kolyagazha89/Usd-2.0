@@ -77,7 +77,10 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
       &&String(existing.byId.value)===r.value
       &&existing.byId.unit===r.unit
       &&existing.byId.place===r.place
-      &&existing.byId.isBest===r.isBest;
+      &&existing.byId.isBest===r.isBest
+      &&existing.byId.notes===null
+      &&existing.byId.isHistorical===false
+      &&existing.byId.verificationStatus==='NOT_REQUIRED';
     if(exact){
      // An externally identical result is NOT acknowledged as ours unless
      // its original signed event was durably audited in the central DB.
