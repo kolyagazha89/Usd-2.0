@@ -129,5 +129,21 @@ class VenuePreflightTests(unittest.TestCase):
             with self.subTest(attack=index),self.assertRaises(ValueError):
                 validate_compose_network_exposure(variant)
 
+
+    def test_compose_refuses_production_volumes_and_project_name(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parent/"compose.yaml").read_text(encoding="utf-8")
+        variants=(
+            source.replace("name: usd-venue","name: usd-home",1),
+            source.replace("- venue_db:/var/lib/postgresql", "- /var/lib/postgresql:/var/lib/postgresql"),
+            source.replace("- venue_db:/var/lib/postgresql", "- venue_db:/var/lib/postgresql\n      - ../production-db:/var/lib/postgresql"),
+            source.replace("volumes: [venue_media:/data]", "volumes: [/srv/production-media:/data]"),
+            source.replace("volumes: [venue_media:/data]", "volumes: [venue_media:/data, /srv/production-media:/data]"),
+            source.replace("  venue_db:\n", "  venue_db:\n    external: true\n"),
+        )
+        for index,variant in enumerate(variants):
+            with self.subTest(attack=index),self.assertRaises(ValueError):
+                validate_compose_network_exposure(variant)
+
 if __name__ == "__main__":
     unittest.main()
