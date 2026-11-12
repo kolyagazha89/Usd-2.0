@@ -17,7 +17,7 @@ export function planVenueResultEvent(event){
   return {status:'PENDING_MANUAL',reason:'RESULT_IDENTITY'};
  const value=String(row.value??'');
  if(!SCORE.test(value)||!Number.isFinite(Number(value))
-  ||!['DB','MPS'].includes(row.unit)
+  ||!['DB','MPS','OTHER'].includes(row.unit)
   ||row.isHistorical!==false
   ||row.verificationStatus!=='NOT_REQUIRED'
   ||typeof row.isBest!=='boolean'
@@ -50,11 +50,25 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
    throw new Error('Центральный этап не найден или неактивен');
   if(stage.resultsPublishedAt)
    throw new Error('Официальные результаты уже опубликованы: требуется ручное решение');
+  // A later venue UPDATE/DELETE makes an earlier INSERT stale. Import neither
+  // until the entire record's history can be reconciled manually.
+  const frequencies=new Map(),classFrequencies=new Map();
+  for(const event of snapshot.events){
+   const p=event?.payload;
+   if(p?.table!=='Result')continue;
+   frequencies.set(p.recordId,(frequencies.get(p.recordId)??0)+1);
+   const cls=p.after?.registrationClassId??p.before?.registrationClassId;
+   if(cls)classFrequencies.set(cls,(classFrequencies.get(cls)??0)+1);
+  }
   const rows=[],counts={APPLIED:0,ALREADY_APPLIED:0,READY:0,PENDING_MANUAL:0,CONFLICT:0};
   for(const event of snapshot.events){
    const plan=planVenueResultEvent(event);
    let outcome=plan.status,reason=plan.reason??'';
-   if(plan.status==='CANDIDATE'){
+   const cls=event.payload?.after?.registrationClassId??event.payload?.before?.registrationClassId;
+   if(event.payload?.table==='Result'&&
+     ((frequencies.get(event.payload.recordId)??0)>1||(cls&&(classFrequencies.get(cls)??0)>1))){
+    outcome='PENDING_MANUAL';reason='MULTIPLE_LOCAL_RESULT_MUTATIONS';
+   }else if(plan.status==='CANDIDATE'){
     const r=plan.row;
     const existing=await tx.result(r.id,r.registrationClassId);
     const exact=existing.byId&&existing.byId.id===r.id
@@ -90,7 +104,7 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
    rows.push({sequence:event.sequence,status:outcome,reason});
   }
   return {stageId,journalEndHash:snapshot.journalEndHash,counts,rows,
-   applied:counts.APPLIED>0,complete:counts.PENDING_MANUAL===0&&counts.CONFLICT===0,
+   applied:counts.APPLIED>0,complete:apply&&counts.READY===0&&counts.PENDING_MANUAL===0&&counts.CONFLICT===0,
    pending:counts.PENDING_MANUAL+counts.CONFLICT,
    notice:'Только результаты с существующими центральными допусками. Остальные операции требуют отдельного согласования.'};
  },{readOnly:!apply});
