@@ -28,7 +28,7 @@ function fakeDb({published=false,valid=true}={}){
   }),
   receipt:async(_stageId,hash)=>receipts.has(hash),
   context:async()=>valid?({stageId:stage,registrationStatus:'ACTIVE',classId:cls,unit:'DB',inspectionStatus:'PASSED'}):null,
-  insertResult:async row=>{stored={...row};operations.push('INSERT')},
+  insertResult:async row=>{stored={...row,notes:null,isHistorical:false,verificationStatus:'NOT_REQUIRED'};operations.push('INSERT')},
   recordReceipt:async receipt=>{receipts.add(receipt.eventHash);operations.push('RECEIPT')},
  };
  return {
