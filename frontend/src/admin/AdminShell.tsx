@@ -1,6 +1,6 @@
 import {AdminInboxBell} from './AdminInbox';
 import {useEffect,useRef,useState} from 'react';
-import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight,FileText} from 'lucide-react';
+import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight,FileText,WifiOff} from 'lucide-react';
 import {getPublicSiteAsset,type Role,type User} from '../api';
 
 const nav=[
@@ -9,6 +9,7 @@ const nav=[
 
  // Оперативная работа на этапах
  {section:'Соревнования',label:'День соревнований',path:'/admin/event-day',icon:ClipboardCheck,roles:['ADMIN']},
+ {section:'Соревнования',label:'Офлайн-сервер',path:'/admin/venue-server',icon:WifiOff,roles:['ADMIN']},
  {section:'Соревнования',label:'Этапы',path:'/admin/stages',icon:Flag,roles:['ADMIN']},
  {section:'Соревнования',label:'Регистрации',path:'/admin/registrations',icon:ClipboardCheck,roles:['ADMIN']},
  {section:'Соревнования',label:'Инспекции',path:'/admin/inspections',icon:ShieldAlert,roles:['ADMIN']},

@@ -34,7 +34,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertRegex(source,r"function\s+Ensure-DockerReady")
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
-        self.assertIn("Read-Host",source)
+        self.assertIn("Read-VenueFingerprint",source)
         self.assertIn("trusted fingerprint",source.lower())
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)

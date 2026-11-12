@@ -25,6 +25,7 @@ import AssistantPage from './AssistantPage';
 import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './CompetitionPages';
 import RegistrationsPage from './RegistrationsPage';
 import EventDayPage from './EventDayPage';
+import VenueServerPage from './VenueServerPage';
 import InspectionsPage from './InspectionsPage';
 import ResultsPage from './ResultsPage';
 import AuditPage from './AuditPage';
@@ -42,6 +43,7 @@ export function AdminRoutes({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
   const RoutedResourcePage=useMemo(()=>function RoutedResourcePage(props:any){return <ResourcePage {...props} go={routeRef.current.go} routePath={routeRef.current.path}/>},[ResourcePage]);
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/notifications'))return <NotificationsPage user={user} PageFrame={PageFrame}/>;
+  if(path.startsWith('/admin/venue-server'))return <VenueServerPage user={user} go={go} path={path} PageFrame={PageFrame}/>;
   if(path.startsWith('/admin/roles'))return <RolesPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;
   if(path.startsWith('/admin/participants'))return <ParticipantsPage user={user} ResourcePage={RoutedResourcePage} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/teams'))return <TeamsPage PageFrame={PageFrame} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}/>;

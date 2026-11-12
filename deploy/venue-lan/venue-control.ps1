@@ -28,7 +28,9 @@ function Assert-Exit([string]$Purpose){
  if($LASTEXITCODE -ne 0){throw ('USD VENUE '+$Purpose+' failed with exit '+$LASTEXITCODE)}
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
- & docker @Arguments
+ # Progress belongs to the host, never to a function's return value. Otherwise
+ # `state=New-InitialState` and `mounts=Confirm-SignedStage` become mixed arrays.
+ & docker @Arguments | Out-Host
  Assert-Exit $Purpose
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
@@ -98,8 +100,7 @@ function Ensure-DockerReady {
  if(-not(Get-Command docker -ErrorAction SilentlyContinue)){
   if($Action -eq 'install' -and (Get-Command winget -ErrorAction SilentlyContinue)){
    Write-Host 'Docker Desktop отсутствует. Нужно установить Linux containers с WSL2.'
-   $yes=Read-Host 'Установить Docker Desktop через winget? (ДА/НЕТ)'
-   if($yes -eq 'ДА'){
+   if(Confirm-VenueAction 'Для USD нужен Docker Desktop. Установить его сейчас? После установки откройте Docker Desktop, завершите настройку и снова нажмите установку USD.'){
     & winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
     Assert-Exit 'Docker Desktop install'
     throw 'Завершите настройку Docker Desktop и WSL2 (может понадобиться перезагрузка), затем нажмите кнопку ещё раз.'
@@ -117,16 +118,15 @@ function Ensure-DockerReady {
  throw 'Docker Desktop не готов. Проверьте WSL2, лицензию и режим Linux containers.'
 }
 function Get-PrivateLanIp {
- $ips=@(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+ $addresses=@(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
   $_.AddressState -eq 'Preferred' -and
+  $_.InterfaceAlias -notmatch '(?i)vEthernet|WSL|Docker|Loopback' -and
   ($_.IPAddress -match '^192\.168\.' -or $_.IPAddress -match '^10\.' -or
    $_.IPAddress -match '^172\.(1[6-9]|2[0-9]|3[01])\.')
- } | Select-Object -ExpandProperty IPAddress -Unique)
- if($ips.Count -eq 0){throw 'Подключите ноутбук к выделенному Wi-Fi-роутеру и назначьте частный IP'}
- Write-Host ('IP ноутбука: '+($ips -join ', '))
- $ip=Read-Host 'Введите частный IP именно Wi-Fi роутера'
- if($ip -notin $ips){throw 'IP не принадлежит ноутбуку'}
- return $ip
+ })
+ if($addresses.Count -eq 0){throw 'Подключите ноутбук к выделенному Wi-Fi-роутеру. Нужен частный IP-адрес.'}
+ $options=@($addresses|ForEach-Object {[pscustomobject]@{Label=($_.InterfaceAlias+' — '+$_.IPAddress);Value=$_.IPAddress}})
+ return Select-VenueOption 'USD — Сеть площадки' 'Выберите подключение к роутеру соревнований. Телефоны судей должны быть в этой же сети.' $options
 }
 function Ensure-Firewall([string]$Ip){
  $rule='USD Venue HTTPS '+$Ip
@@ -153,18 +153,26 @@ function Save-Autostart {
 function Remove-Autostart {
  if(Test-Path -LiteralPath $StartupFile){Remove-Item -LiteralPath $StartupFile -Force}
 }
-function Select-LocalFile([string]$Label){
- $candidate=Read-Host $Label
- if(!$candidate){throw 'Файл не выбран'}
- $path=(Resolve-Path -LiteralPath $candidate.Trim('"')).Path
- if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw 'Файл не найден'}
- return $path
+function Save-DesktopShortcuts {
+ $desktop=[Environment]::GetFolderPath('Desktop')
+ $shell=New-Object -ComObject WScript.Shell
+ foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'))){
+  $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
+  $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
+  $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
+  $shortcut.WorkingDirectory=$Root;$shortcut.Save()
+ }
+ $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
+ $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $ip=Get-PrivateLanIp
  Write-Host '1 = ДЕМО на вымышленных участниках, 2 = реальный подписанный экспорт USD.'
- $kind=Read-Host 'Выберите 1 или 2'
+ $kind=Select-VenueOption 'USD — Первый запуск' 'Для знакомства выберите ДЕМО. Настоящий этап пока требует завершения переноса результатов и проверки на оборудовании.' @(
+  [pscustomobject]@{Label='ДЕМО — пробный запуск без настоящих участников';Value='1'},
+  [pscustomobject]@{Label='Подписанный этап — предварительная подготовка';Value='2'}
+ )
  if($kind -notin @('1','2')){throw 'Выбор отменён'}
  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
  $sha=[string]$release.revision
@@ -188,11 +196,12 @@ function New-InitialState {
   $fingerprint=($lines|Where-Object {$_ -match '^VENUE_SIGNING_KEY_FINGERPRINT='}|Select-Object -First 1).Split('=',2)[1]
   Write-Host 'ДЕМО: не вводите настоящие ФИО и госномера; возврат в Ubuntu запрещён.'
  }else{
-  $file=Select-LocalFile 'Полный путь к подписанному stage.json'
-  $key=Select-LocalFile 'Полный путь к доверенному signing-public.pem'
+  $file=Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'
+  $key=Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
-  $fingerprint=Read-Host 'Trusted fingerprint из независимого источника (64 hex)'
+  # Trusted fingerprint comes independently from the authenticated admin page.
+  $fingerprint=(Read-VenueFingerprint).Trim()
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
  }
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
@@ -239,23 +248,7 @@ function Confirm-SignedStage([object]$State) {
  return $mounts
 }
 function Ask-StrongPassword([string]$Name){
- Write-Host ('Задайте пароль '+$Name+': минимум 16 ASCII-символов, A-Z, a-z, цифра и знак.')
- $a=Read-Host 'Пароль' -AsSecureString
- $b=Read-Host 'Повтор' -AsSecureString
- $one=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($a)
- $two=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($b)
- try{
-  $first=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($one)
-  $second=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($two)
-  if($first -cne $second -or $first.Length -lt 16 -or
-   $first -cnotmatch '[A-Z]' -or $first -cnotmatch '[a-z]' -or
-   $first -notmatch '[0-9]' -or $first -notmatch '[^a-zA-Z0-9]' -or
-   $first -notmatch '^[\x21-\x7e]+$'){throw 'Неверный или не совпавший пароль'}
-  return $first
- }finally{
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($one)
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($two)
- }
+ return Read-VenuePassword $Name
 }
 function Create-Staff([string]$Kind,[string]$Login){
  $password=Ask-StrongPassword $Login
@@ -308,8 +301,7 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
-  $typed=Read-Host ('Введите UUID этапа для импорта: '+$state.stageId)
-  if($typed -ne $state.stageId){throw 'UUID не совпадает'}
+  if(-not(Confirm-VenueAction ('Загрузить выбранный этап в отдельную локальную базу?'+[Environment]::NewLine+'Этап: '+$state.stageId+[Environment]::NewLine+'Основной сервер не изменяется.'))){throw 'Импорт отменён'}
   Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
    @('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
     '--entrypoint','node','api','/app/import-stage.mjs',
@@ -360,7 +352,15 @@ function Start-Local {
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
+ # Wait for a responding local API before opening the browser or exporting CA.
+ $ready=$false
+ for($i=0;$i -lt 40;$i++){
+  if(Test-VenueApiReady){$ready=$true;break}
+  Start-Sleep -Seconds 2
+ }
+ if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
  Save-Autostart
+ Save-DesktopShortcuts
  Export-VenueCA
  if(-not $Silent){
   $url='https://'+$state.ip+'/login'
@@ -368,7 +368,16 @@ function Start-Local {
   Write-Host ('LIVE: https://'+$state.ip+'/venue/live')
   Write-Host 'Телефонам необходимо отдельно доверить локальный CA Caddy.'
   Start-Process $url
+  Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход: '+$url+[Environment]::NewLine+'Табло: https://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Подключите телефоны к тому же Wi-Fi. Порядок установки сертификата — в инструкции на рабочем столе.')
  }
+}
+function Test-VenueApiReady {
+ $prior=$ErrorActionPreference;$ErrorActionPreference='Continue'
+ try{
+  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e "fetch('http://127.0.0.1:3000/release').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>$null | Out-Null
+  return ($LASTEXITCODE -eq 0)
+ }catch{return $false}
+ finally{$ErrorActionPreference=$prior}
 }
 function Return-Online {
  # Online switching never implies synchronization. Preserve all unsynced data.
@@ -382,13 +391,18 @@ function Return-Online {
  Write-Host 'Это только возврат на сайт. Обратная синхронизация требует отдельной проверки.'
  if(-not $Silent){Start-Process $OnlineUrl}
 }
+if($MyInvocation.InvocationName -eq '.'){return}
 try{
+ if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
  if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
+ if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
+  Show-VenueMessage ('Действие не завершено.'+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
+ }
  Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
  exit 1
 }

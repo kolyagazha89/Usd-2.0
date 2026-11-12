@@ -1,0 +1,45 @@
+name: Venue admin downloads and browser acceptance
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'scripts/venue-server-browser-qa.mjs'
+      - '.github/workflows/venue-admin-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'scripts/venue-server-browser-qa.mjs'
+      - '.github/workflows/venue-admin-qa.yml'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api.usd-russia.ru
+      - name: Install isolated browser tooling
+        run: |
+          mkdir -p /tmp/usd-venue-browser-tools
+          npm install --prefix /tmp/usd-venue-browser-tools --no-package-lock playwright@1.58.2
+          /tmp/usd-venue-browser-tools/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verify desktop/mobile downloads, key, stage expiry, errors and denied judge access
+        env:
+          USD_BROWSER_TOOLING: /tmp/usd-venue-browser-tools
+          USD_VENUE_QA_OUTPUT: /tmp/usd-venue-browser-qa
+        run: node scripts/venue-server-browser-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: venue-admin-browser-screenshots
+          path: /tmp/usd-venue-browser-qa
