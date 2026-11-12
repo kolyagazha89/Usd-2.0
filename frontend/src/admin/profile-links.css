@@ -60,3 +60,5 @@
 .profile-email-coverage>.muted{font-size:13px;line-height:1.5;margin:12px 0 0}
 @media(max-width:780px){.profile-email-coverage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.profile-email-coverage{padding:14px}.profile-email-coverage-grid{gap:8px}.profile-email-coverage-grid>div{padding:10px}.profile-email-coverage-grid strong{font-size:23px}}
+
+.profile-email-audit{border-top:1px solid #e0e7ed;margin-top:18px;padding-top:16px}.profile-email-audit h3{margin:0 0 8px;font-size:17px}.profile-email-audit p{line-height:1.5;margin:8px 0}.profile-email-audit button{margin:10px 0}

@@ -390,7 +390,8 @@ export class GlobalHistoricalImportService implements OnModuleInit, OnModuleDest
         participant: inspected.needsReview ? { action: 'CREATE_ALIAS', fullName: String(raw['ФИО'] ?? label) }
           : databaseMatch ? { action: 'USE_EXISTING', participantId: databaseMatch.id }
           : { action: 'CREATE', fullName: inspected.normalized, team: normalized?.historicalTeam ?? null,
-              email: normalized?.registration?.matchType === 'NAME' ? matches[0]?.email ?? null : null },
+              email: normalized?.registration?.status === 'MATCHED' && normalized.registration.matchType === 'NAME'
+                ? normalized.registration.email ?? null : null },
         registration: { action: 'CREATE', participantNumber: normalized.participantNumber, primaryParticipantNumber: normalized.participantNumber },
         car: { action: 'CREATE', brand: 'Не указано', model: normalized?.car?.model || 'Не указано', registrationNumber: normalized?.car?.plateNumber || undefined, registrationCountry: 'RU' },
         classId: normalized.class.classId, value: normalized.result, place: normalized.place ?? null,

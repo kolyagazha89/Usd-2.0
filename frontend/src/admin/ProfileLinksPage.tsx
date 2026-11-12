@@ -2,12 +2,13 @@ import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
 import {useEffect,useState} from 'react';
-import {apiGet,apiPatch} from '../api';
+import {apiGet,apiPatch,apiPost} from '../api';
 
 type Coverage={
  totalProfiles:number;linkedProfiles:number;unlinkedProfiles:number;
  profilesWithLegacyEmail:number;unlinkedWithLegacyEmail:number;unlinkedWithoutLegacyEmail:number;
 };
+type EmailAudit={rowsWithEmail:number;matchedRows:number;safeProfiles:number;conflictingProfiles:number;ambiguousRows:number;unmatchedRows:number;invalidEmailRows:number;applied:boolean;updatedProfiles?:number};
 type LinkRequest={
  id:string;status:string;note:string;createdAt:string;decisionReason?:string|null;
  legacyEmailStatus?:'MATCH_VERIFIED'|'LEGACY_EMAIL_MISSING'|'EMAIL_DIFFERENT'|'EMAIL_NOT_VERIFIED';
@@ -29,10 +30,19 @@ const diagnosticText:Record<string,string>={
 const legacyStatusText:Record<string,string>={MATCH_VERIFIED:'Исторический email совпадает с подтверждённым аккаунтом. Если появилась заявка, проверьте момент отправки и статус предыдущей привязки.',LEGACY_EMAIL_MISSING:'Исторический email отсутствует в таблице привязки; автоматическая привязка недоступна.',EMAIL_DIFFERENT:'Email аккаунта отличается от сохранённого исторического email; нужна ручная проверка.',EMAIL_NOT_VERIFIED:'Email заявителя ещё не подтверждён; привязка будет отклонена сервером.'};
 function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
  const [coverage,setCoverage]=useState<Coverage|null>(null),[coverageError,setCoverageError]=useState('');
+ const [emailAudit,setEmailAudit]=useState<EmailAudit|null>(null),[emailBusy,setEmailBusy]=useState(false),[emailError,setEmailError]=useState('');
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
  useEffect(()=>{void loadCoverage()},[]);
+ const reconcileEmails=async(apply:boolean)=>{
+  if(emailBusy)return;setEmailBusy(true);setEmailError('');
+  try{const result=apply?await apiPost<EmailAudit>('/admin/profile-links/emails/reconcile',{confirmation:'APPLY'}):await apiGet<EmailAudit>('/admin/profile-links/emails/reconcile');
+   setEmailAudit(result);if(apply)await loadCoverage();
+  }catch(e){setEmailError(e instanceof Error?e.message:'Сверка архивных email не удалась')}
+  finally{setEmailBusy(false)}
+ };
+
  const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[status]);
  const diagnose=async(row:LinkRequest)=>{
@@ -67,6 +77,18 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
     <div><small>Архивный email есть (без привязки)</small><strong>{coverage.unlinkedWithLegacyEmail}</strong></div>
     <div><small>Без архивного email (без привязки)</small><strong>{coverage.unlinkedWithoutLegacyEmail}</strong></div>
    </div>}
+   <div className="profile-email-audit">
+    <h3>Сверка по всем таблицам регистраций</h3>
+    <p className="muted">Ищем email в сохранённых исходных строках импорта всех этапов и сверяем ФИО с участниками. Восстанавливаем только однозначные совпадения по ФИО и этапу; старые email не заменяем.</p>
+    <button type="button" className="secondary-button compact" disabled={emailBusy} onClick={()=>void reconcileEmails(false)}>{emailBusy?'Проверяем…':'Проверить все этапы'}</button>
+    {emailError&&<p role="alert">{emailError}</p>}
+    {emailAudit&&<div role="status">
+     <p><strong>Строк с email:</strong> {emailAudit.rowsWithEmail}. <strong>Найденных соответствий:</strong> {emailAudit.matchedRows}. <strong>Новых email для восстановления:</strong> {emailAudit.safeProfiles}.</p>
+     <p><strong>Конфликтных профилей:</strong> {emailAudit.conflictingProfiles}; <strong>тёзок:</strong> {emailAudit.ambiguousRows}; <strong>без совпадения:</strong> {emailAudit.unmatchedRows}; <strong>некорректных адресов:</strong> {emailAudit.invalidEmailRows}.</p>
+     {emailAudit.applied&&<p><strong>Добавлено email:</strong> {emailAudit.updatedProfiles??0}. Существующие email не перезаписывались.</p>}
+     {!emailAudit.applied&&emailAudit.safeProfiles>0&&<button type="button" className="primary-button" disabled={emailBusy} onClick={()=>void reconcileEmails(true)}>Восстановить {emailAudit.safeProfiles} email</button>}
+    </div>}
+   </div>
    <p className="muted">Не означает автоматическую привязку: она возможна только при совпадении архивного адреса с подтверждённым email нового аккаунта. Для остальных доступна ручная заявка администратору.</p>
   </section>
   <DuplicateProfilesPreview/>
