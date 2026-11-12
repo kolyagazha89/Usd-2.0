@@ -117,9 +117,9 @@ export class ParticipantsService {
       where: { participantId: { in: profiles.map((profile) => profile.id) } },
       select: { participantId: true, email: true },
     });
-    const historicalById = new Map(historical.map((entry) => [
+    const historicalById = new Map<string, string | null>(historical.map((entry) => [
       entry.participantId, entry.email?.trim() || null,
-    ]));
+    ] as const));
     return profiles.map((profile) => ({
       ...profile,
       email: profile.user?.email || historicalById.get(profile.id) || null,
