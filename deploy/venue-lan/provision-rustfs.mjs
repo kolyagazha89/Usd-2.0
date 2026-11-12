@@ -98,6 +98,17 @@ export async function provisionVenueMedia(env,{
  const opts={endpoint,now};
  const root={accessKey:env.VENUE_S3_ROOT_ACCESS,secretKey:env.VENUE_S3_ROOT_SECRET};
  const app={accessKey:env.VENUE_S3_APP_ACCESS,secretKey:env.VENUE_S3_APP_SECRET};
+ // Wait only for a READ-ONLY, authenticated readiness response. Never retry
+ // after the first write: a partial IAM creation needs operator review.
+ let ready=false;
+ for(let i=0;i<30;i++){
+  try{
+   const ping=await call(fetcher,opts,{method:'GET',path:'/',...root});
+   if(ping.ok){ready=true;break}
+  }catch{}
+  if(i<29)await new Promise(resolve=>setTimeout(resolve,1000));
+ }
+ if(!ready)throw new Error('Локальный RustFS недоступен');
  // Existing IAM user/policy MUST NOT be changed, including after a partial
  // previous install: explicitly require operator recovery instead.
  const user=await call(fetcher,opts,{
