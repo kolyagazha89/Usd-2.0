@@ -2,6 +2,7 @@ import {
   Body,
   Req,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -48,6 +49,19 @@ export class DisqualificationsController {
       stageId,
       seasonId,
       search,
+    });
+  }
+
+  // Only expose the signed-in participant's sanctions, never an arbitrary ID.
+  @Get('me')
+  @Roles('PARTICIPANT', 'ADMIN')
+  getMyActiveDisqualifications(@Req() request: AuthenticatedRequest) {
+    if (!request.user.participantId) {
+      throw new ForbiddenException('Профиль участника не привязан');
+    }
+    return this.disqualificationsService.findAll({
+      participantId: request.user.participantId,
+      status: 'ACTIVE',
     });
   }
 
