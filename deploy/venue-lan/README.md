@@ -435,9 +435,9 @@ A controlled central PostgreSQL operation can review and insert signed new
 participant-stage inspections for **existing central registrations**, followed by
 new `Result` records when registration/class and PASSED inspection exist. It never accepts new registrations, class-specific inspections,
 numbers, deleted/updated results, equipment or photos automatically. Every such
-event stays `PENDING_MANUAL` and remains in the encrypted USB package. An earlier
-result INSERT with later local corrections is also pending (do not import stale
-intermediate scores). Central results must NOT already be published.
+event stays `PENDING_MANUAL` and remains in the encrypted USB package. An earlier result INSERT with a coherent chain of later ranking/score updates
+is safely collapsed into its final value with receipts for every signed event;
+inconsistent or privacy-changing histories remain pending for manual review. Central results must NOT already be published.
 
 **Before attempting this operation:** the ADMIN should confirm the original
 signed-stage SHA-256 baseline, trust the venue Ed25519 key/fingerprint through a
