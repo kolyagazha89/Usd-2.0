@@ -340,56 +340,11 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  if(Test-Path -LiteralPath $destination){return}
  $container=(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
- if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or $container -notmatch '^[a-f0-9]+
- Assert-VenueCompose
- $state=Read-State
- if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку USD-Install.cmd'}
- $cfg=Read-Env
- if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or
-  $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint -or
-  $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
- Ensure-DockerReady
- Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
- Save-Autostart
- Export-VenueCA
- if(-not $Silent){
-  $url='https://'+$state.ip+'/login'
-  Write-Host ('ОФЛАЙН USD: '+$url)
-  Write-Host ('LIVE: https://'+$state.ip+'/venue/live')
-  Write-Host 'Телефонам необходимо отдельно доверить локальный CA Caddy.'
-  Write-Host ('Публичный CA сертификат для передачи телефону: '+(Join-Path $PrivateDir 'USD-Venue-CA.crt'))
-  Start-Process $url
- }
-}
-function Return-Online {
- # Online switching never implies synchronization. Preserve all unsynced data.
- Remove-Autostart
- if(Get-Command docker -ErrorAction SilentlyContinue){
-  if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
-   Invoke-Compose @('stop') 'stop without deleting local DB and journal'
-  }
- }
- Write-Host 'USD ONLINE. Local DB and journal preserved, all changes UNSYNCED.'
- Write-Host 'Это только возврат на сайт. Обратная синхронизация требует отдельной проверки.'
- if(-not $Silent){Start-Process $OnlineUrl}
-}
-try{
- if($Action -eq 'install'){Install-Local}
- elseif($Action -eq 'offline'){Start-Local}
- else{Return-Online}
-}catch{
- Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
- if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
- Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
- exit 1
-}
-){return}
- try {
-  & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
-  if($LASTEXITCODE -ne 0){throw 'CA certificate not ready'}
- }catch{
-  if(Test-Path -LiteralPath $destination){Remove-Item -LiteralPath $destination -Force}
-  if(-not $Silent){Write-Host 'Caddy CA ещё не экспортирован — нужен доверенный сертификат для телефонов.'}
+ if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
+  $container -notmatch '^[a-f0-9]{12,64}$'){return}
+ & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
+ if($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $destination)){
+  Remove-Item -LiteralPath $destination -Force
  }
 }
 function Start-Local {
