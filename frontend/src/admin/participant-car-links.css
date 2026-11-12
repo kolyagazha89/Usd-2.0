@@ -1,0 +1,11 @@
+body .app-shell .main .content .participant-detail-cars {flex-basis:100%;width:100%;min-width:0}
+.participant-car-item>div {min-width:0;flex:1}
+.participant-car-name {display:block;max-width:100%;min-height:44px;border:0;padding:4px 0;background:transparent;color:inherit;font:inherit;font-weight:800;line-height:1.45;text-align:left;overflow-wrap:anywhere;cursor:pointer}
+.participant-car-name:hover {text-decoration:underline}
+.participant-car-name:focus-visible {outline:2px solid var(--usd-red,#e21d2f);outline-offset:3px;border-radius:4px}
+body .app-shell .main .content .participant-car-item>.secondary-button {max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:600px){
+ .participant-car-item {flex-wrap:wrap}
+ .participant-car-item>div {flex-basis:100%}
+ .participant-car-item>.secondary-button {width:100%}
+}

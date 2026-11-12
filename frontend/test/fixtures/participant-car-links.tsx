@@ -1,0 +1,77 @@
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import assert from 'node:assert/strict';
+import App from '../../src/App';
+const state=globalThis as any;
+const flush=async()=>act(async()=>{await new Promise(r=>setTimeout(r,35))});
+const button=(label:string)=>[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===label)!;
+const click=async(element:HTMLElement)=>{assert.ok(element,'expected navigation control exists; current buttons: '+[...document.querySelectorAll('button')].map(b=>b.textContent).join(' | '));await act(async()=>element.click());await flush()};
+export async function runParticipantCarLinks(){
+ const person={id:'p1',lastName:'Тестовый',firstName:'Участник',isPublic:false};
+ const config={id:'config1',name:'Сохранённая система',currentVersion:1,versions:[]};
+ const car={id:'private-car',participantId:'p1',participant:person,brand:'Лада',model:'Веста',registrationCountry:'RU',registrationNumber:'А123АА181',isActive:true,isPublic:false,configurations:[config]};
+ const second={...car,id:'second-car',brand:'УАЗ',model:'Патриот',configurations:[]};
+ const other={...car,id:'unrelated-car',participantId:'p2',brand:'Чужой',model:'Автомобиль'};
+ let failCars=false;
+ const deleted:string[]=[];
+ state.__postAction=async(path:string)=>{deleted.push(path);car.isActive=false;return car};
+ state.__getPublic=async(path:string)=>{
+  if(path==='/admin/participants')return [person];
+  if(path==='/participants/p1/cars'){if(failCars)throw Error('Не удалось загрузить автомобили');return [car,second]}
+  if(path==='/history/participant/p1')return {registrations:[]};
+  if(path==='/cars')return [...Array.from({length:29},(_,index)=>({...other,id:'other-'+index})),car,second];
+  if(path==='/cars/private-car/configurations')return [config];
+  return [];
+ };
+ history.replaceState({},'','/admin/participants?view=p1');
+ let root=createRoot(document.getElementById('root')!);
+ try{
+  await act(async()=>root.render(<App/>));await flush();
+  const open=()=>document.querySelector<HTMLButtonElement>('[aria-label="Открыть автомобиль Лада Веста"]')!;
+  assert.ok(open(),'participant cars must be interactive, including private cars for ADMIN');
+  assert.ok(document.querySelector('[aria-label="Открыть автомобиль УАЗ Патриот"]'));
+  await click(open());
+  assert.equal(location.pathname,'/admin/cars');assert.equal(new URLSearchParams(location.search).get('view'),'private-car');
+  assert.match(document.querySelector('.detail-grid')?.textContent??'',/Веста/);
+  assert.equal(document.querySelectorAll('.data-table tbody tr').length,0,'the exact car opens without a global search');
+  await click(button('Открыть конфигурации'));
+  assert.equal(location.pathname,'/admin/cars/configurations');
+  assert.equal(new URLSearchParams(location.search).get('carId'),'private-car');
+  assert.match(document.querySelector('.config-list')?.textContent??'',/Сохранённая система/);
+  await click(button('Назад к автомобилю'));
+  assert.equal(new URLSearchParams(location.search).get('view'),'private-car');
+  await click(button('Редактировать'));
+  assert.equal(location.pathname,'/admin/cars/edit');
+  await click(button('К автомобилю'));
+  assert.equal(new URLSearchParams(location.search).get('view'),'private-car');
+  await click(button('Назад'));
+  assert.equal(location.pathname,'/admin/participants');assert.equal(new URLSearchParams(location.search).get('view'),'p1');
+  await click(document.querySelector('[aria-label="Конфигурации автомобиля Лада Веста"]') as HTMLElement);
+  await click(button('Назад к автомобилю'));
+  await act(async()=>root.unmount());
+  root=createRoot(document.getElementById('root')!);
+  await act(async()=>root.render(<App/>));await flush();
+  assert.match(document.querySelector('.detail-grid')?.textContent??'',/Веста/,'reloading keeps the car card');
+  await click(button('Деактивировать автомобиль'));
+  assert.equal(new URLSearchParams(location.search).get('view'),'private-car');
+  assert.match(document.querySelector('[aria-label="Подтверждение деактивации автомобиля"]')?.textContent??'',/Лада Веста/);
+  await click(button('Отмена'));assert.equal(deleted.length,0);
+  await click(button('Деактивировать автомобиль'));await click(button('Подтвердить деактивацию'));
+  assert.deepEqual(deleted,['/cars/private-car']);
+  assert.equal(new URLSearchParams(location.search).get('view'),'private-car');
+  assert.equal(button('Деактивировать автомобиль'),undefined);
+  await click(button('Назад'));
+  failCars=true;
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root')!);
+  await act(async()=>root.render(<App/>));await flush();
+  assert.match(document.querySelector('.participant-detail-cars [role="alert"]')?.textContent??'',/Не удалось загрузить автомобили/);
+  assert.doesNotMatch(document.querySelector('.participant-detail-cars')?.textContent??'',/Автомобилей нет/,'load failures must not masquerade as an empty garage');
+  failCars=false;await click(button('Повторить загрузку автомобилей'));assert.ok(open());
+  await act(async()=>root.unmount());
+  history.replaceState({},'','/admin/cars?view=missing&participantId=p1');
+  root=createRoot(document.getElementById('root')!);await act(async()=>root.render(<App/>));await flush();
+  assert.match(document.querySelector('[role="alert"]')?.textContent??'',/Автомобиль не найден/);
+  assert.equal(document.querySelectorAll('.data-table tbody tr').length,0,'a missing ID cannot fall back to a different car');
+  await click(button('К участнику'));assert.equal(location.pathname,'/admin/participants');
+ }finally{await act(async()=>root.unmount())}
+}

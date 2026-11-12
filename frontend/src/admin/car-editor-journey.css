@@ -26,3 +26,8 @@ body .app-shell .main .content .usd-car-editor-actions{display:flex;justify-cont
 
 /* Public-visibility consent belongs to the light admin form. */
 body .app-shell .main .content .usd-car-editor-form .checkbox-row{color:#333b46}
+
+/* Exact-target deactivation stays visible in an opened car card. */
+.car-deactivation-confirm {display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%}
+.car-deactivation-confirm span {flex:1 0 100%;overflow-wrap:anywhere}
+.car-deactivation-confirm button {max-width:100%;white-space:normal;overflow-wrap:anywhere}
