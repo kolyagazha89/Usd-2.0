@@ -36,6 +36,16 @@ export class PrismaService
       if (!stageId||stages.length!==1||stages[0].id!==stageId) {
         throw new Error('USD VENUE BLOCKED: exactly one pinned signed stage is required');
       }
+      // The journal must be installed AFTER the original signed import but
+      // BEFORE any judge can submit a registration, inspection or result.
+      // Abort the API entirely rather than silently losing offline writes.
+      const journal = await this.$queryRawUnsafe<Array<{count:number}>>(
+        "SELECT count(*)::int AS count FROM pg_trigger " +
+        "WHERE tgname LIKE 'usd_venue_%_journal' AND tgenabled='O' AND NOT tgisinternal",
+      );
+      if (journal.length!==1 || journal[0].count!==18) {
+        throw new Error('USD VENUE BLOCKED: durable operation journal is not installed');
+      }
     }
   }
 

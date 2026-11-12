@@ -92,6 +92,12 @@ jobs:
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
             --entrypoint node api /app/venue-db-acceptance.mjs seed
+      - name: Install trusted append-only venue write journal as isolated database root
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue exec -T db \
+            psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
+            < install-journal.sql
       - name: Exercise real LAN API judge/ADMIN permissions and LIVE write/read
         working-directory: deploy/venue-lan
         run: |

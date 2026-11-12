@@ -69,6 +69,9 @@ jobs:
         run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh deploy/venue-lan/initdb/010-venue-api-role.sh
       - name: Verify staff accounts, fixed judge RBAC, and independent local identities
         run: node --test deploy/venue-lan/test-provision-staff.mjs
+      - name: Enforce venue journaling installation before official judging
+        run: |
+          node --test deploy/venue-lan/test-journal-contract.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
         run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB
