@@ -431,9 +431,9 @@ Do not call USD offline-ready before the above acceptance.
 
 ## Central operator import of existing-class measurements (partial, NOT a full sync)
 
-A controlled central PostgreSQL operation can now review and insert **only** signed
-new `Result` records when the same participant registration, class and PASSED
-inspection already exist on Ubuntu. It never accepts new registrations, inspections,
+A controlled central PostgreSQL operation can review and insert signed new
+participant-stage inspections for **existing central registrations**, followed by
+new `Result` records when registration/class and PASSED inspection exist. It never accepts new registrations, class-specific inspections,
 numbers, deleted/updated results, equipment or photos automatically. Every such
 event stays `PENDING_MANUAL` and remains in the encrypted USB package. An earlier
 result INSERT with later local corrections is also pending (do not import stale
@@ -470,7 +470,7 @@ The command verifies AES-GCM, the Ed25519 venue signature, fixed fingerprint,
 stage ID, original baseline, TTL and all journal-event ordering. A serializable
 transaction locks the central stage, rechecks current unpublished state, existing
 result identity and class uniqueness, participant admission and PASSED inspection.
-An accepted result and its `AuditLog` provenance receipt commit together; a
+An accepted inspection or result and its `AuditLog` provenance receipt commit together; a
 retry recognizes the **same signed event** and avoids duplicate writes. An identical
 central score with no matching receipt is a conflict, not proof of successful sync.
 
