@@ -88,7 +88,10 @@ use this build for official on-site judging.
 
 - Separate `usd-venue` Docker Compose project with isolated PostgreSQL 18
   volume, RustFS object store, the pinned normal USD API/frontend images, and
-  Caddy local HTTPS. **Nothing** reuses `usd-home` production DB or volumes.
+  Caddy local HTTPS. **Postgres now has distinct bootstrap superuser and
+  restricted `usd_venue` app accounts**; only the database service receives
+  the bootstrap password, while the API/migrations use the non-superuser
+  app principal. This is checked by the real PG18 acceptance suite. **Nothing** reuses `usd-home` production DB or volumes.
 - The gateway publishes port 443 on **one RFC1918 laptop LAN IPv4 address**.
   PostgreSQL never publishes a port. RustFS bucket/console provisioning binds
   to `127.0.0.1` only, not to Wi-Fi clients.
@@ -119,7 +122,8 @@ this scaffold with real participant data or as the active judging authority.
    GHCR images, plus pinned PostgreSQL 18, RustFS 1.0.4 and Caddy 2 images
    **before** disconnecting the router WAN.
 3. Copy `.env.example` to the untracked `.env`. Generate **venue-only**
-   database and JWT secrets; create a RustFS root admin credential only for
+   `VENUE_DB_ROOT_PASSWORD` (30+ chars) for `usd_venue_root`, a completely
+   different `VENUE_DB_PASSWORD` (20+ chars) for `usd_venue`, and JWT secrets; create a RustFS root admin credential only for
    provisioning, then a separate IAM service account restricted to the venue
    bucket for the USD API. Never reuse Ubuntu production keys, snapshots,
    participant exports, SMTP configuration or Tailscale access tokens.
@@ -131,6 +135,11 @@ this scaffold with real participant data or as the active judging authority.
    at `http://127.0.0.1:19000` and the local RustFS Console on
    `http://127.0.0.1:19001`. Create `usd-venue-media` and its scoped IAM
    credentials before starting the API. Do not expose these ports to the AP.
+   **Important upgrade:** do NOT reuse a `venue_db` volume created by the
+   original scaffold in which `POSTGRES_USER=usd_venue` was superuser.
+   The new gateway and import CLI refuse that unsafe role; on a genuine
+   historical volume, preserve a separate backup and plan a controlled
+   migration. Never run `down -v` on a volume containing event results.
 6. Before any writes, download the signed stage snapshot and trusted Ed25519
    **public** key onto the laptop from separate trusted sources. Inspect the
    selected stage UUID, approved Docker image SHA and RFC1918 IP in `.env`.

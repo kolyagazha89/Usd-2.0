@@ -7,9 +7,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${VENUE_DB_NAME:?set VENUE_DB_NAME}
-      POSTGRES_USER: ${VENUE_DB_USER:?set VENUE_DB_USER}
-      POSTGRES_PASSWORD: ${VENUE_DB_PASSWORD:?set VENUE_DB_PASSWORD}
-    volumes: [venue_db:/var/lib/postgresql]
+      POSTGRES_USER: ${VENUE_DB_ROOT_USER:?set VENUE_DB_ROOT_USER}
+      POSTGRES_PASSWORD: ${VENUE_DB_ROOT_PASSWORD:?set VENUE_DB_ROOT_PASSWORD}
+      VENUE_DB_USER: ${VENUE_DB_USER:?set VENUE_DB_USER}
+      VENUE_DB_PASSWORD: ${VENUE_DB_PASSWORD:?set VENUE_DB_PASSWORD}
+    volumes:
+      - venue_db:/var/lib/postgresql
+      # Init only on first boot of an EMPTY volume. Never mount in production.
+      - ./initdb/010-venue-api-role.sh:/docker-entrypoint-initdb.d/010-venue-api-role.sh:ro
     shm_size: 128mb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VENUE_DB_USER} -d ${VENUE_DB_NAME}"]

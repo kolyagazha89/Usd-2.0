@@ -6,7 +6,7 @@
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertVenueImportEnvironment} from './import-stage.mjs';
+import {assertVenueImportEnvironment,assertVenueDatabaseRole} from './import-stage.mjs';
 
 // Deliberately narrower than online ADMIN custom roles. The normal backend
 // RolesGuard also prohibits judges from UPDATE/DELETE of results.
@@ -75,6 +75,7 @@ export async function provisionVenueStaff(plan,password,prisma,hashPassword){
  return prisma.$transaction(async tx=>{
   // Only static SQL without user-controlled interpolation.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726188)');
+  await assertVenueDatabaseRole(tx);
   if(await tx.stage.count()!==1)
    throw new Error('Локальная база должна содержать строго один этап');
   const current=await tx.stage.findFirst({

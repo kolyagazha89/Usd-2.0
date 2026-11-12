@@ -187,6 +187,15 @@ function validateInspection(inspection){
 }
 const sortById=(a,b)=>a.id.localeCompare(b.id);
 
+/** Never migrate or judge with the bootstrap PostgreSQL superuser.
+ * A copied old venue_db volume may still have the unsafe historical owner.
+ */
+export async function assertVenueDatabaseRole(tx){
+ const roles=await tx.$queryRawUnsafe('SELECT rolsuper FROM pg_roles WHERE rolname = current_user');
+ if(!Array.isArray(roles)||roles.length!==1||roles[0].rolsuper!==false)
+  throw new Error('Локальный API не имеет права работать с PostgreSQL superuser');
+}
+
 /** One SQL transaction, one stage, empty local domain. Never upsert source
  * history and never replace an existing venue snapshot or local judge edits.
  */
@@ -197,6 +206,7 @@ export async function applyVenueStageImport(plan,prisma){
  return prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  await assertVenueDatabaseRole(tx);
   const domain=['stage','season','direction','class','stageClass','participant','car',
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));

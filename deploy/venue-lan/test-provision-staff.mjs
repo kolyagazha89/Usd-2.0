@@ -13,6 +13,7 @@ function database(options={}){
  const role={id:'role-id',key:'venue-judge',isSystem:true,permissions:VENUE_JUDGE_PERMISSIONS};
  const tx={
   $executeRawUnsafe:async sql=>{assert.match(sql,/advisory_xact_lock/);history.push('lock')},
+  $queryRawUnsafe:async()=>[{rolsuper:options.superuser??false}],
   stage:{
    count:async()=>options.stages??1,
    findFirst:async()=>options.stageExists===false?null:{id:STAGE,isDeleted:false,status:'PUBLISHED'},
@@ -95,7 +96,7 @@ test('judge enrollment uses a fixed system custom role and is not ADMIN',async()
  assert.equal(user.customRoleId,'role-id');
 });
 test('foreign users, missing pinned stage and duplicate login abort before writes',async()=>{
- for(const options of [{foreignUsers:1},{stages:2},{stageExists:false},{duplicate:true},{badRole:true}]){
+ for(const options of [{foreignUsers:1},{stages:2},{stageExists:false},{duplicate:true},{badRole:true},{superuser:true}]){
   const {client,history}=database(options);
   await assert.rejects(()=>provisionVenueStaff(planVenueStaff('judge','judge-01',env),
    'Venue-Judge!Strong#17',client,async()=> 'hash'));

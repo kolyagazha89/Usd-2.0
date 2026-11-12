@@ -45,6 +45,8 @@ jobs:
             'VENUE_SIGNING_KEY_FINGERPRINT':'b'*64,
             'VENUE_DB_NAME':'usd_venue',
             'VENUE_DB_USER':'usd_venue',
+            'VENUE_DB_ROOT_USER':'usd_venue_root',
+            'VENUE_DB_ROOT_PASSWORD':'a different root password stronger than thirty chars',
             'VENUE_DB_PASSWORD':'test-venue-only-password-12345',
             'VENUE_DATABASE_URL':'postgresql://usd_venue:'+quote('test-venue-only-password-12345')+'@db:5432/usd_venue?schema=public',
             'VENUE_JWT_SECRET':'j'*64,
@@ -64,7 +66,7 @@ jobs:
         with:
           node-version: 22
       - name: Validate laptop-only migration/import and staff wrappers syntax
-        run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh
+        run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh deploy/venue-lan/initdb/010-venue-api-role.sh
       - name: Verify staff accounts, fixed judge RBAC, and independent local identities
         run: node --test deploy/venue-lan/test-provision-staff.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB

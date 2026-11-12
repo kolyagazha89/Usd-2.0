@@ -10,6 +10,8 @@ def fixture():
         "VENUE_STAGE_ID": "c510f672-79f7-44eb-8173-2a8ff94b1c0e",
         "VENUE_SIGNING_KEY_FINGERPRINT": "b"*64,
         "VENUE_DB_NAME": "usd_venue",
+        "VENUE_DB_ROOT_USER": "usd_venue_root",
+        "VENUE_DB_ROOT_PASSWORD": "a separate powerful root password 123",
         "VENUE_DB_USER": "usd_venue",
         "VENUE_DB_PASSWORD": "a secure private password",
         "VENUE_DATABASE_URL": "postgresql://usd_venue:a%20secure%20private%20password@db:5432/usd_venue?schema=public",
@@ -78,6 +80,21 @@ class VenuePreflightTests(unittest.TestCase):
             with self.subTest(dsn=dsn.split('@')[-1]):
                 env = fixture()
                 env["VENUE_DATABASE_URL"] = dsn
+                with self.assertRaises(ValueError):
+                    validate(env)
+
+    def test_database_superuser_is_separate_and_its_password_never_reused(self):
+        for root_user,root_password in (
+            ("usd_venue","a separate powerful root password 123"),
+            ("postgres","a separate powerful root password 123"),
+            ("usd_venue_root","a secure private password"),
+            ("usd_venue_root","weak"),
+            ("usd_venue_root",""),
+        ):
+            with self.subTest(user=root_user):
+                env=fixture()
+                env["VENUE_DB_ROOT_USER"]=root_user
+                env["VENUE_DB_ROOT_PASSWORD"]=root_password
                 with self.assertRaises(ValueError):
                     validate(env)
 

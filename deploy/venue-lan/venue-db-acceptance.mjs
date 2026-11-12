@@ -85,6 +85,8 @@ async function seed(){
  const plan=planVenueStageImport(signed.container,signed.publicPem,process.env);
  const client=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
+  const privileges=await client.$queryRawUnsafe('SELECT rolsuper FROM pg_roles WHERE rolname=current_user');
+  assert.equal(privileges[0].rolsuper,false,'API DB principal must never be superuser');
   const imported=await applyVenueStageImport(plan,client);
   assert.equal(imported.registrations,1);
   await assert.rejects(()=>applyVenueStageImport(plan,client),/не пуста/);

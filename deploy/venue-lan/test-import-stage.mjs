@@ -104,6 +104,7 @@ function mockDb(){
   };
  }
  tx.$executeRawUnsafe=async sql=>{assert.match(sql,/advisory_xact_lock/);return 1};
+ tx.$queryRawUnsafe=async()=>[{rolsuper:false}];
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
@@ -137,6 +138,13 @@ test('a nonempty local event database refuses to apply or overwrite participants
  const {tx,db,log}=mockDb();
  tx.stage.count=async()=>1;
  await assert.rejects(()=>applyVenueStageImport(plan,db),/не пуста/);
+ assert.equal(log.length,0);
+});
+test('old unsafe database running as superuser is refused before import',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.$queryRawUnsafe=async()=>[{rolsuper:true}];
+ await assert.rejects(()=>applyVenueStageImport(plan,db),/superuser/);
  assert.equal(log.length,0);
 });
 test('write errors are surfaced, never reported as successful or silently skipped',async()=>{
