@@ -42,6 +42,8 @@ jobs:
           npm ci --ignore-scripts
           npm test
           npm run build
+      - name: Verify stage list controls and card actions across screen sizes
+        run: node scripts/stage-actions-browser-qa.mjs
       - name: Test isolated public-read verification without network
         run: node --test scripts/public-browser-read-recheck.test.mjs
       - name: Validate safe online exact-SHA release probe without network
@@ -83,6 +85,7 @@ jobs:
             rules-browser-qa/
             team-management-browser-qa/
             verification-resend-browser-qa/
+            stage-actions-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested
