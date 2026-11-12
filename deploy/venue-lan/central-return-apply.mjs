@@ -105,7 +105,8 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
   }
   return {stageId,journalEndHash:snapshot.journalEndHash,counts,rows,
    applied:counts.APPLIED>0,complete:apply&&counts.READY===0&&counts.PENDING_MANUAL===0&&counts.CONFLICT===0,
+   centralReleaseAccepted:false,derivedRankingsRebuilt:false,
    pending:counts.PENDING_MANUAL+counts.CONFLICT,
-   notice:'Только результаты с существующими центральными допусками. Остальные операции требуют отдельного согласования.'};
+   notice:'Импортирует только измерения с существующими допусками; не пересчитывает рекорды и рейтинги, не публикует итогов. Полная синхронизация не подтверждена.'};
  },{readOnly:!apply});
 }
