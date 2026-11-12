@@ -43,7 +43,7 @@ export function postgresVenueAdapter(client){
      },
      async receipt(stageId,eventHash){
       const {rows}=await client.query(
-       "SELECT id FROM \"AuditLog\" WHERE action='VENUE_RESULT_IMPORTED' AND entity='Result' AND metadata->>'stageId'=$1 AND metadata->>'eventHash'=$2 LIMIT 1",
+       "SELECT id FROM \"AuditLog\" WHERE action IN ('VENUE_RESULT_IMPORTED','VENUE_STAGE_INSPECTION_IMPORTED') AND metadata->>'stageId'=$1 AND metadata->>'eventHash'=$2 LIMIT 1",
        [stageId,eventHash]);
       return rows[0]??null;
      },
@@ -53,15 +53,36 @@ export function postgresVenueAdapter(client){
        [registrationId,registrationClassId,stageId,"ACTIVE","FORMAT","SEASON","STAGE"]);
       return rows[0]??null;
      },
+     async stageInspection(id,participantId,stageId){
+      const {rows}=await client.query(
+       'SELECT id,"participantId","stageId",status,notes,"checkedByName","checkedAt" FROM "ParticipantStageInspection" WHERE id=$1 OR ("participantId"=$2 AND "stageId"=$3) FOR UPDATE',
+       [id,participantId,stageId]);
+      return {byId:rows.find(r=>r.id===id),
+       byParticipant:rows.find(r=>r.participantId===participantId&&r.stageId===stageId)};
+     },
+     async inspectionContext(participantId,stageId){
+      const {rows}=await client.query(
+       "SELECT COUNT(*)::int AS total,COUNT(*) FILTER (WHERE \"participantStageInspectionId\" IS NULL)::int AS unlinked FROM \"Registration\" WHERE \"participantId\"=$1 AND \"stageId\"=$2 AND status=$3",
+       [participantId,stageId,'ACTIVE']);
+      return rows[0]??null;
+     },
+     async insertStageInspection(r){
+      await client.query(
+       'INSERT INTO "ParticipantStageInspection" (id,"participantId","stageId",status,"checkedByName","checkedAt",notes,"createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,now(),now())',
+       [r.id,r.participantId,r.stageId,r.status,r.checkedByName,r.checkedAt,r.notes]);
+      await client.query(
+       "UPDATE \"Registration\" SET \"participantStageInspectionId\"=$1 WHERE \"participantId\"=$2 AND \"stageId\"=$3 AND status=$4 AND \"participantStageInspectionId\" IS NULL",
+       [r.id,r.participantId,r.stageId,'ACTIVE']);
+     },
      async insertResult(r){
       await client.query(
        "INSERT INTO \"Result\" (id,\"registrationId\",\"registrationClassId\",value,unit,place,\"isBest\",notes,\"createdByUserId\",\"isHistorical\",\"verificationStatus\",\"createdAt\",\"updatedAt\") VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,NULL,false,'NOT_REQUIRED',now(),now())",
        [r.id,r.registrationId,r.registrationClassId,r.value,r.unit,r.place,r.isBest]);
      },
-     async recordReceipt({stageId,eventHash,sequence,resultId,operator,baselineSha256}){
+     async recordReceipt({stageId,eventHash,sequence,resultId,entity='Result',operator,baselineSha256}){
       await client.query(
-       "INSERT INTO \"AuditLog\" (id,action,entity,\"entityId\",metadata,\"createdAt\") VALUES (gen_random_uuid(),'VENUE_RESULT_IMPORTED','Result',$1,$2::jsonb,now())",
-       [resultId,JSON.stringify({stageId,eventHash,sequence,operator,baselineSha256})]);
+       "INSERT INTO \"AuditLog\" (id,action,entity,\"entityId\",metadata,\"createdAt\") VALUES (gen_random_uuid(),$3,$4,$1,$2::jsonb,now())",
+       [resultId,JSON.stringify({stageId,eventHash,sequence,operator,baselineSha256}),entity==='Result'?'VENUE_RESULT_IMPORTED':'VENUE_STAGE_INSPECTION_IMPORTED',entity]);
      },
     };
     const report=await callback(tx);
