@@ -59,6 +59,7 @@ test('public metadata clears stale CMS keywords and uses per-route social titles
  const {readFile}=await import('node:fs/promises');
  const shell=await readFile(new URL('../src/public/PremiumShell.tsx',import.meta.url),'utf8');
  assert.match(shell,/socialTitleForRoute\(path,text,settings\.seo\?\.ogTitle\)/);
- assert.match(shell,/set\('keywords',settings\.seo\?\.keywords\|\|''\)/);
+ assert.match(shell,/set\('keywords',home\?\(settings\.seo\?\.keywords\|\|''\):''\)/);
+ assert.match(shell,/set\('robots',meta.indexable\?'index, follow':'noindex, nofollow'\)/);
  assert.match(shell,/publicImageAssetUrl\(settings\.branding\?\.faviconUrl/);
 });
