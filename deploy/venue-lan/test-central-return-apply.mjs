@@ -96,3 +96,23 @@ test('update/delete are never silently applied or marked acknowledged',async()=>
  assert.equal(report.counts.PENDING_MANUAL,2);
  assert.equal(db.operations.length,0);
 });
+
+test('an INSERT followed by a venue correction stays pending, never imports stale reading',async()=>{
+ const db=fakeDb();
+ const updated={...event('Result','UPDATE',score()),hash:'c'.repeat(64),sequence:2};
+ updated.payload.before=score();
+ updated.payload.after={...score(),value:'153.000'};
+ const report=await applyVenueReturnSnapshot(packet([event(),updated]),db,options);
+ assert.equal(report.counts.PENDING_MANUAL,2);
+ assert.equal(report.counts.APPLIED,0);
+ assert.equal(db.operations.length,0);
+});
+test('two local result identities targeting the same class cannot be imported',async()=>{
+ const db=fakeDb();
+ const other={...event(),hash:'c'.repeat(64),sequence:2};
+ other.payload={...other.payload,recordId:'a710f672-79f7-44eb-8173-2a8ff94b1c0e',
+  after:{...score(),id:'a710f672-79f7-44eb-8173-2a8ff94b1c0e'}};
+ const report=await applyVenueReturnSnapshot(packet([event(),other]),db,options);
+ assert.equal(report.counts.PENDING_MANUAL,2);
+ assert.deepEqual(db.operations,[]);
+});
