@@ -41,3 +41,6 @@ usd_backup_before_participant_car.sql
 /candidate-browser-a11y/
 
 /home-logo-browser-qa/
+
+# Laptop-only signed packages, local IAM/DB secrets and installer state
+/deploy/venue-lan/local-private/

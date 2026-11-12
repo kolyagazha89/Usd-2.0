@@ -67,6 +67,10 @@ jobs:
           node-version: 22
       - name: Validate laptop-only migration/import and staff wrappers syntax
         run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh deploy/venue-lan/initdb/010-venue-api-role.sh
+      - name: Test one-click Windows switch and restricted RustFS first-boot contracts
+        run: |
+          node --test deploy/venue-lan/test-provision-rustfs.mjs
+          python3 -m unittest discover -s deploy/venue-lan -p 'test_oneclick.py' -v
       - name: Verify staff accounts, fixed judge RBAC, and independent local identities
         run: node --test deploy/venue-lan/test-provision-staff.mjs
       - name: Enforce venue journaling installation before official judging
@@ -89,3 +93,37 @@ jobs:
           cd frontend
           npm ci --ignore-scripts
           node --experimental-strip-types --test test/venue-api-config.test.mjs
+
+  venue-windows-launcher:
+    name: Windows PowerShell 5.1 one-click launcher syntax
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse actual Windows PowerShell 5.1 installer and firewall scripts
+        shell: powershell
+        run: |
+          $files = @(
+            'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-firewall.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              throw "Invalid PowerShell syntax: $file"
+            }
+          }
+      - name: Check launch shortcuts exist and retain their action mappings
+        shell: powershell
+        run: |
+          foreach ($pair in @(@('USD-Install.cmd','install'),@('USD-Offline.cmd','offline'),@('USD-Online.cmd','online'))) {
+            $content = Get-Content "deploy/venue-lan/$($pair[0])" -Raw
+            if (-not $content.Contains("venue-control.ps1") -or -not $content.Contains("-Action $($pair[1])")) {
+              throw "Missing launcher action: $($pair[0])"
+            }
+          }
