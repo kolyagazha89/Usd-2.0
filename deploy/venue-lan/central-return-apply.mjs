@@ -50,6 +50,22 @@ export function planVenueStageInspectionEvent(event,stageId){
  }};
 }
 
+function isCoherentLocalResultHistory(events){
+ const first=events[0]?.payload,origin=first?.after;
+ if(first?.operation!=='INSERT'||!origin||origin.notes!==null)return false;
+ for(let i=1;i<events.length;i++){
+  const current=events[i]?.payload,prev=events[i-1]?.payload;
+  if(current?.operation!=='UPDATE'||!current.before||!current.after
+   ||current.before.notes!==null||current.after.notes!==null
+   ||current.after.id!==origin.id
+   ||current.after.registrationId!==origin.registrationId
+   ||current.after.registrationClassId!==origin.registrationClassId
+   ||JSON.stringify(current.before)!==JSON.stringify(prev.after))
+   return false;
+ }
+ return true;
+}
+
 /** Returns an outcome for EVERY operation; a successful subset is NOT a sync. */
 export async function applyVenueReturnSnapshot(snapshot,adapter,{
  apply=false,operator='',baselineSha256='',stageId='',
@@ -69,19 +85,25 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
    throw new Error('Центральный этап не найден или неактивен');
   if(stage.resultsPublishedAt)
    throw new Error('Официальные результаты уже опубликованы: требуется ручное решение');
-  // A later venue UPDATE/DELETE makes an earlier INSERT stale. Import neither
-  // until the entire record's history can be reconciled manually.
-  const frequencies=new Map(),classFrequencies=new Map(),inspectionFrequencies=new Map();
+  // Collect signed histories first: ordinary judging recalculates places by
+  // updating the same Result shortly after INSERT. Import only the FINAL row
+  // when every consecutive before/after matches, with one receipt per event.
+  const resultGroups=new Map(),classResultIds=new Map(),inspectionFrequencies=new Map();
   for(const event of snapshot.events){
    const p=event?.payload;
    if(p?.table==='ParticipantStageInspection'){
     inspectionFrequencies.set(p.recordId,(inspectionFrequencies.get(p.recordId)??0)+1);
    }
    if(p?.table!=='Result')continue;
-   frequencies.set(p.recordId,(frequencies.get(p.recordId)??0)+1);
+   const list=resultGroups.get(p.recordId)??[];
+   list.push(event);resultGroups.set(p.recordId,list);
    const cls=p.after?.registrationClassId??p.before?.registrationClassId;
-   if(cls)classFrequencies.set(cls,(classFrequencies.get(cls)??0)+1);
+   if(cls){
+    const ids=classResultIds.get(cls)??new Set();
+    ids.add(p.recordId);classResultIds.set(cls,ids);
+   }
   }
+  const processedResults=new Map();
   const rows=[],counts={APPLIED:0,ALREADY_APPLIED:0,READY:0,PENDING_MANUAL:0,CONFLICT:0};
   for(const event of snapshot.events){
    const plan=event.payload?.table==='ParticipantStageInspection'
@@ -115,45 +137,58 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
       }else{outcome='READY';reason='CENTRAL_INSPECTION_PRECONDITIONS_MATCH';}
      }
     }
-   }else{
-
-   const cls=event.payload?.after?.registrationClassId??event.payload?.before?.registrationClassId;
-   if(event.payload?.table==='Result'&&
-     ((frequencies.get(event.payload.recordId)??0)>1||(cls&&(classFrequencies.get(cls)??0)>1))){
-    outcome='PENDING_MANUAL';reason='MULTIPLE_LOCAL_RESULT_MUTATIONS';
-   }else if(plan.status==='CANDIDATE'){
-    const r=plan.row;
-    const existing=await tx.result(r.id,r.registrationClassId);
-    const exact=existing.byId&&existing.byId.id===r.id
-      &&existing.byId.registrationId===r.registrationId
-      &&existing.byId.registrationClassId===r.registrationClassId
-      &&String(existing.byId.value)===r.value
-      &&existing.byId.unit===r.unit
-      &&existing.byId.place===r.place
-      &&existing.byId.isBest===r.isBest
-      &&existing.byId.notes===null
-      &&existing.byId.isHistorical===false
-      &&existing.byId.verificationStatus==='NOT_REQUIRED';
-    if(exact){
-     // An externally identical result is NOT acknowledged as ours unless
-     // its original signed event was durably audited in the central DB.
-     const receipt=await tx.receipt(stageId,event.hash);
-     outcome=receipt?'ALREADY_APPLIED':'CONFLICT';
-     reason=receipt?'SIGNED_EVENT_ALREADY_APPLIED':'UNPROVEN_RESULT_ORIGIN';
-    }else if(existing.byId||existing.byClass){
-     outcome='CONFLICT';reason='CENTRAL_RESULT_CHANGED';
+   }else if(event.payload?.table==='Result'){
+    const id=event.payload.recordId,group=resultGroups.get(id)??[];
+    if(processedResults.has(id)){
+     ({outcome,reason}=processedResults.get(id));
     }else{
-     const context=await tx.context(r.registrationId,r.registrationClassId,stageId);
-     if(!context||context.registrationStatus!=='ACTIVE'
-      ||context.stageId!==stageId||context.classId!==r.registrationClassId
-      ||context.inspectionStatus!=='PASSED'||context.unit!==r.unit){
-      outcome='PENDING_MANUAL';reason='CENTRAL_DEPENDENCIES_OR_INSPECTION';
-     }else if(apply){
-      await tx.insertResult(r);
-      await tx.recordReceipt({stageId,eventHash:event.hash,sequence:event.sequence,
-       resultId:r.id,operator,baselineSha256});
-      outcome='APPLIED';reason='SIGNED_EVENT_IMPORTED';
-     }else{outcome='READY';reason='CENTRAL_PRECONDITIONS_MATCH';}
+     const first=group[0],last=group[group.length-1];
+     const cls=first?.payload?.after?.registrationClassId;
+     const safe=group.length>0&&isCoherentLocalResultHistory(group)
+      &&cls&&(classResultIds.get(cls)?.size??0)===1;
+     const finalPlan=safe?planVenueResultEvent({
+      payload:{...first.payload,after:last.payload.after},
+     }):null;
+     if(!safe||finalPlan?.status!=='CANDIDATE'){
+      outcome='PENDING_MANUAL';reason='LOCAL_RESULT_HISTORY_REQUIRES_REVIEW';
+     }else{
+      const r=finalPlan.row,existing=await tx.result(r.id,r.registrationClassId);
+      const same=existing.byId&&existing.byId.id===r.id
+       &&existing.byId.registrationId===r.registrationId
+       &&existing.byId.registrationClassId===r.registrationClassId
+       &&String(existing.byId.value)===r.value
+       &&existing.byId.unit===r.unit
+       &&existing.byId.place===r.place
+       &&existing.byId.isBest===r.isBest
+       &&existing.byId.notes===null
+       &&existing.byId.isHistorical===false
+       &&existing.byId.verificationStatus==='NOT_REQUIRED';
+      if(same){
+       let allReceipts=true;
+       for(const item of group){
+        if(!await tx.receipt(stageId,item.hash)){allReceipts=false;break;}
+       }
+       outcome=allReceipts?'ALREADY_APPLIED':'CONFLICT';
+       reason=allReceipts?'SIGNED_HISTORY_ALREADY_IMPORTED':'UNPROVEN_RESULT_ORIGIN';
+      }else if(existing.byId||existing.byClass){
+       outcome='CONFLICT';reason='CENTRAL_RESULT_CHANGED';
+      }else{
+       const ctx=await tx.context(r.registrationId,r.registrationClassId,stageId);
+       if(!ctx||ctx.registrationStatus!=='ACTIVE'||ctx.stageId!==stageId
+        ||ctx.classId!==r.registrationClassId||ctx.inspectionStatus!=='PASSED'
+        ||ctx.unit!==r.unit){
+        outcome='PENDING_MANUAL';reason='CENTRAL_DEPENDENCIES_OR_INSPECTION';
+       }else if(apply){
+        await tx.insertResult(r);
+        for(const item of group){
+         await tx.recordReceipt({stageId,eventHash:item.hash,sequence:item.sequence,
+          resultId:r.id,operator,baselineSha256});
+        }
+        outcome='APPLIED';reason='SIGNED_FINAL_RESULT_IMPORTED';
+       }else{outcome='READY';reason='CENTRAL_PRECONDITIONS_MATCH';}
+      }
+     }
+     processedResults.set(id,{outcome,reason});
     }
    }
    }
