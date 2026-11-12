@@ -62,7 +62,7 @@ test.before(async()=>{
  await client.connect();
  assert.equal((await query('SELECT current_database() AS name')).rows[0].name,'usd_venue_ci');
  await query('INSERT INTO "Season"(id,name,year,status) VALUES ($1,$2,$3,$4)',
-  [season,'Venue 2026',2026,'PUBLISHED']);
+  [season,'Venue 2026',2026,'ACTIVE']);
  await query('INSERT INTO "Stage"(id,"seasonId","stageNumber",name,date,status) VALUES ($1,$2,$3,$4,$5,$6)',
   [stage,season,1,'Offline test','2026-11-12','PUBLISHED']);
  await query('INSERT INTO "Direction"(id,name) VALUES ($1,$2)',[direction,'SPL']);
