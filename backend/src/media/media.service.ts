@@ -17,6 +17,15 @@ export class MediaService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // The on-site LAN journal deliberately excludes MediaUpload and binary RustFS
+  // objects. Keep judging available offline without silently creating photos
+  // or site assets that could never be returned to the central server.
+  private assertWritableMediaMode() {
+    if (process.env.USD_VENUE_LAN_MODE === 'true') {
+      throw new ForbiddenException('На площадке фото и файлы не загружаются. Добавьте их позже на основном сайте USD.');
+    }
+  }
+
   private config() {
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION ?? 'auto';
@@ -163,6 +172,7 @@ export class MediaService {
   }
 
   async prepare(userId: string, role: string, targetType: MediaTargetType, targetId: string, contentType: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-') &&
         !ALLOWED_IMAGE_TYPES.has(contentType.toLowerCase())) {
       throw new BadRequestException('Для фотографий команды разрешены только JPG, PNG и WebP');
@@ -506,6 +516,7 @@ export class MediaService {
   }
 
   async deleteMediaAsset(userId: string, role: string, targetType: MediaTargetType, targetId: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     if (role !== 'ADMIN' && !canManageSiteAssets) throw new ForbiddenException('Нет разрешения на удаление медиа');
     if (!Object.values(MediaTargetType).includes(targetType)) throw new BadRequestException('Неизвестный тип медиа');
     const normalizedTargetId = targetId.trim();
@@ -581,6 +592,7 @@ export class MediaService {
   }
 
   async uploadThroughApi(userId: string, role: string, uploadToken: string, body: Buffer, contentType: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     if (!Buffer.isBuffer(body) || body.length <= 0 || body.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException('Размер файла должен быть от 1 байта до 10 MB');
     }
@@ -611,6 +623,7 @@ export class MediaService {
   }
 
   async complete(userId: string, role: string, uploadToken: string, canManageSiteAssets = false) {
+    this.assertWritableMediaMode();
     const upload = await this.prisma.mediaUpload.findUnique({ where: { tokenHash: this.hashToken(uploadToken) } });
     if (!upload || upload.userId !== userId && role !== 'ADMIN' || upload.completedAt || upload.expiresAt < new Date()) throw new BadRequestException('Недействительная загрузка');
     await this.ensureTargetAccess(userId, role, upload.targetType, upload.targetId, canManageSiteAssets);

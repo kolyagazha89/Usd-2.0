@@ -288,7 +288,7 @@ Only the bootstrap `usd_venue_root` account installs its own
 The API's `usd_venue` DB account can only **SELECT** it; attempts to
 UPDATE/DELETE the log are rejected by PostgreSQL permissions. On startup
 the Nest API verifies that exactly the pinned stage is present, its
-DB user is **not** superuser, and all **18** trusted journal triggers are
+DB user is **not** superuser, and all **19** trusted journal triggers are
 enabled, otherwise the local API refuses to start.
 
 Mutations of stage, participants, cars, equipment FK rows,
@@ -307,9 +307,11 @@ publish this table or send it to unrelated users. It deliberately omits
 local password, refresh-session and role tables.
 
 **IMPORTANT:** the journal is a durable *source* for future reconciliation,
-**NOT a working return-sync implementation**. A venue-signed export,
-central authorization and dry-run, replay-safe stage/ID/number conflict
-resolution, local photo transfer and Ubuntu import are STILL MISSING.
+**NOT an automatic internet sync**. A venue-signed export and controlled
+central full-journal import are available; see COMPLETE-RETURN-UBUNTU.md.
+Photo uploads are intentionally disabled in venue LAN mode, and no photo
+transfer is required for a normal competition day. Physical LAN acceptance
+and Ubuntu deployment checks are still required.
 Do not erase the venue volume after competition until every accepted result
 is independently verified on the central server.
 
@@ -520,3 +522,13 @@ and media remain release blockers until the central importer acknowledges them.
 ## Full signed central return (v2 journal, human acceptance)
 
 For a signed real stage use `COMPLETE-RETURN-UBUNTU.md`. Windows `USD — Онлайн` now creates the encrypted USB return file **before** stopping the local server; a failed export keeps the LAN stack running. Central `apply-complete-venue-return.mjs` validates signed table coverage, inserts participant/car/configurations/equipment/numbers/registrations/inspections/results in one PostgreSQL SERIALIZABLE transaction, fails atomically on data or policy conflicts, and uses auditable idempotent receipts. This is **not** an automatic media migration or a completed field release. Signed v1 packages and journals with incomplete link coverage remain blocked from full import. Do not erase local data until media and all central results are independently accepted.
+
+### Offline photos policy (release decision)
+
+Offline judging does not use photographs: the API rejects photo or file
+upload, completion and removal in `USD_VENUE_LAN_MODE=true`. Existing images
+remain on the central service, and organizers can add new photos after the
+competition on the main website. The signed journal continues to reject
+changed local photo URLs rather than incorrectly marking broken references
+as synchronized. Therefore copying binary photos from the laptop is **not**
+a requirement for accepting a photo-free stage.
