@@ -109,7 +109,7 @@ def validate_compose_network_exposure(compose: str) -> None:
     allowed = {
         "db": set(), "api": set(), "frontend": set(),
         "rustfs": {"127.0.0.1:19000:9000/tcp", "127.0.0.1:19001:9001/tcp"},
-        "gateway": {"\${VENUE_BIND_IP}:443:443/tcp"},
+        "gateway": {"${VENUE_BIND_IP}:443:443/tcp"},
     }
     for name, body in services.items():
         port_blocks = list(re.finditer(r"(?m)^    ports:\s*$", body))
