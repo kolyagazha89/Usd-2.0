@@ -86,6 +86,10 @@ jobs:
         run: bash -n deploy/venue-lan/export-venue-return.sh
       - name: Verify central sync dry-run reports conflicts without network or database
         run: node --test deploy/venue-lan/test-preview-venue-reconciliation.mjs
+      - name: Verify central return result apply, replay and pending journal safeguards
+        run: node --test deploy/venue-lan/test-central-return-apply.mjs
+      - name: Syntax check central operator apply (no database or credentials)
+        run: node --check backend/scripts/apply-venue-return.mjs
       - name: Check synthetic signed demo stage can be validated and imported safely
         run: node --test deploy/venue-lan/test-make-demo-stage.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
@@ -97,6 +101,37 @@ jobs:
           cd frontend
           npm ci --ignore-scripts
           node --experimental-strip-types --test test/venue-api-config.test.mjs
+
+
+  venue-central-return-postgres:
+    name: Central signed return with real PostgreSQL 18 (isolated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: venue-ci-only-password
+          POSTGRES_DB: usd_venue_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d usd_venue_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend test database driver
+        working-directory: backend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exercise actual signed return transaction, audit and idempotency
+        working-directory: backend
+        env:
+          VENUE_CENTRAL_TEST_DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_venue_ci
+        run: node --test scripts/test-apply-venue-return.integration.mjs
 
   venue-windows-launcher:
     name: Windows PowerShell 5.1 one-click launcher syntax
