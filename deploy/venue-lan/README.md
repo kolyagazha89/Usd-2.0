@@ -164,6 +164,42 @@ this scaffold with real participant data or as the active judging authority.
    delivery is implicitly enabled; a future audited, explicitly approved
    sync run must reconcile the local operation log with the central Ubuntu API.
 
+## Creating separate, on-site staff accounts (no online user transfer)
+
+**After the signed stage is imported** into an empty `usd-venue` database,
+the laptop operator uses a terminal **on the laptop**, not Ubuntu, to
+provision independent staff identities:
+
+```bash
+bash deploy/venue-lan/provision-venue-staff.sh admin operator1
+bash deploy/venue-lan/provision-venue-staff.sh judge judge-01
+bash deploy/venue-lan/provision-venue-staff.sh judge judge-02
+```
+
+Each command requires a local interactive terminal and a unique strong
+password twice. No password is sent to public API, copied into `.env`,
+included in shell arguments or exported to a cloud service. Accounts
+have synthetic login identifiers like `judge-01@venue.invalid`,
+which are **not real mailboxes**; they only exist in the laptop DB.
+Passwords are salted with bcrypt and checked by the usual USD login/refresh
+guards. The local admin has normal `ADMIN` permissions on this **isolated
+one-stage laptop**. Local judges are `PARTICIPANT` accounts with an
+immutable `venue-judge` custom role allowing venue check-in, inspection
+and **creation** of measurements, but not correction/deletion of results,
+user administration, global settings, imports or integrations.
+
+Open `https://<laptop-private-LAN-IP>/login` to sign in, and
+`/admin/event-day` to judge after the local data is loaded. On-site
+spectator LIVE at `/venue/live` is read-only and needs no login.
+
+**Guardrails:** the CLI refuses any unrelated existing users, any
+database containing multiple stages, altered judge permissions, duplicate
+login handles or a production database URL. `venue-judge` is a system
+role and cannot be edited in the USD administration UI.
+This is first-stage development: staff account provisioning is covered
+by regression tests, but full local acceptance and central reconciliation
+are not yet complete.
+
 ## Mandatory release blockers
 
 - Validate the new signed-stage import with a **real** isolated PostgreSQL
