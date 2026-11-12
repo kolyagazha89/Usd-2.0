@@ -18,9 +18,9 @@ export function venueMediaPolicy(){
  return {
   Version:'2012-10-17',
   Statement:[
-   // A public bucket-listing endpoint must never reveal other event stores.
-   {Effect:'Deny',Action:['s3:ListAllMyBuckets','s3:CreateBucket','s3:DeleteBucket',
-    's3:PutBucketPolicy','s3:DeleteBucketPolicy'],Resource:['*']},
+   // Default deny: no permissions outside this exact bucket are granted.
+   // Explicit global Deny on Resource "*" is rejected by RustFS 1.0.4
+   // with 400 when creating a canned policy; verify the boundary below.
    {Effect:'Allow',Action:['s3:ListBucket','s3:GetBucketLocation','s3:ListBucketMultipartUploads'],
     Resource:['arn:aws:s3:::'+BUCKET]},
    {Effect:'Allow',Action:['s3:GetObject','s3:PutObject','s3:DeleteObject',
