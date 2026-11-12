@@ -96,6 +96,11 @@ jobs:
           node --test deploy/venue-lan/test-full-return-apply.mjs
           node --check backend/scripts/venue-full-adapter.mjs
           node --check backend/scripts/apply-complete-venue-return.mjs
+      - name: Check one-click stage authorization, offline ACK and matching audited crypto
+        run: |
+          node --test deploy/venue-lan/test-auto-return-contract.mjs
+          node --test backend/scripts/venue-sync/authority.test.mjs backend/scripts/venue-sync/contract.test.mjs
+          node --check backend/scripts/venue-sync/venue-full-adapter.mjs
       - name: Check synthetic signed demo stage can be validated and imported safely
         run: node --test deploy/venue-lan/test-make-demo-stage.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
