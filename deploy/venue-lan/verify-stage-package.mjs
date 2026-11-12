@@ -26,7 +26,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -46,6 +46,23 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  if(hash(key.export({type:'spki',format:'der'}))!==integrity.publicKeyFingerprint
   ||!verify(null,bytes,key,Buffer.from(integrity.signature,'base64url')))
   throw new Error('Цифровая подпись не подтверждена');
+ if(snapshot.venuePolicy!==undefined){
+  const policy=snapshot.venuePolicy;
+  fields(policy,['legal','contactEmail','rulesPublished'],'политика регистрации');
+  fields(policy.legal,['legalApproved','legalVersion','ipName','privacyText',
+   'consentText','termsText','operatorAddress','personalDataEmail'],'законодательство');
+  if(policy.legal.legalApproved!==true
+   ||typeof policy.contactEmail!=='string'
+   ||!/^\\S+@\\S+\\.\\S+$/.test(policy.contactEmail)
+   ||Object.entries(policy.legal).some(([name,value])=>name!=='legalApproved'
+    &&(typeof value!=='string'||!value.trim()||value.length>500000)))
+   throw new Error('Некорректные юридические документы и контактный email');
+  fields(policy.rulesPublished,['id','blocks'],'опубликованный регламент');
+  if(typeof policy.rulesPublished.id!=='string'||!policy.rulesPublished.id.trim()
+   ||!Array.isArray(policy.rulesPublished.blocks)||policy.rulesPublished.blocks.length===0
+   ||policy.rulesPublished.blocks.length>300)
+   throw new Error('Некорректный опубликованный регламент');
+ }
  const stage=snapshot.stage;
  fields(stage,['id','seasonId','stageNumber','name','city','date','venue','address','status',
   'registrationOpen','registrationStartsAt','registrationEndsAt','resultsPublishedAt',

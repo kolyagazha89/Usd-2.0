@@ -82,6 +82,24 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   ||!Number.isSafeInteger(season.year)||season.year<2000||season.year>2100)
   throw new Error('Неверная связь сезона');
  nonBlank(season.name,'сезон');
+ if(season.status!==undefined&&!['ACTIVE','DRAFT','ARCHIVED'].includes(season.status))
+  throw new Error('Неверный статус сезона');
+ const policy=snapshot.venuePolicy;
+ if(policy!==undefined){
+  if(!isObject(policy)||!isObject(policy.legal)||policy.legal.legalApproved!==true
+   ||!String(policy.legal.legalVersion??'').trim()
+   ||!String(policy.legal.ipName??'').trim()
+   ||!String(policy.legal.operatorAddress??'').trim()
+   ||!String(policy.legal.personalDataEmail??'').trim()
+   ||!String(policy.legal.privacyText??'').trim()
+   ||!String(policy.legal.consentText??'').trim()
+   ||!String(policy.legal.termsText??'').trim()
+   ||!/^\\S+@\\S+\\.\\S+$/.test(policy.contactEmail??'')
+   ||!isObject(policy.rulesPublished)||!String(policy.rulesPublished.id??'').trim()
+   ||!Array.isArray(policy.rulesPublished.blocks)||!policy.rulesPublished.blocks.length)
+   throw new Error('Не утверждены юридические документы, контакт или регламент');
+ }
+
  if(!Number.isSafeInteger(stage.stageNumber)||stage.stageNumber<1
   ||!['PUBLISHED','COMPLETED'].includes(stage.status))
   throw new Error('Неверный статус или номер этапа');
@@ -207,11 +225,12 @@ export async function applyVenueStageImport(plan,prisma){
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
   await assertVenueDatabaseRole(tx);
-  const domain=['stage','season','direction','class','stageClass','participant','car',
+  const domain=['stage','season','direction','class','stageClass','siteSettings','participant','car',
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));
   if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
-  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,year:stage.season.year}});
+  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,
+   year:stage.season.year,status:stage.season.status??'DRAFT'}});
   const directions=new Map(),classes=[];
   for(const sc of stage.stageClasses){
    directions.set(sc.class.direction.id,sc.class.direction);
@@ -240,6 +259,16 @@ export async function applyVenueStageImport(plan,prisma){
     customName:sc.customName??null,description:sc.description??null,
     settings:maybeJSON(sc.settings),
    }});
+  if(plan.snapshot.venuePolicy){
+   const policy=plan.snapshot.venuePolicy;
+   await tx.siteSettings.create({data:{
+    id:'default',branding:{},homepage:{},stream:{},liveResults:{},
+    navigation:{items:[]},contacts:{email:policy.contactEmail},social:{},seo:{},
+    legal:policy.legal,footer:{},
+    registration:{enabled:true,rulesDocument:{published:policy.rulesPublished}},
+    catalogs:{},partners:[],news:[],
+   }});
+  }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
   for(const r of regs){
    people.set(r.participant.id,r.participant);
