@@ -816,4 +816,396 @@ model ImportJob {
   createdByUserId String?
   summary         Json?
   metadata        Json?
-  creat¢Îi∫€k∫wµÁ_∫Yh∫⁄n∂∆Øy€h˛iÌ˝¯•zœ‹¢jh≤*?¢Îi∫ﬂ€j»pä«¨µ⁄.∂‹mFÈ‹jﬂÊûﬂﬂäW¨˝ &¶ã"£˙.∂õ≠˝∂¨á¨zÀ]¢Îm∆€hæ'∞∂ü∫Yh∫⁄n∂äÓ±Ë^iŸı”OÊûﬂﬂäW¨˝ &¶ã"£˙.∂õ≠˝∂¨á¨zÀ]¢Îm∆ﬂÌj)g◊M?ö{~)^≥˜(öö,äèË∫⁄n∑ˆ⁄≤"±Î-vã≠∑m¢¯û¬ñ´∂ ä
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  stage           Stage           @relation(fields: [stageId], references: [id])
+  rows            ImportRow[]
+
+  @@index([stageId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ImportRow {
+  id                String          @id @default(uuid())
+  importJobId       String
+  type              ImportRowType
+  rowNumber         Int
+  status            ImportRowStatus @default(WARNING)
+  rawData           Json
+  normalizedData    Json?
+  warnings          Json?
+  resolution        Json?
+  participantId     String?
+  registrationId    String?
+  classId           String?
+  participantNumber Int?
+  place             Int?
+  value             Decimal?        @db.Decimal(10, 3)
+  unit              ResultUnit?
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  importJob         ImportJob       @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, type, rowNumber])
+  @@index([importJobId])
+  @@index([status])
+  @@index([participantId])
+  @@index([registrationId])
+  @@index([classId])
+}
+
+// Historical profile IDs are retained as permanent aliases. Nothing is deleted
+// by a merge; recovery contains the exact affected IDs for supervised restore.
+model ParticipantMergeRedirect {
+  sourceId String @id
+  targetId String
+  mergedByUserId String
+  mergedAt DateTime @default(now()) @db.Timestamptz(3)
+  recovery Json
+  source Participant @relation("MergeSource",fields:[sourceId],references:[id],onDelete:Restrict)
+  target Participant @relation("MergeTarget",fields:[targetId],references:[id],onDelete:Restrict)
+  approvedBy User @relation("MergeAuthorizedBy",fields:[mergedByUserId],references:[id],onDelete:Restrict)
+
+  @@index([targetId])
+  @@index([mergedAt])
+}
+
+model ParticipantLegacyEmail {
+  participantId String  @id
+  email         String?
+
+  @@map("_ParticipantLegacyEmail")
+}
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum StageStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+}
+
+
+model ComponentCatalogRequest {
+  id                    String   @id @default(uuid())
+  userId                String
+  userEmail             String
+  category              String
+  brand                 String
+  model                 String
+  details               String?
+  status                ComponentCatalogRequestStatus @default(PENDING)
+  adminNote             String?
+  catalogEntryId        String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+  resolvedAt            DateTime? @db.Timestamptz(3)
+  resolvedByUserId      String?
+  adminEmailStatus      String @default("PENDING")
+  participantEmailStatus String @default("PENDING")
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([category, brand, model])
+}
+
+enum ComponentCatalogRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  ADMIN
+  PARTICIPANT
+}
+
+enum RegistrationSource {
+  PRE_REGISTRATION
+  ON_SITE
+  IMPORT
+}
+
+enum RegistrationStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum InspectionStatus {
+  PASSED
+  FAILED
+}
+
+enum DisqualificationScope {
+  STAGE
+  SEASON
+  FORMAT
+}
+
+enum DisqualificationStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ResultUnit {
+  DB
+  MPS
+  OTHER
+}
+
+enum ResultVerificationStatus {
+  NOT_REQUIRED
+  PENDING
+  VERIFIED
+}
+
+enum ImportJobStatus {
+  DRAFT
+  READY
+  COMMITTED
+  CANCELLED
+}
+
+enum ImportRowType {
+  REGISTRATION
+  RESULT
+}
+
+enum ImportRowStatus {
+  READY
+  WARNING
+  RESOLVED
+  COMMITTED
+}
+
+enum CarDirection {
+  FRONT
+  REAR
+  SUB
+}
+
+enum AudioComponentType {
+  SUBWOOFER
+  MIDBASS
+  MIDRANGE
+  HORN
+  OTHER
+}
+enum RegistrationCountry {
+  RU
+  NO
+  FI
+  EE
+  LV
+  LT
+  PL
+  BY
+  UA
+  GE
+  AZ
+  KZ
+  CN
+  MN
+  KP
+  US
+}
+
+model GoogleConnection {
+  id                  String   @id
+  email               String
+  refreshTokenEncrypted String
+  connectedByUserId   String
+  connectedAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+  connectedByUser     User     @relation("GoogleConnectionConnectedBy", fields: [connectedByUserId], references: [id])
+}
+
+model GoogleOAuthState {
+  id        String   @id @default(uuid())
+  stateHash String   @unique
+  userId    String
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+
+model EmailNotificationLog {
+  id                 String   @id @default(uuid())
+  eventKey           String   @unique
+  type               String
+  recipient          String
+  stageId            String?
+  registrationId     String?
+  status             String   @default("PENDING")
+  providerAcceptedAt DateTime? @db.Timestamptz(3)
+  attempts           Int      @default(0)
+  lastError          String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([type, status])
+  @@index([stageId])
+  @@index([registrationId])
+  @@index([createdAt])
+}
+
+model HistoricalImportBatch {
+  id              String   @id @default(uuid())
+  sourceHash      String
+  activeKey       String?  @unique
+  status          String   @default("RUNNING")
+  plan            Json
+  progress        Json
+  leaseOwner      String?
+  leaseUntil      DateTime? @db.Timestamptz(3)
+  createdByUserId String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([sourceHash])
+  @@index([status])
+}
+
+model HistoricalConfigurationConfirmation {
+  id String @id @default(uuid())
+  registrationId String @unique
+  versionId String
+  confirmedByUserId String
+  confirmedAt DateTime @default(now()) @db.Timestamptz(3)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  version CarConfigurationVersion @relation(fields: [versionId], references: [id])
+  @@index([versionId])
+}
+
+// Browser endpoints and encryption keys are private credentials; never expose in list/log APIs.
+model PushSubscription {
+  id               String   @id @default(uuid())
+  userId           String
+  endpoint         String   @unique @db.VarChar(2048)
+  p256dh           String   @db.VarChar(87)
+  auth             String   @db.VarChar(22)
+  consentAt        DateTime @default(now()) @db.Timestamptz(3)
+  consentVersion   String   @db.VarChar(40)
+  registrationOpen Boolean  @default(true)
+  reminders        Boolean  @default(true)
+  announcements    Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+  user             User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries       PushDelivery[]
+  @@index([userId])
+}
+
+model PushMessage {
+  id              String   @id @default(uuid())
+  eventKey        String   @unique @db.VarChar(200)
+  category        String   @db.VarChar(30)
+  title           String   @db.VarChar(80)
+  body            String   @db.VarChar(240)
+  path            String   @db.VarChar(300)
+  stageId         String?
+  createdByUserId String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  deliveries      PushDelivery[]
+  @@index([createdAt])
+}
+
+model PushDelivery {
+  id              String   @id @default(uuid())
+  messageId       String
+  subscriptionId  String?
+  status          String   @default("PENDING") @db.VarChar(30)
+  attempts        Int      @default(0)
+  nextAttemptAt   DateTime @default(now()) @db.Timestamptz(3)
+  leaseUntil      DateTime? @db.Timestamptz(3)
+  lastStatusCode  Int?
+  acceptedAt      DateTime? @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  message         PushMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  subscription    PushSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  @@unique([messageId, subscriptionId])
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId])
+}
+
+
+// A verified account may request manual ownership review of an unclaimed archive
+// profile. Searching by name never confers profile ownership.
+model ProfileLinkRequest {
+  id             String @id @default(uuid())
+  claimantUserId String
+  participantId  String
+  status         String @default("PENDING") @db.VarChar(16)
+  note           String @db.VarChar(1000)
+  reviewedByUserId String?
+  decisionReason String? @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  reviewedAt     DateTime? @db.Timestamptz(3)
+  claimant       User @relation("ProfileLinkClaimant",fields:[claimantUserId],references:[id],onDelete:Restrict)
+  reviewer       User? @relation("ProfileLinkReviewer",fields:[reviewedByUserId],references:[id],onDelete:SetNull)
+  participant    Participant @relation(fields:[participantId],references:[id],onDelete:Restrict)
+
+  @@unique([claimantUserId,participantId])
+  @@index([status,createdAt])
+  @@index([participantId,status])
+}
+
+// Shared administrative tasks; read receipts belong to each administrator.
+// Completion is shared so another administrator can see work already done.
+model AdminNotification {
+  id                String   @id @default(uuid())
+  eventKey          String   @unique @db.VarChar(180)
+  kind              String   @db.VarChar(40)
+  title             String   @db.VarChar(160)
+  body              String   @db.VarChar(500)
+  path              String   @db.VarChar(300)
+  sourceId          String
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  completedAt       DateTime? @db.Timestamptz(3)
+  completedByUserId String?
+  reads             AdminNotificationRead[]
+
+  @@index([completedAt, createdAt])
+}
+
+model AdminNotificationRead {
+  id             String   @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime @default(now()) @db.Timestamptz(3)
+  notification   AdminNotification @relation(fields:[notificationId],references:[id],onDelete:Cascade)
+  user           User @relation(fields:[userId],references:[id],onDelete:Cascade)
+
+  @@unique([notificationId,userId])
+  @@index([userId,readAt])
+}
+
+model VenueSyncAuthorization {
+  id                 String   @id @default(uuid())
+  stageId            String
+  baselineSha256     String   @unique @db.VarChar(64)
+  tokenHash          String   @unique @db.VarChar(64)
+  venueFingerprint   String?  @db.VarChar(64)
+  venuePublicKeyPem  String?  @db.Text
+  expiresAt          DateTime @db.Timestamptz(3)
+  revokedAt          DateTime? @db.Timestamptz(3)
+  lastJournalHash    String?  @db.VarChar(64)
+  acceptedAt         DateTime? @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  stage              Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  @@index([stageId, expiresAt])
+}
