@@ -467,7 +467,17 @@ function Return-Online {
    'Без успешного экспорта локальный сервер не остановится. Передайте готовый файл ответственному администратору Ubuntu.'))){
     throw 'Оператор отменил безопасный экспорт. Офлайн-сервер не остановлен.'
   }
-  Export-VenueReturn
+  # Freeze judge writes BEFORE the signed MVCC snapshot. Without this pause,
+  # a late result could arrive after export but before the online switch.
+  Ensure-DockerReady
+  Invoke-Compose @('stop','api') 'pause judging for consistent return export'
+  try{
+   Export-VenueReturn
+  }catch{
+   # Do not strand the operator with a stopped LAN API when export failed.
+   try{Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after export failure'}catch{}
+   throw
+  }
  }
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){

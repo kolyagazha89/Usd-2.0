@@ -46,6 +46,8 @@ class VenueLauncherContracts(unittest.TestCase):
         section=source[begin:end]
         self.assertIn('Export-VenueReturn',section)
         self.assertIn('(-not $state.demo)',section)
+        self.assertLess(section.index("Invoke-Compose @('stop','api')"),section.index('Export-VenueReturn'))
+        self.assertIn("Invoke-Compose @('up','-d','--no-build','--pull','never','api')",section)
         self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
         self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
         self.assertIn('if($Silent)',section)
