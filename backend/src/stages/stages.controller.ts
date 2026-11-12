@@ -29,6 +29,14 @@ export class StagesController {
   }
 
 
+  @Roles('ADMIN')
+  @Get('venue/setup')
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  @Header('Pragma', 'no-cache')
+  venueSetup(@Req() request:AuthenticatedRequest){
+    return this.venueStageService.getSetup(request);
+  }
+
   /**
    * A centrally signed, stage-only preparation snapshot for the venue laptop.
    * Includes first/last names, car plates and configuration snapshots;

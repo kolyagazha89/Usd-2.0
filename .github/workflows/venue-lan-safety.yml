@@ -7,6 +7,7 @@ on:
       - 'frontend/public/usd-venue-config.js'
       - 'frontend/index.html'
       - 'frontend/nginx.conf'
+      - 'frontend/public/downloads/**'
       - '.github/workflows/venue-lan-safety.yml'
   push:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - 'frontend/public/usd-venue-config.js'
       - 'frontend/index.html'
       - 'frontend/nginx.conf'
+      - 'frontend/public/downloads/**'
       - '.github/workflows/venue-lan-safety.yml'
 permissions:
   contents: read
@@ -25,6 +27,8 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Verify downloadable Windows kit matches reviewed sources
+        run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
         run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
       - name: Rehearse no-secret venue compose preflight
@@ -105,6 +109,7 @@ jobs:
         run: |
           $files = @(
             'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1'
           )
           foreach ($file in $files) {
@@ -118,6 +123,9 @@ jobs:
               throw "Invalid PowerShell syntax: $file"
             }
           }
+      - name: Exercise native PowerShell helpers without Docker or administrator access
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
       - name: Check launch shortcuts exist and retain their action mappings
         shell: powershell
         run: |

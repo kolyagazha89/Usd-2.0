@@ -1,0 +1,29 @@
+.venue-server-page{--venue-border:#dce1e7;--venue-muted:#526174;--venue-red:#a7202b;max-width:1100px}
+.venue-server-page .panel{padding:24px;margin-bottom:20px;color:#172235;background:#fff;border:1px solid var(--venue-border);border-radius:12px}
+.venue-server-page p,.venue-server-page li{font-size:17px;line-height:1.65}
+.venue-server-page h2{font-size:23px;line-height:1.3;margin:0 0 12px}
+.venue-server-page p{margin:0 0 14px}
+.venue-server-page p:last-child{margin-bottom:0}
+.venue-server-intro{display:flex;gap:20px;align-items:flex-start}
+.venue-server-intro>svg{flex-shrink:0;color:var(--venue-red)}
+.venue-server-status{display:flex;gap:16px;padding:20px;margin-bottom:24px;border:1px solid #d6b378;border-radius:12px;background:#fff8e9;color:#624010}
+.venue-server-status>svg{flex-shrink:0;margin-top:3px}
+.venue-server-status strong{display:block;font-size:19px;margin-bottom:6px}
+.venue-server-step{display:flex;gap:20px;align-items:flex-start}
+.venue-server-number{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border-radius:50%;background:#f7e9eb;color:var(--venue-red);font-size:22px;font-weight:800}
+.venue-server-step-body{min-width:0;flex:1}
+.venue-server-page ol{padding-left:24px;margin:12px 0 18px}
+.venue-server-page li+li{margin-top:10px}
+.venue-server-page .venue-server-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:18px 0}
+.venue-server-page .primary-button,.venue-server-page .secondary-button{min-height:48px;padding:12px 18px;white-space:normal;line-height:1.4;text-decoration:none;justify-content:center;font-size:16px;gap:10px}
+.venue-server-page :is(.primary-button,.secondary-button) svg{flex-shrink:0}
+.venue-server-page .muted{color:var(--venue-muted);font-size:15px}
+.venue-server-text-link{display:inline-flex;gap:6px;align-items:center;color:#8f1520;text-decoration:underline;font-size:16px}
+.venue-server-details summary{cursor:pointer;font-size:19px;font-weight:700;line-height:1.4;min-height:30px}
+.venue-server-details[open] summary{margin-bottom:18px}
+.venue-server-stage{display:grid;gap:8px;font-size:17px;font-weight:600;margin:18px 0}
+.venue-server-stage select{width:100%;min-height:48px;font-size:16px;background:#fff;color:#172235;border:1px solid #b9c2cf;border-radius:8px;padding:10px}
+.venue-server-fingerprint{display:block;overflow-wrap:anywhere;padding:12px;background:#f2f4f7;border:1px solid var(--venue-border);border-radius:8px;font-size:15px;margin-bottom:16px}
+.venue-server-feedback{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:20px 0;padding:16px;overflow-wrap:anywhere}
+.venue-server-page :is(a,button,select,summary):focus-visible{outline:3px solid #b72b37;outline-offset:4px}
+@media(max-width:600px){.venue-server-page .panel{padding:18px}.venue-server-step{gap:12px}.venue-server-number{width:32px;height:32px;flex-basis:32px;font-size:18px}.venue-server-page h2{font-size:21px}.venue-server-intro{gap:12px}.venue-server-page .venue-server-actions{flex-direction:column;align-items:stretch}.venue-server-status{padding:16px;gap:12px}.venue-server-page p,.venue-server-page li{font-size:16px}.venue-server-page .primary-button,.venue-server-page .secondary-button{width:100%}}

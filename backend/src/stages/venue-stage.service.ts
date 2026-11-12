@@ -2,10 +2,32 @@ import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableEx
 import { PrismaService } from '../prisma/prisma.service';
 import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { createHash, createPrivateKey, createPublicKey } from 'node:crypto';
 
 @Injectable()
 export class VenueStageService {
  constructor(private readonly prisma:PrismaService){}
+
+ getSetup(request:AuthenticatedRequest){
+  // Do not rely only on controller metadata: custom stage viewers must never
+  // gain access to the offline administration workflow.
+  if(request.user.role!=='ADMIN')throw new ForbiddenException('Раздел доступен только администратору');
+  let signing:{ready:boolean;publicKeyPem:string|null;fingerprint:string|null}={
+   ready:false,publicKeyPem:null,fingerprint:null,
+  };
+  try{
+   const encoded=process.env.VENUE_STAGE_SIGNING_KEY_B64;
+   if(encoded&&encoded.length<=16384){
+    const privateKey=createPrivateKey(Buffer.from(encoded,'base64').toString('utf8'));
+    if(privateKey.asymmetricKeyType==='ed25519'){
+     const publicKey=createPublicKey(privateKey);
+     signing={ready:true,publicKeyPem:publicKey.export({type:'spki',format:'pem'}).toString(),
+      fingerprint:createHash('sha256').update(publicKey.export({type:'spki',format:'der'})).digest('hex')};
+    }
+   }
+  }catch{/* Report readiness only; never expose a key or crypto error. */}
+  return {signing,centralSyncReady:false,fieldAcceptanceComplete:false};
+ }
 
  async exportStage(id:string,request:AuthenticatedRequest){
   // Stage access granted to a custom judge role is not sufficient to
