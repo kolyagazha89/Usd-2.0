@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { DisqualificationsService } from './disqualifications.service';
 
 describe('disqualification read model for own participant profile', () => {
