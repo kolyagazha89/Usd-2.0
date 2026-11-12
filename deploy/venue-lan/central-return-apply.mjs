@@ -191,7 +191,6 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
      processedResults.set(id,{outcome,reason});
     }
    }
-   }
    counts[outcome]++;
    rows.push({sequence:event.sequence,status:outcome,reason});
   }
