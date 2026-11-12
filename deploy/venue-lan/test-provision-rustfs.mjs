@@ -51,6 +51,10 @@ test('first provisioning creates private bucket, policy and app account with res
   if(url.includes('info-canned-policy?'))return {status:404,ok:false,text:async()=>''};
   if(url.includes('user-info?'))return {status:404,ok:false,text:async()=>''};
   if(url.endsWith('/usd-venue-media')&&init.method==='PUT')return {status:200,ok:true,text:async()=>''};
+  if(url.includes('/rustfs/admin/v3/list-users')&&init.method==='GET'){
+   const root=init.headers.Authorization.includes('Credential=venue-root-example/');
+   return {status:root?200:403,ok:root,text:async()=>''};
+  }
   if(url.includes('/rustfs/admin/v3/')&&init.method==='PUT')return {status:200,ok:true,text:async()=>''};
   if(url.endsWith('/usd-venue-media')&&init.method==='GET')return {status:200,ok:true,text:async()=>''};
   if(url.endsWith('/')&&init.method==='GET'){
