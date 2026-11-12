@@ -225,8 +225,11 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     const number=await tx.numberOwner(stageId,after.number);
     if(number&&number.id!==p.recordId)reject('номер занят: '+after.number);
    }
+   // Even dry-run must simulate all previous rows in the same isolated
+   // SERIALIZABLE transaction; it is unconditionally ROLLED BACK at exit.
+   // Otherwise a new participant's inspection/result looks absent until apply.
+   await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
    if(apply){
-    await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
     await tx.receipt({
      action:'VENUE_FULL_EVENT_IMPORTED',stageId,eventHash:event.hash,
      sequence:event.sequence,journalEndHash:snapshot.journalEndHash,
