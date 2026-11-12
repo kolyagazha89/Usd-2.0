@@ -82,6 +82,24 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   ||!Number.isSafeInteger(season.year)||season.year<2000||season.year>2100)
   throw new Error('Неверная связь сезона');
  nonBlank(season.name,'сезон');
+ if(season.status!==undefined&&!['ACTIVE','DRAFT','ARCHIVED'].includes(season.status))
+  throw new Error('Неверный статус сезона');
+ const policy=snapshot.venuePolicy;
+ if(policy!==undefined){
+  if(!isObject(policy)||!isObject(policy.legal)||policy.legal.legalApproved!==true
+   ||!String(policy.legal.legalVersion??'').trim()
+   ||!String(policy.legal.ipName??'').trim()
+   ||!String(policy.legal.operatorAddress??'').trim()
+   ||!String(policy.legal.personalDataEmail??'').trim()
+   ||!String(policy.legal.privacyText??'').trim()
+   ||!String(policy.legal.consentText??'').trim()
+   ||!String(policy.legal.termsText??'').trim()
+   ||!/^\S+@\S+\.\S+$/.test(policy.contactEmail??'')
+   ||!isObject(policy.rulesPublished)||!String(policy.rulesPublished.id??'').trim()
+   ||!Array.isArray(policy.rulesPublished.blocks)||!policy.rulesPublished.blocks.length)
+   throw new Error('Не утверждены юридические документы, контакт или регламент');
+ }
+
  if(!Number.isSafeInteger(stage.stageNumber)||stage.stageNumber<1
   ||!['PUBLISHED','COMPLETED'].includes(stage.status))
   throw new Error('Неверный статус или номер этапа');
@@ -211,7 +229,8 @@ export async function applyVenueStageImport(plan,prisma){
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));
   if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
-  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,year:stage.season.year}});
+  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,
+   year:stage.season.year,status:stage.season.status??'DRAFT'}});
   const directions=new Map(),classes=[];
   for(const sc of stage.stageClasses){
    directions.set(sc.class.direction.id,sc.class.direction);
@@ -240,6 +259,39 @@ export async function applyVenueStageImport(plan,prisma){
     customName:sc.customName??null,description:sc.description??null,
     settings:maybeJSON(sc.settings),
    }});
+  if(plan.snapshot.venuePolicy){
+   const policy=plan.snapshot.venuePolicy;
+   // The official Prisma migrations seed SiteSettings/default with component
+   // catalogs. It is not participant/competition data and may already exist.
+   // Preserve those catalogs, but never overwrite a previously approved
+   // local/central legal policy or any other settings row.
+   const settingsCount=await tx.siteSettings.count();
+   if(settingsCount>1)throw new Error('Посторонние настройки в локальной базе');
+   const current=await tx.siteSettings.findUnique({
+    where:{id:'default'},select:{legal:true,contacts:true,registration:true},
+   });
+   if(settingsCount===1&&!current)
+    throw new Error('Посторонний ID настроек в локальной базе');
+   const currentLegal=current?.legal??{};
+   if(currentLegal&&typeof currentLegal==='object'
+    &&currentLegal.legalApproved===true)
+    throw new Error('Нельзя перезаписывать действующую юридическую политику');
+   const update={
+    legal:policy.legal,
+    contacts:{...(current?.contacts??{}),email:policy.contactEmail},
+    registration:{...(current?.registration??{}),
+     enabled:true,rulesDocument:{published:policy.rulesPublished}},
+   };
+   if(current){
+    await tx.siteSettings.update({where:{id:'default'},data:update});
+   }else{
+    await tx.siteSettings.create({data:{
+     id:'default',branding:{},homepage:{},stream:{},liveResults:{},
+     navigation:{items:[]},social:{},seo:{},footer:{},catalogs:{},
+     partners:[],news:[],...update,
+    }});
+   }
+  }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
   for(const r of regs){
    people.set(r.participant.id,r.participant);

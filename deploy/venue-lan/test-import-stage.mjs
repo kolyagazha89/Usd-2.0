@@ -37,11 +37,18 @@ const snapshot=()=>({
   date:'2026-11-11T00:00:00.000Z',venue:'Площадка',address:null,status:'PUBLISHED',
   registrationOpen:true,registrationStartsAt:null,registrationEndsAt:null,
   resultsPublishedAt:null,rulesSnapshot:{version:'2026'},
-  season:{id:uuid.season,year:2026,name:'USD 2026'},
+  season:{id:uuid.season,year:2026,name:'USD 2026',status:'ACTIVE'},
   stageClasses:[{id:uuid.stageClass,stageId:uuid.stage,classId:uuid.cls,sortOrder:0,
    isActive:true,participantLimit:null,customName:null,description:null,settings:null,
    class:{id:uuid.cls,code:'L20',name:'Limited 2.0',unit:'DB',sortOrder:0,isActive:true,
     direction:{id:uuid.direction,name:'SPL',sortOrder:0,isActive:true}}}],
+ },
+ venuePolicy:{
+  legal:{legalApproved:true,legalVersion:'7',ipName:'Организатор USD',privacyText:'Опубликованная политика USD',
+   consentText:'Опубликованное согласие USD',termsText:'Опубликованные условия USD',
+   operatorAddress:'Тестовый адрес',personalDataEmail:'data@example.org'},
+  contactEmail:'organizer@example.org',
+  rulesPublished:{id:'rules-v7',blocks:[{type:'paragraph',text:'Правила этапа'}]},
  },
  registrations:[{id:uuid.reg,stageId:uuid.stage,participantId:uuid.person,carId:uuid.car,
   configurationVersionId:uuid.version,configurationSnapshot:{venue:true},participantNumber:6,
@@ -95,10 +102,11 @@ test('reject signed but structurally dangerous package BEFORE any write',()=>{
 function mockDb(){
  const log=[];
  const tx={};
- for(const name of ['stage','season','direction','class','stageClass','participant','car','carConfiguration','carConfigurationVersion',
+ for(const name of ['stage','season','direction','class','stageClass','siteSettings','participant','car','carConfiguration','carConfigurationVersion',
   'registration','registrationNumber','registrationClass','inspection','participantStageInspection','registrationClassInspection','result','auditLog']){
   tx[name]={
    count:async()=>0,
+   findUnique:async()=>null,
    create:async value=>{log.push({model:name,data:value.data});return {id:value.data?.id??uuid.version}},
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
@@ -114,11 +122,17 @@ test('transactionally inserts the signed one-stage roster in FK order and logs a
  const result=await applyVenueStageImport(plan,db);
  assert.equal(result.stageId,uuid.stage);
  assert.deepEqual(log.map(x=>x.model),[
-  'season','direction','class','stage','stageClass','participant','car',
+  'season','direction','class','stage','stageClass','siteSettings','participant','car',
   'carConfiguration','carConfigurationVersion','registration','registrationNumber','registrationClass',
   'inspection','participantStageInspection','registration','registrationClassInspection','result','auditLog'
  ]);
  assert.equal(log.find(x=>x.model==='result').data.value,'151.750');
+ assert.equal(log.find(x=>x.model==='season').data.status,'ACTIVE');
+ const venueSettings=log.find(x=>x.model==='siteSettings').data;
+ assert.equal(venueSettings.legal.legalVersion,'7');
+ assert.equal(venueSettings.contacts.email,'organizer@example.org');
+ assert.equal(venueSettings.registration.rulesDocument.published.id,'rules-v7');
+ assert.equal(venueSettings.registration.rulesDocument.draft,undefined);
  assert.equal(log.find(x=>x.model==='participant').data.isPublic,true);
  assert.equal(log.find(x=>x.model==='car').data.isPublic,true);
  assert.equal(log.find(x=>x.model==='auditLog').data.metadata.sha256,plan.packageHash);
@@ -132,6 +146,43 @@ test('missing privacy flags in old signed exports are imported hidden, never mad
  assert.equal(log.find(x=>x.model==='participant').data.isPublic,false);
  assert.equal(log.find(x=>x.model==='car').data.isPublic,false);
  assert.equal(log.find(x=>x.model==='car').data.isActive,false);
+});
+test('no approved rules or contact in signed package cannot fabricate legal approval',()=>{
+ const data=snapshot();
+ data.venuePolicy.legal.legalApproved=false;
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/документ|соглас|legal/i);
+ data.venuePolicy.legal.legalApproved=true;
+ data.venuePolicy.contactEmail='';
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/контакт|email|юрид/i);
+});
+test('a legacy signed package without venue legal remains read-only and season draft',async()=>{
+ const data=snapshot();delete data.venuePolicy;delete data.stage.season.status;
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,log}=mockDb();await applyVenueStageImport(plan,db);
+ assert.equal(log.find(x=>x.model==='siteSettings'),undefined);
+ assert.equal(log.find(x=>x.model==='season').data.status,'DRAFT');
+});
+test('preseeded migration SiteSettings preserves component catalogs and gains only signed legal',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.siteSettings.count=async()=>1;
+ tx.siteSettings.findUnique=async()=>({
+  legal:{},contacts:{},registration:{emailTemplates:['seeded']},
+ });
+ await applyVenueStageImport(plan,db);
+ const changed=log.find(x=>x.model==='siteSettings');
+ assert.ok(changed?.update);
+ assert.equal(changed.update.registration.rulesDocument.published.id,'rules-v7');
+ assert.deepEqual(changed.update.registration.emailTemplates,['seeded']);
+ assert.equal(log.filter(x=>x.model==='siteSettings').length,1);
+});
+test('a pre-approved local legal policy cannot be overwritten by another signed stage',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.siteSettings.count=async()=>1;
+ tx.siteSettings.findUnique=async()=>({legal:{legalApproved:true}});
+ await assert.rejects(()=>applyVenueStageImport(plan,db),/перезапис/);
+ assert.equal(log.some(x=>x.model==='siteSettings'),false);
 });
 test('a nonempty local event database refuses to apply or overwrite participants/results',async()=>{
  const plan=planVenueStageImport(signed(),publicPem,env,now);

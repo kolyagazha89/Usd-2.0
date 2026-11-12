@@ -21,7 +21,7 @@ export class VenueStageService {
     id:true,seasonId:true,stageNumber:true,name:true,city:true,date:true,venue:true,address:true,
     status:true,registrationOpen:true,registrationStartsAt:true,registrationEndsAt:true,
     resultsPublishedAt:true,rulesSnapshot:true,
-    season:{select:{id:true,year:true,name:true}},
+    season:{select:{id:true,year:true,name:true,status:true}},
     stageClasses:{orderBy:{sortOrder:'asc'},select:{
      id:true,stageId:true,classId:true,sortOrder:true,isActive:true,participantLimit:true,
      customName:true,description:true,settings:true,
@@ -50,6 +50,30 @@ export class VenueStageService {
   if(!data)throw new NotFoundException('Этап не найден или недоступен для офлайн-экспорта');
   if(data.registrations.length>2500)
    throw new ServiceUnavailableException('Этап слишком большой для переносимого пакета; нужен потоковый экспорт');
+  // Copy ONLY published, centrally approved public legal terms and regulation.
+  // Missing approval deliberately leaves on-site intake unavailable.
+  const settings=await this.prisma.siteSettings.findUnique({
+   where:{id:'default'},select:{legal:true,contacts:true,footer:true,registration:true},
+  });
+  const legal=(settings?.legal??{}) as Record<string,any>;
+  const contactEmail=String((settings?.contacts as Record<string,any>|null)?.email??
+   (settings?.footer as Record<string,any>|null)?.email??'').trim();
+  const published=(settings?.registration as Record<string,any>|null)?.rulesDocument?.published;
+  const legalFields=['ipName','privacyText','consentText','termsText','operatorAddress','personalDataEmail'];
+  const approved=legal.legalApproved===true&&String(legal.legalVersion??'').trim()
+   &&/^\S+@\S+\.\S+$/.test(contactEmail)
+   &&legalFields.every(key=>String(legal[key]??'').trim())
+   &&published&&String(published.id??'').trim()
+   &&Array.isArray(published.blocks)&&published.blocks.length>0;
+  const venuePolicy=approved?{
+   legal:{
+    legalApproved:true,legalVersion:String(legal.legalVersion),
+    ipName:String(legal.ipName),privacyText:String(legal.privacyText),
+    consentText:String(legal.consentText),termsText:String(legal.termsText),
+    operatorAddress:String(legal.operatorAddress),personalDataEmail:String(legal.personalDataEmail),
+   },contactEmail,
+   rulesPublished:{id:String(published.id),blocks:published.blocks},
+  }:undefined;
   const generatedAt=new Date();
   const snapshot:VenueStageSnapshot={
    format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:id,
@@ -62,6 +86,7 @@ export class VenueStageService {
     registrationEndsAt:data.registrationEndsAt,resultsPublishedAt:data.resultsPublishedAt,
     rulesSnapshot:data.rulesSnapshot,season:data.season,stageClasses:data.stageClasses,
    },
+   ...(venuePolicy?{venuePolicy}:{}),
    registrations:data.registrations,
   };
   let signed;

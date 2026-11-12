@@ -12,6 +12,7 @@ export type VenueStageSnapshot={
  expiresAt:string;
  stage:unknown;
  registrations:unknown[];
+ venuePolicy?:unknown;
 };
 export type VenueSignedStagePackage={
  snapshot:VenueStageSnapshot;

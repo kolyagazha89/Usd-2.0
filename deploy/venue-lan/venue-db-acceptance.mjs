@@ -43,11 +43,18 @@ function syntheticSignedStage(){
    date:'2026-11-12T00:00:00.000Z',venue:'CI',address:null,status:'PUBLISHED',
    registrationOpen:true,registrationStartsAt:null,registrationEndsAt:null,
    resultsPublishedAt:null,rulesSnapshot:{revision:'ci'},
-   season:{id:ID.season,name:'USD CI',year:2026},
+   season:{id:ID.season,name:'USD CI',year:2026,status:'ACTIVE'},
    stageClasses:[{id:ID.stageClass,stageId:ID.stage,classId:ID.klass,sortOrder:0,
     isActive:true,participantLimit:null,customName:null,description:null,settings:null,
     class:{id:ID.klass,code:'L20_CI',name:'Limited 2.0',unit:'DB',sortOrder:0,isActive:true,
      direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}}}],
+  },
+  venuePolicy:{
+   legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
+    privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
+    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org'},
+   contactEmail:'venue@example.org',
+   rulesPublished:{id:'ci-rules-1',blocks:[{type:'paragraph',text:'Тестовый регламент'}]},
   },
   registrations:[{
    id:ID.reg,stageId:ID.stage,participantId:ID.person,carId:ID.car,
@@ -91,6 +98,11 @@ async function seed(){
   assert.equal(privileges[0].rolsuper,false,'API DB principal must never be superuser');
   const imported=await applyVenueStageImport(plan,client);
   assert.equal(imported.registrations,1);
+  const season=await client.season.findUnique({where:{id:ID.season}});
+  assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');
+  const settings=await client.siteSettings.findUnique({where:{id:'default'}});
+  assert.equal(settings?.legal?.legalApproved,true,'The venue must carry the real approved legal policy');
+  assert.equal(settings?.registration?.rulesDocument?.published?.id,'ci-rules-1');
   await assert.rejects(()=>applyVenueStageImport(plan,client),/не пуста/);
   const admin=await provisionVenueStaff(planVenueStaff('admin','operator1',process.env),
    ADMIN_PASSWORD,client,password=>bcrypt.hash(password,12));
@@ -148,6 +160,24 @@ async function probe(){
   'Judge must not view/manage local user administration');
  const roster=await request('/registrations?stageId='+ID.stage,{headers:authJudge});
  assert.equal(roster.status,200);
+ const newProfile=await request('/registrations/on-site/profile',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({
+   lastName:'Площадочный',firstName:'Новый',brand:'Lada',model:'Granta',
+   registrationCountry:'RU',registrationNumber:'А555ВС77',
+   privacyConsent:true,termsAccepted:true,
+  })});
+ assert.equal(newProfile.status,201,'Real on-site profile creation must work: '+JSON.stringify(newProfile.body));
+ assert.ok(newProfile.body.participantId&&newProfile.body.carId);
+ const onsite=await request('/registrations',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({
+   stageId:ID.stage,participantId:newProfile.body.participantId,carId:newProfile.body.carId,
+   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,termsAccepted:true,
+  })});
+ assert.equal(onsite.status,201,'Real on-site registration must work: '+JSON.stringify(onsite.body));
+ assert.ok(onsite.body.id);
+ const newInspection=await request('/inspections',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({registrationId:onsite.body.id,status:'PASSED'})});
+ assert.equal(newInspection.status,201,'New competitor should pass shared inspection: '+JSON.stringify(newInspection.body));
  const create=await request('/results',{method:'POST',headers:authJudge,
   body:JSON.stringify({
    registrationId:ID.reg,registrationClassId:ID.regClass,value:152.345,confirmed:true,
@@ -180,7 +210,7 @@ async function probe(){
    "encode(digest(previous_hash || payload::text,'sha256'),'hex') AS calculated "+
    "FROM venue_private.operation_journal ORDER BY sequence",
   );
-  assert.ok(chain.length>=2,'Judge result entry and ADMIN correction must be durably journaled');
+  assert.ok(chain.length>=6,'New entrant, inspection, score and ADMIN correction must be journaled');
   assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='INSERT'));
   assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='UPDATE'));
   let previous='0'.repeat(64);

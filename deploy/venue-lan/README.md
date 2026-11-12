@@ -22,12 +22,76 @@ the isolated laptop can enable it. The `VENUE_STAGE_ID` in the venue
 `.env` must equal the signed stage UUID, and preflight rejects placeholders.
 This is not official publication on `app.usd-russia.ru`.
 
+**New event-day fix (2026-11-12):** the signed export carries the published
+ legal/consent/regulation texts and the exact season status. The importer
+ creates local site settings from only centrally approved public documents
+ and keeps the local season ACTIVE only when the signed source says ACTIVE.
+ This fixes the former on-site profile/registration failure caused by missing
+ local legal settings and a default DRAFT season. If central legal approval
+ or published rules are missing, local on-site registration stays blocked;
+ never invent an approval.
+
 **Blocker:** The signed package now has a guarded local import procedure (below), but
-the hub lacks local staff login/roles, complete equipment/media transfer,
+the hub has locally provisioned staff accounts and the read-only journal, but still lacks complete equipment/media transfer,
 a durable offline write journal and central result reconciliation. The board
 will display imported measurements and local edits when those workflows are
 available; the venue hub cannot yet operate a real competition. Do not use it with real
 participant data until the following milestones and field acceptance pass.
+
+## Быстрый тест на своём ноутбуке (только вымышленные участники)
+
+**Для первого испытания с роутером реальный экспорт с Ubuntu не нужен.**
+Генератор создаёт изолированный тестовый этап и Ed25519-подпись с
+одноразовым ключом, который не сохраняется. Он не обращается в интернет
+и не получает данные настоящих участников.
+
+На ноутбуке с Node.js 22+ выполните из корня репозитория:
+
+```bash
+node deploy/venue-lan/make-demo-stage.mjs ./usd-venue-demo-test
+cat ./usd-venue-demo-test/demo-info.txt
+```
+
+В `deploy/venue-lan/.env` укажите значения
+`VENUE_STAGE_ID` и `VENUE_SIGNING_KEY_FINGERPRINT` из
+`demo-info.txt`; дополните остальные независимые переменные по
+`.env.example`. Подготовьте новую **пустую** БД, отдельные ключи RustFS
+и SHA одобренных Docker-образов. На компьютере, который уже
+содержит результаты соревнований, тестовый этап не запускать.
+
+```bash
+cd deploy/venue-lan
+bash ./bootstrap-local-stage.sh ../../usd-venue-demo-test/usd-venue-demo-stage.json \
+ ../../usd-venue-demo-test/signing-public.pem --dry-run
+bash ./bootstrap-local-stage.sh ../../usd-venue-demo-test/usd-venue-demo-stage.json \
+ ../../usd-venue-demo-test/signing-public.pem --apply
+# Пароль вводится скрыто, он НЕ передаётся через аргументы команд.
+bash ./provision-venue-staff.sh admin operator1
+bash ./provision-venue-staff.sh judge judge-01
+docker compose up -d
+```
+
+**Важно:** перед запуском `docker compose up -d` в RustFS необходимо создать
+`usd-venue-media` и отдельную ограниченную IAM-учётную запись для
+`VENUE_S3_APP_ACCESS/SECRET` (см. раздел подготовки хранилища ниже).
+Не используйте root-ключ RustFS в API.
+
+Откройте `https://<IP-ноутбука>/login` на двух телефонах в Wi-Fi роутера
+после **явного доверия локальному CA Caddy**. На первом войдите как
+`operator1@venue.invalid` (администратор), на втором как
+`judge-01@venue.invalid` (судья). Откройте
+`https://<IP-ноутбука>/venue/live` — изначально будет один тестовый
+результат Gate 1 (140.000 dB). Судья внесёт результат в класс
+Limited 2.0 для тестового участника № 1, табло обновится за 4 сек.
+На экране администратора попробуйте создать ещё одного вымышленного
+участника на въезде, оформить регистрацию, пройти инспекцию и внести
+результат. **После успешной локальной проверки полностью отсоедините
+WAN-кабель от роутера и повторите действия.**
+
+**Никаких настоящих ФИО, номеров или конфигураций в демо-режим не вводите.**
+Демо-пакет нельзя синхронизировать с Ubuntu: у него нет центрального
+подписанного baseline и центрального этапа. Не выполняйте `down -v`
+на рабочей базе; после завершения теста храните копии отдельно.
 
 ## Stage-only handoff (signed export; NO automated import yet)
 
