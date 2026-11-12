@@ -108,6 +108,7 @@ volumes:
   venue_media:
   venue_ca:
   venue_caddy_config:
+  venue_return_keys:
 networks:
   venue_private:
     driver: bridge

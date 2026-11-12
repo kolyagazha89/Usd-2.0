@@ -50,5 +50,24 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("rm -",section)
         self.assertIn("unsynced",section.lower())
 
+
+    def test_export_button_is_a_safe_signed_package_not_fake_online_sync(self):
+        cmd=(ROOT/'USD-Export.cmd').read_text(encoding='utf-8')
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
+        self.assertIn('-Action export',cmd)
+        self.assertIn('function Export-VenueReturn',ctl)
+        self.assertIn('ensure-return-keys.mjs',ctl)
+        self.assertIn('export-venue-return.mjs',ctl)
+        self.assertIn('venue-return-package.mjs',ctl)
+        self.assertIn('USD-Export.cmd',kit)
+        self.assertIn('ensure-return-keys.mjs',kit)
+        self.assertIn('Read-VenuePassword',ctl)
+        self.assertIn('if($state.demo)',ctl)
+        section=ctl[ctl.index('function Export-VenueReturn'):]
+        self.assertNotIn('down -v',section)
+        self.assertNotIn('prune',section)
+        self.assertNotIn('api.usd-russia.ru',section)
+
 if __name__=="__main__":
     unittest.main()
