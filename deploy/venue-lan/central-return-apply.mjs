@@ -31,6 +31,25 @@ export function planVenueResultEvent(event){
  }};
 }
 
+export function planVenueStageInspectionEvent(event,stageId){
+ const p=event?.payload,r=p?.after;
+ if(p?.table!=='ParticipantStageInspection'||p.operation!=='INSERT')
+  return {status:'PENDING_MANUAL',reason:'UNSUPPORTED_OPERATION'};
+ if(!r||r.id!==p.recordId||r.stageId!==stageId
+  ||!UUID.test(r.id??'')||!UUID.test(r.participantId??'')
+  ||!['PASSED','FAILED'].includes(r.status)
+  ||(r.notes!==null&&(typeof r.notes!=='string'||r.notes.length>1000))
+  ||(r.status==='FAILED'&&!r.notes?.trim())
+  ||(r.checkedByName!==null&&(typeof r.checkedByName!=='string'||r.checkedByName.length>120))
+  ||typeof r.checkedAt!=='string'||!Number.isFinite(Date.parse(r.checkedAt))
+  ||Date.parse(r.checkedAt)>Date.now()+300000)
+  return {status:'PENDING_MANUAL',reason:'INSPECTION_FIELDS'};
+ return {status:'CANDIDATE',row:{
+  id:r.id,stageId:r.stageId,participantId:r.participantId,status:r.status,
+  notes:r.notes,checkedByName:r.checkedByName,checkedAt:r.checkedAt,
+ }};
+}
+
 /** Returns an outcome for EVERY operation; a successful subset is NOT a sync. */
 export async function applyVenueReturnSnapshot(snapshot,adapter,{
  apply=false,operator='',baselineSha256='',stageId='',
@@ -52,9 +71,12 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
    throw new Error('Официальные результаты уже опубликованы: требуется ручное решение');
   // A later venue UPDATE/DELETE makes an earlier INSERT stale. Import neither
   // until the entire record's history can be reconciled manually.
-  const frequencies=new Map(),classFrequencies=new Map();
+  const frequencies=new Map(),classFrequencies=new Map(),inspectionFrequencies=new Map();
   for(const event of snapshot.events){
    const p=event?.payload;
+   if(p?.table==='ParticipantStageInspection'){
+    inspectionFrequencies.set(p.recordId,(inspectionFrequencies.get(p.recordId)??0)+1);
+   }
    if(p?.table!=='Result')continue;
    frequencies.set(p.recordId,(frequencies.get(p.recordId)??0)+1);
    const cls=p.after?.registrationClassId??p.before?.registrationClassId;
@@ -62,8 +84,39 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
   }
   const rows=[],counts={APPLIED:0,ALREADY_APPLIED:0,READY:0,PENDING_MANUAL:0,CONFLICT:0};
   for(const event of snapshot.events){
-   const plan=planVenueResultEvent(event);
+   const plan=event.payload?.table==='ParticipantStageInspection'
+    ?planVenueStageInspectionEvent(event,stageId):planVenueResultEvent(event);
    let outcome=plan.status,reason=plan.reason??'';
+   if(event.payload?.table==='ParticipantStageInspection'){
+    if((inspectionFrequencies.get(event.payload.recordId)??0)>1){
+     outcome='PENDING_MANUAL';reason='MULTIPLE_LOCAL_INSPECTION_MUTATIONS';
+    }else if(plan.status==='CANDIDATE'){
+     const r=plan.row,existing=await tx.stageInspection(r.id,r.participantId,stageId);
+     const prior=existing.byId;
+     const matches=prior&&prior.id===r.id&&prior.participantId===r.participantId
+      &&prior.stageId===stageId&&prior.status===r.status
+      &&prior.notes===r.notes&&prior.checkedByName===r.checkedByName
+      &&new Date(prior.checkedAt).getTime()===new Date(r.checkedAt).getTime();
+     if(matches){
+      const receipt=await tx.receipt(stageId,event.hash);
+      outcome=receipt?'ALREADY_APPLIED':'CONFLICT';
+      reason=receipt?'SIGNED_INSPECTION_ALREADY_APPLIED':'UNPROVEN_INSPECTION_ORIGIN';
+     }else if(existing.byId||existing.byParticipant){
+      outcome='CONFLICT';reason='CENTRAL_INSPECTION_CHANGED';
+     }else{
+      const ctx=await tx.inspectionContext(r.participantId,stageId);
+      if(!ctx||ctx.total<1||ctx.total!==ctx.unlinked){
+       outcome='PENDING_MANUAL';reason='CENTRAL_REGISTRATION_DEPENDENCY';
+      }else if(apply){
+       await tx.insertStageInspection(r);
+       await tx.recordReceipt({stageId,eventHash:event.hash,sequence:event.sequence,
+        resultId:r.id,entity:'ParticipantStageInspection',operator,baselineSha256});
+       outcome='APPLIED';reason='SIGNED_INSPECTION_IMPORTED';
+      }else{outcome='READY';reason='CENTRAL_INSPECTION_PRECONDITIONS_MATCH';}
+     }
+    }
+   }else{
+
    const cls=event.payload?.after?.registrationClassId??event.payload?.before?.registrationClassId;
    if(event.payload?.table==='Result'&&
      ((frequencies.get(event.payload.recordId)??0)>1||(cls&&(classFrequencies.get(cls)??0)>1))){
@@ -103,6 +156,7 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
      }else{outcome='READY';reason='CENTRAL_PRECONDITIONS_MATCH';}
     }
    }
+   }
    counts[outcome]++;
    rows.push({sequence:event.sequence,status:outcome,reason});
   }
@@ -110,6 +164,6 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
    applied:counts.APPLIED>0,complete:apply&&counts.READY===0&&counts.PENDING_MANUAL===0&&counts.CONFLICT===0,
    centralReleaseAccepted:false,derivedRankingsRebuilt:false,
    pending:counts.PENDING_MANUAL+counts.CONFLICT,
-   notice:'Импортирует только измерения с существующими допусками; не пересчитывает рекорды и рейтинги, не публикует итогов. Полная синхронизация не подтверждена.'};
+   notice:'Импортируются только проверяемые инспекции уже существующих участников и измерения. Новые регистрации, оборудование и медиа требуют отдельной синхронизации; рейтинги и рекорды не пересчитаны.'};
  },{readOnly:!apply});
 }
