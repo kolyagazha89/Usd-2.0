@@ -1,0 +1,108 @@
+name: Venue real PostgreSQL 18 + LAN API acceptance
+on:
+  pull_request:
+    paths:
+      - 'deploy/venue-lan/**'
+      - 'backend/src/results/**'
+      - 'backend/src/auth/**'
+      - 'backend/src/stages/venue-stage*'
+      - 'backend/prisma/**'
+      - 'backend/Dockerfile'
+      - '.github/workflows/venue-db-acceptance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/venue-lan/**'
+      - 'backend/src/results/**'
+      - 'backend/src/auth/**'
+      - 'backend/src/stages/venue-stage*'
+      - 'backend/prisma/**'
+      - 'backend/Dockerfile'
+      - '.github/workflows/venue-db-acceptance.yml'
+permissions:
+  contents: read
+jobs:
+  venue-db-live-acceptance:
+    name: isolated-db-staff-and-live
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable venue-only config (no production secrets)
+        env:
+          IMAGE_SHA: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import os,secrets
+          from pathlib import Path
+          from urllib.parse import quote
+          secret=secrets.token_urlsafe(32)
+          db_user='usd_venue'
+          db_name='usd_venue'
+          env={
+            'VENUE_BIND_IP':'192.168.50.10',
+            'VENUE_IMAGE_TAG':os.environ['IMAGE_SHA'],
+            'VENUE_STAGE_ID':'c510f672-79f7-44eb-8173-2a8ff94b1c0e',
+            'VENUE_SIGNING_KEY_FINGERPRINT':'b'*64,
+            'VENUE_DB_NAME':db_name,
+            'VENUE_DB_USER':db_user,
+            'VENUE_DB_PASSWORD':secret,
+            'VENUE_DATABASE_URL':f'postgresql://{db_user}:{quote(secret)}@db:5432/{db_name}?schema=public',
+            'VENUE_JWT_SECRET':secrets.token_hex(32),
+            'VENUE_S3_ROOT_ACCESS':'venue-root-ci',
+            'VENUE_S3_ROOT_SECRET':secrets.token_urlsafe(40),
+            'VENUE_S3_APP_ACCESS':'venue-bucket-ci',
+            'VENUE_S3_APP_SECRET':secrets.token_urlsafe(40),
+          }
+          target=Path('deploy/venue-lan/.env')
+          target.write_text(''.join(f'{k}={v}\n' for k,v in env.items()))
+          target.chmod(0o600)
+          PY
+          cd deploy/venue-lan
+          python3 preflight.py
+          docker compose config --quiet
+      - name: Build exact candidate API image with runtime Prisma and bcrypt
+        env:
+          IMAGE_SHA: ${{ github.sha }}
+        run: |
+          docker build -f backend/Dockerfile \
+            --build-arg "USD_RELEASE_SHA=$IMAGE_SHA" \
+            -t "ghcr.io/kolyagazha89/usd-2.0-api:$IMAGE_SHA" backend
+      - name: Start disposable isolated PostgreSQL 18 and run real migrations
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue up -d db
+          for i in $(seq 1 50); do
+            if docker compose -p usd-venue exec -T db pg_isready -U usd_venue -d usd_venue >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker compose -p usd-venue run --rm --no-deps \
+            --entrypoint ./node_modules/.bin/prisma api \
+            migrate deploy --config ./prisma7.config.ts
+      - name: Verify Ed25519 stage import, replay rejection and offline staff on real database
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue run --rm --no-deps \
+            --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
+            --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
+            --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+            --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --entrypoint node api /app/venue-db-acceptance.mjs seed
+      - name: Exercise real LAN API judge/ADMIN permissions and LIVE write/read
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue up -d api
+          docker compose -p usd-venue run --rm --no-deps \
+            --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
+            --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
+            --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+            --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --entrypoint node api /app/venue-db-acceptance.mjs probe
+      - name: Destroy disposable venue database and configuration
+        if: always()
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue down -v --remove-orphans || true
+          rm -f .env
