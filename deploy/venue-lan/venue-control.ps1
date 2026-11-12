@@ -351,6 +351,13 @@ function Start-Local {
   $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint -or
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
+ # Existing installations may have an older 18-trigger journal. Bring the
+ # root-owned link trigger up to date WITHOUT clearing historic journal rows.
+ # The coverage watermark prevents treating earlier untracked links as complete.
+ Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start local DB for journal coverage check'
+ Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
+  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+ Assert-Exit 'upgrade durable amplifier link journal'
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false

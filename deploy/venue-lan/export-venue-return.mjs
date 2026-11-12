@@ -8,7 +8,7 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {assertVenueDatabaseRole,assertVenueImportEnvironment} from './import-stage.mjs';
 import {
- makeVenueReturnSnapshot,signVenueReturnSnapshot,encryptVenueReturn,
+ makeVenueReturnSnapshot,signVenueReturnSnapshot,encryptVenueReturn,FULL_RETURN_COVERAGE_TABLES,
 } from './venue-return-package.mjs';
 
 const SHA=/^[a-f0-9]{64}$/;
@@ -35,6 +35,12 @@ export async function collectVenueJournal(prisma,env,now=Date.now()){
   const baselineSha256=baseline?.metadata?.sha256;
   if(typeof baselineSha256!=='string'||!SHA.test(baselineSha256))
    throw new Error('В базе нет подтверждённого импорта исходного этапа');
+  const coverage=await tx.$queryRawUnsafe(
+   'SELECT format_version AS "formatVersion",from_sequence AS "fromSequence" FROM venue_private.journal_coverage');
+  if(!Array.isArray(coverage)||coverage.length!==1
+   ||Number(coverage[0].formatVersion)!==2
+   ||Number(coverage[0].fromSequence)!==0)
+   throw new Error('Полный экспорт невозможен: журнал усилителей был включён после первых операций');
   const rows=await tx.$queryRawUnsafe(chainQuery);
   if(!Array.isArray(rows)||rows.length>MAX_JOURNAL_ENTRIES)
    throw new Error('Слишком много операций для ограниченного USB-пакета');
@@ -53,6 +59,7 @@ export async function collectVenueJournal(prisma,env,now=Date.now()){
   }
   return makeVenueReturnSnapshot({
    stageId,baselineSha256,events,generatedAt:new Date(now).toISOString(),
+   journalCoverage:{fromSequence:0,tables:FULL_RETURN_COVERAGE_TABLES},
   });
  },{isolationLevel:'RepeatableRead',timeout:30000});
 }

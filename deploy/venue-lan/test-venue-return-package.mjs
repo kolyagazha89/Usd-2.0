@@ -88,3 +88,25 @@ test('first empty journal is supported, but cannot have a fabricated non-genesis
  const sealed=encryptVenueReturn(signVenueReturnSnapshot(s,privatePem),passphrase);
  assert.equal(openVenueReturn(sealed,passphrase,publicPem,expected).events.length,0);
 });
+
+test('full-return package carries audited link coverage; legacy v1 cannot claim full synchronization',()=>{
+ const coverage={fromSequence:0,tables:[
+  'CarAmplifierComponent','CarAudioComponent','CarAmplifier','CarBattery','CarConfiguration',
+  'CarConfigurationVersion','CarGenerator','CarHeadUnit','Car','Disqualification',
+  'Inspection','Participant','ParticipantStageInspection','RegistrationClassInspection',
+  'RegistrationClass','RegistrationNumber','Registration','Result','Stage',
+ ].sort()};
+ const v2=makeVenueReturnSnapshot({
+  stageId:stage,baselineSha256:baseline,events:[],
+  generatedAt:new Date(now).toISOString(),journalCoverage:coverage,
+ });
+ assert.equal(v2.format,2);
+ const encrypted=encryptVenueReturn(signVenueReturnSnapshot(v2,privatePem),passphrase);
+ const opened=openVenueReturn(encrypted,passphrase,publicPem,expected);
+ assert.deepEqual(opened.journalCoverage,coverage);
+ assert.throws(()=>makeVenueReturnSnapshot({
+  stageId:stage,baselineSha256:baseline,events:[],
+  generatedAt:new Date(now).toISOString(),journalCoverage:{...coverage,fromSequence:7},
+ }),/cover|покры|журнал/i);
+ assert.equal(snapshot([]).format,1);
+});

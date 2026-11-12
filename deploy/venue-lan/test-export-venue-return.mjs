@@ -19,7 +19,8 @@ const event={
 };
 function fakeDb({role=false,stages=[{id:stage}],audit={metadata:{sha256:baseline}},rows=[event]}={}){
  const tx={
-  $queryRawUnsafe:async sql=>sql.includes('pg_roles')?[{rolsuper:role}]:rows,
+  $queryRawUnsafe:async sql=>sql.includes('pg_roles')?[{rolsuper:role}]
+   :sql.includes('journal_coverage')?[{formatVersion:2,fromSequence:0}]:rows,
   stage:{findMany:async()=>stages},
   auditLog:{findFirst:async()=>audit},
  };
@@ -34,6 +35,8 @@ test('read-only MVCC collector validates central signed baseline and root-owned 
  assert.equal(snapshot.baselineSha256,baseline);
  assert.equal(snapshot.eventCount,1);
  assert.equal(snapshot.events[0].hash,event.hash);
+ assert.equal(snapshot.format,2);
+ assert.ok(snapshot.journalCoverage.tables.includes('CarAmplifierComponent'));
  assert.equal(snapshot.events[0].calculated,undefined);
 });
 test('reject unsafe old root database, different stage, absent original audit, tampered chain',async()=>{
