@@ -67,6 +67,10 @@ jobs:
           node-version: 22
       - name: Validate laptop-only migration/import and staff wrappers syntax
         run: bash -n deploy/venue-lan/bootstrap-local-stage.sh deploy/venue-lan/provision-venue-staff.sh deploy/venue-lan/initdb/010-venue-api-role.sh
+      - name: Test one-click Windows switch and restricted RustFS first-boot contracts
+        run: |
+          node --test deploy/venue-lan/test-provision-rustfs.mjs
+          python3 -m unittest discover -s deploy/venue-lan -p 'test_oneclick.py' -v
       - name: Verify staff accounts, fixed judge RBAC, and independent local identities
         run: node --test deploy/venue-lan/test-provision-staff.mjs
       - name: Enforce venue journaling installation before official judging
