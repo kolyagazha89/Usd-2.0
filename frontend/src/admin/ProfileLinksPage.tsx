@@ -3,6 +3,10 @@ import DuplicateProfilesPreview from './DuplicateProfilesPreview';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch} from '../api';
 
+type Coverage={
+ totalProfiles:number;linkedProfiles:number;unlinkedProfiles:number;
+ profilesWithLegacyEmail:number;unlinkedWithLegacyEmail:number;unlinkedWithoutLegacyEmail:number;
+};
 type LinkRequest={
  id:string;status:string;note:string;createdAt:string;decisionReason?:string|null;
  legacyEmailStatus?:'MATCH_VERIFIED'|'LEGACY_EMAIL_MISSING'|'EMAIL_DIFFERENT'|'EMAIL_NOT_VERIFIED';
@@ -23,8 +27,11 @@ const diagnosticText:Record<string,string>={
 };
 const legacyStatusText:Record<string,string>={MATCH_VERIFIED:'Исторический email совпадает с подтверждённым аккаунтом. Если появилась заявка, проверьте момент отправки и статус предыдущей привязки.',LEGACY_EMAIL_MISSING:'Исторический email отсутствует в таблице привязки; автоматическая привязка недоступна.',EMAIL_DIFFERENT:'Email аккаунта отличается от сохранённого исторического email; нужна ручная проверка.',EMAIL_NOT_VERIFIED:'Email заявителя ещё не подтверждён; привязка будет отклонена сервером.'};
 function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
+ const [coverage,setCoverage]=useState<Coverage|null>(null),[coverageError,setCoverageError]=useState('');
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
+ const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
+ useEffect(()=>{void loadCoverage()},[]);
  const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[status]);
  const diagnose=async(row:LinkRequest)=>{
@@ -48,6 +55,18 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
+  <section className="profile-email-coverage" aria-label="Наличие email в исторических профилях">
+   <div className="profile-email-coverage-heading"><div><h2>Email исторических участников</h2><p>Подсчёт по реальной базе USD. Учитываются действующие профили без объединённых дублей.</p></div><button type="button" className="secondary-button compact" onClick={()=>void loadCoverage()}>Обновить</button></div>
+   {coverageError&&<p role="alert">{coverageError}</p>}
+   {!coverage&&!coverageError&&<p role="status">Загружаем статистику…</p>}
+   {coverage&&<div className="profile-email-coverage-grid">
+    <div><small>Всего профилей</small><strong>{coverage.totalProfiles}</strong></div>
+    <div><small>Уже привязаны к аккаунту</small><strong>{coverage.linkedProfiles}</strong></div>
+    <div><small>Архивный email есть (без привязки)</small><strong>{coverage.unlinkedWithLegacyEmail}</strong></div>
+    <div><small>Без архивного email (без привязки)</small><strong>{coverage.unlinkedWithoutLegacyEmail}</strong></div>
+   </div>}
+   <p className="muted">Не означает автоматическую привязку: она возможна только при совпадении архивного адреса с подтверждённым email нового аккаунта. Для остальных доступна ручная заявка администратору.</p>
+  </section>
   <DuplicateProfilesPreview/>
   <div className="profile-link-filters"><label>Статус
    <select value={status} onChange={e=>{setStatus(e.target.value);setError('')}}>
