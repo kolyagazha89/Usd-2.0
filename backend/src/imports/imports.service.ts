@@ -1,4 +1,5 @@
 import { HISTORICAL_STAGE_MAPPINGS } from './historical-stage-mappings';
+import {normalizedSourceEmail,sameHistoricalFullName} from '../auth/historical-email-reconciliation';
 import { archivalAliasDisplayLabel, archivalAliasKey, globalHistoricalAliasKey, historicalAliasStickerDiscriminators } from './historical-alias-identity';
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
@@ -419,10 +420,9 @@ export class ImportsService {
                                     this.normalizedDisplayName(preview.participant.rawName),
                                   team: preview.historicalTeam,
                                   email:
-                                    preview.participant.source === 'REGISTRATION' &&
+                                    preview.registration.status === 'MATCHED' &&
                                     preview.registration.matchType === 'NAME'
-                                      ? preview.participant.matches?.[0]?.email || null
-                                      : null,
+                                      ? preview.registration.email || null : null,
                                 },
                           registration: {
                             action: 'CREATE',
@@ -2897,6 +2897,11 @@ export class ImportsService {
                   .matches[0]
                   .rawName,
 
+              // Preserve the contact from the Registration source row. Name
+              // matching is required: a sticker-number match is not identity.
+              email: registrationParticipant.matchType === 'NAME'
+                ? registrationParticipant.matches[0]?.email ?? null : null,
+
               matchType:
                 registrationParticipant
                   .matchType,
@@ -3377,6 +3382,19 @@ export class ImportsService {
       },
       update: {},
     });
+  }
+
+  private async recoverImportEmailForExisting(tx:Prisma.TransactionClient,participantId:string|null,rawEmail:string|null,sourceName:string){
+    const email=normalizedSourceEmail(rawEmail??'');
+    if(!email||!participantId||!sourceName)return;
+    const person=await tx.participant.findUnique({where:{id:participantId},select:{lastName:true,firstName:true,middleName:true}});
+    if(!person||!sameHistoricalFullName(sourceName,[person.lastName,person.firstName,person.middleName].filter(Boolean).join(' '),this.nameNormalizer))return;
+    const another=await tx.participantLegacyEmail.findFirst({where:{participantId:{not:participantId},email:{equals:email,mode:'insensitive'}},select:{participantId:true}});
+    if(another)return;
+    const saved=await tx.participantLegacyEmail.findUnique({where:{participantId},select:{email:true}});
+    if(saved?.email?.trim())return;
+    if(saved)await tx.participantLegacyEmail.updateMany({where:{participantId,email:saved.email},data:{email}});
+    else await tx.participantLegacyEmail.createMany({data:[{participantId,email}],skipDuplicates:true});
   }
 
   private async createParticipantFromImport(
@@ -5239,6 +5257,11 @@ export class ImportsService {
             );
           }
 
+          if (resolution?.participant?.action === 'USE_EXISTING') {
+            await this.recoverImportEmailForExisting(tx,participantId,
+              this.stringValue(this.getImportFieldValue(rawData,['Email','E-mail','Электронная почта','email'])),rawName);
+          }
+
           const resolutionNumber =
             resolution
               ?.registration
@@ -6070,6 +6093,12 @@ export class ImportsService {
               importedParticipants.get(
                 normalizedName,
               ) ?? null;
+          }
+
+          if (resolution?.participant?.action === 'USE_EXISTING') {
+            const reliableEmail = normalized?.registration?.status === 'MATCHED' && normalized?.registration?.matchType === 'NAME'
+              ? normalized.registration.email ?? null : null;
+            await this.recoverImportEmailForExisting(tx,participantId,reliableEmail,rawName);
           }
 
           if (

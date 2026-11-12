@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import {ProfileLinksController,AdminProfileLinksController} from './profile-links.controller';
 import {ProfileLinksService} from './profile-links.service';
+import {HistoricalEmailReconciliationService} from './historical-email-reconciliation.service';
 import {ProfileMergeService} from './profile-merge.service';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -36,6 +37,7 @@ import { MailModule } from '../mail/mail.module';
   providers: [
     AuthService,
     ProfileLinksService,
+    HistoricalEmailReconciliationService,
     ProfileMergeService,
     JwtAuthGuard,
     RolesGuard,

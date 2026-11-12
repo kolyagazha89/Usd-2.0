@@ -1,8 +1,9 @@
-import {Body,Controller,Get,Param,Patch,Post,Query,Req} from '@nestjs/common';
+import {BadRequestException,Body,Controller,Get,Param,Patch,Post,Query,Req} from '@nestjs/common';
 import {IsIn,IsString,IsUUID,MaxLength,MinLength} from 'class-validator';
 import type {AuthenticatedRequest} from './authenticated-request';
 import {Roles} from './roles.decorator';
 import {ProfileLinksService} from './profile-links.service';
+import {HistoricalEmailReconciliationService} from './historical-email-reconciliation.service';
 import {ProfileMergeService} from './profile-merge.service';
 
 class SubmitLinkDto {
@@ -14,6 +15,7 @@ class MergeProfilesDto {
  @IsUUID() targetId!:string;
  @IsString() @MinLength(8) @MaxLength(8) confirmation!:string;
 }
+class EmailRepairConfirmationDto { @IsIn(['APPLY']) confirmation!:'APPLY'; }
 class ReviewLinkDto {
  @IsIn(['APPROVE','REJECT']) decision!:'APPROVE'|'REJECT';
 }
@@ -31,11 +33,18 @@ export class ProfileLinksController {
 @Controller('admin/profile-links')
 @Roles('ADMIN')
 export class AdminProfileLinksController {
- constructor(private readonly service:ProfileLinksService,private readonly merges:ProfileMergeService){}
+ constructor(private readonly service:ProfileLinksService,private readonly merges:ProfileMergeService,private readonly historicalEmails:HistoricalEmailReconciliationService){}
  @Get()
  list(@Query('status') status?:string){return this.service.adminList(status)}
  @Get('coverage')
  coverage(){return this.service.adminEmailCoverage()}
+ @Get('emails/reconcile')
+ previewEmails(){return this.historicalEmails.preview()}
+ @Post('emails/reconcile')
+ applyEmails(@Req() request:AuthenticatedRequest,@Body() body:EmailRepairConfirmationDto){
+  if(body?.confirmation!=='APPLY')throw new BadRequestException('Подтвердите внесение email');
+  return this.historicalEmails.apply(request.user.sub);
+ }
  @Get('diagnostics')
  diagnose(@Query('userId') userId:string,@Query('participantId') participantId:string){
   return this.service.diagnoseSelfLink(userId,participantId);
