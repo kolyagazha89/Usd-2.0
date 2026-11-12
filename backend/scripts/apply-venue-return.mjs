@@ -49,8 +49,8 @@ export function postgresVenueAdapter(client){
      },
      async context(registrationId,registrationClassId,stageId){
       const {rows}=await client.query(
-       'SELECT r."stageId" AS "stageId",r.status AS "registrationStatus",rc.id AS "classId",c.unit AS unit,COALESCE(ps.status,i.status) AS "inspectionStatus" FROM "Registration" r JOIN "RegistrationClass" rc ON rc."registrationId"=r.id JOIN "Class" c ON c.id=rc."classId" LEFT JOIN "ParticipantStageInspection" ps ON ps."participantId"=r."participantId" AND ps."stageId"=r."stageId" LEFT JOIN "Inspection" i ON i."registrationId"=r.id WHERE r.id=$1 AND rc.id=$2 AND r."stageId"=$3',
-       [registrationId,registrationClassId,stageId]);
+       'SELECT r."stageId" AS "stageId",r.status AS "registrationStatus",rc.id AS "classId",c.unit AS unit,COALESCE(ps.status,i.status) AS "inspectionStatus" FROM "Registration" r JOIN "RegistrationClass" rc ON rc."registrationId"=r.id JOIN "Class" c ON c.id=rc."classId" AND c."isActive"=true JOIN "StageClass" sc ON sc."stageId"=r."stageId" AND sc."classId"=rc."classId" AND sc."isActive"=true JOIN "Stage" st ON st.id=r."stageId" LEFT JOIN "ParticipantStageInspection" ps ON ps."participantId"=r."participantId" AND ps."stageId"=r."stageId" LEFT JOIN "Inspection" i ON i."registrationId"=r.id WHERE r.id=$1 AND rc.id=$2 AND r."stageId"=$3 AND NOT EXISTS (SELECT 1 FROM "Disqualification" d WHERE d."participantId"=r."participantId" AND d.status=$4 AND (d.scope=$5 OR (d.scope=$6 AND d."seasonId"=st."seasonId") OR (d.scope=$7 AND d."stageId"=r."stageId")))',
+       [registrationId,registrationClassId,stageId,"ACTIVE","FORMAT","SEASON","STAGE"]);
       return rows[0]??null;
      },
      async insertResult(r){
