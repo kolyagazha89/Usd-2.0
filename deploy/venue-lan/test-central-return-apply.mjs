@@ -58,14 +58,15 @@ test('dry run does not write, never claims a synchronized result',async()=>{
  assert.equal(report.complete,false);
  assert.equal(db.operations.length,0);
 });
-test('unrelated venue edits stay pending while an independent result can import',async()=>{
+test('unreconciled registration edit blocks all score imports for this stage',async()=>{
  const db=fakeDb();
  const unrelated={...event('Registration'),hash:'c'.repeat(64),sequence:2};
  const report=await applyVenueReturnSnapshot(packet([event(),unrelated]),db,options);
- assert.equal(report.counts.APPLIED,1);
- assert.equal(report.counts.PENDING_MANUAL,1);
+ assert.equal(report.counts.APPLIED,0);
+ assert.equal(report.counts.PENDING_MANUAL,2);
  assert.equal(report.complete,false);
- assert.equal(report.pending,1);
+ assert.equal(report.pending,2);
+ assert.deepEqual(db.operations,[]);
 });
 test('missing central stage prerequisites leave local result pending',async()=>{
  const db=fakeDb({valid:false});
