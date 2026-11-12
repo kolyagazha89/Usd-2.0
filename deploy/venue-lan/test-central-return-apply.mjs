@@ -165,3 +165,27 @@ test('inspection with later local correction is never imported mid-history',asyn
  assert.equal(report.counts.PENDING_MANUAL,2);
  assert.equal(report.counts.APPLIED,0);
 });
+
+test('normal local ranking UPDATE after INSERT imports only final score and receipts both journal events',async()=>{
+ const db=fakeDb();
+ const created=event();
+ const corrected={...event('Result','UPDATE',{...score(),place:2}),hash:'c'.repeat(64),sequence:2};
+ corrected.payload.before=score();
+ const pack={...packet([created,corrected]),journalEndHash:corrected.hash};
+ const first=await applyVenueReturnSnapshot(pack,db,options);
+ assert.equal(first.counts.APPLIED,2);
+ assert.equal(db.result.place,2);
+ assert.equal(db.operations.filter(x=>x==='INSERT').length,1);
+ assert.equal(db.receipts.length,2);
+ const replay=await applyVenueReturnSnapshot(pack,db,options);
+ assert.equal(replay.counts.ALREADY_APPLIED,2);
+});
+test('broken local result history never imports and never acknowledges',async()=>{
+ const db=fakeDb();
+ const created=event();
+ const edited={...event('Result','UPDATE',{...score(),value:'155.000'}),hash:'c'.repeat(64),sequence:2};
+ edited.payload.before={...score(),value:'140.000'};
+ const report=await applyVenueReturnSnapshot({...packet([created,edited]),journalEndHash:edited.hash},db,options);
+ assert.equal(report.counts.PENDING_MANUAL,2);
+ assert.deepEqual(db.operations,[]);
+});
