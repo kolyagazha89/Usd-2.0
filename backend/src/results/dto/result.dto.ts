@@ -53,3 +53,14 @@ export class UpdateResultDto {
   @MaxLength(2000)
   notes?: string | null;
 }
+
+/** Plain-text BassRace standings pasted from the measuring program. */
+export class PreviewBassRaceTextDto {
+  @IsUUID() stageId!: string;
+  @IsString() @MaxLength(100000) text!: string;
+}
+
+export class CommitBassRaceTextDto extends PreviewBassRaceTextDto {
+  @IsString() @MaxLength(64) previewHash!: string;
+  @IsBoolean() confirmed!: boolean;
+}
