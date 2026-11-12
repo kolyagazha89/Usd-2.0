@@ -29,6 +29,9 @@ test('private token pages and missing paths cannot be indexed',()=>{
  assert.equal(isIndexablePublicRoute('/usd-id/'+'a'.repeat(48)),false);
  assert.equal(isIndexablePublicRoute('/nonsense-404'),false);
  assert.equal(isIndexablePublicRoute('/stages/abc'),true);
+ assert.equal(isIndexablePublicRoute('/teams/USD%20Team'),true);
+ assert.equal(isIndexablePublicRoute('/teams/%E0%A4%A'),false);
+ assert.equal(publicSeoMetadata('/stages/%E0%A4%A').title,'Страница не найдена — USD');
  assert.equal(isIndexablePublicRoute('/news'),true);
 });
 

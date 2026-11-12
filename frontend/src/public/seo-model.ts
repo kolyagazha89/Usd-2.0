@@ -36,10 +36,19 @@ export function isIndexablePublicRoute(path:string):boolean{
  if(Object.hasOwn(sections,route))return true;
  if(/^\/stages\/[a-z0-9-]+$/i.test(route))return true;
  const parts=route.split('/').filter(Boolean);
- return parts.length===2&&detailSections.has('/'+parts[0])&&/^[a-z0-9-]+$/i.test(parts[1]);
+ if(parts.length!==2||!detailSections.has('/'+parts[0]))return false;
+ // Team slugs can contain encoded spaces or Cyrillic, while malformed paths
+ // and encoded separators must not become crawlable duplicates.
+ try{
+  const value=decodeURIComponent(parts[1]);
+  return value.length>0&&value.length<=150&&!value.includes('/')&&!value.includes('\\')&&!/[?#]/.test(value);
+ }catch{return false}
 }
 export function publicSeoMetadata(path:string,stage?:SeoStage|null):SeoMetadata{
  const route=path.split(/[?#]/,1)[0]||'/';
+ if(route.startsWith('/stages/')&&!isIndexablePublicRoute(route)){
+  return {title:'Страница не найдена — USD',description:'Указанная страница недоступна.',indexable:false};
+ }
  if(route.startsWith('/stages/')&&route!=='/stages/'){
   if(stage&&(stage.status==='PUBLISHED'||stage.status==='COMPLETED')){
    const city=stage.city?(' в '+stage.city):'';
