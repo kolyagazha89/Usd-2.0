@@ -129,6 +129,20 @@ export async function runCentralApply({files,environment=process.env,stdin=readP
   const report=await applyVenueReturnSnapshot(snapshot,postgresVenueAdapter(client),{
    apply,stageId,baselineSha256,operator:environment.VENUE_RETURN_OPERATOR??'',
   });
+  if(apply&&report.counts.APPLIED+report.counts.ALREADY_APPLIED>0){
+   try{
+    // Rebuild is idempotent and may be re-run after a crash between COMMIT
+    // and the derived-data phase. It is NOT an event-wide ACK.
+    const entry=await import('../dist/scripts/finalize-venue-return.js');
+    const finalize=entry.finalizeVenueStage??entry.default?.finalizeVenueStage;
+    if(typeof finalize!=='function')throw Error('Finalizer missing from production build');
+    const derived=await finalize(stageId,environment.DATABASE_URL);
+    report.derivedRankingsRebuilt=Boolean(derived?.recalculated);
+   }catch{
+    report.derivedRankingsRebuilt=false;
+    report.finalization='REQUIRES_ADMIN_RETRY';
+   }
+  }
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
   // A database receipt is not official ranking, record publication or full sync.
   process.exitCode=3;
