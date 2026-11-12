@@ -525,4 +525,63 @@ function Sync-VenueReturn([object]$Bundle){
  $pem=[IO.File]::ReadAllText($Bundle.publicKey)
  # Preserve the exact authenticated AES-GCM envelope JSON: ConvertTo-Json
  # of a large nested object can truncate it on Windows PowerShell 5.1.
- $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId��i��k�w��_�Yh��n�Ưy�h�i����z�ܢjh�*?��i���j�[��,��.��mF��j���ߊW���&��"��.��������(��]��m��h�'����Yh��n����^i���O��ߊW���&��"��.��������(��]��m���j)g�M?�{~)^��(��,����n��ڲ�K-v���m�������
+ $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId -Compress)+
+  ',"publicKeyPem":'+(ConvertTo-Json -InputObject $pem -Compress)+
+  ',"envelope":'+$encrypted+'}'
+ $SyncResult=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/stages/venue/sync' -Method POST -Headers @{Authorization=('Venue '+$token)} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 180
+ if($SyncResult.accepted -ne $true -or
+  $SyncResult.databaseSynchronized -ne $true -or
+  $SyncResult.derivedRankingsRebuilt -ne $true -or
+  [string]$SyncResult.stageId -ne $Bundle.stageId -or
+  [string]$SyncResult.journalEndHash -ne $Bundle.journalEndHash){
+  throw 'Центральная Ubuntu не подтвердила все записи и пересчёт. Попробуйте ещё раз.'
+ }
+ $ack=Join-Path $PrivateDir ('sync-ack-'+$Bundle.journalEndHash+'.json')
+ if(!(Test-Path -LiteralPath $ack)){
+  Write-PrivateFile $ack ((@{accepted=$true;stageId=$Bundle.stageId;journalEndHash=$Bundle.journalEndHash;at=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress)+[Environment]::NewLine)
+ }
+ return $SyncResult
+}
+function Restore-VenueApi {
+ Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore local judging after failed sync'
+}
+function Return-Online {
+ $state=Read-State
+ if($state -and $state.phase -eq 'READY' -and (-not $state.demo)){
+  if($Silent){throw 'Синхронизация реального этапа требует нажатия администратора'}
+  $frozen=$false
+  try{
+   $bundle=Export-VenueReturn -LeaveApiStopped -Automatic
+   $frozen=$true
+   $SyncResult=Sync-VenueReturn -Bundle $bundle
+   if($SyncResult.accepted -ne $true){throw 'Нет подтверждения ACKNOWLEDGED центрального сервера'}
+  }catch{
+   if($frozen){try{Restore-VenueApi}catch{Write-Host 'Локальная база сохранена. Откройте USD — Офлайн.'}}
+   throw
+  }
+ }
+ Remove-Autostart
+ if(Get-Command docker -ErrorAction SilentlyContinue){
+  if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
+   Invoke-Compose @('stop') 'stop after central ACK without deleting local DB'
+  }
+ }
+ Write-Host 'USD ONLINE. Synchronization ACKNOWLEDGED. Local backup preserved.'
+ if(-not $Silent){Start-Process $OnlineUrl}
+}
+if($MyInvocation.InvocationName -eq '.'){return}
+try{
+ if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
+ if($Action -eq 'install'){Install-Local}
+ elseif($Action -eq 'offline'){Start-Local}
+ elseif($Action -eq 'export'){Export-VenueReturn}
+ else{Return-Online}
+}catch{
+ Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
+ if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
+ if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
+  Show-VenueMessage ('Действие не завершено.'+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
+ }
+ Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
+ exit 1
+}
