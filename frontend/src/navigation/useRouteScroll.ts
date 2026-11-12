@@ -1,13 +1,13 @@
 import {useCallback,useLayoutEffect,useRef} from 'react';
 import {readViewState,restoreScroll} from '../admin/view-state';
-import {routeScrollKey,routeScrollTarget} from './route-scroll-model';
+import {liveRoutePath,routeScrollKey,routeScrollTarget} from './route-scroll-model';
 
 export function useRouteScroll(path:string){
  const intent=useRef<'initial'|'push'|'pop'>('initial');
  const currentPath=useRef(path);currentPath.current=path;
  const save=useCallback(()=>{
   const top=window.scrollY;
-  try{sessionStorage.setItem('usd:view:route-scroll:'+routeScrollKey(currentPath.current),JSON.stringify(top))}catch{}
+  try{sessionStorage.setItem('usd:view:route-scroll:'+routeScrollKey(liveRoutePath(currentPath.current,window.location)),JSON.stringify(top))}catch{}
   history.replaceState({...history.state,usdScrollY:top},'',location.href);
  },[]);
  const beforeNavigate=useCallback(()=>{save();intent.current='push'},[save]);
