@@ -103,6 +103,17 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
     ids.add(p.recordId);classResultIds.set(cls,ids);
    }
   }
+  // A local change to entrants, admission classes or stage state can make
+  // the central roster appear valid while the venue used a different reality.
+  // Until those dependencies are reconciled, never import measurements or
+  // PASSED inspections from a partially diverged stage.
+  const blockingTables=new Set([
+   'Stage','Participant','Car','CarConfiguration','CarConfigurationVersion',
+   'CarAmplifier','CarAudioComponent','CarBattery','CarGenerator','CarHeadUnit',
+   'Registration','RegistrationNumber','RegistrationClass',
+   'Inspection','RegistrationClassInspection','Disqualification',
+  ]);
+  const divergentDependencies=snapshot.events.some(e=>blockingTables.has(e?.payload?.table));
   const processedResults=new Map();
   const rows=[],counts={APPLIED:0,ALREADY_APPLIED:0,READY:0,PENDING_MANUAL:0,CONFLICT:0};
   for(const event of snapshot.events){
@@ -110,7 +121,9 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
     ?planVenueStageInspectionEvent(event,stageId):planVenueResultEvent(event);
    let outcome=plan.status,reason=plan.reason??'';
    if(event.payload?.table==='ParticipantStageInspection'){
-    if((inspectionFrequencies.get(event.payload.recordId)??0)>1){
+    if(divergentDependencies){
+     outcome='PENDING_MANUAL';reason='UNRECONCILED_VENUE_DEPENDENCIES';
+    }else if((inspectionFrequencies.get(event.payload.recordId)??0)>1){
      outcome='PENDING_MANUAL';reason='MULTIPLE_LOCAL_INSPECTION_MUTATIONS';
     }else if(plan.status==='CANDIDATE'){
      const r=plan.row,existing=await tx.stageInspection(r.id,r.participantId,stageId);
@@ -138,6 +151,9 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
      }
     }
    }else if(event.payload?.table==='Result'){
+    if(divergentDependencies){
+     outcome='PENDING_MANUAL';reason='UNRECONCILED_VENUE_DEPENDENCIES';
+    }else{
     const id=event.payload.recordId,group=resultGroups.get(id)??[];
     if(processedResults.has(id)){
      ({outcome,reason}=processedResults.get(id));
@@ -190,12 +206,13 @@ export async function applyVenueReturnSnapshot(snapshot,adapter,{
      }
      processedResults.set(id,{outcome,reason});
     }
+    }
    }
    counts[outcome]++;
    rows.push({sequence:event.sequence,status:outcome,reason});
   }
   return {stageId,journalEndHash:snapshot.journalEndHash,counts,rows,
-   applied:counts.APPLIED>0,complete:apply&&counts.READY===0&&counts.PENDING_MANUAL===0&&counts.CONFLICT===0,
+   applied:counts.APPLIED>0,complete:false,
    centralReleaseAccepted:false,derivedRankingsRebuilt:false,
    pending:counts.PENDING_MANUAL+counts.CONFLICT,
    notice:'Импортируются только проверяемые инспекции уже существующих участников и измерения. Новые регистрации, оборудование и медиа требуют отдельной синхронизации; рейтинги и рекорды не пересчитаны.'};
