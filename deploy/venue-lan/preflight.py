@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, parse_qsl, unquote
 
 REQUIRED = (
     "VENUE_BIND_IP", "VENUE_IMAGE_TAG", "VENUE_STAGE_ID", "VENUE_SIGNING_KEY_FINGERPRINT", "VENUE_DB_NAME", "VENUE_DB_USER",
-    "VENUE_DB_PASSWORD", "VENUE_DATABASE_URL", "VENUE_JWT_SECRET",
+    "VENUE_DB_PASSWORD", "VENUE_DB_ROOT_USER", "VENUE_DB_ROOT_PASSWORD", "VENUE_DATABASE_URL", "VENUE_JWT_SECRET",
     "VENUE_S3_ROOT_ACCESS", "VENUE_S3_ROOT_SECRET",
     "VENUE_S3_APP_ACCESS", "VENUE_S3_APP_SECRET",
 )
@@ -54,6 +54,10 @@ def validate(env: dict[str, str]) -> None:
         raise ValueError("Нужен SHA-256 SPKI публичного ключа из доверенного канала")
     if len(env["VENUE_JWT_SECRET"].encode("utf-8")) < 32:
         raise ValueError("VENUE_JWT_SECRET слишком короткий")
+    if env["VENUE_DB_ROOT_USER"] != "usd_venue_root":
+        raise ValueError("Отдельная сервисная роль API не должна быть superuser PostgreSQL")
+    if len(env["VENUE_DB_ROOT_PASSWORD"]) < 30 or env["VENUE_DB_ROOT_PASSWORD"] == env["VENUE_DB_PASSWORD"]:
+        raise ValueError("Требуется отдельный сильный пароль PostgreSQL superuser")
     if len(env["VENUE_DB_PASSWORD"]) < 20:
         raise ValueError("Пароль локальной БД слишком короткий")
     if env["VENUE_S3_ROOT_ACCESS"] == env["VENUE_S3_APP_ACCESS"] or env["VENUE_S3_ROOT_SECRET"] == env["VENUE_S3_APP_SECRET"]:
@@ -109,6 +113,10 @@ def main() -> int:
             raise ValueError("Сервис БД/медиа или WAN-порт открыт небезопасно")
         if 'USD_VENUE_LAN_MODE: "true"' not in compose or "VENUE_STAGE_ID: ${VENUE_STAGE_ID" not in compose:
             raise ValueError("Локальное табло не ограничено площадкой и этапом")
+        if "POSTGRES_USER: ${VENUE_DB_ROOT_USER" not in compose or "POSTGRES_PASSWORD: ${VENUE_DB_ROOT_PASSWORD" not in compose:
+            raise ValueError("PostgreSQL superuser не отделён от API")
+        if "VENUE_DB_ROOT_PASSWORD:" in compose.split("  api:")[1].split("  frontend:")[0]:
+            raise ValueError("ROOT пароль PostgreSQL попал в API")
         bootstrap = (root / "config" / "venue-config.js").read_text(encoding="utf-8")
         if "__USD_VENUE_MODE__ = true" not in bootstrap or "'/venue-api'" not in bootstrap:
             raise ValueError("Локальный frontend не настроен на свой API")

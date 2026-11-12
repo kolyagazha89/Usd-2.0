@@ -46,6 +46,8 @@ jobs:
             'VENUE_SIGNING_KEY_FINGERPRINT':'b'*64,
             'VENUE_DB_NAME':db_name,
             'VENUE_DB_USER':db_user,
+            'VENUE_DB_ROOT_USER':'usd_venue_root',
+            'VENUE_DB_ROOT_PASSWORD':secrets.token_urlsafe(40),
             'VENUE_DB_PASSWORD':secret,
             'VENUE_DATABASE_URL':f'postgresql://{db_user}:{quote(secret)}@db:5432/{db_name}?schema=public',
             'VENUE_JWT_SECRET':secrets.token_hex(32),
