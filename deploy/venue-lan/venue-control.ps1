@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
  USD venue Windows manager. Signed one-stage install, one-click offline/online.
  No production DB credentials are ever used. Docker Desktop must use Linux.
