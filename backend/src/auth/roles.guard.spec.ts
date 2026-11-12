@@ -167,4 +167,17 @@ describe('RolesGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+
+  it('permits only personal disqualification lookup for custom judges without admin disclosure', async () => {
+    const user = { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1', participantId: 'participant-1' };
+    const personal = context({ method: 'GET', path: '/disqualifications/me', user }, 'DisqualificationsController');
+    await expect(guard.canActivate(personal)).resolves.toBe(true);
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+
+    const adminList = context({ method: 'GET', path: '/disqualifications', user }, 'DisqualificationsController');
+    await expect(guard.canActivate(adminList)).rejects.toBeInstanceOf(ForbiddenException);
+    const byOtherProfile = context({ method: 'GET', path: '/disqualifications/participant/other/stage/one', user }, 'DisqualificationsController');
+    await expect(guard.canActivate(byOtherProfile)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
 });
