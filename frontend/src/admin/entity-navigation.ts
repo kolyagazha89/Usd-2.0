@@ -9,6 +9,10 @@ export function safeAdminReturn(value:unknown):string|null{
  if(typeof value!=='string'||value.length>8000||/[\\\s]/.test(value)||!/^\/admin(?:\/|\?|$)/.test(value))return null;
  try{const url=new URL(value,'https://usd.invalid');return url.pathname.split('/').includes('..')||url.pathname!==value.split('?')[0]?null:value}catch{return null}
 }
+export function adminCarEditorPath(carId:string,returnTo:string):string{
+ const source=safeAdminReturn(returnTo);
+ return '/admin/cars/edit?carId='+encodeURIComponent(carId)+(source?'&returnTo='+encodeURIComponent(source):'');
+}
 const identityFields:Record<AdminEntityKind,string[]>={car:['brand','model','registrationNumber'],stage:['name','stageNumber'],participant:['lastName','firstName','middleName']};
 export function relationForColumn(row:any,key:string):AdminRelation|null{
  const parts=key.split('.');const field=parts.pop()??'';const kind=parts.pop() as AdminEntityKind;
