@@ -70,6 +70,17 @@ jobs:
           docker build -f backend/Dockerfile \
             --build-arg "USD_RELEASE_SHA=$IMAGE_SHA" \
             -t "ghcr.io/kolyagazha89/usd-2.0-api:$IMAGE_SHA" backend
+      - name: Provision actual RustFS 1.0.4 private bucket and verify IAM isolation
+        working-directory: deploy/venue-lan
+        run: |
+          set -a
+          source .env
+          set +a
+          docker compose -p usd-venue up -d rustfs
+          docker compose -p usd-venue run --rm --no-deps \
+            -e VENUE_S3_ROOT_ACCESS -e VENUE_S3_ROOT_SECRET \
+            --volume "$PWD/provision-rustfs.mjs:/app/provision-rustfs.mjs:ro" \
+            --entrypoint node api /app/provision-rustfs.mjs
       - name: Start disposable isolated PostgreSQL 18 and run real migrations
         working-directory: deploy/venue-lan
         run: |
