@@ -169,6 +169,28 @@ async function probe(){
  const after=await request('/results/venue-live');
  assert.equal(Number(after.body.rows[0].value),155.5,'Second phone sees updated local LAN score');
  assert.equal((await request('/results/stage/'+ID.stage)).status,404);
+ // Journal is owned by the bootstrap PostgreSQL role. Even the LAN API
+ // account (and so a compromised judge session) cannot delete its history.
+ const verifyClient=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
+ try{
+  const chain=await verifyClient.$queryRawUnsafe(
+   "SELECT sequence,table_name,operation,previous_hash,hash,payload,"+
+   "encode(digest(previous_hash || payload::text,'sha256'),'hex') AS calculated "+
+   "FROM venue_private.operation_journal ORDER BY sequence",
+  );
+  assert.ok(chain.length>=2,'Judge result entry and ADMIN correction must be durably journaled');
+  assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='INSERT'));
+  assert.ok(chain.some(x=>x.table_name==='Result'&&x.operation==='UPDATE'));
+  let previous='0'.repeat(64);
+  for(const event of chain){
+   assert.equal(event.previous_hash,previous);
+   assert.equal(event.hash,event.calculated);
+   assert.equal(event.payload.stageId,ID.stage);
+   previous=event.hash;
+  }
+  await assert.rejects(()=>verifyClient.$executeRawUnsafe(
+   'DELETE FROM venue_private.operation_journal'),/permission|P2010|denied/i);
+ }finally{await verifyClient.$disconnect()}
  console.log('USD CI LAN REAL DB + API PASS: judge login/write, spectator LIVE, admin correction, private data redacted, unpublished archive denied');
 }
 const mode=process.argv[2];
