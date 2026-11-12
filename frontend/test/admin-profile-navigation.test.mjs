@@ -9,7 +9,7 @@ test('ADMIN participant details open the actual vehicle card by ID', async () =>
     read('../src/admin/CarsPage.tsx'),
     read('../src/admin/AdminRoutes.tsx'),
   ]);
-  assert.match(participants, /\/admin\/cars\?carId=/);
+  assert.match(participants, /<AdminEntityLink kind="car" id=\{car\.id\}/);
   assert.match(participants, /encodeURIComponent\(car\.id\)/);
   assert.match(cars, /URLSearchParams\(path\.split\('\?'\)\[1\]/);
   assert.match(cars, /cars\.find\(.*\.id===carId\)/);

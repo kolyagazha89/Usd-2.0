@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import './stage-report.css';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,CalendarDays,CheckCircle2,ClipboardCheck,FileText,Printer,RefreshCw,ShieldAlert,Trophy,Users,CarFront} from 'lucide-react';
@@ -61,7 +62,7 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
   {loading?<LoadingPage/>:!stageId?<Empty text="Выберите этап, чтобы посмотреть отчёт"/>:!report&&!error?<Empty text="Данные отчёта пока недоступны"/>:report&&<article className="usd-report-document" aria-label="Сводка этапа USD">
    <header className="usd-report-hero">
     <div><span className="usd-report-kicker">ULTIMATE SOUND DESTRUCTION / EVENT REPORT</span>
-     <h2>Этап №{report.stage.stageNumber} · {report.stage.name}</h2>
+     <h2><AdminEntityLink kind="stage" id={report.stage.id}>Этап №{report.stage.stageNumber} · {report.stage.name}</AdminEntityLink></h2>
      <p><CalendarDays size={16}/>{formatDate(report.stage.date)}{report.stage.city?' · '+report.stage.city:''}{report.stage.season?.year?' · сезон '+report.stage.season.year:''}</p>
     </div>
     <div className="usd-report-hero-status"><span className={'usd-report-status '+(report.status==='PUBLISHED'?'is-published':'is-internal')}>{stageReportStatusLabel(report.status)}</span><small>Сформировано {formatDate(report.generatedAt)}</small></div>
@@ -105,7 +106,7 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
     <p className="usd-report-help">Только допущенные результаты из внутренней статистики USD. До публикации этапа эти данные не являются официальным протоколом.</p>
     {report.podiumGroups.length?<div className="usd-report-table-wrap"><table className="usd-report-table usd-report-podium-table" aria-label="Подиумы по направлениям"><thead><tr><th>Класс</th><th>Место</th><th>№</th><th>Участник</th><th>Результат</th></tr></thead>
      {report.podiumGroups.map(group=><tbody key={group.direction} className="usd-report-direction-group"><tr className="usd-report-group-row"><th scope="rowgroup" colSpan={5}>{group.direction}</th></tr>
-      {group.rows.map(p=><tr key={p.id}><td data-label="Класс"><strong>{p.className}</strong></td><td data-label="Место"><span className={'usd-report-place p'+p.place}>{p.place}</span></td><td data-label="№">{p.number||'—'}</td><td data-label="Участник">{p.participant}<small>{p.car}</small></td><td data-label="Результат"><strong>{p.value} {p.unit}</strong></td></tr>)}
+      {group.rows.map(p=><tr key={p.id}><td data-label="Класс"><strong>{p.className}</strong></td><td data-label="Место"><span className={'usd-report-place p'+p.place}>{p.place}</span></td><td data-label="№">{p.number||'—'}</td><td data-label="Участник"><AdminEntityLink kind="participant" id={p.participantId}>{p.participant}</AdminEntityLink><small><AdminEntityLink kind="car" id={p.carId}>{p.car}</AdminEntityLink></small></td><td data-label="Результат"><strong>{p.value} {p.unit}</strong></td></tr>)}
      </tbody>)}</table></div>:<p className="usd-report-empty">Подиумы пока не сформированы.</p>}
    </section>
    <section className="usd-report-section">

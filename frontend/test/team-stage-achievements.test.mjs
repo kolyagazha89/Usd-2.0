@@ -51,6 +51,7 @@ test('team statistics are truthful about current membership and partial result c
 test('each historical team performance links to its public profile and original stage results',async()=>{
  const source=await readFile(new URL('../src/teams/TeamStageAchievements.tsx',import.meta.url),'utf8');
  assert.match(source,/to=\{'\/participants\/'\+encodeURIComponent\(result\.participant\.id\)\}/);
- assert.match(source,/to=\{'\/results\?stageId='\+encodeURIComponent\(stage\.id\)\}/);
+ assert.match(source,/admin\?'\/admin\/results\?stageId=':'\/results\?stageId='/);
+ assert.match(source,/encodeURIComponent\(stage\.id\)/);
  assert.match(source,/aria-label=\{'Результаты этапа '/);
 });

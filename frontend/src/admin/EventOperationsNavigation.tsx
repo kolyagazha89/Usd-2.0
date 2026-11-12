@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import {ArrowUpRight,ClipboardCheck,Trophy,Users} from 'lucide-react';
 
 type OperationsSection = 'registrations' | 'inspections' | 'results';
@@ -22,7 +23,7 @@ export function EventOperationsNavigation({current,stageId,stageName,go}:{
  return <nav className="event-ops-workflow" aria-label="Рабочие разделы этапа">
   <div className="event-ops-workflow-context">
    <span className="event-ops-workflow-kicker">USD · ДЕНЬ СОРЕВНОВАНИЙ</span>
-   <strong>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</strong>
+   <strong><AdminEntityLink kind="stage" id={stageId}>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</AdminEntityLink></strong>
    <small>Одна площадка · три связанных рабочих раздела</small>
    {stageId&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Все участники и допуски</button>}
   </div>

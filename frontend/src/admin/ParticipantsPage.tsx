@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import type {User} from '../api';
 import {apiGet,apiPatch,apiPost,listData} from '../api';
 
@@ -33,11 +34,11 @@ function ParticipantPerformanceHistory({history}:{history:any}){
         const archived=Boolean(snapshot&&typeof snapshot==='object'&&Object.keys(snapshot).length>0);
         return <article className="participant-history-event" key={registration.id}>
           <div className="participant-history-event-heading">
-            <div><span className="eyebrow">{textValue(stage.season?.year)} · ЭТАП №{textValue(stage.stageNumber)}</span><h4>{textValue(stage.name)}</h4><p>{[stage.city,stage.date?new Date(stage.date).toLocaleDateString('ru-RU'):null].filter(Boolean).join(' · ')}</p></div>
+            <div><span className="eyebrow">{textValue(stage.season?.year)} · ЭТАП №{textValue(stage.stageNumber)}</span><h4><AdminEntityLink kind="stage" id={stage.id??registration.stageId}>{textValue(stage.name)}</AdminEntityLink></h4><p>{[stage.city,stage.date?new Date(stage.date).toLocaleDateString('ru-RU'):null].filter(Boolean).join(' · ')}</p></div>
             <span className={'participant-history-snapshot-status '+(archived?'is-saved':'is-missing')}>{archived?'Снимок сохранён':'Нет снимка'}</span>
           </div>
           <div className="participant-history-event-meta">
-            <div><span>Автомобиль</span><strong>{[car.brand,car.model].filter(Boolean).join(' ')||'Автомобиль не указан'}</strong><small>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')||'Данные автомобиля не указаны'}</small></div>
+            <div><span>Автомобиль</span><strong><AdminEntityLink kind="car" id={car.id??registration.carId}>{[car.brand,car.model].filter(Boolean).join(' ')||'Автомобиль не указан'}</AdminEntityLink></strong><small>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')||'Данные автомобиля не указаны'}</small></div>
             <div><span>Статус регистрации</span><strong>{registration.status==='CANCELLED'?'Отменена':'Активна'}</strong><small>№ участника: {textValue(registration.participantNumber)}</small></div>
           </div>
           <div className="participant-history-classes"><h5>Заявленные классы</h5>{classes.length?<div className="participant-history-tags">{classes.map((entry:any,index:number)=><span key={entry.class?.id??index}>{entry.class?.direction?.name?entry.class.direction.name+' · ':''}{entry.class?.name??entry.class?.code??'Класс'}</span>)}</div>:<p className="muted">Классы не найдены в сохранённых данных.</p>}</div>
@@ -55,7 +56,7 @@ export function ParticipantsPage({ResourcePage,displayCarName,user,go}:{user:Use
     detailLoader={async(row:any)=>{const [carsResult,historyResult]=await Promise.allSettled([apiGet<any>('/participants/'+row.id+'/cars'),apiGet<any>('/history/participant/'+row.id)]);const cars=carsResult.status==='fulfilled'?listData(carsResult.value):[];const history=historyResult.status==='fulfilled'?historyResult.value:null;return {...row,cars,performanceHistory:history,performanceHistoryError:historyResult.status==='rejected'?(historyResult.reason instanceof Error?historyResult.reason.message:'Не удалось загрузить историю выступлений'):''}}}
     detailExtra={(item:any)=><>
       <div className="participant-detail-cars"><div className="eyebrow">ЭЛЕКТРОННАЯ ПОЧТА</div><p><strong>{item.email||'Email не указан'}</strong>{item.emailSource==='HISTORICAL'&&<small className="muted"> · Архивный email (не подтверждён новым аккаунтом)</small>}{item.emailSource==='ACCOUNT'&&<small className="muted"> · Email привязанного аккаунта</small>}</p></div>
-      <div className="participant-detail-cars"><div className="eyebrow">АВТОМОБИЛИ УЧАСТНИКА</div>{item.cars?.length?<div className="participant-car-list">{item.cars.map((car:any)=><div className="participant-car-item" key={car.id}><div><button type="button" className="text-button" onClick={()=>go('/admin/cars?carId='+encodeURIComponent(car.id))} title="Открыть карточку автомобиля">{displayCarName(car)} — открыть автомобиль</button><span>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')}</span></div><span className="badge">{car.configurations?.length??0} конф.</span></div>)}</div>:<span className="muted">Автомобилей нет</span>}</div>
+      <div className="participant-detail-cars"><div className="eyebrow">АВТОМОБИЛИ УЧАСТНИКА</div>{item.cars?.length?<div className="participant-car-list">{item.cars.map((car:any)=><div className="participant-car-item" key={car.id}><div><AdminEntityLink kind="car" id={car.id}>{displayCarName(car)}</AdminEntityLink><span>{[car.registrationCountry,car.registrationNumber,car.color].filter(Boolean).join(' · ')}</span></div><button type="button" className="text-button" onClick={()=>go('/admin/cars/configurations?carId='+encodeURIComponent(car.id))}>{car.configurations?.length??0} конф.</button></div>)}</div>:<span className="muted">Автомобилей нет</span>}</div>
       {item.performanceHistoryError?<div className="participant-detail-cars"><div className="eyebrow">ИСТОРИЯ ВЫСТУПЛЕНИЙ</div><p className="muted">Не удалось загрузить историю: {item.performanceHistoryError}</p></div>:<ParticipantPerformanceHistory history={item.performanceHistory}/>}
     </>}
   />;

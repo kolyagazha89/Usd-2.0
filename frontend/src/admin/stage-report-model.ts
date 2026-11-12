@@ -34,7 +34,7 @@ export function buildStageReport(source:StageReportSource){
   const row=byDirection.get(c.direction)??{direction:c.direction,registrations:0,classes:0};
   row.registrations+=c.registrations;row.classes++;byDirection.set(c.direction,row);
  }
- const podiums:Array<{id:string;direction:string;className:string;place:number;number:number;participant:string;car:string;value:string;unit:string;teamAtInspection:string}>=[];
+ const podiums:Array<{id:string;direction:string;className:string;place:number;number:number;participant:string;participantId:string;carId:string;car:string;value:string;unit:string;teamAtInspection:string}>=[];
  for(const group of Array.isArray(stats.classResults)?stats.classResults:[]){
   const seen=new Set<string>();
   for(const result of Array.isArray(group.results)?group.results:[]){
@@ -44,7 +44,7 @@ export function buildStageReport(source:StageReportSource){
    if(!id||seen.has(id))continue;
    seen.add(id);
    podiums.push({
-    id,direction:String(group.class?.direction?.name??'Без направления'),className:String(group.class?.name??'Класс'),
+    id,participantId:String(result.participant?.id??''),carId:String(result.car?.id??''),direction:String(group.class?.direction?.name??'Без направления'),className:String(group.class?.name??'Класс'),
     place,number:safeCount(result.participantNumber),
     participant:nameOf(result.participant),car:[result.car?.brand,result.car?.model].filter(Boolean).join(' ')||'Не указан',
     value:String(result.value??'—'),unit:unitOf(String(result.unit??'')),

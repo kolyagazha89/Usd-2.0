@@ -1,0 +1,8 @@
+.admin-entity-link{color:var(--accent,#b42332);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;overflow-wrap:anywhere}
+.admin-entity-link:hover{text-decoration-thickness:2px}
+.admin-entity-link:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:2px}
+.admin-related-entities{display:flex;flex-wrap:wrap;gap:16px;padding:16px 0}
+.admin-related-entities>span{display:grid;gap:4px;min-width:0;max-width:100%}
+.admin-related-entities small{color:var(--text-muted,#667085)}
+.admin-return-link{display:inline-block;margin-bottom:16px}
+@media print{.admin-return-link{display:none}.admin-entity-link{color:inherit;text-decoration:none}}
