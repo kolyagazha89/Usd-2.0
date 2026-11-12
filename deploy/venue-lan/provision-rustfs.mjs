@@ -149,7 +149,14 @@ async function main(){
  if(process.env.USD_VENUE_LAN_MODE!=='true'
   ||!process.env.VENUE_STAGE_ID?.match(/^[0-9a-f-]{36}$/i))
   throw new Error('Провижининг только изолированного этапа');
- const result=await provisionVenueMedia(process.env);
+ // The running API receives *only* scoped S3_ACCESS_KEY_ID/SECRET.
+ // Root credentials are added to this disposable CLI container via -e.
+ const env={
+  ...process.env,
+  VENUE_S3_APP_ACCESS:process.env.S3_ACCESS_KEY_ID,
+  VENUE_S3_APP_SECRET:process.env.S3_SECRET_ACCESS_KEY,
+ };
+ const result=await provisionVenueMedia(env);
  process.stdout.write('USD VENUE MEDIA READY — BUCKET '+result.bucket+'; scoped IAM verified\n');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
