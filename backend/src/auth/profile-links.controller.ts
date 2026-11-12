@@ -34,6 +34,8 @@ export class AdminProfileLinksController {
  constructor(private readonly service:ProfileLinksService,private readonly merges:ProfileMergeService){}
  @Get()
  list(@Query('status') status?:string){return this.service.adminList(status)}
+ @Get('coverage')
+ coverage(){return this.service.adminEmailCoverage()}
  @Get('diagnostics')
  diagnose(@Query('userId') userId:string,@Query('participantId') participantId:string){
   return this.service.diagnoseSelfLink(userId,participantId);
