@@ -1,3 +1,4 @@
+import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import {useEffect,useState} from 'react';
 import {FileClock,RefreshCw} from 'lucide-react';
 import {getAudit,listData,type Role} from '../api';
@@ -28,9 +29,9 @@ function AuditEntryCard({item,enumLabel,formatDate,humanizeAuditKey,roleName}:{i
   <div className="audit-entry-icon"><FileClock size={17}/></div>
   <div className="audit-entry-main">
    <div className="audit-entry-head"><strong>{auditActionName(item.action)}</strong><time>{new Date(item.createdAt).toLocaleString('ru-RU')}</time></div>
-   <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{roleName[item.user?.role as Role]??'Система'}</span><span>·</span><span>{auditEntityName(item.entity)}</span></div>
+   <div className="audit-entry-sub"><span className="badge">{actor}</span><span>{roleName[item.user?.role as Role]??'Система'}</span><span>·</span><span>{['Car','Stage','Participant'].includes(item.entity)?<AdminEntityLink kind={item.entity==='Car'?'car':item.entity==='Stage'?'stage':'participant'} id={item.entityId}>{auditEntityName(item.entity)}</AdminEntityLink>:auditEntityName(item.entity)}</span></div>
    {details.length>0&&<div className="audit-details">{details.map(([k,v])=><div key={k}><span>{humanizeAuditKey(k)}</span><strong>{formatAuditValue(v,enumLabel)}</strong></div>)}</div>}
-   {item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
+   <AdminRelatedEntities item={meta}/>{item.ipAddress&&<small className="audit-ip">IP: {item.ipAddress}</small>}
   </div>
  </article>
 }

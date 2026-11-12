@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import {useListScroll,useViewState,seasonYears,matchesSeason} from './view-state';
 import { GlobalHistoricalImportPanel } from './GlobalHistoricalImportPanel';
 import {useEffect,useMemo,useState} from 'react';
@@ -458,7 +459,7 @@ function ImportPage({path,go,PageFrame,PanelTitle,Empty,enumLabel}: {path:string
      <strong>Предпросмотр удаления · {resetPreview.counts?.historicalImportJobs??0} исторических загрузок</strong>
      <p>Регистраций: {resetPreview.counts?.importedRegistrations??0}; результатов: {resetPreview.counts?.results??0}; связанных рекордов: {resetPreview.counts?.recordsLinkedToThoseResults??0}; машин-кандидатов: {resetPreview.counts?.orphanCarsEligibleForRemoval??0}; участников-кандидатов: {resetPreview.counts?.orphanParticipantsEligibleForRemoval??0}.</p>
      <p>Защищено регистраций, связанных с другими импортами или ручными результатами: {resetPreview.counts?.registrationsProtectedByOtherImportsOrManualResults??0}.</p>
-     {Array.isArray(resetPreview.stages)&&resetPreview.stages.length>0&&<details><summary>Затронутые этапы ({resetPreview.counts?.affectedStages??0})</summary><ul>{resetPreview.stages.map((stage:any,index:number)=><li key={String(stage.importJobId??index)}>{stage.seasonYear} · этап №{stage.stageNumber} · {stage.name}</li>)}</ul></details>}
+     {Array.isArray(resetPreview.stages)&&resetPreview.stages.length>0&&<details><summary>Затронутые этапы ({resetPreview.counts?.affectedStages??0})</summary><ul>{resetPreview.stages.map((stage:any,index:number)=><li key={String(stage.importJobId??index)}><AdminEntityLink kind="stage" id={stage.id}>{stage.seasonYear} · этап №{stage.stageNumber} · {stage.name}</AdminEntityLink></li>)}</ul></details>}
      {Number(resetPreview.counts?.historicalImportJobs??0)>0?<div className="notice"><AlertTriangle size={16}/><div><strong>Необратимое действие: только для тестовой БД с резервной копией.</strong><p>После проверки этапов введите точную контрольную фразу. Если сервер не разрешает тестовую очистку, запрос будет отклонён. Ничего не удаляем без отдельного нажатия.</p>
       <label>Контрольная фраза<input type="text" autoComplete="off" spellCheck={false} value={resetConfirmation} onChange={e=>setResetConfirmation(e.target.value)} placeholder="RESET_HISTORICAL_IMPORT_TEST_DATA"/></label>
       <button type="button" className="secondary-button" disabled={resetBusy||resetConfirmation!=='RESET_HISTORICAL_IMPORT_TEST_DATA'} onClick={()=>void executeHistoricalReset()}>Удалить только ранее импортированные исторические записи</button>

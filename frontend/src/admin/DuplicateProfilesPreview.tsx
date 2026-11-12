@@ -1,3 +1,4 @@
+import {AdminEntityLink} from './AdminEntityLink';
 import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {apiGet,apiPost,listData} from '../api';
 
@@ -108,8 +109,8 @@ export default function DuplicateProfilesPreview(){
   {mergeDone&&<p role="status" className="duplicate-selection">{mergeDone}</p>}
   {preview&&<div className="duplicate-preview-result">
    <p className="duplicate-preview-warning"><strong>Только предпросмотр.</strong> Никакие профили не объединены. Выполнение возможно только после явного подтверждения ADMIN и повторной серверной проверки истории.</p>
-   <div className="duplicate-preview-metrics"><div><h3>{preview.source.name} <small>источник</small></h3>{Object.entries(preview.counts.source).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div>
-   <div><h3>{preview.target.name} <small>основной</small></h3>{Object.entries(preview.counts.target).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div></div>
+   <div className="duplicate-preview-metrics"><div><h3><AdminEntityLink kind="participant" id={preview.source.id}>{preview.source.name}</AdminEntityLink> <small>источник</small></h3>{Object.entries(preview.counts.source).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div>
+   <div><h3><AdminEntityLink kind="participant" id={preview.target.id}>{preview.target.name}</AdminEntityLink> <small>основной</small></h3>{Object.entries(preview.counts.target).map(([key,count])=><p key={key}><span>{countNames[key]||key}</span><strong>{count}</strong></p>)}</div></div>
    <h3>Конфликты: {preview.conflicts.length}</h3>
    {preview.conflicts.length?<ul>{preview.conflicts.map(item=><li key={item.code}>{item.description}</li>)}</ul>:<p>В базовой истории конфликтов не обнаружено.</p>}
    {readiness&&!readiness.canMergeNow&&<div className="duplicate-preview-warning" role="alert"><strong>Объединение заблокировано дополнительной серверной проверкой:</strong><ul>{readiness.conflicts.map(item=><li key={item.code}>{item.description}</li>)}</ul></div>}

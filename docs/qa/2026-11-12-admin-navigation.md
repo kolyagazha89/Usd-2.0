@@ -15,6 +15,7 @@ No database changes, imports or public-domain configuration.
 | Stage detail / report / season report | Result car and participant, report stage and podium references |
 | Teams | Member profiles; achievement stages and participant profiles stay in admin |
 | Profile claims / users / disqualifications | Referenced profile and applicable stage |
+| Audit / data quality / import reset | Existing referenced profiles, cars and stages by ID |
 | Statistics | Profile details, existing stage-report entry |
 | Generic resource/detail components | Identity columns and related participant/car/stage records |
 
@@ -34,7 +35,9 @@ and yields immediately to wheel, touch, pointer or keyboard input. Native automa
 history restoration is disabled while the coordinator is mounted.
 
 Verification:
-- Frontend production build and full frontend suite required.
+- Local production build and 523 frontend tests passed before the final CI run.
+- News, partner, user and configuration editors also restore their list position;
+  selected record/result/registration/user cards are encoded in their URL.
 - `scripts/admin-navigation-browser-qa.mjs`: isolated synthetic data, mobile and
   desktop; participant/car/configuration/history links, record and registration
   links, missing and failed car targets, edit/save scroll, public navigation/history.

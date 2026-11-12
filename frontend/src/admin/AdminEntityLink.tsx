@@ -19,8 +19,12 @@ export function useAdminDetail(items:any[]){
  return [detail,setDetail] as const;
 }
 export function AdminEntityLink({kind,id,children}:{kind:AdminEntityKind;id:unknown;children:ReactNode}){
- const navigation=useContext(AdminNavigationContext);
  const destination=adminEntityPath(kind,id);
+ return destination?<AdminRouteLink to={destination}>{children}</AdminRouteLink>:<>{children}</>;
+}
+export function AdminRouteLink({to,children}:{to:string;children:ReactNode}){
+ const navigation=useContext(AdminNavigationContext);
+ const destination=safeAdminReturn(to);
  if(!navigation||!destination)return <>{children}</>;
  const from=safeAdminReturn(navigation.path);
  const href=destination+(from?(destination.includes('?')?'&':'?')+'returnTo='+encodeURIComponent(from):'');
