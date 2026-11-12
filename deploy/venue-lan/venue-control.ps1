@@ -387,6 +387,7 @@ function Test-VenueApiReady {
  finally{$ErrorActionPreference=$prior}
 }
 function Export-VenueReturn {
+ param([switch]$LeaveApiStopped)
  # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
  # Never run in DEMO, use a central secret, or delete local durable records.
  if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
@@ -427,7 +428,20 @@ function Export-VenueReturn {
  $date=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
  $filename=('usd-venue-return-'+$state.stageId+'-'+$date+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)+'.json')
  $secret=Read-VenuePassword 'шифрования возвратного файла'
+ # A direct Export click is as important as the Online button: do NOT export
+ # while a judge can still enter a result. Detect the prior API state so
+ # export from a stopped server never starts it unexpectedly.
+ $apiRunning=@(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
+ Assert-Exit 'inspect currently running judge API'
+ $apiWasRunning=@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
+ $apiStopped=$false
+ $exportSucceeded=$false
+ $returnFile=Join-Path $directory $filename
  try{
+  if($apiWasRunning){
+   Invoke-Compose @('stop','api') 'pause judging before consistent signed return export'
+   $apiStopped=$true
+  }
   $args=@('compose','-p','usd-venue','-f',(Join-Path $Root 'compose.yaml'),
    'run','--rm','--no-deps','-T',
    '--volume',($volume+':/app/venue-return-keys:ro'),
@@ -442,9 +456,20 @@ function Export-VenueReturn {
   # Password is sent over stdin ONLY, never exposed in arguments or logs.
   $secret | & docker @args | Out-Host
   Assert-Exit 'signed encrypted USB return export'
- }finally{$secret=$null}
- $returnFile=Join-Path $directory $filename
- if(!(Test-Path -LiteralPath $returnFile -PathType Leaf)){throw 'Экспорт не создан — журнал сохранён'}
+  if(!(Test-Path -LiteralPath $returnFile -PathType Leaf) -or
+   (Get-Item -LiteralPath $returnFile).Length -lt 1){
+   throw 'Экспорт не создан — журнал сохранён'
+  }
+  $exportSucceeded=$true
+ }finally{
+  $secret=$null
+  # A standalone export must restore the judge API, whereas the Online
+  # button intentionally leaves it frozen until the remaining stack stops.
+  # Any failed export restores the previously running API in both modes.
+  if($apiStopped -and ((-not $LeaveApiStopped) -or (-not $exportSucceeded))){
+   Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after return export'
+  }
+ }
  Write-Host ('ЗАШИФРОВАННЫЙ ФАЙЛ: '+$returnFile)
  Write-Host ('ОТКРЫТЫЙ КЛЮЧ: '+$publicKey)
  Write-Host ('ОТПЕЧАТОК КЛЮЧА: '+$fingerprint)
@@ -467,17 +492,9 @@ function Return-Online {
    'Без успешного экспорта локальный сервер не остановится. Передайте готовый файл ответственному администратору Ubuntu.'))){
     throw 'Оператор отменил безопасный экспорт. Офлайн-сервер не остановлен.'
   }
-  # Freeze judge writes BEFORE the signed MVCC snapshot. Without this pause,
-  # a late result could arrive after export but before the online switch.
-  Ensure-DockerReady
-  Invoke-Compose @('stop','api') 'pause judging for consistent return export'
-  try{
-   Export-VenueReturn
-  }catch{
-   # Do not strand the operator with a stopped LAN API when export failed.
-   try{Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after export failure'}catch{}
-   throw
-  }
+  # Export handles the quiescent judge API and restores it after failure.
+  # On success it deliberately stays frozen until all LAN services stop.
+  Export-VenueReturn -LeaveApiStopped
  }
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
