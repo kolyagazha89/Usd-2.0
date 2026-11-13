@@ -33,6 +33,8 @@ class WindowsDistribution(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             for filename in (".env", "setup-state.json", "signing-private.pem"):
                 self.assertFalse((extracted / filename).exists())
+            self.assertIn("provision-existing-staff.mjs", kit.FILES)
+            self.assertNotIn("venue-staff-access.key", kit.FILES)
 
     def test_instruction_is_self_contained_and_truthful(self):
         html = (kit.OUTPUT / "USD-Offline-Guide.html").read_text()
