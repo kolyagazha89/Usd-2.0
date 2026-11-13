@@ -49,7 +49,7 @@ function verifyUsers(users){
    if(u.customRole!==null&&u.customRole!==undefined)
     throw new Error('Некорректная роль администратора');
    return {id:u.id,email,name:u.name??null,role:'ADMIN',passwordHash:u.passwordHash,
-    emailVerifiedAt:new Date(u.emailVerifiedAt),customRole:null};
+    isActive:true,emailVerifiedAt:new Date(u.emailVerifiedAt),customRole:null};
   }
   const role=u.customRole;
   if(u.role!=='PARTICIPANT'||!isObject(role)||!UUID.test(role.id)
@@ -62,7 +62,7 @@ function verifyUsers(users){
    throw new Error('Конфликт прав одного судейского профиля');
   roles.set(role.id,{key:role.key,permissions});
   return {id:u.id,email,name:u.name??null,role:'PARTICIPANT',
-   passwordHash:u.passwordHash,emailVerifiedAt:new Date(u.emailVerifiedAt),
+   passwordHash:u.passwordHash,isActive:true,emailVerifiedAt:new Date(u.emailVerifiedAt),
    customRole:{id:role.id,key:role.key,name:role.name.trim(),permissions}};
  }).map((u,i,list)=>{
   if(i===list.length-1&&administrators<1)throw new Error('Требуется администратор USD');
