@@ -1,4 +1,5 @@
 import {AdminInboxBell} from './AdminInbox';
+import {VENUE_ADMIN_HOME,venueAdminMenuAllowed} from './venue-admin-mode';
 import {bindAdminDrawerSwipe} from '../navigation/admin-drawer-swipe';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight,FileText,WifiOff} from 'lucide-react';
@@ -92,6 +93,7 @@ function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}c
 
 export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<Role,string>;cacheBrandLogo:(url:string)=>void}){
  const routePath=path.split('?')[0];
+ const venueMode=(window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true;
  const shellRef=useRef<HTMLDivElement>(null),drawerState=useRef({mobileOpen,setMobileOpen});
  drawerState.current={mobileOpen,setMobileOpen};
  useEffect(()=>{
@@ -114,7 +116,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
 
  const[logo,setLogo]=useState(readBrandLogo());
  useEffect(()=>{let active=true;getPublicSiteAsset('branding-logoUrl').then(r=>{if(!active||!r?.url)return;cacheBrandLogo(r.url);setLogo(r.url);}).catch(()=>{});return()=>{active=false}},[]);
- const visibleNav=nav.filter(x=>{if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
+ const visibleNav=nav.filter(x=>{if(!venueAdminMenuAllowed(x.path,venueMode))return false;if(user.role==='ADMIN')return true;if(user.customRoleId){const module=navPermissionModule(x.path);return Boolean(module&&user.customRole?.permissions?.[module]?.includes('view'))}return x.roles.includes(user.role)});
  const sections=[...new Set(visibleNav.map(x=>x.section))];
  const activeItem=visibleNav.find(x=>x.path===routePath)||visibleNav.find(x=>x.path!=='/admin'&&routePath.startsWith(x.path+'/'));
  const activeSection=activeItem?.section;
@@ -127,7 +129,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
  return <div ref={shellRef} className="app-shell">
   <aside id="usd-admin-sidebar" className={`sidebar ${mobileOpen?'open':''}`}>
    <div className="sidebar-top">
-    <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD">
+    <button className="brand-button" onClick={()=>go(venueMode?VENUE_ADMIN_HOME:'/admin')} aria-label="USD">
      <span className="brand-mark small">{logo?<img className="brand-logo-shell" src={logo} alt="USD"/>:<span>USD</span>}</span>
      <span className="brand-title">USD</span>
     </button>
@@ -144,8 +146,9 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
    <header className="topbar">
     <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню" aria-expanded={mobileOpen} aria-controls="usd-admin-sidebar"><Menu size={19}/></button>
     <div className="breadcrumb"><strong>USD</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
-    <div className="topbar-actions">{user.role==='ADMIN'&&<AdminInboxBell key={user.id} go={go}/>}<button type="button" className="admin-site-switch" onClick={()=>go('/')} title="Вернуться на сайт"><ArrowUpRight size={16}/><span>Вернуться на сайт</span></button><button type="button" className="admin-member-switch" onClick={()=>go('/participant')} title="Личный кабинет участника"><UserRound size={16}/><span>Мой кабинет</span></button><span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
+    <div className="topbar-actions">{!venueMode&&user.role==='ADMIN'&&<AdminInboxBell key={user.id} go={go}/>} {!venueMode&&<><button type="button" className="admin-site-switch" onClick={()=>go('/')} title="Вернуться на сайт"><ArrowUpRight size={16}/><span>Вернуться на сайт</span></button><button type="button" className="admin-member-switch" onClick={()=>go('/participant')} title="Личный кабинет участника"><UserRound size={16}/><span>Мой кабинет</span></button></>}<span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>
+   {venueMode&&<div className="venue-admin-banner" role="status"><WifiOff size={18} aria-hidden="true"/><span><strong>USD · ЛОКАЛЬНЫЙ ЭТАП</strong> — регистрация, инспекция и результаты работают через сервер в Wi-Fi. Возврат на Ubuntu — кнопкой «USD — Онлайн» на ноутбуке.</span></div>}
    <main className="content"><PageContent path={path} go={go} user={user}/></main>
   </div>
  </div>;

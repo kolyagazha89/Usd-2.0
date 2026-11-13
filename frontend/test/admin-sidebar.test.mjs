@@ -33,6 +33,7 @@ test("admin sidebar isolates active navigation and persists section disclosure",
     });
     const module = await import(pathToFileURL(outfile).href);
     await module.runSidebarWorkflow();
+    await module.runVenueSidebarWorkflow();
   } finally {
     dom.window.close();
     for (const [k, desc] of previous) {

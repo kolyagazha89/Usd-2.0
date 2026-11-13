@@ -1737,3 +1737,14 @@ body .app-shell .main .content .partner-image-preview-item .usd-partner-link{
 
 /* Horizontal drawer gestures own navigation overscroll only inside mobile admin. */
 @media(max-width:800px){html.usd-admin-swipe{overscroll-behavior-x:contain}}
+
+/* Venue is the same administration shell, not a second visual interface. */
+body .app-shell .venue-admin-banner{
+ display:flex;align-items:flex-start;gap:10px;
+ padding:12px clamp(16px,2.2vw,32px);
+ border-bottom:1px solid #f1d3d9;background:#fff2f4;
+ color:#642030;font-size:13px;line-height:1.5;
+}
+body .app-shell .venue-admin-banner svg{flex:0 0 18px;margin-top:1px}
+body .app-shell .venue-admin-banner strong{font-weight:850;letter-spacing:.025em}
+@media(max-width:600px){body .app-shell .venue-admin-banner{font-size:12px;padding:10px 14px}}

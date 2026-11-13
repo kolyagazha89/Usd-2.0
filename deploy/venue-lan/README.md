@@ -1,10 +1,11 @@
-# USD venue LAN hub — laptop + Wi-Fi router (foundation, NOT event-ready)
+# USD venue LAN hub — same USD admin, event-only Wi-Fi workspace (field acceptance pending)
 
 > **Windows 10/11:** двойной щелчок по `USD-Install.cmd` (первый раз),
 > `USD-Offline.cmd` (включить LAN) и `USD-Online.cmd` (вернуться к
 > основному сайту). Автостарт после входа в Windows. Подробности:
-> **[START-WINDOWS.md](./START-WINDOWS.md)**. Это переключение, **НЕ перенос
-> результатов в центральную БД**.
+> **[START-WINDOWS.md](./START-WINDOWS.md)**. Для настоящего этапа «USD — Онлайн»
+> сначала синхронизирует подписанный журнал с Ubuntu и ждёт подтверждения;
+> для ДЕМО никакая синхронизация не выполняется.
 
 **Agreed primary architecture:** the laptop is a local USD server; a dedicated
 router/AP connects every judge's phone to **the same local API, PostgreSQL and
@@ -37,12 +38,22 @@ This is not official publication on `app.usd-russia.ru`.
  or published rules are missing, local on-site registration stays blocked;
  never invent an approval.
 
-**Blocker:** The signed package now has a guarded local import procedure (below), but
-the hub has locally provisioned staff accounts and the read-only journal, but still lacks complete equipment/media transfer,
-a durable offline write journal and central result reconciliation. The board
-will display imported measurements and local edits when those workflows are
-available; the venue hub cannot yet operate a real competition. Do not use it with real
-participant data until the following milestones and field acceptance pass.
+**Remaining release gates:** the shared LAN database, 19-table durable write journal,
+Windows one-click installer, signed stage import, result entry/LIVE scoreboard,
+full encrypted journal upload and central transactional ACK are implemented and
+covered by automated checks. This does **not** establish a physically accepted
+competition: test an actual Windows laptop, router, iPhone and Android with
+WAN disconnected, then prove real central replay on Ubuntu before approval.
+
+**Identity gap (2026-11-13):** the current bundle still creates isolated
+\`@venue.invalid\` staff accounts with distinct passwords. The target UX is
+the **same existing USD staff identities/roles**, pre-authorized securely before
+WAN loss; no staff password hashes should be exposed in the signed stage JSON.
+This identity bridge is NOT implemented yet. A local laptop-origin URL and
+manual trust of Caddy's private CA are also still required. Thus the current
+client deliberately enters the **familiar restricted USD admin UI** on LAN,
+but it does not magically reroute an already-open public domain after WAN loss.
+DNS/TLS and device activation must be rehearsed before any real event.
 
 ## Быстрый тест на своём ноутбуке (только вымышленные участники)
 

@@ -1,4 +1,5 @@
 import './entity-navigation.css';
+import {VENUE_ADMIN_HOME,venueAdminRouteAllowed} from './venue-admin-mode';
 import {AdminNavigationContext,AdminReturnLink} from './AdminEntityLink';
 import AdminInboxPage from './AdminInbox';
 import NotificationsPage from './NotificationsPage';
@@ -43,6 +44,9 @@ import LegalDocumentsPage from './LegalDocumentsPage';
 function AdminRouteContent({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,PanelTitle,ResourcePage,EntityDetailModal,EntityForm,SearchableSelect,enumLabel,formatDate,displayCarName,displayPersonName,roleName,humanize,humanizeAuditKey,clean,isValidPlate,PublicResultCards,cacheBrandLogo}:{path:string;go:(p:string)=>void;user:User;PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;ResourcePage:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;EntityForm:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;displayCarName:(car:any,fallback?:string)=>string;displayPersonName:(v:any)=>string;roleName:Record<Role,string>;humanize:(v:string)=>string;humanizeAuditKey:(v:string)=>string;clean:(v:any)=>any;isValidPlate:(country:string,value:string)=>boolean;PublicResultCards:React.ComponentType<any>;cacheBrandLogo:(url:string)=>void}){
   const routeRef=useRef({go,path});routeRef.current={go,path};
   const RoutedResourcePage=useMemo(()=>function RoutedResourcePage(props:any){return <ResourcePage {...props} go={routeRef.current.go} routePath={routeRef.current.path}/>},[ResourcePage]);
+  // Keep the judge workspace restricted even for pasted URLs and back/forward.
+  if((window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true&&!venueAdminRouteAllowed(path))
+   return <PageFrame title="День соревнований" subtitle="USD работает через локальный сервер"><section className="panel" role="alert"><h2>Этот раздел недоступен на площадке</h2><p>В локальном режиме доступны регистрация, участники, автомобили, конфигурации, инспекции и результаты текущего этапа.</p><button className="primary-button" onClick={()=>go(VENUE_ADMIN_HOME)}>Открыть день соревнований</button></section></PageFrame>;
   if(path==='/admin'||path==='/admin/')return <DashboardPage go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} Empty={Empty} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} formatDate={formatDate} enumLabel={enumLabel} displayCarName={displayCarName}/>;
   if(path.startsWith('/admin/notifications'))return <NotificationsPage user={user} PageFrame={PageFrame}/>;
   if(path.startsWith('/admin/venue-server'))return <VenueServerPage user={user} go={go} path={path} PageFrame={PageFrame}/>;

@@ -154,6 +154,11 @@ export class AuthService {
     termsAccepted: boolean,
     newsletterOptIn = false,
   ) {
+    // Public signup cannot be replayed to Ubuntu: local User rows are not
+    // part of the signed stage journal. Only pre-provisioned staff may log in.
+    if (process.env.USD_VENUE_LAN_MODE === 'true') {
+      throw new ForbiddenException('Регистрация аккаунтов на локальном сервере недоступна');
+    }
     const normalizedEmail =
       email.trim().toLowerCase();
 
