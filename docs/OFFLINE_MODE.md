@@ -1,15 +1,12 @@
 # USD 2.0 — Offline operation and synchronization
 
-Status: **owner reopened the laptop LAN hub on 2026-11-11** (supersedes
-the temporary 2026-11-09 postponement). P0 remains partial; the first
-venue-side milestone is a read-only LAN LIVE scoreboard and stage-pinned
-API. **The signed-stage importer is implemented but not physically accepted;
-staff accounts, complete media and reverse sync still missing. NOT ready
-for official offline judging.**
+Status as of 2026-11-13: **LAN workflow implemented in code, NOT physically released**. The Windows one-click package boots an isolated shared API/PostgreSQL/RustFS/Caddy hub; the original USD admin UI displays a restricted event-day workspace and LAN LIVE. The signed stage export, 19-table durable journal, encrypted full-result upload, transactional central import and exact acknowledgment are implemented (PR #542). Automated tests passed on its PR; laptop/router/two-phone field acceptance and deployed Ubuntu synchronization are still required.
 
-**Signed stage package progress:** ADMIN now has an explicit export of a stage-scoped, Ed25519-signed 72-hour JSON snapshot with no account credentials and central audit; laptop CLI verifies integrity/expiry/references read-only. This is a **handoff foundation only**, not an operational importer or online/offline sync. The signing private key must be provisioned on trusted Ubuntu out-of-band; the venue laptop receives the public key only. See `deploy/venue-lan/README.md`.
+**User experience goal:** judges must use their **existing USD accounts and roles**, not remember separate venue-only addresses, and automatically see the familiar administration workspace restricted to registrations, participants/cars/configurations, inspections and results. Offline operation must stay on the **shared LAN database**, never on each judge's independent local browser storage. Return to Ubuntu must never drop unacknowledged writes.
 
-**Primary target confirmed:** one laptop running a USD local server and database, with judges' phones connected through a dedicated Wi-Fi router **without internet**. A shared venue DB is the authoritative on-site copy. The per-device encrypted IndexedDB pilot below is a *backup only*, not a replacement for the LAN hub. The first LAN container/bootstrap scaffold is in `deploy/venue-lan/`; it has **no supported stage data import, authoritatively reconciled sync, or disconnected multi-judge acceptance yet**, so it must not be used as the official event server.
+**Outstanding blockers:** the current installer still provisions isolated `@venue.invalid` logins and Caddy's local CA requires manual trust on phones. There is no proven transparent fallback of an already-open public `app.usd-russia.ru` session to the LAN origin during a WAN outage. A pre-provisioned, trusted hostname/certificate and secure existing-account/device activation strategy must be designed and field-tested; do not copy central password hashes into a plain signed JSON file. Physical tests with disconnected WAN and two real phones, followed by full central ACK/reconciliation, are release gates.
+
+**Scope:** no photographs are required in the stage-return package; on-site photo uploads are deliberately disabled, not silently dropped. The offline pilot below remains a separate emergency fallback and does not replace the LAN hub.
 
 ### Implemented pilot — encrypted local inspection drafts
 
