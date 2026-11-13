@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { createHash, createPrivateKey, createPublicKey, randomBytes } from 'node:crypto';
-import {eligibleVenueStaff,sealVenueStaffAccess} from './venue-staff-access';
+import {prepareVenueStaffExport} from './venue-staff-access';
 
 @Injectable()
 export class VenueStageService {
@@ -97,33 +97,12 @@ export class VenueStageService {
    },contactEmail,
    rulesPublished:{id:String(published.id),blocks:published.blocks},
   }:undefined;
-  // Real LAN deployment needs the existing identities (same UUID, email and
-  // password), but the verifiers must never be present in plaintext in JSON.
-  // Scope to verified active event staff; participant logins are excluded.
-  let staffKey:string|undefined;
-  let staffAccess:ReturnType<typeof sealVenueStaffAccess>['staffAccess']|undefined;
-  let staffCount=0;
-  if(withStaff){
-   const candidates=await this.prisma.user.findMany({
-    where:{isActive:true,emailVerifiedAt:{not:null},OR:[{role:'ADMIN'},{customRoleId:{not:null}}]},
-    select:{id:true,email:true,name:true,role:true,passwordHash:true,isActive:true,
-     emailVerifiedAt:true,customRoleId:true,
-     customRole:{select:{id:true,key:true,name:true,permissions:true}}},
-    take:1001,
-   });
-   // Never silently omit an eligible judge because Prisma truncated the list.
-   if(candidates.length>1000)
-    throw new ServiceUnavailableException('Слишком много сотрудников для офлайн-экспорта; уточните состав ролей');
-   const staff=eligibleVenueStaff(candidates);
-   if(!staff.some(u=>u.id===request.user.sub)||!staff.length||staff.length>40)
-    throw new ServiceUnavailableException('Не удалось собрать безопасный список судей и администратора для площадки');
-   try{
-    const sealed=sealVenueStaffAccess(id,staff);
-    staffKey=sealed.staffKey;staffAccess=sealed.staffAccess;staffCount=staff.length;
-   }catch{
-    throw new ServiceUnavailableException('Подготовка защищённого списка судей не удалась');
-   }
-  }
+  // Existing staff identities are sealed in a dedicated helper; do not
+  // expose user verifiers in the signed stage roster or service response.
+  const prepared=withStaff?await prepareVenueStaffExport(this.prisma,id,request.user.sub):null;
+  const staffKey=prepared?.staffKey;
+  const staffAccess=prepared?.staffAccess;
+  const staffCount=prepared?.staffCount??0;
   const generatedAt=new Date();
   const syncToken=randomBytes(32).toString('base64url');
   const syncExpires=new Date(generatedAt.getTime()+30*24*60*60*1000);
