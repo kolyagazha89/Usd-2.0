@@ -43,6 +43,7 @@ import ResourcePageModule from './admin/ResourcePage';
 import {EntityDetailWorkspace,EntityForm as EntityFormModule,SearchableSelect} from './admin/FormComponents';
 import {Empty,enumLabel,ErrorPanel,formatCell,formatDate,getPath,humanize,LoadingPage,PageFrame,PanelTitle} from './admin/AdminPrimitives';
 import AdminShell from './admin/AdminShell';
+import {VENUE_ADMIN_HOME,venueEntryPath} from './admin/venue-admin-mode';
 import OfflineEventPage from './admin/OfflineEventPage';
 import {validateImageUpload} from './admin/upload-validation';
 import {publicResultUnit,publicResultValue,selectHomepageRecords,selectHomepageResults} from './public-result-utils';
@@ -77,8 +78,14 @@ const BRAND_LOGO_CACHE='usd_brand_logo';
 function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}catch{return''}}
 function cacheBrandLogo(url:string){try{localStorage.setItem(BRAND_LOGO_CACHE,url)}catch{}}
 function loadBrandLogo(url:string,onReady:(url:string)=>void){if(!url)return;const img=new Image();img.decoding='async';img.onload=()=>onReady(url);img.onerror=()=>{};img.src=url}
+function isVenueLan():boolean{return (window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true}
 function initialInstalledPath():string {
  const current=location.pathname+location.search;
+ if(isVenueLan()){
+  const entry=venueEntryPath(current,true);
+  if(entry!==current)history.replaceState({},'',entry);
+  return entry;
+ }
  const standalone=window.matchMedia?.('(display-mode: standalone)').matches ||
    (window.navigator as Navigator & {standalone?:boolean}).standalone===true;
  if(!standalone)return current;
@@ -100,14 +107,14 @@ function App(){
  const[user,setUser]=useState<User|null>(null),[booting,setBooting]=useState(true),[path,setPath]=useState(()=>initialInstalledPath()),[mobileOpen,setMobileOpen]=useState(false); useEffect(()=>{void getPublicSiteAsset('branding-faviconUrl').then(r=>{if(r?.url){let link=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link)}link.href=r.url}}).catch(()=>{});},[]);
  useEffect(()=>{const route=path.split('?')[0];if(!/^\/(?:admin|participant|offline-event|login|reset-password|confirm-email-change|verify-email)(?:\/|$)/.test(route))return;document.title=route==='/offline-event'?'День соревнований — USD':route.startsWith('/admin')?'USD — Админ-панель':route==='/reset-password'?'Новый пароль — USD':route==='/confirm-email-change'?'Подтверждение email — USD':route==='/login'?'Вход — USD':route==='/participant/register'?'Регистрация на этап — USD':'USD — Ultimate Sound Destruction'},[path]);
  const {beforeNavigate,onHistoryNavigation}=useRouteScroll(path);
- useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>{onHistoryNavigation();setPath(location.pathname+location.search)};addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
+ useEffect(()=>{refresh().then(r=>setUser(r?.user??null)).finally(()=>setBooting(false));const f=()=>{onHistoryNavigation();const original=location.pathname+location.search;const next=venueEntryPath(original,isVenueLan());if(next!==original)history.replaceState({},'',next);setPath(next)};addEventListener('popstate',f);return()=>removeEventListener('popstate',f)},[]);
  useEffect(()=>{const onExpired=()=>{setUser(null);const current=location.pathname+location.search;if(/^\/(?:admin|participant)(?:\/|\?|$)/.test(current)){const target='/login?next='+encodeURIComponent(current);history.replaceState({},'',target);setPath(target)}};window.addEventListener('usd:session-expired',onExpired);return()=>window.removeEventListener('usd:session-expired',onExpired)},[]);
- const go=(p:string)=>{beforeNavigate();history.pushState({usdScrollY:0},'',p);setPath(p);setMobileOpen(false)};
+ const go=(p:string)=>{const next=venueEntryPath(p,isVenueLan());beforeNavigate();history.pushState({usdScrollY:0},'',next);setPath(next);setMobileOpen(false)};
  useEffect(()=>{if(!booting&&!user&&/^\/participant(?:\/|\?|$)/.test(path)){const next='/login?next='+encodeURIComponent(path);history.replaceState({},'',next);setPath(next)}},[booting,user,path]);
  useEffect(()=>{if(user&&path.split('?')[0]==='/login'){
   const next=new URLSearchParams(path.split('?')[1]??'').get('next');
   const destination=accountLanding(user,next);
-  history.replaceState({},'',destination);setPath(destination);
+  const next=venueEntryPath(destination,isVenueLan());history.replaceState({},'',next);setPath(next);
  }},[user,path]);
  useEffect(()=>{if(user&&path.startsWith('/admin')&&!hasAdminPanelAccess(user)){
   history.replaceState({},'','/participant');setPath('/participant');
@@ -115,7 +122,7 @@ function App(){
  useEffect(()=>{if(user?.customRoleId&&path.split('?')[0]==='/admin'&&hasAdminPanelAccess(user)){
    const permissions=user.customRole?.permissions??{};
    const destinations:Array<[string,string]>=[['stages','/admin/stages'],['registrations','/admin/registrations'],['inspections','/admin/inspections'],['results','/admin/results'],['participants','/admin/participants'],['cars','/admin/cars'],['configurations','/admin/cars'],['statistics','/admin/statistics'],['records','/admin/records'],['disqualifications','/admin/disqualifications'],['imports','/admin/import'],['historicalResults','/admin/historical-results'],['siteSettings','/admin/site-settings'],['classes','/admin/classes'],['seasons','/admin/seasons'],['media','/admin/media'],['assistant','/admin/assistant'],['notifications','/admin/notifications']];
-   const destination=destinations.find(([module])=>permissions[module]?.includes('view')||permissions[module]?.includes('*'))?.[1]??'/participant';
+   const destination=isVenueLan()?VENUE_ADMIN_HOME:destinations.find(([module])=>permissions[module]?.includes('view')||permissions[module]?.includes('*'))?.[1]??'/participant';
    history.replaceState({},'',destination);setPath(destination);
  }},[user,path]);
  if(booting&&/^\/(?:admin|participant|login)(?:\/|\?|$)/.test(path))return <Splash/>;
