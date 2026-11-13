@@ -434,6 +434,7 @@ model Stage {
   @@index([date])
   @@index([registrationOpen])
   @@index([status])
+  venueSyncAuthorizations VenueSyncAuthorization[]
 }
 
 model Direction {
@@ -1191,4 +1192,20 @@ model AdminNotificationRead {
 
   @@unique([notificationId,userId])
   @@index([userId,readAt])
+}
+
+model VenueSyncAuthorization {
+  id                 String   @id @default(uuid())
+  stageId            String
+  baselineSha256     String   @unique @db.VarChar(64)
+  tokenHash          String   @unique @db.VarChar(64)
+  venueFingerprint   String?  @db.VarChar(64)
+  venuePublicKeyPem  String?  @db.Text
+  expiresAt          DateTime @db.Timestamptz(3)
+  revokedAt          DateTime? @db.Timestamptz(3)
+  lastJournalHash    String?  @db.VarChar(64)
+  acceptedAt         DateTime? @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  stage              Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  @@index([stageId, expiresAt])
 }

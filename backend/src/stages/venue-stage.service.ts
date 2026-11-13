@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableEx
 import { PrismaService } from '../prisma/prisma.service';
 import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
-import { createHash, createPrivateKey, createPublicKey } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, randomBytes } from 'node:crypto';
 
 @Injectable()
 export class VenueStageService {
@@ -26,7 +26,7 @@ export class VenueStageService {
     }
    }
   }catch{/* Report readiness only; never expose a key or crypto error. */}
-  return {signing,centralSyncReady:false,fieldAcceptanceComplete:false};
+  return {signing,centralSyncReady:signing.ready,fieldAcceptanceComplete:false};
  }
 
  async exportStage(id:string,request:AuthenticatedRequest){
@@ -97,6 +97,8 @@ export class VenueStageService {
    rulesPublished:{id:String(published.id),blocks:published.blocks},
   }:undefined;
   const generatedAt=new Date();
+  const syncToken=randomBytes(32).toString('base64url');
+  const syncExpires=new Date(generatedAt.getTime()+30*24*60*60*1000);
   const snapshot:VenueStageSnapshot={
    format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:id,
    generatedAt:generatedAt.toISOString(),
@@ -109,6 +111,7 @@ export class VenueStageService {
     rulesSnapshot:data.rulesSnapshot,season:data.season,stageClasses:data.stageClasses,
    },
    ...(venuePolicy?{venuePolicy}:{}),
+   syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
    registrations:data.registrations,
   };
   let signed;
@@ -116,11 +119,18 @@ export class VenueStageService {
   catch{throw new ServiceUnavailableException('Не удалось подписать пакет этапа; обратитесь к администратору сервера')}
   // Export audit stores only metadata and digest, not the participant roster.
   // Export only after the audit transaction succeeds.
-  await this.prisma.auditLog.create({data:{
-   userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
-   metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
-    exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt},
-  }});
+  await this.prisma.$transaction(async tx=>{
+   await tx.venueSyncAuthorization.create({data:{
+    stageId:id,baselineSha256:signed.integrity.sha256,
+    tokenHash:createHash('sha256').update(syncToken).digest('hex'),expiresAt:syncExpires,
+   }});
+   await tx.auditLog.create({data:{
+    userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
+    metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
+     exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
+     automaticReturn:true},
+   }});
+  });
   return signed;
  }
 }

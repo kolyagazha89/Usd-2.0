@@ -13,6 +13,7 @@ export type VenueStageSnapshot={
  stage:unknown;
  registrations:unknown[];
  venuePolicy?:unknown;
+ syncAuthorization?:{token:string;expiresAt:string};
 };
 export type VenueSignedStagePackage={
  snapshot:VenueStageSnapshot;
@@ -68,6 +69,12 @@ export function verifyVenueStagePackage(
   ||expires-created>VENUE_STAGE_TTL_MS||expires<=created
   ||now>expires||now<created-5*60*1000)
   throw new Error('Venue package expired or device clock invalid');
+ if(snapshot.syncAuthorization!==undefined){
+  if(!/^[A-Za-z0-9_-]{43}$/.test(snapshot.syncAuthorization.token)
+   ||Date.parse(snapshot.syncAuthorization.expiresAt)<=created
+   ||Date.parse(snapshot.syncAuthorization.expiresAt)-created>31*86400000)
+   throw new Error('Invalid venue sync authorization');
+ }
  const bytes=Buffer.from(JSON.stringify(snapshot),'utf8');
  if(bytes.length>VENUE_STAGE_MAX_BYTES||hash(bytes)!==integrity.sha256)
   throw new Error('Venue package integrity failed');

@@ -64,7 +64,9 @@ export async function finalizeVenueStage(stageId: string, connectionString: stri
     await prisma.$disconnect();
   }
 }
-if (require.main===module) {
+// Jest ESM loads this module as a service dependency without CommonJS globals.
+// Keep CLI-only execution isolated: production CJS still runs directly.
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main===module) {
   finalizeVenueStage(process.argv[2]??'',process.env.DATABASE_URL??'')
     .then(result=>console.log(JSON.stringify(result)))
     .catch(()=>{

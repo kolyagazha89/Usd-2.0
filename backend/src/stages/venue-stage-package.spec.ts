@@ -63,7 +63,11 @@ describe('Signed LAN stage export',()=>{
      registrationNumber:'А001УР55',color:null},
     numbers:[],classes:[],inspection:null,stageInspection:null,results:[],
    }],
-  })},auditLog:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'log1'})}};
+  })},
+   venueSyncAuthorization:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'grant1'})},
+   auditLog:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'log1'})},
+   $transaction:async(fn:(tx:any)=>Promise<any>)=>fn(prisma),
+  };
   const old=process.env.VENUE_STAGE_SIGNING_KEY_B64;
   process.env.VENUE_STAGE_SIGNING_KEY_B64=secret;
   try{
@@ -75,6 +79,10 @@ describe('Signed LAN stage export',()=>{
     legal:{legalApproved:true,legalVersion:'2'},
     rulesPublished:{id:'rules-v2'},
    });
+   expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+   expect(prisma.venueSyncAuthorization.create).toHaveBeenCalledWith(expect.objectContaining({
+    data:expect.objectContaining({stageId,baselineSha256:pkg.integrity.sha256}),
+   }));
    const data=JSON.stringify(pkg);
    for(const forbidden of ['passwordHash','phone','birthDate','refreshToken','usdIdToken','DO_NOT_EXPORT'])
     expect(data).not.toContain(forbidden);

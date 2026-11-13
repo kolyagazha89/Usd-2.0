@@ -26,7 +26,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -46,6 +46,13 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  if(hash(key.export({type:'spki',format:'der'}))!==integrity.publicKeyFingerprint
   ||!verify(null,bytes,key,Buffer.from(integrity.signature,'base64url')))
   throw new Error('Цифровая подпись не подтверждена');
+ if(snapshot.syncAuthorization!==undefined){
+  fields(snapshot.syncAuthorization,['token','expiresAt'],'права синхронизации');
+  if(!/^[A-Za-z0-9_-]{43}$/.test(snapshot.syncAuthorization.token)
+   ||Date.parse(snapshot.syncAuthorization.expiresAt)<=created
+   ||Date.parse(snapshot.syncAuthorization.expiresAt)-created>31*86400000)
+   throw new Error('Некорректные права синхронизации');
+ }
  if(snapshot.venuePolicy!==undefined){
   const policy=snapshot.venuePolicy;
   fields(policy,['legal','contactEmail','rulesPublished'],'политика регистрации');

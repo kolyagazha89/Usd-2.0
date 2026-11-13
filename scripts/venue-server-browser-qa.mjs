@@ -52,7 +52,7 @@ try{
    }else if(url.pathname==='/stages')data=mode==='empty'?[]:stages;
    else if(url.pathname==='/stages/venue/one/export'){
     const now=Date.now();
-    data={snapshot:{stageId:mode==='tamper'?'other':'one',generatedAt:new Date(now).toISOString(),expiresAt:new Date(now+10000).toISOString()},integrity:{algorithm:'Ed25519',signature:'b'.repeat(86),sha256:'c'.repeat(64),publicKeyFingerprint:'a'.repeat(64)}};
+    data={snapshot:{stageId:mode==='tamper'?'other':'one',generatedAt:new Date(now).toISOString(),expiresAt:new Date(now+10000).toISOString(),syncAuthorization:{token:'A'.repeat(43),expiresAt:new Date(now+3600000).toISOString()}},integrity:{algorithm:'Ed25519',signature:'b'.repeat(86),sha256:'c'.repeat(64),publicKeyFingerprint:'a'.repeat(64)}};
    }else if(url.pathname==='/site-settings'||url.pathname==='/site-settings/public')data={branding:{siteName:'USD'},homepage:{blocks:[]}};
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });

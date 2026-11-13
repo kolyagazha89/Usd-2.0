@@ -49,7 +49,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
         self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
         self.assertIn('if($Silent)',section)
-        self.assertIn('unsynced',section.lower())
+        self.assertIn('ACKNOWLEDGED',section)
 
     def test_direct_export_quiesces_judges_and_restores_only_the_originally_running_api(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
@@ -77,7 +77,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertRegex(section,r"(?i)\bstop\b")
         self.assertNotIn(" down ",section)
         self.assertNotIn("rm -",section)
-        self.assertIn("unsynced",section.lower())
+        self.assertIn("ACKNOWLEDGED",section)
 
 
     def test_export_button_is_a_safe_signed_package_not_fake_online_sync(self):
@@ -96,7 +96,7 @@ class VenueLauncherContracts(unittest.TestCase):
         section=ctl[ctl.index('function Export-VenueReturn'):]
         self.assertNotIn('down -v',section)
         self.assertNotIn('prune',section)
-        self.assertNotIn('api.usd-russia.ru',section)
+        self.assertIn('Sync-VenueReturn',section)
 
 if __name__=="__main__":
     unittest.main()
