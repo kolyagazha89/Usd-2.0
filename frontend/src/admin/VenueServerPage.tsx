@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,BookOpen,Download,ExternalLink,RefreshCw,WifiOff} from 'lucide-react';
-import {apiGet,listData,type User} from '../api';
-import {saveVenueFile,trustedVenueKey,validateVenueDownload,type VenueSetup} from './venue-setup-model';
+import {apiGet,apiPost,listData,type User} from '../api';
+import {saveVenueFile,trustedVenueKey,validateVenueStaffExport,type VenueSetup} from './venue-setup-model';
 import './venue-server.css';
 type Stage={id:string;name:string;date?:string;city?:string;status?:string};
 export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(p:string)=>void;path:string;PageFrame:React.ComponentType<any>}){
@@ -9,6 +9,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
  const [stageId,setStageId]=useState(()=>new URLSearchParams(path.split('?')[1]??'').get('stageId')??'');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[attempt,setAttempt]=useState(0);
+ const [staffKey,setStaffKey]=useState('');
  useEffect(()=>{
   if(user.role!=='ADMIN'){setLoading(false);return;}
   let active=true;setLoading(true);setError('');setSetup(null);setStages([]);
@@ -24,12 +25,15 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
  },[user.role,attempt]);
  const downloadStage=async()=>{
   if(!setup||!stageId||busy)return;
-  const selected=stageId;setBusy(true);setError('');setNotice('');
+  const selected=stageId;setBusy(true);setError('');setNotice('');setStaffKey('');
   try{
-   const data=await apiGet('/stages/venue/'+encodeURIComponent(selected)+'/export');
-   const file=validateVenueDownload(data,selected,setup);
+   const data=await apiPost('/stages/venue/'+encodeURIComponent(selected)+'/staff-export',{});
+   const file=validateVenueStaffExport(data,selected,setup);
    saveVenueFile('usd-venue-stage-'+selected+'.json',file.text,'application/json');
-   setNotice('Файл этапа скачан. Действует до '+file.expiresAt+'. Затем скачайте ключ ниже. Данные участников передавайте только ответственному за ноутбук.');
+   setStaffKey(file.staffKey);
+   // The unlock key is a SEPARATE local file, never part of the signed JSON.
+   saveVenueFile('usd-venue-access-'+selected+'.key',file.staffKey+'\n','application/octet-stream');
+   setNotice('Пакет этапа и отдельный ключ судей скачаны. Существующие аккаунты USD: '+file.staffCount+'. Оба файла перенесите на ноутбук. Затем нажмите «Скачать открытый ключ». Действует до '+file.expiresAt+'.');
   }catch(e){setError(e instanceof Error?e.message:'Не удалось скачать этап. Повторите попытку.')}
   finally{setBusy(false)}
  };
@@ -49,12 +53,12 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
     <p className="muted">В архиве уже есть все кнопки и инструкция. Её можно читать без интернета или распечатать из браузера.</p></div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-install-title"><span className="venue-server-number" aria-hidden="true">2</span><div className="venue-server-step-body"><h2 id="venue-install-title">Один раз установите дома</h2>
     <p>Подключитесь к роутеру, который возьмёте на соревнования. В папке дважды нажмите <strong>USD-Install.cmd</strong> — кнопку установки.</p>
-    <ol><li>Если программа попросит Docker Desktop — согласитесь на установку, откройте Docker Desktop и завершите его настройку. После перезагрузки нажмите установку USD ещё раз.</li><li>Выберите адрес ноутбука из предложенных и <strong>«ДЕМО — пробный запуск»</strong>.</li><li>Разрешите доступ через брандмауэр и задайте отдельные пароли для администратора и судьи. Дождитесь сообщения о готовности.</li></ol>
+    <ol><li>Если программа попросит Docker Desktop — согласитесь на установку, откройте Docker Desktop и завершите его настройку. После перезагрузки нажмите установку USD ещё раз.</li><li>Выберите адрес ноутбука и режим: <strong>«ДЕМО»</strong> для тренировки либо <strong>«Настоящий этап»</strong>. Для настоящего этапа заранее скачайте из админки пакет, отдельный ключ доступа судей и открытый ключ подписи.</li><li>Разрешите доступ через брандмауэр. ДЕМО попросит отдельные тестовые пароли. Настоящий этап переносит текущие аккаунты USD и не создаёт новые. Дождитесь сообщения о готовности.</li></ol>
     <p>Программа сама скачает сервер и откроет страницу входа. Если установка прервётся, снова нажмите ту же кнопку — сохранённые данные останутся на месте.</p></div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-run-title"><span className="venue-server-number" aria-hidden="true">3</span><div className="venue-server-step-body"><h2 id="venue-run-title">На площадке включите офлайн</h2>
     <p>Включите ноутбук и тот же роутер. Дважды нажмите <strong>USD-Offline.cmd</strong> или ярлык <strong>«USD — Офлайн»</strong> на рабочем столе.</p>
     <p>Программа покажет адрес входа и адрес <strong>LIVE-табло</strong>. Подключите телефоны к этому же Wi-Fi. Откройте на них показанный адрес. Понадобится один раз установить сертификат — порядок есть в инструкции ниже.</p>
-    <p>Локальный администратор: <strong>operator1@venue.invalid</strong>. Судья: <strong>judge-01@venue.invalid</strong>. Используйте пароли, заданные при установке. После следующего входа в Windows сервер запустится автоматически.</p>
+    <p><strong>Настоящий этап:</strong> администратор и судьи входят со своими существующими email и паролями USD. Дополнительные учётные записи не требуются. <strong>ДЕМО:</strong> operator1@venue.invalid и judge-01@venue.invalid с тестовыми паролями, заданными при установке. После следующего входа в Windows сервер запустится автоматически.</p>
     {localMode&&<div className="venue-server-actions"><button className="primary-button" onClick={()=>go('/admin/event-day')}>Открыть день соревнований</button><a className="secondary-button" href="/venue/live" target="_blank" rel="noopener noreferrer">Открыть LIVE-табло</a></div>}</div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-export-title"><span className="venue-server-number" aria-hidden="true">4</span><div className="venue-server-step-body"><h2 id="venue-export-title">Сохраните результаты в защищённый файл</h2>
     <p>После настоящего этапа на ноутбуке дважды нажмите <strong>USD-Export.cmd</strong> или ярлык <strong>«USD — Экспорт»</strong>. Для ДЕМО эта кнопка не переносит данные. Для согласованного снимка программа приостанавливает ввод результатов и возобновляет его после экспорта. Кнопка «Онлайн» оставляет судейский ввод остановленным до завершения переключения.</p>
@@ -67,8 +71,8 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
     {loading?<p role="status">Проверяем возможность скачивания…</p>:setup?.signing.ready?<>
      <label className="venue-server-stage">Этап<select value={stageId} disabled={busy} onChange={e=>{setStageId(e.target.value);setNotice('')}}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>{s.name}{s.city?' · '+s.city:''}{s.date?' · '+new Date(s.date).toLocaleDateString('ru-RU'):''}</option>)}</select></label>
      {!stages.length&&<p>Опубликованных этапов пока нет. Сначала опубликуйте нужный этап в разделе «Этапы».</p>}
-     <div className="venue-server-actions"><button className="primary-button" type="button" disabled={!stageId||busy} onClick={()=>void downloadStage()}><Download size={18}/>{busy?'Готовим файл…':'Скачать файл этапа'}</button><button className="secondary-button" type="button" disabled={busy} onClick={downloadKey}>Скачать открытый ключ</button></div>
-     <p>Файл действует 72 часа. Скачайте его незадолго до установки и передайте только ответственному за ноутбук. Установщик проверяет подпись, этап и срок действия.</p><p>Отпечаток ключа для сверки при установке:</p><code className="venue-server-fingerprint">{setup.signing.fingerprint}</code>
+     <div className="venue-server-actions"><button className="primary-button" type="button" disabled={!stageId||busy} onClick={()=>void downloadStage()}><Download size={18}/>{busy?'Готовим файл…':'Скачать файл этапа'}</button><button className="secondary-button" type="button" disabled={busy} onClick={downloadKey}>Скачать открытый ключ</button>{staffKey&&<button className="secondary-button" type="button" onClick={()=>saveVenueFile('usd-venue-access-'+stageId+'.key',staffKey+'\n','application/octet-stream')}>Повторно скачать ключ судей</button>}</div>
+     <p>Файл действует 72 часа. При подготовке одного реального этапа будут скачаны два файла: подписанный список участников с <strong>зашифрованными</strong> данными доступа судей и отдельный одноразовый ключ. Не пересылайте их вместе в общий чат. Дополнительно скачайте открытый ключ подписи, затем перенесите все три файла на ноутбук. Пароли сотрудников не меняются.</p><p>Отпечаток ключа для сверки при установке:</p><code className="venue-server-fingerprint">{setup.signing.fingerprint}</code>
     </>:setup?<p>Для настоящего этапа нужна однократная настройка подписи на сервере. Обратитесь к ответственному за сайт. Установка и тестовый запуск доступны сейчас.</p>:null}
     {!loading&&<button className="secondary-button" disabled={busy} onClick={()=>setAttempt(n=>n+1)}><RefreshCw size={16}/>Проверить ещё раз</button>}</details>}
    {error&&<div className="form-error venue-server-feedback" role="alert">{error}<button className="secondary-button" disabled={loading||busy} onClick={()=>setAttempt(n=>n+1)}>Повторить проверку</button></div>}
