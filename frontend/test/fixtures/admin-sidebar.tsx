@@ -59,7 +59,7 @@ export async function runVenueSidebarWorkflow() {
   };
   try {
     await act(async()=>root.render(<AdminShell {...props} path="/admin/event-day"/>));
-    assert.match(document.querySelector(".venue-admin-banner")?.textContent??"","ЛОКАЛЬНЫЙ ЭТАП");
+    assert.match(document.querySelector(".venue-admin-banner")?.textContent??"",/ЛОКАЛЬНЫЙ ЭТАП/);
     assert.equal(document.querySelector(".admin-site-switch"),null,"no public site switch during offline judging");
     assert.equal(document.querySelector(".admin-member-switch"),null,"no participant workspace switch");
     assert.equal(document.querySelector(".topbar .role-pill")?.textContent,"Администратор");
