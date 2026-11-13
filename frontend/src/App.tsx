@@ -114,7 +114,7 @@ function App(){
  useEffect(()=>{if(user&&path.split('?')[0]==='/login'){
   const next=new URLSearchParams(path.split('?')[1]??'').get('next');
   const destination=accountLanding(user,next);
-  const next=venueEntryPath(destination,isVenueLan());history.replaceState({},'',next);setPath(next);
+  const safeDestination=venueEntryPath(destination,isVenueLan());history.replaceState({},'',safeDestination);setPath(safeDestination);
  }},[user,path]);
  useEffect(()=>{if(user&&path.startsWith('/admin')&&!hasAdminPanelAccess(user)){
   history.replaceState({},'','/participant');setPath('/participant');
