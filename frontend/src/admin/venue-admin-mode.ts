@@ -11,9 +11,12 @@ const WORKSPACE_ROOTS=[...MENU_PATHS];
 const STAGE_DETAIL=/^\/admin\/stages\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function routeOnly(value:string):string{
- if(typeof value!=='string'||!value.startsWith('/')||value.startsWith('//')
-  ||value.includes('\\')||/%(?:2f|5c|2e)/i.test(value))return '';
+ if(typeof value!=='string')return '';
+ // Query strings routinely encode redirect slashes (e.g. login?next=%2Fadmin).
+ // Only validate the pathname; never interpret decoded query as a route.
  const route=value.split(/[?#]/,1)[0];
+ if(!route.startsWith('/')||route.startsWith('//')
+  ||route.includes('\\')||/%(?:2f|5c|2e)/i.test(route))return '';
  if(route.split('/').some(part=>part==='.'||part==='..'))return '';
  return route.replace(/\/$/,'')||'/';
 }
