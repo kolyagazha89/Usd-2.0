@@ -109,8 +109,11 @@ export class VenueStageService {
     select:{id:true,email:true,name:true,role:true,passwordHash:true,isActive:true,
      emailVerifiedAt:true,customRoleId:true,
      customRole:{select:{id:true,key:true,name:true,permissions:true}}},
-    take:100,
+    take:1001,
    });
+   // Never silently omit an eligible judge because Prisma truncated the list.
+   if(candidates.length>1000)
+    throw new ServiceUnavailableException('Слишком много сотрудников для офлайн-экспорта; уточните состав ролей');
    const staff=eligibleVenueStaff(candidates);
    if(!staff.some(u=>u.id===request.user.sub)||!staff.length||staff.length>40)
     throw new ServiceUnavailableException('Не удалось собрать безопасный список судей и администратора для площадки');
