@@ -1,4 +1,5 @@
 import {AdminInboxBell} from './AdminInbox';
+import {bindAdminDrawerSwipe} from '../navigation/admin-drawer-swipe';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,BarChart3,Bell,Bot,CalendarDays,CarFront,ChevronRight,ClipboardCheck,Database,FileClock,FileInput,Flag, Gauge,History,Layers,LayoutDashboard,LockKeyhole,LogOut,Mail,Menu,Package,Settings2,ShieldAlert,Trophy,UserRound,Users,X,ArrowUpRight,FileText,WifiOff} from 'lucide-react';
 import {getPublicSiteAsset,type Role,type User} from '../api';
@@ -91,6 +92,14 @@ function readBrandLogo(){try{return localStorage.getItem(BRAND_LOGO_CACHE)??''}c
 
 export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageContent,roleName,cacheBrandLogo}:{user:User;path:string;go:(p:string)=>void;mobileOpen:boolean;setMobileOpen:(v:boolean)=>void;onLogout:()=>Promise<void>;PageContent:React.ComponentType<any>;roleName:Record<Role,string>;cacheBrandLogo:(url:string)=>void}){
  const routePath=path.split('?')[0];
+ const shellRef=useRef<HTMLDivElement>(null),drawerState=useRef({mobileOpen,setMobileOpen});
+ drawerState.current={mobileOpen,setMobileOpen};
+ useEffect(()=>{
+  if(!shellRef.current)return;
+  document.documentElement.classList.add('usd-admin-swipe');
+  const stop=bindAdminDrawerSwipe(shellRef.current,{isOpen:()=>drawerState.current.mobileOpen,enabled:()=>window.innerWidth<=800,onChange:open=>drawerState.current.setMobileOpen(open)});
+  return()=>{stop();document.documentElement.classList.remove('usd-admin-swipe')};
+ },[]);
  useEffect(()=>{if(mobileOpen)setMobileOpen(false)},[routePath]);
  useEffect(()=>{
   if(!mobileOpen)return;
@@ -115,8 +124,8 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
  const activeExpanded=activeSection ? openSections[activeSection]!==false : false;
  useEffect(()=>{const item=navRef.current?.querySelector('[aria-current="page"]');if(item&&typeof item.scrollIntoView==='function')item.scrollIntoView({block:'nearest',behavior:'auto'})},[routePath,activeExpanded]);
  const toggleSection=(section:string)=>setOpenSections(s=>{const next={...s,[section]:!(s[section]??(section===activeSection))};try{localStorage.setItem('usd_sidebar_sections',JSON.stringify(next))}catch{}return next});
- return <div className="app-shell">
-  <aside className={`sidebar ${mobileOpen?'open':''}`}>
+ return <div ref={shellRef} className="app-shell">
+  <aside id="usd-admin-sidebar" className={`sidebar ${mobileOpen?'open':''}`}>
    <div className="sidebar-top">
     <button className="brand-button" onClick={()=>go('/admin')} aria-label="USD">
      <span className="brand-mark small">{logo?<img className="brand-logo-shell" src={logo} alt="USD"/>:<span>USD</span>}</span>
@@ -133,7 +142,7 @@ export function AdminShell({user,path,go,mobileOpen,setMobileOpen,onLogout,PageC
   {mobileOpen&&<button className="mobile-backdrop" aria-label="Закрыть меню" onClick={()=>setMobileOpen(false)}/>}
   <div className="main">
    <header className="topbar">
-    <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню"><Menu size={19}/></button>
+    <button className="icon-button menu-button" onClick={()=>setMobileOpen(true)} aria-label="Меню" aria-expanded={mobileOpen} aria-controls="usd-admin-sidebar"><Menu size={19}/></button>
     <div className="breadcrumb"><strong>USD</strong><span>/</span><span>{visibleNav.find(x=>x.path===routePath)?.label??'Панель управления'}</span></div>
     <div className="topbar-actions">{user.role==='ADMIN'&&<AdminInboxBell key={user.id} go={go}/>}<button type="button" className="admin-site-switch" onClick={()=>go('/')} title="Вернуться на сайт"><ArrowUpRight size={16}/><span>Вернуться на сайт</span></button><button type="button" className="admin-member-switch" onClick={()=>go('/participant')} title="Личный кабинет участника"><UserRound size={16}/><span>Мой кабинет</span></button><span className="role-pill">{user.customRole?.name??roleName[user.role]}</span><button className="icon-button" onClick={()=>void onLogout()} title="Выйти"><LogOut size={17}/></button></div>
    </header>

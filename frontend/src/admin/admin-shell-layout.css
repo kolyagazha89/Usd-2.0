@@ -1734,3 +1734,6 @@ body .app-shell .main .content .partner-image-preview-item .usd-partner-link{
   padding:9px;
  }
 }
+
+/* Horizontal drawer gestures own navigation overscroll only inside mobile admin. */
+@media(max-width:800px){html.usd-admin-swipe{overscroll-behavior-x:contain}}

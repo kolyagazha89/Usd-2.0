@@ -42,6 +42,8 @@ jobs:
           npm ci --ignore-scripts
           npm test
           npm run build
+      - name: Verify admin drawer touch gestures preserve routes and scrolling
+        run: node scripts/admin-drawer-swipe-browser-qa.mjs
       - name: Verify connected admin cards, save return and public route scroll
         run: node scripts/admin-navigation-browser-qa.mjs
       - name: Verify stage list controls and card actions across screen sizes
@@ -89,6 +91,7 @@ jobs:
             verification-resend-browser-qa/
             stage-actions-browser-qa/
             admin-navigation-browser-qa/
+            admin-drawer-swipe-browser-qa/
           retention-days: 7
 
   # A slow or unavailable prerelease host must leave the independently tested
