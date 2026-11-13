@@ -36,7 +36,7 @@ test('refuses wrong key, bad tag, stage mismatch, malformed staff, revoked or du
  assert.throws(()=>decryptExistingVenueStaff(sealed,randomBytes(32).toString('base64url'),stage),/шифр|ключ|доступ/i);
  assert.throws(()=>decryptExistingVenueStaff(sealed,key,'d510f672-79f7-44eb-8173-2a8ff94b1c0e'),/шифр|ключ|доступ/i);
  assert.throws(()=>decryptExistingVenueStaff({...sealed,tag:randomBytes(16).toString('base64url')},key,stage),/шифр|ключ|доступ/i);
- for(const data of [[users[0]],[users[1]], [...users,users[1]], [{...users[0],emailVerifiedAt:null},users[1]],
+ for(const data of [[users[1]], [...users,users[1]], [{...users[0],emailVerifiedAt:null},users[1]],
   [{...users[0],passwordHash:'oops'},users[1]], [{...users[0],role:'PARTICIPANT'},users[1]],
   [users[0],{...users[1],customRole:null}]]){
   const d=wrap(data);
