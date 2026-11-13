@@ -77,7 +77,7 @@ jobs:
           node --test deploy/venue-lan/test-provision-rustfs.mjs
           python3 -m unittest discover -s deploy/venue-lan -p 'test_oneclick.py' -v
       - name: Verify staff accounts, fixed judge RBAC, and independent local identities
-        run: node --test deploy/venue-lan/test-provision-staff.mjs
+        run: node --test deploy/venue-lan/test-provision-staff.mjs deploy/venue-lan/test-provision-existing-staff.mjs
       - name: Enforce venue journaling installation before official judging
         run: |
           node --test deploy/venue-lan/test-journal-contract.mjs
