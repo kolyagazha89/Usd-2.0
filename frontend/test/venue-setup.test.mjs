@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {trustedVenueKey,validateVenueDownload} from '../src/admin/venue-setup-model.ts';
+import {trustedVenueKey,validateVenueDownload,validateVenueStaffExport} from '../src/admin/venue-setup-model.ts';
 const now=Date.now();
 const setup={signing:{ready:true,publicKeyPem:'-----BEGIN PUBLIC KEY-----\nexample\n-----END PUBLIC KEY-----',fingerprint:'a'.repeat(64)},centralSyncReady:false,fieldAcceptanceComplete:false};
 const data={snapshot:{stageId:'selected',generatedAt:new Date(now).toISOString(),expiresAt:new Date(now+10000).toISOString(),syncAuthorization:{token:'A'.repeat(43),expiresAt:new Date(now+3600000).toISOString()}},integrity:{algorithm:'Ed25519',signature:'b'.repeat(86),sha256:'c'.repeat(64),publicKeyFingerprint:setup.signing.fingerprint}};
@@ -19,4 +19,21 @@ test('refuses a different stage, expired file, changed signing key and wrong alg
   {...data,snapshot:{...data.snapshot,syncAuthorization:undefined}},
   {...data,snapshot:{...data.snapshot,syncAuthorization:{token:'invalid',expiresAt:new Date(now+3600000).toISOString()}}},
  ])assert.throws(()=>validateVenueDownload(changed,'selected',setup,now),/не прошёл/);
+});
+
+test('real event download includes signed ENCRYPTED roster and separate 256-bit key',()=>{
+ const envelope={format:1,algorithm:'AES-256-GCM',nonce:'A'.repeat(16),
+  tag:'B'.repeat(22),ciphertext:'C'.repeat(130)};
+ const packageData={...data,snapshot:{...data.snapshot,staffAccess:envelope}};
+ const response={signed:packageData,staffKey:'D'.repeat(43),staffCount:3};
+ const result=validateVenueStaffExport(response,'selected',setup,now);
+ assert.deepEqual(JSON.parse(result.text),packageData);
+ assert.equal(result.staffKey,response.staffKey);
+ assert.equal(result.staffCount,3);
+ assert.ok(!result.text.includes(result.staffKey));
+ for(const bad of [
+  {...response,staffKey:'bad'},{...response,staffCount:0},
+  {...response,signed:data},
+  {...response,signed:{...packageData,snapshot:{...data.snapshot,staffAccess:{...envelope,algorithm:'none'}}}},
+ ])assert.throws(()=>validateVenueStaffExport(bad,'selected',setup,now),/суд|пакет|ключ/i);
 });
