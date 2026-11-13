@@ -5,17 +5,23 @@ on:
     paths:
       - 'deploy/venue-lan/**'
       - '.github/workflows/venue-kit-release-pack.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/venue-lan/**'
+      - '.github/workflows/venue-kit-release-pack.yml'
 permissions:
   contents: write
 jobs:
   pack:
-    if: github.repository == 'kolyagazha89/Usd-2.0' && github.ref == 'refs/heads/feat/venue-existing-staff-release'
+    if: github.repository == 'kolyagazha89/Usd-2.0' && (github.ref == 'refs/heads/feat/venue-existing-staff-release' || (github.event_name == 'pull_request' && github.head_ref == 'feat/venue-existing-staff-release' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          ref: feat/venue-existing-staff-release
       - name: Build reviewed deterministic ZIP/HTML/manifest from allowlist
         run: python3 deploy/venue-lan/build-windows-kit.py
       - name: Push exactly the regenerated downloads to this release branch
