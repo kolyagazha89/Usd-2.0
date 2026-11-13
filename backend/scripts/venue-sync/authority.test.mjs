@@ -19,3 +19,19 @@ test('wrong token, revoked, expired, swapped key or another stage is refused',()
   [{...grant,venueFingerprint:'b'.repeat(64)},token,stage]])
   assert.throws(()=>checkAuthority(g,t,pub,id));
 });
+test('server ACK is refused unless whole exact signed journal was committed',async()=>{
+ const {assertCompleteReturn}=await import('./authority.mjs');
+ const digest='b'.repeat(64);
+ const complete={stageId:stage,journalEndHash:digest,totalEvents:3,
+  databaseSynchronized:true,alreadyApplied:false,appliedEvents:3};
+ assert.equal(assertCompleteReturn(complete,stage,digest,3),true);
+ assert.equal(assertCompleteReturn({...complete,alreadyApplied:true,appliedEvents:0},stage,digest,3),true);
+ for(const bad of [
+  {...complete,databaseSynchronized:false},
+  {...complete,stageId:'a610f672-79f7-44eb-8173-2a8ff94b1c0e'},
+  {...complete,journalEndHash:'c'.repeat(64)},
+  {...complete,totalEvents:2},
+  {...complete,appliedEvents:2},
+  {...complete,alreadyApplied:true,appliedEvents:1},
+ ])assert.throws(()=>assertCompleteReturn(bad,stage,digest,3));
+});

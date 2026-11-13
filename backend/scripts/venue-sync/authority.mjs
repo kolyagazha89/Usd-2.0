@@ -17,3 +17,16 @@ export function checkAuthority(grant,token,publicPem,stageId,now=Date.now()){
  if(grant.venueFingerprint&&grant.venueFingerprint!==fingerprint)throw Error('Another laptop pinned');
  return {fingerprint,baselineSha256:grant.baselineSha256};
 }
+/** Never acknowledge a partial/mismatched central replay, even if a future
+ * adapter regression returns without throwing. Full return is all-or-none.
+ */
+export function assertCompleteReturn(report,stageId,journalEndHash,eventCount){
+ if(!report||report.databaseSynchronized!==true||report.stageId!==stageId
+  ||report.journalEndHash!==journalEndHash
+  ||typeof journalEndHash!=='string'||!/^[a-f0-9]{64}$/.test(journalEndHash)
+  ||!Number.isSafeInteger(eventCount)||eventCount<0
+  ||report.totalEvents!==eventCount
+  ||(report.alreadyApplied===true?report.appliedEvents!==0:report.appliedEvents!==eventCount))
+  throw Error('Incomplete or mismatched central return');
+ return true;
+}

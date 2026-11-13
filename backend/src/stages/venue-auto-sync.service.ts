@@ -66,6 +66,11 @@ export class VenueAutoSyncService {
     throw new ConflictException('Конфликт центральных данных. Все локальные результаты сохранены.');
    throw new ServiceUnavailableException('Безопасный импорт не завершён; повторите попытку');
   }finally{await client.end().catch(()=>undefined)}
+  // A future adapter must not accidentally acknowledge a partial import.
+  // This is checked *before* any derived state is marked ready.
+  try{
+   auth.assertCompleteReturn(report,body.stageId,snapshot.journalEndHash,snapshot.events.length);
+  }catch{throw new ServiceUnavailableException('Неполная сверка журнала; локальные данные сохранены')}
   // Replay-safe: when this step fails, the same signed journal retries without
   // inserting duplicate results; no ACK until rankings and records rebuild.
   try{
