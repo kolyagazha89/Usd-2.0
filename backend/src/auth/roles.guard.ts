@@ -9,6 +9,7 @@ import { ROLES_KEY } from './roles.decorator';
 import type { Request } from 'express';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
+import {isVenueApiAllowed} from './venue-route-policy';
 
 type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 type PermissionMap = Record<string, unknown>;
@@ -136,6 +137,12 @@ export class RolesGuard implements CanActivate {
       Array<'ADMIN' | 'PARTICIPANT'>
     >(ROLES_KEY, [context.getHandler(), context.getClass()]);
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    // Enforce the LAN-only contract BEFORE the ADMIN superuser shortcut.
+    // Hiding controls in React is never a substitute for API authorization.
+    if (process.env.USD_VENUE_LAN_MODE === 'true'
+      && !isVenueApiAllowed(context.getClass().name,request.method,request.path)) {
+      throw new ForbiddenException('В офлайн-режиме разрешена только работа на этапе');
+    }
 
     // Public handlers are already allowed by JwtAuthGuard. Keep them public.
     if (!request.user) {
