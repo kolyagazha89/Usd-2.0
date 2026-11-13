@@ -1,0 +1,32 @@
+name: One-time release packaging of USD Windows venue kit
+on:
+  push:
+    branches: [feat/venue-existing-staff-release]
+    paths:
+      - 'deploy/venue-lan/**'
+      - '.github/workflows/venue-kit-release-pack.yml'
+permissions:
+  contents: write
+jobs:
+  pack:
+    if: github.repository == 'kolyagazha89/Usd-2.0' && github.ref == 'refs/heads/feat/venue-existing-staff-release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Build reviewed deterministic ZIP/HTML/manifest from allowlist
+        run: python3 deploy/venue-lan/build-windows-kit.py
+      - name: Push exactly the regenerated downloads to this release branch
+        run: |
+          set -euo pipefail
+          git add -- frontend/public/downloads/USD-Offline-Windows.zip frontend/public/downloads/USD-Offline-Guide.html frontend/public/downloads/USD-Offline-Windows.json
+          if git diff --cached --quiet; then
+            echo 'Downloads already match source'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build(venue): refresh signed offline Windows distribution from reviewed sources'
+          git push origin HEAD:refs/heads/feat/venue-existing-staff-release
