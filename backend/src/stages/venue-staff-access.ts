@@ -22,8 +22,9 @@ export function eligibleVenueStaff<T extends VenueStaffIdentity>(all:T[]):T[]{
   const allowed=permissions as Record<string,unknown>;
   return ['registrations','inspections','results'].some(module=>{
    const value=allowed[module];
-   return Array.isArray(value)&&value.includes('view')
-    ||Boolean(value&&typeof value==='object'&&!Array.isArray(value)&&(value as Record<string,unknown>).view===true);
+   return Array.isArray(value)&&(value.includes('view')||value.includes('*'))
+    ||Boolean(value&&typeof value==='object'&&!Array.isArray(value)
+     &&([true,'*'].includes((value as Record<string,unknown>).view as string|boolean)));
   });
  }).sort((a,b)=>(a.role==='ADMIN'?0:1)-(b.role==='ADMIN'?0:1)||a.email.localeCompare(b.email));
 }
