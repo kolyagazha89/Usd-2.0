@@ -66,3 +66,34 @@ export function sealVenueStaffAccess(stageId:string,staff:VenueStaffIdentity[]):
   nonce:nonce.toString('base64url'),ciphertext:ciphertext.toString('base64url'),
   tag:cipher.getAuthTag().toString('base64url')},staffKey:secret.toString('base64url')};
 }
+
+/** The only place that may read bcrypt verifiers for offline transfer.
+ * The event roster itself and the signed stage service never receive or
+ * serialize raw password verifiers. All users are encrypted before return.
+ */
+export async function prepareVenueStaffExport(
+ prisma:import('../prisma/prisma.service').PrismaService,
+ stageId:string,
+ operatorId:string,
+){
+ const {ServiceUnavailableException}=await import('@nestjs/common');
+ const candidates=await prisma.user.findMany({
+  where:{isActive:true,emailVerifiedAt:{not:null},OR:[{role:'ADMIN'},{customRoleId:{not:null}}]},
+  select:{id:true,email:true,name:true,role:true,passwordHash:true,isActive:true,
+   emailVerifiedAt:true,customRoleId:true,
+   customRole:{select:{id:true,key:true,name:true,permissions:true}}},
+  take:1001,
+ });
+ // Truncating a roster would strand a judge at the event without access.
+ if(candidates.length>1000)
+  throw new ServiceUnavailableException('Слишком много сотрудников для офлайн-экспорта; уточните состав ролей');
+ const staff=eligibleVenueStaff(candidates);
+ if(!staff.some(u=>u.id===operatorId)||staff.length<1||staff.length>MAX_STAFF)
+  throw new ServiceUnavailableException('Не удалось собрать безопасный список судей и администратора для площадки');
+ try{
+  const sealed=sealVenueStaffAccess(stageId,staff);
+  return {...sealed,staffCount:staff.length};
+ }catch{
+  throw new ServiceUnavailableException('Подготовка защищённого списка судей не удалась');
+ }
+}
