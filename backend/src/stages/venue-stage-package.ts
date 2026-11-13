@@ -1,4 +1,5 @@
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
+import type {SealedVenueStaff} from './venue-staff-access';
 
 export const VENUE_STAGE_FORMAT=1;
 export const VENUE_STAGE_TTL_MS=72*60*60*1000;
@@ -13,6 +14,7 @@ export type VenueStageSnapshot={
  stage:unknown;
  registrations:unknown[];
  venuePolicy?:unknown;
+ staffAccess?:SealedVenueStaff;
  syncAuthorization?:{token:string;expiresAt:string};
 };
 export type VenueSignedStagePackage={
