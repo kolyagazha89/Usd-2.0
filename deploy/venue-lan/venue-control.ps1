@@ -176,10 +176,9 @@ function Ensure-Firewall([string]$Ip){
   $approvePrivate=$true
  }
  if(Test-VenueFirewallRule $Ip){return}
- $rule='USD Venue HTTPS '+$Ip
- if(Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue){
-  throw 'Найдено правило USD с небезопасными параметрами. Не изменяйте его вручную; проверьте настройки брандмауэра.'
- }
+ # An interrupted earlier setup may leave a rule with this exact USD name
+ # but stale filters. The elevated helper repairs ONLY that name, preserving
+ # all unrelated Windows firewall rules and restricting LAN access to TCP 443.
  $script=Join-Path $Root 'venue-firewall.ps1'
  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$script+'" -Ip "'+$Ip+'"'
  if($approvePrivate){$arguments+=' -AllowPrivateProfile'}
@@ -195,7 +194,7 @@ function Ensure-Firewall([string]$Ip){
   21 {throw 'Windows не разрешила сделать выбранную сеть частной. Проверьте права администратора или политику сети.'}
   22 {throw 'Не удалось добавить HTTPS-правило на порт 443. Проверьте брандмауэр Windows или системные ограничения.'}
   23 {throw 'Созданное правило порта 443 не соответствует безопасным параметрам. Проверьте настройки брандмауэра.'}
-  24 {throw 'Уже существует правило USD с другими параметрами. Нельзя автоматически ослаблять ограничения.'}
+  24 {throw 'Windows не разрешила безопасно восстановить существующее правило USD. Не удаляйте другие правила брандмауэра.'}
   default {throw 'Административная настройка брандмауэра завершилась ошибкой. Проверьте профиль сети, UAC и защиту Windows.'}
  }
  $check=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction Stop
