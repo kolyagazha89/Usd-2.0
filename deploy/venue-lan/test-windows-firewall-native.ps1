@@ -5,7 +5,7 @@ $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $ip=(
  Get-NetIPAddress -AddressFamily IPv4 |
- Where-Object {$_.AddressState -eq 'Preferred' -and $_.IPAddress -match '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)'} |
+ Where-Object {$_.AddressState -eq 'Preferred' -and $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)'} |
  Select-Object -First 1 -ExpandProperty IPAddress
 )
 if(!$ip){throw 'Cannot exercise native Windows private IPv4 firewall behavior: no local RFC1918 address'}
