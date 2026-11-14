@@ -5,6 +5,7 @@ import App from './App';
 import {installAssetPreloadRecovery} from './asset-preload-recovery';
 import CookieNotice from './CookieNotice';
 import VelocityEffects from './public/VelocityEffects';
+import './local-fonts.css';
 import './styles.css';
 import './participant-ui-polish.css';
 import './ui-consistency.css';
