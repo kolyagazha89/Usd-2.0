@@ -134,15 +134,73 @@ function Get-PrivateLanIp {
  $options=@($addresses|ForEach-Object {[pscustomobject]@{Label=($_.InterfaceAlias+' — '+$_.IPAddress);Value=$_.IPAddress}})
  return Select-VenueOption 'USD — Сеть площадки' 'Выберите подключение к роутеру соревнований. Телефоны судей должны быть в этой же сети.' $options
 }
+function Test-VenueFirewallRule([string]$Ip){
+ # Do not mistake a pre-existing rule with the same name for a safe rule.
+ $name='USD Venue HTTPS '+$Ip
+ $rules=@(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue)
+ if($rules.Count -ne 1){return $false}
+ $rule=$rules[0]
+ if([string]$rule.Enabled -ne 'True' -or [string]$rule.Direction -ne 'Inbound' -or
+    [string]$rule.Action -ne 'Allow' -or [string]$rule.Profile -ne 'Private'){
+  return $false
+ }
+ try{
+  $port=$rule|Get-NetFirewallPortFilter -ErrorAction Stop
+  $address=$rule|Get-NetFirewallAddressFilter -ErrorAction Stop
+  return (
+   [string]$port.Protocol -in @('TCP','6') -and
+   [string]$port.LocalPort -eq '443' -and
+   [string]$address.LocalAddress -eq $Ip -and
+   [string]$address.RemoteAddress -eq 'LocalSubnet'
+  )
+ }catch{return $false}
+}
 function Ensure-Firewall([string]$Ip){
+ # The selected venue address must be on this device. Its Wi-Fi network must
+ # be Private; never silently expose port 443 on a Public network.
+ $interface=Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+  Where-Object {$_.IPAddress -eq $Ip -and $_.AddressState -eq 'Preferred'} |
+  Select-Object -First 1
+ if(!$interface){throw 'Выбранный IP уже отсутствует на ноутбуке. Подключитесь к Wi-Fi роутера и повторите установку.'}
+ $profile=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction Stop
+ if(!$profile){throw 'Windows не определила профиль выбранного Wi-Fi. Подключитесь к роутеру повторно.'}
+ $approvePrivate=$false
+ if([string]$profile.NetworkCategory -ne 'Private'){
+  if([string]$profile.NetworkCategory -ne 'Public'){
+   throw 'Сеть Windows управляется организацией или имеет неподдерживаемый профиль. Выберите отдельный Wi-Fi роутер судей.'
+  }
+  $message='Windows считает выбранный Wi-Fi общедоступным. Для доступа телефонов нужен частный профиль сети. Изменить ТОЛЬКО эту сеть на «Частная» и разрешить HTTPS (TCP 443) только своей подсети?'
+  if(-not(Confirm-VenueAction $message)){
+   throw 'Wi-Fi сейчас «Общедоступная». Откройте Параметры Windows -> Сеть и Интернет -> свойства подключённого Wi-Fi -> профиль «Частная» и запустите установку снова.'
+  }
+  $approvePrivate=$true
+ }
+ if(Test-VenueFirewallRule $Ip){return}
  $rule='USD Venue HTTPS '+$Ip
- if(Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue){return}
+ if(Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue){
+  throw 'Найдено правило USD с небезопасными параметрами. Не изменяйте его вручную; проверьте настройки брандмауэра.'
+ }
  $script=Join-Path $Root 'venue-firewall.ps1'
  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$script+'" -Ip "'+$Ip+'"'
- Write-Host 'Нужно один раз подтвердить правило LAN HTTPS через UAC Windows.'
- $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
- if($task.ExitCode -ne 0 -or -not(Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue)){
-  throw 'Разрешите защищённый доступ на частный IP через брандмауэр Windows.'
+ if($approvePrivate){$arguments+=' -AllowPrivateProfile'}
+ Write-Host 'Для безопасного HTTPS на Wi-Fi судей подтвердите запрос администратора Windows (UAC).'
+ try {
+  $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
+ }catch{
+  throw 'Windows отклонила запуск от администратора. Нажмите «Да» в запросе UAC или войдите под учётной записью с правами администратора и повторите USD-Install.cmd.'
+ }
+ switch([int]$task.ExitCode){
+  0 {break}
+  20 {throw 'Сеть не является частной. Установите профиль Wi-Fi «Частная» в параметрах Windows и повторите запуск.'}
+  21 {throw 'Windows не разрешила сделать выбранную сеть частной. Проверьте права администратора или политику сети.'}
+  22 {throw 'Не удалось добавить HTTPS-правило на порт 443. Проверьте брандмауэр Windows или системные ограничения.'}
+  23 {throw 'Созданное правило порта 443 не соответствует безопасным параметрам. Проверьте настройки брандмауэра.'}
+  24 {throw 'Уже существует правило USD с другими параметрами. Нельзя автоматически ослаблять ограничения.'}
+  default {throw 'Административная настройка брандмауэра завершилась ошибкой. Проверьте профиль сети, UAC и защиту Windows.'}
+ }
+ $check=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction Stop
+ if([string]$check.NetworkCategory -ne 'Private' -or -not(Test-VenueFirewallRule $Ip)){
+  throw 'Правило было запрошено, но Windows не подтвердила безопасный доступ. Проверьте профиль «Частная» и системный брандмауэр.'
  }
 }
 function Save-Autostart {
