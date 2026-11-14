@@ -10,9 +10,10 @@ CREATE TABLE "VenueSyncAuthorization" (
   "lastJournalHash" VARCHAR(64),
   "acceptedAt" TIMESTAMPTZ(3),
   "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "VenueSyncAuthorization_pkey" PRIMARY KEY("id"),
-  CONSTRAINT "VenueSyncAuthorization_stageId_fkey" FOREIGN KEY("stageId") REFERENCES "Stage"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT "VenueSyncAuthorization_pkey" PRIMARY KEY("id")
 );
+ALTER TABLE "VenueSyncAuthorization" ADD CONSTRAINT "VenueSyncAuthorization_stageId_fkey"
+  FOREIGN KEY("stageId") REFERENCES "Stage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 CREATE UNIQUE INDEX "VenueSyncAuthorization_baselineSha256_key" ON "VenueSyncAuthorization"("baselineSha256");
 CREATE UNIQUE INDEX "VenueSyncAuthorization_tokenHash_key" ON "VenueSyncAuthorization"("tokenHash");
 CREATE INDEX "VenueSyncAuthorization_stageId_expiresAt_idx" ON "VenueSyncAuthorization"("stageId","expiresAt");
