@@ -216,3 +216,39 @@ $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($simulation
 & powershell.exe -NoProfile -NonInteractive -EncodedCommand $encoded | Out-Host
 if($LASTEXITCODE -ne 0){throw 'Elevated firewall helper could not safely repair an old USD rule'}
 Write-Host 'Windows helper runtime tests passed; no Docker, firewall or database was modified.'
+
+# A real Windows PowerShell 5.1 native-command boundary must preserve JS
+# string literals; legacy argument quoting can strip quotes in `node -e`.
+# Use Node's built-in global fetch stub to prove that the EXACT executable
+# readiness probe can authenticate the expected immutable SHA and stage.
+$oldNodeOptions=$env:NODE_OPTIONS
+$readinessFolder=Join-Path ([IO.Path]::GetTempPath()) ('usd-readiness-'+[guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($readinessFolder)|Out-Null
+try {
+ $shim=Join-Path $readinessFolder 'fetch.js'
+ [IO.File]::WriteAllText($shim,@'
+globalThis.fetch=async function(url){
+ if(url==='http://127.0.0.1:3000/release')return {ok:true,json:async()=>({revision:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'})};
+ if(url==='http://127.0.0.1:3000/results/venue-live')return {ok:true,json:async()=>({stage:{id:'ca4819c4-c21e-44b3-a27e-1d61427bf4b0'}})};
+ throw new Error('Readiness attempted unapproved URL: '+url);
+};
+'@,(New-Object Text.UTF8Encoding($false)))
+ $env:NODE_OPTIONS='--require='+$shim
+ function docker {
+  $parameters=@($args)
+  $nodeIndex=[Array]::IndexOf([object[]]$parameters,'node')
+  if($nodeIndex -lt 0){throw 'Readiness did not execute node'}
+  $tail=@($parameters[($nodeIndex+1)..($parameters.Count-1)])
+  # Forward the real program piped by Test-VenueApiReady to Node stdin.
+  $input | & node.exe @tail
+ }
+ $ready=Test-VenueApiReady -ExpectedSha ('a'*40) -ExpectedStage 'ca4819c4-c21e-44b3-a27e-1d61427bf4b0'
+ if(!$ready){throw 'Native Windows PowerShell Node readiness probe did not accept actual successful API responses'}
+ $wrong=Test-VenueApiReady -ExpectedSha ('b'*40) -ExpectedStage 'ca4819c4-c21e-44b3-a27e-1d61427bf4b0'
+ if($wrong){throw 'Readiness accepted wrong immutable API SHA'}
+ $wrongStage=Test-VenueApiReady -ExpectedSha ('a'*40) -ExpectedStage 'ca4819c4-c21e-44b3-a27e-1d61427bf4b1'
+ if($wrongStage){throw 'Readiness accepted wrong stage ID'}
+}finally{
+ $env:NODE_OPTIONS=$oldNodeOptions
+ [IO.Directory]::Delete($readinessFolder,$true)
+}

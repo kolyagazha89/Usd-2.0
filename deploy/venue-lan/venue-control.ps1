@@ -521,7 +521,8 @@ function Start-Local {
 function Test-VenueApiReady([string]$ExpectedSha,[string]$ExpectedStage) {
  $prior=$ErrorActionPreference;$ErrorActionPreference='Continue'
  $program=@'
-const [sha,stageId]=process.argv.slice(1);
+// The script is streamed to node - on stdin; arguments begin at argv[2].
+const [sha,stageId]=process.argv.slice(2);
 Promise.all([
  fetch("http://127.0.0.1:3000/release",{signal:AbortSignal.timeout(3000)}),
  fetch("http://127.0.0.1:3000/results/venue-live",{signal:AbortSignal.timeout(3000)})
@@ -532,7 +533,9 @@ Promise.all([
 }).catch(()=>process.exit(4));
 '@
  try{
-  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e $program $ExpectedSha $ExpectedStage 2>$null | Out-Null
+  # Windows PowerShell 5.1 strips JavaScript string quotes from native
+  # node -e arguments. Send the original program on stdin instead.
+  $program | & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
