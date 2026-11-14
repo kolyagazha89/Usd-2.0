@@ -50,6 +50,17 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("docker",verifier)
         self.assertNotIn("--pull always",verifier)
 
+    def test_demo_can_use_pinned_approved_offline_images_when_ubuntu_is_still_old(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        init=source[source.index('function New-InitialState'):source.index('function Confirm-SignedStage')]
+        self.assertIn("$demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'",init)
+        self.assertIn("if($kind -ne '1'){throw}",init)
+        self.assertIn('Assert-VenueReleaseImages $sha',init)
+        self.assertIn('VENUE_IMAGE_TAG=$sha',init)
+        # The true event must never silently downgrade to a local demo build.
+        self.assertLess(init.index("if($kind -ne '1'){throw}"),
+                        init.index("$sha=$demoSha"))
+
     def test_lan_ready_requires_exact_api_release_and_live_one_stage(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         start=source.index('function Test-VenueApiReady')
