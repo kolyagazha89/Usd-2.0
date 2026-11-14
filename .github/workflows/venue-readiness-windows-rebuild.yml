@@ -1,0 +1,30 @@
+name: Rebuild tested Windows venue readiness download
+on:
+  push:
+    branches: [fix/venue-readiness-native-windows-stdin]
+    paths:
+      - 'deploy/venue-lan/**'
+      - '.github/workflows/venue-readiness-windows-rebuild.yml'
+permissions:
+  contents: write
+jobs:
+  pack:
+    if: github.repository == 'kolyagazha89/Usd-2.0' && github.ref == 'refs/heads/fix/venue-readiness-native-windows-stdin'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/venue-readiness-native-windows-stdin
+          persist-credentials: true
+      - name: Build reproducible Windows archive and manifest
+        run: python3 deploy/venue-lan/build-windows-kit.py
+      - name: Commit the tested Windows archive only
+        run: |
+          set -euo pipefail
+          git add frontend/public/downloads/USD-Offline-Windows.zip frontend/public/downloads/USD-Offline-Windows.json frontend/public/downloads/USD-Offline-Guide.html
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build(venue): regenerate Windows kit with stdin readiness fix'
+          git push origin HEAD:refs/heads/fix/venue-readiness-native-windows-stdin
