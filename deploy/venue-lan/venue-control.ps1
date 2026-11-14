@@ -180,9 +180,23 @@ function Assert-VenueReleaseImages([string]$Sha){
  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
  $sha=[string]$release.revision
  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
- Assert-VenueReleaseImages $sha
+ $demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'
+ try{
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Assert-VenueReleaseImages $sha
+ }catch{
+  # Only synthetic DEMO may run a reviewed, SHA-pinned offline version while
+  # the protected Ubuntu server remains at its previous approved release.
+  # Never downgrade a real stage / user roster to a different version.
+  if($kind -ne '1'){throw}
+  if($sha -eq $demoSha){throw}
+  Write-Host 'Основная Ubuntu ещё не обновлена до офлайн-версии. Для ДЕМО пробуем проверенный выпуск LAN.'
+  $sha=$demoSha
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'reviewed demo API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'reviewed demo frontend image pull'
+  Assert-VenueReleaseImages $sha
+ }
  $file='';$key='';$stageId='';$fingerprint=''
  if($kind -eq '1'){
   $packetParent=Join-Path $PrivateDir 'demo-packages'
