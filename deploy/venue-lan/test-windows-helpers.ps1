@@ -49,4 +49,34 @@ try {
  $EnvFile=$oldEnvFile
  [IO.Directory]::Delete($fixtureRoot,$true)
 }
+# LAN firewall regression: Windows frequently classifies a new Wi-Fi as
+# Public. A denied profile MUST receive a meaningful explanation without UAC
+# or broadening the firewall to every public network.
+$script:firewallElevationCalls=0
+function Get-NetIPAddress {
+ param([string]$AddressFamily)
+ [pscustomobject]@{IPAddress='192.168.25.10';InterfaceIndex=11;InterfaceAlias='Judges Wi-Fi';AddressState='Preferred'}
+}
+function Get-NetConnectionProfile {
+ param([int]$InterfaceIndex,[string]$ErrorAction)
+ [pscustomobject]@{NetworkCategory='Public';InterfaceIndex=11}
+}
+function Get-NetFirewallRule {
+ param([string]$DisplayName,[string]$ErrorAction)
+ return $null
+}
+function Confirm-VenueAction { param([string]$Text) return $false }
+function Start-Process {
+ param([string]$FilePath,[string]$Verb,[string]$ArgumentList,[switch]$Wait,[switch]$PassThru)
+ $script:firewallElevationCalls++
+ throw 'unexpected elevation'
+}
+$firewallMessage=''
+try { Ensure-Firewall '192.168.25.10' } catch { $firewallMessage=$_.Exception.Message }
+if($firewallMessage -notmatch 'частн|Частн|Private'){
+ throw 'Public Wi-Fi profile must be explained, not a generic LAN firewall failure'
+}
+if($script:firewallElevationCalls -ne 0){
+ throw 'Do not elevate or silently trust Public Wi-Fi after declined consent'
+}
 Write-Host 'Windows helper runtime tests passed; no Docker, firewall or database was modified.'
