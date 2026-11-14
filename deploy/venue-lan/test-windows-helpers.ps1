@@ -153,4 +153,66 @@ try { Ensure-Firewall '192.168.25.10' }catch{ $failedRule=$_.Exception.Message }
 if($failedRule -notmatch '443|брандмауэр'){
  throw 'Failed Windows firewall elevation did not explain TCP 443 failure'
 }
+# Exercise the ACTUAL elevated firewall script on native Windows PowerShell
+# using mocked NetSecurity cmdlets in a separate process (zero system writes).
+$helper=Join-Path $PSScriptRoot 'venue-firewall.ps1'
+$simulation=@'
+$ErrorActionPreference='Stop'
+$script:ruleState='stale'
+$script:expectedName='USD Venue HTTPS 192.168.25.10'
+function Get-NetIPAddress {
+ param([string]$AddressFamily)
+ [pscustomobject]@{IPAddress='192.168.25.10';InterfaceIndex=11;AddressState='Preferred'}
+}
+function Get-NetConnectionProfile {
+ param([int]$InterfaceIndex,[string]$ErrorAction)
+ [pscustomobject]@{NetworkCategory='Private'}
+}
+function Get-NetFirewallRule {
+ param([string]$DisplayName,[string]$ErrorAction)
+ if($DisplayName -ne $script:expectedName){throw 'Touched unrelated firewall rule'}
+ if($script:ruleState -eq 'stale'){
+  [pscustomobject]@{DisplayName=$DisplayName;Enabled='True';Direction='Inbound';Action='Block';Profile='Private'}
+ }elseif($script:ruleState -eq 'safe'){
+  [pscustomobject]@{DisplayName=$DisplayName;Enabled='True';Direction='Inbound';Action='Allow';Profile='Private'}
+ }
+}
+function Remove-NetFirewallRule {
+ [CmdletBinding()]
+ param([Parameter(Mandatory=$true)]$InputObject)
+ if($InputObject.DisplayName -ne $script:expectedName -or $script:ruleState -ne 'stale'){
+  throw 'Removed wrong rule or performed a redundant deletion'
+ }
+ $script:ruleState='absent'
+}
+function New-NetFirewallRule {
+ [CmdletBinding()]
+ param([string]$DisplayName,[string]$Direction,[string]$Action,[string]$Enabled,
+  [string]$Profile,[string]$Protocol,[string]$LocalPort,[string]$LocalAddress,
+  [string]$RemoteAddress)
+ if($script:ruleState -ne 'absent' -or $DisplayName -ne $script:expectedName -or
+  $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Profile -ne 'Private' -or
+  $Protocol -ne 'TCP' -or $LocalPort -ne '443' -or
+  $LocalAddress -ne '192.168.25.10' -or $RemoteAddress -ne 'LocalSubnet'){
+  throw 'Unsafe or incorrect replacement firewall rule'
+ }
+ $script:ruleState='safe'
+ [pscustomobject]@{DisplayName=$DisplayName}
+}
+function Get-NetFirewallPortFilter {
+ [CmdletBinding()]
+ param([Parameter(ValueFromPipeline=$true)]$InputObject)
+ process { [pscustomobject]@{Protocol='TCP';LocalPort='443'} }
+}
+function Get-NetFirewallAddressFilter {
+ [CmdletBinding()]
+ param([Parameter(ValueFromPipeline=$true)]$InputObject)
+ process { [pscustomobject]@{LocalAddress='192.168.25.10';RemoteAddress='LocalSubnet'} }
+}
+& '__FIREWALL_SCRIPT__' -Ip '192.168.25.10'
+'@
+$simulation=$simulation.Replace('__FIREWALL_SCRIPT__',$helper.Replace("'","''"))
+$encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($simulation))
+& powershell.exe -NoProfile -NonInteractive -EncodedCommand $encoded | Out-Host
+if($LASTEXITCODE -ne 0){throw 'Elevated firewall helper could not safely repair an old USD rule'}
 Write-Host 'Windows helper runtime tests passed; no Docker, firewall or database was modified.'
