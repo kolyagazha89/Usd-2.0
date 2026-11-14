@@ -33,6 +33,11 @@ try {
   'VENUE_DB_PASSWORD=somepass',
   'VENUE_JWT_SECRET='+('b'*64)
  )
+ foreach($fixtureLine in $expected){
+  if([string]$fixtureLine -notmatch '^[A-Z][A-Z0-9_]*='){
+   throw ('Malformed .env fixture, item length '+([string]$fixtureLine).Length)
+  }
+ }
  [IO.File]::WriteAllLines($EnvFile,[string[]]$expected,(New-Object Text.UTF8Encoding($false)))
  $parsed=Read-Env
  if($parsed.Count -ne $expected.Count){throw 'Generated .env was not round-tripped by Read-Env'}
