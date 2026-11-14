@@ -397,7 +397,7 @@ function Start-Local {
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
  for($i=0;$i -lt 40;$i++){
-  if(Test-VenueApiReady){$ready=$true;break}
+  if(Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId){$ready=$true;break}
   Start-Sleep -Seconds 2
  }
  if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
@@ -413,10 +413,21 @@ function Start-Local {
   Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход: '+$url+[Environment]::NewLine+'Табло: https://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Подключите телефоны к тому же Wi-Fi. Порядок установки сертификата — в инструкции на рабочем столе.')
  }
 }
-function Test-VenueApiReady {
+function Test-VenueApiReady([string]$ExpectedSha,[string]$ExpectedStage) {
  $prior=$ErrorActionPreference;$ErrorActionPreference='Continue'
+ $test=@'
+const [sha,stageId]=process.argv.slice(1);
+Promise.all([
+ fetch("http://127.0.0.1:3000/release",{signal:AbortSignal.timeout(3000)}),
+ fetch("http://127.0.0.1:3000/results/venue-live",{signal:AbortSignal.timeout(3000)})
+]).then(async ([release,live])=>{
+ if(!release.ok||!live.ok)process.exit(2);
+ const [releaseInfo,liveInfo]=await Promise.all([release.json(),live.json()]);
+ process.exit(releaseInfo.revision===sha && liveInfo.stage?.id===stageId?0:3);
+}).catch(()=>process.exit(4));
+'@
  try{
-  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e "fetch('http://127.0.0.1:3000/release').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>$null | Out-Null
+  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e $test $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
