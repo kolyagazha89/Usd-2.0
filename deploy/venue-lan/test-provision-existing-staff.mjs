@@ -51,7 +51,7 @@ function fakeDb(){
   stage:{count:async()=>stageCount,findFirst:async()=>({id:stage})},
   user:{count:async()=>rows.size,findMany:async()=>[...rows.values()],
    create:async({data})=>{if(rows.has(data.id))throw Error('duplicate user');rows.set(data.id,data);log.push({type:'user',data});return {id:data.id}}},
-  role:{findUnique:async({where})=>[...roles.values()].find(r=>r.key===where.key)??null,
+  role:{findUnique:async({where})=>[...roles.values()].find(r=>r.key===where.key||r.id===where.id)??null,
    create:async({data})=>{roles.set(data.id,data);log.push({type:'role',data});return data}},
   auditLog:{create:async({data})=>{log.push({type:'audit',data});return data}},
  };
@@ -79,4 +79,31 @@ test('does not overwrite a different local account, stage or database',async()=>
  const db=fakeDb();
  db.rows.set('untrusted',{id:'untrusted',email:'intruder@test.invalid'});
  await assert.rejects(()=>applyExistingVenueStaff(parsed,stage,db.prisma),/посторон|конфликт|чуж|сотруд/i);
+});
+
+test('real staff enrollment coexists with migration-seeded judge role without modifying its global permissions',async()=>{
+ const {key,sealed}=wrap();
+ const staff=decryptExistingVenueStaff(sealed,key,stage);
+ const db=fakeDb();
+ const seededRole={id:'c710f672-79f7-44eb-8173-2a8ff94b1c0e',
+   key:'judge',name:'Судья USD',permissions:{results:['*'],siteSettings:['*']},isSystem:true};
+ db.roles.set(seededRole.id,structuredClone(seededRole));
+ const installed=await applyExistingVenueStaff(staff,stage,db.prisma);
+ assert.equal(installed.staffCount,2);
+ assert.deepEqual(db.roles.get(seededRole.id),seededRole,'global seed role must stay untouched');
+ const judge=db.rows.get(users[1].id);
+ assert.equal(judge.customRoleId,users[1].customRole.id);
+ assert.equal(db.roles.get(users[1].customRole.id).key,'venue-stage-'+users[1].customRole.id);
+ assert.deepEqual(db.roles.get(users[1].customRole.id).permissions.results,['view','create']);
+});
+
+test('crash retry refuses a broadened local judge role instead of silently authorizing it',async()=>{
+ const {key,sealed}=wrap();
+ const staff=decryptExistingVenueStaff(sealed,key,stage);
+ const db=fakeDb();
+ await applyExistingVenueStaff(staff,stage,db.prisma);
+ const role=db.roles.get(users[1].customRole.id);
+ role.permissions={...role.permissions,results:['*'],siteSettings:['*']};
+ await assert.rejects(()=>applyExistingVenueStaff(staff,stage,db.prisma),
+   /прав|роль|подмен|конфликт/i);
 });

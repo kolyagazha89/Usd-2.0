@@ -4,10 +4,11 @@
  * Covers signed import, independent ADMIN/JUDGE, judge writes and LAN live.
  */
 import {strict as assert} from 'node:assert';
-import {createHash,generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,createCipheriv,randomBytes,generateKeyPairSync,sign} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
+import {decryptExistingVenueStaff,applyExistingVenueStaff} from './provision-existing-staff.mjs';
 import {collectVenueJournal} from './export-venue-return.mjs';
 import {signVenueReturnSnapshot,encryptVenueReturn,openVenueReturn} from './venue-return-package.mjs';
 
@@ -30,9 +31,24 @@ const ID={
  inspection:'c610f672-79f7-44eb-8173-2a8ff94b1c0e',
 };
 const ADMIN_PASSWORD='Venue-Admin!Strong#17',JUDGE_PASSWORD='Venue-Judge!Strong#17';
+const REAL_MODE=process.env.USD_VENUE_CI_STAFF_MODE==='existing';
+const REAL_ADMIN='real-admin@usd.test',REAL_JUDGE='real-judge@usd.test';
+const REAL_ADMIN_ID='b710f672-79f7-44eb-8173-2a8ff94b1c0e';
+const REAL_JUDGE_ID='b810f672-79f7-44eb-8173-2a8ff94b1c0e';
+const REAL_ROLE_ID='b910f672-79f7-44eb-8173-2a8ff94b1c0e';
+function sealStaff(staff,stageId){
+ const secret=randomBytes(32),nonce=randomBytes(12);
+ const cipher=createCipheriv('aes-256-gcm',secret,nonce);
+ cipher.setAAD(Buffer.from('USD_VENUE_STAFF_V1:'+stageId));
+ const ciphertext=Buffer.concat([cipher.update(JSON.stringify(staff)),cipher.final()]);
+ return {access:{format:1,algorithm:'AES-256-GCM',nonce:nonce.toString('base64url'),
+  ciphertext:ciphertext.toString('base64url'),tag:cipher.getAuthTag().toString('base64url')},
+  key:secret.toString('base64url')};
+}
+
 const api='http://api:3000';
 
-function syntheticSignedStage(){
+function syntheticSignedStage(staffAccess){
  const now=Date.now();
  const snapshot={
   format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:ID.stage,
@@ -56,6 +72,7 @@ function syntheticSignedStage(){
    contactEmail:'venue@example.org',
    rulesPublished:{id:'ci-rules-1',blocks:[{type:'paragraph',text:'Тестовый регламент'}]},
   },
+  ...(staffAccess?{staffAccess}:{}),
   registrations:[{
    id:ID.reg,stageId:ID.stage,participantId:ID.person,carId:ID.car,
    configurationVersionId:ID.config,configurationSnapshot:{configurationPending:true},
@@ -89,7 +106,25 @@ function syntheticSignedStage(){
 }
 async function seed(){
  assert.equal(process.env.USD_VENUE_LAN_MODE,'true');
- const signed=syntheticSignedStage();
+
+ let realStaff=null;
+ if(REAL_MODE){
+  const users=[
+   {id:REAL_ADMIN_ID,email:REAL_ADMIN,role:'ADMIN',name:'Старший судья',
+    passwordHash:await bcrypt.hash(ADMIN_PASSWORD,12),isActive:true,
+    emailVerifiedAt:'2026-11-10T10:00:00.000Z',customRole:null},
+   {id:REAL_JUDGE_ID,email:REAL_JUDGE,role:'PARTICIPANT',name:'Судья 1',
+    passwordHash:await bcrypt.hash(JUDGE_PASSWORD,12),isActive:true,
+    emailVerifiedAt:'2026-11-10T10:00:00.000Z',
+    customRole:{id:REAL_ROLE_ID,key:'judge',name:'Судья',
+      permissions:{stages:['view'],registrations:['view','create','update'],
+       inspections:['view','create','update'],results:['view','create','update','delete'],
+       participants:['view','create'],cars:['view','create'],classes:['view'],
+       configurations:['view','create','update'],siteSettings:['*']}}}
+  ];
+  realStaff=sealStaff(users,ID.stage);
+ }
+ const signed=syntheticSignedStage(realStaff?.access);
  process.env.VENUE_SIGNING_KEY_FINGERPRINT=signed.container.integrity.publicKeyFingerprint;
  const plan=planVenueStageImport(signed.container,signed.publicPem,process.env);
  const client=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
@@ -104,19 +139,42 @@ async function seed(){
   assert.equal(settings?.legal?.legalApproved,true,'The venue must carry the real approved legal policy');
   assert.equal(settings?.registration?.rulesDocument?.published?.id,'ci-rules-1');
   await assert.rejects(()=>applyVenueStageImport(plan,client),/не пуста/);
-  const admin=await provisionVenueStaff(planVenueStaff('admin','operator1',process.env),
-   ADMIN_PASSWORD,client,password=>bcrypt.hash(password,12));
-  const judge=await provisionVenueStaff(planVenueStaff('judge','judge-01',process.env),
-   JUDGE_PASSWORD,client,password=>bcrypt.hash(password,12));
-  assert.equal(admin.role,'ADMIN');assert.equal(judge.role,'JUDGE');
-  const users=await client.user.findMany({
-   where:{email:{endsWith:'@venue.invalid'}},select:{email:true,role:true,customRoleId:true},
-  });
-  assert.equal(users.length,2);
-  assert.equal(users.find(u=>u.email.startsWith('judge-'))?.role,'PARTICIPANT');
-  const audit=await client.auditLog.findMany({where:{action:'VENUE_STAFF_CREATED'}});
-  assert.equal(audit.length,2);
-  assert.ok(audit.every(entry=>!JSON.stringify(entry.metadata).includes('!Strong#17')));
+  if(REAL_MODE){
+   assert.throws(()=>decryptExistingVenueStaff(realStaff.access,randomBytes(32).toString('base64url'),ID.stage),
+    /шифр доступа сотрудников/);
+   const roster=decryptExistingVenueStaff(signed.container.snapshot.staffAccess,realStaff.key,ID.stage);
+   assert.deepEqual(roster.map(u=>u.email),[REAL_ADMIN,REAL_JUDGE]);
+   const admitted=await applyExistingVenueStaff(roster,ID.stage,client);
+   assert.equal(admitted.staffCount,2);
+   assert.equal(admitted.replayed,false);
+   const replay=await applyExistingVenueStaff(roster,ID.stage,client);
+   assert.equal(replay.replayed,true,'User import must be idempotent after crash');
+   const judge=await client.user.findUnique({where:{id:REAL_JUDGE_ID},include:{customRole:true}});
+   assert.equal(judge.email,REAL_JUDGE);
+   assert.equal(judge.customRole.key,'venue-stage-'+REAL_ROLE_ID);
+   assert.deepEqual(judge.customRole.permissions.results,['view','create']);
+   assert.ok(!judge.customRole.permissions.siteSettings);
+   assert.equal(await bcrypt.compare(JUDGE_PASSWORD,judge.passwordHash),true);
+   const admin=await client.user.findUnique({where:{id:REAL_ADMIN_ID}});
+   assert.equal(admin.email,REAL_ADMIN);
+   assert.equal(await bcrypt.compare(ADMIN_PASSWORD,admin.passwordHash),true);
+   assert.equal(await client.user.count(),2);
+   assert.equal(await client.auditLog.count({where:{action:'VENUE_EXISTING_STAFF_ENABLED'}}),1);
+  }else{
+   const admin=await provisionVenueStaff(planVenueStaff('admin','operator1',process.env),
+    ADMIN_PASSWORD,client,password=>bcrypt.hash(password,12));
+   const judge=await provisionVenueStaff(planVenueStaff('judge','judge-01',process.env),
+    JUDGE_PASSWORD,client,password=>bcrypt.hash(password,12));
+   assert.equal(admin.role,'ADMIN');assert.equal(judge.role,'JUDGE');
+   const users=await client.user.findMany({
+    where:{email:{endsWith:'@venue.invalid'}},select:{email:true,role:true,customRoleId:true},
+   });
+   assert.equal(users.length,2);
+   assert.equal(users.find(u=>u.email.startsWith('judge-'))?.role,'PARTICIPANT');
+   const audit=await client.auditLog.findMany({where:{action:'VENUE_STAFF_CREATED'}});
+   assert.equal(audit.length,2);
+   assert.ok(audit.every(entry=>!JSON.stringify(entry.metadata).includes('!Strong#17')));
+  }
  }finally{await client.$disconnect()}
  console.log('USD CI VENUE DB SEED PASS: signed one-stage import, replay denied, isolated staff + RBAC');
 }
@@ -149,15 +207,24 @@ async function probe(){
  const unpublished=await request('/results/stage/'+ID.stage);
  assert.equal(unpublished.status,404,'LAN measurements must NOT be public site archive results');
 
- const admin=await login('operator1@venue.invalid',ADMIN_PASSWORD);
- const judge=await login('judge-01@venue.invalid',JUDGE_PASSWORD);
+ const admin=await login(REAL_MODE?REAL_ADMIN:'operator1@venue.invalid',ADMIN_PASSWORD);
+ const judge=await login(REAL_MODE?REAL_JUDGE:'judge-01@venue.invalid',JUDGE_PASSWORD);
  assert.equal(admin.user.role,'ADMIN');
  assert.equal(judge.user.role,'PARTICIPANT');
- assert.equal(judge.user.customRole?.key,'venue-judge');
+ assert.equal(judge.user.customRole?.key,REAL_MODE?'venue-stage-'+REAL_ROLE_ID:'venue-judge');
+ if(REAL_MODE){
+  assert.equal(judge.user.id,REAL_JUDGE_ID);
+  assert.equal(admin.user.id,REAL_ADMIN_ID);
+ }
  const authJudge={Authorization:'Bearer '+judge.accessToken};
  const authAdmin={Authorization:'Bearer '+admin.accessToken};
  assert.equal((await request('/auth/admin/users',{headers:authJudge})).status,403,
   'Judge must not view/manage local user administration');
+ assert.equal((await request('/auth/admin/users',{headers:authAdmin})).status,403,
+  'Offline ADMIN must not manage global user administration');
+ assert.equal((await request('/stages',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({name:'Wrong stage'})})).status,403,
+  'Offline ADMIN must not create stages');
  const roster=await request('/registrations?stageId='+ID.stage,{headers:authJudge});
  assert.equal(roster.status,200);
  const newProfile=await request('/registrations/on-site/profile',{method:'POST',headers:authAdmin,

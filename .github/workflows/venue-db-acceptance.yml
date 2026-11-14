@@ -23,8 +23,14 @@ permissions:
   contents: read
 jobs:
   venue-db-live-acceptance:
-    name: isolated-db-staff-and-live
+    name: isolated-db-staff-and-live (${{ matrix.staff-mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        staff-mode: [synthetic, existing]
+    env:
+      USD_VENUE_CI_STAFF_MODE: ${{ matrix.staff-mode }}
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -102,9 +108,11 @@ jobs:
             --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+            --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
+            -e USD_VENUE_CI_STAFF_MODE \
             --entrypoint node api /app/venue-db-acceptance.mjs seed
       - name: Install trusted append-only venue write journal as isolated database root
         working-directory: deploy/venue-lan
@@ -120,9 +128,11 @@ jobs:
             --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+            --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
+            -e USD_VENUE_CI_STAFF_MODE \
             --entrypoint node api /app/venue-db-acceptance.mjs probe
       - name: Destroy disposable venue database and configuration
         if: always()

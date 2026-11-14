@@ -32,6 +32,51 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("usd-home",source)
         self.assertRegex(source,r"function\s+Set-SetupPhase")
         self.assertRegex(source,r"function\s+Ensure-DockerReady")
+    def test_single_complete_windows_installer_is_not_duplicated(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        self.assertLess(len(source.encode("utf-8")),45000,"Duplicated PowerShell source must not ship")
+        for func in ("Assert-VenueReleaseImages","New-InitialState","Confirm-SignedStage",
+                     "Install-Local","Start-Local","Test-VenueApiReady","Return-Online"):
+            self.assertEqual(len(re.findall(r"(?m)^function\s+"+re.escape(func)+r"\b",source)),1,func)
+        self.assertIn("if($Sha -cnotmatch '^[a-f0-9]{40}$')",source)
+
+    def test_release_image_and_api_modules_are_verified_before_installation(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        self.assertIn("function Assert-VenueReleaseImages",source)
+        begin=source.index("function New-InitialState")
+        end=source.index("function Confirm-SignedStage",begin)
+        installer=source[begin:end]
+        self.assertIn("Assert-VenueReleaseImages $sha",installer)
+        self.assertLess(installer.index("Assert-VenueReleaseImages $sha"),installer.index("$file='';$key='';$stageId=''"))
+        verifier=source[source.index("function Assert-VenueReleaseImages"):begin]
+        self.assertIn("org.opencontainers.image.revision",verifier)
+        self.assertIn("venue-staff-access.js",verifier)
+        self.assertIn("venue-route-policy.js",verifier)
+        self.assertIn("usd-release.json",verifier)
+        self.assertIn("docker run --rm --network none",verifier)
+
+    def test_demo_can_use_pinned_approved_images_when_live_ubuntu_is_old(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        installer=source[source.index("function New-InitialState"):source.index("function Confirm-SignedStage")]
+        self.assertIn("$demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'",installer)
+        self.assertIn("if($kind -ne '1'){throw}",installer)
+        self.assertIn("Assert-VenueReleaseImages $sha",installer)
+        self.assertIn("VENUE_IMAGE_TAG=$sha",installer)
+        self.assertLess(installer.index("if($kind -ne '1'){throw}"),installer.index("$sha=$demoSha"))
+
+    def test_lan_startup_verifies_pinned_api_sha_and_live_stage_not_just_http_200(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        start=source.index("function Test-VenueApiReady")
+        end=source.index("function Export-VenueReturn",start)
+        readiness=source[start:end]
+        self.assertIn("results/venue-live",readiness)
+        self.assertIn("releaseInfo.revision===sha",readiness)
+        self.assertIn("liveInfo.stage?.id===stageId",readiness)
+        self.assertIn("ExpectedSha",readiness)
+        self.assertIn("ExpectedStage",readiness)
+        startlocal=source[source.index("function Start-Local"):start]
+        self.assertIn("Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId",startlocal)
+
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         self.assertIn("Read-VenueFingerprint",source)

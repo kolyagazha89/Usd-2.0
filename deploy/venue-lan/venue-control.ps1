@@ -165,6 +165,38 @@ function Save-DesktopShortcuts {
  $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
  $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
+function Assert-VenueReleaseImages([string]$Sha){
+ # The central deployment can be one revision behind the downloaded kit.
+ # Check both immutable images before producing any real stage/local DB.
+ if($Sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Неверная версия USD'}
+ foreach($name in @('api','frontend')){
+  $ref='ghcr.io/kolyagazha89/usd-2.0-'+$name+':'+$Sha
+  $revision=(& docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' $ref 2>$null)
+  if($LASTEXITCODE -ne 0 -or [string]$revision -cne $Sha){
+   throw 'Образы USD ещё не совпадают с подтверждённой версией сервера. Завершите обновление Ubuntu и повторите установку.'
+  }
+ }
+ $apiImage='ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha
+ $program=@'
+const fs=require("node:fs");
+const sha=process.argv[1];
+const files=[
+ "/app/dist/auth/venue-route-policy.js",
+ "/app/dist/stages/venue-staff-access.js",
+ "/app/dist/stages/venue-stage.service.js",
+ "/app/dist/results/results.service.js",
+ "/app/usd-release.json"
+];
+if(files.some(file=>!fs.existsSync(file)))process.exit(4);
+const release=JSON.parse(fs.readFileSync("/app/usd-release.json","utf8"));
+if(release.revision!==sha)process.exit(5);
+console.log("USD VENUE API RELEASE CHECK PASSED");
+'@
+ & docker run --rm --network none --entrypoint node $apiImage -e $program $Sha | Out-Host
+ if($LASTEXITCODE -ne 0){
+  throw 'На Ubuntu установлена старая версия USD без полного офлайн-режима. Ничего не установлено; повторите после обновления.'
+ }
+}
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $ip=Get-PrivateLanIp
@@ -177,7 +209,22 @@ function New-InitialState {
  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
  $sha=[string]$release.revision
  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+ $demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'
+ try{
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Assert-VenueReleaseImages $sha
+ }catch{
+  # A real stage must never install against an image different from Ubuntu.
+  # Only the synthetic DEMO uses the pinned, previously tested LAN version.
+  if($kind -ne '1'){throw}
+  if($sha -eq $demoSha){throw}
+  Write-Host 'Основная Ubuntu ещё обновляется. Для ДЕМО загружаем проверенный выпуск LAN.'
+  $sha=$demoSha
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'reviewed demo API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'reviewed demo frontend image pull'
+  Assert-VenueReleaseImages $sha
+ }
  $file='';$key='';$stageId='';$fingerprint=''
  if($kind -eq '1'){
   $packetParent=Join-Path $PrivateDir 'demo-packages'
@@ -392,7 +439,7 @@ function Start-Local {
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
  for($i=0;$i -lt 40;$i++){
-  if(Test-VenueApiReady){$ready=$true;break}
+  if(Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId){$ready=$true;break}
   Start-Sleep -Seconds 2
  }
  if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
@@ -408,10 +455,21 @@ function Start-Local {
   Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход: '+$url+[Environment]::NewLine+'Табло: https://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Подключите телефоны к тому же Wi-Fi. Порядок установки сертификата — в инструкции на рабочем столе.')
  }
 }
-function Test-VenueApiReady {
+function Test-VenueApiReady([string]$ExpectedSha,[string]$ExpectedStage) {
  $prior=$ErrorActionPreference;$ErrorActionPreference='Continue'
+ $program=@'
+const [sha,stageId]=process.argv.slice(1);
+Promise.all([
+ fetch("http://127.0.0.1:3000/release",{signal:AbortSignal.timeout(3000)}),
+ fetch("http://127.0.0.1:3000/results/venue-live",{signal:AbortSignal.timeout(3000)})
+]).then(async ([release,live])=>{
+ if(!release.ok||!live.ok)process.exit(2);
+ const [releaseInfo,liveInfo]=await Promise.all([release.json(),live.json()]);
+ process.exit(releaseInfo.revision===sha && liveInfo.stage?.id===stageId?0:3);
+}).catch(()=>process.exit(4));
+'@
  try{
-  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e "fetch('http://127.0.0.1:3000/release').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>$null | Out-Null
+  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node -e $program $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
