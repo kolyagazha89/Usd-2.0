@@ -12,7 +12,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
  const [staffKey,setStaffKey]=useState('');
  useEffect(()=>{
   if(user.role!=='ADMIN'){setLoading(false);return;}
-  let active=true;setLoading(true);setError('');setSetup(null);setStages([]);
+  let active=true;setLoading(true);setError('');setSetup(null);setStages([]);setStaffKey('');
   Promise.all([apiGet<VenueSetup>('/stages/venue/setup'),apiGet('/stages')]).then(([state,items])=>{
    if(!active)return;
    const available=listData<Stage>(items).filter(s=>['PUBLISHED','COMPLETED'].includes(s.status??''))
@@ -31,9 +31,9 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
    const file=validateVenueStaffExport(data,selected,setup);
    saveVenueFile('usd-venue-stage-'+selected+'.json',file.text,'application/json');
    setStaffKey(file.staffKey);
-   // The unlock key is a SEPARATE local file, never part of the signed JSON.
-   saveVenueFile('usd-venue-access-'+selected+'.key',file.staffKey+'\n','application/octet-stream');
-   setNotice('Пакет этапа и отдельный ключ судей скачаны. Существующие аккаунты USD: '+file.staffCount+'. Оба файла перенесите на ноутбук. Затем нажмите «Скачать открытый ключ». Действует до '+file.expiresAt+'.');
+   // Browsers often block a second automatic download on the same click.
+   // Unlock stays in memory only; the operator explicitly downloads it.
+   setNotice('Пакет этапа сохранён. Теперь нажмите «Скачать ключ судей (.key)», затем «Скачать открытый ключ». Существующие аккаунты: '+file.staffCount+'. Действует до '+file.expiresAt+'.');
   }catch(e){setError(e instanceof Error?e.message:'Не удалось скачать этап. Повторите попытку.')}
   finally{setBusy(false)}
  };
@@ -69,9 +69,9 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
    <details className="panel venue-server-details"><summary>Телефон не открывает локальный сайт</summary><ol><li>Проверьте, что телефон и ноутбук подключены к одному Wi-Fi. При испытании отключите мобильные данные телефона.</li><li>Открывайте адрес с IP ноутбука, который показывает программа, а не обычный адрес сайта USD.</li><li>На Windows выберите для сети профиль «Частная». В роутере отключите изоляцию Wi-Fi-клиентов.</li><li>Установите на телефон сертификат <strong>USD-Venue-CA.crt</strong> из папки <strong>local-private</strong> только с вашего ноутбука. На iPhone: «Настройки» → «Профиль загружен» → «Установить», затем «Основные» → «Об этом устройстве» → «Доверие сертификатам» → включить доверие к сертификату этого сервера. На Android: настройки безопасности → установка CA-сертификата; название пункта зависит от телефона.</li><li>Если IP ноутбука сменился, верните адрес, указанный при установке. Папку и данные не удаляйте.</li></ol></details>
    {!localMode&&<details className="panel venue-server-details"><summary>Подготовка файла настоящего этапа</summary><p>Для реальных соревнований подготовьте подписанный пакет с доступом на синхронизацию. Не передавайте его посторонним.</p>
     {loading?<p role="status">Проверяем возможность скачивания…</p>:setup?.signing.ready?<>
-     <label className="venue-server-stage">Этап<select value={stageId} disabled={busy} onChange={e=>{setStageId(e.target.value);setNotice('')}}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>{s.name}{s.city?' · '+s.city:''}{s.date?' · '+new Date(s.date).toLocaleDateString('ru-RU'):''}</option>)}</select></label>
+     <label className="venue-server-stage">Этап<select value={stageId} disabled={busy} onChange={e=>{setStageId(e.target.value);setStaffKey('');setNotice('')}}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>{s.name}{s.city?' · '+s.city:''}{s.date?' · '+new Date(s.date).toLocaleDateString('ru-RU'):''}</option>)}</select></label>
      {!stages.length&&<p>Опубликованных этапов пока нет. Сначала опубликуйте нужный этап в разделе «Этапы».</p>}
-     <div className="venue-server-actions"><button className="primary-button" type="button" disabled={!stageId||busy} onClick={()=>void downloadStage()}><Download size={18}/>{busy?'Готовим файл…':'Скачать файл этапа'}</button><button className="secondary-button" type="button" disabled={busy} onClick={downloadKey}>Скачать открытый ключ</button>{staffKey&&<button className="secondary-button" type="button" onClick={()=>saveVenueFile('usd-venue-access-'+stageId+'.key',staffKey+'\n','application/octet-stream')}>Повторно скачать ключ судей</button>}</div>
+     <div className="venue-server-actions"><button className="primary-button" type="button" disabled={!stageId||busy} onClick={()=>void downloadStage()}><Download size={18}/>{busy?'Готовим файл…':'Скачать файл этапа'}</button><button className="secondary-button" type="button" disabled={busy} onClick={downloadKey}>Скачать открытый ключ</button>{staffKey&&<button className="secondary-button" type="button" onClick={()=>{saveVenueFile('usd-venue-access-'+stageId+'.key',staffKey+'\n','application/octet-stream');setNotice('Отдельный ключ судей скачан. Сохраните JSON и .key в защищённой папке ноутбука; ещё нужен открытый PEM.')}}>Скачать ключ судей (.key)</button>}</div>
      <p>Файл действует 72 часа. При подготовке одного реального этапа будут скачаны два файла: подписанный список участников с <strong>зашифрованными</strong> данными доступа судей и отдельный одноразовый ключ. Не пересылайте их вместе в общий чат. Дополнительно скачайте открытый ключ подписи, затем перенесите все три файла на ноутбук. Пароли сотрудников не меняются.</p><p>Отпечаток ключа для сверки при установке:</p><code className="venue-server-fingerprint">{setup.signing.fingerprint}</code>
     </>:setup?<p>Для настоящего этапа нужна однократная настройка подписи на сервере. Обратитесь к ответственному за сайт. Установка и тестовый запуск доступны сейчас.</p>:null}
     {!loading&&<button className="secondary-button" disabled={busy} onClick={()=>setAttempt(n=>n+1)}><RefreshCw size={16}/>Проверить ещё раз</button>}</details>}
