@@ -122,9 +122,13 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
   }
   const roles=new Map(candidates.filter(u=>u.customRole).map(u=>[u.customRole.id,u.customRole]));
   for(const role of roles.values()){
-   const prev=await tx.role.findUnique({where:{key:role.key}});
+   // Prisma migrations may seed a global 'judge' role. Never replace its
+   // permissions or attach real staff to it. A stage-scoped unique key keeps
+   // the original central role UUID but cannot collide with seeded names.
+   const localKey='venue-stage-'+role.id;
+   const prev=await tx.role.findUnique({where:{key:localKey}});
    if(prev)throw new Error('Судейская роль уже существует; повторная привязка запрещена');
-   await tx.role.create({data:{id:role.id,key:role.key,name:role.name,
+   await tx.role.create({data:{id:role.id,key:localKey,name:role.name,
     permissions:role.permissions,isSystem:true,
     description:'Права текущего этапа из подписанного USD; только LAN'}});
   }
