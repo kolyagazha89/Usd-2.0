@@ -158,8 +158,8 @@ if($failedRule -notmatch '443|брандмауэр'){
 $helper=Join-Path $PSScriptRoot 'venue-firewall.ps1'
 $simulation=@'
 $ErrorActionPreference='Stop'
-$script:ruleState='stale'
-$script:expectedName='USD Venue HTTPS 192.168.25.10'
+$global:ruleState='stale'
+$global:expectedName='USD Venue HTTPS 192.168.25.10'
 function Get-NetIPAddress {
  param([string]$AddressFamily)
  [pscustomobject]@{IPAddress='192.168.25.10';InterfaceIndex=11;AddressState='Preferred'}
@@ -170,33 +170,33 @@ function Get-NetConnectionProfile {
 }
 function Get-NetFirewallRule {
  param([string]$DisplayName,[string]$ErrorAction)
- if($DisplayName -ne $script:expectedName){throw 'Touched unrelated firewall rule'}
- if($script:ruleState -eq 'stale'){
+ if($DisplayName -ne $global:expectedName){throw 'Touched unrelated firewall rule'}
+ if($global:ruleState -eq 'stale'){
   [pscustomobject]@{DisplayName=$DisplayName;Enabled='True';Direction='Inbound';Action='Block';Profile='Private'}
- }elseif($script:ruleState -eq 'safe'){
+ }elseif($global:ruleState -eq 'safe'){
   [pscustomobject]@{DisplayName=$DisplayName;Enabled='True';Direction='Inbound';Action='Allow';Profile='Private'}
  }
 }
 function Remove-NetFirewallRule {
  [CmdletBinding()]
  param([Parameter(Mandatory=$true)]$InputObject)
- if($InputObject.DisplayName -ne $script:expectedName -or $script:ruleState -ne 'stale'){
+ if($InputObject.DisplayName -ne $global:expectedName -or $global:ruleState -ne 'stale'){
   throw 'Removed wrong rule or performed a redundant deletion'
  }
- $script:ruleState='absent'
+ $global:ruleState='absent'
 }
 function New-NetFirewallRule {
  [CmdletBinding()]
  param([string]$DisplayName,[string]$Direction,[string]$Action,[string]$Enabled,
   [string]$Profile,[string]$Protocol,[string]$LocalPort,[string]$LocalAddress,
   [string]$RemoteAddress)
- if($script:ruleState -ne 'absent' -or $DisplayName -ne $script:expectedName -or
+ if($global:ruleState -ne 'absent' -or $DisplayName -ne $global:expectedName -or
   $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Profile -ne 'Private' -or
   $Protocol -ne 'TCP' -or $LocalPort -ne '443' -or
   $LocalAddress -ne '192.168.25.10' -or $RemoteAddress -ne 'LocalSubnet'){
   throw 'Unsafe or incorrect replacement firewall rule'
  }
- $script:ruleState='safe'
+ $global:ruleState='safe'
  [pscustomobject]@{DisplayName=$DisplayName}
 }
 function Get-NetFirewallPortFilter {
