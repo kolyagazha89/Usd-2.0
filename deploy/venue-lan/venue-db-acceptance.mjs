@@ -151,7 +151,7 @@ async function seed(){
    assert.equal(replay.replayed,true,'User import must be idempotent after crash');
    const judge=await client.user.findUnique({where:{id:REAL_JUDGE_ID},include:{customRole:true}});
    assert.equal(judge.email,REAL_JUDGE);
-   assert.equal(judge.customRole.key,'judge');
+   assert.equal(judge.customRole.key,'venue-stage-'+REAL_ROLE_ID);
    assert.deepEqual(judge.customRole.permissions.results,['view','create']);
    assert.ok(!judge.customRole.permissions.siteSettings);
    assert.equal(await bcrypt.compare(JUDGE_PASSWORD,judge.passwordHash),true);
@@ -211,7 +211,7 @@ async function probe(){
  const judge=await login(REAL_MODE?REAL_JUDGE:'judge-01@venue.invalid',JUDGE_PASSWORD);
  assert.equal(admin.user.role,'ADMIN');
  assert.equal(judge.user.role,'PARTICIPANT');
- assert.equal(judge.user.customRole?.key,REAL_MODE?'judge':'venue-judge');
+ assert.equal(judge.user.customRole?.key,REAL_MODE?'venue-stage-'+REAL_ROLE_ID:'venue-judge');
  if(REAL_MODE){
   assert.equal(judge.user.id,REAL_JUDGE_ID);
   assert.equal(admin.user.id,REAL_ADMIN_ID);
