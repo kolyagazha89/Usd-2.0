@@ -99,6 +99,14 @@ function sameUser(actual,expected){
   &&(actual.customRoleId??null)===(expected.customRole?.id??null)
   &&actual.isActive===true;
 }
+function rolePermissionsMatch(actual,expected){
+ if(!isObject(actual)||!isObject(expected))return false;
+ const a=Object.keys(actual),b=Object.keys(expected);
+ return a.length===b.length&&b.every(name=>
+  Array.isArray(actual[name])&&Array.isArray(expected[name])
+  &&actual[name].length===expected[name].length
+  &&expected[name].every(action=>actual[name].includes(action)));
+}
 /** Serializable one-time install; replays after installer crash are read-only. */
 export async function applyExistingVenueStaff(staff,stageId,prisma){
  if(!prisma||typeof prisma.$transaction!=='function'||!UUID.test(stageId))
@@ -118,6 +126,13 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
     role:true,customRoleId:true,isActive:true}});
    if(present.length!==candidates.length||!candidates.every(u=>present.some(x=>sameUser(x,u))))
     throw new Error('Посторонние учётные записи или конфликт сотрудников площадки');
+   // A retry must never conceal a role escalation since the previous run.
+   for(const staff of candidates.filter(u=>u.customRole)){
+    const role=await tx.role.findUnique({where:{id:staff.customRole.id}});
+    if(!role||role.key!=='venue-stage-'+staff.customRole.id||!role.isSystem
+     ||!rolePermissionsMatch(role.permissions,staff.customRole.permissions))
+     throw new Error('Судейская роль или права были подменены; вход запрещён');
+   }
    return {stageId,staffCount:candidates.length,replayed:true};
   }
   const roles=new Map(candidates.filter(u=>u.customRole).map(u=>[u.customRole.id,u.customRole]));
