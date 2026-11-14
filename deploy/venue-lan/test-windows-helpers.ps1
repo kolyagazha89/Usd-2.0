@@ -79,4 +79,64 @@ if($firewallMessage -notmatch 'частн|Частн|Private'){
 if($script:firewallElevationCalls -ne 0){
  throw 'Do not elevate or silently trust Public Wi-Fi after declined consent'
 }
+# A Private hotspot must be allowed to request exactly one elevated,
+# narrowly-scoped firewall rule, and a replay must never prompt again.
+$script:firewallNetworkCategory='Private'
+$script:firewallRule=$null
+$script:firewallElevationCalls=0
+function Get-NetConnectionProfile {
+ param([int]$InterfaceIndex,[string]$ErrorAction)
+ [pscustomobject]@{NetworkCategory=$script:firewallNetworkCategory;InterfaceIndex=11}
+}
+function Get-NetFirewallRule {
+ param([string]$DisplayName,[string]$ErrorAction)
+ if($script:firewallRule){return $script:firewallRule}
+}
+function Get-NetFirewallPortFilter {
+ [CmdletBinding()]
+ param([Parameter(ValueFromPipeline=$true)]$InputObject)
+ process { [pscustomobject]@{Protocol='TCP';LocalPort='443'} }
+}
+function Get-NetFirewallAddressFilter {
+ [CmdletBinding()]
+ param([Parameter(ValueFromPipeline=$true)]$InputObject)
+ process { [pscustomobject]@{LocalAddress='192.168.25.10';RemoteAddress='LocalSubnet'} }
+}
+function Start-Process {
+ param([string]$FilePath,[string]$Verb,[string]$ArgumentList,[switch]$Wait,[switch]$PassThru)
+ $script:firewallElevationCalls++
+ if($Verb -ne 'RunAs' -or $ArgumentList -notmatch 'venue-firewall.ps1' -or
+    $ArgumentList -notmatch '192.168.25.10' -or
+    $ArgumentList -match 'AllowPrivateProfile'){
+  throw 'Unsafe elevation arguments for a Private LAN'
+ }
+ $script:firewallRule=[pscustomobject]@{Enabled='True';Direction='Inbound';Action='Allow';Profile='Private'}
+ [pscustomobject]@{ExitCode=0}
+}
+Ensure-Firewall '192.168.25.10'
+if($script:firewallElevationCalls -ne 1){throw 'Safe Private LAN did not perform exactly one UAC setup'}
+Ensure-Firewall '192.168.25.10'
+if($script:firewallElevationCalls -ne 1){throw 'Private LAN setup should be idempotent on replay'}
+
+# Existing rule of the same name is NEVER considered safe merely by name.
+$script:firewallRule=[pscustomobject]@{Enabled='True';Direction='Inbound';Action='Block';Profile='Private'}
+$blocked=''
+try { Ensure-Firewall '192.168.25.10' }catch{ $blocked=$_.Exception.Message }
+if($blocked -notmatch 'небезопасн' -or $script:firewallElevationCalls -ne 1){
+ throw 'Conflicting Windows firewall rule was silently accepted or overwritten'
+}
+$script:firewallRule=$null
+
+# If elevated Windows rejects TCP 443, show a specific actionable reason,
+# not the old generic error that forced repeated blind user retries.
+function Start-Process {
+ param([string]$FilePath,[string]$Verb,[string]$ArgumentList,[switch]$Wait,[switch]$PassThru)
+ $script:firewallElevationCalls++
+ [pscustomobject]@{ExitCode=22}
+}
+$failedRule=''
+try { Ensure-Firewall '192.168.25.10' }catch{ $failedRule=$_.Exception.Message }
+if($failedRule -notmatch '443|брандмауэр'){
+ throw 'Failed Windows firewall elevation did not explain TCP 443 failure'
+}
 Write-Host 'Windows helper runtime tests passed; no Docker, firewall or database was modified.'
