@@ -206,6 +206,9 @@ jobs:
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
+      - name: Verify a real Windows firewall rule and filter through native NetSecurity
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-firewall-native.ps1
       - name: Check launch shortcuts exist and retain their action mappings
         shell: powershell
         run: |
