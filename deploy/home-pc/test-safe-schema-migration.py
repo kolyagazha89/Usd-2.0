@@ -37,6 +37,16 @@ class SafeSqlTests(unittest.TestCase):
                "backend/prisma/migrations/20261030061000_push_subscriptions/migration.sql").read_text()
         module.check_additive_sql(sql)
 
+    def test_venue_auto_sync_real_migration_must_pass_production_additive_gate(self):
+        # Regression from release a639fa3: Ubuntu correctly failed
+        # MIGRATION_CHECK_FAILED because the FK was nested inside CREATE TABLE.
+        # Test the actual shipping SQL, not a simplified synthetic fixture.
+        sql = (Path(__file__).parents[2] /
+               "backend/prisma/migrations/20261112183000_venue_auto_sync/migration.sql").read_text()
+        module.check_additive_sql(sql)
+        self.assertIn('ALTER TABLE "VenueSyncAuthorization" ADD CONSTRAINT', sql)
+        self.assertNotIn('CONSTRAINT "VenueSyncAuthorization_stageId_fkey" FOREIGN KEY', sql.split(');')[0])
+
     def test_new_table_and_index(self):
         module.check_additive_sql("""
             CREATE TABLE "NewThing" (
