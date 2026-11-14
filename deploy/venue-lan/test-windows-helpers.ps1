@@ -17,4 +17,36 @@ function docker {$global:LASTEXITCODE=1}
 $failed=$false
 try{Invoke-Docker @('version') 'test'}catch{$failed=$true}
 if(!$failed){throw 'Failed native command was accepted'}
+# Regression: an offline installer must re-read its own .env. The
+# DATABASE_URL contains a second '=' in ?schema=public; do not split
+# into three parts or lose any characters of a value.
+$oldEnvFile=$EnvFile
+$fixtureRoot=Join-Path ([IO.Path]::GetTempPath()) ('usd-venue-env-test-'+[guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($fixtureRoot)|Out-Null
+try {
+ $EnvFile=Join-Path $fixtureRoot '.env'
+ $expected=@(
+  'VENUE_BIND_IP=192.168.10.20',
+  ('VENUE_IMAGE_TAG='+('a'*40)),
+  'VENUE_STAGE_ID=3beb7903-48ab-4856-a2c0-a910fb5ead13',
+  'VENUE_DATABASE_URL=postgresql://usd_venue:somepass@db:5432/usd_venue?schema=public',
+  'VENUE_DB_PASSWORD=somepass',
+  ('VENUE_JWT_SECRET='+('b'*64))
+ )
+ foreach($fixtureLine in $expected){
+  if([string]$fixtureLine -notmatch '^[A-Z][A-Z0-9_]*='){
+   throw ('Malformed .env fixture, item length '+([string]$fixtureLine).Length)
+  }
+ }
+ [IO.File]::WriteAllLines($EnvFile,[string[]]$expected,(New-Object Text.UTF8Encoding($false)))
+ $parsed=Read-Env
+ if($parsed.Count -ne $expected.Count){throw 'Generated .env was not round-tripped by Read-Env'}
+ if($parsed['VENUE_DATABASE_URL'] -cne 'postgresql://usd_venue:somepass@db:5432/usd_venue?schema=public'){
+  throw 'Read-Env corrupted the query string containing schema=public'
+ }
+ if($parsed['VENUE_BIND_IP'] -cne '192.168.10.20'){throw 'Read-Env corrupted LAN IP'}
+}finally{
+ $EnvFile=$oldEnvFile
+ [IO.Directory]::Delete($fixtureRoot,$true)
+}
 Write-Host 'Windows helper runtime tests passed; no Docker, firewall or database was modified.'

@@ -51,9 +51,15 @@ function Read-Env {
  foreach($line in [IO.File]::ReadAllLines($EnvFile)){
   $row=$line.Trim()
   if(!$row -or $row.StartsWith('#')){continue}
-  $parts=$row.Split([char]'=',2)
-  if($parts.Count -ne 2 -or $result.ContainsKey($parts[0])){throw 'Некорректный .env'}
-  $result[$parts[0]]=$parts[1]
+  # Windows PowerShell 5.1 must split at the first equals sign only:
+  # DATABASE_URL includes ?schema=public, and other values may contain '='.
+  $at=$row.IndexOf('=')
+  if($at -le 0){throw 'Некорректный .env'}
+  $name=$row.Substring(0,$at)
+  if($name -cnotmatch '^VENUE_[A-Z0-9_]+$' -or $result.ContainsKey($name)){
+   throw 'Некорректный .env'
+  }
+  $result[$name]=$row.Substring($at+1)
  }
  return $result
 }
