@@ -57,7 +57,10 @@ function Read-Env {
   $at=$row.IndexOf('=')
   if($at -le 0){throw 'Некорректный .env'}
   $name=$row.Substring(0,$at)
-  if($name -cnotmatch '^VENUE_[A-Z0-9_]+
+  if($name -cnotmatch '^VENUE_[A-Z0-9_]+$' -or $result.ContainsKey($name)){
+   throw 'Некорректный .env'
+  }
+  $result[$name]=$row.Substring($at+1)
  }
  return $result
 }
