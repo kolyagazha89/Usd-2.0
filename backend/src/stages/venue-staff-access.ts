@@ -3,6 +3,18 @@ import {createCipheriv,randomBytes} from 'node:crypto';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BCRYPT=/^\$2[aby]\$[0-3][0-9]\$[./A-Za-z0-9]{53}$/;
 const MAX_STAFF=40;
+// A 2026-10-15 production migration seeded this valid judge role with a
+// textual ID. The isolated venue DB requires UUID role IDs. Keep the central
+// database identity unchanged; alias only the protected transfer payload.
+// This UUIDv5 is stable (URL namespace, venue legacy-role name) across exports.
+const LEGACY_JUDGE_ROLE_ID='usd-custom-role-judge';
+const VENUE_LEGACY_JUDGE_ROLE_UUID='d4f8096a-bb94-5630-b941-66ef4ab212fa';
+function venueRoleId(role:{id:string;key:string}):string{
+ if(UUID.test(role.id))return role.id;
+ if(role.id===LEGACY_JUDGE_ROLE_ID&&role.key==='judge')
+  return VENUE_LEGACY_JUDGE_ROLE_UUID;
+ throw new Error('Сотрудник не имеет судейских прав');
+}
 export type VenueStaffIdentity={
  id:string;email:string;name:string|null;role:string;passwordHash:string;
  isActive:boolean;emailVerifiedAt:Date|string|null;customRoleId?:string|null;
@@ -47,9 +59,12 @@ export function sealVenueStaffAccess(stageId:string,staff:VenueStaffIdentity[]):
   if(ids.has(u.id)||emails.has(normalized))throw new Error('Повтор сотрудника');
   ids.add(u.id);emails.add(normalized);
   if(u.role==='ADMIN'){adminCount++;continue}
-  if(u.role!=='PARTICIPANT'||!UUID.test(u.customRole?.id??'')
-   ||typeof u.customRole?.key!=='string'||!u.customRole.key
+  if(u.role!=='PARTICIPANT'||!u.customRole
+   ||u.customRoleId!==u.customRole.id
+   ||typeof u.customRole.key!=='string'||!u.customRole.key
    ||!eligibleVenueStaff([u]).length)throw new Error('Сотрудник не имеет судейских прав');
+  // Refuse unknown legacy IDs, but allow the one shipped in our migrations.
+  venueRoleId(u.customRole);
  }
  if(!adminCount)throw new Error('В пакете должен быть хотя бы один администратор');
  const secret=randomBytes(32),nonce=randomBytes(12);
@@ -58,7 +73,7 @@ export function sealVenueStaffAccess(stageId:string,staff:VenueStaffIdentity[]):
  const bytes=Buffer.from(JSON.stringify(staff.map(u=>({
   id:u.id,email:u.email.toLowerCase(),name:u.name??null,role:u.role,
   passwordHash:u.passwordHash,isActive:true,emailVerifiedAt:u.emailVerifiedAt,
-  customRole:u.role==='ADMIN'?null:u.customRole,
+  customRole:u.role==='ADMIN'?null:{...u.customRole!,id:venueRoleId(u.customRole!)},
  }))),'utf8');
  if(bytes.length>48*1024)throw new Error('Слишком большой список сотрудников');
  const ciphertext=Buffer.concat([cipher.update(bytes),cipher.final()]);
