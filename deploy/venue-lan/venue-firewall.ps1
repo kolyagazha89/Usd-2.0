@@ -45,9 +45,16 @@ function Test-Rule {
     [string]$addresses.RemoteAddress -eq 'LocalSubnet')
  }catch{return $false}
 }
-if(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue){
+# A prior attempt may already have installed a rule with the exact
+# USD-specific name but older or inconsistent port/address filters.
+# Repair ONLY that one rule, and only after an explicit UAC approval.
+$existing=@(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue)
+if($existing.Count -gt 1){exit 24}
+if($existing.Count -eq 1){
  if(Test-Rule){exit 0}
- exit 24
+ try{
+  Remove-NetFirewallRule -InputObject $existing[0] -ErrorAction Stop
+ }catch{exit 24}
 }
 try{
  New-NetFirewallRule -DisplayName $name -Direction Inbound -Action Allow -Enabled True -Profile Private -Protocol TCP -LocalPort 443 -LocalAddress $Ip -RemoteAddress LocalSubnet -ErrorAction Stop | Out-Null
