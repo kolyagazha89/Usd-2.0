@@ -50,6 +50,20 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("docker",verifier)
         self.assertNotIn("--pull always",verifier)
 
+    def test_lan_ready_requires_exact_api_release_and_live_one_stage(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        start=source.index('function Test-VenueApiReady')
+        end=source.index('function Export-VenueReturn',start)
+        readiness=source[start:end]
+        self.assertIn('results/venue-live',readiness)
+        self.assertIn('release',readiness)
+        self.assertIn('revision',readiness)
+        self.assertIn('stage.id',readiness)
+        self.assertIn('ExpectedSha',readiness)
+        self.assertIn('ExpectedStage',readiness)
+        startlocal=source[source.index('function Start-Local'):start]
+        self.assertIn('Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId',startlocal)
+
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         self.assertIn("Read-VenueFingerprint",source)
