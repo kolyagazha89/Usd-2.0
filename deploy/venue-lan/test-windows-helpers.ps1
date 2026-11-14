@@ -27,11 +27,11 @@ try {
  $EnvFile=Join-Path $fixtureRoot '.env'
  $expected=@(
   'VENUE_BIND_IP=192.168.10.20',
-  'VENUE_IMAGE_TAG='+('a'*40),
+  ('VENUE_IMAGE_TAG='+('a'*40)),
   'VENUE_STAGE_ID=3beb7903-48ab-4856-a2c0-a910fb5ead13',
   'VENUE_DATABASE_URL=postgresql://usd_venue:somepass@db:5432/usd_venue?schema=public',
   'VENUE_DB_PASSWORD=somepass',
-  'VENUE_JWT_SECRET='+('b'*64)
+  ('VENUE_JWT_SECRET='+('b'*64))
  )
  foreach($fixtureLine in $expected){
   if([string]$fixtureLine -notmatch '^[A-Z][A-Z0-9_]*='){
