@@ -20,7 +20,7 @@ class VenueLauncherContracts(unittest.TestCase):
         for expected in (
             "setup-state.json","VENUE_STAGE_ID","VENUE_SIGNING_KEY_FINGERPRINT",
             "verify-stage-package.mjs","import-stage.mjs","install-journal.sql",
-            "provision-rustfs.mjs","provision-staff.mjs",
+            "provision-rustfs.mjs","provision-staff.mjs","provision-existing-staff.mjs",
             "USD_VENUE_LAN_MODE","docker","compose","https://app.usd-russia.ru",
             "stop","Get-NetIPAddress",
         ):

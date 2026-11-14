@@ -1,6 +1,6 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Download,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
+import {AlertTriangle,ArrowUpRight,CarFront,Check,ChevronRight,ClipboardCheck,Flag,HardDrive,Info,LockKeyhole,Plus,RefreshCw,ScanQrCode,Search,ShieldAlert,Trophy,Users,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {judgingNumbers,judgingResultLink} from './results-operations-model';
 import {isPendingEquipment,walkInRegistrationPath} from './event-ops-model';
@@ -38,7 +38,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
  const [search,setSearch]=useState(''),[filter,setFilter]=useState<DayStatus>('ALL');
  const [savingId,setSavingId]=useState(''),[confirmPass,setConfirmPass]=useState('');
  const [failId,setFailId]=useState(''),[failureReason,setFailureReason]=useState('');
- const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false),[venueExporting,setVenueExporting]=useState(false);
+ const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false);
  const requestId=useRef(0);
  const canList=hasDayPermission(user,'registrations','view');
  const canSeeInspections=hasDayPermission(user,'inspections','view');
@@ -112,24 +112,6 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
   finally{setOfflineSaving(false)}
  };
 
- const downloadVenuePackage=async()=>{
-  if(!selected||venueExporting||loading||!canExportVenue)return;
-  setVenueExporting(true);setError('');setNotice('');
-  try{
-   const data=await apiGet<{snapshot:{stageId:string;expiresAt:string};integrity:{signature:string;sha256:string}}>(
-    '/stages/venue/'+encodeURIComponent(selected.id)+'/export');
-   if(data?.snapshot?.stageId!==selected.id||!data?.integrity?.signature||!data?.integrity?.sha256)
-    throw new Error('Сервер не подтвердил целостность пакета площадки');
-   const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
-   const url=URL.createObjectURL(blob);
-   const link=document.createElement('a');
-   link.href=url;link.download='usd-venue-stage-'+selected.id+'.json';
-   document.body.appendChild(link);
-   try{link.click()}finally{link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),30000)}
-   setNotice('Подписанный пакет подготовлен. Передайте файл только администратору локального сервера, проверьте подпись и срок действия. Он не импортирован автоматически.');
-  }catch(e){setError(displayError(e,'Не удалось подготовить пакет локального сервера. Проверьте подпись на Ubuntu.'))}
-  finally{setVenueExporting(false)}
- };
  const inspectionPath=(row:DayRow)=>dayPath('/admin/inspections',stageId,row.id);
  const saveInspection=async(row:DayRow,status:'PASSED'|'FAILED')=>{
   if(!canChangeDayInspection(user,row,readOnly)||savingId)return;
@@ -186,9 +168,8 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
-      {canExportVenue&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/venue-server?stageId='+encodeURIComponent(stageId))}><HardDrive size={15}/>Офлайн-сервер: программа и инструкция</button>}
-      {canExportVenue&&<button type="button" className="secondary-button compact" disabled={venueExporting||loading} onClick={()=>void downloadVenuePackage()}><Download size={15}/>{venueExporting?'Подписываем пакет…':'Скачать пакет для ноутбука (LAN)'}</button>}
-      {canExportVenue&&<span className="event-day-venue-export-warning">Содержит ФИО, госномера и конфигурации. Файл действителен до 72 часов и только для защищённого LAN-сервера USD.</span>}
+      {canExportVenue&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/venue-server?stageId='+encodeURIComponent(stageId))}><HardDrive size={15}/>Подготовить офлайн-сервер: пакет, доступ судей и инструкция</button>}
+      {canExportVenue&&<span className="event-day-venue-export-warning">Настоящий пакет и отдельный ключ для входа действующих судей скачиваются в разделе офлайн-сервера. Пакет действует до 72 часов.</span>}
       {canPrepareOffline&&!readOnly&&<button type="button" className="secondary-button compact" aria-expanded={offlinePrepOpen} onClick={()=>setOfflinePrepOpen(x=>!x)}><HardDrive size={15}/>Подготовить автономный пакет</button>}
       <button type="button" className="secondary-button compact" onClick={()=>go('/offline-event')}><LockKeyhole size={15}/>Открыть локальные черновики</button>
      </div>

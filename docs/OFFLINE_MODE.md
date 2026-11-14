@@ -4,7 +4,17 @@ Status as of 2026-11-13: **LAN workflow implemented in code, NOT physically rele
 
 **User experience goal:** judges must use their **existing USD accounts and roles**, not remember separate venue-only addresses, and automatically see the familiar administration workspace restricted to registrations, participants/cars/configurations, inspections and results. Offline operation must stay on the **shared LAN database**, never on each judge's independent local browser storage. Return to Ubuntu must never drop unacknowledged writes.
 
-**Outstanding blockers:** the current installer still provisions isolated `@venue.invalid` logins and Caddy's local CA requires manual trust on phones. There is no proven transparent fallback of an already-open public `app.usd-russia.ru` session to the LAN origin during a WAN outage. A pre-provisioned, trusted hostname/certificate and secure existing-account/device activation strategy must be designed and field-tested; do not copy central password hashes into a plain signed JSON file. Physical tests with disconnected WAN and two real phones, followed by full central ACK/reconciliation, are release gates.
+**Existing staff login implemented:** the ADMIN-only stage export encrypts
+verified active judges and administrators with AES-256-GCM and a separate
+256-bit key; Windows imports their original UUIDs/emails/bcrypt verifiers
+and limits judge roles to event permissions. No plaintext central password
+hashes are stored in the signed JSON. The key is delivered separately,
+protected by Windows ACL until enrollment. DEMO remains isolated.
+**Outstanding release blockers:** device trust in the local Caddy CA,
+router/DNS configuration, a truly transparent switch of already-open public
+`app.usd-russia.ru` sessions to the LAN origin and physical disconnected-WAN
+acceptance on a laptop/router/two phones, followed by central Ubuntu
+ACK/reconciliation. Do not claim field readiness from CI alone.
 
 **Scope:** no photographs are required in the stage-return package; on-site photo uploads are deliberately disabled, not silently dropped. The offline pilot below remains a separate emergency fallback and does not replace the LAN hub.
 

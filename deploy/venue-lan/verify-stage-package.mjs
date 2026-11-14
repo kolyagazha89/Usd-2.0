@@ -26,7 +26,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -46,6 +46,15 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  if(hash(key.export({type:'spki',format:'der'}))!==integrity.publicKeyFingerprint
   ||!verify(null,bytes,key,Buffer.from(integrity.signature,'base64url')))
   throw new Error('Цифровая подпись не подтверждена');
+ if(snapshot.staffAccess!==undefined){
+  const envelope=snapshot.staffAccess;
+  fields(envelope,['format','algorithm','nonce','ciphertext','tag'],'шифр доступа сотрудников');
+  if(envelope.format!==1||envelope.algorithm!=='AES-256-GCM'
+   ||typeof envelope.nonce!=='string'||!/^[A-Za-z0-9_-]{16}$/.test(envelope.nonce)
+   ||typeof envelope.tag!=='string'||!/^[A-Za-z0-9_-]{22}$/.test(envelope.tag)
+   ||typeof envelope.ciphertext!=='string'||!/^[A-Za-z0-9_-]{10,130000}$/.test(envelope.ciphertext))
+   throw new Error('Некорректный зашифрованный доступ сотрудников');
+ }
  if(snapshot.syncAuthorization!==undefined){
   fields(snapshot.syncAuthorization,['token','expiresAt'],'права синхронизации');
   if(!/^[A-Za-z0-9_-]{43}$/.test(snapshot.syncAuthorization.token)

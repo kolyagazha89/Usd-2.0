@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { createHash, createPrivateKey, createPublicKey, randomBytes } from 'node:crypto';
+import {prepareVenueStaffExport} from './venue-staff-access';
 
 @Injectable()
 export class VenueStageService {
@@ -29,7 +30,7 @@ export class VenueStageService {
   return {signing,centralSyncReady:signing.ready,fieldAcceptanceComplete:false};
  }
 
- async exportStage(id:string,request:AuthenticatedRequest){
+ async exportStage(id:string,request:AuthenticatedRequest,withStaff=false){
   // Stage access granted to a custom judge role is not sufficient to
   // export private participant names, plate numbers and configurations.
   if(request.user.role!=='ADMIN')throw new ForbiddenException('Только ADMIN может подготовить пакет локального сервера');
@@ -96,6 +97,12 @@ export class VenueStageService {
    },contactEmail,
    rulesPublished:{id:String(published.id),blocks:published.blocks},
   }:undefined;
+  // Existing staff identities are sealed in a dedicated helper; do not
+  // expose user verifiers in the signed stage roster or service response.
+  const prepared=withStaff?await prepareVenueStaffExport(this.prisma,id,request.user.sub):null;
+  const staffKey=prepared?.staffKey;
+  const staffAccess=prepared?.staffAccess;
+  const staffCount=prepared?.staffCount??0;
   const generatedAt=new Date();
   const syncToken=randomBytes(32).toString('base64url');
   const syncExpires=new Date(generatedAt.getTime()+30*24*60*60*1000);
@@ -111,6 +118,7 @@ export class VenueStageService {
     rulesSnapshot:data.rulesSnapshot,season:data.season,stageClasses:data.stageClasses,
    },
    ...(venuePolicy?{venuePolicy}:{}),
+   ...(staffAccess?{staffAccess}:{}),
    syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
    registrations:data.registrations,
   };
@@ -128,9 +136,9 @@ export class VenueStageService {
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
     metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
      exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
-     automaticReturn:true},
+     automaticReturn:true,staffCount}, 
    }});
   });
-  return signed;
+  return withStaff?{signed,staffKey,staffCount}:signed;
  }
 }

@@ -31,3 +31,26 @@ export function saveVenueFile(filename:string,content:string,type:string){
  const link=document.createElement('a');link.href=url;link.download=filename;document.body.appendChild(link);
  try{link.click()}finally{link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),30000)}
 }
+
+/** The ADMIN-only export deliberately keeps the AES unlock key outside
+ * the signed stage JSON; both are required to activate existing USD staff.
+ */
+export function validateVenueStaffExport(value:unknown,stageId:string,setup:VenueSetup,now=Date.now()){
+ const body=value as {signed?:unknown;staffKey?:unknown;staffCount?:unknown}|null;
+ const signed=body?.signed as {snapshot?:{staffAccess?:{
+  format?:unknown;algorithm?:unknown;nonce?:unknown;tag?:unknown;ciphertext?:unknown;
+ }}}|undefined;
+ const sealed=signed?.snapshot?.staffAccess;
+ if(typeof body?.staffKey!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.staffKey)
+  ||typeof body.staffCount!=='number'||!Number.isSafeInteger(body.staffCount)
+  ||body.staffCount<1||body.staffCount>40
+  ||sealed?.format!==1||sealed.algorithm!=='AES-256-GCM'
+  ||typeof sealed.nonce!=='string'||!/^[A-Za-z0-9_-]{16}$/.test(sealed.nonce)
+  ||typeof sealed.tag!=='string'||!/^[A-Za-z0-9_-]{22}$/.test(sealed.tag)
+  ||typeof sealed.ciphertext!=='string'||!/^[A-Za-z0-9_-]{10,130000}$/.test(sealed.ciphertext))
+  throw new Error('Защищённый пакет судей или отдельный ключ не прошёл проверку');
+ const file=validateVenueDownload(body.signed,stageId,setup,now);
+ if(file.text.includes(body.staffKey))
+  throw new Error('Ключ судей не должен храниться внутри пакета этапа');
+ return {...file,staffKey:body.staffKey,staffCount:body.staffCount};
+}

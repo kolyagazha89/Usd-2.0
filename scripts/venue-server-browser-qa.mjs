@@ -50,9 +50,9 @@ try{
     if(mode==='error')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Сервер временно недоступен'})});
     data=mode==='missing'?{...setup,signing:{ready:false,publicKeyPem:null,fingerprint:null}}:setup;
    }else if(url.pathname==='/stages')data=mode==='empty'?[]:stages;
-   else if(url.pathname==='/stages/venue/one/export'){
+   else if(url.pathname==='/stages/venue/one/staff-export'&&route.request().method()==='POST'){
     const now=Date.now();
-    data={snapshot:{stageId:mode==='tamper'?'other':'one',generatedAt:new Date(now).toISOString(),expiresAt:new Date(now+10000).toISOString(),syncAuthorization:{token:'A'.repeat(43),expiresAt:new Date(now+3600000).toISOString()}},integrity:{algorithm:'Ed25519',signature:'b'.repeat(86),sha256:'c'.repeat(64),publicKeyFingerprint:'a'.repeat(64)}};
+    data={signed:{snapshot:{stageId:mode==='tamper'?'other':'one',generatedAt:new Date(now).toISOString(),expiresAt:new Date(now+10000).toISOString(),syncAuthorization:{token:'A'.repeat(43),expiresAt:new Date(now+3600000).toISOString()},staffAccess:{format:1,algorithm:'AES-256-GCM',nonce:'A'.repeat(16),tag:'B'.repeat(22),ciphertext:'C'.repeat(120)}},integrity:{algorithm:'Ed25519',signature:'b'.repeat(86),sha256:'c'.repeat(64),publicKeyFingerprint:'a'.repeat(64)}},staffKey:'D'.repeat(43),staffCount:3};
    }else if(url.pathname==='/site-settings'||url.pathname==='/site-settings/public')data={branding:{siteName:'USD'},homepage:{blocks:[]}};
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });
@@ -77,6 +77,10 @@ try{
   assert.equal(await readFile(await (await downloaded).path(),'utf8'),publicKeyPem);checks++;
   downloaded=page.waitForEvent('download');await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   assert.equal(JSON.parse(await readFile(await (await downloaded).path(),'utf8')).snapshot.stageId,'one');checks++;
+  downloaded=page.waitForEvent('download');
+  await main.getByRole('button',{name:'Повторно скачать ключ судей',exact:true}).click();
+  assert.equal((await readFile(await (await downloaded).path(),'utf8')).trim(),'D'.repeat(43));
+  checks++;
   mode='tamper';await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   await main.getByRole('alert').filter({hasText:'не прошёл проверку'}).waitFor();checks++;
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);

@@ -88,3 +88,16 @@ test('a signed result cannot be attached to a class outside the registration',()
  snapshot.registrations[0].results[0].registrationClassId='not-here';
  assert.throws(()=>verifyVenueStageHandoff(pack(snapshot),pem,now),/чужому классу/);
 });
+
+test('signed encrypted staff is permitted while plaintext credentials and unsafe envelope fields are refused',()=>{
+ const signed=structuredClone(base);
+ signed.staffAccess={format:1,algorithm:'AES-256-GCM',nonce:'A'.repeat(16),
+  ciphertext:'C'.repeat(100),tag:'B'.repeat(22)};
+ assert.doesNotThrow(()=>verifyVenueStageHandoff(pack(signed),pem,now));
+ signed.staffAccess.passwordHash='$2b$12$secret';
+ assert.throws(()=>verifyVenueStageHandoff(pack(signed),pem,now),/Лишние|личные/);
+ const fake=structuredClone(base);
+ fake.staffAccess={format:1,algorithm:'none',nonce:'A'.repeat(16),
+  ciphertext:'C'.repeat(100),tag:'B'.repeat(22)};
+ assert.throws(()=>verifyVenueStageHandoff(pack(fake),pem,now),/доступ|шифр|сотруд/i);
+});

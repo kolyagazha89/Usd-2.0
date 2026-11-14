@@ -45,15 +45,17 @@ covered by automated checks. This does **not** establish a physically accepted
 competition: test an actual Windows laptop, router, iPhone and Android with
 WAN disconnected, then prove real central replay on Ubuntu before approval.
 
-**Identity gap (2026-11-13):** the current bundle still creates isolated
-\`@venue.invalid\` staff accounts with distinct passwords. The target UX is
-the **same existing USD staff identities/roles**, pre-authorized securely before
-WAN loss; no staff password hashes should be exposed in the signed stage JSON.
-This identity bridge is NOT implemented yet. A local laptop-origin URL and
-manual trust of Caddy's private CA are also still required. Thus the current
-client deliberately enters the **familiar restricted USD admin UI** on LAN,
-but it does not magically reroute an already-open public domain after WAN loss.
-DNS/TLS and device activation must be rehearsed before any real event.
+**Same USD identities (2026-11-13):** real signed exports now include
+an **AES-256-GCM-encrypted** subset of verified active administrators and
+event judges, preserving central IDs, emails and password verifiers. A separate
+256-bit unlock file `usd-venue-access-<stage>.key` must be passed privately
+to the Windows installer. The signed stage JSON does NOT reveal password
+hashes, and the separate key is never put in the Git repository. On the LAN,
+judges receive only the intersection of their existing permissions and the
+fixed event-only scope; DEMO still creates synthetic `@venue.invalid` staff.
+A trusted LAN origin and manual Caddy CA certificate trust are still needed:
+the release does **not** automatically reroute arbitrary public URLs when WAN
+fails. Validate the exact router, phones and Ubuntu sync before official use.
 
 ## Быстрый тест на своём ноутбуке (только вымышленные участники)
 

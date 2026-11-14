@@ -54,6 +54,14 @@ export class StagesController {
    * This is NOT a central sync or an import into the venue DB.
    */
   @Roles('ADMIN')
+  @Post('venue/:id/staff-export')
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  @Header('Pragma', 'no-cache')
+  exportVenueStageWithStaff(@Param('id') id:string,@Req() request:AuthenticatedRequest){
+    return this.venueStageService.exportStage(id,request,true);
+  }
+
+  @Roles('ADMIN')
   @Get('venue/:id/export')
   @Header('Cache-Control', 'private, no-store, max-age=0')
   @Header('Pragma', 'no-cache')

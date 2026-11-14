@@ -169,7 +169,7 @@ function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $ip=Get-PrivateLanIp
  Write-Host '1 = ДЕМО на вымышленных участниках, 2 = реальный подписанный экспорт USD.'
- $kind=Select-VenueOption 'USD — Первый запуск' 'Для знакомства выберите ДЕМО. Настоящий этап пока требует завершения переноса результатов и проверки на оборудовании.' @(
+ $kind=Select-VenueOption 'USD — Первый запуск' 'Для знакомства выберите ДЕМО. Настоящий этап запускайте после проверки ноутбука и телефонов без интернета.' @(
   [pscustomobject]@{Label='ДЕМО — пробный запуск без настоящих участников';Value='1'},
   [pscustomobject]@{Label='Подписанный этап — предварительная подготовка';Value='2'}
  )
@@ -206,6 +206,15 @@ function New-InitialState {
   if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
    throw 'Скачайте новый подписанный пакет этапа для автоматической синхронизации'
   }
+  if([string]$payload.snapshot.staffAccess.algorithm -cne 'AES-256-GCM'){
+   throw 'Скачайте новый пакет этапа с существующими аккаунтами судей'
+  }
+  $keyFile=Select-VenueFile 'Выберите отдельный ключ входа судей из админки USD' 'Ключ доступа (*.key)|*.key'
+  $keyValue=[IO.File]::ReadAllText($keyFile).Trim()
+  if($keyValue -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный файл ключа судей'}
+  $privateAccess=Join-Path $PrivateDir 'venue-staff-access.key'
+  Write-PrivateFile $privateAccess $keyValue
+  $fileKey=$privateAccess
   $privateStage=Join-Path $PrivateDir 'signed-real-stage.json'
   Write-PrivateFile $privateStage ([IO.File]::ReadAllText($file))
   $file=$privateStage
@@ -233,6 +242,7 @@ function New-InitialState {
  $state=[pscustomobject]@{
   format=1;phase='CONFIGURED';stageId=$stageId;fingerprint=$fingerprint
   ip=$ip;image=$sha;package=$file;publicKey=$key;demo=($kind -eq '1')
+  accessKey=$(if($kind -eq '2'){$fileKey}else{$null})
  }
  Set-SetupPhase $state 'CONFIGURED'
  return $state
@@ -266,6 +276,19 @@ function Create-Staff([string]$Kind,[string]$Login){
   $password | & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') run --rm --no-deps -T @mounts --entrypoint node api /app/provision-staff.mjs $Kind $Login
   Assert-Exit ('staff '+$Login)
  }finally{$password=$null}
+}
+function Create-ExistingStaff([object]$State,[array]$Mounts){
+ if($State.demo -or [string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
+  !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
+  throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
+ }
+ $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
+  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+  '--volume',((Join-Path $Root 'provision-staff.mjs')+':/app/provision-staff.mjs:ro'),
+  '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
+ Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+
+  @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
+  '/app/venue-stage.json','/app/venue-signing-public.pem','/app/venue-access-key.txt')) 'restore centrally approved staff logins'
 }
 function Install-Local {
  Assert-VenueCompose
@@ -321,11 +344,12 @@ function Install-Local {
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){
-  Create-Staff 'admin' 'operator1'
+  if($state.demo){Create-Staff 'admin' 'operator1'}
+  else{Create-ExistingStaff $state $mounts}
   Set-SetupPhase $state 'ADMIN_READY'
  }
  if($state.phase -eq 'ADMIN_READY'){
-  Create-Staff 'judge' 'judge-01'
+  if($state.demo){Create-Staff 'judge' 'judge-01'}
   Set-SetupPhase $state 'STAFF_READY'
  }
  if($state.phase -eq 'STAFF_READY'){
