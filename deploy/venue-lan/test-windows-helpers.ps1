@@ -239,7 +239,8 @@ globalThis.fetch=async function(url){
   $nodeIndex=[Array]::IndexOf([object[]]$parameters,'node')
   if($nodeIndex -lt 0){throw 'Readiness did not execute node'}
   $tail=@($parameters[($nodeIndex+1)..($parameters.Count-1)])
-  & node.exe @tail
+  # Forward the real program piped by Test-VenueApiReady to Node stdin.
+  $input | & node.exe @tail
  }
  $ready=Test-VenueApiReady -ExpectedSha ('a'*40) -ExpectedStage 'ca4819c4-c21e-44b3-a27e-1d61427bf4b0'
  if(!$ready){throw 'Native Windows PowerShell Node readiness probe did not accept actual successful API responses'}
