@@ -77,8 +77,11 @@ try{
   assert.equal(await readFile(await (await downloaded).path(),'utf8'),publicKeyPem);checks++;
   downloaded=page.waitForEvent('download');await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   assert.equal(JSON.parse(await readFile(await (await downloaded).path(),'utf8')).snapshot.stageId,'one');checks++;
+  // Browsers can block a second automatic file from one gesture.
+  // The key must be an explicit separate download, never auto-triggered.
+  await main.getByRole('button',{name:'Скачать ключ судей (.key)',exact:true}).waitFor();
   downloaded=page.waitForEvent('download');
-  await main.getByRole('button',{name:'Повторно скачать ключ судей',exact:true}).click();
+  await main.getByRole('button',{name:'Скачать ключ судей (.key)',exact:true}).click();
   assert.equal((await readFile(await (await downloaded).path(),'utf8')).trim(),'D'.repeat(43));
   checks++;
   mode='tamper';await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
