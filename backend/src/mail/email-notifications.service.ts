@@ -89,7 +89,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       '',
       footerText,
       '',
-      'USD · Звук. Мощность. Характер. · Управление рассылкой: ' + this.frontendUrl + '/participant?tab=profile',
+      'USD · Звук. Мощность. Характер. · Управление рассылкой: ' + this.frontendUrl + '/participant?tab=profile&section=notifications',
     ].join('\n');
     const detailHtml = details.map((line) => '<li style="margin:0 0 8px">' + escapeHtml(line) + '</li>').join('');
     const logoHtml = logoUrl ? '<img src="' + escapeHtml(logoUrl) + '" alt="Логотип USD" width="180" style="display:block;max-width:180px;max-height:64px;width:auto;height:auto;object-fit:contain;margin:0 0 10px" />' : '<div style="font-size:26px;font-weight:900;letter-spacing:-1px">USD<span style="color:#ed2638">.</span></div>';
@@ -111,7 +111,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       logoHtml,
       eyebrow: 'СОРЕВНОВАНИЯ USD · УВЕДОМЛЕНИЕ',
       preheader: introText,
-      footerLinkHref: this.frontendUrl + '/participant?tab=profile',
+      footerLinkHref: this.frontendUrl + '/participant?tab=profile&section=notifications',
       footerLinkText: 'Управление уведомлениями',
     });
     return { subject, text, html };
