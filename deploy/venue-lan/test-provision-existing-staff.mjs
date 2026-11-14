@@ -51,7 +51,7 @@ function fakeDb(){
   stage:{count:async()=>stageCount,findFirst:async()=>({id:stage})},
   user:{count:async()=>rows.size,findMany:async()=>[...rows.values()],
    create:async({data})=>{if(rows.has(data.id))throw Error('duplicate user');rows.set(data.id,data);log.push({type:'user',data});return {id:data.id}}},
-  role:{findUnique:async({where})=>[...roles.values()].find(r=>r.key===where.key)??null,
+  role:{findUnique:async({where})=>[...roles.values()].find(r=>r.key===where.key||r.id===where.id)??null,
    create:async({data})=>{roles.set(data.id,data);log.push({type:'role',data});return data}},
   auditLog:{create:async({data})=>{log.push({type:'audit',data});return data}},
  };
@@ -95,4 +95,15 @@ test('real staff enrollment coexists with migration-seeded judge role without mo
  assert.equal(judge.customRoleId,users[1].customRole.id);
  assert.equal(db.roles.get(users[1].customRole.id).key,'venue-stage-'+users[1].customRole.id);
  assert.deepEqual(db.roles.get(users[1].customRole.id).permissions.results,['view','create']);
+});
+
+test('crash retry refuses a broadened local judge role instead of silently authorizing it',async()=>{
+ const {key,sealed}=wrap();
+ const staff=decryptExistingVenueStaff(sealed,key,stage);
+ const db=fakeDb();
+ await applyExistingVenueStaff(staff,stage,db.prisma);
+ const role=db.roles.get(users[1].customRole.id);
+ role.permissions={...role.permissions,results:['*'],siteSettings:['*']};
+ await assert.rejects(()=>applyExistingVenueStaff(staff,stage,db.prisma),
+   /прав|роль|подмен|конфликт/i);
 });
