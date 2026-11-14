@@ -32,6 +32,24 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("usd-home",source)
         self.assertRegex(source,r"function\s+Set-SetupPhase")
         self.assertRegex(source,r"function\s+Ensure-DockerReady")
+    def test_real_release_images_must_be_verified_before_creating_live_state(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        # Prevent a correct ZIP running yesterday's production API/frontend.
+        self.assertIn("function Assert-VenueReleaseImages",source)
+        begin=source.index("function New-InitialState")
+        end=source.index("function Confirm-SignedStage",begin)
+        startup=source[begin:end]
+        self.assertIn("Assert-VenueReleaseImages $sha",startup)
+        self.assertLess(startup.index("Assert-VenueReleaseImages $sha"),
+                        startup.index("$file='';$key='';$stageId=''"))
+        verifier=source[source.index("function Assert-VenueReleaseImages"):begin]
+        self.assertIn("org.opencontainers.image.revision",verifier)
+        self.assertIn("venue-staff-access.js",verifier)
+        self.assertIn("venue-route-policy.js",verifier)
+        self.assertIn("usd-release.json",verifier)
+        self.assertIn("docker",verifier)
+        self.assertNotIn("--pull always",verifier)
+
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         self.assertIn("Read-VenueFingerprint",source)
