@@ -118,12 +118,26 @@ if($script:firewallElevationCalls -ne 1){throw 'Safe Private LAN did not perform
 Ensure-Firewall '192.168.25.10'
 if($script:firewallElevationCalls -ne 1){throw 'Private LAN setup should be idempotent on replay'}
 
-# Existing rule of the same name is NEVER considered safe merely by name.
+# A stale rule left by earlier attempts must be repaired through the
+# elevated helper; don't force the venue operator to manually delete it.
 $script:firewallRule=[pscustomobject]@{Enabled='True';Direction='Inbound';Action='Block';Profile='Private'}
-$blocked=''
-try { Ensure-Firewall '192.168.25.10' }catch{ $blocked=$_.Exception.Message }
-if($blocked -notmatch 'небезопасн' -or $script:firewallElevationCalls -ne 1){
- throw 'Conflicting Windows firewall rule was silently accepted or overwritten'
+function Start-Process {
+ param([string]$FilePath,[string]$Verb,[string]$ArgumentList,[switch]$Wait,[switch]$PassThru)
+ $script:firewallElevationCalls++
+ if($Verb -ne 'RunAs' -or $ArgumentList -notmatch 'venue-firewall.ps1' -or
+    $ArgumentList -notmatch '192.168.25.10' -or $ArgumentList -match 'AllowPrivateProfile'){
+  throw 'Unsafe elevation arguments while repairing stale venue rule'
+ }
+ $script:firewallRule=[pscustomobject]@{Enabled='True';Direction='Inbound';Action='Allow';Profile='Private'}
+ [pscustomobject]@{ExitCode=0}
+}
+Ensure-Firewall '192.168.25.10'
+if($script:firewallElevationCalls -ne 2){
+ throw 'Stale USD firewall rule was not automatically repaired through UAC'
+}
+Ensure-Firewall '192.168.25.10'
+if($script:firewallElevationCalls -ne 2){
+ throw 'Repaired rule must not trigger repeated UAC'
 }
 $script:firewallRule=$null
 
