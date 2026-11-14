@@ -80,3 +80,19 @@ test('does not overwrite a different local account, stage or database',async()=>
  db.rows.set('untrusted',{id:'untrusted',email:'intruder@test.invalid'});
  await assert.rejects(()=>applyExistingVenueStaff(parsed,stage,db.prisma),/посторон|конфликт|чуж|сотруд/i);
 });
+
+test('real staff enrollment coexists with migration-seeded judge role without modifying its global permissions',async()=>{
+ const {key,sealed}=wrap();
+ const staff=decryptExistingVenueStaff(sealed,key,stage);
+ const db=fakeDb();
+ const seededRole={id:'c710f672-79f7-44eb-8173-2a8ff94b1c0e',
+   key:'judge',name:'Судья USD',permissions:{results:['*'],siteSettings:['*']},isSystem:true};
+ db.roles.set(seededRole.id,structuredClone(seededRole));
+ const installed=await applyExistingVenueStaff(staff,stage,db.prisma);
+ assert.equal(installed.staffCount,2);
+ assert.deepEqual(db.roles.get(seededRole.id),seededRole,'global seed role must stay untouched');
+ const judge=db.rows.get(users[1].id);
+ assert.equal(judge.customRoleId,users[1].customRole.id);
+ assert.equal(db.roles.get(users[1].customRole.id).key,'venue-stage-'+users[1].customRole.id);
+ assert.deepEqual(db.roles.get(users[1].customRole.id).permissions.results,['view','create']);
+});
