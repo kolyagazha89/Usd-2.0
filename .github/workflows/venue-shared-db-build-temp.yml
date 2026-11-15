@@ -1,0 +1,28 @@
+name: Rebuild single-DB USD Windows kit on draft branch
+on:
+  push:
+    branches: [feat/venue-one-db-stage-history-20261115]
+permissions:
+  contents: write
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: true}
+      - name: Rebuild deterministic operator ZIP against latest branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin "$GITHUB_REF_NAME"
+            git reset --hard FETCH_HEAD
+            python3 deploy/venue-lan/build-windows-kit.py
+            git add frontend/public/downloads/USD-Offline-Windows.zip frontend/public/downloads/USD-Offline-Windows.json frontend/public/downloads/USD-Offline-Guide.html
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'build(venue): refresh reviewed one-database Windows kit'
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+          done
+          echo 'Windows kit generator could not update concurrent branch' >&2
+          exit 1
