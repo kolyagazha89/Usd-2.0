@@ -210,6 +210,12 @@ jobs:
       - name: Verify native release quoting, selected environment and non-recreating database reads
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-release-regressions.ps1
+      - name: Already-admin Windows installation must avoid redundant UAC timeout
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-admin-firewall.ps1
+      - name: Native Docker timeout must show exact failed installer step
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-timeout.ps1
       - name: Reproduce native Docker label parsing on Windows PowerShell 5.1
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-native-docker-labels.ps1

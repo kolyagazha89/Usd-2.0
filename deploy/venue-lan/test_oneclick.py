@@ -82,7 +82,23 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Invoke-Compose @('down','--volumes')",replace)
         self.assertIn("Remove-Item -LiteralPath $EnvFile",replace)
         self.assertNotIn("usd-home",replace)
-        self.assertLess(source.index('Replace-LegacyDemo $state'),source.index('New-InitialState}',source.index('function Install-Local')))
+        installer=source[source.index('function Install-Local'):]
+        self.assertLess(installer.index('Replace-LegacyDemo $state'),installer.index('$state=New-InitialState'))
+
+    def test_operator_sees_exact_install_step_and_native_timeout_cause(self):
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("function Set-VenueStep",source)
+        self.assertIn("USD VENUE STEP:",source)
+        self.assertIn("step='+$script:VenueStep",source)
+        self.assertIn("Set-VenueStep 'check-docker'",source)
+        self.assertIn("Set-VenueStep 'remove-confirmed-old-demo'",source)
+        self.assertIn("Set-VenueStep 'download-images'",source)
+        self.assertIn("Set-VenueStep 'configure-firewall'",source)
+        self.assertIn("Set-VenueStep 'start-lan-services'",source)
+        self.assertIn("step='+$script:VenueStep",source[source.index("}catch{",source.index("if($MyInvocation.InvocationName -eq '.')")):])
+        self.assertIn("$_.Exception.Message",source[source.index("function Invoke-Docker"):source.index("function Assert-VenueCompose")])
+        self.assertNotIn("winget install",source)
+        self.assertNotIn("winget uninstall",source)
 
     def test_windows_native_docker_templates_never_require_quoted_keys(self):
         # PS 5.1 removes embedded double quotes from native arguments:
