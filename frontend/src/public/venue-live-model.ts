@@ -44,3 +44,51 @@ export function isVenueLiveSnapshotCurrent(lastSuccess:number|null,now=Date.now(
  return lastSuccess!==null&&Number.isFinite(lastSuccess)
   &&now>=lastSuccess&&now-lastSuccess<12000;
 }
+
+/** Two independent TV feeds. Both are LAN-only; other disciplines are omitted. */
+export type VenueTvScreen='spl'|'bfspl-bdw';
+export type VenueTvMode='all'|VenueTvScreen;
+export type VenueTvSlide={
+ id:string;screen:VenueTvScreen;heading:string;group:VenueLiveGroup|null;
+ rows:VenueLiveRow[];page:number;pages:number;
+};
+export function venueLiveDirectionScreen(direction:string):VenueTvScreen|null{
+ const normalized=String(direction??'').toUpperCase().replace(/[\s_-]+/g,'');
+ if(normalized==='SPL')return 'spl';
+ if(normalized==='BFSPL'||normalized==='BDWSPL')return 'bfspl-bdw';
+ return null;
+}
+export function parseVenueTvMode(value:string|null):VenueTvMode{
+ return value==='spl'||value==='bfspl-bdw'?value:'all';
+}
+/** Conservative amount for a single 16:9 TV viewport; excess rows rotate, not scroll. */
+export function venueLiveRowsPerScreen(height:number,width:number):number{
+ const h=Number.isFinite(height)?Math.max(0,height):720;
+ const w=Number.isFinite(width)?Math.max(0,width):1280;
+ const compact=w<640;
+ return Math.max(2,Math.min(compact?5:10,Math.floor(
+  (h-(compact?275:w<980?300:330))/(compact?54:w<980?58:66)
+ )));
+}
+/** Rotate through every class, then through its pages. Empty disciplines still get a screen. */
+export function buildVenueTvSlides(groups:readonly VenueLiveGroup[],pageSize:number,mode:VenueTvMode='all'):VenueTvSlide[]{
+ const count=Math.max(1,Math.min(20,Math.floor(Number.isFinite(pageSize)?pageSize:6)));
+ const screens:VenueTvScreen[]=mode==='all'?['spl','bfspl-bdw']:[mode];
+ const slides:VenueTvSlide[]=[];
+ for(const screen of screens){
+  const relevant=groups.filter(group=>venueLiveDirectionScreen(group.direction)===screen);
+  const heading=screen==='spl'?'SPL':'BFSPL + BDW SPL';
+  if(relevant.length===0){
+   slides.push({id:screen+':empty',screen,heading,group:null,rows:[],page:1,pages:1});
+   continue;
+  }
+  for(const group of relevant){
+   const pages=Math.max(1,Math.ceil(group.rows.length/count));
+   for(let page=1;page<=pages;page++){
+    slides.push({id:screen+':'+group.key+':'+page,screen,heading,group,
+     rows:group.rows.slice((page-1)*count,page*count),page,pages});
+   }
+  }
+ }
+ return slides;
+}
