@@ -1,6 +1,42 @@
 ﻿#requires -Version 5.1
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'venue-control.ps1') -Action install
+# A real pre-staff DEMO JSON has no accessKey property. Under StrictMode it
+# must reach the cancellation prompt without mutating local files or Docker.
+$legacyRoot=Join-Path ([IO.Path]::GetTempPath()) ('usd-legacy-state-'+[guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($legacyRoot)|Out-Null
+$originalStateFile=$StateFile;$originalPrivateDir=$PrivateDir;$originalEnvFile=$EnvFile
+try{
+ $PrivateDir=$legacyRoot;$StateFile=Join-Path $legacyRoot 'setup-state.json';$EnvFile=Join-Path $legacyRoot '.env'
+ $legacy=[ordered]@{format=1;phase='READY';demo=$true;stageId='c510f672-79f7-44eb-8173-2a8ff94b1c0e';image=('a'*40);fingerprint=('b'*64);ip='192.168.10.20';package='old-demo.json';publicKey='old-demo.pem'}
+ [IO.File]::WriteAllText($StateFile,($legacy|ConvertTo-Json))
+ $originalJson=[IO.File]::ReadAllText($StateFile)
+ [IO.File]::WriteAllLines($EnvFile,[string[]]@(('VENUE_STAGE_ID='+$legacy.stageId),('VENUE_IMAGE_TAG='+$legacy.image),('VENUE_SIGNING_KEY_FINGERPRINT='+$legacy.fingerprint),('VENUE_BIND_IP='+$legacy.ip)))
+ $script:legacyPromptReached=$false
+ function docker {$global:LASTEXITCODE=0}
+ function Confirm-VenueAction {$script:legacyPromptReached=$true;return $false}
+ $restored=Read-State
+ try{Replace-LegacyDemo $restored;throw 'Legacy cleanup did not stop at cancellation'}catch{
+  if(!$script:legacyPromptReached){throw ('Legacy state failed before the consent prompt: '+$_.Exception.Message)}
+ }
+ if(!(Test-Path -LiteralPath $EnvFile) -or [IO.File]::ReadAllText($StateFile) -cne $originalJson){throw 'Reading/cancelling legacy migration modified files'}
+ if($restored.accessKey){throw 'Missing legacy staff key was fabricated'}
+ # Preserve a genuine key, and never let its installation enter demo cleanup.
+ $legacy['accessKey']='existing-real-key.key'
+ [IO.File]::WriteAllText($StateFile,($legacy|ConvertTo-Json))
+ $restored=Read-State
+ if($restored.accessKey -cne 'existing-real-key.key'){throw 'Existing key changed during state load'}
+ $script:legacyPromptReached=$false
+ $refused=$false
+ try{Replace-LegacyDemo $restored}catch{$refused=$true}
+ if(!$refused -or $script:legacyPromptReached){throw 'Key-bearing state offered destructive demo cleanup'}
+ Write-Host 'USD LEGACY STATE PASS: absent key, cancellation retention, existing key preservation'
+}finally{
+ $StateFile=$originalStateFile;$PrivateDir=$originalPrivateDir;$EnvFile=$originalEnvFile
+ Remove-Item Function:\docker -ErrorAction SilentlyContinue
+ Remove-Item Function:\Confirm-VenueAction -ErrorAction SilentlyContinue
+ [IO.Directory]::Delete($legacyRoot,$true)
+}
 function docker {
  'ordinary Docker progress output'
  $global:LASTEXITCODE=0
