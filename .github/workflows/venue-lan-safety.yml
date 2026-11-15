@@ -101,8 +101,6 @@ jobs:
           node --test deploy/venue-lan/test-auto-return-contract.mjs
           node --test backend/scripts/venue-sync/authority.test.mjs backend/scripts/venue-sync/contract.test.mjs
           node --check backend/scripts/venue-sync/venue-full-adapter.mjs
-      - name: Check synthetic signed demo stage can be validated and imported safely
-        run: node --test deploy/venue-lan/test-make-demo-stage.mjs
       - name: Validate signed import planning, replay rejection and transactional writes without any DB
         run: node --test deploy/venue-lan/test-import-stage.mjs
       - name: Validate signed, scope-limited stage packages without connecting to any DB

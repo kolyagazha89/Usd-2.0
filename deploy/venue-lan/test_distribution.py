@@ -24,13 +24,11 @@ class WindowsDistribution(unittest.TestCase):
                 self.assertTrue(all(".." not in n and not n.startswith("/") for n in archive.namelist()))
                 archive.extractall(directory)
             extracted = Path(directory) / "USD-Offline-Windows"
-            demo = Path(directory) / "demo"
-            # Real execution from the downloaded kit proves all module dependencies
-            # are included. No repository, npm, DB, Docker or Internet is used.
-            result = subprocess.run(["node", str(extracted / "make-demo-stage.mjs"), str(demo)], capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            result = subprocess.run(["node", str(extracted / "verify-stage-package.mjs"), str(demo / "usd-venue-demo-stage.json"), str(demo / "signing-public.pem")], capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
+            # Verify all shipped entrypoints parse without network access.
+            self.assertNotIn("make-demo-stage.mjs", kit.FILES)
+            for module in extracted.glob("*.mjs"):
+                result = subprocess.run(["node", "--check", str(module)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, f"{module.name}: {result.stderr}")
             for filename in (".env", "setup-state.json", "signing-private.pem"):
                 self.assertFalse((extracted / filename).exists())
             self.assertIn("provision-existing-staff.mjs", kit.FILES)
