@@ -120,6 +120,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertTrue(season_file.read_bytes().startswith(codecs.BOM_UTF8), 'Windows PowerShell 5.1 requires UTF-8 BOM for Russian text')
         lifecycle=season_file.read_text(encoding='utf-8-sig')
         self.assertIn('function Switch-ToNextStage',lifecycle)
+        self.assertNotRegex(lifecycle,r'(?im)^\s*\$home\s*=','HOME is a reserved PowerShell automatic variable')
         self.assertIn('function Get-VenueProject',lifecycle)
         self.assertIn('usd-venue-',lifecycle)
         self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
