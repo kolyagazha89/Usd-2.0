@@ -12,7 +12,8 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 export class StagesController {
   constructor(private readonly stagesService: StagesService,
  private readonly venueStageService: VenueStageService,
- private readonly venueAutoSyncService: VenueAutoSyncService) {}
+ private readonly venueAutoSyncService: VenueAutoSyncService,
+ private readonly venueCertificateService: VenueCertificateService) {}
 
   @Roles('ADMIN')
   @Get()
