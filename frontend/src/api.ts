@@ -31,6 +31,11 @@ export type Dashboard = {
   recentStages:Array<{id:string;stageNumber:number;name:string;city:string;date:string}>;
 };
 
+/** Public CA download: one mobile-friendly link from the online USD API. */
+export function venueCertificateDownloadUrl(format:'cer'|'crt'):string{
+  return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/download/'+format;
+}
+
 const REQUEST_TIMEOUT_MS = 30_000;
 // Only anonymous auth endpoints should bypass refresh. Historical-profile
 // search/link and authenticated account settings also live under /auth.
