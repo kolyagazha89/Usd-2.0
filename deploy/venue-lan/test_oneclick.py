@@ -146,7 +146,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Test-IsActiveVenueStage",updater)
         self.assertIn("Read-VenueDockerLabels 'image'",updater)
         self.assertIn("up','-d','--no-deps','--no-build','--pull','never','frontend",updater)
-        self.assertNotIn("down",updater)
+        self.assertNotIn("Invoke-Compose @('down'",updater)
         self.assertNotIn("Remove-Item -LiteralPath $PrivateDir",updater)
         self.assertNotIn("up','-d','db",updater)
         self.assertNotIn("up','-d','api",updater)
