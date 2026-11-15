@@ -15,11 +15,17 @@ $script:urls=@()
 $script:cached=@()
 $script:allowApi=$false
 $script:allowFrontend=$false
+$script:runtimeMissing=''
 function docker {
  $arguments=@($args)
  if($arguments.Count -ge 2 -and $arguments[0] -eq 'image' -and $arguments[1] -eq 'ls'){
   $global:LASTEXITCODE=0
   return $script:cached
+ }
+ if($arguments.Count -ge 3 -and $arguments[0] -eq 'image' -and $arguments[1] -eq 'inspect'){
+  if($arguments[-1] -ceq $script:runtimeMissing){$global:LASTEXITCODE=1;return}
+  $global:LASTEXITCODE=0
+  return 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
  }
  throw 'Unexpected Docker call during immutable image discovery'
 }
@@ -42,6 +48,15 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  if($script:registryBlocked){throw 'GHCR network blocked on this machine'}
  $script:pulled+= $Arguments[1]
 }
+if(!(Test-VenueRuntimeImagesCached $sha)){
+ throw 'All five installed runtime images were not accepted for fully offline setup'
+}
+$script:runtimeMissing='caddy:2-alpine'
+if(Test-VenueRuntimeImagesCached $sha){
+ throw 'Missing Caddy runtime image was ignored'
+}
+$script:runtimeMissing=''
+Write-Host 'USD RELEASE RUNTIME PASS: no Compose pull needed with five locally cached images'
 $script:cached=@(
  ('ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40)),
  ('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)
