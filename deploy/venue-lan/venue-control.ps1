@@ -152,10 +152,11 @@ function Test-VenueFirewallRule([string]$Ip){
  try{
   $port=$rule|Get-NetFirewallPortFilter -ErrorAction Stop
   $address=$rule|Get-NetFirewallAddressFilter -ErrorAction Stop
+  $ports=@($port.LocalPort | ForEach-Object { [string]$_ -split ',' } | ForEach-Object { $_.Trim() })
   return (
    [string]$port.Protocol -in @('TCP','6') -and
-   ((@($port.LocalPort) | ForEach-Object { [string]$_ -split ',' } | Where-Object { $_ -in @('80','443') }).Count -eq 2) -and
-   ((@($port.LocalPort) | ForEach-Object { [string]$_ -split ',' }).Count -eq 2) -and
+   $ports.Count -eq 2 -and
+   $ports -contains '80' -and $ports -contains '443' -and
    [string]$address.LocalAddress -eq $Ip -and
    [string]$address.RemoteAddress -eq 'LocalSubnet'
   )
