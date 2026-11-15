@@ -82,7 +82,8 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Invoke-Compose @('down','--volumes')",replace)
         self.assertIn("Remove-Item -LiteralPath $EnvFile",replace)
         self.assertNotIn("usd-home",replace)
-        self.assertLess(source.index('Replace-LegacyDemo $state'),source.index('New-InitialState}',source.index('function Install-Local')))
+        installer=source[source.index('function Install-Local'):]
+        self.assertLess(installer.index('Replace-LegacyDemo $state'),installer.index('$state=New-InitialState'))
 
     def test_operator_sees_exact_install_step_and_native_timeout_cause(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
