@@ -40,7 +40,8 @@ function Test-Rule {
   $ports=$rule|Get-NetFirewallPortFilter -ErrorAction Stop
   $addresses=$rule|Get-NetFirewallAddressFilter -ErrorAction Stop
   return ([string]$ports.Protocol -in @('TCP','6') -and
-    [string]$ports.LocalPort -eq '443' -and
+    (@($ports.LocalPort) | ForEach-Object { [string]$_ -split ',' } | Where-Object { $_ -in @('80','443') }).Count -eq 2 -and
+    (@($ports.LocalPort) | ForEach-Object { [string]$_ -split ',' }).Count -eq 2 -and
     [string]$addresses.LocalAddress -eq $Ip -and
     [string]$addresses.RemoteAddress -eq 'LocalSubnet')
  }catch{return $false}
@@ -57,7 +58,7 @@ if($existing.Count -eq 1){
  }catch{exit 24}
 }
 try{
- New-NetFirewallRule -DisplayName $name -Direction Inbound -Action Allow -Enabled True -Profile Private -Protocol TCP -LocalPort 443 -LocalAddress $Ip -RemoteAddress LocalSubnet -ErrorAction Stop | Out-Null
+ New-NetFirewallRule -DisplayName $name -Direction Inbound -Action Allow -Enabled True -Profile Private -Protocol TCP -LocalPort 80,443 -LocalAddress $Ip -RemoteAddress LocalSubnet -ErrorAction Stop | Out-Null
 }catch{exit 22}
 if(!(Test-Rule)){exit 23}
 exit 0
