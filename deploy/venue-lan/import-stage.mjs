@@ -241,7 +241,7 @@ export async function applyVenueStageImport(plan,prisma,{append=false}={}){
    if(present)throw new Error('Этот этап уже существует: повторный импорт запрещён');
    // Only the root SESSION may set the trusted maintenance flag. The
    // root-owned journal trigger independently verifies session_user.
-   await tx.$executeRawUnsafe("SELECT set_config('usd_venue.signed_import','on',true)");
+   await tx.$queryRawUnsafe("SELECT set_config('usd_venue.signed_import','on',true)");
   }else{
    await assertVenueDatabaseRole(tx);
    const domain=['stage','season','direction','class','stageClass','participant','car',
