@@ -233,8 +233,7 @@ function Save-DesktopShortcuts {
  $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
  $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
-# PowerShell 5.1 strips embedded quotes inside native Docker Go-templates.
-# Read an entire labels map as JSON, using a template without quoted keys.
+# PowerShell 5.1 requires quote-free native Go templates.
 function Read-VenueDockerLabels([ValidateSet('container','image')][string]$Kind,[string]$Identity){
  if([string]::IsNullOrWhiteSpace($Identity)){throw 'Docker object ID is missing'}
  $arguments=$(if($Kind -eq 'container'){
