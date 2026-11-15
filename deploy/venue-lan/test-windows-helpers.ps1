@@ -229,7 +229,7 @@ function New-NetFirewallRule {
   [string]$RemoteAddress)
  if($global:ruleState -ne 'absent' -or $DisplayName -ne $global:expectedName -or
   $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Profile -ne 'Private' -or
-  $Protocol -ne 'TCP' -or $LocalPort -ne '443' -or
+  $Protocol -ne 'TCP' -or (@($LocalPort -split '[, ]+' | Sort-Object) -join ',') -ne '443,80' -or
   $LocalAddress -ne '192.168.25.10' -or $RemoteAddress -ne 'LocalSubnet'){
   throw 'Unsafe or incorrect replacement firewall rule'
  }
