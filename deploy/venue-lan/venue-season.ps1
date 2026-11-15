@@ -243,7 +243,15 @@ function Switch-ToNextStage {
    package=$package;publicKey=$pem;accessKey=$staffKey
   }
   $marker=Join-Path $PrivateDir 'season-transition.json'
-  Write-PrivateFile $marker ($pending|ConvertTo-Json -Depth 5)
+  if(Test-Path -LiteralPath $marker){throw 'Незавершённое переключение: требуется восстановление'}
+  $markerTemp=Join-Path $PrivateDir ('season-transition-'+[guid]::NewGuid().ToString('N')+'.tmp')
+  try{
+   Write-PrivateFile $markerTemp ($pending|ConvertTo-Json -Depth 5)
+   # Same-directory rename avoids a half-written recovery marker on power loss.
+   Move-Item -LiteralPath $markerTemp -Destination $marker
+  }finally{
+   if(Test-Path -LiteralPath $markerTemp){Remove-Item -LiteralPath $markerTemp -Force}
+  }
   $env:VENUE_IMPORT_ROOT_USER=$cfg['VENUE_DB_ROOT_USER']
   $env:VENUE_IMPORT_ROOT_PASSWORD=$cfg['VENUE_DB_ROOT_PASSWORD']
   $env:VENUE_STAGE_ID=$nextId
