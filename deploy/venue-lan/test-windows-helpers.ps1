@@ -12,29 +12,36 @@ try{
  [IO.File]::WriteAllText($StateFile,($legacy|ConvertTo-Json))
  $originalJson=[IO.File]::ReadAllText($StateFile)
  [IO.File]::WriteAllLines($EnvFile,[string[]]@(('VENUE_STAGE_ID='+$legacy.stageId),('VENUE_IMAGE_TAG='+$legacy.image),('VENUE_SIGNING_KEY_FINGERPRINT='+$legacy.fingerprint),('VENUE_BIND_IP='+$legacy.ip)))
- $script:legacyPromptReached=$false
- function docker {$global:LASTEXITCODE=0}
- function Confirm-VenueAction {$script:legacyPromptReached=$true;return $false}
- $restored=Read-State
- try{Replace-LegacyDemo $restored;throw 'Legacy cleanup did not stop at cancellation'}catch{
-  if(!$script:legacyPromptReached){throw ('Legacy state failed before the consent prompt: '+$_.Exception.Message)}
+ $script:legacyDelegated=$false
+ function docker {throw 'No Docker access is permitted when detecting old DEMO'}
+ function Start-IsolatedVenueFromDemo {
+  param([object]$State)
+  $script:legacyDelegated=$true
+  if($State.stageId -cne $legacy.stageId){throw 'Wrong old stage used'}
  }
- if(!(Test-Path -LiteralPath $EnvFile) -or [IO.File]::ReadAllText($StateFile) -cne $originalJson){throw 'Reading/cancelling legacy migration modified files'}
+ $restored=Read-State
+ Replace-LegacyDemo $restored
+ if(!$script:legacyDelegated){throw 'Legacy DEMO was not routed to independent workspace'}
+ if(!(Test-Path -LiteralPath $EnvFile) -or
+    [IO.File]::ReadAllText($StateFile) -cne $originalJson){
+  throw 'Legacy transition modified source files'
+ }
  if($restored.accessKey){throw 'Missing legacy staff key was fabricated'}
- # Preserve a genuine key, and never let its installation enter demo cleanup.
  $legacy['accessKey']='existing-real-key.key'
  [IO.File]::WriteAllText($StateFile,($legacy|ConvertTo-Json))
  $restored=Read-State
  if($restored.accessKey -cne 'existing-real-key.key'){throw 'Existing key changed during state load'}
- $script:legacyPromptReached=$false
+ $script:legacyDelegated=$false
  $refused=$false
  try{Replace-LegacyDemo $restored}catch{$refused=$true}
- if(!$refused -or $script:legacyPromptReached){throw 'Key-bearing state offered destructive demo cleanup'}
- Write-Host 'USD LEGACY STATE PASS: absent key, cancellation retention, existing key preservation'
+ if(!$refused -or $script:legacyDelegated){
+  throw 'Key-bearing installation attempted unsafe legacy transition'
+ }
+ Write-Host 'USD LEGACY STATE PASS: non-destructive routing, absent key, existing key preservation'
 }finally{
  $StateFile=$originalStateFile;$PrivateDir=$originalPrivateDir;$EnvFile=$originalEnvFile
  Remove-Item Function:\docker -ErrorAction SilentlyContinue
- Remove-Item Function:\Confirm-VenueAction -ErrorAction SilentlyContinue
+ Remove-Item Function:\Start-IsolatedVenueFromDemo -ErrorAction SilentlyContinue
  [IO.Directory]::Delete($legacyRoot,$true)
 }
 function docker {
