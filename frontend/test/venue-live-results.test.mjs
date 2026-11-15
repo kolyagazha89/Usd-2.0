@@ -105,3 +105,11 @@ test('TV page has direction selector, class rotation, pause and fullscreen with 
  assert.match(css,/minmax\(0,1fr\)/);
  assert.match(css,/text-overflow:ellipsis/);
 });
+
+test('spectator TV cannot show cookie banners or activate push workers',async()=>{
+ const entry=await readFile(new URL('../src/main.tsx',import.meta.url),'utf8');
+ assert.match(entry,/const venueTv=/);
+ assert.match(entry,/!venueTv&&<CookieNotice\/>/);
+ assert.match(entry,/!venueTv&&<VelocityEffects\/>/);
+ assert.match(entry,/if\(!venueTv\)/);
+});
