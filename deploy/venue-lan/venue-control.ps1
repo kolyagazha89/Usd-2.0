@@ -463,7 +463,11 @@ function Install-Local {
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'CONFIGURED'){
   Set-VenueStep 'download-images'
-  if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){Invoke-Compose @('pull') 'download images'}
+  if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared) -and
+     -not(Test-VenueRuntimeImagesCached $state.image)){
+   Set-VenueStep 'download-missing-runtime-images'
+   Invoke-Compose @('pull') 'download missing runtime images'
+  }
   Set-VenueStep 'start-storage'
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
