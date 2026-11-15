@@ -53,6 +53,9 @@ function Download-VenueCertificate {
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала запустите настоящий офлайн-сервер USD.'}
  Ensure-DockerReady
+ if(-not(Test-IsActiveVenueStage $state.stageId)){
+  throw 'Это исторический этап. Запустите «USD — Сертификат» из папки текущего этапа, иначе телефоны получат неверный CA.'
+ }
  Set-VenueStep 'export-caddy-public-ca'
  Export-VenueCA
  if(!$Silent){
