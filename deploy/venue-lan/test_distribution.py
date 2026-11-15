@@ -27,6 +27,8 @@ class WindowsDistribution(unittest.TestCase):
             # Verify all shipped entrypoints parse without network access.
             self.assertNotIn("make-demo-stage.mjs", kit.FILES)
             self.assertNotIn("provision-staff.mjs", kit.FILES)
+            self.assertIn("USD-Next-Stage.cmd", kit.FILES)
+            self.assertIn("venue-season.ps1", kit.FILES)
             self.assertIn("venue-judge-permissions.mjs", kit.FILES)
             for module in extracted.glob("*.mjs"):
                 result = subprocess.run(["node", "--check", str(module)], capture_output=True, text=True)

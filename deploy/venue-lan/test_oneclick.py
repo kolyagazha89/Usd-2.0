@@ -9,7 +9,7 @@ class VenueLauncherContracts(unittest.TestCase):
     def test_three_double_click_entrypoints_exist_and_route_to_powershell(self):
         for name,action in [
             ("USD-Install.cmd","install"),("USD-Offline.cmd","offline"),
-            ("USD-Online.cmd","online"),
+            ("USD-Online.cmd","online"),("USD-Next-Stage.cmd","next"),
         ]:
             source=(ROOT/name).read_text(encoding="utf-8")
             self.assertIn("venue-control.ps1",source)
@@ -115,23 +115,24 @@ class VenueLauncherContracts(unittest.TestCase):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
         self.assertIn('-Action next',launch)
         self.assertIn("'next'",ctl)
-        self.assertIn('function Switch-ToNextStage',ctl)
-        self.assertIn('function Get-VenueProject',ctl)
-        self.assertIn('usd-venue-',ctl)
+        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
+        self.assertIn('function Switch-ToNextStage',lifecycle)
+        self.assertIn('function Get-VenueProject',lifecycle)
+        self.assertIn('usd-venue-',lifecycle)
         self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
         self.assertIn('"USD-Next-Stage.cmd"',kit)
         self.assertIn('"USD — Следующий этап"',ctl)
-        self.assertIn('stage-workspaces',ctl)
-        self.assertIn('function Assert-NoOtherVenueGatewayRunning',ctl)
+        self.assertIn('stage-workspaces',lifecycle)
+        self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
 
     def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
-        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
-        stage=ctl[ctl.index('function Switch-ToNextStage'):ctl.index('function Return-Online')]
+        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
+        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):]
         self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
         self.assertIn('Sync-VenueReturn -Bundle $bundle',stage)
         self.assertIn('Test-VerifiedVenueAck',stage)
-        self.assertIn('journalEndHash',stage)
+        self.assertIn('journalEndHash',lifecycle[lifecycle.index('function Test-VerifiedVenueAck'):])
         self.assertIn('Invoke-Compose',stage)
         self.assertIn('stage-workspaces',stage)
         self.assertIn('Restore-VenueApi',stage)
