@@ -44,7 +44,11 @@ if(args[0]==="ps"){
  console.log("USD VENUE API RELEASE CHECK PASSED");
 }else fail("unexpected Docker command: "+args.join(" "));
 '@,(New-Object Text.UTF8Encoding($false)))
- function docker { & node.exe $shim @args }
+ function docker {
+  $nativeArgs=@($args)
+  if($nativeArgs[0] -eq 'run'){$input | & node.exe $shim @nativeArgs}
+  else{& node.exe $shim @nativeArgs}
+ }
  $PrivateDir=$temp;$EnvFile=Join-Path $temp '.env'
  $stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e'
  $sha='a'*40;$fingerprint='b'*64;$ip='192.168.60.10'
