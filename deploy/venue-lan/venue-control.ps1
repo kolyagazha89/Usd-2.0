@@ -82,6 +82,11 @@ function Read-State {
   $s.stageId -notmatch '^[0-9a-f-]{36}$' -or $s.fingerprint -notmatch '^[0-9a-f]{64}$'){
   throw 'Метаданные установки повреждены: не трогайте Docker volumes'
  }
+ # Before staff export existed, valid legacy state JSON omitted this key.
+ # Normalize in memory only: never rewrite old metadata while reading it.
+ if($s.PSObject.Properties.Name -notcontains 'accessKey'){
+  $s|Add-Member -NotePropertyName accessKey -NotePropertyValue $null
+ }
  return $s
 }
 function Set-SetupPhase([object]$State,[string]$Phase){
