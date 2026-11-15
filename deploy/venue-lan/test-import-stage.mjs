@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
+import * as importer from './import-stage.mjs';
 
 const {privateKey,publicKey}=generateKeyPairSync('ed25519');
 const publicPem=publicKey.export({type:'spki',format:'pem'}).toString();
@@ -236,3 +237,31 @@ test('write errors are surfaced, never reported as successful or silently skippe
  assert.equal(result.replayed,true);
  assert.equal(log.length,0);
  });
+
+test('a retained stage without approved intake policy cannot inherit previous approval',async()=>{
+ const data=snapshot();delete data.venuePolicy;
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.$queryRawUnsafe=async()=>[{rolsuper:true,name:'usd_venue_root'}];
+ tx.$executeRawUnsafe=async()=>1;tx.auditLog.findFirst=async()=>null;
+ tx.siteSettings.findUnique=async()=>({legal:{legalApproved:true},registration:{enabled:true}});
+ await applyVenueStageImport(plan,db,{shared:true});
+ const changed=log.find(x=>x.model==='siteSettings');
+ assert.equal(changed.update.registration.enabled,false);
+ assert.equal(changed.update.legal.legalApproved,false);
+});
+
+test('expired setup resumes only a matching package imported while it was valid',async()=>{
+ assert.equal(typeof importer.planInstalledVenueStageImport,'function');
+ const data=signed();
+ const receipt={metadata:{sha256:data.integrity.sha256},createdAt:new Date(now)};
+ const db={auditLog:{findFirst:async()=>receipt}};
+ const late=now+4*86400000;
+ const plan=await importer.planInstalledVenueStageImport(data,publicPem,env,db,late);
+ assert.equal(plan.packageHash,data.integrity.sha256);
+ for(const invalid of [null,{...receipt,metadata:{sha256:'0'.repeat(64)}},{...receipt,createdAt:new Date(late)}]){
+  await assert.rejects(()=>importer.planInstalledVenueStageImport(data,publicPem,env,{auditLog:{findFirst:async()=>invalid}},late));
+ }
+ const tampered=structuredClone(data);tampered.snapshot.stage.name='different';
+ await assert.rejects(()=>importer.planInstalledVenueStageImport(tampered,publicPem,env,db,late));
+});
