@@ -109,6 +109,46 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)
         self.assertNotIn("VENUE_JWT_SECRET=REPLACE_",source)
+    def test_new_stage_has_one_click_action_and_separate_docker_project(self):
+        launch=(ROOT/'USD-Next-Stage.cmd').read_text(encoding='utf-8')
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
+        self.assertIn('-Action next',launch)
+        self.assertIn("'next'",ctl)
+        self.assertIn('function Switch-ToNextStage',ctl)
+        self.assertIn('function Get-VenueProject',ctl)
+        self.assertIn('usd-venue-',ctl)
+        self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
+        self.assertIn('"USD-Next-Stage.cmd"',kit)
+        self.assertIn('"USD — Следующий этап"',ctl)
+        self.assertIn('stage-workspaces',ctl)
+        self.assertIn('function Assert-NoOtherVenueGatewayRunning',ctl)
+        self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
+
+    def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        stage=ctl[ctl.index('function Switch-ToNextStage'):ctl.index('function Return-Online')]
+        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
+        self.assertIn('Sync-VenueReturn -Bundle $bundle',stage)
+        self.assertIn('Test-VerifiedVenueAck',stage)
+        self.assertIn('journalEndHash',stage)
+        self.assertIn('Invoke-Compose',stage)
+        self.assertIn('stage-workspaces',stage)
+        self.assertIn('Restore-VenueApi',stage)
+        self.assertNotIn("'down','--volumes'",stage)
+        self.assertNotIn("'down','-v'",stage)
+        self.assertLess(stage.index('Sync-VenueReturn -Bundle $bundle'),
+                        stage.index('New-VenueStageWorkspace'))
+        self.assertLess(stage.index('Invoke-Compose'),stage.index('New-VenueStageWorkspace'))
+
+    def test_return_export_keeps_one_stage_only_and_scopes_signing_keys_by_project(self):
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        export=ctl[ctl.index('function Export-VenueReturn'):ctl.index('function Sync-VenueReturn')]
+        self.assertIn('Get-VenueProject',export)
+        self.assertIn('venue_return_keys',export)
+        self.assertNotIn("$volume='usd-venue_venue_return_keys'",export)
+        self.assertIn("SyncResult.journalEndHash -ne $Bundle.journalEndHash",ctl)
+
     def test_real_stage_online_button_exports_signed_journal_before_stopping_local(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
         begin=source.index('function Return-Online')
