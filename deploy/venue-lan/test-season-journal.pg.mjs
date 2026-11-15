@@ -23,7 +23,7 @@ try{
  const tables=[
   'Stage','Participant','Car','CarConfiguration','CarConfigurationVersion',
   'CarAmplifier','CarAudioComponent','CarBattery','CarGenerator','CarHeadUnit',
-  'CarAmplifierComponent','Registration','RegistrationNumber','RegistrationClass',
+  'CarAmplifierComponent','Registration','RegistrationNumber','RegistrationClass','StageClass',
   'Inspection','ParticipantStageInspection','RegistrationClassInspection',
   'Result','Disqualification',
  ];
