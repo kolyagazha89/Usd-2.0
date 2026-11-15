@@ -5,7 +5,7 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate')][string]$Action,
  [string]$StageFile='',
  [switch]$Silent
 )
@@ -231,7 +231,7 @@ function Remove-Autostart {
 function Save-DesktopShortcuts {
  $desktop=[Environment]::GetFolderPath('Desktop')
  $shell=New-Object -ComObject WScript.Shell
- foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Следующий этап','next'))){
+ foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Следующий этап','next'),@('USD — Сертификат','certificate'))){
   $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
   $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
   $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
@@ -532,20 +532,6 @@ function Install-Local {
  Set-VenueStep 'verify-lan-readiness'
  Start-Local
 }
-function Export-VenueCA {
- $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
- if(Test-Path -LiteralPath $destination){return}
- try{
-  $container=(& docker @(Get-VenueComposeArguments) ps -q gateway | Select-Object -First 1)
-  if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
-   $container -notmatch '^[a-f0-9]{12,64}$'){return}
-  & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
-  if($LASTEXITCODE -ne 0){throw 'Caddy CA not ready'}
- }catch{
-  if(Test-Path -LiteralPath $destination){Remove-Item -LiteralPath $destination -Force}
-  if(-not $Silent){Write-Host 'Сертификат Caddy ещё не готов — повторите запуск позже.'}
- }
-}
 function Start-Local {
  Assert-VenueCompose
  $state=Read-State
@@ -572,7 +558,9 @@ function Start-Local {
  if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
  Save-Autostart
  Save-DesktopShortcuts
- Export-VenueCA
+ try{Export-VenueCA}catch{
+  Write-Warning ('Локальный сервер запущен, но сертификат пока не выгружен: '+$_.Exception.Message+'. Нажмите «USD — Сертификат».')
+ }
  if(-not $Silent){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
@@ -773,12 +761,14 @@ function Return-Online {
  if(-not $Silent){Start-Process $OnlineUrl}
 }
 . (Join-Path $Root 'venue-season.ps1')
+. (Join-Path $Root 'venue-ca.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 try{
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
  elseif($Action -eq 'export'){Export-VenueReturn}
+ elseif($Action -eq 'certificate'){Download-VenueCertificate}
  elseif($Action -eq 'next'){Switch-ToNextStage}
  else{Return-Online}
 }catch{
