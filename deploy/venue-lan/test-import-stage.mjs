@@ -111,7 +111,7 @@ function mockDb(){
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
  }
- tx.$executeRawUnsafe=async sql=>{assert.match(sql,/advisory_xact_lock/);return 1};
+ tx.$executeRawUnsafe=async sql=>{assert.match(sql,/advisory_xact_lock|UPDATE venue_private.active_stage/);return 1};
  tx.$queryRawUnsafe=async()=>[{rolsuper:false}];
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
