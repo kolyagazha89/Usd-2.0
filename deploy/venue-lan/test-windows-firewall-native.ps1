@@ -19,10 +19,10 @@ try {
  $r=$matches[0]
  $port=$r | Get-NetFirewallPortFilter -ErrorAction Stop
  $addr=$r | Get-NetFirewallAddressFilter -ErrorAction Stop
- $details=([ordered]@{Enabled=[string]$r.Enabled;Action=[string]$r.Action;Direction=[string]$r.Direction;Profile=[string]$r.Profile;Protocol=[string]$port.Protocol;LocalPort=[string]$port.LocalPort;LocalAddress=[string]$addr.LocalAddress;RemoteAddress=[string]$addr.RemoteAddress})
+ $details=([ordered]@{Enabled=[string]$r.Enabled;Action=[string]$r.Action;Direction=[string]$r.Direction;Profile=[string]$r.Profile;Protocol=[string]$port.Protocol;LocalPort=(@($port.LocalPort | ForEach-Object { [string]$_ -split ',' }) -join ',');LocalAddress=[string]$addr.LocalAddress;RemoteAddress=[string]$addr.RemoteAddress})
  Write-Host ('NATIVE-WINDOWS-FIREWALL-FILTERS: '+($details|ConvertTo-Json -Compress))
  if($details.Enabled -ne 'True' -or $details.Action -ne 'Allow' -or $details.Direction -ne 'Inbound' -or $details.Profile -ne 'Private' -or
-  $details.Protocol -notin @('TCP','6') -or $details.LocalPort -ne '80,443' -or
+  $details.Protocol -notin @('TCP','6') -or (@($details.LocalPort -split ',' | Sort-Object) -join ',') -ne '443,80' -or
   $details.LocalAddress -ne $ip -or $details.RemoteAddress -ne 'LocalSubnet'){
   throw 'Real native Windows firewall serialized rule differently from installer strict validator'
  }
