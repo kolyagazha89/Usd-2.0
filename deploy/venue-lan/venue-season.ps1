@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Real USD seasons: a separate Docker project and persistent volumes per stage.
 # This module is dot-sourced by venue-control.ps1.
 
