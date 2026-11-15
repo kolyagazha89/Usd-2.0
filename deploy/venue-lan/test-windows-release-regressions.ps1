@@ -16,7 +16,7 @@ fs.existsSync=p=>String(p).startsWith('/app/');
 fs.readFileSync=(p,...rest)=>String(p)==='/app/usd-release.json'?JSON.stringify({revision:'a'.repeat(40)}):String(p).startsWith('/app/')?'venue_private.active_stage':read(p,...rest);
 '@)
  function docker {
-  if($args[0] -eq 'image'){$global:LASTEXITCODE=0;return $sha}
+  if($args[0] -eq 'image'){$global:LASTEXITCODE=0;return ('{"org.opencontainers.image.revision":"'+$sha+'"}')}
   if($args -contains '-e'){throw 'Release JS must use stdin, not native -e argument quoting'}
   if($args -notcontains '-i' -or $args -notcontains '-') {throw 'Missing native stdin flags'}
   ($input -join [Environment]::NewLine)|& node --require $shim - $sha
