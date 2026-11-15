@@ -36,6 +36,7 @@ button{padding:12px 18px;border-radius:9px;border:0;background:#def2ff;color:#11
 <p>Проверьте регистрацию, инспекцию, ввод результата, LIVE, перезагрузку Windows и работу без интернета.</p></section>
 <section><h2>5. Возврат на Ubuntu</h2>
 <p><code>USD-Export.cmd</code> создаёт резервный зашифрованный возвратный файл — это ещё не синхронизация. <code>USD-Online.cmd</code> делает защищённый возврат, сверяет подтверждение Ubuntu и только после него останавливает локальный сервер.</p>
+<p><strong>Обновить телевизионный LIVE без переустановки:</strong> скопируйте файлы новой программы поверх прежних, сохранив <code>.env</code> и <code>local-private</code>, затем нажмите <code>USD-Update-LIVE.cmd</code> или ярлык «USD — Обновить LIVE». Только экран результатов будет перезапущен; база PostgreSQL и API судей не затрагиваются. Для телевизора SPL: <code>https://IP/venue/live?screen=spl</code>, для BFSPL и BDW SPL: <code>https://IP/venue/live?screen=bfspl-bdw</code>. Все классы меняются автоматически, есть пауза и полный экран.</p>
 <p><strong>Не удаляйте</strong> <code>.env</code>, <code>local-private</code> и Docker-тома с настоящими данными, пока центральные результаты не проверены.</p></section>
 <section><h2>6. Следующий этап — та же база и Wi-Fi</h2>
 <p>Заранее скачайте пакет нового этапа <code>.json</code> и ключ судей <code>.key</code>. Нажмите <strong>USD-Next-Stage.cmd</strong> или ярлык <strong>«USD — Следующий этап»</strong>, выберите JSON и ключ.</p>
