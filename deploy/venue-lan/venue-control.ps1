@@ -17,6 +17,11 @@ $StateFile=Join-Path $PrivateDir 'setup-state.json'
 $EnvFile=Join-Path $Root '.env'
 $StartupFile=Join-Path ([Environment]::GetFolderPath('Startup')) 'USD-Venue-Autostart.lnk'
 $OnlineUrl='https://app.usd-russia.ru'
+$script:VenueStep='initialization'
+function Set-VenueStep([string]$Name){
+ $script:VenueStep=$Name
+ Write-Host ('USD VENUE STEP: '+$Name)
+}
 $Phases=@('CONFIGURED','STORAGE_READY','SCHEMA_READY','IMPORTED','JOURNAL_READY','ADMIN_READY','STAFF_READY','READY')
 
 function Get-RandomSecret([int]$Size=32){
@@ -26,10 +31,14 @@ function Get-RandomSecret([int]$Size=32){
  return (-join ($buffer | ForEach-Object {$_.ToString('x2')}))
 }
 function Assert-Exit([string]$Purpose){
- if($LASTEXITCODE -ne 0){throw ('USD VENUE '+$Purpose+' failed with exit '+$LASTEXITCODE)}
+ if($LASTEXITCODE -ne 0){throw ('USD VENUE '+$Purpose+' step='+$script:VenueStep+' failed with exit '+$LASTEXITCODE)}
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
- & docker @Arguments | Out-Host
+ try{
+  & docker @Arguments | Out-Host
+ }catch{
+  throw ('USD VENUE '+$Purpose+' step='+$script:VenueStep+': '+$_.Exception.Message)
+ }
  Assert-Exit $Purpose
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
@@ -108,15 +117,7 @@ function Test-DockerReady {
 }
 function Ensure-DockerReady {
  if(-not(Get-Command docker -ErrorAction SilentlyContinue)){
-  if($Action -eq 'install' -and (Get-Command winget -ErrorAction SilentlyContinue)){
-   Write-Host 'Docker Desktop отсутствует. Нужно установить Linux containers с WSL2.'
-   if(Confirm-VenueAction 'Для USD нужен Docker Desktop. Установить его сейчас? После установки откройте Docker Desktop, завершите настройку и снова нажмите установку USD.'){
-    & winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
-    Assert-Exit 'Docker Desktop install'
-    throw 'Завершите настройку Docker Desktop и WSL2 (может понадобиться перезагрузка), затем нажмите кнопку ещё раз.'
-   }
-  }
-  throw 'Нужен Docker Desktop: https://docs.docker.com/desktop/setup/install/windows-install/'
+  throw 'Docker Desktop не найден. Установите с docker.com и запустите Linux containers/WSL2. USD не удаляет Docker Desktop.'
  }
  if(Test-DockerReady){return}
  $executable=Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
@@ -190,7 +191,7 @@ function Ensure-Firewall([string]$Ip){
  try {
   $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
  }catch{
-  throw 'Windows отклонила запуск от администратора. Нажмите «Да» в запросе UAC или войдите под учётной записью с правами администратора и повторите USD-Install.cmd.'
+  throw ('Не удалось завершить настройку брандмауэра Windows/UAC: '+$_.Exception.Message+'. Проверьте запрос администратора и повторите.')
  }
  switch([int]$task.ExitCode){
   0 {break}
@@ -425,6 +426,7 @@ function Confirm-SignedStage([object]$State) {
  return $mounts
 }
 function Install-Local {
+ Set-VenueStep 'check-docker'
  Assert-VenueCompose
  Ensure-DockerReady
  if(!(Test-Path -LiteralPath $PrivateDir)){
@@ -432,21 +434,30 @@ function Install-Local {
  }
  $state=Read-State
  if($state -and $state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true){
+  Set-VenueStep 'remove-confirmed-old-demo'
   Replace-LegacyDemo $state
   $state=$null
  }
- if(!$state){$state=New-InitialState}
+ if(!$state){
+  Set-VenueStep 'select-signed-stage-and-verify-release'
+  $state=New-InitialState
+ }
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or $cfg['VENUE_IMAGE_TAG'] -ne $state.image){
   throw 'Конфигурация этапа не совпадает с установкой'
  }
+ Set-VenueStep 'configure-firewall'
  Ensure-Firewall $state.ip
+ Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){Start-Local;return}
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
+ Set-VenueStep 'verify-stage-and-staff'
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'CONFIGURED'){
+  Set-VenueStep 'download-images'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){Invoke-Compose @('pull') 'download images'}
+  Set-VenueStep 'start-storage'
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
   $env:VENUE_S3_ROOT_ACCESS=$cfg['VENUE_S3_ROOT_ACCESS']
@@ -464,6 +475,7 @@ function Install-Local {
   Set-SetupPhase $state 'STORAGE_READY'
  }
  if($state.phase -eq 'STORAGE_READY'){
+  Set-VenueStep 'migrate-local-db'
   Invoke-Compose @('up','-d','db','rustfs') 'start DB'
   Invoke-Compose @('run','--rm','--no-deps','--entrypoint',
    './node_modules/.bin/prisma','api','migrate','deploy',
@@ -471,6 +483,7 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
+  Set-VenueStep 'import-signed-stage'
   $isShared=$state.PSObject.Properties.Name -contains 'shared' -and $state.shared
   if($isShared){
    Import-SharedVenueStage $state $cfg $mounts
@@ -482,6 +495,7 @@ function Install-Local {
   Set-SetupPhase $state 'IMPORTED'
  }
  if($state.phase -eq 'IMPORTED'){
+  Set-VenueStep 'install-journal'
    $installed=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
   Assert-Exit 'inspect journal after resumed import'
   $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
@@ -491,6 +505,7 @@ function Install-Local {
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){
+  Set-VenueStep 'authorize-staff'
   Create-ExistingStaff $state $mounts
   Set-SetupPhase $state 'ADMIN_READY'
  }
@@ -498,10 +513,12 @@ function Install-Local {
   Set-SetupPhase $state 'STAFF_READY'
  }
  if($state.phase -eq 'STAFF_READY'){
+  Set-VenueStep 'start-lan-services'
   Assert-NoOtherVenueGatewayRunning
   Invoke-Compose @('up','-d') 'start HTTPS API and LIVE'
   Set-SetupPhase $state 'READY'
  }
+ Set-VenueStep 'verify-lan-readiness'
  Start-Local
 }
 function Export-VenueCA {
@@ -762,10 +779,10 @@ try{
  elseif($Action -eq 'next'){Switch-ToNextStage}
  else{Return-Online}
 }catch{
- Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
+ Write-Host ('USD VENUE: не удалось выполнить '+$Action+'; step='+$script:VenueStep) -ForegroundColor Red
  if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
  if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
-  Show-VenueMessage ('Действие не завершено.'+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
+  Show-VenueMessage ('Действие не завершено. Шаг: '+$script:VenueStep+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
  }
  Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
  exit 1
