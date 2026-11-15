@@ -110,7 +110,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)
         self.assertNotIn("VENUE_JWT_SECRET=REPLACE_",source)
-    def test_new_stage_has_one_click_action_and_separate_docker_project(self):
+    def test_next_signed_stage_uses_same_docker_project_and_postgres_history(self):
         launch=(ROOT/'USD-Next-Stage.cmd').read_text(encoding='utf-8')
         ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
@@ -122,15 +122,18 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('function Switch-ToNextStage',lifecycle)
         self.assertNotRegex(lifecycle,r'(?im)^\s*\$home\s*=','HOME is a reserved PowerShell automatic variable')
         self.assertIn('function Get-VenueProject',lifecycle)
-        self.assertIn('usd-venue-',lifecycle)
+        self.assertIn("return 'usd-venue'",lifecycle)
         self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
         self.assertIn('"USD-Next-Stage.cmd"',kit)
         self.assertIn("'USD — Следующий этап'",ctl)
-        self.assertIn('stage-workspaces',lifecycle)
+        self.assertIn('function Backup-VenueSeasonDb',lifecycle)
+        self.assertIn('function Recover-VenueSeasonTransition',lifecycle)
+        self.assertIn("'install-season.sql'",ctl)
+        self.assertNotIn('New-VenueStageWorkspace',lifecycle)
         self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
 
-    def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
+    def test_rotation_requires_exact_central_ack_and_never_removes_old_results(self):
         lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
         stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):]
         self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
@@ -138,13 +141,14 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('Test-VerifiedVenueAck',stage)
         self.assertIn('journalEndHash',lifecycle[lifecycle.index('function Test-VerifiedVenueAck'):])
         self.assertIn('Invoke-Compose',stage)
-        self.assertIn('stage-workspaces',stage)
+        self.assertIn('Backup-VenueSeasonDb',stage)
         self.assertIn('Restore-VenueApi',stage)
+        self.assertIn('Complete-VenueSeasonTransition',stage)
         self.assertNotIn("'down','--volumes'",stage)
         self.assertNotIn("'down','-v'",stage)
         self.assertLess(stage.index('Sync-VenueReturn -Bundle $bundle'),
-                        stage.index('New-VenueStageWorkspace'))
-        self.assertLess(stage.index('Invoke-Compose'),stage.index('New-VenueStageWorkspace'))
+                        stage.index('Backup-VenueSeasonDb'))
+        self.assertLess(stage.index('Backup-VenueSeasonDb'),stage.index("'--append'"))
 
     def test_return_export_keeps_one_stage_only_and_scopes_signing_keys_by_project(self):
         ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
