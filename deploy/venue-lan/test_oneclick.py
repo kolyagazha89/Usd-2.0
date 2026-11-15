@@ -72,17 +72,30 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("operator1",source)
         self.assertNotIn("judge-01",source)
 
-    def test_legacy_trial_install_is_destroyed_only_with_explicit_confirmation(self):
-        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
-        self.assertIn("function Replace-LegacyDemo",source)
-        replace=source[source.index("function Replace-LegacyDemo"):source.index("function New-InitialState")]
-        self.assertIn("Confirm-VenueAction",replace)
-        self.assertIn("Read-Env",replace)
-        self.assertIn("VENUE_STAGE_ID",replace)
-        self.assertIn("Invoke-Compose @('down','--volumes')",replace)
-        self.assertIn("Remove-Item -LiteralPath $EnvFile",replace)
-        self.assertNotIn("usd-home",replace)
-        self.assertLess(source.index('Replace-LegacyDemo $state'),source.index('New-InitialState}',source.index('function Install-Local')))
+    def test_legacy_demo_recovery_never_removes_existing_docker_data(self):
+        control=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
+        launcher=control[control.index("function Replace-LegacyDemo"):control.index("function New-InitialState")]
+        self.assertNotIn("down",launcher)
+        self.assertNotIn("Remove-Item",launcher)
+        self.assertNotIn("Confirm-VenueAction",launcher)
+        self.assertIn("Start-IsolatedVenueFromDemo",launcher)
+        self.assertIn("function Start-IsolatedVenueFromDemo",season)
+        self.assertIn("real-stages",season)
+        self.assertIn("Get-VenueKitFiles",season)
+        self.assertNotIn("'shared-source.json'",season[season.index("function Start-IsolatedVenueFromDemo"):])
+        self.assertNotIn("down','--volumes",control+season)
+        self.assertNotIn("Remove-Item -LiteralPath $EnvFile",launcher)
+        self.assertNotIn("Remove-Item -LiteralPath $PrivateDir",launcher)
+        self.assertIn("Replace-LegacyDemo $state",control)
+
+    def test_install_reports_step_on_timeout_and_does_not_mutate_docker_desktop(self):
+        control=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("USD VENUE STEP:",control)
+        self.assertIn("step=",control)
+        self.assertNotIn("winget uninstall",control.lower())
+        self.assertNotIn("docker system prune",control.lower())
+        self.assertNotIn("docker volume prune",control.lower())
 
     def test_windows_native_docker_templates_never_require_quoted_keys(self):
         # PS 5.1 removes embedded double quotes from native arguments:
