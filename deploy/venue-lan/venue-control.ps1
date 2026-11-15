@@ -337,6 +337,8 @@ function New-InitialState {
   $key=Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
+  $project=Get-VenueProjectForStage $stageId
+  Assert-NoOrphanedVenueStack $project
   # Trusted fingerprint comes independently from the authenticated admin page.
   $fingerprint=(Read-VenueFingerprint).Trim()
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
@@ -358,8 +360,6 @@ function New-InitialState {
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
   throw 'Неверный UUID этапа'
  }
- $project=Get-VenueProjectForStage $stageId
- Assert-NoOrphanedVenueStack $project
  $dbRoot=Get-RandomSecret 32
  $dbPassword=Get-RandomSecret 32
  $values=[ordered]@{
@@ -489,7 +489,7 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  if(Test-Path -LiteralPath $destination){return}
  try{
-  $container=(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
+  $container=(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
   if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
    $container -notmatch '^[a-f0-9]{12,64}$'){return}
   & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
@@ -613,7 +613,7 @@ function Export-VenueReturn {
  # A direct Export click is as important as the Online button: do NOT export
  # while a judge can still enter a result. Detect the prior API state so
  # export from a stopped server never starts it unexpectedly.
- $apiRunning=@(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
+ $apiRunning=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
  $apiStopped=$false
