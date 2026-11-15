@@ -30,7 +30,7 @@ function Update-VenueTV {
  Set-VenueStep 'download-TV-frontend-image'
  $id=@()
  try{$id=@(& docker image inspect --format '{{.ID}}' $ref 2>$null)}catch{}
- if($LASTEXITCODE -ne 0 -or $id.Count -ne 1 -or ![string]$id[0]){
+ if($LASTEXITCODE -ne 0 -or $id.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$id[0])){
   Invoke-Docker @('pull',$ref) 'download TV frontend image'
  }
  $labels=Read-VenueDockerLabels 'image' $ref
