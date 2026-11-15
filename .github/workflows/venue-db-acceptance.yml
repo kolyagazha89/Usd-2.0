@@ -136,6 +136,31 @@ jobs:
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             -e USD_VENUE_CI_STAFF_MODE \
             --entrypoint node api /app/venue-db-acceptance.mjs probe
+      - name: Reuse SAME local PostgreSQL for second signed stage after judging first
+        working-directory: deploy/venue-lan
+        run: |
+          # A's API must be frozen during signed B baseline append.
+          docker compose -p usd-venue stop api
+          docker compose -p usd-venue exec -T db \
+            psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
+            < upgrade-journal-links.sql
+          docker compose -p usd-venue exec -T db \
+            psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
+            < install-season.sql
+          set -a
+          source .env
+          export VENUE_CI_DB_ROOT_PASSWORD="$VENUE_DB_ROOT_PASSWORD"
+          set +a
+          docker compose -p usd-venue run --rm --no-deps \
+            --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
+            --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
+            --volume "$PWD/venue-judge-permissions.mjs:/app/venue-judge-permissions.mjs:ro" \
+            --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
+            --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
+            --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
+            -e VENUE_CI_DB_ROOT_PASSWORD \
+            --entrypoint node api /app/venue-db-acceptance.mjs season
       - name: Destroy disposable venue database and configuration
         if: always()
         working-directory: deploy/venue-lan
