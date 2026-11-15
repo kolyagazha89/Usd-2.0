@@ -108,8 +108,8 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("function Read-VenueDockerLabels",control)
         self.assertIn("{{json .Config.Labels}}",control)
         self.assertIn("Read-VenueDockerLabels 'image' $ref",control)
-        self.assertIn("Read-VenueDockerLabels 'container'",control)
         self.assertIn("Read-VenueDockerLabels 'container'",season)
+        self.assertNotIn("down','--volumes",control+season)
 
     def test_windows_kit_excludes_trial_generator_and_ip_https_support(self):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
