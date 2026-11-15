@@ -34,10 +34,10 @@ class VenueTvHttpContracts(unittest.TestCase):
         self.assertIn('-RemoteAddress LocalSubnet', firewall)
         self.assertIn('-LocalAddress $Ip', firewall)
 
-    def test_release_launcher_shows_certificate_free_tv_url(self):
+    def test_release_launcher_shows_certificate_free_real_tv_url(self):
         control = (ROOT / 'venue-control.ps1').read_text(encoding='utf-8-sig')
         self.assertIn("'LIVE без сертификата: http://'", control)
-        self.assertIn("'/venue/live?demo=1'", control)
+        self.assertNotIn('/venue/live?demo=1', control)
         self.assertIn('https://', control)
 
 if __name__ == '__main__':
