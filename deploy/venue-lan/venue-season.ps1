@@ -106,7 +106,8 @@ function Start-IsolatedVenueFromDemo([object]$Old) {
   $existing=Join-Path $target 'local-private/setup-state.json'
   if(Test-Path -LiteralPath $existing -PathType Leaf){
    $state=Get-Content -LiteralPath $existing -Raw -Encoding UTF8 | ConvertFrom-Json
-   if([string]$state.stageId -cne $id -or $state.demo -eq $true){
+   if([string]$state.stageId -cne $id -or
+      ($state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true)){
     throw 'Папка настоящего этапа принадлежит другой установке.'
    }
   }
