@@ -83,7 +83,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("function Start-IsolatedVenueFromDemo",season)
         self.assertIn("real-stages",season)
         self.assertIn("Get-VenueKitFiles",season)
-        self.assertNotIn("'shared-source.json'",season[season.index("function Start-IsolatedVenueFromDemo"):])
+        self.assertIn("if(Test-Path -LiteralPath (Join-Path $target 'shared-source.json'))",season)
         self.assertNotIn("down','--volumes",control+season)
         self.assertNotIn("Remove-Item -LiteralPath $EnvFile",launcher)
         self.assertNotIn("Remove-Item -LiteralPath $PrivateDir",launcher)
