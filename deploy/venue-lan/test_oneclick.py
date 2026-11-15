@@ -20,7 +20,7 @@ class VenueLauncherContracts(unittest.TestCase):
         for expected in (
             "setup-state.json","VENUE_STAGE_ID","VENUE_SIGNING_KEY_FINGERPRINT",
             "verify-stage-package.mjs","import-stage.mjs","install-journal.sql",
-            "provision-rustfs.mjs","provision-staff.mjs","provision-existing-staff.mjs",
+            "provision-rustfs.mjs","venue-judge-permissions.mjs","provision-existing-staff.mjs",
             "USD_VENUE_LAN_MODE","docker","compose","https://app.usd-russia.ru",
             "stop","Get-NetIPAddress",
         ):
@@ -85,6 +85,8 @@ class VenueLauncherContracts(unittest.TestCase):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
         gateway=(ROOT/'Caddyfile').read_text(encoding='utf-8')
         self.assertNotIn('"make-demo-stage.mjs"',kit)
+        self.assertNotIn('"provision-staff.mjs"',kit)
+        self.assertIn('"venue-judge-permissions.mjs"',kit)
         self.assertIn('default_sni {$VENUE_BIND_IP}',gateway)
 
     def test_lan_startup_verifies_pinned_api_sha_and_live_stage_not_just_http_200(self):
