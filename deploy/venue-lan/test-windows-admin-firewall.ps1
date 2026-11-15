@@ -22,7 +22,7 @@ function Get-NetFirewallRule {
 function Get-NetFirewallPortFilter {
  [CmdletBinding()]
  param([Parameter(ValueFromPipeline=$true)]$InputObject)
- process{[pscustomobject]@{Protocol='TCP';LocalPort='443'}}
+ process{[pscustomobject]@{Protocol='TCP';LocalPort='80,443'}}
 }
 function Get-NetFirewallAddressFilter {
  [CmdletBinding()]
