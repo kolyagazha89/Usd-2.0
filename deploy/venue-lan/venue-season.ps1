@@ -190,14 +190,27 @@ function Switch-ToNextStage {
   throw 'Неверный защищённый список сотрудников'
  }
  $archive=Join-Path (Join-Path $PrivateDir 'stage-history') $nextId
- if(Test-Path -LiteralPath $archive){throw 'Этот этап уже загружался. Автоматически перезаписывать его запрещено'}
- New-Item -ItemType Directory -Path $archive -Force|Out-Null
  $package=Join-Path $archive 'signed-stage.json'
  $pem=Join-Path $archive 'signing-public.pem'
  $staffKey=Join-Path $archive 'staff-access.key'
- Write-PrivateFile $package ([IO.File]::ReadAllText($signedFile))
- Write-PrivateFile $pem ([IO.File]::ReadAllText($pemFile))
- Write-PrivateFile $staffKey $newKey
+ if(Test-Path -LiteralPath $archive){
+  # A previous attempt can fail BEFORE the root import commits, or power
+  # can go out before the marker is saved. Retrying identical signed bytes
+  # is safe, but never overwrite an occupied archive or another stage's key.
+  if(!(Test-Path -LiteralPath $package -PathType Leaf) -or
+   !(Test-Path -LiteralPath $pem -PathType Leaf) -or
+   !(Test-Path -LiteralPath $staffKey -PathType Leaf) -or
+   [IO.File]::ReadAllText($package) -cne [IO.File]::ReadAllText($signedFile) -or
+   [IO.File]::ReadAllText($pem) -cne [IO.File]::ReadAllText($pemFile) -or
+   [IO.File]::ReadAllText($staffKey) -cne $newKey){
+   throw 'Сохранён другой или неполный пакет этапа. Данные не изменены.'
+  }
+ }else{
+  New-Item -ItemType Directory -Path $archive -Force|Out-Null
+  Write-PrivateFile $package ([IO.File]::ReadAllText($signedFile))
+  Write-PrivateFile $pem ([IO.File]::ReadAllText($pemFile))
+  Write-PrivateFile $staffKey $newKey
+ }
  $mounts=@('--volume',($package+':/app/new-stage.json:ro'),
   '--volume',($pem+':/app/new-public.pem:ro'),
   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'))
