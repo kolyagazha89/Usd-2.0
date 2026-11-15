@@ -4,12 +4,19 @@ BEGIN;
 DO $$
 BEGIN
  IF current_user <> 'usd_venue_root'
-  OR (SELECT count(*) FROM public."Stage") <> 1
+  OR ((SELECT count(*) FROM public."Stage") <> 1
+   AND to_regclass('venue_private.active_stage') IS NULL)
   OR to_regclass('venue_private.operation_journal') IS NULL THEN
   RAISE EXCEPTION 'VENUE journal upgrade requires original isolated venue root';
  END IF;
  PERFORM pg_advisory_xact_lock(1827726190);
 END $$;
+-- Do not replace the new per-stage chain with the legacy one-stage trigger
+-- when the operator starts the laptop for later events.
+DO $compat$
+BEGIN
+ IF to_regclass('venue_private.active_stage') IS NULL THEN
+  EXECUTE $legacy$
 CREATE OR REPLACE FUNCTION venue_private.capture_change() RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, venue_private AS $$
 DECLARE
@@ -84,6 +91,10 @@ BEGIN
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END $$;
+$legacy$;
+ END IF;
+END $compat$;
+
 DO $$
 BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='usd_venue_caramplifiercomponent_journal' AND NOT tgisinternal) THEN
