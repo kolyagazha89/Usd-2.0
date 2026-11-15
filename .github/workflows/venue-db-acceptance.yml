@@ -165,6 +165,30 @@ jobs:
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             -e VENUE_CI_DB_ROOT_PASSWORD \
             --entrypoint node api /app/venue-db-acceptance.mjs season
+      - name: Boot Nest API on next signed stage B, keep one DB and LIVE only B
+        working-directory: deploy/venue-lan
+        run: |
+          set -euo pipefail
+          export VENUE_STAGE_ID=e610f672-79f7-44eb-8173-2a8ff94b1c0e
+          docker compose -p usd-venue up -d --no-build --pull never --force-recreate api
+          for i in $(seq 1 50); do
+            if docker compose -p usd-venue exec -T api node -e '
+              (async()=>{
+                const r=await fetch("http://127.0.0.1:3000/results/venue-live",{signal:AbortSignal.timeout(2000)});
+                const j=await r.json();
+                const expected="e610f672-79f7-44eb-8173-2a8ff94b1c0e";
+                if(r.status!==200||j.stage?.id!==expected||j.rows?.length!==1){
+                  throw Error("Stage B did not start or LIVE leaked an old stage");
+                }
+              })().catch(e=>{console.error(e.message);process.exitCode=1});
+            '; then
+              echo "USD CI PG18: same PostgreSQL, Nest started on B, LIVE only B"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "USD CI PG18: Nest failed to serve B despite successful B import" >&2
+          exit 1
       - name: Destroy disposable venue database and configuration
         if: always()
         working-directory: deploy/venue-lan
