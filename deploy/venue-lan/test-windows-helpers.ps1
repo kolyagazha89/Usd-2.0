@@ -88,6 +88,7 @@ try {
 # LAN firewall regression: Windows frequently classifies a new Wi-Fi as
 # Public. A denied profile MUST receive a meaningful explanation without UAC
 # or broadening the firewall to every public network.
+function Test-VenueElevated {return $false}
 $script:firewallElevationCalls=0
 function Get-NetIPAddress {
  param([string]$AddressFamily)
