@@ -17,7 +17,7 @@ $StateFile=Join-Path $PrivateDir 'setup-state.json'
 $EnvFile=Join-Path $Root '.env'
 $StartupFile=Join-Path ([Environment]::GetFolderPath('Startup')) 'USD-Venue-Autostart.lnk'
 $OnlineUrl='https://app.usd-russia.ru'
-$Phases=@('CONFIGURED','STORAGE_READY','SCHEMA_READY','IMPORTED','JOURNAL_READY','ADMIN_READY','STAFF_READY','READY')
+$Phases=@('CONFIGURED','STORAGE_READY','SCHEMA_READY','IMPORTED','JOURNAL_READY','ADMIN_READY','STAFF_READY','READY','SEASON_IMPORTED')
 
 function Get-RandomSecret([int]$Size=32){
  $buffer=New-Object byte[] $Size
@@ -266,7 +266,7 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
 }
 # Never attach a fresh installer folder to volumes from another installation.
 function Assert-NoOrphanedVenueStack([string]$Project){
- if($Project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){throw 'Неверный Docker-проект нового этапа'}
+ if($Project -cne 'usd-venue' -and $Project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){throw 'Неверный Docker-проект нового этапа'}
  $services=@(& docker ps -a --filter ('label=com.docker.compose.project='+$Project) --format '{{.ID}}')
  Assert-Exit 'inspect existing venue containers'
  $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
@@ -401,7 +401,7 @@ function Confirm-SignedStage([object]$State) {
   '/app/venue-stage.json','/app/venue-signing-public.pem')) 'verify stage signature'
  return $mounts
 }
-function Create-ExistingStaff([object]$State,[array]$Mounts){
+function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$Append){
  if([string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
   !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
   throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
@@ -410,9 +410,10 @@ function Create-ExistingStaff([object]$State,[array]$Mounts){
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
   '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
   '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
- Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+
-  @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem','/app/venue-access-key.txt')) 'restore centrally approved staff logins'
+ $args=@('--entrypoint','node','api','/app/provision-existing-staff.mjs',
+  '/app/venue-stage.json','/app/venue-signing-public.pem','/app/venue-access-key.txt')
+ if($Append){$args+=@('--append')}
+ Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+$args) 'restore centrally approved staff logins'
 }
 function Install-Local {
  Assert-VenueCompose
@@ -420,6 +421,7 @@ function Install-Local {
  if(!(Test-Path -LiteralPath $PrivateDir)){
   New-Item -ItemType Directory -Path $PrivateDir|Out-Null
  }
+ Recover-VenueSeasonTransition
  $state=Read-State
  if($state -and $state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true){
   Replace-LegacyDemo $state
@@ -434,6 +436,19 @@ function Install-Local {
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){Start-Local;return}
  $mounts=Confirm-SignedStage $state
+ if($state.phase -eq 'SEASON_IMPORTED'){
+  # Crash-resumable staff activation: the signed B baseline is already in
+  # the same database, but no judge API may start until staff permissions
+  # and identities have been refreshed for this stage.
+  Create-ExistingStaff $state $mounts -Append
+  $state.phase='READY'
+  Save-VenueSeasonState $state
+  Invoke-Compose @('up','-d','--no-build','--pull','never','--force-recreate','api') 'activate next signed stage'
+  Start-Local
+  $transition=Join-Path $PrivateDir 'season-transition.json'
+  if(Test-Path -LiteralPath $transition){Remove-Item -LiteralPath $transition -Force}
+  return
+ }
  if($state.phase -eq 'CONFIGURED'){
   Invoke-Compose @('pull') 'download images'
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
@@ -500,6 +515,7 @@ function Export-VenueCA {
  }
 }
 function Start-Local {
+ Recover-VenueSeasonTransition
  Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку USD-Install.cmd'}
@@ -516,6 +532,12 @@ function Start-Local {
  Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
   & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
+ Get-Content -LiteralPath (Join-Path $Root 'install-season.sql') -Raw -Encoding UTF8 |
+  & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+ Assert-Exit 'verify shared PostgreSQL season journal and active-stage guard'
+ if((Get-ActiveVenueStageId) -cne $state.stageId){
+  throw 'Активный этап PostgreSQL не совпадает с подписанной установкой. Судейский API не запускается.'
+ }
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
