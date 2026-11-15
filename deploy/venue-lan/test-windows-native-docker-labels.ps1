@@ -51,9 +51,14 @@ if(args[0]==="ps"){
  $state=[pscustomobject]@{format=1;phase='READY';demo=$true;stageId=$stage;
    image=$sha;fingerprint=$fingerprint;ip=$ip;accessKey=$null}
  [IO.File]::WriteAllLines($EnvFile,[string[]]@(
-   'VENUE_STAGE_ID='+$stage,'VENUE_IMAGE_TAG='+$sha,
-   'VENUE_SIGNING_KEY_FINGERPRINT='+$fingerprint,'VENUE_BIND_IP='+$ip
+   ('VENUE_STAGE_ID='+$stage),('VENUE_IMAGE_TAG='+$sha),
+   ('VENUE_SIGNING_KEY_FINGERPRINT='+$fingerprint),('VENUE_BIND_IP='+$ip)
  ),(New-Object Text.UTF8Encoding($false)))
+ $parsed=Read-Env
+ if($parsed['VENUE_STAGE_ID'] -cne $stage -or $parsed['VENUE_IMAGE_TAG'] -cne $sha -or
+    $parsed['VENUE_SIGNING_KEY_FINGERPRINT'] -cne $fingerprint -or $parsed['VENUE_BIND_IP'] -cne $ip){
+  throw 'Synthetic old DEMO .env fixture did not round-trip'
+ }
  $initial=[IO.File]::ReadAllText($EnvFile)
  $script:declinedRemoval=$false
  function Confirm-VenueAction {
