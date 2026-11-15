@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState,type CSSProperties} from 'react';
 import {apiGet} from '../api';
-import {buildVenueTvSlides,createVenueTvDemoSnapshot,groupVenueLiveRows,isVenueLiveSnapshotCurrent,
+import {buildVenueTvSlides,groupVenueLiveRows,isVenueLiveSnapshotCurrent,
  parseVenueTvMode,venueLiveRowsPerScreen,type VenueLiveSnapshot,type VenueTvMode} from './venue-live-model';
 import './venue-live.css';
 
@@ -9,8 +9,6 @@ const TV_ROTATE_MS=9000;
 const SPL_URL='/venue/live?screen=spl';
 const COMBINED_URL='/venue/live?screen=bfspl-bdw';
 const ALL_URL='/venue/live';
-const DEMO_MODE=new URLSearchParams(window.location.search).get('demo')==='1';
-function tvUrl(target:string){return target+(DEMO_MODE?(target.includes('?')?'&':'?')+'demo=1':'')}
 
 function initialTvMode():VenueTvMode{
  return parseVenueTvMode(new URLSearchParams(window.location.search).get('screen'));
@@ -21,7 +19,7 @@ function labelUnit(value:string){
 
 /** Shared LAN-only read-only scoreboard. Each TV can pin its own direction URL. */
 export default function VenueLiveResults(){
- const [snapshot,setSnapshot]=useState<VenueLiveSnapshot|null>(()=>DEMO_MODE?createVenueTvDemoSnapshot():null);
+ const [snapshot,setSnapshot]=useState<VenueLiveSnapshot|null>(null);
  const [lastSuccess,setLastSuccess]=useState<number|null>(null);
  const [failed,setFailed]=useState(false);
  const [clock,setClock]=useState(Date.now());
@@ -32,7 +30,6 @@ export default function VenueLiveResults(){
  const [viewport,setViewport]=useState(()=>({height:window.innerHeight,width:window.innerWidth}));
 
  useEffect(()=>{
-  if(DEMO_MODE)return;
   let alive=true,loading=false;
   const load=async()=>{
    if(loading||!alive||document.hidden)return;
@@ -72,7 +69,7 @@ export default function VenueLiveResults(){
  const changeMode=(next:VenueTvMode)=>{
   setMode(next);setSlideIndex(0);
   const target=next==='spl'?SPL_URL:next==='bfspl-bdw'?COMBINED_URL:ALL_URL;
-  window.history.replaceState(window.history.state,'',tvUrl(target));
+  window.history.replaceState(window.history.state,'',target);
  };
  const nextSlide=()=>setSlideIndex(index=>(index+1)%slides.length);
  const previousSlide=()=>setSlideIndex(index=>(index-1+slides.length)%slides.length);
@@ -93,7 +90,7 @@ export default function VenueLiveResults(){
   window.addEventListener('keydown',onKey);
   return()=>window.removeEventListener('keydown',onKey);
  },[slides.length]);
- const fresh=DEMO_MODE||(!failed&&isVenueLiveSnapshotCurrent(lastSuccess,clock));
+ const fresh=!failed&&isVenueLiveSnapshotCurrent(lastSuccess,clock);
  const rowStyle={'--venue-board-rows':Math.max(slide.rows.length,1)} as CSSProperties;
  return <main className="usd-venue-live-board" aria-label="USD LIVE — экран соревнований">
   <header className="venue-tv-top">
@@ -102,12 +99,12 @@ export default function VenueLiveResults(){
     <div className="venue-tv-identity-text">
      <span className="venue-tv-eyebrow">ULTIMATE SOUND DESTRUCTION · LIVE</span>
      <h1>{snapshot?.stage.name??'Подключение к этапу USD…'}</h1>
-     <small>{DEMO_MODE?'ПРИМЕР · не является протоколом':(snapshot?.stage.city??'Локальная площадка')+' · Сохранены результаты площадки'}</small>
+     <small>{snapshot?.stage.city??'Локальная площадка'} · Сохранены результаты площадки</small>
     </div>
    </div>
    <div className="venue-tv-control">
     <span className={'venue-live-status'+(fresh?' is-connected':' is-disconnected')} role="status">
-     <i aria-hidden="true"/>{DEMO_MODE?'ДЕМО · тестовые данные':fresh?'LIVE · подключено':'Нет соединения с локальным сервером'}
+     <i aria-hidden="true"/>{fresh?'LIVE · подключено':'Нет соединения с локальным сервером'}
     </span>
     <button type="button" onClick={()=>void toggleFullscreen()} title="Полноэкранный режим телевизора">
      {fullscreen?'Выйти из полного экрана':'На весь экран'}
@@ -116,15 +113,14 @@ export default function VenueLiveResults(){
   </header>
   <nav className="venue-tv-switch" aria-label="Направления на телевизоре">
    <div className="venue-tv-direction-links">
-    <a href={tvUrl(ALL_URL)} aria-current={mode==='all'?'page':undefined}
+    <a href={ALL_URL} aria-current={mode==='all'?'page':undefined}
      onClick={event=>{event.preventDefault();changeMode('all')}}>Автопоказ</a>
-    <a href={tvUrl(SPL_URL)} aria-current={mode==='spl'?'page':undefined}
+    <a href={SPL_URL} aria-current={mode==='spl'?'page':undefined}
      onClick={event=>{event.preventDefault();changeMode('spl')}}>Только SPL</a>
-    <a href={tvUrl(COMBINED_URL)} aria-current={mode==='bfspl-bdw'?'page':undefined}
+    <a href={COMBINED_URL} aria-current={mode==='bfspl-bdw'?'page':undefined}
      onClick={event=>{event.preventDefault();changeMode('bfspl-bdw')}}>BFSPL + BDW SPL</a>
    </div>
    <div className="venue-tv-remote">
-    <a className="venue-tv-demo-toggle" href={DEMO_MODE?ALL_URL:ALL_URL+'?demo=1'}>{DEMO_MODE?'К настоящему LIVE':'Проверить табло'}</a>
     <button type="button" onClick={previousSlide} aria-label="Предыдущий класс">‹</button>
     <button type="button" onClick={()=>setPaused(value=>!value)} aria-pressed={paused}>
      {paused?'▶ Продолжить':'Ⅱ Пауза'}
@@ -173,9 +169,9 @@ export default function VenueLiveResults(){
     {slides.map((item,index)=><span key={item.id} className={index===currentPosition?'is-active':''}/>)}
    </div>
    <div className="venue-tv-footer-details">
-    <span>{DEMO_MODE?'USD · ДЕМОНСТРАЦИЯ · НИ ОДИН РЕЗУЛЬТАТ НЕ НАСТОЯЩИЙ':'USD · ЛОКАЛЬНАЯ СЕТЬ · НЕОФИЦИАЛЬНЫЕ РЕЗУЛЬТАТЫ'}</span>
+    <span>USD · ЛОКАЛЬНАЯ СЕТЬ · НЕОФИЦИАЛЬНЫЕ РЕЗУЛЬТАТЫ</span>
     <span>{paused?'Показ остановлен':'Автосмена каждые 9 секунд'} · {lastSuccess?
-     'Данные '+new Date(lastSuccess).toLocaleTimeString('ru-RU'):(DEMO_MODE?'Тестовые данные без подключения к API':'Ожидание первой загрузки')}</span>
+     'Данные '+new Date(lastSuccess).toLocaleTimeString('ru-RU'):'Ожидание первой загрузки'}</span>
    </div>
   </footer>
  </main>;
