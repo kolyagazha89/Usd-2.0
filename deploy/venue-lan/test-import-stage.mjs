@@ -205,3 +205,65 @@ test('write errors are surfaced, never reported as successful or silently skippe
  await assert.rejects(()=>applyVenueStageImport(plan,db),/simulated database crash/);
  assert.equal(log.some(x=>x.model==='auditLog'),false);
 });
+
+
+test('signed second stage imports into same database without modifying existing people, cars or results',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ const previous='a111f672-79f7-44eb-8173-2a8ff94b1c0e';
+ tx.stage.count=async()=>1;
+ tx.stage.findUnique=async()=>null;
+ tx.season.findUnique=async()=>({id:uuid.season,year:2026});
+ tx.direction.findUnique=async()=>({id:uuid.direction,name:'SPL'});
+ tx.class.findUnique=async()=>({id:uuid.cls,code:'L20',directionId:uuid.direction});
+ tx.participant.findUnique=async()=>({id:uuid.person,lastName:'Иванов'});
+ tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.person,brand:'Lada'});
+ tx.carConfigurationVersion.findUnique=async()=>({id:uuid.version,configuration:{carId:uuid.car}});
+ tx.siteSettings.count=async()=>1;
+ tx.siteSettings.findUnique=async()=>({
+  legal:plan.snapshot.venuePolicy.legal,
+  contacts:{email:plan.snapshot.venuePolicy.contactEmail},
+  registration:{rulesDocument:{published:plan.snapshot.venuePolicy.rulesPublished}},
+ });
+ tx.$queryRawUnsafe=async sql=>sql.includes('session_user')?
+  [{sessionUser:'usd_venue_root'}]:[{stageId:previous}];
+ const result=await applyVenueStageImport(plan,db,{append:true});
+ assert.equal(result.stageId,uuid.stage);
+ for(const model of ['season','direction','class','participant','car','carConfiguration','carConfigurationVersion','siteSettings']){
+  assert.equal(log.filter(item=>item.model===model).length,0,'existing '+model+' must remain untouched');
+ }
+ assert.equal(log.filter(item=>item.model==='result').length,1);
+ assert.equal(log.filter(item=>item.model==='stage').length,1);
+ assert.equal(log.filter(item=>item.model==='registration').length,2);
+});
+
+test('signed second stage rejects foreign shared car ownership and never changes any historical record',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.stage.count=async()=>1;tx.stage.findUnique=async()=>null;
+ tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.season});
+ tx.$queryRawUnsafe=async sql=>sql.includes('session_user')?
+  [{sessionUser:'usd_venue_root'}]:[{stageId:uuid.season}];
+ await assert.rejects(()=>applyVenueStageImport(plan,db,{append:true}),/автомобил|участник|владел/i);
+ assert.equal(log.filter(x=>x.model==='result').length,0);
+});
+
+test('signed second stage requires isolated root session, never an API or online connection',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.stage.count=async()=>1;
+ tx.$queryRawUnsafe=async()=>[{sessionUser:'usd_venue'}];
+ await assert.rejects(()=>applyVenueStageImport(plan,db,{append:true}),/root|суперпользоват|bootstrap/i);
+ assert.equal(log.length,0);
+});
+
+test('signed second stage refuses reimport of an existing stage even if signed bytes match',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.stage.count=async()=>1;
+ tx.$queryRawUnsafe=async sql=>sql.includes('session_user')?
+  [{sessionUser:'usd_venue_root'}]:[{stageId:uuid.season}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ await assert.rejects(()=>applyVenueStageImport(plan,db,{append:true}),/уже|существ/i);
+ assert.equal(log.length,0);
+});
