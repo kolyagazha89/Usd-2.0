@@ -7,20 +7,11 @@ import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {assertVenueImportEnvironment,assertVenueDatabaseRole} from './import-stage.mjs';
+import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 // Deliberately narrower than online ADMIN custom roles. The normal backend
 // RolesGuard also prohibits judges from UPDATE/DELETE of results.
-export const VENUE_JUDGE_PERMISSIONS=Object.freeze({
-  stages:['view'],
-  registrations:['view','create','update'],
-  inspections:['view','create','update'],
-  results:['view','create'],
-  participants:['view','create'],
-  cars:['view','create'],
-  classes:['view'],
-  configurations:['view','create','update'],
-  records:['view'],
-});
+export {VENUE_JUDGE_PERMISSIONS};
 const NAME=/^[a-z][a-z0-9-]{5,23}$/;
 const RESERVED=new Set(['system','root00','public','online','master','server','source']);
 const VENUE_ROLE_KEY='venue-judge';

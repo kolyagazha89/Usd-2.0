@@ -20,7 +20,7 @@ class VenueLauncherContracts(unittest.TestCase):
         for expected in (
             "setup-state.json","VENUE_STAGE_ID","VENUE_SIGNING_KEY_FINGERPRINT",
             "verify-stage-package.mjs","import-stage.mjs","install-journal.sql",
-            "provision-rustfs.mjs","provision-staff.mjs","provision-existing-staff.mjs",
+            "provision-rustfs.mjs","venue-judge-permissions.mjs","provision-existing-staff.mjs",
             "USD_VENUE_LAN_MODE","docker","compose","https://app.usd-russia.ru",
             "stop","Get-NetIPAddress",
         ):
@@ -55,14 +55,39 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("usd-release.json",verifier)
         self.assertIn("docker run --rm --network none",verifier)
 
-    def test_demo_can_use_pinned_approved_images_when_live_ubuntu_is_old(self):
-        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
-        installer=source[source.index("function New-InitialState"):source.index("function Confirm-SignedStage")]
-        self.assertIn("$demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'",installer)
-        self.assertIn("if($kind -ne '1'){throw}",installer)
-        self.assertIn("Assert-VenueReleaseImages $sha",installer)
-        self.assertIn("VENUE_IMAGE_TAG=$sha",installer)
-        self.assertLess(installer.index("if($kind -ne '1'){throw}"),installer.index("$sha=$demoSha"))
+    def test_only_signed_real_stage_can_be_installed(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        section=source[source.index('function New-InitialState'):source.index('function Confirm-SignedStage')]
+        self.assertIn("Select-VenueFile 'Выберите файл этапа",section)
+        self.assertIn("Read-VenueFingerprint",section)
+        self.assertIn("venue-staff-access.key",section)
+        self.assertIn("Assert-VenueReleaseImages $sha",section)
+        self.assertNotIn("$demoSha",section)
+        self.assertNotIn("make-demo-stage",section)
+        self.assertNotIn("if($kind -eq",section)
+        self.assertNotIn("demo-packages",section)
+        self.assertNotIn("operator1",source)
+        self.assertNotIn("judge-01",source)
+
+    def test_legacy_trial_install_is_destroyed_only_with_explicit_confirmation(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        self.assertIn("function Replace-LegacyDemo",source)
+        replace=source[source.index("function Replace-LegacyDemo"):source.index("function New-InitialState")]
+        self.assertIn("Confirm-VenueAction",replace)
+        self.assertIn("Read-Env",replace)
+        self.assertIn("VENUE_STAGE_ID",replace)
+        self.assertIn("Invoke-Compose @('down','--volumes')",replace)
+        self.assertIn("Remove-Item -LiteralPath $EnvFile",replace)
+        self.assertNotIn("usd-home",replace)
+        self.assertLess(source.index('Replace-LegacyDemo $state'),source.index('New-InitialState}',source.index('function Install-Local')))
+
+    def test_windows_kit_excludes_trial_generator_and_ip_https_support(self):
+        kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
+        gateway=(ROOT/'Caddyfile').read_text(encoding='utf-8')
+        self.assertNotIn('"make-demo-stage.mjs"',kit)
+        self.assertNotIn('"provision-staff.mjs"',kit)
+        self.assertIn('"venue-judge-permissions.mjs"',kit)
+        self.assertIn('default_sni {$VENUE_BIND_IP}',gateway)
 
     def test_lan_startup_verifies_pinned_api_sha_and_live_stage_not_just_http_200(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
@@ -90,7 +115,7 @@ class VenueLauncherContracts(unittest.TestCase):
         end=source.index("if($MyInvocation.InvocationName",begin)
         section=source[begin:end]
         self.assertIn('Export-VenueReturn',section)
-        self.assertIn('(-not $state.demo)',section)
+        self.assertIn("$state.phase -eq 'READY'",section)
         self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
         self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
         self.assertIn('if($Silent)',section)
@@ -137,7 +162,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('USD-Export.cmd',kit)
         self.assertIn('ensure-return-keys.mjs',kit)
         self.assertIn('Read-VenuePassword',ctl)
-        self.assertIn('if($state.demo)',ctl)
+        self.assertNotIn('if($state.demo)',ctl)
         section=ctl[ctl.index('function Export-VenueReturn'):]
         self.assertNotIn('down -v',section)
         self.assertNotIn('prune',section)

@@ -108,6 +108,7 @@ jobs:
             --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+             --volume "$PWD/venue-judge-permissions.mjs:/app/venue-judge-permissions.mjs:ro" \
             --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
@@ -128,6 +129,7 @@ jobs:
             --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
             --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
             --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+             --volume "$PWD/venue-judge-permissions.mjs:/app/venue-judge-permissions.mjs:ro" \
             --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
             --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \

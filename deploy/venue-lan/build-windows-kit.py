@@ -13,8 +13,8 @@ FILES = (
     "venue-control.ps1", "venue-dialogs.ps1", "venue-firewall.ps1", "ensure-return-keys.mjs",
     "compose.yaml", "Caddyfile", "config/venue-config.js",
     "initdb/010-venue-api-role.sh", "INSTRUCTION.html",
-    "import-stage.mjs", "verify-stage-package.mjs", "make-demo-stage.mjs",
-    "provision-rustfs.mjs", "provision-staff.mjs", "provision-existing-staff.mjs", "install-journal.sql", "upgrade-journal-links.sql",
+    "import-stage.mjs", "verify-stage-package.mjs",
+    "provision-rustfs.mjs", "venue-judge-permissions.mjs", "provision-existing-staff.mjs", "install-journal.sql", "upgrade-journal-links.sql",
     "export-venue-return.mjs", "venue-return-package.mjs", "verify-venue-return.mjs",
     "preview-venue-reconciliation.mjs", "preview-venue-reconciliation-cli.mjs",
 )

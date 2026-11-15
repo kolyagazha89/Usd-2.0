@@ -11,7 +11,7 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {assertVenueImportEnvironment,assertVenueDatabaseRole} from './import-stage.mjs';
 import {verifyVenueStageHandoff} from './verify-stage-package.mjs';
-import {VENUE_JUDGE_PERMISSIONS} from './provision-staff.mjs';
+import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BCRYPT=/^\$2[aby]\$[0-3][0-9]\$[./A-Za-z0-9]{53}$/;

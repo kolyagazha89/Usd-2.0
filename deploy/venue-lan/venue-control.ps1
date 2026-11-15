@@ -78,6 +78,9 @@ function Write-PrivateFile([string]$Path,[string]$Value){
 function Read-State {
  if(!(Test-Path -LiteralPath $StateFile)){return $null}
  $s=Get-Content -LiteralPath $StateFile -Raw -Encoding UTF8|ConvertFrom-Json
+ if($s -and $s.PSObject.Properties.Name -contains 'demo' -and $s.demo -eq $true -and $Action -ne 'install'){
+  throw 'Старая пробная база больше не поддерживается. Запустите USD-Install.cmd для замены на реальный этап.'
+ }
  if(!$s -or $s.phase -notin $Phases -or
   $s.stageId -notmatch '^[0-9a-f-]{36}$' -or $s.fingerprint -notmatch '^[0-9a-f]{64}$'){
   throw 'Метаданные установки повреждены: не трогайте Docker volumes'
@@ -260,53 +263,75 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
   throw 'На Ubuntu установлена старая версия USD без полного офлайн-режима. Ничего не установлено; повторите после обновления.'
  }
 }
+# Never attach a fresh installer folder to volumes from another installation.
+function Assert-NoOrphanedVenueStack {
+ $services=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.ID}}')
+ Assert-Exit 'inspect existing venue containers'
+ $volumes=@(& docker volume ls --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Name}}')
+ Assert-Exit 'inspect existing venue volumes'
+ if($services.Count -gt 0 -or $volumes.Count -gt 0){
+  throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
+ }
+}
+# One-time replacement of an explicitly retired trial; no trial mode remains.
+function Replace-LegacyDemo([object]$State){
+ if($State.demo -ne $true -or $State.phase -ne 'READY' -or $State.accessKey){
+  throw 'Автоматически очистить можно только завершённую старую пробную установку. Данные сохранены.'
+ }
+ $cfg=Read-Env
+ if($cfg['VENUE_STAGE_ID'] -ne $State.stageId -or
+  $cfg['VENUE_IMAGE_TAG'] -ne $State.image -or
+  $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $State.fingerprint -or
+  $cfg['VENUE_BIND_IP'] -ne $State.ip){
+  throw 'Идентификаторы старой пробной установки не совпадают; очистка запрещена.'
+ }
+ if(Test-Path -LiteralPath (Join-Path $PrivateDir 'return-output')){
+  throw 'Найдены возвратные файлы. Установка не удалена: сохраните их и проверьте данные вручную.'
+ }
+ $services=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Label "com.docker.compose.service"}}')
+ Assert-Exit 'check venue containers before cleanup'
+ foreach($service in $services){
+  if($service -notin @('db','api','frontend','rustfs','gateway')){
+   throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
+  }
+ }
+ $volumes=@(& docker volume ls --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Name}}')
+ Assert-Exit 'check venue volumes before cleanup'
+ foreach($volume in $volumes){
+  if($volume -notin @('usd-venue_venue_db','usd-venue_venue_media','usd-venue_venue_ca',
+    'usd-venue_venue_caddy_config','usd-venue_venue_return_keys')){
+   throw 'В проекте есть неизвестный Docker-том. Очистка отменена.'
+  }
+ }
+ if(-not(Confirm-VenueAction ('Старая пробная база USD будет удалена БЕЗ ВОССТАНОВЛЕНИЯ.'+
+  [Environment]::NewLine+'Этап: '+$State.stageId+
+  [Environment]::NewLine+'Удаляем только проект usd-venue и его тестовые данные. Основной сервер Ubuntu не затрагивается.'+
+  [Environment]::NewLine+'Продолжить и установить настоящий этап?'))){
+  throw 'Очистка отменена, старая база сохранена.'
+ }
+ Remove-Autostart
+ Invoke-Compose @('down','--volumes') 'remove confirmed retired test volumes'
+ Remove-Item -LiteralPath $EnvFile -Force
+ Remove-Item -LiteralPath $PrivateDir -Recurse -Force
+ foreach($legacy in @('make-demo-stage.mjs','provision-staff.mjs')){
+  $obsolete=Join-Path $Root $legacy
+  if(Test-Path -LiteralPath $obsolete -PathType Leaf){Remove-Item -LiteralPath $obsolete -Force}
+ }
+ New-Item -ItemType Directory -Path $PrivateDir|Out-Null
+ Write-Host 'Старая пробная база удалена. Продолжаем установку подписанного этапа.'
+}
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $ip=Get-PrivateLanIp
- Write-Host '1 = ДЕМО на вымышленных участниках, 2 = реальный подписанный экспорт USD.'
- $kind=Select-VenueOption 'USD — Первый запуск' 'Для знакомства выберите ДЕМО. Настоящий этап запускайте после проверки ноутбука и телефонов без интернета.' @(
-  [pscustomobject]@{Label='ДЕМО — пробный запуск без настоящих участников';Value='1'},
-  [pscustomobject]@{Label='Подписанный этап — предварительная подготовка';Value='2'}
- )
- if($kind -notin @('1','2')){throw 'Выбор отменён'}
+ Assert-NoOrphanedVenueStack
  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
  $sha=[string]$release.revision
  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
- $demoSha='5a5eba177d2699fc28c7d3216316e7f9bef474d5'
- try{
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
-  Assert-VenueReleaseImages $sha
- }catch{
-  # A real stage must never install against an image different from Ubuntu.
-  # Only the synthetic DEMO uses the pinned, previously tested LAN version.
-  if($kind -ne '1'){throw}
-  if($sha -eq $demoSha){throw}
-  Write-Host 'Основная Ubuntu ещё обновляется. Для ДЕМО загружаем проверенный выпуск LAN.'
-  $sha=$demoSha
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'reviewed demo API image pull'
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'reviewed demo frontend image pull'
-  Assert-VenueReleaseImages $sha
- }
+ Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+ Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+ Assert-VenueReleaseImages $sha
  $file='';$key='';$stageId='';$fingerprint=''
- if($kind -eq '1'){
-  $packetParent=Join-Path $PrivateDir 'demo-packages'
-  New-Item -ItemType Directory -Path $packetParent -Force|Out-Null
-  $folder='demo-'+[guid]::NewGuid().ToString('N')
-  Invoke-Docker @('run','--rm','--network','none',
-   '--volume',($Root+':/venue-source:ro'),
-   '--volume',($packetParent+':/venue-private:rw'),
-   '--entrypoint','node',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha),
-   '/venue-source/make-demo-stage.mjs',('/venue-private/'+$folder)) 'DEMO stage generation'
-  $output=Join-Path $packetParent $folder
-  $file=Join-Path $output 'usd-venue-demo-stage.json'
-  $key=Join-Path $output 'signing-public.pem'
-  $lines=Get-Content -LiteralPath (Join-Path $output 'demo-info.txt') -Encoding UTF8
-  $stageId=($lines|Where-Object {$_ -match '^VENUE_STAGE_ID='}|Select-Object -First 1).Split('=',2)[1]
-  $fingerprint=($lines|Where-Object {$_ -match '^VENUE_SIGNING_KEY_FINGERPRINT='}|Select-Object -First 1).Split('=',2)[1]
-  Write-Host 'ДЕМО: не вводите настоящие ФИО и госномера; возврат в Ubuntu запрещён.'
- }else{
-  $file=Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'
+ $file=Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'
   $key=Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
@@ -328,7 +353,6 @@ function New-InitialState {
   $privateStage=Join-Path $PrivateDir 'signed-real-stage.json'
   Write-PrivateFile $privateStage ([IO.File]::ReadAllText($file))
   $file=$privateStage
- }
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
   throw 'Неверный UUID этапа'
  }
@@ -351,8 +375,7 @@ function New-InitialState {
  Write-PrivateFile $EnvFile ($text+[Environment]::NewLine)
  $state=[pscustomobject]@{
   format=1;phase='CONFIGURED';stageId=$stageId;fingerprint=$fingerprint
-  ip=$ip;image=$sha;package=$file;publicKey=$key;demo=($kind -eq '1')
-  accessKey=$(if($kind -eq '2'){$fileKey}else{$null})
+  ip=$ip;image=$sha;package=$file;publicKey=$key;accessKey=$fileKey
  }
  Set-SetupPhase $state 'CONFIGURED'
  return $state
@@ -373,28 +396,14 @@ function Confirm-SignedStage([object]$State) {
   '/app/venue-stage.json','/app/venue-signing-public.pem')) 'verify stage signature'
  return $mounts
 }
-function Ask-StrongPassword([string]$Name){
- return Read-VenuePassword $Name
-}
-function Create-Staff([string]$Kind,[string]$Login){
- $password=Ask-StrongPassword $Login
- try{
-  $mounts=@('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
-   '--volume',((Join-Path $Root 'provision-staff.mjs')+':/app/provision-staff.mjs:ro'))
-  # The secret is passed only via stdin, never through command arguments.
-  $password | & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') run --rm --no-deps -T @mounts --entrypoint node api /app/provision-staff.mjs $Kind $Login
-  Assert-Exit ('staff '+$Login)
- }finally{$password=$null}
-}
 function Create-ExistingStaff([object]$State,[array]$Mounts){
- if($State.demo -or [string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
+ if([string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
   !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
   throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
  }
  $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-  '--volume',((Join-Path $Root 'provision-staff.mjs')+':/app/provision-staff.mjs:ro'),
+  '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
   '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
  Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+
   @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
@@ -407,6 +416,10 @@ function Install-Local {
   New-Item -ItemType Directory -Path $PrivateDir|Out-Null
  }
  $state=Read-State
+ if($state -and $state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true){
+  Replace-LegacyDemo $state
+  $state=$null
+ }
  if(!$state){$state=New-InitialState}
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or $cfg['VENUE_IMAGE_TAG'] -ne $state.image){
@@ -454,12 +467,10 @@ function Install-Local {
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){
-  if($state.demo){Create-Staff 'admin' 'operator1'}
-  else{Create-ExistingStaff $state $mounts}
+  Create-ExistingStaff $state $mounts
   Set-SetupPhase $state 'ADMIN_READY'
  }
  if($state.phase -eq 'ADMIN_READY'){
-  if($state.demo){Create-Staff 'judge' 'judge-01'}
   Set-SetupPhase $state 'STAFF_READY'
  }
  if($state.phase -eq 'STAFF_READY'){
@@ -543,12 +554,11 @@ Promise.all([
 function Export-VenueReturn {
  param([switch]$LeaveApiStopped,[switch]$Automatic)
  # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
- # Never run in DEMO, use a central secret, or delete local durable records.
+ # Never use central secrets or delete local durable records.
  if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
  Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку сервера USD'}
- if($state.demo){throw 'ДЕМО не может отправляться на основной сервер'}
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or
   $cfg['VENUE_IMAGE_TAG'] -ne $state.image -or
@@ -662,7 +672,7 @@ function Export-VenueReturn {
 }
 function Sync-VenueReturn([object]$Bundle){
  $state=Read-State
- if(!$state -or $state.demo -or $state.stageId -ne $Bundle.stageId){throw 'Неверный этап для центральной синхронизации'}
+ if(!$state -or $state.stageId -ne $Bundle.stageId){throw 'Неверный этап для центральной синхронизации'}
  $signed=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
  $token=[string]$signed.snapshot.syncAuthorization.token
  if($token -cnotmatch '^[A-Za-z0-9_-]{43}$' -or
@@ -695,7 +705,7 @@ function Restore-VenueApi {
 }
 function Return-Online {
  $state=Read-State
- if($state -and $state.phase -eq 'READY' -and (-not $state.demo)){
+ if($state -and $state.phase -eq 'READY'){
   if($Silent){throw 'Синхронизация реального этапа требует нажатия администратора'}
   $frozen=$false
   try{

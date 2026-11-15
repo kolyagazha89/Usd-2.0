@@ -1,4 +1,8 @@
 # Router-only venue network; no dependency on public DNS or ACME.
+# Windows Schannel may omit SNI for an IP address.
+{
+  default_sni {$VENUE_BIND_IP}
+}
 https://{$VENUE_BIND_IP} {
   tls internal
   encode zstd gzip
