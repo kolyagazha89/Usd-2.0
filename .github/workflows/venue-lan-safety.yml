@@ -216,6 +216,9 @@ jobs:
       - name: Retry Caddy root CA extraction and preserve last valid certificate
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-certificate.ps1
+      - name: Update television frontend only and roll back on Windows without touching API or volumes
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-tv-update.ps1
       - name: Already-admin Windows installation must avoid redundant UAC timeout
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-admin-firewall.ps1
