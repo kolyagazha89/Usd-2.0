@@ -267,6 +267,25 @@ function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
  }
 }
 
+# First boot must work without registry access when all five exact images
+# are already cached. A normal "compose pull" would contact registries again.
+function Test-VenueRuntimeImagesCached([string]$Sha){
+ if($Sha -cnotmatch '^[a-f0-9]{40}\z'){return $false}
+ $required=@(
+  ('ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha),
+  ('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$Sha),
+  'postgres:18-alpine','rustfs/rustfs:1.0.4','caddy:2-alpine'
+ )
+ foreach($ref in $required){
+  try{
+   $id=@(& docker image inspect --format '{{.ID}}' $ref 2>$null)
+   if($LASTEXITCODE -ne 0 -or $id.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$id[0])){
+    return $false
+   }
+  }catch{return $false}
+ }
+ return $true
+}
 # A previously downloaded, immutable API/frontend image pair is sufficient
 # for offline setup. Validate both embedded revision labels and offline modules
 # before reusing it; never trust only a local tag or an unrelated DEMO container.
