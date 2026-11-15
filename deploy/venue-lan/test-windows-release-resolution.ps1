@@ -35,8 +35,10 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  if($Arguments[0] -cne 'pull'){throw 'Only explicit image pull is allowed'}
  $script:pulled+= $Arguments[1]
 }
-$script:cached=@('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha,
- 'ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40))
+$script:cached=@(
+ ('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha),
+ ('ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40))
+)
 $direct=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api)
 Write-Host ('USD TEST: direct Docker refs count='+$direct.Count+' refs='+($direct -join ';'))
 if($direct.Count -ne 2 -or $direct[0] -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){
