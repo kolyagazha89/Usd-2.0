@@ -6,7 +6,7 @@
 import {strict as assert} from 'node:assert';
 import {createHash,createCipheriv,randomBytes,randomUUID,generateKeyPairSync,sign} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
+import {planVenueStageImport,applyVenueStageImport,planInstalledVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
 import {decryptExistingVenueStaff,applyExistingVenueStaff} from './provision-existing-staff.mjs';
 import {collectVenueJournal} from './export-venue-return.mjs';
@@ -323,6 +323,7 @@ async function retainedSeason(){
   const versions=await normal.carConfigurationVersion.count();
   const signed=syntheticSignedStage(undefined,s=>{
    s.stageId=second;s.stage.id=second;s.stage.stageNumber=8;
+   delete s.venuePolicy;
    s.stage.stageClasses.forEach(c=>{c.id=newId(c.id);c.stageId=second});
    for(const r of s.registrations){
     r.id=newId(r.id);r.stageId=second;
@@ -336,6 +337,11 @@ async function retainedSeason(){
   const plan=planVenueStageImport(signed.container,signed.publicPem,env);
   await applyVenueStageImport(plan,root,{shared:true});
   assert.equal(await normal.stage.count(),2);
+  const intake=await normal.siteSettings.findUnique({where:{id:'default'}});
+  assert.equal(intake.legal.legalApproved,false);
+  assert.equal(intake.registration.enabled,false);
+  const recovered=await planInstalledVenueStageImport(signed.container,signed.publicPem,env,normal,Date.now()+4*86400000);
+  assert.equal(recovered.packageHash,plan.packageHash);
   assert.equal(await normal.participant.count(),people);
   assert.equal(await normal.carConfigurationVersion.count(),versions);
   assert.deepEqual(await normal.result.findMany({orderBy:{id:'asc'}}),oldResults);

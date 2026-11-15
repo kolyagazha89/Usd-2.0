@@ -9,8 +9,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertVenueImportEnvironment,assertVenueDatabaseRole} from './import-stage.mjs';
-import {verifyVenueStageHandoff} from './verify-stage-package.mjs';
+import {assertVenueImportEnvironment,assertVenueDatabaseRole,planInstalledVenueStageImport} from './import-stage.mjs';
 import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -180,22 +179,26 @@ export async function applyExistingVenueStaff(staff,stageId,prisma,{shared=false
 
 async function main(){
  const [file,keyFile,secretFile,...extra]=process.argv.slice(2);
- if(!file||!keyFile||!secretFile||extra.length)
+ if(!file||!keyFile||!secretFile||extra.length>1||(extra.length===1&&extra[0]!=='--check'))
   throw new Error('Usage: provision-existing-staff.mjs STAGE.json PUBLIC.pem ACCESS.key');
  if((await stat(file)).size>12*1024*1024+262144||(await stat(secretFile)).size>512)
   throw new Error('Некорректный размер пакета сотрудников');
  const [raw,pem,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8'),readFile(secretFile,'utf8')]);
  const signed=JSON.parse(raw),stageId=process.env.VENUE_STAGE_ID;
  assertVenueImportEnvironment(process.env,stageId);
- const verified=verifyVenueStageHandoff(signed,pem);
- if(verified.stageId!==stageId||!signed.snapshot.staffAccess)
-  throw new Error('Пакет не предназначен для входа существующих сотрудников');
- const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
+  const verified=await planInstalledVenueStageImport(signed,pem,process.env,prisma);
+  if(verified.summary.stageId!==stageId||!signed.snapshot.staffAccess)
+   throw new Error('Пакет не предназначен для входа сотрудников');
+  const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);
+  if(extra[0]==='--check'){
+   process.stdout.write('USD STAFF KEY VERIFIED — NO DATABASE WRITES\n');
+   return;
+  }
   const result=await applyExistingVenueStaff(staff,stageId,prisma,{shared:process.env.VENUE_RETAINED_SEASON==='true'});
   process.stdout.write('USD EXISTING STAFF READY: '+result.staffCount+' accounts\n');
  }finally{await prisma.$disconnect()}

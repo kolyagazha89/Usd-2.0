@@ -170,6 +170,18 @@ jobs:
               throw new Error("Second retained stage API did not become ready");
             })().catch(error=>{console.error(error.message);process.exit(1)});
           '
+      - name: Historical workspace database read must preserve the running container
+        working-directory: deploy/venue-lan
+        run: |
+          before=$(docker compose -p usd-venue ps -q db)
+          other=$(mktemp -d)
+          cp compose.yaml "$other/compose.yaml"
+          mkdir -p "$other/initdb"
+          cp initdb/010-venue-api-role.sh "$other/initdb/"
+          docker compose --project-directory "$other" --env-file "$PWD/.env" -p usd-venue -f "$other/compose.yaml" start --wait db
+          after=$(docker compose -p usd-venue ps -q db)
+          test "$before" = "$after"
+          echo 'USD HISTORICAL DB CONTAINER RETAINED'
       - name: Destroy disposable venue database and configuration
         if: always()
         working-directory: deploy/venue-lan

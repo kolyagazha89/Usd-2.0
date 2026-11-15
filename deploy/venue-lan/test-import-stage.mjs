@@ -262,6 +262,8 @@ test('expired setup resumes only a matching package imported while it was valid'
  for(const invalid of [null,{...receipt,metadata:{sha256:'0'.repeat(64)}},{...receipt,createdAt:new Date(late)}]){
   await assert.rejects(()=>importer.planInstalledVenueStageImport(data,publicPem,env,{auditLog:{findFirst:async()=>invalid}},late));
  }
+ const committedLate={metadata:{sha256:data.integrity.sha256,verifiedAt:new Date(now).toISOString()},createdAt:new Date(late)};
+ assert.equal((await importer.planInstalledVenueStageImport(data,publicPem,env,{auditLog:{findFirst:async()=>committedLate}},late)).packageHash,data.integrity.sha256);
  const tampered=structuredClone(data);tampered.snapshot.stage.name='different';
  await assert.rejects(()=>importer.planInstalledVenueStageImport(tampered,publicPem,env,db,late));
 });

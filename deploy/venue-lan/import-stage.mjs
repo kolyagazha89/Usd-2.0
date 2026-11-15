@@ -188,12 +188,32 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   }
  }
  return {
-  packageHash:signed.integrity.sha256,
+  packageHash:signed.integrity.sha256,verifiedAt:new Date(now).toISOString(),
   snapshot,
   registrations:snapshot.registrations,
   summary:{stageId:verified.stageId,registrations:registrations.size,
    classes:classIds.size,results:resultCount},
  };
+}
+/** TTL applies to first import, not to recovery of the exact committed
+ * package. Only a database receipt created during the signed validity window
+ * can supply the historical verification time; caller-provided time cannot.
+ */
+export async function planInstalledVenueStageImport(signed,pem,env,prisma,now=Date.now()){
+ try{return planVenueStageImport(signed,pem,env,now)}catch(error){
+  const expires=Date.parse(signed?.snapshot?.expiresAt);
+  if(!Number.isFinite(expires)||now<=expires)throw error;
+  assertVenueImportEnvironment(env,signed?.snapshot?.stageId);
+  const receipt=await prisma.auditLog.findFirst({
+   where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:signed.snapshot.stageId},
+   select:{metadata:true,createdAt:true},
+  });
+  const committed=receipt?.createdAt instanceof Date?receipt.createdAt.getTime():NaN;
+  const imported=receipt?.metadata?.verifiedAt?Date.parse(receipt.metadata.verifiedAt):committed;
+  if(receipt?.metadata?.sha256!==signed?.integrity?.sha256||!Number.isFinite(imported)||!Number.isFinite(committed)||imported>committed
+   ||imported>expires||imported<Date.parse(signed.snapshot.generatedAt)-300000)throw error;
+  return planVenueStageImport(signed,pem,env,imported);
+ }
 }
 function validateInspection(inspection){
  assertUuid(inspection.id,'инспекция');
@@ -328,6 +348,13 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
     }});
    }
   }
+  if(shared&&!plan.snapshot.venuePolicy){
+   const current=await tx.siteSettings.findUnique({where:{id:'default'},select:{legal:true,registration:true}});
+   if(current)await tx.siteSettings.update({where:{id:'default'},data:{
+    legal:{...(current.legal??{}),legalApproved:false},
+    registration:{...(current.registration??{}),enabled:false,rulesDocument:{published:null}},
+   }});
+  }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
   for(const r of regs){
    people.set(r.participant.id,r.participant);
@@ -411,7 +438,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
   await tx.auditLog.create({data:{
    action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stage.id,
    metadata:{sha256:plan.packageHash,registrationCount:regs.length,
-    resultCount:plan.summary.results,createdAt:plan.snapshot.generatedAt},
+    resultCount:plan.summary.results,createdAt:plan.snapshot.generatedAt,verifiedAt:plan.verifiedAt},
   }});
   if(shared){
    const changed=await tx.$executeRawUnsafe('UPDATE venue_private.active_stage SET stage_id=$1 WHERE singleton=true',stage.id);
@@ -423,25 +450,32 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
 
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply'].includes(mode)
+ if(!file||!keyFile||!['--dry-run','--apply','--check-installed'].includes(mode)
   ||(mode==='--apply'&&!confirmedId))
   throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
  const [raw,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8')]);
- const plan=planVenueStageImport(JSON.parse(raw),key,process.env);
+ const signed=JSON.parse(raw);
  if(mode==='--dry-run'){
+  const plan=planVenueStageImport(signed,key,process.env);
   process.stdout.write('USD VENUE IMPORT DRY RUN — NO DATABASE CONNECTION\n');
   process.stdout.write(JSON.stringify({...plan.summary,sha256:plan.packageHash})+'\n');
   return;
  }
- if(confirmedId!==plan.summary.stageId)
-  throw new Error('Явно подтверждённый UUID не совпадает с этапом в подписанном пакете');
+ assertVenueImportEnvironment(process.env,signed?.snapshot?.stageId);
  // Resolve Prisma dependencies ONLY AFTER security, signature and dry-run gates.
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
+  const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
+  if(mode==='--check-installed'){
+   process.stdout.write('USD VENUE PACKAGE VERIFIED — NO DATABASE WRITES\n');
+   process.stdout.write(JSON.stringify(plan.summary)+'\n');
+   return;
+  }
+  if(confirmedId!==plan.summary.stageId)throw new Error('UUID не совпадает с этапом');
   const result=await applyVenueStageImport(plan,prisma,{shared:process.env.VENUE_SHARED_IMPORT==='true'});
   process.stdout.write('USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB\n');
   process.stdout.write(JSON.stringify(result)+'\n');

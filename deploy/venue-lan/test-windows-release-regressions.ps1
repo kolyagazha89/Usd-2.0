@@ -55,3 +55,71 @@ services:
  $Root=$originalRoot;$EnvFile=$originalEnv
  Remove-Item -LiteralPath $temp -Recurse -Force
 }
+
+# Cancelling a child before its import commits restores the whole former
+# stack, and does not unexpectedly start judging if the old stage was stopped.
+$Root=$originalRoot;$EnvFile=$originalEnv
+$stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$next='d510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$cancelTemp=Join-Path ([IO.Path]::GetTempPath()) ('usd-cancel-'+[guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $cancelTemp|Out-Null
+try{
+ $newFile=Join-Path $cancelTemp 'next.json'
+ [IO.File]::WriteAllText($newFile,(@{snapshot=@{stageId=$next;expiresAt=[DateTime]::UtcNow.AddHours(2).ToString('o')}}|ConvertTo-Json))
+ function Assert-VenueCompose {}
+ function Ensure-DockerReady {}
+ function Read-State {return [pscustomobject]@{phase='READY';stageId=$stage;fingerprint=('b'*64)}}
+ function Read-Env {return @{'VENUE_STAGE_ID'=$stage;'VENUE_SIGNING_KEY_FINGERPRINT'=('b'*64)}}
+ function Select-VenueFile {return $newFile}
+ function Get-VenueHome {return $cancelTemp}
+ function New-VenueStageWorkspace {return (Join-Path $cancelTemp 'new-workspace')}
+ function Start-VenueDatabase {}
+ function Test-IsActiveVenueStage {return $true}
+ function Test-VenueJudgingRunning {return $script:previouslyRunning}
+ function Export-VenueReturn {return @{stageId=$stage}}
+ function docker {$null=$input;$global:LASTEXITCODE=0}
+ function powershell.exe {$global:LASTEXITCODE=1}
+ function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
+  $command=$Arguments -join ' '
+  if($command -eq 'start --wait'){$script:fullRestore++}
+  elseif($command -ne 'stop'){throw ('Unexpected cancellation command '+$command)}
+ }
+ foreach($running in @($true,$false)){
+  $script:previouslyRunning=$running;$script:fullRestore=0
+  try{Switch-ToNextStage;throw 'Child failure was hidden'}catch{
+   if($_.Exception.Message -notmatch 'append next signed stage'){throw}
+  }
+  $expected=$(if($running){1}else{0})
+  if($script:fullRestore -ne $expected){throw 'Cancelled switch did not preserve previous running state'}
+ }
+ Write-Host 'USD CANCEL PASS: all services restored only when previously running'
+}finally{Remove-Item -LiteralPath $cancelTemp -Recurse -Force}
+
+# /release reachability must not force registry downloads for prepared stages.
+$script:cachedChecks=0
+function Assert-VenueReleaseImages([string]$Sha){$script:cachedChecks++}
+function Invoke-RestMethod {throw 'Prepared stage unexpectedly contacted public release'}
+function Invoke-Docker {throw 'Prepared stage unexpectedly pulled registry images'}
+if((Get-VenueReleaseSha @{'VENUE_IMAGE_TAG'=$sha}) -cne $sha -or $script:cachedChecks -ne 1){
+ throw 'Verified image cache was not reused'
+}
+Write-Host 'USD CACHE PASS: cached prepared stage requires neither release nor registry'
+
+# A valid-looking key belonging to another stage can be replaced before import.
+$keyTemp=Join-Path ([IO.Path]::GetTempPath()) ('usd-key-'+[guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $keyTemp|Out-Null
+$priorPrivate=$PrivateDir;$PrivateDir=$keyTemp
+try{
+ $wrong=Join-Path $keyTemp 'stored.key';$right=Join-Path $keyTemp 'replacement.key'
+ [IO.File]::WriteAllText($wrong,('A'*43));[IO.File]::WriteAllText($right,('B'*43))
+ $state=[pscustomobject]@{accessKey=$wrong};$script:keyChecks=0
+ function Select-VenueFile {return $right}
+ function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly){
+  if(!$CheckOnly){throw 'Staff preflight attempted database writes'}
+  $script:keyChecks++
+  if([IO.File]::ReadAllText($State.accessKey) -cne ('B'*43)){throw 'wrong stage key'}
+ }
+ Confirm-VenueStaffKey $state @()
+ if($script:keyChecks -ne 2){throw 'Replacement stage key was not revalidated'}
+ Write-Host 'USD KEY RECOVERY PASS: wrong stage key replaced without DB writes'
+}finally{$PrivateDir=$priorPrivate;Remove-Item -LiteralPath $keyTemp -Recurse -Force}

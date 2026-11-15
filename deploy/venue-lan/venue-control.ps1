@@ -33,7 +33,7 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  Assert-Exit $Purpose
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
- Invoke-Docker (@('compose','-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))+$Arguments) $Purpose
+ Invoke-Docker ((Get-VenueComposeArguments)+$Arguments) $Purpose
 }
 function Assert-VenueCompose {
  $compose=[IO.File]::ReadAllText((Join-Path $Root 'compose.yaml'))
@@ -240,7 +240,7 @@ function Assert-VenueReleaseImages([string]$Sha){
  $apiImage='ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha
  $program=@'
 const fs=require("node:fs");
-const sha=process.argv[1];
+const sha=process.argv[2];
 const files=[
  "/app/dist/auth/venue-route-policy.js",
  "/app/dist/stages/venue-staff-access.js",
@@ -254,7 +254,7 @@ if(release.revision!==sha)process.exit(5);
 if(!fs.readFileSync("/app/dist/prisma/prisma.service.js","utf8").includes("venue_private.active_stage"))process.exit(6);
 console.log("USD VENUE API RELEASE CHECK PASSED");
 '@
- & docker run --rm --network none --entrypoint node $apiImage -e $program $Sha | Out-Host
+ $program | & docker run --rm -i --network none --entrypoint node $apiImage - $Sha | Out-Host
  if($LASTEXITCODE -ne 0){
   throw 'На Ubuntu установлена старая версия USD без полного офлайн-режима. Ничего не установлено; повторите после обновления.'
  }
@@ -315,15 +315,7 @@ function New-InitialState {
   $sharedConfig=Read-Env (Join-Path ([string]$source.workspace) '.env')
  }
  $ip=$(if($sharedConfig){$sharedConfig['VENUE_BIND_IP']}else{Get-PrivateLanIp})
- $release=$null
- try{$release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20}catch{if(!$sharedConfig){throw}}
- $sha=$(if($release){[string]$release.revision}else{$sharedConfig['VENUE_IMAGE_TAG']})
- if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
- if($release){
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
- }
- Assert-VenueReleaseImages $sha
+ $sha=Get-VenueReleaseSha $sharedConfig
  $file='';$key='';$stageId='';$fingerprint=''
  $file=$(if($StageFile){$StageFile}else{Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'})
  if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Файл этапа отсутствует'}
@@ -399,10 +391,12 @@ function Confirm-SignedStage([object]$State) {
  }
  $mounts=@('--volume',($State.package+':/app/venue-stage.json:ro'),
   '--volume',($State.publicKey+':/app/venue-signing-public.pem:ro'),
-  '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'))
+  '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
+  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
  Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
-  @('--entrypoint','node','api','/app/verify-stage-package.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem')) 'verify stage signature'
+  @('--entrypoint','node','api','/app/import-stage.mjs',
+  '/app/venue-stage.json','/app/venue-signing-public.pem','--check-installed')) 'verify stage signature or exact installed receipt'
+ Confirm-VenueStaffKey $State $mounts
  return $mounts
 }
 function Install-Local {
@@ -424,6 +418,7 @@ function Install-Local {
  Ensure-Firewall $state.ip
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){Start-Local;return}
+ if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'CONFIGURED'){
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){Invoke-Compose @('pull') 'download images'}
@@ -456,18 +451,17 @@ function Install-Local {
    Import-SharedVenueStage $state $cfg $mounts
   }else{
    Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
-    @('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-     '--entrypoint','node','api','/app/import-stage.mjs',
+    @(     '--entrypoint','node','api','/app/import-stage.mjs',
      '/app/venue-stage.json','/app/venue-signing-public.pem','--apply',$state.stageId)) 'signed stage import'
   }
   Set-SetupPhase $state 'IMPORTED'
  }
  if($state.phase -eq 'IMPORTED'){
-   $installed=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
+   $installed=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
   Assert-Exit 'inspect journal after resumed import'
   $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
   Get-Content -LiteralPath (Join-Path $Root $journalFile) -Raw -Encoding UTF8 |
-   & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+   & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
   Assert-Exit 'append-only journal'
   Set-SetupPhase $state 'JOURNAL_READY'
  }
@@ -489,7 +483,7 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  if(Test-Path -LiteralPath $destination){return}
  try{
-  $container=(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
+  $container=(& docker @(Get-VenueComposeArguments) ps -q gateway | Select-Object -First 1)
   if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
    $container -notmatch '^[a-f0-9]{12,64}$'){return}
   & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
@@ -509,9 +503,10 @@ function Start-Local {
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
  Assert-NoOtherVenueGatewayRunning
- Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start local DB for journal coverage check'
+ Start-VenueDatabase
+ if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
  Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
-  & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+  & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
@@ -551,7 +546,7 @@ Promise.all([
  try{
   # Windows PowerShell 5.1 strips JavaScript string quotes from native
   # node -e arguments. Send the original program on stdin instead.
-  $program | & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
+  $program | & docker @(Get-VenueComposeArguments) exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
@@ -591,7 +586,7 @@ function Export-VenueReturn {
  }
  $fingerprint=(Get-Content -LiteralPath $fingerprintFile -Raw -Encoding UTF8).Trim()
  if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Некорректный отпечаток ключа'}
- Invoke-Compose @('up','-d','--wait','db') 'start isolated DB for safe export'
+ Start-VenueDatabase
  $date=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
  $filename=('usd-venue-return-'+$state.stageId+'-'+$date+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)+'.json')
  $secret=$null
@@ -609,7 +604,7 @@ function Export-VenueReturn {
  # A direct Export click is as important as the Online button: do NOT export
  # while a judge can still enter a result. Detect the prior API state so
  # export from a stopped server never starts it unexpectedly.
- $apiRunning=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
+ $apiRunning=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=(@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) -and (Test-IsActiveVenueStage $state.stageId)
  $apiStopped=$false
@@ -620,8 +615,7 @@ function Export-VenueReturn {
    Invoke-Compose @('stop','api') 'pause judging before consistent signed return export'
    $apiStopped=$true
   }
-  $args=@('compose','-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'),
-   'run','--rm','--no-deps','-T',
+  $args=@(Get-VenueComposeArguments)+@('run','--rm','--no-deps','-T',
    '--volume',($volume+':/app/venue-return-keys:ro'),
    '--volume',($directory+':/app/venue-return-output:rw'),
    '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
