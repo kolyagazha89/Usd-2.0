@@ -17,6 +17,11 @@ $StateFile=Join-Path $PrivateDir 'setup-state.json'
 $EnvFile=Join-Path $Root '.env'
 $StartupFile=Join-Path ([Environment]::GetFolderPath('Startup')) 'USD-Venue-Autostart.lnk'
 $OnlineUrl='https://app.usd-russia.ru'
+$script:VenueStep='initialization'
+function Set-VenueStep([string]$Name) {
+ $script:VenueStep=$Name
+ Write-Host ('USD VENUE STEP: '+$Name)
+}
 $Phases=@('CONFIGURED','STORAGE_READY','SCHEMA_READY','IMPORTED','JOURNAL_READY','ADMIN_READY','STAFF_READY','READY')
 
 function Get-RandomSecret([int]$Size=32){
@@ -284,52 +289,16 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
 # Never attach a fresh installer folder to volumes from another installation.
 function Replace-LegacyDemo([object]$State){
  if($State.demo -ne $true -or $State.phase -ne 'READY' -or $State.accessKey){
-  throw 'Автоматически очистить можно только завершённую старую пробную установку. Данные сохранены.'
+  throw 'Только завершённая старая DEMO-установка может перейти в отдельную папку.'
  }
  $cfg=Read-Env
- if($cfg['VENUE_STAGE_ID'] -ne $State.stageId -or
-  $cfg['VENUE_IMAGE_TAG'] -ne $State.image -or
-  $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $State.fingerprint -or
-  $cfg['VENUE_BIND_IP'] -ne $State.ip){
-  throw 'Идентификаторы старой пробной установки не совпадают; очистка запрещена.'
+ if($cfg['VENUE_STAGE_ID'] -cne [string]$State.stageId -or
+    $cfg['VENUE_IMAGE_TAG'] -cne [string]$State.image -or
+    $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -cne [string]$State.fingerprint -or
+    $cfg['VENUE_BIND_IP'] -cne [string]$State.ip){
+  throw 'Старая DEMO-конфигурация не совпадает. Никаких данных не удалено.'
  }
- if(Test-Path -LiteralPath (Join-Path $PrivateDir 'return-output')){
-  throw 'Найдены возвратные файлы. Установка не удалена: сохраните их и проверьте данные вручную.'
- }
- $containers=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.ID}}')
- Assert-Exit 'check venue containers before cleanup'
- foreach($id in $containers){
-  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID контейнера'}
-  $labels=Read-VenueDockerLabels 'container' ([string]$id)
-  if([string]$labels.'com.docker.compose.project' -cne 'usd-venue' -or
-   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','rustfs','gateway')){
-   throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
-  }
- }
- $volumes=@(& docker volume ls --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Name}}')
- Assert-Exit 'check venue volumes before cleanup'
- foreach($volume in $volumes){
-  if($volume -notin @('usd-venue_venue_db','usd-venue_venue_media','usd-venue_venue_ca',
-    'usd-venue_venue_caddy_config','usd-venue_venue_return_keys')){
-   throw 'В проекте есть неизвестный Docker-том. Очистка отменена.'
-  }
- }
- if(-not(Confirm-VenueAction ('Старая пробная база USD будет удалена БЕЗ ВОССТАНОВЛЕНИЯ.'+
-  [Environment]::NewLine+'Этап: '+$State.stageId+
-  [Environment]::NewLine+'Удаляем только проект usd-venue и его тестовые данные. Основной сервер Ubuntu не затрагивается.'+
-  [Environment]::NewLine+'Продолжить и установить настоящий этап?'))){
-  throw 'Очистка отменена, старая база сохранена.'
- }
- Remove-Autostart
- Invoke-Compose @('down','--volumes') 'remove confirmed retired test volumes'
- Remove-Item -LiteralPath $EnvFile -Force
- Remove-Item -LiteralPath $PrivateDir -Recurse -Force
- foreach($legacy in @('make-demo-stage.mjs','provision-staff.mjs')){
-  $obsolete=Join-Path $Root $legacy
-  if(Test-Path -LiteralPath $obsolete -PathType Leaf){Remove-Item -LiteralPath $obsolete -Force}
- }
- New-Item -ItemType Directory -Path $PrivateDir|Out-Null
- Write-Host 'Старая пробная база удалена. Продолжаем установку подписанного этапа.'
+ Start-IsolatedVenueFromDemo $State
 }
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
@@ -425,6 +394,7 @@ function Confirm-SignedStage([object]$State) {
  return $mounts
 }
 function Install-Local {
+ Set-VenueStep 'check-compose-and-docker'
  Assert-VenueCompose
  Ensure-DockerReady
  if(!(Test-Path -LiteralPath $PrivateDir)){
@@ -432,20 +402,28 @@ function Install-Local {
  }
  $state=Read-State
  if($state -and $state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true){
+  Set-VenueStep 'preserve-old-demo-and-create-isolated-real-stage'
   Replace-LegacyDemo $state
-  $state=$null
+  return
  }
- if(!$state){$state=New-InitialState}
+ if(!$state){
+  Set-VenueStep 'select-and-configure-signed-stage'
+  $state=New-InitialState
+ }
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or $cfg['VENUE_IMAGE_TAG'] -ne $state.image){
   throw 'Конфигурация этапа не совпадает с установкой'
  }
+ Set-VenueStep 'configure-windows-private-lan-firewall'
  Ensure-Firewall $state.ip
+ Set-VenueStep 'validate-docker-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){Start-Local;return}
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
+ Set-VenueStep 'verify-signed-stage-and-staff-key'
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'CONFIGURED'){
+  Set-VenueStep 'provision-local-storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){Invoke-Compose @('pull') 'download images'}
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
@@ -464,6 +442,7 @@ function Install-Local {
   Set-SetupPhase $state 'STORAGE_READY'
  }
  if($state.phase -eq 'STORAGE_READY'){
+  Set-VenueStep 'migrate-local-database'
   Invoke-Compose @('up','-d','db','rustfs') 'start DB'
   Invoke-Compose @('run','--rm','--no-deps','--entrypoint',
    './node_modules/.bin/prisma','api','migrate','deploy',
@@ -471,6 +450,7 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
+  Set-VenueStep 'import-signed-stage-into-local-database'
   $isShared=$state.PSObject.Properties.Name -contains 'shared' -and $state.shared
   if($isShared){
    Import-SharedVenueStage $state $cfg $mounts
@@ -482,6 +462,7 @@ function Install-Local {
   Set-SetupPhase $state 'IMPORTED'
  }
  if($state.phase -eq 'IMPORTED'){
+  Set-VenueStep 'install-append-only-journal'
    $installed=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
   Assert-Exit 'inspect journal after resumed import'
   $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
@@ -491,6 +472,7 @@ function Install-Local {
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){
+  Set-VenueStep 'enable-local-staff-logins'
   Create-ExistingStaff $state $mounts
   Set-SetupPhase $state 'ADMIN_READY'
  }
@@ -498,10 +480,12 @@ function Install-Local {
   Set-SetupPhase $state 'STAFF_READY'
  }
  if($state.phase -eq 'STAFF_READY'){
+  Set-VenueStep 'start-lan-api-and-live'
   Assert-NoOtherVenueGatewayRunning
   Invoke-Compose @('up','-d') 'start HTTPS API and LIVE'
   Set-SetupPhase $state 'READY'
  }
+ Set-VenueStep 'verify-live-lan-server'
  Start-Local
 }
 function Export-VenueCA {
@@ -762,10 +746,10 @@ try{
  elseif($Action -eq 'next'){Switch-ToNextStage}
  else{Return-Online}
 }catch{
- Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
+ Write-Host ('USD VENUE: не удалось выполнить '+$Action+'; step='+$script:VenueStep) -ForegroundColor Red
  if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
  if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
-  Show-VenueMessage ('Действие не завершено.'+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
+  Show-VenueMessage ('Действие не завершено. Шаг: '+$script:VenueStep+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
  }
  Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
  exit 1
