@@ -1,0 +1,14 @@
+name: Venue shared PostgreSQL unit validation
+on:
+  push:
+    branches: [feat/venue-one-db-stage-history-20261115]
+permissions: {contents: read}
+jobs:
+  stage-import-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Test incremental signed import and per-stage return
+        run: node --test deploy/venue-lan/test-import-stage.mjs deploy/venue-lan/test-export-venue-return.mjs
