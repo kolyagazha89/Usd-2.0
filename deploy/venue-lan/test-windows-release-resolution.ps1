@@ -7,6 +7,8 @@ $sha='a'*40
 $second='b'*40
 $script:trustedSha=$sha
 $script:approvedAltSha=$second
+$script:pinnedSha='aa0d1a83c70b894a8b5e36141927bc572c71b3c5'
+$script:registryBlocked=$false
 $script:verified=@()
 $script:pulled=@()
 $script:urls=@()
@@ -23,7 +25,9 @@ function docker {
 }
 function Assert-VenueReleaseImages([string]$Sha){
  $script:verified+= $Sha
- if($Sha -cne $script:trustedSha -and $Sha -cne $script:approvedAltSha){throw 'unverified revision'}
+ if($Sha -cne $script:trustedSha -and $Sha -cne $script:approvedAltSha -and $Sha -cne $script:pinnedSha){
+ throw 'unverified revision'
+}
 }
 function Invoke-RestMethod {
  param([string]$Uri,[int]$TimeoutSec)
@@ -35,6 +39,7 @@ function Invoke-RestMethod {
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  if($Arguments[0] -cne 'pull'){throw 'Only explicit image pull is allowed'}
+ if($script:registryBlocked){throw 'GHCR network blocked on this machine'}
  $script:pulled+= $Arguments[1]
 }
 $script:cached=@(
@@ -64,10 +69,17 @@ if($result -cne $second -or $script:urls.Count -ne 2 -or $script:pulled.Count -n
 Write-Host 'USD RELEASE FALLBACK PASS: API timeout uses signed site release metadata'
 $script:urls=@();$script:verified=@();$script:pulled=@()
 $script:allowFrontend=$false
+$result=Get-VenueReleaseSha $null
+if($result -cne $script:pinnedSha -or $script:urls.Count -ne 2 -or
+   $script:pulled.Count -ne 2 -or $script:verified -notcontains $script:pinnedSha){
+ throw 'Both USD endpoints timed out but immutable published image fallback was not used'
+}
+Write-Host 'USD RELEASE PUBLICATION PASS: GHCR-only fallback works without both USD sites'
+$script:registryBlocked=$true
 $failure=''
 try{Get-VenueReleaseSha $null|Out-Null}catch{$failure=$_.Exception.Message}
-if($failure -notmatch 'api.usd-russia.ru' -or $failure -notmatch 'app.usd-russia.ru' -or
- $failure -notmatch 'docker' -or $failure -notmatch 'офлайн'){
- throw ('Dual-endpoint timeout was not explained: '+$failure)
+if($failure -notmatch 'ghcr.io' -or $failure -notmatch 'GHCR network blocked' -or
+   $failure -notmatch 'Docker'){
+ throw ('No working internet and no image cache was not explained: '+$failure)
 }
-Write-Host 'USD RELEASE FAILURE PASS: no cache and both release endpoints timed out explains recovery'
+Write-Host 'USD RELEASE FAILURE PASS: no internet reports exact blocked registry and preserves volumes'
