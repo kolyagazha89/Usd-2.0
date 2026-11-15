@@ -160,9 +160,11 @@ function Test-VenueFirewallRule([string]$Ip){
   )
  }catch{return $false}
 }
+function Test-VenueElevated {
+ $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+ return ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
 function Ensure-Firewall([string]$Ip){
- # The selected venue address must be on this device. Its Wi-Fi network must
- # be Private; never silently expose port 443 on a Public network.
  $interface=Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
   Where-Object {$_.IPAddress -eq $Ip -and $_.AddressState -eq 'Preferred'} |
   Select-Object -First 1
@@ -181,19 +183,25 @@ function Ensure-Firewall([string]$Ip){
   $approvePrivate=$true
  }
  if(Test-VenueFirewallRule $Ip){return}
- # An interrupted earlier setup may leave a rule with this exact USD name
- # but stale filters. The elevated helper repairs ONLY that name, preserving
- # all unrelated Windows firewall rules and restricting LAN access to TCP 443.
  $script=Join-Path $Root 'venue-firewall.ps1'
  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$script+'" -Ip "'+$Ip+'"'
  if($approvePrivate){$arguments+=' -AllowPrivateProfile'}
- Write-Host 'Для безопасного HTTPS на Wi-Fi судей подтвердите запрос администратора Windows (UAC).'
- try {
-  $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
+ $exitCode=$null
+ try{
+  if(Test-VenueElevated){
+   $helperArgs=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$script,'-Ip',$Ip)
+   if($approvePrivate){$helperArgs+='-AllowPrivateProfile'}
+   & powershell.exe @helperArgs | Out-Host
+   $exitCode=$LASTEXITCODE
+  }else{
+   Write-Host 'Подтвердите запрос администратора Windows (UAC).'
+   $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
+   $exitCode=$task.ExitCode
+  }
  }catch{
-  throw ('Не удалось завершить настройку брандмауэра Windows/UAC: '+$_.Exception.Message+'. Проверьте запрос администратора и повторите.')
+  throw ('Настройка брандмауэра Windows/UAC: '+$_.Exception.Message)
  }
- switch([int]$task.ExitCode){
+ switch([int]$exitCode){
   0 {break}
   20 {throw 'Сеть не является частной. Установите профиль Wi-Fi «Частная» в параметрах Windows и повторите запуск.'}
   21 {throw 'Windows не разрешила сделать выбранную сеть частной. Проверьте права администратора или политику сети.'}
@@ -208,7 +216,6 @@ function Ensure-Firewall([string]$Ip){
  }
 }
 function Save-Autostart {
- # A real Windows shortcut preserves non-ASCII paths in the repo/user profile.
  $script=Join-Path $Root 'venue-control.ps1'
  $shell=New-Object -ComObject WScript.Shell
  $shortcut=$shell.CreateShortcut($StartupFile)
@@ -642,9 +649,6 @@ function Export-VenueReturn {
   }
   $secret='UsdSync!1-'+$syncToken
  }else{$secret=Read-VenuePassword 'шифрования возвратного файла'}
- # A direct Export click is as important as the Online button: do NOT export
- # while a judge can still enter a result. Detect the prior API state so
- # export from a stopped server never starts it unexpectedly.
  $apiRunning=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=(@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) -and (Test-IsActiveVenueStage $state.stageId)
@@ -684,9 +688,6 @@ function Export-VenueReturn {
   $exportSucceeded=$true
  }finally{
   $secret=$null
-  # A standalone export must restore the judge API, whereas the Online
-  # button intentionally leaves it frozen until the remaining stack stops.
-  # Any failed export restores the previously running API in both modes.
   if($apiStopped -and ((-not $LeaveApiStopped) -or (-not $exportSucceeded))){
    Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after return export'
   }
@@ -719,8 +720,6 @@ function Sync-VenueReturn([object]$Bundle){
  }
  $encrypted=[IO.File]::ReadAllText($Bundle.path).Trim()
  $pem=[IO.File]::ReadAllText($Bundle.publicKey)
- # Preserve the exact authenticated AES-GCM envelope JSON: ConvertTo-Json
- # of a large nested object can truncate it on Windows PowerShell 5.1.
  $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId -Compress)+
   ',"publicKeyPem":'+(ConvertTo-Json -InputObject $pem -Compress)+
   ',"envelope":'+$encrypted+'}'
