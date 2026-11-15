@@ -567,10 +567,9 @@ function Start-Local {
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
   Write-Host ('LIVE без сертификата: http://'+$state.ip+'/venue/live')
-  Write-Host ('ДЕМО табло: http://'+$state.ip+'/venue/live?demo=1')
   Write-Host 'Телефонам необходимо отдельно доверить локальный CA Caddy.'
   Start-Process $url
-  Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход для судей: '+$url+[Environment]::NewLine+'LIVE без сертификата: http://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Проверка ТВ: http://'+$state.ip+'/venue/live?demo=1'+[Environment]::NewLine+'Для ввода результатов на телефонах пока требуется доверенный HTTPS; табло открывается без установки CA.')
+  Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход для судей: '+$url+[Environment]::NewLine+'LIVE без сертификата: http://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Результаты на табло обновляются каждые 4 секунды.'+[Environment]::NewLine+'Для ввода результатов на телефонах пока требуется доверенный HTTPS; табло открывается без установки CA.')
  }
 }
 function Test-VenueApiReady([string]$ExpectedSha,[string]$ExpectedStage) {
