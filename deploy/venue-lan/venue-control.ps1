@@ -233,12 +233,31 @@ function Save-DesktopShortcuts {
  $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
  $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
+# PowerShell 5.1 strips embedded quotes inside native Docker Go-templates.
+# Read an entire labels map as JSON, using a template without quoted keys.
+function Read-VenueDockerLabels([ValidateSet('container','image')][string]$Kind,[string]$Identity){
+ if([string]::IsNullOrWhiteSpace($Identity)){throw 'Docker object ID is missing'}
+ $arguments=$(if($Kind -eq 'container'){
+  @('inspect','--format','{{json .Config.Labels}}',$Identity)
+ }else{
+  @('image','inspect','--format','{{json .Config.Labels}}',$Identity)
+ })
+ $output=@(& docker @arguments 2>$null)
+ Assert-Exit 'inspect Docker labels'
+ if($output.Count -ne 1){throw 'Docker did not return exactly one label map'}
+ try{$labels=ConvertFrom-Json -InputObject ([string]$output[0]) -ErrorAction Stop}
+ catch{throw 'Docker returned invalid JSON labels'}
+ if($null -eq $labels -or $labels -isnot [pscustomobject]){
+  throw 'Docker object is missing its trusted labels'
+ }
+ return $labels
+}
 function Assert-VenueReleaseImages([string]$Sha){
  if($Sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Неверная версия USD'}
  foreach($name in @('api','frontend')){
   $ref='ghcr.io/kolyagazha89/usd-2.0-'+$name+':'+$Sha
-  $revision=(& docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' $ref 2>$null)
-  if($LASTEXITCODE -ne 0 -or [string]$revision -cne $Sha){
+  $labels=Read-VenueDockerLabels 'image' $ref
+  if([string]$labels.'org.opencontainers.image.revision' -cne $Sha){
    throw 'Образы USD ещё не совпадают с подтверждённой версией сервера. Завершите обновление Ubuntu и повторите установку.'
   }
  }
@@ -279,10 +298,13 @@ function Replace-LegacyDemo([object]$State){
  if(Test-Path -LiteralPath (Join-Path $PrivateDir 'return-output')){
   throw 'Найдены возвратные файлы. Установка не удалена: сохраните их и проверьте данные вручную.'
  }
- $services=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Label "com.docker.compose.service"}}')
+ $containers=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.ID}}')
  Assert-Exit 'check venue containers before cleanup'
- foreach($service in $services){
-  if($service -notin @('db','api','frontend','rustfs','gateway')){
+ foreach($id in $containers){
+  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID контейнера'}
+  $labels=Read-VenueDockerLabels 'container' ([string]$id)
+  if([string]$labels.'com.docker.compose.project' -cne 'usd-venue' -or
+   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','rustfs','gateway')){
    throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
   }
  }
