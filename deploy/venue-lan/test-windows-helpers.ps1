@@ -225,7 +225,7 @@ function Remove-NetFirewallRule {
 function New-NetFirewallRule {
  [CmdletBinding()]
  param([string]$DisplayName,[string]$Direction,[string]$Action,[string]$Enabled,
-  [string]$Profile,[string]$Protocol,[string]$LocalPort,[string]$LocalAddress,
+  [string]$Profile,[string]$Protocol,[string[]]$LocalPort,[string]$LocalAddress,
   [string]$RemoteAddress)
  if($global:ruleState -ne 'absent' -or $DisplayName -ne $global:expectedName -or
   $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Profile -ne 'Private' -or
