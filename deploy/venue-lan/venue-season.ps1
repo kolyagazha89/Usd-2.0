@@ -18,11 +18,11 @@ function Get-VenueProject {
 function Get-VenueHome {
  $state=Read-State
  if($state -and $state.PSObject.Properties.Name -contains 'home'){
-  $home=[string]$state.home
-  if(![IO.Path]::IsPathRooted($home) -or !(Test-Path -LiteralPath $home -PathType Container)){
+  $venueBase=[string]$state.home
+  if(![IO.Path]::IsPathRooted($venueBase) -or !(Test-Path -LiteralPath $venueBase -PathType Container)){
    throw 'Исходная папка USD не найдена. Данные не изменены.'
   }
-  return $home
+  return $venueBase
  }
  $parent=Split-Path -Path $Root -Parent
  if((Split-Path -Path $parent -Leaf) -eq 'stage-workspaces'){
@@ -70,8 +70,8 @@ function Get-VenueKitFiles {
  )
 }
 function New-VenueStageWorkspace([string]$StageId){
- $home=Get-VenueHome
- $target=Join-Path (Join-Path $home 'stage-workspaces') $StageId
+ $venueBase=Get-VenueHome
+ $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
  $files=@(Get-VenueKitFiles)
  foreach($file in $files){
   if(!(Test-Path -LiteralPath (Join-Path $Root $file) -PathType Leaf)){
