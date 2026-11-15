@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Req, StreamableFile } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import {VenueAutoSyncService} from './venue-auto-sync.service';
 import { StagesService } from './stages.service';
 import { VenueStageService } from './venue-stage.service';
+import { VenueCertificateService } from './venue-certificate.service';
 import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
@@ -45,6 +46,33 @@ export class StagesController {
   @Header('Pragma', 'no-cache')
   venueSetup(@Req() request:AuthenticatedRequest){
     return this.venueStageService.getSetup(request);
+  }
+
+  /** Online ADMIN publishes ONLY the public Caddy CA exported by the offline laptop. */
+  @Roles('ADMIN')
+  @Get('venue/certificate')
+  @Header('Cache-Control','private, no-store, max-age=0')
+  certificateMetadata(@Req() request:AuthenticatedRequest){
+    return this.venueCertificateService.metadata(request);
+  }
+
+  @Roles('ADMIN')
+  @Post('venue/certificate')
+  @Header('Cache-Control','private, no-store, max-age=0')
+  publishVenueCertificate(@Body() body:unknown,@Req() request:AuthenticatedRequest){
+    return this.venueCertificateService.publish(body,request);
+  }
+
+  /** The public root is not sensitive. Phone downloads must work without logging in. */
+  @Public()
+  @Get('venue/certificate/download/:format')
+  @Header('Cache-Control','no-store, max-age=0')
+  @Header('X-Content-Type-Options','nosniff')
+  async downloadVenueCertificate(@Param('format') format:string){
+    if(format!=='cer'&&format!=='crt')throw new BadRequestException('Допустимы только cer и crt');
+    const cert=await this.venueCertificateService.download(format);
+    return new StreamableFile(cert.data,{type:cert.contentType,
+     disposition:'attachment; filename="'+cert.filename+'"'});
   }
 
   /**
