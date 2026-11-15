@@ -494,6 +494,10 @@ function Install-Local {
   Get-Content -LiteralPath (Join-Path $Root 'install-journal.sql') -Raw -Encoding UTF8 |
    & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
   Assert-Exit 'append-only journal'
+  # Root-owned active stage must exist before the initial Nest API startup.
+  Get-Content -LiteralPath (Join-Path $Root 'install-season.sql') -Raw -Encoding UTF8 |
+   & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+  Assert-Exit 'root-owned initial active stage'
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){

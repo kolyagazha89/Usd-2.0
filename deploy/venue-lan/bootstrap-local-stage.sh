@@ -68,5 +68,12 @@ from preflight import load_env
 print(load_env(Path('.env'))['VENUE_DB_NAME'])
 PY
 )" < "$ROOT/install-journal.sql"
+"${COMPOSE[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d \
+  "$(python3 - <<'PY'
+from pathlib import Path
+from preflight import load_env
+print(load_env(Path('.env'))['VENUE_DB_NAME'])
+PY
+)" < "$ROOT/install-season.sql"
 echo "USD VENUE: signed stage copied and durable journal installed."
 echo "Local staff accounts, media and secure reverse sync still require acceptance."

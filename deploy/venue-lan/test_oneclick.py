@@ -110,6 +110,13 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)
         self.assertNotIn("VENUE_JWT_SECRET=REPLACE_",source)
+    def test_initial_stage_installs_root_active_selector_before_first_api(self):
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        part=ctl[ctl.index("if($state.phase -eq 'IMPORTED')"):ctl.index("if($state.phase -eq 'JOURNAL_READY')")]
+        self.assertIn("install-journal.sql",part)
+        self.assertIn("install-season.sql",part)
+        self.assertLess(part.index("install-season.sql"),part.index("Set-SetupPhase $state 'JOURNAL_READY'"))
+
     def test_next_signed_stage_uses_same_docker_project_and_postgres_history(self):
         launch=(ROOT/'USD-Next-Stage.cmd').read_text(encoding='utf-8')
         ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
