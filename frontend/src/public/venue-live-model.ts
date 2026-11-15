@@ -92,3 +92,31 @@ export function buildVenueTvSlides(groups:readonly VenueLiveGroup[],pageSize:num
  }
  return slides;
 }
+
+/** In-memory visual rehearsal. No real entrants, network reads or database writes. */
+export function createVenueTvDemoSnapshot():VenueLiveSnapshot{
+ const classes=[
+  {id:'demo-spl-limited',name:'Limited 2.0',direction:'SPL',order:1,rows:12,base:154.7},
+  {id:'demo-spl-nolim',name:'NoLim',direction:'SPL',order:2,rows:5,base:160.8},
+  {id:'demo-bfspl-gate',name:'Gate 1',direction:'BFSPL',order:1,rows:8,base:149.1},
+  {id:'demo-bfspl-wicket',name:'Wicket 6-10',direction:'BFSPL',order:2,rows:4,base:146.3},
+  {id:'demo-bdw',name:'BDW SPL',direction:'BDW SPL',order:1,rows:6,base:151.2},
+ ] as const;
+ const rows:VenueLiveRow[]=[];
+ let number=100;
+ for(const cls of classes){
+  for(let position=1;position<=cls.rows;position++){
+   number++;
+   rows.push({
+    id:cls.id+':'+position,place:position,number,
+    value:(cls.base-position*0.61).toFixed(2),unit:'DB',
+    participant:'Тестовый участник '+String(number),
+    car:'Демонстрационный автомобиль',
+    class:{id:cls.id,name:cls.name,sortOrder:cls.order,
+     direction:{name:cls.direction,sortOrder:cls.direction==='SPL'?1:cls.direction==='BFSPL'?2:3}},
+   });
+  }
+ }
+ return {stage:{id:'demo-only-not-a-stage',name:'Проверка USD LIVE',city:'ДЕМОРЕЖИМ'},
+  updatedAt:'',rows};
+}
