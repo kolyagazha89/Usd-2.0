@@ -50,7 +50,8 @@ function fakeDb(){
   $queryRawUnsafe:async()=>[{rolsuper:false}],
   stage:{count:async()=>stageCount,findFirst:async()=>({id:stage})},
   user:{count:async()=>rows.size,findMany:async()=>[...rows.values()],
-   create:async({data})=>{if(rows.has(data.id))throw Error('duplicate user');rows.set(data.id,data);log.push({type:'user',data});return {id:data.id}}},
+   create:async({data})=>{if(rows.has(data.id))throw Error('duplicate user');rows.set(data.id,data);log.push({type:'user',data});return {id:data.id}},
+   update:async({where,data})=>{const old=rows.get(where.id);if(!old)throw Error('missing staff user');const next={...old,...data};rows.set(where.id,next);log.push({type:'update',data:next});return next}},
   role:{findUnique:async({where})=>[...roles.values()].find(r=>r.key===where.key||r.id===where.id)??null,
    create:async({data})=>{roles.set(data.id,data);log.push({type:'role',data});return data}},
   auditLog:{create:async({data})=>{log.push({type:'audit',data});return data}},
@@ -106,4 +107,39 @@ test('crash retry refuses a broadened local judge role instead of silently autho
  role.permissions={...role.permissions,results:['*'],siteSettings:['*']};
  await assert.rejects(()=>applyExistingVenueStaff(staff,stage,db.prisma),
    /прав|роль|подмен|конфликт/i);
+});
+
+
+
+test('append signed staff reuses users, adds approved judge and disables removed stage judge',async()=>{
+ const db=fakeDb();
+ const earlier=wrap();
+ const first=decryptExistingVenueStaff(earlier.sealed,earlier.key,stage);
+ await applyExistingVenueStaff(first,stage,db.prisma);
+ const newStage='f610f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const added={
+  ...users[1],id:'e610f672-79f7-44eb-8173-2a8ff94b1c0e',
+  email:'judge2@usd.test',name:'Judge Two',
+ };
+ const next=wrap([users[0],added],newStage);
+ const approved=decryptExistingVenueStaff(next.sealed,next.key,newStage);
+ await applyExistingVenueStaff(approved,newStage,db.prisma,{append:true});
+ assert.equal(db.rows.get(users[0].id).isActive,true);
+ assert.equal(db.rows.get(users[1].id).isActive,false);
+ assert.equal(db.rows.get(added.id).isActive,true);
+ assert.equal(db.rows.size,3);
+ assert.equal(db.log.filter(x=>x.type==='user').length,3);
+});
+
+test('append signed staff forbids same email on another user UUID',async()=>{
+ const db=fakeDb();
+ const earlier=wrap();
+ const original=decryptExistingVenueStaff(earlier.sealed,earlier.key,stage);
+ await applyExistingVenueStaff(original,stage,db.prisma);
+ const newStage='f610f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const collision={...users[1],id:'f110f672-79f7-44eb-8173-2a8ff94b1c0e'};
+ const next=wrap([users[0],collision],newStage);
+ await assert.rejects(()=>applyExistingVenueStaff(
+  decryptExistingVenueStaff(next.sealed,next.key,newStage),
+  newStage,db.prisma,{append:true}),/email|учётн|посторон|конфликт/i);
 });
