@@ -67,7 +67,7 @@ function Test-VerifiedVenueAck([string]$StageId){
 function Get-VenueKitFiles {
  return @(
   'USD-Install.cmd','USD-Next-Stage.cmd','USD-Offline.cmd','USD-Online.cmd',
-  'USD-Export.cmd','USD-Certificate.cmd','venue-control.ps1','venue-season.ps1','venue-ca.ps1',
+  'USD-Export.cmd','USD-Certificate.cmd','USD-Update-LIVE.cmd','venue-control.ps1','venue-season.ps1','venue-ca.ps1','venue-tv-update.ps1',
   'venue-dialogs.ps1','venue-firewall.ps1','ensure-return-keys.mjs',
   'compose.yaml','Caddyfile','config/venue-config.js',
   'initdb/010-venue-api-role.sh','INSTRUCTION.html',
