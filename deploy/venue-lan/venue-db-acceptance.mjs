@@ -307,7 +307,102 @@ async function probe(){
  }finally{await verifyClient.$disconnect()}
  console.log('USD CI LAN REAL DB + API PASS: judge login/write, spectator LIVE, admin correction, private data redacted, unpublished archive denied');
 }
+
+function signedSubsequentStage(){
+ const first=syntheticSignedStage();
+ const snapshot=structuredClone(first.container.snapshot);
+ const b={
+  stage:'e610f672-79f7-44eb-8173-2a8ff94b1c0e',
+  stageClass:'e710f672-79f7-44eb-8173-2a8ff94b1c0e',
+  registration:'e810f672-79f7-44eb-8173-2a8ff94b1c0e',
+  number:'e910f672-79f7-44eb-8173-2a8ff94b1c0e',
+  class:'ea10f672-79f7-44eb-8173-2a8ff94b1c0e',
+  inspection:'eb10f672-79f7-44eb-8173-2a8ff94b1c0e',
+  result:'ec10f672-79f7-44eb-8173-2a8ff94b1c0e',
+ };
+ snapshot.stageId=b.stage;
+ snapshot.stage.id=b.stage;
+ snapshot.stage.stageNumber=8;
+ snapshot.stage.name='USD CI NEXT STAGE SAME DATABASE';
+ snapshot.stage.stageClasses[0].id=b.stageClass;
+ snapshot.stage.stageClasses[0].stageId=b.stage;
+ const registration=snapshot.registrations[0];
+ registration.id=b.registration;
+ registration.stageId=b.stage;
+ registration.numbers[0].id=b.number;
+ registration.classes[0].id=b.class;
+ registration.classes[0].numberId=b.number;
+ registration.inspection.id=b.inspection;
+ // Real central IDs of participant, car, class and configuration stay
+ // unchanged and must NOT be overwritten by a second signed import.
+ const {privateKey,publicKey}=generateKeyPairSync('ed25519');
+ const bytes=Buffer.from(JSON.stringify(snapshot));
+ const digest=buffer=>createHash('sha256').update(buffer).digest('hex');
+ return {signed:{snapshot,integrity:{algorithm:'Ed25519',
+  sha256:digest(bytes),signature:sign(null,bytes,privateKey).toString('base64url'),
+  publicKeyFingerprint:digest(publicKey.export({type:'spki',format:'der'}))}},
+  publicPem:publicKey.export({type:'spki',format:'pem'}).toString(),ids:b};
+}
+async function verifySeasonReuse(){
+ const {signed,publicPem,ids:b}=signedSubsequentStage();
+ const adminUrl=new URL(process.env.DATABASE_URL);
+ const rootPassword=process.env.VENUE_CI_DB_ROOT_PASSWORD;
+ assert.ok(rootPassword&&rootPassword.length>=20,'Root test credentials are isolated');
+ adminUrl.username='usd_venue_root';adminUrl.password=rootPassword;
+ const app=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
+ const root=new PrismaClient({adapter:new PrismaPg({connectionString:adminUrl.toString()})});
+ try{
+  const historical=await app.result.findMany({
+   where:{registration:{stageId:ID.stage}},
+   select:{id:true,registrationId:true,value:true,unit:true,place:true,verificationStatus:true},
+   orderBy:{id:'asc'},
+  });
+  assert.ok(historical.length>0,'Stage A was not judged before B import');
+  const firstJournal=await collectVenueJournal(app,process.env,Date.now());
+  assert.ok(firstJournal.eventCount>0);
+  const plan=planVenueStageImport(signed,publicPem,{
+   ...process.env,DATABASE_URL:adminUrl.toString(),
+   VENUE_STAGE_ID:b.stage,VENUE_DB_USER:'usd_venue_root',
+   VENUE_DB_PASSWORD:rootPassword,
+   VENUE_SIGNING_KEY_FINGERPRINT:signed.integrity.publicKeyFingerprint,
+  });
+  const second=await applyVenueStageImport(plan,root,{append:true});
+  assert.equal(second.stageId,b.stage);
+  assert.equal(await app.stage.count(),2);
+  assert.equal(await app.participant.count({where:{id:ID.person}}),1);
+  assert.equal(await app.car.count({where:{id:ID.car}}),1);
+  assert.equal(await app.carConfigurationVersion.count({where:{id:ID.config}}),1);
+  await assert.rejects(()=>applyVenueStageImport(plan,root,{append:true}),/существ|актив/i);
+  await assert.rejects(()=>app.registration.update({
+   where:{id:ID.reg},data:{participantNumber:900},
+  }),/Past stage|Historical|prohibited|histor/i);
+  await app.result.create({data:{
+   id:b.result,registrationId:b.registration,registrationClassId:b.class,
+   value:'149.250',unit:'DB',verificationStatus:'NOT_REQUIRED',
+  }});
+  const newJournal=await collectVenueJournal(app,{
+   ...process.env,VENUE_STAGE_ID:b.stage,
+  },Date.now());
+  assert.equal(newJournal.eventCount,1,'B return must contain only one B judge result');
+  assert.equal(newJournal.events[0].payload.stageId,b.stage);
+  assert.equal(newJournal.events[0].payload.table,'Result');
+  assert.equal(newJournal.events[0].previousHash,'0'.repeat(64));
+  const oldJournal=await collectVenueJournal(app,process.env,Date.now());
+  assert.deepEqual(oldJournal.events,firstJournal.events,'Stage A journal was altered');
+  const after=await app.result.findMany({
+   where:{registration:{stageId:ID.stage}},
+   select:{id:true,registrationId:true,value:true,unit:true,place:true,verificationStatus:true},
+   orderBy:{id:'asc'},
+  });
+  assert.deepEqual(after,historical,'previous stage results must remain untouched');
+  console.log('USD CI SAME DB 2 REAL STAGES PASS: immutable A + signed B + per-stage return');
+ }finally{
+  await app.$disconnect();await root.$disconnect();
+ }
+}
+
 const mode=process.argv[2];
 if(mode==='seed')await seed();
 else if(mode==='probe')await probe();
-else throw Error('Usage: node venue-db-acceptance.mjs seed|probe');
+else if(mode==='season')await verifySeasonReuse();
+else throw Error('Usage: node venue-db-acceptance.mjs seed|probe|season');
