@@ -37,6 +37,14 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
 }
 $script:cached=@('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha,
  'ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40))
+$direct=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api)
+Write-Host ('USD TEST: direct Docker refs count='+$direct.Count+' refs='+($direct -join ';'))
+if($direct.Count -ne 2 -or $direct[0] -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){
+ throw 'Synthetic Docker image references are malformed'
+}
+$preflight=Get-CachedVenueReleaseSha
+Write-Host ('USD TEST: cached preflight result='+[string]$preflight+' verified='+($script:verified -join ';'))
+if($preflight -cne $sha){throw 'Verified native Docker cache was not discovered'}
 $result=Get-VenueReleaseSha $null
 if($result -cne $sha -or $script:urls.Count -ne 0 -or $script:pulled.Count -ne 0){
  throw 'Complete cached images did not bypass timed-out API and unnecessary pulls'
