@@ -5,7 +5,7 @@
 > основному сайту). Автостарт после входа в Windows. Подробности:
 > **[START-WINDOWS.md](./START-WINDOWS.md)**. Для настоящего этапа «USD — Онлайн»
 > сначала синхронизирует подписанный журнал с Ubuntu и ждёт подтверждения;
-> для ДЕМО никакая синхронизация не выполняется.
+> без подтверждения переноса локальные данные сохраняются.
 
 **Agreed primary architecture:** the laptop is a local USD server; a dedicated
 router/AP connects every judge's phone to **the same local API, PostgreSQL and
@@ -52,65 +52,36 @@ event judges, preserving central IDs, emails and password verifiers. A separate
 to the Windows installer. The signed stage JSON does NOT reveal password
 hashes, and the separate key is never put in the Git repository. On the LAN,
 judges receive only the intersection of their existing permissions and the
-fixed event-only scope; DEMO still creates synthetic `@venue.invalid` staff.
+fixed event-only scope; the Windows installer accepts signed real-stage packages only.
 A trusted LAN origin and manual Caddy CA certificate trust are still needed:
 the release does **not** automatically reroute arbitrary public URLs when WAN
 fails. Validate the exact router, phones and Ubuntu sync before official use.
 
-## Быстрый тест на своём ноутбуке (только вымышленные участники)
+## Windows real-stage installation (trial mode removed)
 
-**Для первого испытания с роутером реальный экспорт с Ubuntu не нужен.**
-Генератор создаёт изолированный тестовый этап и Ed25519-подпись с
-одноразовым ключом, который не сохраняется. Он не обращается в интернет
-и не получает данные настоящих участников.
+Download the current operator ZIP from the authenticated USD admin, and prepare three
+files: centrally signed stage JSON, independent one-time staff unlock `.key`,
+and the public Ed25519 verification `.pem`. Confirm the signing fingerprint on
+the authenticated admin page. The installer no longer generates synthetic
+participants or test accounts; it refuses untrusted stages and outdated images.
 
-На ноутбуке с Node.js 22+ выполните из корня репозитория:
+If an older **test-only** Windows installation is already present:
+copy all files from the new ZIP **into the existing operator folder**, replacing
+program files while **retaining** `.env` and `local-private`. Run `USD-Install.cmd`.
+The installer checks that the existing state explicitly identifies a completed
+retired trial, verifies that Compose project `usd-venue` contains only its known
+containers and volumes, then requires a separate Windows confirmation before it
+destroys **only that retired local project**. It will never silently remove
+results from a signed real stage. Starting from a second folder while existing
+`usd-venue` volumes exist is refused.
 
-```bash
-node deploy/venue-lan/make-demo-stage.mjs ./usd-venue-demo-test
-cat ./usd-venue-demo-test/demo-info.txt
-```
+Once the old trial is removed, `USD-Install.cmd` requires the three live-stage
+files and installs the signed event with existing online staff credentials. If
+operator data is uncertain or a return export exists, it **refuses cleanup**.
 
-В `deploy/venue-lan/.env` укажите значения
-`VENUE_STAGE_ID` и `VENUE_SIGNING_KEY_FINGERPRINT` из
-`demo-info.txt`; дополните остальные независимые переменные по
-`.env.example`. Подготовьте новую **пустую** БД, отдельные ключи RustFS
-и SHA одобренных Docker-образов. На компьютере, который уже
-содержит результаты соревнований, тестовый этап не запускать.
-
-```bash
-cd deploy/venue-lan
-bash ./bootstrap-local-stage.sh ../../usd-venue-demo-test/usd-venue-demo-stage.json \
- ../../usd-venue-demo-test/signing-public.pem --dry-run
-bash ./bootstrap-local-stage.sh ../../usd-venue-demo-test/usd-venue-demo-stage.json \
- ../../usd-venue-demo-test/signing-public.pem --apply
-# Пароль вводится скрыто, он НЕ передаётся через аргументы команд.
-bash ./provision-venue-staff.sh admin operator1
-bash ./provision-venue-staff.sh judge judge-01
-docker compose up -d
-```
-
-**Важно:** перед запуском `docker compose up -d` в RustFS необходимо создать
-`usd-venue-media` и отдельную ограниченную IAM-учётную запись для
-`VENUE_S3_APP_ACCESS/SECRET` (см. раздел подготовки хранилища ниже).
-Не используйте root-ключ RustFS в API.
-
-Откройте `https://<IP-ноутбука>/login` на двух телефонах в Wi-Fi роутера
-после **явного доверия локальному CA Caddy**. На первом войдите как
-`operator1@venue.invalid` (администратор), на втором как
-`judge-01@venue.invalid` (судья). Откройте
-`https://<IP-ноутбука>/venue/live` — изначально будет один тестовый
-результат Gate 1 (140.000 dB). Судья внесёт результат в класс
-Limited 2.0 для тестового участника № 1, табло обновится за 4 сек.
-На экране администратора попробуйте создать ещё одного вымышленного
-участника на въезде, оформить регистрацию, пройти инспекцию и внести
-результат. **После успешной локальной проверки полностью отсоедините
-WAN-кабель от роутера и повторите действия.**
-
-**Никаких настоящих ФИО, номеров или конфигураций в демо-режим не вводите.**
-Демо-пакет нельзя синхронизировать с Ubuntu: у него нет центрального
-подписанного baseline и центрального этапа. Не выполняйте `down -v`
-на рабочей базе; после завершения теста храните копии отдельно.
+The former trial generator and synthetic trial package tests are no longer
+distributed. Run the realistic signed import, Postgres 18 reconciliation, and
+two-phone disconnected-WAN acceptance suites instead.
 
 ## Stage-only handoff (signed export; NO automated import yet)
 
@@ -512,7 +483,7 @@ For a **real signed stage only**, the reviewed Windows distribution includes
 same read-only, encrypted USB journal exporter as the Linux recovery workflow.
 No central production credentials or key material are stored in the laptop.
 
-- The launcher requires the original READY stage identity and refuses DEMO.
+- The launcher requires the original READY stage identity and requires the signed real-stage identity.
 - A network-disabled, one-shot Docker process creates an Ed25519 signing key
   only once in the separate persistent `usd-venue_venue_return_keys` volume;
   the private key is mode 0600 and the service uses uid 1000 afterwards.
