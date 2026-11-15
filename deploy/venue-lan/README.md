@@ -84,11 +84,14 @@ manager verifies a matching signed central ACK against the exact current
 append-only journal head, or freezes judging and sends a fresh return bundle;
 without an ACK the switch fails closed. It **stops, never deletes**, the
 previous stage's Docker project, PostgreSQL/RustFS volumes and operator files.
-The new stage gets an independent `usd-venue-<UUID>` project and workspace
-under `stage-workspaces/<UUID>`. This is durable local retention, **not** an
-external laptop backup. One HTTPS gateway may be active at a time. A failed
-new-stage import is retried in its own workspace; it does not reimport into
-an old stage or reuse its write journal.
+Every subsequent stage is imported into the **same PostgreSQL** and existing
+Compose project. Old stage registrations, result rows and immutable journals
+are retained; shared central UUIDs are reused without overwrite. The root-owned
+active-stage selector and per-stage hash chains prevent leakage across return
+packages. The operator first requires exact central ACK, saves a local pg_dump,
+then attempts a signed atomic append. Interrupted installation resumes in the
+same operator folder. No second Caddy CA or Docker volumes are created.
+Local history is not an independent off-device encrypted backup.
 
 The former trial generator and synthetic trial package tests are no longer
 distributed. Run the realistic signed import, Postgres 18 reconciliation, and
