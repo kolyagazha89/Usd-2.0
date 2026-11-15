@@ -84,6 +84,20 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("usd-home",replace)
         self.assertLess(source.index('Replace-LegacyDemo $state'),source.index('New-InitialState}',source.index('function Install-Local')))
 
+    def test_windows_native_docker_templates_never_require_quoted_keys(self):
+        # PS 5.1 removes embedded double quotes from native arguments:
+        # {{.Label "com.docker.compose.service"}} becomes a malformed Go template.
+        for name in ("venue-control.ps1", "venue-season.ps1"):
+            source=(ROOT/name).read_text(encoding="utf-8-sig")
+            self.assertNotRegex(source, r'\{\{[^}]*["\x27]', name)
+        control=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("function Read-VenueDockerLabels",control)
+        self.assertIn("{{json .Config.Labels}}",control)
+        self.assertIn("Read-VenueDockerLabels 'image' $ref",control)
+        self.assertIn("Read-VenueDockerLabels 'container'",control)
+        self.assertIn("Read-VenueDockerLabels 'container'",season)
+
     def test_windows_kit_excludes_trial_generator_and_ip_https_support(self):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
         gateway=(ROOT/'Caddyfile').read_text(encoding='utf-8')
