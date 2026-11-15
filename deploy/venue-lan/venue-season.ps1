@@ -48,8 +48,14 @@ function Test-VerifiedVenueAck([string]$StageId){
  Assert-Exit 'inspect current stage journal head'
  $hash=@($rows | Where-Object {$_ -match '^[a-f0-9]{64}$'})
  if($hash.Count -ne 1){throw 'Текущий хеш этапа не подтверждён'}
- $ack=Join-Path $PrivateDir ('sync-ack-'+$hash[0]+'.json')
- if(!(Test-Path -LiteralPath $ack -PathType Leaf)){return $false}
+ $ack=Join-Path $PrivateDir ('sync-ack-'+$StageId+'-'+$hash[0]+'.json')
+ if(!(Test-Path -LiteralPath $ack -PathType Leaf)){
+  # Single-stage installations before season support used a hash-only
+  # filename. Trust it ONLY if the signed receipt stageId matches exactly.
+  $legacy=Join-Path $PrivateDir ('sync-ack-'+$hash[0]+'.json')
+  if(!(Test-Path -LiteralPath $legacy -PathType Leaf)){return $false}
+  $ack=$legacy
+ }
  $receipt=Get-Content -LiteralPath $ack -Raw -Encoding UTF8|ConvertFrom-Json
  return ($receipt.accepted -eq $true -and
   [string]$receipt.stageId -ceq $StageId -and
