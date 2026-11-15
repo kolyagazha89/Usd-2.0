@@ -126,6 +126,25 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Read-VenueDockerLabels 'container'",control)
         self.assertIn("Read-VenueDockerLabels 'container'",season)
 
+    def test_operator_can_retry_local_ca_export_without_touching_docker_volumes(self):
+        control=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        ca=(ROOT/"venue-ca.ps1").read_text(encoding="utf-8-sig")
+        kit=(ROOT/"build-windows-kit.py").read_text(encoding="utf-8")
+        cmd=(ROOT/"USD-Certificate.cmd").read_text(encoding="utf-8")
+        self.assertIn("'certificate'",control)
+        self.assertIn("'USD — Сертификат'",control)
+        self.assertIn("-Action certificate",cmd)
+        self.assertIn("venue-ca.ps1",control)
+        self.assertIn("USD-Certificate.cmd",kit)
+        self.assertIn("venue-ca.ps1",kit)
+        self.assertIn("root.crt",ca)
+        self.assertNotIn("root.key",ca.split("function Export-VenueCA")[1])
+        self.assertIn("for($attempt=0;$attempt -lt 30;",ca)
+        self.assertIn("USD-Venue-CA.crt",ca)
+        self.assertIn("Verify-VenueCACertificate",ca)
+        self.assertNotIn("--volumes",ca)
+        self.assertNotIn("down",ca)
+
     def test_windows_kit_excludes_trial_generator_and_ip_https_support(self):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
         gateway=(ROOT/'Caddyfile').read_text(encoding='utf-8')
