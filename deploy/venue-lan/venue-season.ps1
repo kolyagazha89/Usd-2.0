@@ -267,18 +267,65 @@ function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
  }
 }
 
+# A previously downloaded, immutable API/frontend image pair is sufficient
+# for offline setup. Validate both embedded revision labels and offline modules
+# before reusing it; never trust only a local tag or an unrelated DEMO container.
+function Get-CachedVenueReleaseSha {
+ Set-VenueStep 'resolve-release-cached-images'
+ $refs=@()
+ try{
+  $refs=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api 2>$null)
+  if($LASTEXITCODE -ne 0){return $null}
+ }catch{return $null}
+ $seen=@{}
+ foreach($ref in $refs){
+  if([string]$ref -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})
+){continue}
+  $candidate=[string]$Matches[1]
+  if($seen.ContainsKey($candidate)){continue}
+  $seen[$candidate]=$true
+  try{
+   Assert-VenueReleaseImages $candidate
+   Write-Host ('USD VENUE: найден проверенный локальный релиз '+$candidate)
+   return $candidate
+  }catch{
+   Write-Host ('USD VENUE: локальная версия '+$candidate+' неполная, проверяем другие')
+  }
+ }
+ return $null
+}
 function Get-VenueReleaseSha([object]$sharedConfig){
- $sha=$null
  if($sharedConfig){
-  try{Assert-VenueReleaseImages $sharedConfig['VENUE_IMAGE_TAG'];$sha=$sharedConfig['VENUE_IMAGE_TAG']}catch{}
+  $local=[string]$sharedConfig['VENUE_IMAGE_TAG']
+  try{
+   Assert-VenueReleaseImages $local
+   return $local
+  }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
+ }
+ $cached=Get-CachedVenueReleaseSha
+ if($cached){return $cached}
+ $sha=$null
+ foreach($endpoint in @(
+  @('https://api.usd-russia.ru/release','resolve-release-online-api'),
+  @('https://app.usd-russia.ru/usd-release.json','resolve-release-online-frontend')
+ )){
+  Set-VenueStep $endpoint[1]
+  try{
+   $release=Invoke-RestMethod -Uri $endpoint[0] -TimeoutSec 8 -ErrorAction Stop
+   $candidate=[string]$release.revision
+   if($candidate -cnotmatch '^[a-f0-9]{40}
+){throw 'Неверная версия USD в ответе сервера'}
+   $sha=$candidate
+   break
+  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint[0]+' недоступен: '+$_.Exception.Message)}
  }
  if(!$sha){
-  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
-  $sha=[string]$release.revision
-  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
-  Assert-VenueReleaseImages $sha
+  throw 'Не удалось узнать версию USD: api.usd-russia.ru и app.usd-russia.ru недоступны. Нет проверенных образов в Docker для офлайн-установки. Подключите интернет и проверьте доступ к доменам, затем повторите установку. Docker-тома не удаляйте.'
  }
+ Set-VenueStep 'download-immutable-release-images'
+ Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+ Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+ Set-VenueStep 'verify-immutable-release-images'
+ Assert-VenueReleaseImages $sha
  return $sha
 }
