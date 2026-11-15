@@ -1,5 +1,6 @@
 """Contract for one-click Windows operator; no Docker/Windows necessary for tests."""
 from pathlib import Path
+import codecs
 import re
 import unittest
 
@@ -9,7 +10,7 @@ class VenueLauncherContracts(unittest.TestCase):
     def test_three_double_click_entrypoints_exist_and_route_to_powershell(self):
         for name,action in [
             ("USD-Install.cmd","install"),("USD-Offline.cmd","offline"),
-            ("USD-Online.cmd","online"),
+            ("USD-Online.cmd","online"),("USD-Next-Stage.cmd","next"),
         ]:
             source=(ROOT/name).read_text(encoding="utf-8")
             self.assertIn("venue-control.ps1",source)
@@ -109,6 +110,50 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Get-RandomSecret",source)
         self.assertNotIn("VENUE_S3_ROOT_SECRET=rustfsadmin",source)
         self.assertNotIn("VENUE_JWT_SECRET=REPLACE_",source)
+    def test_new_stage_has_one_click_action_and_separate_docker_project(self):
+        launch=(ROOT/'USD-Next-Stage.cmd').read_text(encoding='utf-8')
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
+        self.assertIn('-Action next',launch)
+        self.assertIn("'next'",ctl)
+        season_file=ROOT/'venue-season.ps1'
+        self.assertTrue(season_file.read_bytes().startswith(codecs.BOM_UTF8), 'Windows PowerShell 5.1 requires UTF-8 BOM for Russian text')
+        lifecycle=season_file.read_text(encoding='utf-8-sig')
+        self.assertIn('function Switch-ToNextStage',lifecycle)
+        self.assertNotRegex(lifecycle,r'(?im)^\s*\$home\s*=','HOME is a reserved PowerShell automatic variable')
+        self.assertIn('function Get-VenueProject',lifecycle)
+        self.assertIn('usd-venue-',lifecycle)
+        self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
+        self.assertIn('"USD-Next-Stage.cmd"',kit)
+        self.assertIn("'USD — Следующий этап'",ctl)
+        self.assertIn('stage-workspaces',lifecycle)
+        self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
+        self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
+
+    def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
+        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
+        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):]
+        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
+        self.assertIn('Sync-VenueReturn -Bundle $bundle',stage)
+        self.assertIn('Test-VerifiedVenueAck',stage)
+        self.assertIn('journalEndHash',lifecycle[lifecycle.index('function Test-VerifiedVenueAck'):])
+        self.assertIn('Invoke-Compose',stage)
+        self.assertIn('stage-workspaces',stage)
+        self.assertIn('Restore-VenueApi',stage)
+        self.assertNotIn("'down','--volumes'",stage)
+        self.assertNotIn("'down','-v'",stage)
+        self.assertLess(stage.index('Sync-VenueReturn -Bundle $bundle'),
+                        stage.index('New-VenueStageWorkspace'))
+        self.assertLess(stage.index('Invoke-Compose'),stage.index('New-VenueStageWorkspace'))
+
+    def test_return_export_keeps_one_stage_only_and_scopes_signing_keys_by_project(self):
+        ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
+        export=ctl[ctl.index('function Export-VenueReturn'):ctl.index('function Sync-VenueReturn')]
+        self.assertIn('Get-VenueProject',export)
+        self.assertIn('venue_return_keys',export)
+        self.assertNotIn("$volume='usd-venue_venue_return_keys'",export)
+        self.assertIn("SyncResult.journalEndHash -ne $Bundle.journalEndHash",ctl)
+
     def test_real_stage_online_button_exports_signed_journal_before_stopping_local(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
         begin=source.index('function Return-Online')

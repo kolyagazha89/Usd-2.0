@@ -187,6 +187,7 @@ jobs:
         run: |
           $files = @(
             'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1'
           )
@@ -204,6 +205,8 @@ jobs:
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
+      - name: Verify same-laptop season isolation and acknowledged journal
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-season.ps1
       - name: Verify a real Windows firewall rule and filter through native NetSecurity
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-firewall-native.ps1

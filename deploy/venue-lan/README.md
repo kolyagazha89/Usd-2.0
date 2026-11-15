@@ -57,7 +57,7 @@ A trusted LAN origin and manual Caddy CA certificate trust are still needed:
 the release does **not** automatically reroute arbitrary public URLs when WAN
 fails. Validate the exact router, phones and Ubuntu sync before official use.
 
-## Windows real-stage installation (trial mode removed)
+## Windows real-stage installation and repeatable season lifecycle
 
 Download the current operator ZIP from the authenticated USD admin, and prepare three
 files: centrally signed stage JSON, independent one-time staff unlock `.key`,
@@ -78,6 +78,17 @@ results from a signed real stage. Starting from a second folder while existing
 Once the old trial is removed, `USD-Install.cmd` requires the three live-stage
 files and installs the signed event with existing online staff credentials. If
 operator data is uncertain or a return export exists, it **refuses cleanup**.
+
+For every subsequent real event, the operator uses `USD-Next-Stage.cmd`. The
+manager verifies a matching signed central ACK against the exact current
+append-only journal head, or freezes judging and sends a fresh return bundle;
+without an ACK the switch fails closed. It **stops, never deletes**, the
+previous stage's Docker project, PostgreSQL/RustFS volumes and operator files.
+The new stage gets an independent `usd-venue-<UUID>` project and workspace
+under `stage-workspaces/<UUID>`. This is durable local retention, **not** an
+external laptop backup. One HTTPS gateway may be active at a time. A failed
+new-stage import is retried in its own workspace; it does not reimport into
+an old stage or reuse its write journal.
 
 The former trial generator and synthetic trial package tests are no longer
 distributed. Run the realistic signed import, Postgres 18 reconciliation, and

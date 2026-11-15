@@ -1,0 +1,64 @@
+# Test the actual Windows PowerShell 5.1 season functions with no Docker service.
+$ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'venue-control.ps1') -Action install
+$stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$next='d510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$project='usd-venue-'+$stage.Replace('-','')
+if((Get-VenueProjectForStage $stage) -cne $project){throw 'Stage project UUID mapping incorrect'}
+if((Get-VenueProjectForStage $next) -ceq $project){throw 'Two stages reused Docker project'}
+try{
+ $null=Get-VenueProjectForStage 'untrusted'
+ throw 'Invalid UUID was accepted'
+}catch{
+ if($_.Exception.Message -eq 'Invalid UUID was accepted'){throw}
+}
+$script:MockState=[pscustomobject]@{stageId=$stage;project=$project;home=$null}
+function Read-State {return $script:MockState}
+if((Get-VenueProject) -cne $project){throw 'Wrong Compose project selected'}
+$script:MockState.project='usd-venue-attacker'
+try{
+ $null=Get-VenueProject
+ throw 'Tampered project was accepted'
+}catch{
+ if($_.Exception.Message -eq 'Tampered project was accepted'){throw}
+}
+$script:MockState.project=$project
+$temp=Join-Path ([IO.Path]::GetTempPath()) ('usd-venue-season-'+[guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $temp | Out-Null
+$oldPrivate=$PrivateDir
+$PrivateDir=$temp
+try{
+ $script:JournalTip=('a'*64)
+ function docker {
+  $global:LASTEXITCODE=0
+  return $script:JournalTip
+ }
+ $ackPath=Join-Path $temp ('sync-ack-'+$script:JournalTip+'.json')
+ $receipt=@{accepted=$true;stageId=$stage;journalEndHash=$script:JournalTip}
+ [IO.File]::WriteAllText($ackPath,($receipt|ConvertTo-Json -Compress))
+ if(-not(Test-VerifiedVenueAck $stage)){throw 'Matching Ubuntu acknowledgement was rejected'}
+ $script:JournalTip=('b'*64)
+ if(Test-VerifiedVenueAck $stage){throw 'Changed journal was mistakenly acknowledged'}
+ $script:JournalTip=('a'*64)
+ if(Test-VerifiedVenueAck $next){throw 'Acknowledgement from another stage was accepted'}
+ $script:MockState.home=$temp
+ $location=New-VenueStageWorkspace $next
+ if(!(Test-Path -LiteralPath (Join-Path $location 'USD-Next-Stage.cmd'))){
+  throw 'Next stage launcher absent from isolated workspace'
+ }
+ if(!(Test-Path -LiteralPath (Join-Path $location 'venue-season.ps1'))){
+  throw 'Lifecycle helper missing from isolated workspace'
+ }
+ if(Test-Path -LiteralPath (Join-Path $location '.env')){
+  throw 'Secret environment was copied between stages'
+ }
+ if(Test-Path -LiteralPath (Join-Path $location 'local-private')){
+  throw 'Old identity and signing keys were copied to next stage'
+ }
+ # The actual previous workspace and state were not moved or overwritten.
+ if((Get-VenueProject) -cne $project){throw 'Old stage identity unexpectedly changed'}
+ Write-Host 'USD SEASON: unique projects, exact journal ACK and isolated workspace passed'
+}finally{
+ $PrivateDir=$oldPrivate
+ Remove-Item -LiteralPath $temp -Recurse -Force
+}

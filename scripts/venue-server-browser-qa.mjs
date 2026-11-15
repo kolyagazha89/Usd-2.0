@@ -91,7 +91,7 @@ try{
   await page.screenshot({path:path.join(output,'venue-'+width+'.png'),fullPage:true});checks++;
   for(const state of ['missing','error','empty']){
    mode=state;await page.reload();await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
-   if(state==='missing')await main.getByText('Для настоящего этапа нужна однократная настройка подписи на сервере.',{exact:false}).waitFor();
+   if(state==='missing')await main.getByText('Для загрузки настоящего этапа требуется настройка ключа подписи на основной Ubuntu.',{exact:false}).waitFor();
    if(state==='error')await main.getByRole('alert').filter({hasText:'Сервер временно недоступен'}).waitFor();
    if(state==='empty')assert.equal(await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).isDisabled(),true);
    assert.equal(await main.getByRole('link',{name:'Скачать для Windows',exact:true}).count(),1);checks++;

@@ -5,7 +5,8 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next')][string]$Action,
+ [string]$StageFile='',
  [switch]$Silent
 )
 Set-StrictMode -Version Latest
@@ -34,7 +35,7 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  Assert-Exit $Purpose
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
- Invoke-Docker (@('compose','-p','usd-venue','-f',(Join-Path $Root 'compose.yaml'))+$Arguments) $Purpose
+ Invoke-Docker (@('compose','-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))+$Arguments) $Purpose
 }
 function Assert-VenueCompose {
  $compose=[IO.File]::ReadAllText((Join-Path $Root 'compose.yaml'))
@@ -222,7 +223,7 @@ function Remove-Autostart {
 function Save-DesktopShortcuts {
  $desktop=[Environment]::GetFolderPath('Desktop')
  $shell=New-Object -ComObject WScript.Shell
- foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'))){
+ foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Следующий этап','next'))){
   $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
   $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
   $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
@@ -264,10 +265,11 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
  }
 }
 # Never attach a fresh installer folder to volumes from another installation.
-function Assert-NoOrphanedVenueStack {
- $services=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.ID}}')
+function Assert-NoOrphanedVenueStack([string]$Project){
+ if($Project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){throw 'Неверный Docker-проект нового этапа'}
+ $services=@(& docker ps -a --filter ('label=com.docker.compose.project='+$Project) --format '{{.ID}}')
  Assert-Exit 'inspect existing venue containers'
- $volumes=@(& docker volume ls --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Name}}')
+ $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
  Assert-Exit 'inspect existing venue volumes'
  if($services.Count -gt 0 -or $volumes.Count -gt 0){
   throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
@@ -323,7 +325,6 @@ function Replace-LegacyDemo([object]$State){
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $ip=Get-PrivateLanIp
- Assert-NoOrphanedVenueStack
  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
  $sha=[string]$release.revision
  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
@@ -331,10 +332,13 @@ function New-InitialState {
  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
  Assert-VenueReleaseImages $sha
  $file='';$key='';$stageId='';$fingerprint=''
- $file=Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'
+ $file=$(if($StageFile){$StageFile}else{Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'})
+ if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Файл этапа отсутствует'}
   $key=Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
+  $project=Get-VenueProjectForStage $stageId
+  Assert-NoOrphanedVenueStack $project
   # Trusted fingerprint comes independently from the authenticated admin page.
   $fingerprint=(Read-VenueFingerprint).Trim()
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
@@ -376,6 +380,7 @@ function New-InitialState {
  $state=[pscustomobject]@{
   format=1;phase='CONFIGURED';stageId=$stageId;fingerprint=$fingerprint
   ip=$ip;image=$sha;package=$file;publicKey=$key;accessKey=$fileKey
+  project=$project;home=(Get-VenueHome)
  }
  Set-SetupPhase $state 'CONFIGURED'
  return $state
@@ -462,7 +467,7 @@ function Install-Local {
  }
  if($state.phase -eq 'IMPORTED'){
   Get-Content -LiteralPath (Join-Path $Root 'install-journal.sql') -Raw -Encoding UTF8 |
-   & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+   & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
   Assert-Exit 'append-only journal'
   Set-SetupPhase $state 'JOURNAL_READY'
  }
@@ -474,6 +479,7 @@ function Install-Local {
   Set-SetupPhase $state 'STAFF_READY'
  }
  if($state.phase -eq 'STAFF_READY'){
+  Assert-NoOtherVenueGatewayRunning
   Invoke-Compose @('up','-d') 'start HTTPS API and LIVE'
   Set-SetupPhase $state 'READY'
  }
@@ -483,7 +489,7 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  if(Test-Path -LiteralPath $destination){return}
  try{
-  $container=(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
+  $container=(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps -q gateway | Select-Object -First 1)
   if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($container) -or
    $container -notmatch '^[a-f0-9]{12,64}$'){return}
   & docker cp ($container+':/data/caddy/pki/authorities/local/root.crt') $destination 2>$null | Out-Null
@@ -502,12 +508,13 @@ function Start-Local {
   $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint -or
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
+ Assert-NoOtherVenueGatewayRunning
  # Existing installations may have an older 18-trigger journal. Bring the
  # root-owned link trigger up to date WITHOUT clearing historic journal rows.
  # The coverage watermark prevents treating earlier untracked links as complete.
  Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start local DB for journal coverage check'
  Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
-  & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+  & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  # Wait for a responding local API before opening the browser or exporting CA.
@@ -546,7 +553,7 @@ Promise.all([
  try{
   # Windows PowerShell 5.1 strips JavaScript string quotes from native
   # node -e arguments. Send the original program on stdin instead.
-  $program | & docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
+  $program | & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
@@ -568,7 +575,7 @@ function Export-VenueReturn {
  Ensure-DockerReady
  $directory=Join-Path $PrivateDir 'return-output'
  New-Item -ItemType Directory -Path $directory -Force|Out-Null
- $volume='usd-venue_venue_return_keys'
+ $volume=(Get-VenueProject)+'_venue_return_keys'
  $keyTool=Join-Path $Root 'ensure-return-keys.mjs'
  $keyMounts=@('--volume',($volume+':/app/venue-return-keys:rw'),
   '--volume',($directory+':/app/venue-return-output:rw'),
@@ -606,7 +613,7 @@ function Export-VenueReturn {
  # A direct Export click is as important as the Online button: do NOT export
  # while a judge can still enter a result. Detect the prior API state so
  # export from a stopped server never starts it unexpectedly.
- $apiRunning=@(& docker compose -p usd-venue -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
+ $apiRunning=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
  $apiStopped=$false
@@ -617,7 +624,7 @@ function Export-VenueReturn {
    Invoke-Compose @('stop','api') 'pause judging before consistent signed return export'
    $apiStopped=$true
   }
-  $args=@('compose','-p','usd-venue','-f',(Join-Path $Root 'compose.yaml'),
+  $args=@('compose','-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'),
    'run','--rm','--no-deps','-T',
    '--volume',($volume+':/app/venue-return-keys:ro'),
    '--volume',($directory+':/app/venue-return-output:rw'),
@@ -727,12 +734,14 @@ function Return-Online {
  Write-Host 'USD ONLINE. Synchronization ACKNOWLEDGED. Local backup preserved.'
  if(-not $Silent){Start-Process $OnlineUrl}
 }
+. (Join-Path $Root 'venue-season.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 try{
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
  elseif($Action -eq 'export'){Export-VenueReturn}
+ elseif($Action -eq 'next'){Switch-ToNextStage}
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось безопасно выполнить действие '+$Action) -ForegroundColor Red
