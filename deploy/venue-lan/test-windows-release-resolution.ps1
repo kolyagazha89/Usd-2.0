@@ -5,6 +5,8 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'venue-control.ps1') -Action install
 $sha='a'*40
 $second='b'*40
+$script:trustedSha=$sha
+$script:approvedAltSha=$second
 $script:verified=@()
 $script:pulled=@()
 $script:urls=@()
@@ -21,7 +23,7 @@ function docker {
 }
 function Assert-VenueReleaseImages([string]$Sha){
  $script:verified+= $Sha
- if($Sha -cne $sha -and $Sha -cne $second){throw 'unverified revision'}
+ if($Sha -cne $script:trustedSha -and $Sha -cne $script:approvedAltSha){throw 'unverified revision'}
 }
 function Invoke-RestMethod {
  param([string]$Uri,[int]$TimeoutSec)
@@ -36,12 +38,12 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  $script:pulled+= $Arguments[1]
 }
 $script:cached=@(
- ('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha),
- ('ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40))
+ ('ghcr.io/kolyagazha89/usd-2.0-api:'+('f'*40)),
+ ('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)
 )
 $direct=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api)
 Write-Host ('USD TEST: direct Docker refs count='+$direct.Count+' refs='+($direct -join ';'))
-if($direct.Count -ne 2 -or $direct[0] -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){
+if($direct.Count -ne 2 -or $direct[1] -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){
  throw 'Synthetic Docker image references are malformed'
 }
 $preflight=Get-CachedVenueReleaseSha
