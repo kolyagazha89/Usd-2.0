@@ -34,9 +34,15 @@ function Get-VenueHome {
 }
 function Assert-NoOtherVenueGatewayRunning {
  $expected=Get-VenueProject
- $projects=@(& docker ps --filter 'label=com.docker.compose.service=gateway' --format '{{.Label "com.docker.compose.project"}}')
+ $containers=@(& docker ps --filter 'label=com.docker.compose.service=gateway' --format '{{.ID}}')
  Assert-Exit 'inspect other local USD stages'
- foreach($project in $projects){
+ foreach($id in $containers){
+  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID шлюза'}
+  $labels=Read-VenueDockerLabels 'container' ([string]$id)
+  if([string]$labels.'com.docker.compose.service' -cne 'gateway'){
+   throw 'У шлюза Docker неверная метка службы'
+  }
+  $project=[string]$labels.'com.docker.compose.project'
   if($project -like 'usd-venue*' -and $project -cne $expected){
    throw ('Уже работает другой этап '+$project+'. Остановите его через «USD — Онлайн», не смешивайте подключения судей.')
   }
