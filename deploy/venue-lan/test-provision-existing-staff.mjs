@@ -48,7 +48,7 @@ function fakeDb(){
  const tx={
   $executeRawUnsafe:async()=>1,
   $queryRawUnsafe:async()=>[{rolsuper:false}],
-  stage:{count:async()=>stageCount,findFirst:async()=>({id:stage})},
+  stage:{count:async()=>stageCount,findFirst:async({where})=>({id:where.id})},
   user:{count:async()=>rows.size,findMany:async()=>[...rows.values()],
    create:async({data})=>{if(rows.has(data.id))throw Error('duplicate user');rows.set(data.id,data);log.push({type:'user',data});return {id:data.id}},
    update:async({where,data})=>{const old=rows.get(where.id);if(!old)throw Error('missing staff user');const next={...old,...data};rows.set(where.id,next);log.push({type:'update',data:next});return next}},
