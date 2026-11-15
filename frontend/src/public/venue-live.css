@@ -96,3 +96,8 @@
  .venue-tv-footer-details span:first-child{max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 @media(prefers-reduced-motion:reduce){.usd-venue-live-board *{scroll-behavior:auto;animation:none!important;transition:none!important}}
+
+/* A real link, not a login path: demo is confined to the spectator UI. */
+.venue-tv-remote .venue-tv-demo-toggle{display:inline-flex;align-items:center;border:1px solid #397d72;background:#12322f;color:#c8fff1;text-decoration:none;border-radius:10px;padding:7px 12px;font-size:clamp(11px,.88vw,15px);font-weight:800;white-space:nowrap}
+.venue-tv-remote .venue-tv-demo-toggle:focus-visible{outline:3px solid #93f9d9;outline-offset:3px}
+@media(max-width:700px){.venue-tv-remote .venue-tv-demo-toggle{font-size:10px;padding:7px}}
