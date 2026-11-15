@@ -11,4 +11,4 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
       - name: Test incremental signed import and per-stage return
-        run: node --test deploy/venue-lan/test-import-stage.mjs deploy/venue-lan/test-export-venue-return.mjs
+        run: node --test deploy/venue-lan/test-import-stage.mjs deploy/venue-lan/test-export-venue-return.mjs deploy/venue-lan/test-provision-existing-staff.mjs
