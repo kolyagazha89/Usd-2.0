@@ -64,23 +64,14 @@ if(args[0]==="ps"){
   throw 'Synthetic old DEMO .env fixture did not round-trip'
  }
  $initial=[IO.File]::ReadAllText($EnvFile)
- $script:declinedRemoval=$false
- function Confirm-VenueAction {
-  $script:declinedRemoval=$true
-  return $false
- }
- try{
-  Replace-LegacyDemo $state
-  throw 'Unexpectedly removed legacy USD without confirmation'
- }catch{
-  if(!$script:declinedRemoval -or $_.Exception.Message -notmatch 'Очистка отменена'){
-   throw ('Legacy cleanup failed before user confirmation: '+$_.Exception.Message)
-  }
- }
+ $script:isolatedDemo=$false
+ function Start-IsolatedVenueFromDemo {param([object]$State) $script:isolatedDemo=$true}
+ Replace-LegacyDemo $state
+ if(!$script:isolatedDemo){throw 'Old DEMO did not delegate to separate real-stage installer'}
  if([IO.File]::ReadAllText($EnvFile) -cne $initial){
   throw 'Legacy cleanup mutated existing configuration before permission'
  }
- Write-Host 'USD WINDOWS LABELS: legacy operator reaches consent without Docker format failure'
+ Write-Host 'USD WINDOWS LABELS: legacy installer delegates safely without Docker format failure'
  function Read-State {return $script:MockState}
  $script:MockState=[pscustomobject]@{stageId=$stage;project='usd-venue';projectStageId=$stage}
  $env:USD_TEST_GATEWAY_PROJECT='usd-venue'
