@@ -113,19 +113,14 @@ function Test-DockerReady {
 }
 function Ensure-DockerReady {
  if(-not(Get-Command docker -ErrorAction SilentlyContinue)){
-  if($Action -eq 'install' -and (Get-Command winget -ErrorAction SilentlyContinue)){
-   Write-Host 'Docker Desktop отсутствует. Нужно установить Linux containers с WSL2.'
-   if(Confirm-VenueAction 'Для USD нужен Docker Desktop. Установить его сейчас? После установки откройте Docker Desktop, завершите настройку и снова нажмите установку USD.'){
-    & winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
-    Assert-Exit 'Docker Desktop install'
-    throw 'Завершите настройку Docker Desktop и WSL2 (может понадобиться перезагрузка), затем нажмите кнопку ещё раз.'
-   }
-  }
-  throw 'Нужен Docker Desktop: https://docs.docker.com/desktop/setup/install/windows-install/'
+  throw 'Docker Desktop отсутствует. USD не удаляет Docker и не выполняет скрытую переустановку. Установите Docker Desktop с docker.com (WSL2/Linux containers), затем повторите. Старые .env, local-private и тома не трогайте.'
  }
  if(Test-DockerReady){return}
  $executable=Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
- if(Test-Path -LiteralPath $executable){Start-Process -FilePath $executable|Out-Null}
+ if(Test-Path -LiteralPath $executable){
+  try{Start-Process -FilePath $executable|Out-Null}
+  catch{throw ('Не удалось запустить Docker Desktop.exe: '+$_.Exception.Message)}
+ }
  for($i=0;$i -lt 60;$i++){
   Start-Sleep -Seconds 2
   if(Test-DockerReady){return}
