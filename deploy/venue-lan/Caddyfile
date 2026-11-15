@@ -22,3 +22,40 @@ https://{$VENUE_BIND_IP} {
     reverse_proxy frontend:80
   }
 }
+
+# Spectator-only TV on the same private Wi-Fi. No certificates to install on
+# televisions. NEVER proxy login, administration, registrations or writes here.
+# Authenticated judging remains exclusively on the HTTPS listener above.
+http://{$VENUE_BIND_IP} {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Cache-Control "no-store"
+    Content-Security-Policy "default-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+  }
+  handle /venue/live {
+    reverse_proxy frontend:80
+  }
+  handle /usd-venue-config.js {
+    reverse_proxy frontend:80
+  }
+  handle /assets/* {
+    reverse_proxy frontend:80
+  }
+  @venueTvRead {
+    path /venue-api/results/venue-live
+    method GET
+  }
+  handle @venueTvRead {
+    uri strip_prefix /venue-api
+    reverse_proxy api:3000 {
+      header_up -Cookie
+      header_up -Authorization
+    }
+  }
+  handle {
+    respond "HTTPS is required for all other USD routes" 403
+  }
+}
