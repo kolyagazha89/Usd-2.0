@@ -15,7 +15,7 @@ const SHA=/^[a-f0-9]{64}$/;
 const MAX_JOURNAL_ENTRIES=25000;
 const chainQuery=`SELECT sequence,previous_hash AS "previousHash",hash,payload,
  encode(digest(previous_hash || payload::text,'sha256'),'hex') AS calculated
- FROM venue_private.operation_journal ORDER BY sequence LIMIT 25001`;
+ FROM venue_private.operation_journal WHERE stage_id=$1 ORDER BY sequence LIMIT 25001`;
 
 /** Read a consistent MVCC snapshot, not a moving stream of live mutations.
  * Source table is root-owned and read-only to the venue API principal.
@@ -25,9 +25,9 @@ export async function collectVenueJournal(prisma,env,now=Date.now()){
  assertVenueImportEnvironment(env,stageId);
  return prisma.$transaction(async tx=>{
   await assertVenueDatabaseRole(tx);
-  const stages=await tx.stage.findMany({select:{id:true},take:2});
-  if(stages.length!==1||stages[0].id!==stageId)
-   throw new Error('Должен быть только один закреплённый этап площадки');
+  const stages=await tx.stage.findMany({where:{id:stageId},select:{id:true},take:1});
+  if(!stages.some(stage=>stage.id===stageId))
+   throw new Error('Выбранный этап отсутствует в локальной базе');
   const baseline=await tx.auditLog.findFirst({
    where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stageId},
    select:{metadata:true},
@@ -41,7 +41,7 @@ export async function collectVenueJournal(prisma,env,now=Date.now()){
    ||Number(coverage[0].formatVersion)!==2
    ||Number(coverage[0].fromSequence)!==0)
    throw new Error('Полный экспорт невозможен: журнал усилителей был включён после первых операций');
-  const rows=await tx.$queryRawUnsafe(chainQuery);
+  const rows=await tx.$queryRawUnsafe(chainQuery,stageId);
   if(!Array.isArray(rows)||rows.length>MAX_JOURNAL_ENTRIES)
    throw new Error('Слишком много операций для ограниченного USB-пакета');
   const events=[];

@@ -29,8 +29,6 @@ function Assert-Exit([string]$Purpose){
  if($LASTEXITCODE -ne 0){throw ('USD VENUE '+$Purpose+' failed with exit '+$LASTEXITCODE)}
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
- # Progress belongs to the host, never to a function's return value. Otherwise
- # `state=New-InitialState` and `mounts=Confirm-SignedStage` become mixed arrays.
  & docker @Arguments | Out-Host
  Assert-Exit $Purpose
 }
@@ -46,15 +44,13 @@ function Assert-VenueCompose {
   throw 'Compose must be isolated and pinned to one offline stage'
  }
 }
-function Read-Env {
- if(-not(Test-Path -LiteralPath $EnvFile -PathType Leaf)){throw 'Нет локальной конфигурации. Запустите установку.'}
+function Read-Env([string]$Path=$EnvFile) {
+ if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw 'Нет локальной конфигурации. Запустите установку.'}
  $result=@{}
- foreach($line in [IO.File]::ReadAllLines($EnvFile)){
+ foreach($line in [IO.File]::ReadAllLines($Path)){
   $row=$line.Trim()
   if(!$row -or $row.StartsWith('#')){continue}
-  # Windows PowerShell 5.1 must split at the first equals sign only:
-  # DATABASE_URL includes ?schema=public, and other values may contain '='.
-  $at=$row.IndexOf('=')
+   $at=$row.IndexOf('=')
   if($at -le 0){throw 'Некорректный .env'}
   $name=$row.Substring(0,$at)
   if($name -cnotmatch '^VENUE_[A-Z0-9_]+$' -or $result.ContainsKey($name)){
@@ -233,8 +229,6 @@ function Save-DesktopShortcuts {
  $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
 function Assert-VenueReleaseImages([string]$Sha){
- # The central deployment can be one revision behind the downloaded kit.
- # Check both immutable images before producing any real stage/local DB.
  if($Sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Неверная версия USD'}
  foreach($name in @('api','frontend')){
   $ref='ghcr.io/kolyagazha89/usd-2.0-'+$name+':'+$Sha
@@ -257,6 +251,7 @@ const files=[
 if(files.some(file=>!fs.existsSync(file)))process.exit(4);
 const release=JSON.parse(fs.readFileSync("/app/usd-release.json","utf8"));
 if(release.revision!==sha)process.exit(5);
+if(!fs.readFileSync("/app/dist/prisma/prisma.service.js","utf8").includes("venue_private.active_stage"))process.exit(6);
 console.log("USD VENUE API RELEASE CHECK PASSED");
 '@
  & docker run --rm --network none --entrypoint node $apiImage -e $program $Sha | Out-Host
@@ -265,17 +260,6 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
  }
 }
 # Never attach a fresh installer folder to volumes from another installation.
-function Assert-NoOrphanedVenueStack([string]$Project){
- if($Project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){throw 'Неверный Docker-проект нового этапа'}
- $services=@(& docker ps -a --filter ('label=com.docker.compose.project='+$Project) --format '{{.ID}}')
- Assert-Exit 'inspect existing venue containers'
- $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
- Assert-Exit 'inspect existing venue volumes'
- if($services.Count -gt 0 -or $volumes.Count -gt 0){
-  throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
- }
-}
-# One-time replacement of an explicitly retired trial; no trial mode remains.
 function Replace-LegacyDemo([object]$State){
  if($State.demo -ne $true -or $State.phase -ne 'READY' -or $State.accessKey){
   throw 'Автоматически очистить можно только завершённую старую пробную установку. Данные сохранены.'
@@ -324,23 +308,35 @@ function Replace-LegacyDemo([object]$State){
 }
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
- $ip=Get-PrivateLanIp
- $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
- $sha=[string]$release.revision
+ $source=$null;$sharedConfig=$null
+ $sharedFile=Join-Path $Root 'shared-source.json'
+ if(Test-Path -LiteralPath $sharedFile){
+  $source=Get-Content -LiteralPath $sharedFile -Raw -Encoding UTF8|ConvertFrom-Json
+  $sharedConfig=Read-Env (Join-Path ([string]$source.workspace) '.env')
+ }
+ $ip=$(if($sharedConfig){$sharedConfig['VENUE_BIND_IP']}else{Get-PrivateLanIp})
+ $release=$null
+ try{$release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20}catch{if(!$sharedConfig){throw}}
+ $sha=$(if($release){[string]$release.revision}else{$sharedConfig['VENUE_IMAGE_TAG']})
  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+ if($release){
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+ }
  Assert-VenueReleaseImages $sha
  $file='';$key='';$stageId='';$fingerprint=''
  $file=$(if($StageFile){$StageFile}else{Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'})
  if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Файл этапа отсутствует'}
-  $key=Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'
+  $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+  $trustedSource=$(if($source){Get-Content -LiteralPath (Join-Path ([string]$source.workspace) 'local-private/setup-state.json') -Raw -Encoding UTF8|ConvertFrom-Json}else{$null})
+  $reuseTrust=$trustedSource -and (Test-Path -LiteralPath ([string]$trustedSource.publicKey)) -and ([string]$payload.integrity.publicKeyFingerprint -ceq [string]$trustedSource.fingerprint)
+  $key=$(if($reuseTrust){[string]$trustedSource.publicKey}else{Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'})
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
   $project=Get-VenueProjectForStage $stageId
-  Assert-NoOrphanedVenueStack $project
+  if($source){$project=[string]$source.project}else{Assert-NoOrphanedVenueStack $project}
   # Trusted fingerprint comes independently from the authenticated admin page.
-  $fingerprint=(Read-VenueFingerprint).Trim()
+  $fingerprint=$(if($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
   if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
    throw 'Скачайте новый подписанный пакет этапа для автоматической синхронизации'
@@ -375,12 +371,20 @@ function New-InitialState {
   VENUE_S3_APP_ACCESS=('usdapp'+(Get-RandomSecret 8))
   VENUE_S3_APP_SECRET=(Get-RandomSecret 32)
  }
+ if($sharedConfig){
+  foreach($name in @($values.Keys)){
+   if($name -notin @('VENUE_STAGE_ID','VENUE_IMAGE_TAG','VENUE_SIGNING_KEY_FINGERPRINT','VENUE_JWT_SECRET')){
+    $values[$name]=$sharedConfig[$name]
+   }
+  }
+ }
  $text=($values.GetEnumerator()|ForEach-Object {$_.Key+'='+$_.Value}) -join [Environment]::NewLine
  Write-PrivateFile $EnvFile ($text+[Environment]::NewLine)
  $state=[pscustomobject]@{
   format=1;phase='CONFIGURED';stageId=$stageId;fingerprint=$fingerprint
   ip=$ip;image=$sha;package=$file;publicKey=$key;accessKey=$fileKey
-  project=$project;home=(Get-VenueHome)
+  project=$project;home=(Get-VenueHome);shared=($null -ne $source)
+  projectStageId=$(if($source){[string]$source.projectStageId}else{$stageId})
  }
  Set-SetupPhase $state 'CONFIGURED'
  return $state
@@ -400,19 +404,6 @@ function Confirm-SignedStage([object]$State) {
   @('--entrypoint','node','api','/app/verify-stage-package.mjs',
   '/app/venue-stage.json','/app/venue-signing-public.pem')) 'verify stage signature'
  return $mounts
-}
-function Create-ExistingStaff([object]$State,[array]$Mounts){
- if([string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
-  !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
-  throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
- }
- $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
-  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-  '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
-  '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
- Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+
-  @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem','/app/venue-access-key.txt')) 'restore centrally approved staff logins'
 }
 function Install-Local {
  Assert-VenueCompose
@@ -435,8 +426,9 @@ function Install-Local {
  if($state.phase -eq 'READY'){Start-Local;return}
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'CONFIGURED'){
-  Invoke-Compose @('pull') 'download images'
+  if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){Invoke-Compose @('pull') 'download images'}
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
+  if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
   $env:VENUE_S3_ROOT_ACCESS=$cfg['VENUE_S3_ROOT_ACCESS']
   $env:VENUE_S3_ROOT_SECRET=$cfg['VENUE_S3_ROOT_SECRET']
   try{
@@ -448,6 +440,7 @@ function Install-Local {
    Remove-Item Env:\VENUE_S3_ROOT_ACCESS -ErrorAction SilentlyContinue
    Remove-Item Env:\VENUE_S3_ROOT_SECRET -ErrorAction SilentlyContinue
   }
+  }
   Set-SetupPhase $state 'STORAGE_READY'
  }
  if($state.phase -eq 'STORAGE_READY'){
@@ -458,15 +451,22 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
-  if(-not(Confirm-VenueAction ('Загрузить выбранный этап в отдельную локальную базу?'+[Environment]::NewLine+'Этап: '+$state.stageId+[Environment]::NewLine+'Основной сервер не изменяется.'))){throw 'Импорт отменён'}
-  Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
-   @('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-    '--entrypoint','node','api','/app/import-stage.mjs',
-    '/app/venue-stage.json','/app/venue-signing-public.pem','--apply',$state.stageId)) 'signed stage import'
+  $isShared=$state.PSObject.Properties.Name -contains 'shared' -and $state.shared
+  if($isShared){
+   Import-SharedVenueStage $state $cfg $mounts
+  }else{
+   Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
+    @('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+     '--entrypoint','node','api','/app/import-stage.mjs',
+     '/app/venue-stage.json','/app/venue-signing-public.pem','--apply',$state.stageId)) 'signed stage import'
+  }
   Set-SetupPhase $state 'IMPORTED'
  }
  if($state.phase -eq 'IMPORTED'){
-  Get-Content -LiteralPath (Join-Path $Root 'install-journal.sql') -Raw -Encoding UTF8 |
+   $installed=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
+  Assert-Exit 'inspect journal after resumed import'
+  $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
+  Get-Content -LiteralPath (Join-Path $Root $journalFile) -Raw -Encoding UTF8 |
    & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
   Assert-Exit 'append-only journal'
   Set-SetupPhase $state 'JOURNAL_READY'
@@ -509,13 +509,11 @@ function Start-Local {
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
  Assert-NoOtherVenueGatewayRunning
- # Existing installations may have an older 18-trigger journal. Bring the
- # root-owned link trigger up to date WITHOUT clearing historic journal rows.
- # The coverage watermark prevents treating earlier untracked links as complete.
  Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start local DB for journal coverage check'
  Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
   & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
+ if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
@@ -559,7 +557,7 @@ Promise.all([
  finally{$ErrorActionPreference=$prior}
 }
 function Export-VenueReturn {
- param([switch]$LeaveApiStopped,[switch]$Automatic)
+ param([switch]$LeaveApiStopped,[switch]$Automatic,[switch]$LocalArchive)
  # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
  # Never use central secrets or delete local durable records.
  if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
@@ -580,8 +578,6 @@ function Export-VenueReturn {
  $keyMounts=@('--volume',($volume+':/app/venue-return-keys:rw'),
   '--volume',($directory+':/app/venue-return-output:rw'),
   '--volume',($keyTool+':/app/ensure-return-keys.mjs:ro'))
- # Root is used only by an isolated, networkless one-shot key provisioner;
- # it hands the key volume to the regular non-root (node:1000) API image user.
  Invoke-Docker (@('run','--rm','--network','none','--user','root')+
   $keyMounts+@('--entrypoint','node',
   ('ghcr.io/kolyagazha89/usd-2.0-api:'+$state.image),
@@ -605,7 +601,7 @@ function Export-VenueReturn {
   $syncToken=[string]$originalStage.snapshot.syncAuthorization.token
   if($originalStage.snapshot.stageId -ne $state.stageId -or
    $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}$' -or
-   ([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime() -le [DateTime]::UtcNow){
+   (-not $LocalArchive -and ([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime() -le [DateTime]::UtcNow)){
    throw 'Пакет не разрешает автоматическую синхронизацию. Загрузите новый подписанный этап.'
   }
   $secret='UsdSync!1-'+$syncToken
@@ -615,7 +611,7 @@ function Export-VenueReturn {
  # export from a stopped server never starts it unexpectedly.
  $apiRunning=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
- $apiWasRunning=@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
+ $apiWasRunning=(@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) -and (Test-IsActiveVenueStage $state.stageId)
  $apiStopped=$false
  $exportSucceeded=$false
  $returnFile=Join-Path $directory $filename
@@ -721,9 +717,13 @@ function Return-Online {
    $SyncResult=Sync-VenueReturn -Bundle $bundle
    if($SyncResult.accepted -ne $true){throw 'Нет подтверждения ACKNOWLEDGED центрального сервера'}
   }catch{
-   if($frozen){try{Restore-VenueApi}catch{Write-Host 'Локальная база сохранена. Откройте USD — Офлайн.'}}
+   if($frozen -and (Test-IsActiveVenueStage $state.stageId)){try{Restore-VenueApi}catch{Write-Host 'Локальная база сохранена. Откройте USD — Офлайн.'}}
    throw
   }
+ }
+ if($state -and -not(Test-IsActiveVenueStage $state.stageId)){
+  Write-Host 'Исторический этап синхронизирован. Текущий локальный этап продолжает работать.'
+  return
  }
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){

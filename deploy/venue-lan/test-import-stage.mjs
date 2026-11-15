@@ -205,3 +205,34 @@ test('write errors are surfaced, never reported as successful or silently skippe
  await assert.rejects(()=>applyVenueStageImport(plan,db),/simulated database crash/);
  assert.equal(log.some(x=>x.model==='auditLog'),false);
 });
+
+ test('retained import appends a different stage and preserves shared identities',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.stage.count=async()=>2;
+ tx.$queryRawUnsafe=async sql=>sql.includes('pg_roles')?[{rolsuper:true,name:'usd_venue_root'}]:[];
+ tx.$executeRawUnsafe=async()=>1;
+ tx.auditLog.findFirst=async()=>null;
+ tx.season.findUnique=async()=>({id:uuid.season});
+ tx.direction.findUnique=async()=>({id:uuid.direction});
+ tx.class.findUnique=async()=>({id:uuid.cls,directionId:uuid.direction});
+ tx.participant.findUnique=async()=>({id:uuid.person});
+ tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.person});
+ tx.carConfigurationVersion.findUnique=async()=>({id:uuid.version,configuration:{carId:uuid.car}});
+ await applyVenueStageImport(plan,db,{shared:true});
+ for(const name of ['season','direction','class','participant','car','carConfiguration','carConfigurationVersion'])
+  assert.equal(log.some(x=>x.model===name),false,name+' must be reused');
+ assert.equal(log.filter(x=>x.model==='stage').length,1);
+ });
+ test('retained identical import retry never overwrites judging',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.stage.count=async()=>2;
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:plan.packageHash}});
+ tx.$queryRawUnsafe=async()=>[{rolsuper:true,name:'usd_venue_root'}];
+ tx.$executeRawUnsafe=async()=>1;
+ const result=await applyVenueStageImport(plan,db,{shared:true});
+ assert.equal(result.replayed,true);
+ assert.equal(log.length,0);
+ });

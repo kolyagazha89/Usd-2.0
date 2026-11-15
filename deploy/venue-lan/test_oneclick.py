@@ -17,7 +17,7 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertIn("-Action "+action,source)
             self.assertNotIn("down -v",source)
     def test_install_is_replay_safe_and_gates_central_sync(self):
-        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")+(ROOT/"venue-season.ps1").read_text(encoding="utf-8")
         for expected in (
             "setup-state.json","VENUE_STAGE_ID","VENUE_SIGNING_KEY_FINGERPRINT",
             "verify-stage-package.mjs","import-stage.mjs","install-journal.sql",
@@ -130,21 +130,17 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
 
-    def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
+    def test_rotation_retains_one_database_without_network_ack_gate(self):
         lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
-        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):]
-        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
-        self.assertIn('Sync-VenueReturn -Bundle $bundle',stage)
-        self.assertIn('Test-VerifiedVenueAck',stage)
-        self.assertIn('journalEndHash',lifecycle[lifecycle.index('function Test-VerifiedVenueAck'):])
-        self.assertIn('Invoke-Compose',stage)
-        self.assertIn('stage-workspaces',stage)
+        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):lifecycle.index('function Import-SharedVenueStage')]
+        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic -LocalArchive',stage)
+        self.assertNotIn('Sync-VenueReturn',stage)
+        self.assertIn('shared-source.json',lifecycle)
+        self.assertIn('Test-IsActiveVenueStage',stage)
         self.assertIn('Restore-VenueApi',stage)
         self.assertNotIn("'down','--volumes'",stage)
         self.assertNotIn("'down','-v'",stage)
-        self.assertLess(stage.index('Sync-VenueReturn -Bundle $bundle'),
-                        stage.index('New-VenueStageWorkspace'))
-        self.assertLess(stage.index('Invoke-Compose'),stage.index('New-VenueStageWorkspace'))
+        self.assertLess(stage.index('New-VenueStageWorkspace'),stage.index('Export-VenueReturn'))
 
     def test_return_export_keeps_one_stage_only_and_scopes_signing_keys_by_project(self):
         ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')

@@ -79,16 +79,17 @@ Once the old trial is removed, `USD-Install.cmd` requires the three live-stage
 files and installs the signed event with existing online staff credentials. If
 operator data is uncertain or a return export exists, it **refuses cleanup**.
 
-For every subsequent real event, the operator uses `USD-Next-Stage.cmd`. The
-manager verifies a matching signed central ACK against the exact current
-append-only journal head, or freezes judging and sends a fresh return bundle;
-without an ACK the switch fails closed. It **stops, never deletes**, the
-previous stage's Docker project, PostgreSQL/RustFS volumes and operator files.
-The new stage gets an independent `usd-venue-<UUID>` project and workspace
-under `stage-workspaces/<UUID>`. This is durable local retention, **not** an
-external laptop backup. One HTTPS gateway may be active at a time. A failed
-new-stage import is retried in its own workspace; it does not reimport into
-an old stage or reuse its write journal.
+For subsequent events use `USD-Next-Stage.cmd`. The installer retains the
+**same Compose project, PostgreSQL database, RustFS and Caddy CA**, archives the
+previous journal locally, and imports the newly signed stage in one transaction.
+No central ACK or WAN is required for switching a prepared stage with cached
+compatible images. Shared identities/configurations are reused without replacing
+local edits. Historical stage rows are read-only; the root-owned active pointer
+selects judging and each stage has an independent hash chain/export. The root
+connection is present only in the short-lived importer, never in the API.
+Identical import retries are read-only. The new stage workspace retains its own
+signed baseline/access key/receipts. Historical export/online actions do not stop
+current judging. Keep all workspaces and volumes; this is not off-device backup.
 
 The former trial generator and synthetic trial package tests are no longer
 distributed. Run the realistic signed import, Postgres 18 reconciliation, and

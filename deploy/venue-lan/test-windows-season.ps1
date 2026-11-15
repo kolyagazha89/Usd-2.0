@@ -13,6 +13,10 @@ try{
  if($_.Exception.Message -eq 'Invalid UUID was accepted'){throw}
 }
 $script:MockState=[pscustomobject]@{stageId=$stage;project=$project;home=$null}
+$script:MockState|Add-Member -NotePropertyName projectStageId -NotePropertyValue $stage
+$script:MockState.stageId=$next
+if((Get-VenueProject) -cne $project){throw 'New stage must reuse original Compose project'}
+$script:MockState.stageId=$stage
 function Read-State {return $script:MockState}
 if((Get-VenueProject) -cne $project){throw 'Wrong Compose project selected'}
 $script:MockState.project='usd-venue-attacker'
@@ -49,6 +53,8 @@ try{
  if(!(Test-Path -LiteralPath (Join-Path $location 'venue-season.ps1'))){
   throw 'Lifecycle helper missing from isolated workspace'
  }
+ $source=Get-Content -LiteralPath (Join-Path $location 'shared-source.json') -Raw|ConvertFrom-Json
+ if($source.project -cne $project){throw 'Next stage did not retain original project'}
  if(Test-Path -LiteralPath (Join-Path $location '.env')){
   throw 'Secret environment was copied between stages'
  }
@@ -57,7 +63,7 @@ try{
  }
  # The actual previous workspace and state were not moved or overwritten.
  if((Get-VenueProject) -cne $project){throw 'Old stage identity unexpectedly changed'}
- Write-Host 'USD SEASON: unique projects, exact journal ACK and isolated workspace passed'
+ Write-Host 'USD SEASON: shared project, stage-specific ACK and retained workspace passed'
 }finally{
  $PrivateDir=$oldPrivate
  Remove-Item -LiteralPath $temp -Recurse -Force

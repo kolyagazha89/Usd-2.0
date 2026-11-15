@@ -29,12 +29,13 @@ export class PrismaService
         throw new Error('USD VENUE BLOCKED: DB application must not be PostgreSQL superuser');
       }
       const stageId=process.env.VENUE_STAGE_ID;
-      const stages=await this.stage.findMany({
-        select:{id:true},
-        take:2,
-      });
-      if (!stageId||stages.length!==1||stages[0].id!==stageId) {
-        throw new Error('USD VENUE BLOCKED: exactly one pinned signed stage is required');
+      // USD_SHARED_VENUE_STAGE: a single local database retains all stages.
+      // Judging follows one root-owned active pointer, never the first Stage.
+      const active=await this.$queryRawUnsafe<Array<{stageId:string}>>(
+        'SELECT stage_id AS "stageId" FROM venue_private.active_stage WHERE singleton=true',
+      );
+      if (!stageId||active.length!==1||active[0].stageId!==stageId) {
+        throw new Error('USD VENUE BLOCKED: start the selected active stage workspace');
       }
       // The journal must be installed AFTER the original signed import but
       // BEFORE any judge can submit a registration, inspection or result.

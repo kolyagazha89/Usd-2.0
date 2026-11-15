@@ -1,5 +1,5 @@
 ﻿#requires -Version 5.1
-# Real USD seasons: a separate Docker project and persistent volumes per stage.
+# USD seasons: retain stages in one existing Docker project and database.
 # This module is dot-sourced by venue-control.ps1.
 
 function Get-VenueProjectForStage([string]$StageId){
@@ -11,7 +11,9 @@ function Get-VenueProjectForStage([string]$StageId){
 function Get-VenueProject {
  $state=Read-State
  if(!$state -or $state.PSObject.Properties.Name -notcontains 'project'){return 'usd-venue'}
- $expected=Get-VenueProjectForStage ([string]$state.stageId)
+ $projectStage=$(if($state.PSObject.Properties.Name -contains 'projectStageId'){[string]$state.projectStageId}else{[string]$state.stageId})
+ $expected=Get-VenueProjectForStage $projectStage
+ if([string]$state.project -ceq 'usd-venue'){return 'usd-venue'}
  if([string]$state.project -cne $expected){throw 'Docker-проект не совпадает с закреплённым этапом'}
  return $expected
 }
@@ -43,7 +45,8 @@ function Assert-NoOtherVenueGatewayRunning {
 function Test-VerifiedVenueAck([string]$StageId){
  # Call only with the judging API frozen. The acknowledgement is valid only
  # for the *current* immutable journal tip, including an empty journal.
- $sql="SELECT COALESCE((SELECT hash FROM venue_private.operation_journal ORDER BY sequence DESC LIMIT 1), repeat('0',64));"
+ $null=Get-VenueProjectForStage $StageId
+ $sql="SELECT COALESCE((SELECT hash FROM venue_private.operation_journal WHERE stage_id='$StageId' ORDER BY sequence DESC LIMIT 1), repeat('0',64));"
  $project=Get-VenueProject
  $rows=@(& docker compose -p $project -f (Join-Path $Root 'compose.yaml') exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c $sql)
  Assert-Exit 'inspect last local journal hash'
@@ -97,7 +100,16 @@ function New-VenueStageWorkspace([string]$StageId){
   # NEVER copy .env, local-private, passwords or a previous stage database.
   Copy-Item -LiteralPath (Join-Path $Root $relative) -Destination $destination -Force
  }
+ $state=Read-State
+ $projectStage=$(if($state.PSObject.Properties.Name -contains 'projectStageId'){[string]$state.projectStageId}else{[string]$state.stageId})
+ $source=@{workspace=$Root;project=(Get-VenueProject);projectStageId=$projectStage}
+ [IO.File]::WriteAllText((Join-Path $target 'shared-source.json'),($source|ConvertTo-Json),(New-Object Text.UTF8Encoding($false)))
  return $target
+}
+function Test-IsActiveVenueStage([string]$StageId){
+ $rows=@(& docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c 'SELECT stage_id FROM venue_private.active_stage WHERE singleton=true;')
+ Assert-Exit 'inspect active stage'
+ return @($rows|Where-Object {$_ -ceq $StageId}).Count -eq 1
 }
 function Switch-ToNextStage {
  if($Silent){throw 'Переключение этапа требует администратора'}
@@ -130,40 +142,72 @@ function Switch-ToNextStage {
    throw 'Этап уже установлен. Повторный импорт запрещён.'
   }
  }
- if(-not(Confirm-VenueAction ('Перейти к следующему этапу '+$newId+'?'+
-  [Environment]::NewLine+'Проверим передачу текущих результатов на Ubuntu.'+
-  [Environment]::NewLine+'Предыдущая база и все результаты останутся на этом ноутбуке.'))){
-  throw 'Переключение отменено. Данные сохранены.'
- }
- $project=Get-VenueProject
- $running=@(& docker compose -p $project -f (Join-Path $Root 'compose.yaml') ps --status running -q api)
- Assert-Exit 'inspect judging service'
- $wasRunning=@($running|Where-Object {$_}).Count -gt 0
- $frozen=$false
+ # Prepare the workspace before pausing judges. No network sync gate:
+ # a local encrypted snapshot and the original database both remain available.
+ $workspace=New-VenueStageWorkspace $newId
+ Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'start retained database'
+ Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
+  & docker compose -p (Get-VenueProject) -f (Join-Path $Root 'compose.yaml') exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
+ Assert-Exit 'prepare per-stage journal'
+ if(-not(Test-IsActiveVenueStage $old.stageId)){throw 'Запустите «Следующий этап» из текущей рабочей папки USD'}
  try{
-  if($wasRunning){
-   Invoke-Compose @('stop','api') 'freeze current stage'
-   $frozen=$true
-  }
-  Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'inspect current journal'
-  if(-not(Test-VerifiedVenueAck $old.stageId)){
-   $bundle=Export-VenueReturn -LeaveApiStopped -Automatic
-   $synced=Sync-VenueReturn -Bundle $bundle
-   if($synced.accepted -ne $true -or -not(Test-VerifiedVenueAck $old.stageId)){
-    throw 'Нет точного подтверждения Ubuntu для локального журнала'
-   }
-  }
-  Invoke-Compose @('stop') 'stop former stage while retaining all volumes'
-  Remove-Autostart
+  $archive=Export-VenueReturn -LeaveApiStopped -Automatic -LocalArchive
+  Write-Host 'Резервный файл текущего этапа сохранён. Отправить его можно позже.'
+  Invoke-Compose @('stop') 'pause shared server without deleting any data'
+  Write-Host ('НОВАЯ ПАПКА: '+$workspace)
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $workspace 'venue-control.ps1') -Action install -StageFile $newFile | Out-Host
+  Assert-Exit 'append next signed stage to shared database'
  }catch{
-  if($frozen){
-   try{Restore-VenueApi}catch{Write-Host 'База сохранена. Можно снова запустить USD — Офлайн.'}
-  }
+  # If the import committed, it is resumable from the new workspace; starting
+  # an old API against that active stage is refused rather than mixing events.
+  try{
+   Invoke-Compose @('up','-d','--wait','--no-build','--pull','never','db') 'inspect resumable stage'
+   if(Test-IsActiveVenueStage $old.stageId){Restore-VenueApi}
+  }catch{Write-Host 'База сохранена.'}
+  Write-Host ('Для продолжения установки откройте USD-Install.cmd в '+$workspace)
   throw
  }
- $workspace=New-VenueStageWorkspace $newId
- Write-Host ('АРХИВ ПРОШЛОГО ЭТАПА СОХРАНЁН: '+$old.stageId)
- Write-Host ('НОВАЯ ПАПКА: '+$workspace)
- & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $workspace 'venue-control.ps1') -Action install -StageFile $newFile | Out-Host
- Assert-Exit 'install next independently signed stage'
 }
+
+function Import-SharedVenueStage([object]$state,[hashtable]$cfg,[array]$mounts){
+   # Preserve DB credentials on Windows; the root connection exists only in
+   # this short-lived importer, never in the long-running judging API.
+   $priorDb=$env:DATABASE_URL;$priorPass=$env:VENUE_DB_PASSWORD
+   $env:VENUE_DB_PASSWORD=$cfg['VENUE_DB_ROOT_PASSWORD']
+   $env:DATABASE_URL='postgresql://usd_venue_root:'+$cfg['VENUE_DB_ROOT_PASSWORD']+'@db:5432/usd_venue?schema=public'
+   try{
+    Invoke-Compose (@('run','--rm','--no-deps','-e','DATABASE_URL',
+      '-e','VENUE_DB_USER=usd_venue_root','-e','VENUE_DB_PASSWORD',
+      '-e','VENUE_SHARED_IMPORT=true')+$mounts+
+     @('--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+      '--entrypoint','node','api','/app/import-stage.mjs',
+      '/app/venue-stage.json','/app/venue-signing-public.pem','--apply',$state.stageId)) 'append signed stage to retained local database'
+   }finally{if($null -eq $priorPass){Remove-Item Env:\VENUE_DB_PASSWORD -ErrorAction SilentlyContinue}else{$env:VENUE_DB_PASSWORD=$priorPass};if($null -eq $priorDb){Remove-Item Env:\DATABASE_URL -ErrorAction SilentlyContinue}else{$env:DATABASE_URL=$priorDb}}
+}
+
+function Create-ExistingStaff([object]$State,[array]$Mounts){
+ if([string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
+  !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
+  throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
+ }
+ $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
+  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+  '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
+  '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
+ $seasonArgs=@();if($State.PSObject.Properties.Name -contains 'shared' -and $State.shared){$seasonArgs=@('-e','VENUE_RETAINED_SEASON=true')}
+ Invoke-Compose (@('run','--rm','--no-deps')+$seasonArgs+$Mounts+$staffMounts+
+  @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
+  '/app/venue-stage.json','/app/venue-signing-public.pem','/app/venue-access-key.txt')) 'restore centrally approved staff logins'
+}
+
+function Assert-NoOrphanedVenueStack([string]$Project){
+ if($Project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){throw 'Неверный Docker-проект нового этапа'}
+ $services=@(& docker ps -a --filter ('label=com.docker.compose.project='+$Project) --format '{{.ID}}')
+ Assert-Exit 'inspect existing venue containers'
+ $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
+ Assert-Exit 'inspect existing venue volumes'
+ if($services.Count -gt 0 -or $volumes.Count -gt 0){
+  throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
+ }
+}
+# One-time replacement of an explicitly retired trial; no trial mode remains.
