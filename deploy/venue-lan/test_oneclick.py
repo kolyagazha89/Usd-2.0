@@ -124,7 +124,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('usd-venue-',lifecycle)
         self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
         self.assertIn('"USD-Next-Stage.cmd"',kit)
-        self.assertIn('"USD — Следующий этап"',ctl)
+        self.assertIn("'USD — Следующий этап'",ctl)
         self.assertIn('stage-workspaces',lifecycle)
         self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
