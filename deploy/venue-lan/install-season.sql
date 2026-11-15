@@ -159,10 +159,21 @@ BEGIN
   RAISE EXCEPTION 'Past stage mutations prohibited: %',TG_TABLE_NAME;
  END IF;
  IF TG_OP='UPDATE' THEN
-  -- Moving a record to another stage through UPDATE is also prohibited.
-  IF TG_TABLE_NAME IN ('Registration','RegistrationNumber','ParticipantStageInspection','StageClass')
-   AND to_jsonb(OLD)->>'stageId'<>v_active THEN
-   RAISE EXCEPTION 'Cannot move historical record';
+  -- A historic row must not be moved to the active stage by editing its
+  -- foreign key. Both BEFORE and AFTER relations must refer to the same
+  -- allowed current stage.
+  IF TG_TABLE_NAME IN ('Registration','RegistrationNumber','ParticipantStageInspection','StageClass') THEN
+   v_target:=to_jsonb(OLD)->>'stageId';
+  ELSIF TG_TABLE_NAME IN ('Inspection','Result','RegistrationClass') THEN
+   SELECT "stageId" INTO v_target FROM public."Registration"
+    WHERE id=to_jsonb(OLD)->>'registrationId';
+  ELSIF TG_TABLE_NAME='RegistrationClassInspection' THEN
+   SELECT r."stageId" INTO v_target FROM public."RegistrationClass" c
+    JOIN public."Registration" r ON c."registrationId"=r.id
+    WHERE c.id=to_jsonb(OLD)->>'registrationClassId';
+  END IF;
+  IF v_target IS NULL OR v_target<>v_active THEN
+   RAISE EXCEPTION 'Cannot move historical record between stages';
   END IF;
  END IF;
  RETURN NEW;
