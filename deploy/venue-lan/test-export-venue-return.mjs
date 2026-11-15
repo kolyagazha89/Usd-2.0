@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {collectVenueJournal} from './export-venue-return.mjs';
 import {readFile} from 'node:fs/promises';
 const stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e';
+const formerStage='d510f672-79f7-44eb-8173-2a8ff94b1c0e';
 const baseline='a'.repeat(64);
 const now=Date.parse('2026-11-12T05:00:00.000Z');
 const env={
@@ -19,9 +20,14 @@ const event={
 };
 function fakeDb({role=false,stages=[{id:stage}],audit={metadata:{sha256:baseline}},rows=[event]}={}){
  const tx={
-  $queryRawUnsafe:async sql=>sql.includes('pg_roles')?[{rolsuper:role}]
-   :sql.includes('journal_coverage')?[{formatVersion:2,fromSequence:0}]:rows,
-  stage:{findMany:async()=>stages},
+  $queryRawUnsafe:async (sql,selected)=>sql.includes('pg_roles')?[{rolsuper:role}]
+   :sql.includes('journal_coverage')?[{formatVersion:2,fromSequence:0}]
+   :sql.includes('operation_journal') ? (()=>{
+    assert.match(sql,/WHERE stage_id = \$1/,'journal must be filtered by stage ID in SQL');
+    assert.equal(selected,stage);
+    return rows.filter(row=>row.payload.stageId===selected);
+   })():[],
+  stage:{findMany:async ({where})=>stages.filter(s=>s.id===where.id)},
   auditLog:{findFirst:async()=>audit},
  };
  return {$transaction:async(callback,opts)=>{
@@ -42,7 +48,6 @@ test('read-only MVCC collector validates central signed baseline and root-owned 
 test('reject unsafe old root database, different stage, absent original audit, tampered chain',async()=>{
  for(const opts of [
   {role:true},{stages:[{id:'other'}]},
-  {stages:[{id:stage},{id:'other'}]},
   {audit:null},
   {rows:[{...event,calculated:'0'.repeat(64)}]},
   {rows:[{...event,previousHash:'c'.repeat(64)}]},
@@ -53,6 +58,27 @@ test('reject unsafe old root database, different stage, absent original audit, t
   ...env,DATABASE_URL:'postgresql://user:pw@api.usd-russia.ru/prod',
  },now));
 });
+test('one PostgreSQL accumulates two stages but exports only selected stage journal',async()=>{
+ const historical={
+  ...event,sequence:2,previousHash:'0'.repeat(64),hash:'c'.repeat(64),
+  calculated:'c'.repeat(64),
+  payload:{...event.payload,sequence:2,stageId:formerStage},
+ };
+ const current={
+  ...event,sequence:8,previousHash:'0'.repeat(64),hash:'d'.repeat(64),
+  calculated:'d'.repeat(64),
+  payload:{...event.payload,sequence:8,stageId:stage},
+ };
+ const snapshot=await collectVenueJournal(fakeDb({
+  stages:[{id:formerStage},{id:stage}],rows:[historical,current],
+ }),env,now);
+ assert.equal(snapshot.stageId,stage);
+ assert.equal(snapshot.eventCount,1);
+ assert.equal(snapshot.events[0].sequence,8);
+ assert.equal(snapshot.events[0].hash,'d'.repeat(64));
+ assert.ok(snapshot.events.every(e=>e.payload.stageId===stage));
+});
+
 test('scripts keep the private key out of API service and central server',async()=>{
  const [shell,cli,verify]=await Promise.all([
   readFile(new URL('./export-venue-return.sh',import.meta.url),'utf8'),
