@@ -1209,3 +1209,12 @@ model VenueSyncAuthorization {
   stage              Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
   @@index([stageId, expiresAt])
 }
+
+/** Only the public X.509 root CA from the venue laptop, never its private key. */
+model VenueTlsCertificate {
+  id        String   @id @db.VarChar(24)
+  pem       String   @db.Text
+  sha256    String   @db.VarChar(64)
+  notAfter  DateTime @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
