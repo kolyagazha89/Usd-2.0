@@ -29,12 +29,23 @@ export class PrismaService
         throw new Error('USD VENUE BLOCKED: DB application must not be PostgreSQL superuser');
       }
       const stageId=process.env.VENUE_STAGE_ID;
+      if (!stageId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stageId)) {
+        throw new Error('USD VENUE BLOCKED: invalid signed active stage UUID');
+      }
+      // Historical stages stay in this SAME PostgreSQL. The running API must
+      // serve the currently signed stage only; the root-owned selector, not a
+      // client-supplied stage ID or a table count, authorizes that selection.
       const stages=await this.stage.findMany({
-        select:{id:true},
-        take:2,
+        where:{id:stageId},select:{id:true},take:1,
       });
-      if (!stageId||stages.length!==1||stages[0].id!==stageId) {
-        throw new Error('USD VENUE BLOCKED: exactly one pinned signed stage is required');
+      if(stages.length!==1){
+        throw new Error('USD VENUE BLOCKED: signed stage is missing from local history');
+      }
+      const selected=await this.$queryRawUnsafe<Array<{stageId:string}>>(
+        'SELECT stage_id AS "stageId" FROM venue_private.active_stage',
+      );
+      if(selected.length!==1||selected[0].stageId!==stageId){
+        throw new Error('USD VENUE BLOCKED: protected active stage does not match signed runtime');
       }
       // The journal must be installed AFTER the original signed import but
       // BEFORE any judge can submit a registration, inspection or result.
