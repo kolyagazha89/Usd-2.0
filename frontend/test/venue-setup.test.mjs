@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {trustedVenueKey,validateVenueDownload,validateVenueStaffExport} from '../src/admin/venue-setup-model.ts';
 const now=Date.now();
 const setup={signing:{ready:true,publicKeyPem:'-----BEGIN PUBLIC KEY-----\nexample\n-----END PUBLIC KEY-----',fingerprint:'a'.repeat(64)},centralSyncReady:false,fieldAcceptanceComplete:false};
@@ -36,4 +37,20 @@ test('real event download includes signed ENCRYPTED roster and separate 256-bit 
   {...response,signed:data},
   {...response,signed:{...packageData,snapshot:{...data.snapshot,staffAccess:{...envelope,algorithm:'none'}}}},
  ])assert.throws(()=>validateVenueStaffExport(bad,'selected',setup,now),/суд|пакет|ключ/i);
+});
+
+test('online admin offers real laptop CA import and public phone downloads with trusted fingerprint',async()=>{
+ const [page,api]=await Promise.all([
+  readFile(new URL('../src/admin/VenueServerPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/api.ts',import.meta.url),'utf8'),
+ ]);
+ assert.match(page,/USD-Venue-CA\.crt/);
+ assert.match(page,/venue\/certificate/);
+ assert.match(page,/Скачать для iPhone/);
+ assert.match(page,/Скачать для Android/);
+ assert.match(page,/QRCodeSVG/);
+ assert.match(page,/sha256/);
+ assert.match(page,/не загружен|не загружен|не опубликован|не подготовлен/i);
+ assert.match(api,/venueCertificateDownloadUrl/);
+ assert.doesNotMatch(page,/BEGIN PRIVATE KEY/);
 });

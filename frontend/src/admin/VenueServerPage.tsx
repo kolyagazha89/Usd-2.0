@@ -1,15 +1,19 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,BookOpen,Download,ExternalLink,RefreshCw,WifiOff} from 'lucide-react';
-import {apiGet,apiPost,listData,type User} from '../api';
+import {apiGet,apiPost,listData,venueCertificateDownloadUrl,type User} from '../api';
+import {QRCodeSVG} from 'qrcode.react';
 import {saveVenueFile,trustedVenueKey,validateVenueStaffExport,type VenueSetup} from './venue-setup-model';
 import './venue-server.css';
 type Stage={id:string;name:string;date?:string;city?:string;status?:string};
+type VenueCertificateInfo={available:boolean;sha256?:string;notAfter?:string;updatedAt?:string};
 export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(p:string)=>void;path:string;PageFrame:React.ComponentType<any>}){
  const [setup,setSetup]=useState<VenueSetup|null>(null),[stages,setStages]=useState<Stage[]>([]);
  const [stageId,setStageId]=useState(()=>new URLSearchParams(path.split('?')[1]??'').get('stageId')??'');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[attempt,setAttempt]=useState(0);
  const [staffKey,setStaffKey]=useState('');
+ const [certificate,setCertificate]=useState<VenueCertificateInfo|null>(null);
+ const [certificateError,setCertificateError]=useState(''),[certificateBusy,setCertificateBusy]=useState(false);
  useEffect(()=>{
   if(user.role!=='ADMIN'){setLoading(false);return;}
   let active=true;setLoading(true);setError('');setSetup(null);setStages([]);setStaffKey('');
@@ -21,6 +25,12 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
    setStageId(previous=>available.some(s=>s.id===previous)?previous:available[0]?.id??'');
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:'Не удалось проверить сервер. Повторите проверку.')})
    .finally(()=>{if(active)setLoading(false)});
+  if((window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__!==true){
+   setCertificate(null);setCertificateError('');
+   void apiGet<VenueCertificateInfo>('/stages/venue/certificate').then(info=>{
+    if(active)setCertificate(info);
+   }).catch(e=>{if(active)setCertificateError(e instanceof Error?e.message:'Не удалось проверить сертификат');});
+  }
   return()=>{active=false;};
  },[user.role,attempt]);
  const downloadStage=async()=>{
@@ -42,6 +52,21 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
   try{const key=trustedVenueKey(setup);saveVenueFile('signing-public.pem',key.publicKeyPem,'application/x-pem-file');setNotice('Открытый ключ скачан. При установке сверьте отпечаток с этой страницей.');}
   catch(e){setError(e instanceof Error?e.message:'Ключ недоступен')}
  };
+ const uploadCertificate=async(event:React.ChangeEvent<HTMLInputElement>)=>{
+  const file=event.target.files?.[0];event.target.value='';
+  if(!file||certificateBusy)return;
+  setCertificateBusy(true);setCertificateError('');setNotice('');
+  try{
+   if(file.size>8192||file.size<500)throw new Error('Выберите публичный USD-Venue-CA.crt, не закрытый ключ.');
+   const pem=await file.text();
+   if(!pem.includes('-----BEGIN CERTIFICATE-----')||pem.includes('PRIVATE KEY'))
+    throw new Error('Это не публичный корневой сертификат. Выберите USD-Venue-CA.crt с ноутбука.');
+   const saved=await apiPost<VenueCertificateInfo>('/stages/venue/certificate',{pem});
+   setCertificate(saved);
+   setNotice('Сертификат площадки опубликован. Теперь ссылки для iPhone и Android работают без входа в админку. Сверьте SHA-256 с сертификатом на ноутбуке.');
+  }catch(e){setCertificateError(e instanceof Error?e.message:'Сертификат не загружен. Попробуйте снова.')}
+  finally{setCertificateBusy(false)}
+ };
  const localMode=(window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true;
  return <PageFrame className="venue-server-page" title="Офлайн-сервер" subtitle="USD на ноутбуке: судьи и табло работают через общий Wi-Fi">
   {user.role!=='ADMIN'?<section className="panel" role="alert">Этот раздел доступен только администратору USD.</section>:<>
@@ -53,13 +78,54 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
     <p className="muted">В архиве уже есть все кнопки и инструкция. Если раньше устанавливали пробный сервер, скопируйте новые файлы поверх прежней папки USD, сохранив .env и local-private до запуска. Следующий настоящий этап устанавливайте кнопкой «USD — Следующий этап»: она добавит этап в ту же базу, сохранив предыдущие результаты. Инструкцию можно читать без интернета или распечатать.</p></div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-install-title"><span className="venue-server-number" aria-hidden="true">2</span><div className="venue-server-step-body"><h2 id="venue-install-title">Один раз установите дома</h2>
     <p>Подключитесь к роутеру, который возьмёте на соревнования. В папке дважды нажмите <strong>USD-Install.cmd</strong> — кнопку установки.</p>
-    <ol><li>Если программа попросит Docker Desktop — согласитесь на установку, откройте Docker Desktop и завершите его настройку. После перезагрузки нажмите установку USD ещё раз.</li><li>Выберите адрес ноутбука и скачанные из админки три файла: подписанный пакет этапа, отдельный ключ доступа судей и открытый ключ подписи.</li><li>Разрешите доступ через брандмауэр. Программа перенесёт существующие аккаунты USD с прежними email и паролями. Дождитесь сообщения о готовности.</li></ol>
+    <ol><li>Если Docker Desktop отсутствует, установите его с официального сайта и включите режим Linux containers / WSL2. USD самостоятельно Docker не удаляет и не переустанавливает.</li><li>Выберите адрес ноутбука и скачанные из админки три файла: подписанный пакет этапа, отдельный ключ доступа судей и открытый ключ подписи.</li><li>Разрешите доступ через брандмауэр. Программа перенесёт существующие аккаунты USD с прежними email и паролями. Дождитесь сообщения о готовности.</li></ol>
     <p>Программа сама скачает сервер и откроет страницу входа. Если установка прервётся, снова нажмите ту же кнопку — сохранённые данные останутся на месте.</p></div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-run-title"><span className="venue-server-number" aria-hidden="true">3</span><div className="venue-server-step-body"><h2 id="venue-run-title">На площадке включите офлайн</h2>
     <p>Включите ноутбук и тот же роутер. Дважды нажмите <strong>USD-Offline.cmd</strong> или ярлык <strong>«USD — Офлайн»</strong> на рабочем столе.</p>
     <p>Программа покажет адрес входа и адрес <strong>LIVE-табло</strong>. Подключите телефоны к этому же Wi-Fi. Откройте на них показанный адрес. Понадобится один раз установить сертификат — порядок есть в инструкции ниже.</p>
     <p>Администратор и судьи входят со своими существующими email и паролями USD. Дополнительные учётные записи не требуются. После следующего входа в Windows сервер запустится автоматически.</p>
     {localMode&&<div className="venue-server-actions"><button className="primary-button" onClick={()=>go('/admin/event-day')}>Открыть день соревнований</button><a className="secondary-button" href="/venue/live" target="_blank" rel="noopener noreferrer">Открыть LIVE-табло</a></div>}</div></section>
+   <section className="panel venue-server-step venue-server-certificate" aria-labelledby="venue-cert-title">
+    <span className="venue-server-number" aria-hidden="true">3а</span>
+    <div className="venue-server-step-body">
+     <h2 id="venue-cert-title">Сертификат HTTPS для телефонов</h2>
+     <p>На офлайн-ноутбуке один раз нажмите <strong>USD-Certificate.cmd</strong> (кнопка «USD — Сертификат»). Она скачает публичный сертификат Caddy в основную папку <strong>USD-Offline-Windows/USD-Venue-CA.crt</strong> и в <strong>local-private</strong>. Сертификат создаёт именно ваш ноутбук — онлайн-сервер не может создать его заранее.</p>
+     {!localMode&&<>
+      <p>Загрузите <strong>только публичный USD-Venue-CA.crt</strong> в онлайн-админку один раз. После этого судьи могут открыть ссылку или отсканировать QR и установить сертификат прямо на телефон. Пароль, приватные ключи и папку <strong>local-private</strong> целиком не передавайте.</p>
+      <div className="venue-server-actions">
+       <label className="secondary-button venue-server-cert-upload">
+        <Download size={18}/>{certificateBusy?'Проверяем файл…':'Загрузить сертификат с ноутбука'}
+        <input type="file" accept=".crt,.pem,application/x-x509-ca-cert" disabled={certificateBusy}
+         onChange={event=>void uploadCertificate(event)}/>
+       </label>
+       <button className="secondary-button" type="button" disabled={certificateBusy}
+        onClick={()=>setAttempt(n=>n+1)}><RefreshCw size={16}/>Обновить статус</button>
+      </div>
+      {certificateError&&<p className="form-error" role="alert">{certificateError}</p>}
+      {!certificate&&!certificateError&&<p role="status">Проверяем, опубликован ли сертификат…</p>}
+      {certificate&&!certificate.available&&<p role="status">Сертификат ещё не загружен. Сначала получите его с офлайн-ноутбука.</p>}
+      {certificate?.available&&<>
+       <p className="venue-server-cert-valid">Корневой сертификат опубликован. Действует до {certificate.notAfter?new Date(certificate.notAfter).toLocaleDateString('ru-RU'):'указанного срока'}.</p>
+       <p>Контрольный отпечаток SHA-256 — сверьте с ноутбуком перед установкой:</p>
+       <code className="venue-server-fingerprint">{certificate.sha256}</code>
+       <div className="venue-server-actions">
+        <a className="primary-button" href={venueCertificateDownloadUrl('cer')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для iPhone (.cer)</a>
+        <a className="primary-button" href={venueCertificateDownloadUrl('crt')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для Android (.crt)</a>
+       </div>
+       <div className="venue-server-cert-codes">
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('cer')} size={132} title="QR для iPhone"/><span>iPhone</span></div>
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('crt')} size={132} title="QR для Android"/><span>Android</span></div>
+       </div>
+      </>}
+     </>}
+     <ol>
+      <li><strong>iPhone:</strong> открыть ссылку в Safari, разрешить загрузку профиля, затем «Настройки» → «Профиль загружен» → «Установить»; после установки: «Настройки» → «Основные» → «Об этом устройстве» → «Доверие сертификатам» → включить полное доверие.</li>
+      <li><strong>Android:</strong> скачать .crt и открыть «Настройки» → «Безопасность» → «Шифрование и учётные данные» → «Установить сертификат CA» (названия могут отличаться по модели).</li>
+      <li>После установки подключиться к Wi-Fi USD и открыть <strong>https://IP-ноутбука/login</strong>. Если сертификат на ноутбуке сменился, заново загрузите именно новый файл в админку.</li>
+     </ol>
+     <p className="muted">Не устанавливайте случайные сертификаты: доверие к корневому CA распространяется на HTTPS. Для проверки сравните SHA-256 на ноутбуке и в этом разделе.</p>
+    </div>
+   </section>
    <section className="panel venue-server-step" aria-labelledby="venue-export-title"><span className="venue-server-number" aria-hidden="true">4</span><div className="venue-server-step-body"><h2 id="venue-export-title">Сохраните результаты в защищённый файл</h2>
     <p>После настоящего этапа на ноутбуке дважды нажмите <strong>USD-Export.cmd</strong> или ярлык <strong>«USD — Экспорт»</strong>. Для согласованного снимка программа приостанавливает ввод результатов и возобновляет его после экспорта. Кнопка «Онлайн» оставляет судейский ввод остановленным до завершения переключения.</p>
     <ol><li>Программа безопасно подготовит ключ подписи и предложит задать отдельный пароль шифрования.</li><li>В папке <strong>local-private/return-output</strong> появятся зашифрованный файл результатов, открытый ключ и его отпечаток.</li><li>Передайте файл ответственному администратору. Пароль сообщите отдельно, а отпечаток ключа сверьте независимым способом.</li></ol>
