@@ -219,3 +219,30 @@ jobs:
               throw "Missing launcher action: $($pair[0])"
             }
           }
+
+  venue-postgres18-season-journal:
+    name: Local same-PostgreSQL season A and B (PG18)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: usd_venue_root
+          POSTGRES_PASSWORD: ci-root-password
+          POSTGRES_DB: usd_venue_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U usd_venue_root -d usd_venue_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Install pinned backend database driver
+        working-directory: backend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Assert A history unchanged after signed B and stage-only hash chains
+        env:
+          USD_VENUE_TEST_PG_URL: postgresql://usd_venue_root:ci-root-password@127.0.0.1:5432/usd_venue_ci
+        run: node deploy/venue-lan/test-season-journal.pg.mjs
