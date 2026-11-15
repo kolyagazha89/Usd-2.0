@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Reproduce real PowerShell 5.1 -> native executable argument forwarding.
 # No Docker daemon, existing USD volume, registry, or firewall is touched.
 $ErrorActionPreference='Stop'
