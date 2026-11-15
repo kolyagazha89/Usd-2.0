@@ -39,7 +39,7 @@ try{
   $script:QuerySeen=$args -join ' '
   return $script:JournalTip
  }
- $ackPath=Join-Path $temp ('sync-ack-'+$script:JournalTip+'.json')
+ $ackPath=Join-Path $temp ('sync-ack-'+$stage+'-'+$script:JournalTip+'.json')
  $receipt=@{accepted=$true;stageId=$stage;journalEndHash=$script:JournalTip}
  [IO.File]::WriteAllText($ackPath,($receipt|ConvertTo-Json -Compress))
  if(-not(Test-VerifiedVenueAck $stage)){throw 'Exact Ubuntu ACK rejected'}
