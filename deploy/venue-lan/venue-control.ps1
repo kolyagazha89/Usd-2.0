@@ -723,7 +723,7 @@ function Sync-VenueReturn([object]$Bundle){
   [string]$SyncResult.journalEndHash -ne $Bundle.journalEndHash){
   throw 'Центральная Ubuntu не подтвердила все записи и пересчёт. Попробуйте ещё раз.'
  }
- $ack=Join-Path $PrivateDir ('sync-ack-'+$Bundle.journalEndHash+'.json')
+ $ack=Join-Path $PrivateDir ('sync-ack-'+$Bundle.stageId+'-'+$Bundle.journalEndHash+'.json')
  if(!(Test-Path -LiteralPath $ack)){
   Write-PrivateFile $ack ((@{accepted=$true;stageId=$Bundle.stageId;journalEndHash=$Bundle.journalEndHash;at=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress)+[Environment]::NewLine)
  }
