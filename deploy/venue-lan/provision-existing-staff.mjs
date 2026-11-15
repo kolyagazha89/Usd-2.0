@@ -108,7 +108,7 @@ function rolePermissionsMatch(actual,expected){
   &&expected[name].every(action=>actual[name].includes(action)));
 }
 /** Serializable one-time install; replays after installer crash are read-only. */
-export async function applyExistingVenueStaff(staff,stageId,prisma){
+export async function applyExistingVenueStaff(staff,stageId,prisma,{append=false}={}){
  if(!prisma||typeof prisma.$transaction!=='function'||!UUID.test(stageId))
   throw new Error('Неверная локальная база сотрудников');
  const candidates=verifyUsers(staff.map(u=>({...u,
@@ -119,8 +119,59 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
   const count=await tx.stage.count();
   const current=await tx.stage.findFirst({where:{id:stageId,isDeleted:false,
    status:{in:['PUBLISHED','COMPLETED']}},select:{id:true}});
-  if(count!==1||!current)throw new Error('Подменён или отсутствует этап площадки');
+  if((!append&&count!==1)||!current)throw new Error('Подменён или отсутствует этап площадки');
   const existingCount=await tx.user.count();
+  if(append){
+   // This encrypted list was signed for the new stage and decrypted using
+   // its independently protected unlock key. Preserve identity UUIDs and
+   // safely revoke staff missing from the newly authorized roster.
+   const present=await tx.user.findMany({select:{id:true,email:true,name:true,
+    passwordHash:true,role:true,customRoleId:true,isActive:true,emailVerifiedAt:true}});
+   const expectedById=new Map(candidates.map(u=>[u.id,u]));
+   const emailOwner=new Map(present.map(u=>[u.email.toLowerCase(),u.id]));
+   for(const user of candidates){
+    if(emailOwner.has(user.email.toLowerCase())&&emailOwner.get(user.email.toLowerCase())!==user.id)
+     throw new Error('Конфликт email в списке сотрудников площадки');
+   }
+   const roles=new Map(candidates.filter(u=>u.customRole).map(u=>[u.customRole.id,u.customRole]));
+   for(const role of roles.values()){
+    const localKey='venue-stage-'+role.id;
+    const prev=await tx.role.findUnique({where:{id:role.id}});
+    if(prev){
+     if(prev.key!==localKey||!prev.isSystem||
+      !rolePermissionsMatch(prev.permissions,role.permissions))
+      throw new Error('Конфликт или повышение прав исторической роли судьи');
+    }else{
+     await tx.role.create({data:{id:role.id,key:localKey,name:role.name,
+      permissions:role.permissions,isSystem:true,
+      description:'Права подписанного USD только для офлайн-площадки'}});
+    }
+   }
+   for(const existing of present){
+    const expected=expectedById.get(existing.id);
+    if(expected){
+     if(existing.email.toLowerCase()!==expected.email.toLowerCase())
+      throw new Error('Подменён UUID существующего сотрудника');
+     await tx.user.update({where:{id:existing.id},data:{
+      name:expected.name,passwordHash:expected.passwordHash,
+      role:expected.role,customRoleId:expected.customRole?.id??null,
+      emailVerifiedAt:expected.emailVerifiedAt,isActive:true,
+     }});
+    }else if(existing.role==='ADMIN'||existing.customRoleId){
+     await tx.user.update({where:{id:existing.id},data:{isActive:false}});
+    }
+   }
+   const presentIds=new Set(present.map(x=>x.id));
+   for(const user of candidates.filter(u=>!presentIds.has(u.id))){
+    await tx.user.create({data:{id:user.id,email:user.email,name:user.name,
+     passwordHash:user.passwordHash,role:user.role,isActive:true,
+     emailVerifiedAt:user.emailVerifiedAt,customRoleId:user.customRole?.id??null}});
+   }
+   await tx.auditLog.create({data:{action:'VENUE_EXISTING_STAFF_ENABLED',
+    entity:'Stage',entityId:stageId,metadata:{staffCount:candidates.length,
+     source:'central-sealed',rotation:true}}});
+   return {stageId,staffCount:candidates.length,replayed:false};
+  }
   if(existingCount>0){
    const present=await tx.user.findMany({select:{id:true,email:true,passwordHash:true,
     role:true,customRoleId:true,isActive:true}});
@@ -161,8 +212,9 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
 
 async function main(){
  const [file,keyFile,secretFile,...extra]=process.argv.slice(2);
- if(!file||!keyFile||!secretFile||extra.length)
-  throw new Error('Usage: provision-existing-staff.mjs STAGE.json PUBLIC.pem ACCESS.key');
+ if(!file||!keyFile||!secretFile||
+    (extra.length>0&&!(extra.length===1&&extra[0]==='--append')))
+  throw new Error('Usage: provision-existing-staff.mjs STAGE.json PUBLIC.pem ACCESS.key [--append]');
  if((await stat(file)).size>12*1024*1024+262144||(await stat(secretFile)).size>512)
   throw new Error('Некорректный размер пакета сотрудников');
  const [raw,pem,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8'),readFile(secretFile,'utf8')]);
@@ -177,7 +229,8 @@ async function main(){
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
-  const result=await applyExistingVenueStaff(staff,stageId,prisma);
+  const result=await applyExistingVenueStaff(staff,stageId,prisma,
+    {append:process.argv.includes('--append')});
   process.stdout.write('USD EXISTING STAFF READY: '+result.staffCount+' accounts\n');
  }finally{await prisma.$disconnect()}
 }
