@@ -313,6 +313,10 @@ function Replace-LegacyDemo([object]$State){
  Invoke-Compose @('down','--volumes') 'remove confirmed retired test volumes'
  Remove-Item -LiteralPath $EnvFile -Force
  Remove-Item -LiteralPath $PrivateDir -Recurse -Force
+ foreach($legacy in @('make-demo-stage.mjs','provision-staff.mjs')){
+  $obsolete=Join-Path $Root $legacy
+  if(Test-Path -LiteralPath $obsolete -PathType Leaf){Remove-Item -LiteralPath $obsolete -Force}
+ }
  New-Item -ItemType Directory -Path $PrivateDir|Out-Null
  Write-Host 'Старая пробная база удалена. Продолжаем установку подписанного этапа.'
 }
@@ -399,7 +403,7 @@ function Create-ExistingStaff([object]$State,[array]$Mounts){
  }
  $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-  '--volume',((Join-Path $Root 'provision-staff.mjs')+':/app/provision-staff.mjs:ro'),
+  '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
   '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
  Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+$staffMounts+
   @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
