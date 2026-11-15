@@ -82,8 +82,7 @@ function Read-State {
   $s.stageId -notmatch '^[0-9a-f-]{36}$' -or $s.fingerprint -notmatch '^[0-9a-f]{64}$'){
   throw 'Метаданные установки повреждены: не трогайте Docker volumes'
  }
- # Before staff export existed, valid legacy state JSON omitted this key.
- # Normalize in memory only: never rewrite old metadata while reading it.
+ # Legacy DEMO lacks accessKey; normalize only in memory.
  if($s.PSObject.Properties.Name -notcontains 'accessKey'){
   $s|Add-Member -NotePropertyName accessKey -NotePropertyValue $null
  }
@@ -570,8 +569,7 @@ Promise.all([
 }).catch(()=>process.exit(4));
 '@
  try{
-  # Windows PowerShell 5.1 strips JavaScript string quotes from native
-  # node -e arguments. Send the original program on stdin instead.
+  # PS5.1: pass JS on stdin; node -e strips string quotes.
   $program | & docker @(Get-VenueComposeArguments) exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
