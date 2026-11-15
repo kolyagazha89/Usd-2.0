@@ -68,3 +68,25 @@ try{
  $PrivateDir=$oldPrivate
  Remove-Item -LiteralPath $temp -Recurse -Force
 }
+
+# Historical Online must sync only that stage, without stopping current judging.
+$script:MockState|Add-Member -NotePropertyName phase -NotePropertyValue 'READY'
+function Export-VenueReturn {
+ param([switch]$LeaveApiStopped,[switch]$Automatic)
+ if(!$LeaveApiStopped -or !$Automatic){throw 'Historical sync lost automatic export options'}
+ return [pscustomobject]@{stageId=$stage}
+}
+function Test-IsActiveVenueStage([string]$StageId){return $false}
+function Sync-VenueReturn([object]$Bundle){return [pscustomobject]@{accepted=$true}}
+function Invoke-Compose {throw 'Historical sync must not stop or replace current services'}
+function Remove-Autostart {throw 'Historical sync must retain current autostart'}
+function Restore-VenueApi {throw 'Historical sync must not restore an old API'}
+Return-Online
+function Sync-VenueReturn([object]$Bundle){throw 'simulated historical sync failure'}
+try{
+ Return-Online
+ throw 'Historical sync failure was ignored'
+}catch{
+ if($_.Exception.Message -ne 'simulated historical sync failure'){throw}
+}
+Write-Host 'USD HISTORY: successful and failed sync left current judging unchanged'
