@@ -47,8 +47,9 @@ services:
  }finally{Pop-Location}
  # Reads must start an existing DB without reconciling bind mounts or images.
  function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
-  if(($Arguments -join ' ') -cne 'start --wait db'){throw 'Database read would recreate the running service'}
+  if(($Arguments -join ' ') -cne 'start db'){throw 'Database read would recreate the running service'}
  }
+ function docker {$global:LASTEXITCODE=0}
  Start-VenueDatabase
  Write-Host 'USD NATIVE RELEASE PASS: stdin JS, selected env, no DB recreation'
 }finally{
@@ -81,7 +82,7 @@ try{
  function powershell.exe {$global:LASTEXITCODE=1}
  function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
   $command=$Arguments -join ' '
-  if($command -eq 'start --wait'){$script:fullRestore++}
+  if($command -eq 'start'){$script:fullRestore++}
   elseif($command -ne 'stop'){throw ('Unexpected cancellation command '+$command)}
  }
  foreach($running in @($true,$false)){

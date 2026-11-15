@@ -107,9 +107,19 @@ function New-VenueStageWorkspace([string]$StageId){
  return $target
 }
 function Test-IsActiveVenueStage([string]$StageId){
- $rows=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c 'SELECT stage_id FROM venue_private.active_stage WHERE singleton=true;')
+ # A pre-season-manager installation has only one Stage and no pointer yet.
+ # psql conditionals keep the missing-table branch out of SQL parsing.
+ $sql=@'
+SELECT to_regclass('venue_private.active_stage') IS NULL AS legacy \gset
+\if :legacy
+SELECT id FROM public."Stage" LIMIT 2;
+\else
+SELECT stage_id FROM venue_private.active_stage WHERE singleton=true;
+\endif
+'@
+ $rows=@($sql | & docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue)
  Assert-Exit 'inspect active stage'
- return @($rows|Where-Object {$_ -ceq $StageId}).Count -eq 1
+ return $rows.Count -eq 1 -and [string]$rows[0] -ceq $StageId
 }
 function Switch-ToNextStage {
  if($Silent){throw 'Переключение этапа требует администратора'}
@@ -193,7 +203,7 @@ function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly){
  $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
   '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
   '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
- $checkArgs=$(if($CheckOnly){@('--check')}else{@()})
+$checkArgs=@();if($CheckOnly){$checkArgs=@('--check')}
  $seasonArgs=@();if($State.PSObject.Properties.Name -contains 'shared' -and $State.shared){$seasonArgs=@('-e','VENUE_RETAINED_SEASON=true')}
  Invoke-Compose (@('run','--rm','--no-deps')+$seasonArgs+$Mounts+$staffMounts+
   @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
@@ -217,7 +227,17 @@ function Get-VenueComposeArguments {
   '-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))
 }
 function Start-VenueDatabase {
- Invoke-Compose @('start','--wait','db') 'start existing database without reconfiguration'
+ Invoke-Compose @('start','db') 'start existing database without reconfiguration'
+ $prior=$ErrorActionPreference
+ try{
+  $ErrorActionPreference='Continue'
+  for($attempt=0;$attempt -lt 30;$attempt++){
+   & docker @(Get-VenueComposeArguments) exec -T db pg_isready -U usd_venue -d usd_venue 2>$null|Out-Null
+   if($LASTEXITCODE -eq 0){return}
+   Start-Sleep -Seconds 2
+  }
+ }finally{$ErrorActionPreference=$prior}
+ throw 'Локальная база ещё не готова. Данные сохранены; повторите запуск.'
 }
 function Test-VenueJudgingRunning {
  $rows=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
@@ -225,7 +245,7 @@ function Test-VenueJudgingRunning {
  return @($rows|Where-Object {$_}).Count -gt 0
 }
 function Restore-VenueStack {
- Invoke-Compose @('start','--wait') 'restore all previously installed services after cancelled stage switch'
+ Invoke-Compose @('start') 'restore all previously installed services after cancelled stage switch'
 }
 function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
  try{Create-ExistingStaff $State $Mounts -CheckOnly;return}catch{

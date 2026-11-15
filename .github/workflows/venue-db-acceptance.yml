@@ -121,6 +121,21 @@ jobs:
           docker compose -p usd-venue exec -T db \
             psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
             < install-journal.sql
+      - name: Verify native active-stage SQL for legacy and retained databases
+        working-directory: deploy/venue-lan
+        run: |
+          python3 - <<'PYSQL'
+          from pathlib import Path
+          source=Path('venue-season.ps1').read_text(encoding='utf-8-sig')
+          body=source.split('function Test-IsActiveVenueStage',1)[1].split("$sql=@'",1)[1].split("'@",1)[0]
+          Path('/tmp/usd-active-stage.sql').write_text(body)
+          PYSQL
+          actual=$(docker compose -p usd-venue exec -T db psql -X -A -t -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue < /tmp/usd-active-stage.sql)
+          test "$actual" = 'c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+          docker compose -p usd-venue exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue -c 'ALTER TABLE venue_private.active_stage RENAME TO active_stage_legacy_test;'
+          actual=$(docker compose -p usd-venue exec -T db psql -X -A -t -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue < /tmp/usd-active-stage.sql)
+          test "$actual" = 'c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+          docker compose -p usd-venue exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue -c 'ALTER TABLE venue_private.active_stage_legacy_test RENAME TO active_stage;'
       - name: Exercise real LAN API judge/ADMIN permissions and LIVE write/read
         working-directory: deploy/venue-lan
         run: |
@@ -178,7 +193,7 @@ jobs:
           cp compose.yaml "$other/compose.yaml"
           mkdir -p "$other/initdb"
           cp initdb/010-venue-api-role.sh "$other/initdb/"
-          docker compose --project-directory "$other" --env-file "$PWD/.env" -p usd-venue -f "$other/compose.yaml" start --wait db
+          docker compose --project-directory "$other" --env-file "$PWD/.env" -p usd-venue -f "$other/compose.yaml" start db
           after=$(docker compose -p usd-venue ps -q db)
           test "$before" = "$after"
           echo 'USD HISTORICAL DB CONTAINER RETAINED'
