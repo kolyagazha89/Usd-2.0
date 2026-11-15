@@ -213,6 +213,9 @@ jobs:
       - name: Reproduce native Docker label parsing on Windows PowerShell 5.1
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-native-docker-labels.ps1
+      - name: Preserve Docker volumes and old DEMO on Windows while opening a real stage
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-preserve-demo.ps1
       - name: Verify a real Windows firewall rule and filter through native NetSecurity
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-firewall-native.ps1
