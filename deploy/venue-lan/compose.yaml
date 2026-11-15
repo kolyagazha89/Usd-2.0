@@ -78,7 +78,7 @@ services:
     expose: ["3000"]
     networks: [venue_private]
   frontend:
-    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_FRONTEND_IMAGE_TAG:-${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}}
     restart: unless-stopped
     volumes:
       - type: bind
