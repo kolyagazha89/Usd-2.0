@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {createVenueTvDemoSnapshot,groupVenueLiveRows,isVenueLiveSnapshotCurrent,venueLiveDirectionScreen,venueLiveRowsPerScreen,buildVenueTvSlides,parseVenueTvMode} from '../src/public/venue-live-model.ts';
+import {groupVenueLiveRows,isVenueLiveSnapshotCurrent,venueLiveDirectionScreen,venueLiveRowsPerScreen,buildVenueTvSlides,parseVenueTvMode} from '../src/public/venue-live-model.ts';
 
 const row=(id,place,value,cls='Limited 2.0',direction='SPL')=>({
  id,place,value,number:10,unit:'DB',participant:'Иванов',car:'Lada',
@@ -104,25 +104,4 @@ test('TV page has direction selector, class rotation, pause and fullscreen with 
  assert.match(css,/overflow:hidden/);
  assert.match(css,/minmax\(0,1fr\)/);
  assert.match(css,/text-overflow:ellipsis/);
-});
-
-test('rehearsal feed contains fake SPL, BFSPL and BDW classes without real data or network',()=>{
- const sample=createVenueTvDemoSnapshot();
- assert.equal(sample.stage.id,'demo-only-not-a-stage');
- assert.match(sample.stage.name,/Проверка/);
- assert.ok(sample.rows.length>30);
- assert.ok(sample.rows.every(r=>r.participant.startsWith('Тестовый участник')));
- const slides=buildVenueTvSlides(groupVenueLiveRows(sample.rows),5);
- assert.ok(slides.filter(s=>s.screen==='spl').length>=4);
- assert.ok(slides.some(s=>s.group?.direction==='BDW SPL'));
- assert.ok(slides.some(s=>s.group?.direction==='BFSPL'));
- assert.ok(slides.every(s=>s.rows.length<=5));
-});
-test('TV demo does not poll live API and switching directions keeps demo mode',async()=>{
- const component=await readFile(new URL('../src/public/VenueLiveResults.tsx',import.meta.url),'utf8');
- assert.match(component,/if\(DEMO_MODE\)return;/);
- assert.match(component,/createVenueTvDemoSnapshot\(\)/);
- assert.match(component,/target\.includes\('\?'\)/);
- assert.match(component,/ДЕМО · тестовые данные/);
- assert.match(component,/Проверить табло/);
 });
