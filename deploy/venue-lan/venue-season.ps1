@@ -279,7 +279,7 @@ function Get-CachedVenueReleaseSha {
  }catch{return $null}
  $seen=@{}
  foreach($ref in $refs){
-  if([string]$ref -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){continue}
+  if(-not ([string]$ref -cmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z')){continue}
   $candidate=[string]$Matches[1]
   if($seen.ContainsKey($candidate)){continue}
   $seen[$candidate]=$true
