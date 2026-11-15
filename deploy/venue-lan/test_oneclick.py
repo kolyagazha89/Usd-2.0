@@ -1,5 +1,6 @@
 """Contract for one-click Windows operator; no Docker/Windows necessary for tests."""
 from pathlib import Path
+import codecs
 import re
 import unittest
 
@@ -115,7 +116,9 @@ class VenueLauncherContracts(unittest.TestCase):
         kit=(ROOT/'build-windows-kit.py').read_text(encoding='utf-8')
         self.assertIn('-Action next',launch)
         self.assertIn("'next'",ctl)
-        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
+        season_file=ROOT/'venue-season.ps1'
+        self.assertTrue(season_file.read_bytes().startswith(codecs.BOM_UTF8), 'Windows PowerShell 5.1 requires UTF-8 BOM for Russian text')
+        lifecycle=season_file.read_text(encoding='utf-8-sig')
         self.assertIn('function Switch-ToNextStage',lifecycle)
         self.assertIn('function Get-VenueProject',lifecycle)
         self.assertIn('usd-venue-',lifecycle)

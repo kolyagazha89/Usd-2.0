@@ -187,6 +187,7 @@ jobs:
         run: |
           $files = @(
             'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1'
           )
