@@ -267,18 +267,90 @@ function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
  }
 }
 
+# First boot must work without registry access when all five exact images
+# are already cached. A normal "compose pull" would contact registries again.
+function Test-VenueRuntimeImagesCached([string]$Sha){
+ if($Sha -cnotmatch '^[a-f0-9]{40}\z'){return $false}
+ $required=@(
+  ('ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha),
+  ('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$Sha),
+  'postgres:18-alpine','rustfs/rustfs:1.0.4','caddy:2-alpine'
+ )
+ foreach($ref in $required){
+  try{
+   $id=@(& docker image inspect --format '{{.ID}}' $ref 2>$null)
+   if($LASTEXITCODE -ne 0 -or $id.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$id[0])){
+    return $false
+   }
+  }catch{return $false}
+ }
+ return $true
+}
+# A previously downloaded, immutable API/frontend image pair is sufficient
+# for offline setup. Validate both embedded revision labels and offline modules
+# before reusing it; never trust only a local tag or an unrelated DEMO container.
+function Get-CachedVenueReleaseSha {
+ Set-VenueStep 'resolve-release-cached-images'
+ $refs=@()
+ try{
+  $refs=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api 2>$null)
+  if($LASTEXITCODE -ne 0){return $null}
+ }catch{return $null}
+ $seen=@{}
+ foreach($ref in $refs){
+  if(-not ([string]$ref -cmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z')){continue}
+  $candidate=[string]$Matches[1]
+  if($seen.ContainsKey($candidate)){continue}
+  $seen[$candidate]=$true
+  try{
+   Assert-VenueReleaseImages $candidate
+   Write-Host ('USD VENUE: найден проверенный локальный релиз '+$candidate)
+   return $candidate
+  }catch{
+   Write-Host ('USD VENUE: локальная версия '+$candidate+' неполная, проверяем другие')
+  }
+ }
+ return $null
+}
 function Get-VenueReleaseSha([object]$sharedConfig){
- $sha=$null
  if($sharedConfig){
-  try{Assert-VenueReleaseImages $sharedConfig['VENUE_IMAGE_TAG'];$sha=$sharedConfig['VENUE_IMAGE_TAG']}catch{}
+  $local=[string]$sharedConfig['VENUE_IMAGE_TAG']
+  try{
+   Assert-VenueReleaseImages $local
+   return $local
+  }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
+ }
+ $cached=Get-CachedVenueReleaseSha
+ if($cached){return $cached}
+ $sha=$null
+ foreach($endpoint in @(
+  [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
+  [pscustomobject]@{Uri='https://app.usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
+ )){
+  Set-VenueStep $endpoint.Step
+  try{
+   $release=Invoke-RestMethod -Uri $endpoint.Uri -TimeoutSec 8 -ErrorAction Stop
+   $candidate=[string]$release.revision
+   if($candidate -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия USD в ответе сервера'}
+   $sha=$candidate
+   break
+  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
  }
  if(!$sha){
-  $release=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/release' -TimeoutSec 20
-  $sha=[string]$release.revision
-  if($sha -cnotmatch '^[a-f0-9]{40}$'){throw 'Нет проверенного SHA онлайн-релиза'}
+  # CI-published verified USD release candidate; not a mutable :latest tag.
+  # If the operator cannot reach either USD domain, GHCR alone can supply it.
+  $sha='aa0d1a83c70b894a8b5e36141927bc572c71b3c5'
+  Set-VenueStep 'resolve-release-published-fallback'
+  Write-Host ('USD VENUE: оба сайта не ответили, используем опубликованную проверенную версию '+$sha)
+ }
+ Set-VenueStep 'download-immutable-release-images'
+ try{
   Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
   Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Set-VenueStep 'verify-immutable-release-images'
   Assert-VenueReleaseImages $sha
+ }catch{
+  throw ('Не удалось получить проверенные образы из ghcr.io. Проверьте интернет до GitHub Container Registry или заранее загрузите образы на ноутбук. Данные Docker сохранены. Причина: '+$_.Exception.Message)
  }
  return $sha
 }

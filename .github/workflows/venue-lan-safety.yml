@@ -216,6 +216,9 @@ jobs:
       - name: Native Docker timeout must show exact failed installer step
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-timeout.ps1
+      - name: Offline installer release resolution survives timed-out production API
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-release-resolution.ps1
       - name: Reproduce native Docker label parsing on Windows PowerShell 5.1
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-native-docker-labels.ps1
