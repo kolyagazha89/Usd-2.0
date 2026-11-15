@@ -100,6 +100,18 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("winget install",source)
         self.assertNotIn("winget uninstall",source)
 
+    def test_cached_runtime_images_do_not_force_network_pull(self):
+        control=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
+        season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("function Test-VenueRuntimeImagesCached",season)
+        self.assertIn("Test-VenueRuntimeImagesCached $state.image",control)
+        configured=control[control.index("if($state.phase -eq 'CONFIGURED')"):control.index("if($state.phase -eq 'STORAGE_READY')")]
+        self.assertIn("-not(Test-VenueRuntimeImagesCached $state.image)",configured)
+        self.assertIn("Invoke-Compose @('pull')",configured)
+        for image in ("postgres:18-alpine","rustfs/rustfs:1.0.4","caddy:2-alpine"):
+            self.assertIn(image,season)
+        self.assertNotIn("down','--volumes",configured)
+
     def test_windows_native_docker_templates_never_require_quoted_keys(self):
         # PS 5.1 removes embedded double quotes from native arguments:
         # {{.Label "com.docker.compose.service"}} becomes a malformed Go template.
