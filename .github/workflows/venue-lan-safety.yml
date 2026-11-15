@@ -188,6 +188,7 @@ jobs:
           $files = @(
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-season.ps1',
+            'deploy/venue-lan/venue-ca.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1',
             'deploy/venue-lan/test-windows-certificate.ps1'
