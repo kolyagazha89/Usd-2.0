@@ -78,6 +78,70 @@ function Get-VenueKitFiles {
   'preview-venue-reconciliation.mjs','preview-venue-reconciliation-cli.mjs'
  )
 }
+# An obsolete DEMO remains a backup. Install a real signed stage in a new
+# independent project; never recycle or delete its Docker volumes or secrets.
+function Start-IsolatedVenueFromDemo([object]$Old) {
+ if($Old.demo -ne $true -or $Old.phase -ne 'READY' -or $Old.accessKey){
+  throw 'Неизвестная старая установка. Данные не изменены.'
+ }
+ $signed=$(if($StageFile){$StageFile}else{
+  Select-VenueFile 'Выберите подписанный JSON настоящего этапа USD' 'Файл этапа (*.json)|*.json'
+ })
+ if(!(Test-Path -LiteralPath $signed -PathType Leaf)){throw 'Файл настоящего этапа не найден'}
+ $signed=[string](Resolve-Path -LiteralPath $signed)
+ $payload=Get-Content -LiteralPath $signed -Raw -Encoding UTF8 | ConvertFrom-Json
+ $id=[string]$payload.snapshot.stageId
+ $null=Get-VenueProjectForStage $id
+ $files=@(Get-VenueKitFiles)
+ foreach($name in $files){
+  if(!(Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf)){
+   throw ('В программе не хватает '+$name+'. Старый сервер сохранён.')
+  }
+ }
+ $target=Join-Path (Join-Path $Root 'real-stages') $id
+ if(Test-Path -LiteralPath $target){
+  if(!(Test-Path -LiteralPath $target -PathType Container)){
+   throw 'Путь настоящего этапа занят файлом. Старый сервер сохранён.'
+  }
+  $existing=Join-Path $target 'local-private/setup-state.json'
+  if(Test-Path -LiteralPath $existing -PathType Leaf){
+   $state=Get-Content -LiteralPath $existing -Raw -Encoding UTF8 | ConvertFrom-Json
+   if([string]$state.stageId -cne $id -or $state.demo -eq $true){
+    throw 'Папка настоящего этапа принадлежит другой установке.'
+   }
+  }
+ }else{New-Item -ItemType Directory -Path $target -Force|Out-Null}
+ foreach($name in $files){
+  $destination=Join-Path $target $name
+  $dir=Split-Path -Path $destination -Parent
+  if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
+  Copy-Item -LiteralPath (Join-Path $Root $name) -Destination $destination -Force
+ }
+ if(Test-Path -LiteralPath (Join-Path $target 'shared-source.json')){
+  throw 'Новая установка не должна использовать исходный DEMO Docker-проект.'
+ }
+ Write-Host ('USD VENUE: старый DEMO сохранён. Настоящий этап: '+$target)
+ $running=@(& docker @(Get-VenueComposeArguments) ps --status running -q)
+ Assert-Exit 'inspect retired demo before independent install'
+ $wasRunning=(@($running|Where-Object {$_}).Count -gt 0)
+ $paused=$false
+ try{
+  if($wasRunning){
+   Invoke-Compose @('stop') 'pause old DEMO without removing volumes or config'
+   $paused=$true
+  }
+  $child=Join-Path $target 'venue-control.ps1'
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $child -Action install -StageFile $signed
+  Assert-Exit 'install isolated real stage'
+ }catch{
+  if($paused){
+   try{Invoke-Compose @('start') 'restore previous DEMO after failed installation'}
+   catch{Write-Host 'Старый DEMO сохранён на диске, но не запущен. Ничего не удаляйте.'}
+  }
+  throw ('Настоящий этап не установлен в '+$target+'. Причина: '+$_.Exception.Message)
+ }
+ Write-Host 'Настоящий этап установлен отдельно; старые Docker-тома DEMO сохранены.'
+}
 function New-VenueStageWorkspace([string]$StageId){
  $venueBase=Get-VenueHome
  $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
