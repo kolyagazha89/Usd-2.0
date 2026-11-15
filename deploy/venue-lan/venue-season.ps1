@@ -318,12 +318,20 @@ function Get-VenueReleaseSha([object]$sharedConfig){
   }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
  }
  if(!$sha){
-  throw 'Не удалось узнать версию USD: api.usd-russia.ru и app.usd-russia.ru недоступны. Нет проверенных образов в Docker для офлайн-установки. Подключите интернет и проверьте доступ к доменам, затем повторите установку. Docker-тома не удаляйте.'
+  # CI-published verified USD release candidate; not a mutable :latest tag.
+  # If the operator cannot reach either USD domain, GHCR alone can supply it.
+  $sha='aa0d1a83c70b894a8b5e36141927bc572c71b3c5'
+  Set-VenueStep 'resolve-release-published-fallback'
+  Write-Host ('USD VENUE: оба сайта не ответили, используем опубликованную проверенную версию '+$sha)
  }
  Set-VenueStep 'download-immutable-release-images'
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
- Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
- Set-VenueStep 'verify-immutable-release-images'
- Assert-VenueReleaseImages $sha
+ try{
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Set-VenueStep 'verify-immutable-release-images'
+  Assert-VenueReleaseImages $sha
+ }catch{
+  throw ('Не удалось получить проверенные образы из ghcr.io. Проверьте интернет до GitHub Container Registry или заранее загрузите образы на ноутбук. Данные Docker сохранены. Причина: '+$_.Exception.Message)
+ }
  return $sha
 }
