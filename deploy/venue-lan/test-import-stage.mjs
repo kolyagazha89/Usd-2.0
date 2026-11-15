@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
+import * as importer from './import-stage.mjs';
 
 const {privateKey,publicKey}=generateKeyPairSync('ed25519');
 const publicPem=publicKey.export({type:'spki',format:'pem'}).toString();
@@ -204,4 +205,65 @@ test('write errors are surfaced, never reported as successful or silently skippe
  tx.result.create=async()=>{throw new Error('simulated database crash')};
  await assert.rejects(()=>applyVenueStageImport(plan,db),/simulated database crash/);
  assert.equal(log.some(x=>x.model==='auditLog'),false);
+});
+
+ test('retained import appends a different stage and preserves shared identities',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.stage.count=async()=>2;
+ tx.$queryRawUnsafe=async sql=>sql.includes('pg_roles')?[{rolsuper:true,name:'usd_venue_root'}]:[];
+ tx.$executeRawUnsafe=async()=>1;
+ tx.auditLog.findFirst=async()=>null;
+ tx.season.findUnique=async()=>({id:uuid.season});
+ tx.direction.findUnique=async()=>({id:uuid.direction});
+ tx.class.findUnique=async()=>({id:uuid.cls,directionId:uuid.direction});
+ tx.participant.findUnique=async()=>({id:uuid.person});
+ tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.person});
+ tx.carConfigurationVersion.findUnique=async()=>({id:uuid.version,configuration:{carId:uuid.car}});
+ await applyVenueStageImport(plan,db,{shared:true});
+ for(const name of ['season','direction','class','participant','car','carConfiguration','carConfigurationVersion'])
+  assert.equal(log.some(x=>x.model===name),false,name+' must be reused');
+ assert.equal(log.filter(x=>x.model==='stage').length,1);
+ });
+ test('retained identical import retry never overwrites judging',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.stage.count=async()=>2;
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:plan.packageHash}});
+ tx.$queryRawUnsafe=async()=>[{rolsuper:true,name:'usd_venue_root'}];
+ tx.$executeRawUnsafe=async()=>1;
+ const result=await applyVenueStageImport(plan,db,{shared:true});
+ assert.equal(result.replayed,true);
+ assert.equal(log.length,0);
+ });
+
+test('a retained stage without approved intake policy cannot inherit previous approval',async()=>{
+ const data=snapshot();delete data.venuePolicy;
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,tx,log}=mockDb();
+ tx.$queryRawUnsafe=async()=>[{rolsuper:true,name:'usd_venue_root'}];
+ tx.$executeRawUnsafe=async()=>1;tx.auditLog.findFirst=async()=>null;
+ tx.siteSettings.findUnique=async()=>({legal:{legalApproved:true},registration:{enabled:true}});
+ await applyVenueStageImport(plan,db,{shared:true});
+ const changed=log.find(x=>x.model==='siteSettings');
+ assert.equal(changed.update.registration.enabled,false);
+ assert.equal(changed.update.legal.legalApproved,false);
+});
+
+test('expired setup resumes only a matching package imported while it was valid',async()=>{
+ assert.equal(typeof importer.planInstalledVenueStageImport,'function');
+ const data=signed();
+ const receipt={metadata:{sha256:data.integrity.sha256},createdAt:new Date(now)};
+ const db={auditLog:{findFirst:async()=>receipt}};
+ const late=now+4*86400000;
+ const plan=await importer.planInstalledVenueStageImport(data,publicPem,env,db,late);
+ assert.equal(plan.packageHash,data.integrity.sha256);
+ for(const invalid of [null,{...receipt,metadata:{sha256:'0'.repeat(64)}},{...receipt,createdAt:new Date(late)}]){
+  await assert.rejects(()=>importer.planInstalledVenueStageImport(data,publicPem,env,{auditLog:{findFirst:async()=>invalid}},late));
+ }
+ const committedLate={metadata:{sha256:data.integrity.sha256,verifiedAt:new Date(now).toISOString()},createdAt:new Date(late)};
+ assert.equal((await importer.planInstalledVenueStageImport(data,publicPem,env,{auditLog:{findFirst:async()=>committedLate}},late)).packageHash,data.integrity.sha256);
+ const tampered=structuredClone(data);tampered.snapshot.stage.name='different';
+ await assert.rejects(()=>importer.planInstalledVenueStageImport(tampered,publicPem,env,db,late));
 });

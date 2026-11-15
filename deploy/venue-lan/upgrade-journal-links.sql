@@ -4,16 +4,28 @@ BEGIN;
 DO $$
 BEGIN
  IF current_user <> 'usd_venue_root'
-  OR (SELECT count(*) FROM public."Stage") <> 1
+  OR (SELECT count(*) FROM public."Stage") < 1
   OR to_regclass('venue_private.operation_journal') IS NULL THEN
   RAISE EXCEPTION 'VENUE journal upgrade requires original isolated venue root';
  END IF;
  PERFORM pg_advisory_xact_lock(1827726190);
 END $$;
+-- One root-owned pointer selects judging; historical stages remain in public.
+CREATE TABLE IF NOT EXISTS venue_private.active_stage (
+ singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK(singleton),
+ stage_id TEXT NOT NULL REFERENCES public."Stage"(id)
+);
+INSERT INTO venue_private.active_stage(singleton,stage_id)
+ SELECT true,id FROM public."Stage" WHERE (SELECT count(*) FROM public."Stage")=1
+ ON CONFLICT(singleton) DO NOTHING;
+REVOKE ALL ON venue_private.active_stage FROM PUBLIC;
+GRANT SELECT ON venue_private.active_stage TO usd_venue;
+
 CREATE OR REPLACE FUNCTION venue_private.capture_change() RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, venue_private AS $$
 DECLARE
   v_stage_id TEXT;
+  v_row_stage TEXT;
   v_row_id TEXT;
   v_link_md5 TEXT;
   v_before JSONB;
@@ -25,10 +37,11 @@ DECLARE
   v_occurred TIMESTAMPTZ;
 BEGIN
   PERFORM pg_advisory_xact_lock(1827726190);
-  IF (SELECT count(*) FROM public."Stage") <> 1 THEN
-    RAISE EXCEPTION 'USD VENUE stage count changed during local judging';
+  IF session_user='usd_venue_root' AND current_setting('usd_venue.importing',true)='true' THEN
+    IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
   END IF;
-  SELECT id INTO STRICT v_stage_id FROM public."Stage";
+  SELECT stage_id INTO STRICT v_stage_id FROM venue_private.active_stage WHERE singleton=true;
   IF TG_OP = 'INSERT' THEN
     v_before:=NULL;
     v_after:=to_jsonb(NEW);
@@ -38,6 +51,23 @@ BEGIN
   ELSE
     v_before:=to_jsonb(OLD);
     v_after:=to_jsonb(NEW);
+  END IF;
+  IF TG_TABLE_NAME='Stage' THEN
+    v_row_stage:=coalesce(v_after->>'id',v_before->>'id');
+  ELSE
+    v_row_stage:=coalesce(v_after->>'stageId',v_before->>'stageId');
+    IF v_row_stage IS NULL AND coalesce(v_after->>'registrationId',v_before->>'registrationId') IS NOT NULL THEN
+      SELECT "stageId" INTO v_row_stage FROM public."Registration"
+       WHERE id=coalesce(v_after->>'registrationId',v_before->>'registrationId');
+    END IF;
+    IF TG_TABLE_NAME='RegistrationClassInspection' THEN
+      SELECT r."stageId" INTO v_row_stage FROM public."RegistrationClass" rc
+       JOIN public."Registration" r ON r.id=rc."registrationId"
+       WHERE rc.id=coalesce(v_after->>'registrationClassId',v_before->>'registrationClassId');
+    END IF;
+  END IF;
+  IF v_row_stage IS NOT NULL AND v_row_stage<>v_stage_id THEN
+    RAISE EXCEPTION 'USD VENUE historical stage is read only';
   END IF;
   v_row_id:=coalesce(v_after->>'id', v_before->>'id');
   IF TG_TABLE_NAME='CarAmplifierComponent' THEN
@@ -58,7 +88,7 @@ BEGIN
     RAISE EXCEPTION 'USD VENUE journal requires a stable entity identifier';
   END IF;
   SELECT coalesce(
-    (SELECT hash FROM venue_private.operation_journal ORDER BY sequence DESC LIMIT 1),
+    (SELECT hash FROM venue_private.operation_journal WHERE stage_id=v_stage_id ORDER BY sequence DESC LIMIT 1),
     repeat('0',64)
   ) INTO v_previous;
   SELECT nextval('venue_private.operation_journal_sequence_seq')
@@ -104,4 +134,17 @@ SELECT coalesce(max(sequence),0) FROM venue_private.operation_journal
 WHERE NOT EXISTS (SELECT 1 FROM venue_private.journal_coverage);
 REVOKE ALL ON venue_private.journal_coverage FROM PUBLIC;
 GRANT SELECT ON venue_private.journal_coverage TO usd_venue;
+CREATE OR REPLACE FUNCTION venue_private.keep_single_stage() RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, venue_private AS $$
+BEGIN
+  IF session_user='usd_venue_root' AND current_setting('usd_venue.importing',true)='true' THEN
+    IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+  IF TG_OP <> 'UPDATE' OR NEW.id <> OLD.id THEN
+    RAISE EXCEPTION 'USD VENUE is pinned to one original stage';
+  END IF;
+  RETURN NEW;
+END $$;
+
 COMMIT;

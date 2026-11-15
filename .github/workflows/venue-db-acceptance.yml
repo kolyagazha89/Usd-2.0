@@ -121,6 +121,21 @@ jobs:
           docker compose -p usd-venue exec -T db \
             psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
             < install-journal.sql
+      - name: Verify native active-stage SQL for legacy and retained databases
+        working-directory: deploy/venue-lan
+        run: |
+          python3 - <<'PYSQL'
+          from pathlib import Path
+          source=Path('venue-season.ps1').read_text(encoding='utf-8-sig')
+          body=source.split('function Test-IsActiveVenueStage',1)[1].split("$sql=@'",1)[1].split("'@",1)[0]
+          Path('/tmp/usd-active-stage.sql').write_text(body)
+          PYSQL
+          actual=$(docker compose -p usd-venue exec -T db psql -X -A -t -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue < /tmp/usd-active-stage.sql)
+          test "$actual" = 'c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+          docker compose -p usd-venue exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue -c 'ALTER TABLE venue_private.active_stage RENAME TO active_stage_legacy_test;'
+          actual=$(docker compose -p usd-venue exec -T db psql -X -A -t -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue < /tmp/usd-active-stage.sql)
+          test "$actual" = 'c510f672-79f7-44eb-8173-2a8ff94b1c0e'
+          docker compose -p usd-venue exec -T db psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue -c 'ALTER TABLE venue_private.active_stage_legacy_test RENAME TO active_stage;'
       - name: Exercise real LAN API judge/ADMIN permissions and LIVE write/read
         working-directory: deploy/venue-lan
         run: |
@@ -136,6 +151,52 @@ jobs:
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             -e USD_VENUE_CI_STAFF_MODE \
             --entrypoint node api /app/venue-db-acceptance.mjs probe
+      - name: Retain two stages in one actual PostgreSQL database and export each independently
+        working-directory: deploy/venue-lan
+        run: |
+          docker compose -p usd-venue stop api
+          set -a
+          source .env
+          set +a
+          docker compose -p usd-venue run --rm --no-deps \
+            -e VENUE_DB_ROOT_PASSWORD \
+            --volume "$PWD/import-stage.mjs:/app/import-stage.mjs:ro" \
+            --volume "$PWD/verify-stage-package.mjs:/app/verify-stage-package.mjs:ro" \
+            --volume "$PWD/provision-staff.mjs:/app/provision-staff.mjs:ro" \
+            --volume "$PWD/venue-judge-permissions.mjs:/app/venue-judge-permissions.mjs:ro" \
+            --volume "$PWD/provision-existing-staff.mjs:/app/provision-existing-staff.mjs:ro" \
+            --volume "$PWD/venue-db-acceptance.mjs:/app/venue-db-acceptance.mjs:ro" \
+            --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
+            --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
+            --entrypoint node api /app/venue-db-acceptance.mjs season
+          VENUE_STAGE_ID=c520f672-79f7-44eb-8173-2a8ff94b1c0e docker compose -p usd-venue up -d api
+          docker compose -p usd-venue run --rm --no-deps --entrypoint node api -e '
+            (async()=>{
+              for(let i=0;i<60;i++){
+                try{
+                  const response=await fetch("http://api:3000/results/venue-live");
+                  const body=await response.json();
+                  if(response.ok&&body.stage?.id==="c520f672-79f7-44eb-8173-2a8ff94b1c0e"){
+                    console.log("USD RETAINED ACTIVE API + LIVE PASS");return;
+                  }
+                }catch{}
+                await new Promise(resolve=>setTimeout(resolve,1000));
+              }
+              throw new Error("Second retained stage API did not become ready");
+            })().catch(error=>{console.error(error.message);process.exit(1)});
+          '
+      - name: Historical workspace database read must preserve the running container
+        working-directory: deploy/venue-lan
+        run: |
+          before=$(docker compose -p usd-venue ps -q db)
+          other=$(mktemp -d)
+          cp compose.yaml "$other/compose.yaml"
+          mkdir -p "$other/initdb"
+          cp initdb/010-venue-api-role.sh "$other/initdb/"
+          docker compose --project-directory "$other" --env-file "$PWD/.env" -p usd-venue -f "$other/compose.yaml" start db
+          after=$(docker compose -p usd-venue ps -q db)
+          test "$before" = "$after"
+          echo 'USD HISTORICAL DB CONTAINER RETAINED'
       - name: Destroy disposable venue database and configuration
         if: always()
         working-directory: deploy/venue-lan

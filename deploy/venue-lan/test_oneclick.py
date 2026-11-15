@@ -17,7 +17,7 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertIn("-Action "+action,source)
             self.assertNotIn("down -v",source)
     def test_install_is_replay_safe_and_gates_central_sync(self):
-        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
+        source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")+(ROOT/"venue-season.ps1").read_text(encoding="utf-8")
         for expected in (
             "setup-state.json","VENUE_STAGE_ID","VENUE_SIGNING_KEY_FINGERPRINT",
             "verify-stage-package.mjs","import-stage.mjs","install-journal.sql",
@@ -47,14 +47,15 @@ class VenueLauncherContracts(unittest.TestCase):
         begin=source.index("function New-InitialState")
         end=source.index("function Confirm-SignedStage",begin)
         installer=source[begin:end]
-        self.assertIn("Assert-VenueReleaseImages $sha",installer)
-        self.assertLess(installer.index("Assert-VenueReleaseImages $sha"),installer.index("$file='';$key='';$stageId=''"))
+        self.assertIn("Get-VenueReleaseSha $sharedConfig",installer)
+        self.assertLess(installer.index("Get-VenueReleaseSha $sharedConfig"),installer.index("$file='';$key='';$stageId=''"))
         verifier=source[source.index("function Assert-VenueReleaseImages"):begin]
         self.assertIn("org.opencontainers.image.revision",verifier)
         self.assertIn("venue-staff-access.js",verifier)
         self.assertIn("venue-route-policy.js",verifier)
         self.assertIn("usd-release.json",verifier)
-        self.assertIn("docker run --rm --network none",verifier)
+        self.assertIn("docker run --rm -i --network none",verifier)
+        self.assertIn("$program | & docker",verifier)
 
     def test_only_signed_real_stage_can_be_installed(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
@@ -62,7 +63,8 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Select-VenueFile 'Выберите файл этапа",section)
         self.assertIn("Read-VenueFingerprint",section)
         self.assertIn("venue-staff-access.key",section)
-        self.assertIn("Assert-VenueReleaseImages $sha",section)
+        self.assertIn("Get-VenueReleaseSha $sharedConfig",section)
+        self.assertIn("Assert-VenueReleaseImages $sha",(ROOT/"venue-season.ps1").read_text(encoding="utf-8"))
         self.assertNotIn("$demoSha",section)
         self.assertNotIn("make-demo-stage",section)
         self.assertNotIn("if($kind -eq",section)
@@ -123,28 +125,25 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotRegex(lifecycle,r'(?im)^\s*\$home\s*=','HOME is a reserved PowerShell automatic variable')
         self.assertIn('function Get-VenueProject',lifecycle)
         self.assertIn('usd-venue-',lifecycle)
-        self.assertIn('Get-VenueProject',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
+        self.assertIn('Get-VenueComposeArguments',ctl[ctl.index('function Invoke-Compose'):ctl.index('function Assert-VenueCompose')])
+        self.assertIn("'--project-directory',$Root,'--env-file',$EnvFile",lifecycle)
         self.assertIn('"USD-Next-Stage.cmd"',kit)
         self.assertIn("'USD — Следующий этап'",ctl)
         self.assertIn('stage-workspaces',lifecycle)
         self.assertIn('function Assert-NoOtherVenueGatewayRunning',lifecycle)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',ctl[ctl.index('function Start-Local'):ctl.index('function Test-VenueApiReady')])
 
-    def test_rotation_requires_exact_central_ack_before_retaining_old_stack(self):
+    def test_rotation_retains_one_database_without_network_ack_gate(self):
         lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8')
-        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):]
-        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic',stage)
-        self.assertIn('Sync-VenueReturn -Bundle $bundle',stage)
-        self.assertIn('Test-VerifiedVenueAck',stage)
-        self.assertIn('journalEndHash',lifecycle[lifecycle.index('function Test-VerifiedVenueAck'):])
-        self.assertIn('Invoke-Compose',stage)
-        self.assertIn('stage-workspaces',stage)
-        self.assertIn('Restore-VenueApi',stage)
+        stage=lifecycle[lifecycle.index('function Switch-ToNextStage'):lifecycle.index('function Import-SharedVenueStage')]
+        self.assertIn('Export-VenueReturn -LeaveApiStopped -Automatic -LocalArchive',stage)
+        self.assertNotIn('Sync-VenueReturn',stage)
+        self.assertIn('shared-source.json',lifecycle)
+        self.assertIn('Test-IsActiveVenueStage',stage)
+        self.assertIn('Restore-VenueStack',stage)
         self.assertNotIn("'down','--volumes'",stage)
         self.assertNotIn("'down','-v'",stage)
-        self.assertLess(stage.index('Sync-VenueReturn -Bundle $bundle'),
-                        stage.index('New-VenueStageWorkspace'))
-        self.assertLess(stage.index('Invoke-Compose'),stage.index('New-VenueStageWorkspace'))
+        self.assertLess(stage.index('New-VenueStageWorkspace'),stage.index('Export-VenueReturn'))
 
     def test_return_export_keeps_one_stage_only_and_scopes_signing_keys_by_project(self):
         ctl=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')

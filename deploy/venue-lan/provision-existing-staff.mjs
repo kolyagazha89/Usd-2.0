@@ -9,8 +9,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertVenueImportEnvironment,assertVenueDatabaseRole} from './import-stage.mjs';
-import {verifyVenueStageHandoff} from './verify-stage-package.mjs';
+import {assertVenueImportEnvironment,assertVenueDatabaseRole,planInstalledVenueStageImport} from './import-stage.mjs';
 import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -108,7 +107,7 @@ function rolePermissionsMatch(actual,expected){
   &&expected[name].every(action=>actual[name].includes(action)));
 }
 /** Serializable one-time install; replays after installer crash are read-only. */
-export async function applyExistingVenueStaff(staff,stageId,prisma){
+export async function applyExistingVenueStaff(staff,stageId,prisma,{shared=false}={}){
  if(!prisma||typeof prisma.$transaction!=='function'||!UUID.test(stageId))
   throw new Error('Неверная локальная база сотрудников');
  const candidates=verifyUsers(staff.map(u=>({...u,
@@ -119,7 +118,26 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
   const count=await tx.stage.count();
   const current=await tx.stage.findFirst({where:{id:stageId,isDeleted:false,
    status:{in:['PUBLISHED','COMPLETED']}},select:{id:true}});
-  if(count!==1||!current)throw new Error('Подменён или отсутствует этап площадки');
+  if((!shared&&count!==1)||!current)throw new Error('Подменён или отсутствует этап площадки');
+  if(shared){
+   // A freshly signed stage explicitly refreshes its staff roster. Preserve
+   // old User identities referenced by inspections; disable absent accounts.
+   const roles=new Map(candidates.filter(u=>u.customRole).map(u=>[u.customRole.id,u.customRole]));
+   for(const role of roles.values()){
+    const data={key:'venue-stage-'+role.id,name:role.name,permissions:role.permissions,isSystem:true};
+    await tx.role.upsert({where:{id:role.id},create:{id:role.id,...data},update:data});
+   }
+   await tx.user.updateMany({where:{id:{notIn:candidates.map(u=>u.id)}},data:{isActive:false}});
+   for(const user of candidates){
+    const data={email:user.email,name:user.name,passwordHash:user.passwordHash,role:user.role,
+     isActive:true,emailVerifiedAt:user.emailVerifiedAt,customRoleId:user.customRole?.id??null};
+    await tx.user.upsert({where:{id:user.id},create:{id:user.id,...data},update:data});
+   }
+   await tx.refreshSession.deleteMany({});
+   await tx.auditLog.create({data:{action:'VENUE_EXISTING_STAFF_ENABLED',entity:'Stage',entityId:stageId,
+    metadata:{staffCount:candidates.length,source:'central-sealed-season'}}});
+   return {stageId,staffCount:candidates.length,replayed:false};
+  }
   const existingCount=await tx.user.count();
   if(existingCount>0){
    const present=await tx.user.findMany({select:{id:true,email:true,passwordHash:true,
@@ -161,23 +179,27 @@ export async function applyExistingVenueStaff(staff,stageId,prisma){
 
 async function main(){
  const [file,keyFile,secretFile,...extra]=process.argv.slice(2);
- if(!file||!keyFile||!secretFile||extra.length)
+ if(!file||!keyFile||!secretFile||extra.length>1||(extra.length===1&&extra[0]!=='--check'))
   throw new Error('Usage: provision-existing-staff.mjs STAGE.json PUBLIC.pem ACCESS.key');
  if((await stat(file)).size>12*1024*1024+262144||(await stat(secretFile)).size>512)
   throw new Error('Некорректный размер пакета сотрудников');
  const [raw,pem,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8'),readFile(secretFile,'utf8')]);
  const signed=JSON.parse(raw),stageId=process.env.VENUE_STAGE_ID;
  assertVenueImportEnvironment(process.env,stageId);
- const verified=verifyVenueStageHandoff(signed,pem);
- if(verified.stageId!==stageId||!signed.snapshot.staffAccess)
-  throw new Error('Пакет не предназначен для входа существующих сотрудников');
- const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
-  const result=await applyExistingVenueStaff(staff,stageId,prisma);
+  const verified=await planInstalledVenueStageImport(signed,pem,process.env,prisma);
+  if(verified.summary.stageId!==stageId||!signed.snapshot.staffAccess)
+   throw new Error('Пакет не предназначен для входа сотрудников');
+  const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);
+  if(extra[0]==='--check'){
+   process.stdout.write('USD STAFF KEY VERIFIED — NO DATABASE WRITES\n');
+   return;
+  }
+  const result=await applyExistingVenueStaff(staff,stageId,prisma,{shared:process.env.VENUE_RETAINED_SEASON==='true'});
   process.stdout.write('USD EXISTING STAFF READY: '+result.staffCount+' accounts\n');
  }finally{await prisma.$disconnect()}
 }

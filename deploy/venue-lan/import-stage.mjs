@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /** USD venue laptop: signed stage-only PostgreSQL import.
  *
- * Fail closed: this program is never an online or incremental importer.
+ * Fail closed: this program is never an online importer.
  * --dry-run (default) does no DB work. --apply STAGE_UUID is explicit and
- * requires a pristine independent venue DB, same-origin signed package,
+ * requires an isolated venue DB, same-origin signed package,
  * verified public key, and a pinned stage. No production credentials.
  *
  * Run INSIDE the isolated usd-venue API image after local Prisma migrations;
@@ -188,12 +188,32 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   }
  }
  return {
-  packageHash:signed.integrity.sha256,
+  packageHash:signed.integrity.sha256,verifiedAt:new Date(now).toISOString(),
   snapshot,
   registrations:snapshot.registrations,
   summary:{stageId:verified.stageId,registrations:registrations.size,
    classes:classIds.size,results:resultCount},
  };
+}
+/** TTL applies to first import, not to recovery of the exact committed
+ * package. Only a database receipt created during the signed validity window
+ * can supply the historical verification time; caller-provided time cannot.
+ */
+export async function planInstalledVenueStageImport(signed,pem,env,prisma,now=Date.now()){
+ try{return planVenueStageImport(signed,pem,env,now)}catch(error){
+  const expires=Date.parse(signed?.snapshot?.expiresAt);
+  if(!Number.isFinite(expires)||now<=expires)throw error;
+  assertVenueImportEnvironment(env,signed?.snapshot?.stageId);
+  const receipt=await prisma.auditLog.findFirst({
+   where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:signed.snapshot.stageId},
+   select:{metadata:true,createdAt:true},
+  });
+  const committed=receipt?.createdAt instanceof Date?receipt.createdAt.getTime():NaN;
+  const imported=receipt?.metadata?.verifiedAt?Date.parse(receipt.metadata.verifiedAt):committed;
+  if(receipt?.metadata?.sha256!==signed?.integrity?.sha256||!Number.isFinite(imported)||!Number.isFinite(committed)||imported>committed
+   ||imported>expires||imported<Date.parse(signed.snapshot.generatedAt)-300000)throw error;
+  return planVenueStageImport(signed,pem,env,imported);
+ }
 }
 function validateInspection(inspection){
  assertUuid(inspection.id,'инспекция');
@@ -217,32 +237,68 @@ export async function assertVenueDatabaseRole(tx){
 /** One SQL transaction, one stage, empty local domain. Never upsert source
  * history and never replace an existing venue snapshot or local judge edits.
  */
-export async function applyVenueStageImport(plan,prisma){
+export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
  if(!plan?.snapshot?.stage||!plan?.packageHash||!prisma?.$transaction)
   throw new Error('Некорректный проверенный план импорта');
  const stage=plan.snapshot.stage,regs=plan.registrations;
  return prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
-  await assertVenueDatabaseRole(tx);
+  if(shared){
+   const roles=await tx.$queryRawUnsafe('SELECT current_user AS name, rolsuper FROM pg_roles WHERE rolname=current_user');
+   if(roles.length!==1||roles[0].name!=='usd_venue_root'||roles[0].rolsuper!==true)
+    throw new Error('Пополнение базы требует локального установщика USD');
+   const existing=await tx.stage.findUnique({where:{id:stage.id}});
+   if(existing){
+    const receipt=await tx.auditLog.findFirst({where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stage.id},select:{metadata:true}});
+    if(receipt?.metadata?.sha256!==plan.packageHash)
+     throw new Error('Этап уже импортирован из другого пакета. Судейские данные сохранены.');
+    return {...plan.summary,sha256:plan.packageHash,replayed:true};
+   }
+   // Only the short-lived root importer can bypass its own seed writes.
+   // The API never receives this role/password; the flag ends at COMMIT.
+   await tx.$executeRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  }else{
+   await assertVenueDatabaseRole(tx);
+   const existing=await tx.stage.findUnique({where:{id:stage.id}});
+   if(existing){
+    const receipt=await tx.auditLog.findFirst({where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stage.id},select:{metadata:true}});
+    if(receipt?.metadata?.sha256===plan.packageHash)
+     return {...plan.summary,sha256:plan.packageHash,replayed:true};
+    throw new Error('Этап уже импортирован из другого пакета. Судейские данные сохранены.');
+   }
+  }
+  const createShared=async(model,data)=>{
+   if(shared){
+    const previous=await tx[model].findUnique({where:{id:data.id}});
+    if(previous){
+     if(model==='car'&&previous.participantId!==data.participantId)
+      throw new Error('Автомобиль принадлежит другому участнику');
+     if(model==='class'&&previous.directionId!==data.directionId)
+      throw new Error('Класс принадлежит другому направлению');
+     return previous;
+    }
+   }
+   return tx[model].create({data});
+  };
   const domain=['stage','season','direction','class','stageClass','participant','car',
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));
-  if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
-  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,
-   year:stage.season.year,status:stage.season.status??'DRAFT'}});
+  if(!shared&&counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
+  await createShared('season',{id:stage.season.id,name:stage.season.name,
+   year:stage.season.year,status:stage.season.status??'DRAFT'});
   const directions=new Map(),classes=[];
   for(const sc of stage.stageClasses){
    directions.set(sc.class.direction.id,sc.class.direction);
    classes.push(sc.class);
   }
   for(const d of [...directions.values()].sort(sortById))
-   await tx.direction.create({data:{id:d.id,name:d.name,sortOrder:d.sortOrder,isActive:d.isActive}});
+   await createShared('direction',{id:d.id,name:d.name,sortOrder:d.sortOrder,isActive:d.isActive});
   for(const cl of classes.sort(sortById))
-   await tx.class.create({data:{
+   await createShared('class',{
     id:cl.id,directionId:cl.direction.id,code:cl.code,name:cl.name,
     unit:cl.unit,sortOrder:cl.sortOrder,isActive:cl.isActive,
-   }});
+   });
   await tx.stage.create({data:{
    id:stage.id,seasonId:stage.seasonId,stageNumber:stage.stageNumber,name:stage.name,
    city:stage.city??null,date:parsedDate(stage.date,'этап'),venue:stage.venue??null,
@@ -274,7 +330,7 @@ export async function applyVenueStageImport(plan,prisma){
     throw new Error('Посторонний ID настроек в локальной базе');
    const currentLegal=current?.legal??{};
    if(currentLegal&&typeof currentLegal==='object'
-    &&currentLegal.legalApproved===true)
+    &&currentLegal.legalApproved===true&&!shared)
     throw new Error('Нельзя перезаписывать действующую юридическую политику');
    const update={
     legal:policy.legal,
@@ -292,6 +348,13 @@ export async function applyVenueStageImport(plan,prisma){
     }});
    }
   }
+  if(shared&&!plan.snapshot.venuePolicy){
+   const current=await tx.siteSettings.findUnique({where:{id:'default'},select:{legal:true,registration:true}});
+   if(current)await tx.siteSettings.update({where:{id:'default'},data:{
+    legal:{...(current.legal??{}),legalApproved:false},
+    registration:{...(current.registration??{}),enabled:false,rulesDocument:{published:null}},
+   }});
+  }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
   for(const r of regs){
    people.set(r.participant.id,r.participant);
@@ -299,20 +362,24 @@ export async function applyVenueStageImport(plan,prisma){
    if(r.stageInspection)inspectMap.set(r.participant.id,r.stageInspection);
   }
   for(const person of [...people.values()].sort(sortById))
-   await tx.participant.create({data:{
+   await createShared('participant',{
     id:person.id,firstName:person.firstName,lastName:person.lastName,
     middleName:person.middleName??null,city:person.city??null,team:person.team??null,
     isPublic:person.isPublic===true,
-   }});
+   });
   for(const car of [...cars.values()].sort(sortById))
-   await tx.car.create({data:{
+   await createShared('car',{
     id:car.id,participantId:car.participantId,brand:car.brand,model:car.model,
     registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
     color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
-   }});
+   });
   for(const r of regs){
    // A local FK placeholder, NOT a claim that the full historical equipment
    // graph was exported. Registration.configurationSnapshot is authoritative.
+   const version=shared?await tx.carConfigurationVersion.findUnique({where:{id:r.configurationVersionId},include:{configuration:true}}):null;
+   if(version&&version.configuration.carId!==r.carId)
+    throw new Error('Версия конфигурации принадлежит другому автомобилю');
+   if(!version){
    const configId=randomUUID();
    await tx.carConfiguration.create({data:{
     id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
@@ -322,6 +389,7 @@ export async function applyVenueStageImport(plan,prisma){
     id:r.configurationVersionId,configurationId:configId,version:1,
     additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
    }});
+   }
    await tx.registration.create({data:{
     id:r.id,stageId:r.stageId,participantId:r.participantId,carId:r.carId,
     configurationVersionId:r.configurationVersionId,
@@ -370,34 +438,45 @@ export async function applyVenueStageImport(plan,prisma){
   await tx.auditLog.create({data:{
    action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stage.id,
    metadata:{sha256:plan.packageHash,registrationCount:regs.length,
-    resultCount:plan.summary.results,createdAt:plan.snapshot.generatedAt},
+    resultCount:plan.summary.results,createdAt:plan.snapshot.generatedAt,verifiedAt:plan.verifiedAt},
   }});
+  if(shared){
+   const changed=await tx.$executeRawUnsafe('UPDATE venue_private.active_stage SET stage_id=$1 WHERE singleton=true',stage.id);
+   if(changed!==1)throw new Error('Не удалось выбрать активный этап: импорт отменён');
+  }
   return {...plan.summary,sha256:plan.packageHash};
  },{isolationLevel:'Serializable',timeout:120000});
 }
 
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply'].includes(mode)
+ if(!file||!keyFile||!['--dry-run','--apply','--check-installed'].includes(mode)
   ||(mode==='--apply'&&!confirmedId))
   throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
  const [raw,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8')]);
- const plan=planVenueStageImport(JSON.parse(raw),key,process.env);
+ const signed=JSON.parse(raw);
  if(mode==='--dry-run'){
+  const plan=planVenueStageImport(signed,key,process.env);
   process.stdout.write('USD VENUE IMPORT DRY RUN — NO DATABASE CONNECTION\n');
   process.stdout.write(JSON.stringify({...plan.summary,sha256:plan.packageHash})+'\n');
   return;
  }
- if(confirmedId!==plan.summary.stageId)
-  throw new Error('Явно подтверждённый UUID не совпадает с этапом в подписанном пакете');
+ assertVenueImportEnvironment(process.env,signed?.snapshot?.stageId);
  // Resolve Prisma dependencies ONLY AFTER security, signature and dry-run gates.
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
-  const result=await applyVenueStageImport(plan,prisma);
+  const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
+  if(mode==='--check-installed'){
+   process.stdout.write('USD VENUE PACKAGE VERIFIED — NO DATABASE WRITES\n');
+   process.stdout.write(JSON.stringify(plan.summary)+'\n');
+   return;
+  }
+  if(confirmedId!==plan.summary.stageId)throw new Error('UUID не совпадает с этапом');
+  const result=await applyVenueStageImport(plan,prisma,{shared:process.env.VENUE_SHARED_IMPORT==='true'});
   process.stdout.write('USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB\n');
   process.stdout.write(JSON.stringify(result)+'\n');
  }finally{await prisma.$disconnect()}

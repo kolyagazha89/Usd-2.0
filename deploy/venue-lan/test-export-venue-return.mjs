@@ -42,7 +42,6 @@ test('read-only MVCC collector validates central signed baseline and root-owned 
 test('reject unsafe old root database, different stage, absent original audit, tampered chain',async()=>{
  for(const opts of [
   {role:true},{stages:[{id:'other'}]},
-  {stages:[{id:stage},{id:'other'}]},
   {audit:null},
   {rows:[{...event,calculated:'0'.repeat(64)}]},
   {rows:[{...event,previousHash:'c'.repeat(64)}]},
@@ -66,4 +65,12 @@ test('scripts keep the private key out of API service and central server',async(
  assert.match(cli,/isolationLevel:'RepeatableRead'/);
  assert.match(verify,/READ ONLY, NOT APPLIED/);
  assert.doesNotMatch(cli,/fetch\(|https?:\/\//);
+});
+
+test('retained stages do not prevent export and SQL selects only requested stage',async()=>{
+ const db=fakeDb({stages:[{id:stage},{id:'another-retained-stage'}]});
+ const snapshot=await collectVenueJournal(db,env,now);
+ assert.equal(snapshot.stageId,stage);
+ const source=await readFile(new URL('./export-venue-return.mjs',import.meta.url),'utf8');
+ assert.match(source,/WHERE stage_id=\$1/);
 });

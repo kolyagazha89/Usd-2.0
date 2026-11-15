@@ -107,3 +107,22 @@ test('crash retry refuses a broadened local judge role instead of silently autho
  await assert.rejects(()=>applyExistingVenueStaff(staff,stage,db.prisma),
    /прав|роль|подмен|конфликт/i);
 });
+
+test('next-stage roster may refresh staff while old competition records remain',async()=>{
+ const {key,sealed}=wrap();const parsed=decryptExistingVenueStaff(sealed,key,stage);
+ const {prisma,rows}=fakeDb();
+ await applyExistingVenueStaff(parsed,stage,prisma);
+ const changed=parsed.map(u=>({...u,passwordHash:'$2b$12$'+'B'.repeat(53)}));
+ // Extend the local fixture with actual database update operations.
+ const original=prisma.$transaction;
+ prisma.$transaction=(fn,opts)=>original(async tx=>{
+  tx.stage.count=async()=>2;
+  tx.user.updateMany=async({where,data})=>{for(const u of rows.values())if(!where||!where.id.notIn.includes(u.id))Object.assign(u,data)};
+  tx.user.upsert=async({where,create,update})=>{const old=rows.get(where.id);rows.set(where.id,old?{...old,...update}:create)};
+  tx.role.upsert=async()=>({});
+  tx.refreshSession={deleteMany:async()=>({count:0})};
+  return fn(tx);
+ },opts);
+ await applyExistingVenueStaff(changed,stage,prisma,{shared:true});
+ assert.equal(rows.get(users[0].id).passwordHash,changed[0].passwordHash);
+});

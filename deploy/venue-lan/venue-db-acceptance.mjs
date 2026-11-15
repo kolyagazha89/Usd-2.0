@@ -4,9 +4,9 @@
  * Covers signed import, independent ADMIN/JUDGE, judge writes and LAN live.
  */
 import {strict as assert} from 'node:assert';
-import {createHash,createCipheriv,randomBytes,generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,createCipheriv,randomBytes,randomUUID,generateKeyPairSync,sign} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
+import {planVenueStageImport,applyVenueStageImport,planInstalledVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
 import {decryptExistingVenueStaff,applyExistingVenueStaff} from './provision-existing-staff.mjs';
 import {collectVenueJournal} from './export-venue-return.mjs';
@@ -48,7 +48,7 @@ function sealStaff(staff,stageId){
 
 const api='http://api:3000';
 
-function syntheticSignedStage(staffAccess){
+function syntheticSignedStage(staffAccess,mutate=()=>{}){
  const now=Date.now();
  const snapshot={
   format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:ID.stage,
@@ -92,6 +92,7 @@ function syntheticSignedStage(staffAccess){
    stageInspection:null,results:[],
   }],
  };
+ mutate(snapshot);
  const {privateKey,publicKey}=generateKeyPairSync('ed25519');
  const bytes=Buffer.from(JSON.stringify(snapshot));
  const digest=b=>createHash('sha256').update(b).digest('hex');
@@ -138,7 +139,7 @@ async function seed(){
   const settings=await client.siteSettings.findUnique({where:{id:'default'}});
   assert.equal(settings?.legal?.legalApproved,true,'The venue must carry the real approved legal policy');
   assert.equal(settings?.registration?.rulesDocument?.published?.id,'ci-rules-1');
-  await assert.rejects(()=>applyVenueStageImport(plan,client),/не пуста/);
+  assert.equal((await applyVenueStageImport(plan,client)).replayed,true);
   if(REAL_MODE){
    assert.throws(()=>decryptExistingVenueStaff(realStaff.access,randomBytes(32).toString('base64url'),ID.stage),
     /шифр доступа сотрудников/);
@@ -307,7 +308,66 @@ async function probe(){
  }finally{await verifyClient.$disconnect()}
  console.log('USD CI LAN REAL DB + API PASS: judge login/write, spectator LIVE, admin correction, private data redacted, unpublished archive denied');
 }
+async function retainedSeason(){
+ const normal=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
+ const rootUrl=new URL(process.env.DATABASE_URL);
+ rootUrl.username='usd_venue_root';rootUrl.password=process.env.VENUE_DB_ROOT_PASSWORD;
+ const root=new PrismaClient({adapter:new PrismaPg({connectionString:rootUrl.toString()})});
+ const second='c520f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const mappedIds=new Map();
+ const newId=id=>{if(!mappedIds.has(id))mappedIds.set(id,randomUUID());return mappedIds.get(id)};
+ try{
+  const oldResults=await normal.result.findMany({orderBy:{id:'asc'}});
+  const before=await collectVenueJournal(normal,process.env);
+  const people=await normal.participant.count();
+  const versions=await normal.carConfigurationVersion.count();
+  const signed=syntheticSignedStage(undefined,s=>{
+   s.stageId=second;s.stage.id=second;s.stage.stageNumber=8;
+   delete s.venuePolicy;
+   s.stage.stageClasses.forEach(c=>{c.id=newId(c.id);c.stageId=second});
+   for(const r of s.registrations){
+    r.id=newId(r.id);r.stageId=second;
+    r.numbers.forEach(n=>{n.id=newId(n.id)});
+    r.classes.forEach(c=>{c.id=newId(c.id);c.numberId=newId(c.numberId)});
+    if(r.inspection)r.inspection.id=newId(r.inspection.id);
+   }
+  });
+  const env={...process.env,VENUE_STAGE_ID:second,
+   VENUE_SIGNING_KEY_FINGERPRINT:signed.container.integrity.publicKeyFingerprint};
+  const plan=planVenueStageImport(signed.container,signed.publicPem,env);
+  await applyVenueStageImport(plan,root,{shared:true});
+  assert.equal(await normal.stage.count(),2);
+  const intake=await normal.siteSettings.findUnique({where:{id:'default'}});
+  assert.equal(intake.legal.legalApproved,false);
+  assert.equal(intake.registration.enabled,false);
+  const recovered=await planInstalledVenueStageImport(signed.container,signed.publicPem,env,normal,Date.now()+4*86400000);
+  assert.equal(recovered.packageHash,plan.packageHash);
+  assert.equal(await normal.participant.count(),people);
+  assert.equal(await normal.carConfigurationVersion.count(),versions);
+  assert.deepEqual(await normal.result.findMany({orderBy:{id:'asc'}}),oldResults);
+  const secondBefore=await collectVenueJournal(normal,env);
+  assert.equal(secondBefore.eventCount,0,'Imported baseline must not become local mutations');
+  const active=await root.$queryRawUnsafe('SELECT stage_id AS id FROM venue_private.active_stage');
+  assert.equal(active[0].id,second);
+  const reg=plan.registrations[0];
+  await normal.result.create({data:{registrationId:reg.id,registrationClassId:reg.classes[0].id,value:'148.200',unit:'DB',verificationStatus:'NOT_REQUIRED'}});
+  const after=await collectVenueJournal(normal,env);
+  assert.equal(after.eventCount,1);
+  assert.equal(after.events[0].previousHash,'0'.repeat(64));
+  assert.ok(after.events.every(e=>e.payload.stageId===second));
+  const oldAfter=await collectVenueJournal(normal,process.env);
+  assert.equal(oldAfter.journalEndHash,before.journalEndHash);
+  assert.deepEqual(oldAfter.events,before.events);
+  assert.equal((await applyVenueStageImport(plan,root,{shared:true})).replayed,true);
+  assert.equal(await normal.result.count(),oldResults.length+1);
+  if(oldResults[0])await assert.rejects(()=>normal.result.update({where:{id:oldResults[0].id},data:{value:'1'}}),/historical|P2004|P2010|database/i);
+  const replacement={...plan,packageHash:'0'.repeat(64)};
+  await assert.rejects(()=>applyVenueStageImport(replacement,root,{shared:true}),/другого пакета/);
+  console.log('USD RETAINED SEASON PASS: one database, two stages, reused identities/configurations, independent exports, crash replay, historical results unchanged');
+ }finally{await normal.$disconnect();await root.$disconnect()}
+}
 const mode=process.argv[2];
 if(mode==='seed')await seed();
 else if(mode==='probe')await probe();
+else if(mode==='season')await retainedSeason();
 else throw Error('Usage: node venue-db-acceptance.mjs seed|probe');
