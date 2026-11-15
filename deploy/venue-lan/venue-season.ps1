@@ -279,8 +279,7 @@ function Get-CachedVenueReleaseSha {
  }catch{return $null}
  $seen=@{}
  foreach($ref in $refs){
-  if([string]$ref -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})
-){continue}
+  if([string]$ref -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z'){continue}
   $candidate=[string]$Matches[1]
   if($seen.ContainsKey($candidate)){continue}
   $seen[$candidate]=$true
@@ -306,18 +305,17 @@ function Get-VenueReleaseSha([object]$sharedConfig){
  if($cached){return $cached}
  $sha=$null
  foreach($endpoint in @(
-  @('https://api.usd-russia.ru/release','resolve-release-online-api'),
-  @('https://app.usd-russia.ru/usd-release.json','resolve-release-online-frontend')
+  [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
+  [pscustomobject]@{Uri='https://app.usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
  )){
-  Set-VenueStep $endpoint[1]
+  Set-VenueStep $endpoint.Step
   try{
-   $release=Invoke-RestMethod -Uri $endpoint[0] -TimeoutSec 8 -ErrorAction Stop
+   $release=Invoke-RestMethod -Uri $endpoint.Uri -TimeoutSec 8 -ErrorAction Stop
    $candidate=[string]$release.revision
-   if($candidate -cnotmatch '^[a-f0-9]{40}
-){throw 'Неверная версия USD в ответе сервера'}
+   if($candidate -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия USD в ответе сервера'}
    $sha=$candidate
    break
-  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint[0]+' недоступен: '+$_.Exception.Message)}
+  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
  }
  if(!$sha){
   throw 'Не удалось узнать версию USD: api.usd-russia.ru и app.usd-russia.ru недоступны. Нет проверенных образов в Docker для офлайн-установки. Подключите интернет и проверьте доступ к доменам, затем повторите установку. Docker-тома не удаляйте.'
