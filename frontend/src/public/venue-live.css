@@ -90,4 +90,9 @@
  .venue-tv-measure small{font-size:9px}
  .venue-tv-footer-details{font-size:8px;letter-spacing:0;gap:6px}
 }
+@media(max-width: 600px){
+ .venue-tv-top{min-width:0}
+ .venue-tv-control button{max-width:104px;text-overflow:ellipsis;overflow:hidden}
+ .venue-tv-footer-details span:first-child{max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 @media(prefers-reduced-motion:reduce){.usd-venue-live-board *{scroll-behavior:auto;animation:none!important;transition:none!important}}
