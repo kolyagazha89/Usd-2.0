@@ -251,9 +251,19 @@ function Switch-ToNextStage {
   Write-Host ('Новый этап установлен. База и история прежних этапов сохранены: '+$nextId)
  }catch{
   if(-not $baselineApplied){
-   $marker=Join-Path $PrivateDir 'season-transition.json'
-   if(Test-Path -LiteralPath $marker){Remove-Item -LiteralPath $marker -Force}
-   if($wasRunning){try{Restore-VenueApi}catch{Write-Host 'База сохранена; восстановите вход через USD — Офлайн'}}
+   # A network/CLI failure may occur AFTER PostgreSQL commits. Never
+   # assume the baseline rolled back just because the CLI returned an error.
+   $actual=$null
+   try{$actual=Get-ActiveVenueStageId}catch{Write-Host 'Не удалось проверить локальный этап: запуск судей запрещён'}
+   if($actual -ceq $old.stageId){
+    $marker=Join-Path $PrivateDir 'season-transition.json'
+    if(Test-Path -LiteralPath $marker){Remove-Item -LiteralPath $marker -Force}
+    if($wasRunning){
+     try{Restore-VenueApi}catch{Write-Host 'База сохранена; восстановите вход через USD — Офлайн'}
+    }
+   }else{
+    Write-Host 'Исход переключения неопределён: данные сохранены. Запустите USD-Install.cmd для восстановления.'
+   }
   }else{
    Write-Host 'Новый этап уже находится в PostgreSQL. Запустите USD-Install.cmd для безопасного завершения установки.'
   }
