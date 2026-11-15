@@ -440,12 +440,29 @@ export async function applyVenueStageImport(plan,prisma,{append=false}={}){
 
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply'].includes(mode)
-  ||(mode==='--apply'&&!confirmedId))
-  throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
+ if(!file||!keyFile||!['--dry-run','--apply','--append'].includes(mode)
+  ||(mode!=='--dry-run'&&!confirmedId))
+  throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run | --apply STAGE_UUID | --append STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
  const [raw,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8')]);
- const plan=planVenueStageImport(JSON.parse(raw),key,process.env);
+ const append=mode==='--append';
+ // The protected root secret exists only in this one-shot signed importer.
+ // It is never passed to the running Nest API container or written to .env.
+ let importEnv=process.env;
+ if(append){
+  const rootUser=process.env.VENUE_IMPORT_ROOT_USER;
+  const rootPassword=process.env.VENUE_IMPORT_ROOT_PASSWORD;
+  if(rootUser!=='usd_venue_root'||!rootPassword||rootPassword.length<20)
+   throw new Error('Нужны отдельные локальные root-права для безопасного импорта');
+  const url=new URL(process.env.DATABASE_URL);
+  url.username=rootUser;url.password=rootPassword;
+  importEnv={...process.env,
+   VENUE_STAGE_ID:confirmedId,
+   VENUE_DB_USER:rootUser,VENUE_DB_PASSWORD:rootPassword,
+   DATABASE_URL:url.toString(),
+  };
+ }
+ const plan=planVenueStageImport(JSON.parse(raw),key,importEnv);
  if(mode==='--dry-run'){
   process.stdout.write('USD VENUE IMPORT DRY RUN — NO DATABASE CONNECTION\n');
   process.stdout.write(JSON.stringify({...plan.summary,sha256:plan.packageHash})+'\n');
@@ -457,10 +474,11 @@ async function main(){
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
- const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
+ const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:importEnv.DATABASE_URL})});
  try{
-  const result=await applyVenueStageImport(plan,prisma);
-  process.stdout.write('USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB\n');
+  const result=await applyVenueStageImport(plan,prisma,{append});
+  process.stdout.write(append?'USD VENUE NEW STAGE APPENDED TO LOCAL DB\n':
+   'USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB\n');
   process.stdout.write(JSON.stringify(result)+'\n');
  }finally{await prisma.$disconnect()}
 }
