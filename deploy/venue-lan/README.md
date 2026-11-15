@@ -16,7 +16,7 @@ package is an emergency *fallback*, never the primary judge workflow.
 ## LIVE results on the isolated Wi-Fi — first vertical slice
 
 Once the server has a **properly provisioned local stage and results**, open
-`https://<laptop-LAN-IP>/venue/live` from phones, tablets or a screen on
+`http://<laptop-LAN-IP>/venue/live` from phones, tablets or a screen on
 the same router Wi-Fi. No public Internet, DNS, or public API is required.
 The board refreshes every 4 seconds; on connection loss it keeps the last
 successful snapshot and marks it stale. It shows directions, classes,
@@ -158,7 +158,7 @@ use this build for official on-site judging.
   restricted `usd_venue` app accounts**; only the database service receives
   the bootstrap password, while the API/migrations use the non-superuser
   app principal. This is checked by the real PG18 acceptance suite. **Nothing** reuses `usd-home` production DB or volumes.
-- The gateway publishes port 443 on **one RFC1918 laptop LAN IPv4 address**.
+- The gateway publishes port 443 (authenticated judging) and port 80 (read-only spectator TV only) on **one RFC1918 laptop LAN IPv4 address**.
   PostgreSQL never publishes a port. RustFS bucket/console provisioning binds
   to `127.0.0.1` only, not to Wi-Fi clients.
 - The frontend loads `/usd-venue-config.js` before its application; the
