@@ -39,9 +39,10 @@ function Test-Rule {
  try {
   $ports=$rule|Get-NetFirewallPortFilter -ErrorAction Stop
   $addresses=$rule|Get-NetFirewallAddressFilter -ErrorAction Stop
+  $portList=@($ports.LocalPort | ForEach-Object { [string]$_ -split ',' } | ForEach-Object { $_.Trim() })
   return ([string]$ports.Protocol -in @('TCP','6') -and
-    (@($ports.LocalPort) | ForEach-Object { [string]$_ -split ',' } | Where-Object { $_ -in @('80','443') }).Count -eq 2 -and
-    (@($ports.LocalPort) | ForEach-Object { [string]$_ -split ',' }).Count -eq 2 -and
+    $portList.Count -eq 2 -and
+    $portList -contains '80' -and $portList -contains '443' -and
     [string]$addresses.LocalAddress -eq $Ip -and
     [string]$addresses.RemoteAddress -eq 'LocalSubnet')
  }catch{return $false}
