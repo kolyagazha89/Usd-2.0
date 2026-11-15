@@ -1,5 +1,5 @@
 /* USD venue TV / local LAN only. One fixed viewport, no page scrollbar. */
-.usd-venue-live-board{position:fixed;inset:0;z-index:10000;width:100%;height:100vh;height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:clamp(7px,1vh,15px);padding:clamp(11px,1.6vw,28px);color:#f5f7fb;background:radial-gradient(ellipse at 86% 0%,#831e3447,transparent 48%),#080d15;font-family:'Segoe UI',Arial,sans-serif}
+.usd-venue-live-board{position:fixed;inset:0;z-index:10000;width:100%;height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:clamp(7px,1vh,15px);padding:clamp(11px,1.6vw,28px);color:#f5f7fb;background:radial-gradient(ellipse at 86% 0%,#831e3447,transparent 48%),#080d15;font-family:'Segoe UI',Arial,sans-serif}
 .usd-venue-live-board *{box-sizing:border-box}
 .venue-tv-top,.venue-tv-identity,.venue-tv-control,.venue-tv-switch,.venue-tv-remote,.venue-tv-class-heading,.venue-tv-counters,.venue-tv-footer-details{display:flex;align-items:center;gap:clamp(8px,1.3vw,22px)}
 .venue-tv-top{min-width:0;justify-content:space-between;border-bottom:1px solid #354251;padding-bottom:clamp(8px,1.2vh,15px)}
