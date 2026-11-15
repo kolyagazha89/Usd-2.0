@@ -1,3 +1,4 @@
+import {jest} from '@jest/globals';
 import {X509Certificate} from 'node:crypto';
 import {ForbiddenException,NotFoundException,BadRequestException} from '@nestjs/common';
 import {VenueCertificateService} from './venue-certificate.service';
