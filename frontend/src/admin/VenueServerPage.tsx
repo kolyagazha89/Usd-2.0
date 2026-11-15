@@ -82,14 +82,14 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
     <p>Программа сама скачает сервер и откроет страницу входа. Если установка прервётся, снова нажмите ту же кнопку — сохранённые данные останутся на месте.</p></div></section>
    <section className="panel venue-server-step" aria-labelledby="venue-run-title"><span className="venue-server-number" aria-hidden="true">3</span><div className="venue-server-step-body"><h2 id="venue-run-title">На площадке включите офлайн</h2>
     <p>Включите ноутбук и тот же роутер. Дважды нажмите <strong>USD-Offline.cmd</strong> или ярлык <strong>«USD — Офлайн»</strong> на рабочем столе.</p>
-    <p>Программа покажет адрес входа и адрес <strong>LIVE-табло</strong>. Подключите телефоны к этому же Wi-Fi. Откройте на них показанный адрес. Понадобится один раз установить сертификат — порядок есть в инструкции ниже.</p>
+    <p>Программа покажет адрес входа и адрес <strong>LIVE-табло</strong>. Табло открывается по <strong>http://IP-ноутбука/venue/live</strong> без сертификатов. Для проверки внесите реальный результат в локальном интерфейсе судьи — он появится автоматически. Для авторизованной работы судей используется только HTTPS.</p>
     <p>Администратор и судьи входят со своими существующими email и паролями USD. Дополнительные учётные записи не требуются. После следующего входа в Windows сервер запустится автоматически.</p>
-    {localMode&&<div className="venue-server-actions"><button className="primary-button" onClick={()=>go('/admin/event-day')}>Открыть день соревнований</button><a className="secondary-button" href="/venue/live" target="_blank" rel="noopener noreferrer">Открыть LIVE-табло</a></div>}</div></section>
+    {localMode&&<div className="venue-server-actions"><button className="primary-button" onClick={()=>go('/admin/event-day')}>Открыть день соревнований</button><a className="secondary-button" href={'http://'+window.location.hostname+'/venue/live?screen=spl'} target="_blank" rel="noopener noreferrer">Табло SPL</a><a className="secondary-button" href={'http://'+window.location.hostname+'/venue/live?screen=bfspl-bdw'} target="_blank" rel="noopener noreferrer">Табло BFSPL + BDW SPL</a></div>}</div></section>
    <section className="panel venue-server-step venue-server-certificate" aria-labelledby="venue-cert-title">
     <span className="venue-server-number" aria-hidden="true">3а</span>
     <div className="venue-server-step-body">
-     <h2 id="venue-cert-title">Сертификат HTTPS для телефонов</h2>
-     <p>На офлайн-ноутбуке один раз нажмите <strong>USD-Certificate.cmd</strong> (кнопка «USD — Сертификат»). Она скачает публичный сертификат Caddy в основную папку <strong>USD-Offline-Windows/USD-Venue-CA.crt</strong> и в <strong>local-private</strong>. Сертификат создаёт именно ваш ноутбук — онлайн-сервер не может создать его заранее.</p>
+     <h2 id="venue-cert-title">HTTPS только для входа судей</h2>
+     <p>Для <strong>LIVE-табло сертификат не нужен</strong>. Для работы судей с личными данными нужен защищённый HTTPS. На офлайн-ноутбуке один раз нажмите <strong>USD-Certificate.cmd</strong> (кнопка «USD — Сертификат»). Она скачает публичный сертификат Caddy в основную папку <strong>USD-Offline-Windows/USD-Venue-CA.crt</strong> и в <strong>local-private</strong>. Сертификат создаёт именно ваш ноутбук — онлайн-сервер не может создать его заранее.</p>
      {!localMode&&<>
       <p>Загрузите <strong>только публичный USD-Venue-CA.crt</strong> в онлайн-админку один раз. После этого судьи могут открыть ссылку или отсканировать QR и установить сертификат прямо на телефон. Пароль, приватные ключи и папку <strong>local-private</strong> целиком не передавайте.</p>
       <div className="venue-server-actions">

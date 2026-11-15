@@ -152,9 +152,11 @@ function Test-VenueFirewallRule([string]$Ip){
  try{
   $port=$rule|Get-NetFirewallPortFilter -ErrorAction Stop
   $address=$rule|Get-NetFirewallAddressFilter -ErrorAction Stop
+  $ports=@($port.LocalPort | ForEach-Object { [string]$_ -split ',' } | ForEach-Object { $_.Trim() })
   return (
    [string]$port.Protocol -in @('TCP','6') -and
-   [string]$port.LocalPort -eq '443' -and
+   $ports.Count -eq 2 -and
+   $ports -contains '80' -and $ports -contains '443' -and
    [string]$address.LocalAddress -eq $Ip -and
    [string]$address.RemoteAddress -eq 'LocalSubnet'
   )
@@ -176,7 +178,7 @@ function Ensure-Firewall([string]$Ip){
   if([string]$profile.NetworkCategory -ne 'Public'){
    throw 'Сеть Windows управляется организацией или имеет неподдерживаемый профиль. Выберите отдельный Wi-Fi роутер судей.'
   }
-  $message='Windows считает выбранный Wi-Fi общедоступным. Для доступа телефонов нужен частный профиль сети. Изменить ТОЛЬКО эту сеть на «Частная» и разрешить HTTPS (TCP 443) только своей подсети?'
+  $message='Windows считает выбранный Wi-Fi общедоступным. Для доступа телефонов нужен частный профиль сети. Изменить ТОЛЬКО эту сеть на «Частная» и разрешить HTTPS (TCP 443) только своей подсети (вход HTTPS 443 и табло HTTP 80)?'
   if(-not(Confirm-VenueAction $message)){
    throw 'Wi-Fi сейчас «Общедоступная». Откройте Параметры Windows -> Сеть и Интернет -> свойства подключённого Wi-Fi -> профиль «Частная» и запустите установку снова.'
   }
@@ -205,7 +207,7 @@ function Ensure-Firewall([string]$Ip){
   0 {break}
   20 {throw 'Сеть не является частной. Установите профиль Wi-Fi «Частная» в параметрах Windows и повторите запуск.'}
   21 {throw 'Windows не разрешила сделать выбранную сеть частной. Проверьте права администратора или политику сети.'}
-  22 {throw 'Не удалось добавить HTTPS-правило на порт 443. Проверьте брандмауэр Windows или системные ограничения.'}
+  22 {throw 'Не удалось добавить LAN-правило на порты 80 и 443. Проверьте брандмауэр Windows или системные ограничения.'}
   23 {throw 'Созданное правило порта 443 не соответствует безопасным параметрам. Проверьте настройки брандмауэра.'}
   24 {throw 'Windows не разрешила безопасно восстановить существующее правило USD. Не удаляйте другие правила брандмауэра.'}
   default {throw 'Административная настройка брандмауэра завершилась ошибкой. Проверьте профиль сети, UAC и защиту Windows.'}
@@ -541,6 +543,7 @@ function Start-Local {
   $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $state.fingerprint -or
   $cfg['VENUE_BIND_IP'] -ne $state.ip){throw 'Закреплённый этап или IP изменён'}
  Ensure-DockerReady
+ Ensure-Firewall $state.ip
  Assert-NoOtherVenueGatewayRunning
  Start-VenueDatabase
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
@@ -564,10 +567,10 @@ function Start-Local {
  if(-not $Silent){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
-  Write-Host ('LIVE: https://'+$state.ip+'/venue/live')
+  Write-Host ('LIVE без сертификата: http://'+$state.ip+'/venue/live')
   Write-Host 'Телефонам необходимо отдельно доверить локальный CA Caddy.'
   Start-Process $url
-  Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход: '+$url+[Environment]::NewLine+'Табло: https://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Подключите телефоны к тому же Wi-Fi. Порядок установки сертификата — в инструкции на рабочем столе.')
+  Show-VenueMessage ('USD запущен.'+[Environment]::NewLine+'Вход для судей: '+$url+[Environment]::NewLine+'LIVE без сертификата: http://'+$state.ip+'/venue/live'+[Environment]::NewLine+'Результаты на табло обновляются каждые 4 секунды.'+[Environment]::NewLine+'Для ввода результатов на телефонах пока требуется доверенный HTTPS; табло открывается без установки CA.')
  }
 }
 function Test-VenueApiReady([string]$ExpectedSha,[string]$ExpectedStage) {

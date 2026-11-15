@@ -132,7 +132,7 @@ function Get-NetFirewallRule {
 function Get-NetFirewallPortFilter {
  [CmdletBinding()]
  param([Parameter(ValueFromPipeline=$true)]$InputObject)
- process { [pscustomobject]@{Protocol='TCP';LocalPort='443'} }
+ process { [pscustomobject]@{Protocol='TCP';LocalPort='80,443'} }
 }
 function Get-NetFirewallAddressFilter {
  [CmdletBinding()]
@@ -225,11 +225,11 @@ function Remove-NetFirewallRule {
 function New-NetFirewallRule {
  [CmdletBinding()]
  param([string]$DisplayName,[string]$Direction,[string]$Action,[string]$Enabled,
-  [string]$Profile,[string]$Protocol,[string]$LocalPort,[string]$LocalAddress,
+  [string]$Profile,[string]$Protocol,[string[]]$LocalPort,[string]$LocalAddress,
   [string]$RemoteAddress)
  if($global:ruleState -ne 'absent' -or $DisplayName -ne $global:expectedName -or
   $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Profile -ne 'Private' -or
-  $Protocol -ne 'TCP' -or $LocalPort -ne '443' -or
+  $Protocol -ne 'TCP' -or (@($LocalPort -split '[, ]+' | Sort-Object) -join ',') -ne '443,80' -or
   $LocalAddress -ne '192.168.25.10' -or $RemoteAddress -ne 'LocalSubnet'){
   throw 'Unsafe or incorrect replacement firewall rule'
  }
@@ -239,7 +239,7 @@ function New-NetFirewallRule {
 function Get-NetFirewallPortFilter {
  [CmdletBinding()]
  param([Parameter(ValueFromPipeline=$true)]$InputObject)
- process { [pscustomobject]@{Protocol='TCP';LocalPort='443'} }
+ process { [pscustomobject]@{Protocol='TCP';LocalPort='80,443'} }
 }
 function Get-NetFirewallAddressFilter {
  [CmdletBinding()]

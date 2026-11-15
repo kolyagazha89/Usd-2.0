@@ -123,6 +123,8 @@ class VenuePreflightTests(unittest.TestCase):
         for port in ('"0.0.0.0:19000:9000/tcp"','"192.168.50.10:19000:9000/tcp"','"127.0.0.1:19999:9000/tcp"'):
             variants.append(source.replace('"127.0.0.1:19000:9000/tcp"',port))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "0.0.0.0:443:443/tcp"'))
+        variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "0.0.0.0:80:80/tcp"'))
+        variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "${VENUE_BIND_IP}:8080:80/tcp"'))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "${VENUE_BIND_IP}:443:443/tcp"\n      - "0.0.0.0:8080:80"'))
         variants.append(source.replace("  gateway:\n","  gateway:\n    network_mode: host\n",1))
         for index,variant in enumerate(variants):

@@ -97,6 +97,8 @@ services:
     ports:
       # Only the private router-facing laptop IP, never 0.0.0.0.
       - "${VENUE_BIND_IP}:443:443/tcp"
+      # Read-only spectator TV; judges never log in on HTTP.
+      - "${VENUE_BIND_IP}:80:80/tcp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - venue_ca:/data

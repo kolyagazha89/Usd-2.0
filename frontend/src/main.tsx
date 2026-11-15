@@ -19,16 +19,21 @@ import './sitewide-finish.css';
 import './sitewide-premium-2026.css';
 import './admin/admin-shell-layout.css';
 
+// Keep the LAN spectator display free of consent modals, scrolling effects
+// and service-worker update attempts. It has no account or write workflow.
+const venueTv=window.location.pathname==='/venue/live'
+ && (window as Window&{__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true;
+
 // Handle CSS/chunk requests that race a SHA-pinned frontend image switch.
 installAssetPreloadRecovery();
-void updateExistingPushWorker(navigator.serviceWorker,window.location.origin);
+if(!venueTv)void updateExistingPushWorker(navigator.serviceWorker,window.location.origin);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <>
       <App />
-      <CookieNotice />
-      <VelocityEffects />
+      {!venueTv&&<CookieNotice/>}
+      {!venueTv&&<VelocityEffects/>}
     </>
   </StrictMode>,
 );

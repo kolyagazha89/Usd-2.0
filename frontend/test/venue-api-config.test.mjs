@@ -38,5 +38,15 @@ test('laptop LAN proxy blocks external API even if a bootstrap script fails to l
  assert.match(caddy,/handle_path \/venue-api\/\*/);
  assert.match(compose,/ports:\s*[\s\S]*?\$\{VENUE_BIND_IP\}:443:443/);
  assert.doesNotMatch(compose,/5432:5432|0\.0\.0\.0:443:443/);
+ assert.match(compose, /\$\{VENUE_BIND_IP\}:80:80\/tcp/);
+ const http=caddy.split('http://{$VENUE_BIND_IP} {')[1];
+ assert.ok(http,'LAN-only TV HTTP site must be explicit');
+ assert.match(http,/handle \/venue\/live\s*\{/);
+ assert.match(http,/handle \/assets\/\*\s*\{/);
+ assert.match(http,/path \/venue-api\/results\/venue-live/);
+ assert.match(http,/method GET/);
+ assert.match(http,/header_up -Cookie/);
+ assert.match(http,/header_up -Authorization/);
+ assert.doesNotMatch(http,/handle_path \/venue-api\/\*/);
  assert.match(compose,/S3_ENDPOINT: http:\/\/rustfs:9000/);
 });

@@ -21,12 +21,12 @@ FILES = (
 
 def build():
     stream = BytesIO()
-    with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED) as archive:
         for name in FILES:
             item = zipfile.ZipInfo("USD-Offline-Windows/" + name, (2026, 11, 12, 0, 0, 0))
-            item.compress_type = zipfile.ZIP_DEFLATED
+            item.compress_type = zipfile.ZIP_STORED
             item.external_attr = 0o100644 << 16
-            archive.writestr(item, (ROOT / name).read_bytes(), compresslevel=9)
+            archive.writestr(item, (ROOT / name).read_bytes())
     kit = stream.getvalue()
     return {
         "USD-Offline-Windows.zip": kit,
