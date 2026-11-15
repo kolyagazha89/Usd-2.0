@@ -434,7 +434,17 @@ function Install-Local {
  }
  Ensure-Firewall $state.ip
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
- if($state.phase -eq 'READY'){Start-Local;return}
+ if($state.phase -eq 'READY'){
+  Start-Local
+  $transition=Join-Path $PrivateDir 'season-transition.json'
+  if(Test-Path -LiteralPath $transition -PathType Leaf){
+   $pending=Get-Content -LiteralPath $transition -Raw -Encoding UTF8|ConvertFrom-Json
+   if([string]$pending.nextId -ceq [string]$state.stageId){
+    Remove-Item -LiteralPath $transition -Force
+   }
+  }
+  return
+ }
  $mounts=Confirm-SignedStage $state
  if($state.phase -eq 'SEASON_IMPORTED'){
   # Crash-resumable staff activation: the signed B baseline is already in
