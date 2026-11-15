@@ -214,35 +214,65 @@ export async function assertVenueDatabaseRole(tx){
   throw new Error('Локальный API не имеет права работать с PostgreSQL superuser');
 }
 
-/** One SQL transaction, one stage, empty local domain. Never upsert source
- * history and never replace an existing venue snapshot or local judge edits.
+/** Initial import remains strictly empty-DB. Subsequent imports run only in a
+ * one-shot isolated database root session with the live API stopped. Shared
+ * source IDs are reused but never updated; all new stage rows are committed
+ * with the root-owned active-stage selector in ONE serializable transaction.
  */
-export async function applyVenueStageImport(plan,prisma){
+export async function applyVenueStageImport(plan,prisma,{append=false}={}){
  if(!plan?.snapshot?.stage||!plan?.packageHash||!prisma?.$transaction)
   throw new Error('Некорректный проверенный план импорта');
  const stage=plan.snapshot.stage,regs=plan.registrations;
  return prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
-  await assertVenueDatabaseRole(tx);
-  const domain=['stage','season','direction','class','stageClass','participant','car',
-   'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
-  const counts=await Promise.all(domain.map(table=>tx[table].count()));
-  if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
-  await tx.season.create({data:{id:stage.season.id,name:stage.season.name,
-   year:stage.season.year,status:stage.season.status??'DRAFT'}});
+  if(append){
+   // Never allow the normal API (which is non-root) to bypass the immutable
+   // journal by claiming an incremental baseline. This is a separate one-shot
+   // PostgreSQL root session. No root secret is present in the running API.
+   const session=await tx.$queryRawUnsafe('SELECT session_user AS "sessionUser"');
+   if(session?.length!==1||session[0].sessionUser!=='usd_venue_root')
+    throw new Error('Повторный импорт разрешён только из отдельной root-сессии');
+   const active=await tx.$queryRawUnsafe(
+    'SELECT stage_id AS "stageId" FROM venue_private.active_stage FOR UPDATE');
+   if(active?.length!==1||active[0].stageId===stage.id)
+    throw new Error('Текущий этап не подтверждён или новый этап уже активен');
+   const present=await tx.stage.findUnique({where:{id:stage.id}});
+   if(present)throw new Error('Этот этап уже существует: повторный импорт запрещён');
+   // Only the root SESSION may set the trusted maintenance flag. The
+   // root-owned journal trigger independently verifies session_user.
+   await tx.$executeRawUnsafe("SELECT set_config('usd_venue.signed_import','on',true)");
+  }else{
+   await assertVenueDatabaseRole(tx);
+   const domain=['stage','season','direction','class','stageClass','participant','car',
+    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
+   const counts=await Promise.all(domain.map(table=>tx[table].count()));
+   if(counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
+  }
+  const saveShared=async(model,data,verify=()=>true,options={})=>{
+   const existing=append?await tx[model].findUnique({where:{id:data.id},...options}):null;
+   if(existing){
+    if(!verify(existing,data))throw new Error('Конфликт исторических данных: '+model+' '+data.id);
+    return;
+   }
+   await tx[model].create({data});
+  };
+  await saveShared('season',{id:stage.season.id,name:stage.season.name,
+   year:stage.season.year,status:stage.season.status??'DRAFT'},
+   (old,fresh)=>old.year===fresh.year);
   const directions=new Map(),classes=[];
   for(const sc of stage.stageClasses){
    directions.set(sc.class.direction.id,sc.class.direction);
    classes.push(sc.class);
   }
   for(const d of [...directions.values()].sort(sortById))
-   await tx.direction.create({data:{id:d.id,name:d.name,sortOrder:d.sortOrder,isActive:d.isActive}});
+   await saveShared('direction',{id:d.id,name:d.name,sortOrder:d.sortOrder,isActive:d.isActive},
+    (old,fresh)=>old.name===fresh.name);
   for(const cl of classes.sort(sortById))
-   await tx.class.create({data:{
+   await saveShared('class',{
     id:cl.id,directionId:cl.direction.id,code:cl.code,name:cl.name,
     unit:cl.unit,sortOrder:cl.sortOrder,isActive:cl.isActive,
-   }});
+   },(old,fresh)=>old.directionId===fresh.directionId&&old.code===fresh.code);
   await tx.stage.create({data:{
    id:stage.id,seasonId:stage.seasonId,stageNumber:stage.stageNumber,name:stage.name,
    city:stage.city??null,date:parsedDate(stage.date,'этап'),venue:stage.venue??null,
@@ -274,15 +304,25 @@ export async function applyVenueStageImport(plan,prisma){
     throw new Error('Посторонний ID настроек в локальной базе');
    const currentLegal=current?.legal??{};
    if(currentLegal&&typeof currentLegal==='object'
-    &&currentLegal.legalApproved===true)
-    throw new Error('Нельзя перезаписывать действующую юридическую политику');
+    &&currentLegal.legalApproved===true){
+    // Same approved policy is retained without changing prior history;
+    // a different policy needs explicit operator migration, not overwrites.
+    const samePolicy=append
+     &&currentLegal.legalVersion===policy.legal.legalVersion
+     &&current.contacts?.email===policy.contactEmail
+     &&current.registration?.rulesDocument?.published?.id===policy.rulesPublished.id;
+    if(!samePolicy)
+     throw new Error('Нельзя перезаписывать действующую юридическую политику');
+   }
    const update={
     legal:policy.legal,
     contacts:{...(current?.contacts??{}),email:policy.contactEmail},
     registration:{...(current?.registration??{}),
      enabled:true,rulesDocument:{published:policy.rulesPublished}},
    };
-   if(current){
+   if(currentLegal?.legalApproved===true&&append){
+    // Do not touch approved legal settings inherited from a prior stage.
+   }else if(current){
     await tx.siteSettings.update({where:{id:'default'},data:update});
    }else{
     await tx.siteSettings.create({data:{
@@ -299,29 +339,43 @@ export async function applyVenueStageImport(plan,prisma){
    if(r.stageInspection)inspectMap.set(r.participant.id,r.stageInspection);
   }
   for(const person of [...people.values()].sort(sortById))
-   await tx.participant.create({data:{
+   await saveShared('participant',{
     id:person.id,firstName:person.firstName,lastName:person.lastName,
     middleName:person.middleName??null,city:person.city??null,team:person.team??null,
     isPublic:person.isPublic===true,
-   }});
+   });
   for(const car of [...cars.values()].sort(sortById))
-   await tx.car.create({data:{
+   await saveShared('car',{
     id:car.id,participantId:car.participantId,brand:car.brand,model:car.model,
     registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
     color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
-   }});
+   },(old,fresh)=>old.participantId===fresh.participantId);
+  const importedVersionIds=new Set();
   for(const r of regs){
-   // A local FK placeholder, NOT a claim that the full historical equipment
-   // graph was exported. Registration.configurationSnapshot is authoritative.
-   const configId=randomUUID();
-   await tx.carConfiguration.create({data:{
-    id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
-    isActive:false,
-   }});
-   await tx.carConfigurationVersion.create({data:{
-    id:r.configurationVersionId,configurationId:configId,version:1,
-    additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
-   }});
+   // Central configuration version IDs may recur across several stages.
+   // Reuse only when the existing version still belongs to the same car.
+   if(!importedVersionIds.has(r.configurationVersionId)){
+    const previousVersion=append?await tx.carConfigurationVersion.findUnique({
+     where:{id:r.configurationVersionId},
+     include:{configuration:{select:{carId:true}}},
+    }):null;
+    if(previousVersion){
+     if(previousVersion.configuration?.carId!==r.carId)
+      throw new Error('Конфликт владельца автомобиля у версии конфигурации');
+    }else{
+     // FK-only placeholder. The per-registration immutable snapshot is authoritative.
+     const configId=randomUUID();
+     await tx.carConfiguration.create({data:{
+      id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
+      isActive:false,
+     }});
+     await tx.carConfigurationVersion.create({data:{
+      id:r.configurationVersionId,configurationId:configId,version:1,
+      additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
+     }});
+    }
+    importedVersionIds.add(r.configurationVersionId);
+   }
    await tx.registration.create({data:{
     id:r.id,stageId:r.stageId,participantId:r.participantId,carId:r.carId,
     configurationVersionId:r.configurationVersionId,
@@ -372,6 +426,14 @@ export async function applyVenueStageImport(plan,prisma){
    metadata:{sha256:plan.packageHash,registrationCount:regs.length,
     resultCount:plan.summary.results,createdAt:plan.snapshot.generatedAt},
   }});
+  if(append){
+   // The stage switch is committed only after ALL new baseline rows exist.
+   // No baseline insert has entered the judge-operation journal.
+   const switched=await tx.$executeRawUnsafe(
+    'UPDATE venue_private.active_stage SET stage_id = $1',stage.id);
+   if(Number(switched)!==1)
+    throw new Error('Не удалось атомарно переключить активный этап');
+  }
   return {...plan.summary,sha256:plan.packageHash};
  },{isolationLevel:'Serializable',timeout:120000});
 }
