@@ -4,7 +4,7 @@
  * Covers signed import, independent ADMIN/JUDGE, judge writes and LAN live.
  */
 import {strict as assert} from 'node:assert';
-import {createHash,createCipheriv,randomBytes,generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,createCipheriv,randomBytes,randomUUID,generateKeyPairSync,sign} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
@@ -314,7 +314,8 @@ async function retainedSeason(){
  rootUrl.username='usd_venue_root';rootUrl.password=process.env.VENUE_DB_ROOT_PASSWORD;
  const root=new PrismaClient({adapter:new PrismaPg({connectionString:rootUrl.toString()})});
  const second='c520f672-79f7-44eb-8173-2a8ff94b1c0e';
- const newId=id=>id.replace('f672','f673');
+ const mappedIds=new Map();
+ const newId=id=>{if(!mappedIds.has(id))mappedIds.set(id,randomUUID());return mappedIds.get(id)};
  try{
   const oldResults=await normal.result.findMany({orderBy:{id:'asc'}});
   const before=await collectVenueJournal(normal,process.env);

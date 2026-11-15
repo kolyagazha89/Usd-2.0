@@ -154,6 +154,22 @@ jobs:
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             --entrypoint node api /app/venue-db-acceptance.mjs season
+          VENUE_STAGE_ID=c520f672-79f7-44eb-8173-2a8ff94b1c0e docker compose -p usd-venue up -d api
+          docker compose -p usd-venue run --rm --no-deps --entrypoint node api -e '
+            (async()=>{
+              for(let i=0;i<60;i++){
+                try{
+                  const response=await fetch("http://api:3000/results/venue-live");
+                  const body=await response.json();
+                  if(response.ok&&body.stage?.id==="c520f672-79f7-44eb-8173-2a8ff94b1c0e"){
+                    console.log("USD RETAINED ACTIVE API + LIVE PASS");return;
+                  }
+                }catch{}
+                await new Promise(resolve=>setTimeout(resolve,1000));
+              }
+              throw new Error("Second retained stage API did not become ready");
+            })().catch(error=>{console.error(error.message);process.exit(1)});
+          '
       - name: Destroy disposable venue database and configuration
         if: always()
         working-directory: deploy/venue-lan

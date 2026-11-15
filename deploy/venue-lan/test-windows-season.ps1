@@ -12,12 +12,12 @@ try{
 }catch{
  if($_.Exception.Message -eq 'Invalid UUID was accepted'){throw}
 }
+function Read-State {return $script:MockState}
 $script:MockState=[pscustomobject]@{stageId=$stage;project=$project;home=$null}
 $script:MockState|Add-Member -NotePropertyName projectStageId -NotePropertyValue $stage
 $script:MockState.stageId=$next
 if((Get-VenueProject) -cne $project){throw 'New stage must reuse original Compose project'}
 $script:MockState.stageId=$stage
-function Read-State {return $script:MockState}
 if((Get-VenueProject) -cne $project){throw 'Wrong Compose project selected'}
 $script:MockState.project='usd-venue-attacker'
 try{
