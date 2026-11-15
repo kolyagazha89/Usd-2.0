@@ -5,7 +5,7 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','update-live')][string]$Action,
  [string]$StageFile='',
  [switch]$Silent
 )
@@ -231,7 +231,7 @@ function Remove-Autostart {
 function Save-DesktopShortcuts {
  $desktop=[Environment]::GetFolderPath('Desktop')
  $shell=New-Object -ComObject WScript.Shell
- foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Следующий этап','next'),@('USD — Сертификат','certificate'))){
+ foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Следующий этап','next'),@('USD — Сертификат','certificate'),@('USD — Обновить LIVE','update-live'))){
   $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
   $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
   $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
@@ -762,6 +762,7 @@ function Return-Online {
 }
 . (Join-Path $Root 'venue-season.ps1')
 . (Join-Path $Root 'venue-ca.ps1')
+. (Join-Path $Root 'venue-tv-update.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 try{
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
@@ -769,6 +770,7 @@ try{
  elseif($Action -eq 'offline'){Start-Local}
  elseif($Action -eq 'export'){Export-VenueReturn}
  elseif($Action -eq 'certificate'){Download-VenueCertificate}
+ elseif($Action -eq 'update-live'){Update-VenueTV}
  elseif($Action -eq 'next'){Switch-ToNextStage}
  else{Return-Online}
 }catch{
