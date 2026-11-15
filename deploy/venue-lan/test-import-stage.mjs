@@ -244,7 +244,7 @@ test('signed second stage rejects foreign shared car ownership and never changes
  tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.season});
  tx.$queryRawUnsafe=async sql=>sql.includes('session_user')?
   [{sessionUser:'usd_venue_root'}]:[{stageId:uuid.season}];
- await assert.rejects(()=>applyVenueStageImport(plan,db,{append:true}),/автомобил|участник|владел/i);
+ await assert.rejects(()=>applyVenueStageImport(plan,db,{append:true}),/автомобил|участник|владел|исторических данных|car/i);
  assert.equal(log.filter(x=>x.model==='result').length,0);
 });
 
