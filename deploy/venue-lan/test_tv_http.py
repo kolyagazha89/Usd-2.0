@@ -10,8 +10,8 @@ class VenueTvHttpContracts(unittest.TestCase):
         caddy = (ROOT / 'Caddyfile').read_text(encoding='utf-8')
         self.assertIn('http://{$VENUE_BIND_IP}', caddy)
         http = caddy.split('http://{$VENUE_BIND_IP} {', 1)[1]
-        self.assertRegex(http, r'handle /venue/live\\s*\\{')
-        self.assertRegex(http, r'handle /assets/\\*\\s*\\{')
+        self.assertRegex(http, r'handle /venue/live\s*\{')
+        self.assertRegex(http, r'handle /assets/\*\s*\{')
         self.assertIn('handle /usd-venue-config.js', http)
         self.assertRegex(http, r'method GET')
         self.assertIn('/venue-api/results/venue-live', http)
