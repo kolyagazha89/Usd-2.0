@@ -1261,7 +1261,7 @@ try{
       const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
       // The catalog only assists input: unknown models can be added immediately.
       await picker.locator('datalist option[value="Alphard"]').waitFor({state:'attached',timeout:10000});
-      await picker.getByRole('textbox',{name:'Бренд'}).fill('Alphard');
+      await picker.locator('input[list="config-picker-brands"]').fill('Alphard');
       await picker.getByRole('searchbox',{name:'Модель'}).fill('missing-fixture');
       assert.equal(await picker.getByRole('button',{name:'Добавить в бас',exact:true}).isEnabled(),true,
        'manually entered models must be accepted');
@@ -1269,7 +1269,7 @@ try{
       assert.equal(await workspace.locator('.config-row').count(),before+1,'manual equipment appears in the chosen direction');
       assert.match(await workspace.locator('.member-equipment-item').last().innerText(),/Alphard missing-fixture/);
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
-      await picker.getByRole('textbox',{name:'Бренд'}).fill('Alphard');
+      await picker.locator('input[list="config-picker-brands"]').fill('Alphard');
       await picker.getByRole('searchbox',{name:'Модель'}).fill('Machete');
       await picker.getByRole('button',{name:/Alphard Machete/}).click();
       const pickerBox=await picker.boundingBox(),footBox=await picker.locator('.member-config-picker-foot').boundingBox();
