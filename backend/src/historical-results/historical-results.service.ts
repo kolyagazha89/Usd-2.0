@@ -45,8 +45,9 @@ export class HistoricalResultsService {
     const car=result.registration?.car;
     const participant=result.registration?.participant;
     const consent=participant?.publicationConsent;
-    const showName=Boolean(participant?.isPublic && consent?.fullName && consent?.results);
-    const showCar=Boolean(showName && consent?.car && car?.isPublic);
+    // A name in an officially published result is not an optional public profile.
+    const showName=Boolean(participant);
+    const showCar=Boolean(participant?.isPublic && consent?.car && car?.isPublic);
     if (!participant && !car) return result;
     return {
       ...result,
@@ -66,9 +67,9 @@ export class HistoricalResultsService {
           firstName:showName?participant.firstName:'',
           middleName:showName?participant.middleName:null,
           historicalAlias:showName?participant.historicalAlias:null,
-          team:showName && consent?.team?participant.team:null,
-          city:showName && consent?.city?participant.city:null,
-          photoUrl:showName && consent?.profilePhoto?participant.photoUrl:null,
+          team:participant.isPublic && consent?.team?participant.team:null,
+          city:participant.isPublic && consent?.city?participant.city:null,
+          photoUrl:participant.isPublic && consent?.profilePhoto?participant.photoUrl:null,
           publicationConsent:undefined,
         }}:{}),
       },
