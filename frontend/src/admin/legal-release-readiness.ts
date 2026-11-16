@@ -42,3 +42,30 @@ export function planLegalReleaseUpload<T extends {name:string;size:number;type?:
  if(missing.length)throw new Error('Выберите полный комплект: недостающие документы — '+missing.map(d=>d.title).join(', ')+'.');
  return descriptors.map(d=>({key:d.key,file:byName.get(LEGAL_RELEASE_DOCX_FILENAMES[d.key])!}));
 }
+
+export const LEGAL_RELEASE_CMS_TEXTS = {
+ privacyText:'privacyText.txt',
+ consentText:'consentText.txt',
+ termsText:'termsText.txt',
+} as const;
+export type LegalCmsTextKey = keyof typeof LEGAL_RELEASE_CMS_TEXTS;
+
+/** Exact three public site texts shipped in the same legal archive as 7 DOCX. */
+export function planLegalReleaseTexts<T extends {name:string;size:number}>(
+ files:readonly T[],
+):Array<{key:LegalCmsTextKey;file:T}>{
+ const indexed=new Map<string,T>();
+ for(const file of files){
+  const name=file.name.toLowerCase();
+  if(indexed.has(name))throw new Error('Обнаружен дубликат файла '+file.name);
+  if(!Object.values(LEGAL_RELEASE_CMS_TEXTS).some(expected=>expected.toLowerCase()===name))
+   throw new Error('В наборе неизвестный TXT: '+file.name);
+  if(file.size<50||file.size>512*1024)throw new Error('Недопустимый размер TXT: '+file.name);
+  indexed.set(name,file);
+ }
+ const missing=(Object.entries(LEGAL_RELEASE_CMS_TEXTS) as Array<[LegalCmsTextKey,string]>)
+  .filter(([,name])=>!indexed.has(name.toLowerCase()));
+ if(missing.length)throw new Error('Выберите три TXT: недостающие — '+missing.map(([,name])=>name).join(', ')+'.');
+ return (Object.entries(LEGAL_RELEASE_CMS_TEXTS) as Array<[LegalCmsTextKey,string]>)
+  .map(([key,name])=>({key,file:indexed.get(name.toLowerCase())!}));
+}
