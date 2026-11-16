@@ -35,12 +35,12 @@ export class CreateHeadUnitDto {
 
   @IsString()
   @MaxLength(100)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   brand: string;
 
   @IsString()
   @MaxLength(160)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   model: string;
 
   @IsEnum(CarDirection)
@@ -56,12 +56,12 @@ export class CreateAudioComponentDto {
 
   @IsString()
   @MaxLength(100)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   brand: string;
 
   @IsString()
   @MaxLength(160)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   model: string;
 
   @IsInt()
@@ -93,12 +93,12 @@ export class CreateAmplifierDto {
 
   @IsString()
   @MaxLength(100)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   brand: string;
 
   @IsString()
   @MaxLength(160)
-  @Matches(/\\S/u)
+  @Matches(/\S/u)
   model: string;
 
   @IsInt()
