@@ -1,7 +1,7 @@
 export const PUBLICATION_OPTIONS = [
  {key:'identity',label:'ФИО и публичный USD ID'},
  {key:'city',label:'Город или населённый пункт'},
- {key:'team',label:'Команда и история принадлежности'},
+ {key:'team',label:'Название команды и история принадлежности'},
  {key:'results',label:'Классы, этапы, места, результаты и рекорды'},
  {key:'car',label:'Марка, модель и описание автомобиля'},
  {key:'profilePhoto',label:'Фотография профиля'},
