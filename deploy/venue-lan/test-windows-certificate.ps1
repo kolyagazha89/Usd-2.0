@@ -64,6 +64,7 @@ try{
   }
   if($argv[0] -eq 'cp'){
    $script:copyCalls++
+   if($script:failAll){$global:LASTEXITCODE=1;return}
    [IO.File]::Copy($fixture,[string]$argv[-1],$true)
    $global:LASTEXITCODE=0
    return
