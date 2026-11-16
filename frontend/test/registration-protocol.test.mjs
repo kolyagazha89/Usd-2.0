@@ -23,3 +23,16 @@ test('missing document version never records invalid permission',()=>{
  assert.equal(r.needsSave,false);
  assert.ok(r.error);
 });
+
+test('registration form confirms protocol inline without losing selected car or classes',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const src=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ assert.match(src,/planRegistrationProtocolConsent\(protocolConsentState,stageProtocolConsentChecked\)/);
+ assert.match(src,/checked=\{stageProtocolConsentChecked\}/);
+ assert.match(src,/if\(protocolPlan.needsSave\)/);
+ assert.match(src,/protocolConsentState\.version/);
+ assert.match(src,/apiPatch<any>\('\/auth\/protocol-consent'/);
+ assert.match(src,/apiPost\('\/registrations\/me'/);
+ assert.ok(src.indexOf("apiPatch<any>('/auth/protocol-consent',{consent:true,version:protocolPlan.version})")
+  < src.indexOf("apiPost('/registrations/me'"));
+});
