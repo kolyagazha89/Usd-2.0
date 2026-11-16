@@ -40,3 +40,14 @@ test('resource details and embedded classes use URL routes', () => {
   assert.match(resource, /'view='\+encodeURIComponent\(row\.id\)/);
   assert.match(classes, /<ResourcePage embedded routeEditors/);
 });
+
+test('classes and directions list pages expose a routed create action', () => {
+  const classes = read('../src/admin/CompetitionPages.tsx');
+  const resource = read('../src/admin/ResourcePage.tsx');
+  // Embedded resources do not render their own page-heading action.
+  assert.match(resource, /return embedded\?wrapped:<PageFrame/);
+  assert.match(classes, /const showCreateAction=routePath\.split\('\?'\)\[0\]==='\/admin\/classes'/);
+  assert.match(classes, /showCreateAction&&<button/);
+  assert.match(classes, /go\('\/admin\/classes\/new\?tab='\+tab\)/);
+  assert.match(classes, /isClasses\?'Добавить класс':'Добавить направление'/);
+});
