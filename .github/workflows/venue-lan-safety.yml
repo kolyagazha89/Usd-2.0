@@ -23,7 +23,7 @@ permissions:
   contents: read
 jobs:
   venue-lan-safety:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -121,7 +121,7 @@ jobs:
 
   venue-central-return-postgres:
     name: Central signed return with real PostgreSQL 18 (isolated)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     services:
       postgres:
@@ -151,7 +151,7 @@ jobs:
 
   venue-full-central-postgres:
     name: Full stage return on real PostgreSQL 18 with migrations
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
