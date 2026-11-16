@@ -35,30 +35,37 @@ export class ResultsService {
     if (!result) return result;
     const car = result.registration?.car;
     const participant = result.registration?.participant;
+    // Official result/protocol identity is separate from an optional public profile.
+    // The endpoint still requires the stage and results to be officially published.
+    // Never expose city, team, personal photos or car details without their scope.
     const permissions=participant?.publicationConsent;
-    const showIdentity=Boolean(participant?.isPublic && permissions?.fullName && permissions?.results);
-    const hideCar=Boolean(car && (car.isPublic!==true || car.isActive===false || !showIdentity || !permissions?.car));
-    const hideParticipant=Boolean(participant && !showIdentity);
-    if (!hideCar && !hideParticipant && !permissions) return result;
+    const publicProfile=participant?.isPublic===true;
+    const showCar=Boolean(car && publicProfile && permissions?.car && car.isPublic===true && car.isActive!==false);
+    if (!participant && !car) return result;
     return {
       ...result,
-      registration: {
-        ...result.registration,
-        ...(hideCar ? {
-          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
-        } : {}),
-        participant: {
+      registration:{
+          ...result.registration,
+          ...(car?{car:{
+            ...car,
+            brand:showCar?car.brand:'Автомобиль скрыт',
+            model:showCar?car.model:'',
+            color:showCar?car.color:null,
+            photoUrl:showCar && permissions?.carPhoto?car.photoUrl:null,
+          }}:{}),
+          ...(participant?{participant:{
             ...participant,
-            publicationConsent: undefined,
-            lastName:hideParticipant?'Участник скрыт':participant?.lastName,
-            firstName:hideParticipant?'':participant?.firstName,
-            middleName:hideParticipant?null:participant?.middleName,
-            team:showIdentity && permissions?.team?participant?.team:null,
-            city:showIdentity && permissions?.city?participant?.city:null,
-            photoUrl:showIdentity && permissions?.profilePhoto?participant?.photoUrl:null,
-          },
-      },
-    } as T;
+            publicationConsent:undefined,
+            // Name is intrinsic to the officially published sporting result.
+            lastName:participant.lastName,
+            firstName:participant.firstName,
+            middleName:participant.middleName,
+            team:publicProfile && permissions?.team?participant.team:null,
+            city:publicProfile && permissions?.city?participant.city:null,
+            photoUrl:publicProfile && permissions?.profilePhoto?participant.photoUrl:null,
+          }}:{}),
+        },
+      } as T;
   }
 
   private readonly publicInclude = {
@@ -560,9 +567,8 @@ export class ResultsService {
         return {
           id: score.id, value: score.value.toString(), unit: score.unit, place: score.place,
           number: score.registrationClass.number?.number ?? score.registration.participantNumber,
-          participant: !participant?.isPublic || !participant?.publicationConsent?.fullName || !participant?.publicationConsent?.results ? 'Участник скрыт'
-            : [participant?.lastName, participant?.firstName, participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
-          car: !car || !participant?.publicationConsent?.car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
+          participant: [participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
+          car: !car || !participant?.isPublic || !participant?.publicationConsent?.car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
             : [car.brand, car.model].filter(Boolean).join(' ') || 'Автомобиль USD',
           class: score.registrationClass.class,
         };
