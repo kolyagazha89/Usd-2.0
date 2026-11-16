@@ -5,6 +5,11 @@ import { planRegistrationProtocolConsent } from '../src/participant/registration
 test('prior accepted consent does not require any new checkbox or PATCH',()=>{
  assert.deepEqual(planRegistrationProtocolConsent({accepted:true,legalReady:true,version:'7@doc1'},false),{needsSave:false,version:'7@doc1',error:null});
 });
+test('minor cannot submit a personal protocol publication opt-in; guardian handles on-site',()=>{
+ const r=planRegistrationProtocolConsent({accepted:false,legalReady:true,version:'7@doc1',requiresRepresentative:true},true);
+ assert.equal(r.needsSave,false);
+ assert.match(r.error??'',/несовершеннолетнего/);
+});
 test('unpublished official protocol document always blocks new registration',()=>{
  const r=planRegistrationProtocolConsent({accepted:false,legalReady:false,version:null},true);
  assert.equal(r.needsSave,false);
