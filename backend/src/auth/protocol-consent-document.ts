@@ -22,3 +22,14 @@ export function currentProtocolConsentVersion(value:unknown):string|null {
   const targetId=String(legal.documents.officialProtocolConsent.targetId);
   return version?version+'@'+targetId:null;
 }
+
+/** Same age gate in consent state and mutation, so minors do not see a broken opt-in. */
+export function requiresProtocolRepresentative(birthDate:unknown,at:Date=new Date()):boolean {
+ if(!birthDate)return false;
+ const date=birthDate instanceof Date?birthDate:new Date(String(birthDate));
+ if(!Number.isFinite(date.getTime()))return false;
+ const years=at.getUTCFullYear()-date.getUTCFullYear()-
+  (at.getUTCMonth()<date.getUTCMonth()||
+   (at.getUTCMonth()===date.getUTCMonth()&&at.getUTCDate()<date.getUTCDate())?1:0);
+ return years<18;
+}
