@@ -44,3 +44,9 @@ test('a new installation checks the current release before falling back to an al
  assert.ok(release.indexOf('Get-OnlineVenueReleaseSha')<release.indexOf('Get-CachedVenueReleaseSha'),
   'old locally cached images are chosen before the new release');
 });
+
+test('next offline stage keeps the previously verified separate LIVE frontend image',async()=>{
+ const manager=await source('venue-control.ps1');
+ assert.match(manager,/\$sharedConfig\.ContainsKey\('VENUE_TV_IMAGE_TAG'\)/);
+ assert.match(manager,/\$values\['VENUE_TV_IMAGE_TAG'\]=\$priorTv/);
+});
