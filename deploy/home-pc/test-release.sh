@@ -253,7 +253,8 @@ if [[ "${1:-}" == compose ]]; then
       echo "up $current_tag" >> "$USD_TEST_LOG"
       if [[ "${USD_TEST_INTERRUPT_RELEASE:-0}" == 1 ]] &&
          grep -q "^USD_IMAGE_TAG=$USD_TEST_NEW$" /home/usd/usd-deploy/deploy/home-pc/.env; then
-        kill -TERM "$PPID"
+        [[ "${USD_TEST_RELEASE_PID:-}" =~ ^[0-9]+$ ]] || { echo "Missing isolated mock release PID" >&2; exit 1; }
+        kill -TERM "$USD_TEST_RELEASE_PID"
       fi
       exit 0 ;;
     *" exec -T "*)
@@ -331,6 +332,7 @@ export USD_TEST_DB_BACKUP_LATCH="$WORK/db-unhealthy-after-backup"
 # without actually passing the trusted open file descriptor.
 if USD_DEPLOY_LOCK_HELD=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/forged-lock.log" 2>&1; then exit 1; fi
 grep -q 'Missing trusted inherited deploy lock descriptor' "$WORK/forged-lock.log"
+echo "CI mocked release: inherited lock refusal passed"
 # Approval files and their containing directory must be controlled by root.
 chmod 666 "$STATE/built-sha"
 if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/untrusted-built-marker.log" 2>&1; then exit 1; fi
@@ -368,6 +370,7 @@ if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/padded-tunnel-env.log
 grep -q 'Unsupported ingress token' "$WORK/padded-tunnel-env.log"
 sed -i '/^[[:space:]]*TUNNEL_TOKEN[[:space:]]*=/d' "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
+echo "CI mocked release: state, compose and environment refusal checks passed"
 # A local DB backup cannot protect an API accidentally pointing to another
 # PostgreSQL host. Nor may a release target the primary usd-russia.ru domain.
 sed -i 's/^APP_DOMAIN=app.usd-russia.ru$/APP_DOMAIN=usd-russia.ru/' "$ROOT/.env"
@@ -482,6 +485,7 @@ grep -q 'Existing API/frontend failed pre-release readiness' "$WORK/baseline-db-
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 [[ ! -s "$USD_TEST_LOG" ]]
 unset USD_TEST_FAIL_BASELINE_DB_CONNECTIVITY
+echo "CI mocked release: runtime and baseline checks passed"
 # A direct/manual release must not bypass media backup just because
 # PostgreSQL backup and image readiness checks are green.
 rm -f "$MEDIA_POLICY"
@@ -525,6 +529,7 @@ grep -q 'live images and database were not changed' "$WORK/preflight-only.log"
 [[ "$(cat "$STATE/initial-preflight")" == "$NEW"$'\n'"$OLD"$'\n'mock-db ]]
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 
+echo "CI mocked release: independent backup and preflight checks passed"
 # A database that becomes unhealthy during backup must block the swap before
 # either application container is replaced.
 export USD_TEST_DB_UNHEALTHY_AFTER_BACKUP=1
@@ -583,6 +588,7 @@ for mode in moved malformed unavailable; do
   [[ -z "$(find "$STATE" -maxdepth 1 -name 'release-env.*' -print -quit)" ]] || exit 1
 done
 unset USD_TEST_REMOTE_MAIN_SHA USD_TEST_FAIL_MAIN_LOOKUP
+echo "CI mocked release: main-tip deferral checks passed"
 # Public routing/asset/auth failure must remain inside the rollback boundary.
 if USD_TEST_FAIL_PUBLIC_ACCEPTANCE=1 bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/public-acceptance-failed.log" 2>&1; then
   echo 'Release succeeded although public acceptance failed' >&2
@@ -638,8 +644,11 @@ grep -q 'New API/frontend image tags do not match approved release SHA' "$WORK/s
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/stale-image.log"
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 export USD_TEST_IMAGE_MISMATCH_AFTER=0
+echo "CI mocked release: rollback and signed image checks passed"
 export USD_TEST_INTERRUPT_RELEASE=1
-if bash deploy/home-pc/release-approved.sh "$NEW" > "$WORK/interrupted.log" 2>&1; then exit 1; fi
+# Target the isolated release subprocess, not a guessed parent PID that may
+# be the GitHub Actions job shell after shell command optimization.
+if bash -c 'export USD_TEST_RELEASE_PID="$BASHPID"; exec bash deploy/home-pc/release-approved.sh "$1"' usd-interrupt "$NEW" > "$WORK/interrupted.log" 2>&1; then exit 1; fi
 grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
 grep -q 'Previous API/frontend passed readiness after rollback' "$WORK/interrupted.log"
 export USD_TEST_INTERRUPT_RELEASE=0
@@ -700,6 +709,7 @@ grep -q "^USD_IMAGE_TAG=$NEW$" "$ROOT/.env"
 sed -i "s/^USD_IMAGE_TAG=$NEW$/USD_IMAGE_TAG=$OLD/" "$ROOT/.env"
 export USD_TEST_FAIL_ROLLBACK_COPY=0
 export USD_TEST_FAIL_READINESS=0
+echo "CI mocked release: interruption and failed rollback checks passed"
 # Exercise the real release transaction against mixed but byte-identical
 # Compose origins. The DB must not be recreated by application-only switch.
 USD_TEST_MIXED_COMPOSE_FILES=1 bash deploy/home-pc/release-approved.sh "$NEW"
