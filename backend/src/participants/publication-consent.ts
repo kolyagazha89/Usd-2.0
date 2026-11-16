@@ -53,11 +53,13 @@ type ConsentRow = {
   publicationConsent?: unknown;
   publicationConsentAt?: Date | null;
   publicationConsentVersion?: string | null;
+  publicationRestrictions?: string | null;
 };
 
 /** isPublic controls visibility, consent controls permitted categories independently. */
 export function mayPublish(row: ConsentRow | null | undefined, key: PublicationConsentKey, version: string | null): boolean {
   return Boolean(row?.isPublic === true &&
+    !String(row?.publicationRestrictions ?? '').trim() &&
     row.publicationConsentAt && version && row.publicationConsentVersion === version &&
     readPublicationConsent(row.publicationConsent)[key]);
 }
