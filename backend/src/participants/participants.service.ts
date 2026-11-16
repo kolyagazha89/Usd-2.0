@@ -16,11 +16,96 @@ import { RegistrationCountry } from '../generated/prisma/enums';
 import { isValidInternationalPhone, isValidRegistrationPlate } from './profile-validation';
 import { assertVehicleCatalogSelection } from './vehicle-catalog-validation';
 
+const PUBLICATION_FIELDS = [
+  'fullName','city','team','results','car','profilePhoto','carPhoto','eventImage','promotionalImage',
+] as const;
+type PublicationField = (typeof PUBLICATION_FIELDS)[number];
+type PublicationChoices = Record<PublicationField, boolean>;
+const DENIED_PUBLICATION: PublicationChoices = {
+  fullName:false,city:false,team:false,results:false,car:false,
+  profilePhoto:false,carPhoto:false,eventImage:false,promotionalImage:false,
+};
+function validatePublicationChoices(value:unknown): PublicationChoices {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('Нужно явно выбрать категории разрешённых данных');
+  }
+  const record = value as Record<string,unknown>;
+  if (Object.keys(record).length !== PUBLICATION_FIELDS.length ||
+      PUBLICATION_FIELDS.some((field) => typeof record[field] !== 'boolean')) {
+    throw new BadRequestException('Все девять разрешений должны быть указаны отдельно');
+  }
+  return Object.fromEntries(PUBLICATION_FIELDS.map(field=>[field,record[field]])) as PublicationChoices;
+}
+
 @Injectable()
 export class ParticipantsService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
+
+  /** Publication consent is not the privacy/registration checkbox.
+   * A missing row is a denial. A new legal revision invalidates older grants.
+   */
+  private async approvedPublicationVersion(): Promise<string | null> {
+    const row = await this.prisma.siteSettings.findUnique({
+      where:{id:'default'}, select:{legal:true},
+    });
+    const legal = (row?.legal ?? {}) as Record<string,unknown>;
+    const documents = (legal.documents ?? {}) as Record<string,{targetId?:string}>;
+    return legal.legalApproved === true &&
+      String(legal.legalVersion??'').trim() &&
+      documents.photoProfileConsent?.targetId?.startsWith('legal-document-photoProfileConsent-')
+        ? String(legal.legalVersion) : null;
+  }
+
+  async getMyPublicationConsent(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const [row,currentVersion] = await Promise.all([
+      this.prisma.participantPublicationConsent.findUnique({where:{participantId}}),
+      this.approvedPublicationVersion(),
+    ]);
+    const current = Boolean(row && currentVersion && row.textVersion===currentVersion);
+    const permissions = Object.fromEntries(PUBLICATION_FIELDS.map(field=>
+      [field,current && row?.[field]===true])) as PublicationChoices;
+    return {permissions, version:currentVersion, acceptedVersion:row?.textVersion??null,
+      updatedAt:row?.updatedAt??null, needsReview:Boolean(row && !current)};
+  }
+
+  async updateMyPublicationConsent(request: AuthenticatedRequest, selection: unknown) {
+    const permissions=validatePublicationChoices(selection);
+    const user=await this.getAuthenticatedUser(request);
+    const participantId=this.requireParticipantId(user.participantId);
+    const version=await this.approvedPublicationVersion();
+    if(!version)throw new BadRequestException('Сначала организатор должен утвердить текст отдельного согласия на публикацию');
+    const person=await this.prisma.participant.findUnique({where:{id:participantId},select:{birthDate:true}});
+    if(!person)throw new NotFoundException('Профиль участника не найден');
+    if(person.birthDate){
+      const dob=new Date(person.birthDate), now=new Date();
+      const age=now.getUTCFullYear()-dob.getUTCFullYear()-
+        (now.getUTCMonth()<dob.getUTCMonth() ||
+         (now.getUTCMonth()===dob.getUTCMonth() && now.getUTCDate()<dob.getUTCDate())?1:0);
+      if(age<18)throw new ForbiddenException('Для несовершеннолетних требуется отдельное подтверждение законного представителя');
+    }
+    const previous=await this.prisma.participantPublicationConsent.findUnique({where:{participantId}});
+    await this.prisma.$transaction(async tx=>{
+      await tx.participantPublicationConsent.upsert({
+        where:{participantId},
+        create:{participantId,...permissions,textVersion:version,affirmedAt:new Date()},
+        update:{...permissions,textVersion:version,affirmedAt:new Date()},
+      });
+      // An optional choice cannot be activated by the old "public profile" switch.
+      await tx.participant.update({where:{id:participantId},data:{
+        isPublic:permissions.fullName && permissions.results,
+      }});
+      if(!permissions.car)await tx.car.updateMany({where:{participantId},data:{isPublic:false}});
+      await tx.auditLog.create({data:{
+        userId:user.id,action:'PUBLICATION_CONSENT_UPDATED',entity:'Participant',entityId:participantId,
+        metadata:{version,previous:previous?Object.fromEntries(PUBLICATION_FIELDS.map(field=>[field,previous[field]])):DENIED_PUBLICATION,permissions,source:'participant-settings'},
+      }});
+    });
+    return {success:true,version,permissions};
+  }
 
   // =========================================================
   // REGISTRATION NUMBER
