@@ -60,6 +60,24 @@ describe('public legal document reader', () => {
     expect(media.getPublicMediaFile).toHaveBeenCalledWith(MediaTargetType.SITE_ASSET, id);
   });
 
+
+  it('reads approved official protocol Word text, but not a draft of the same document', async () => {
+    const protocolId = 'legal-document-officialProtocolConsent-approved';
+    const protocolDoc = { targetId: protocolId, fileName: 'Протокол.docx' };
+    service.getPublic.mockResolvedValue({ success: true, settings: {
+      legal: { legalApproved: true, documents: { officialProtocolConsent: protocolDoc } },
+    } });
+    await expect(controller.publicDocument('officialProtocolConsent')).resolves.toMatchObject({
+      success: true, fileName: 'Протокол.docx',
+      blocks: [{ type: 'paragraph', text: 'Политика USD' }],
+    });
+    expect(media.getPublicMediaFile).toHaveBeenCalledWith(MediaTargetType.SITE_ASSET, protocolId);
+    service.getPublic.mockResolvedValue({ success: true, settings: {
+      legal: { legalApproved: false, documents: { officialProtocolConsent: protocolDoc } },
+    } });
+    await expect(controller.publicDocument('officialProtocolConsent')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('never reads files for unknown keys, including prototype properties', async () => {
     for (const key of ['__proto__', 'constructor', 'not-a-legal-document', '../private']) {
       await expect(controller.publicDocument(key)).rejects.toBeInstanceOf(NotFoundException);
