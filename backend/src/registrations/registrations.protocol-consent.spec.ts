@@ -14,7 +14,7 @@ describe('official protocol consent is a registration prerequisite',()=>{
   jest.clearAllMocks();
   prisma.siteSettings.findUnique.mockResolvedValue({
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD',privacyText:'Policy',
-    consentText:'Consent',termsText:'Terms'},
+    consentText:'Consent',termsText:'Terms',documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test1',url:'https://example.org/consent.docx'}}},
    contacts:{email:'legal@example.org'},
    registration:{rulesDocument:{published:{id:'rules-1',blocks:[{type:'paragraph',text:'rules'}]}}},
   });
@@ -23,6 +23,15 @@ describe('official protocol consent is a registration prerequisite',()=>{
    termsAcceptedAt:new Date(), termsVersion:'terms-v1',
    protocolConsentAt:null,protocolConsentVersion:null,protocolConsentRevokedAt:null,
   });
+ });
+ it('refuses new on-site registrations if separate protocol terms are not published',async()=>{
+  prisma.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:true,legalVersion:'1',ipName:'USD',
+   privacyText:'Policy',consentText:'Consent',termsText:'Terms'},contacts:{email:'legal@example.org'},
+   registration:{rulesDocument:{published:{id:'rules-1',blocks:[{type:'paragraph',text:'rules'}]}}}});
+  await expect(new RegistrationsService(prisma).create({user:{sub:'admin',role:'ADMIN'}} as any,
+   {...base,participantId:'p1',source:'ON_SITE',privacyConsent:true,termsAccepted:true,protocolConsent:true}))
+   .rejects.toThrow('отдельное согласие');
+  expect(prisma.$transaction).not.toHaveBeenCalled();
  });
  it('blocks unaffirmed account registrations before any database write',async()=>{
   await expect(new RegistrationsService(prisma).create(participant,base))

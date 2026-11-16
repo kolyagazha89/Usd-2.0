@@ -15,6 +15,7 @@ describe('separate official result consent in participant account',()=>{
    legalApproved:true,legalVersion:'1',ipName:'USD',
    operatorAddress:'Legal address',personalDataEmail:'privacy@example.org',
    privacyText:'Policy',consentText:'Privacy consent',termsText:'Terms',
+   documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test1',url:'https://example.org/consent.docx'}},
   },contacts:{email:'contact@example.org'},footer:{}});
   db.user.findUnique.mockResolvedValue({id:'u1',participantId:'p1',protocolConsentAt:null,
     protocolConsentVersion:null,protocolConsentRevokedAt:null});
@@ -60,6 +61,15 @@ describe('separate official result consent in participant account',()=>{
   }));
  });
 
+ it('refuses confirmation if separate protocol publication terms were not uploaded and approved',async()=>{
+  db.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:true,legalVersion:'1',ipName:'USD',
+   operatorAddress:'Legal address',personalDataEmail:'privacy@example.org',privacyText:'Policy',consentText:'Privacy consent',termsText:'Terms'},
+   contacts:{email:'contact@example.org'}});
+  await expect(service.updateProtocolConsent('u1',true,'1')).rejects.toThrow('Отдельный текст согласия');
+  const state=await service.getProtocolConsent('u1');
+  expect(state.legalReady).toBe(false);
+  expect(db.user.update).not.toHaveBeenCalled();
+ });
  it('refuses a consent before approved legal texts are present',async()=>{
   db.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:false}});
   await expect(service.updateProtocolConsent('u1',true,'1')).rejects.toThrow();

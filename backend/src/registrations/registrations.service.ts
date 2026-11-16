@@ -11,6 +11,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { hasApprovedProtocolConsentDocument } from '../auth/protocol-consent-document';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
@@ -586,6 +587,9 @@ export class RegistrationsService {
         && Boolean(String(contactEmail ?? '').trim());
       if (!legalReady) {
         throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
+      }
+      if (!hasApprovedProtocolConsentDocument(legal)) {
+        throw new BadRequestException('Регистрация временно недоступна: отдельное согласие на публикацию протоколов не утверждено');
       }
       consentLegalVersion = version;
       if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId)) {
