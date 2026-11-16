@@ -62,3 +62,26 @@ test('nginx serves robots as text, dynamic sitemap as XML and rejects unknown SP
  assert.match(robots,/Disallow: \/admin/);
  assert.match(robots,/Disallow: \/participant/);
 });
+
+
+test('published legal document pages have the correct title rather than a 404 title',()=>{
+ const titles={
+  privacyPolicy:'Политика обработки персональных данных',
+  personalDataConsent:'Согласие на обработку персональных данных',
+  termsOfUse:'Пользовательское соглашение',
+  cookiePolicy:'Политика cookie',
+  newsletterConsent:'Согласие на рассылку',
+  photoProfileConsent:'Согласие на публикацию профиля',
+ };
+ for(const [key,title] of Object.entries(titles)){
+  const path='/documents/'+key;
+  assert.equal(isIndexablePublicRoute(path),true,path);
+  const metadata=publicSeoMetadata(path);
+  assert.match(metadata.title,new RegExp(title,'i'),path);
+  assert.doesNotMatch(metadata.title,/не найдена/i,path);
+  assert.equal(metadata.indexable,true,path);
+ }
+ assert.equal(isIndexablePublicRoute('/documents/unknown-document'),false);
+ assert.equal(publicSeoMetadata('/documents/unknown-document').indexable,false);
+ assert.equal(isIndexablePublicRoute('/documents/%2Fsecret'),false);
+});
