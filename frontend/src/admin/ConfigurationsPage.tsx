@@ -10,7 +10,7 @@ import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
 import {diffConfigurationVersions} from '../participant/configuration-diff';
-import {availableCatalogModels,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
+import {availableCatalogModels,suggestCatalogBrands,suggestCatalogModels,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
 import {validateConfigurationQuantities} from '../participant/configuration-quantity';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
@@ -50,6 +50,9 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [activeView,setActiveView]=useState<'SUB'|'FRONT'|'REAR'|'POWER'|'BOX'|'NOTES'|'SETUP'|'REVIEW'>(isNew||admin?'SETUP':'SUB');
  const [actionsOpen,setActionsOpen]=useState(false);
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
+ const [pickerSearchStage,setPickerSearchStage]=useState<'brand'|'model'>('brand');
+ const pickerOverlayRef=useRef<HTMLDivElement|null>(null);
+ const pickerModelInputRef=useRef<HTMLInputElement|null>(null);
 
  const pickerDialogRef=useRef<HTMLElement|null>(null);
  const pickerReturnFocusRef=useRef<HTMLElement|null>(null);
@@ -95,6 +98,26 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
    pickerReturnFocusRef.current=null;
   };
  },[pickerActive]);
+ // On iPhone the keyboard shrinks visualViewport, not always CSS 100dvh.
+ useEffect(()=>{
+  if(!pickerActive)return;
+  const overlay=pickerOverlayRef.current;
+  const visualViewport=window.visualViewport;
+  if(!overlay||!visualViewport)return;
+  const update=()=>{
+   overlay.style.setProperty('--usd-picker-visible-height',Math.max(160,visualViewport.height)+'px');
+   overlay.style.setProperty('--usd-picker-visible-top',Math.max(0,visualViewport.offsetTop)+'px');
+   overlay.classList.toggle('keyboard-open',visualViewport.height<window.innerHeight-110);
+  };
+  update();
+  visualViewport.addEventListener('resize',update);
+  visualViewport.addEventListener('scroll',update);
+  return()=>{
+   visualViewport.removeEventListener('resize',update);
+   visualViewport.removeEventListener('scroll',update);
+  };
+ },[pickerActive]);
+
 
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
@@ -109,7 +132,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const viewIsReady=(key:string)=>key==='SUB'||key==='FRONT'||key==='REAR'?configuredIn(key as 'SUB'|'FRONT'|'REAR')>0:key==='POWER'?(v.batteries.length+v.generators.length)>0:key==='BOX'?isBoxConfigured(box):key==='NOTES'?Boolean(v.additionalDescription.trim()):Boolean(v.name.trim());
  const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR')=>{
   pickerReturnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
-  setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
+  setPickerSearchStage('brand');setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
  };
  const addEquipmentForView=()=>{if(activeView==='SUB'||activeView==='FRONT'||activeView==='REAR')openPicker('audioComponents',activeView);else if(activeView==='POWER'){if(defaultBatteryCode)add('batteries',{brand:defaultBatteryCode,model:'100',quantity:1});else setError('Справочник аккумуляторов недоступен. Повторите попытку после загрузки каталога.');}else setActiveView('SUB');setActionsOpen(false)};
 
@@ -128,8 +151,9 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const batteryTypes=(catalogs.batteryTypes??[]).filter((x:any)=>x.isActive!==false);
  const defaultBatteryCode=batteryTypes[0]?.code??'';
  const activeModels=(kind:'audioComponents'|'amplifiers'|'headUnits',type?:string)=>availableCatalogModels(catalogs.componentModels,kind,type);
- const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand)))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
- const pickerModels=picker&&(picker.brand.trim()||picker.model.trim())?activeModels(picker.kind,picker.type).filter((x:any)=>(!picker.brand.trim()||String(x.brand).toLocaleLowerCase('ru').includes(picker.brand.trim().toLocaleLowerCase('ru')))&&(!picker.model.trim()||String(x.model).toLocaleLowerCase('ru').includes(picker.model.trim().toLocaleLowerCase('ru')))).slice(0,20):[];
+ const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand).trim()))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
+ const pickerBrandMatches=picker&&pickerSearchStage==='brand'?suggestCatalogBrands(catalogs.componentModels,picker.kind,picker.type,picker.brand):[];
+ const pickerModelMatches=picker&&pickerSearchStage==='model'?suggestCatalogModels(catalogs.componentModels,picker.kind,picker.type,picker.brand,picker.model):[];
  const savePicker=()=>{
   if(!picker)return;
   const brand=picker.brand.trim(),model=picker.model.trim();
@@ -194,20 +218,29 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
 
     <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} data-section={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Заполнено':activeView==='SETUP'?'Укажите название':['SUB','FRONT','REAR'].includes(activeView)?'Не заполнено':'Необязательно'}</strong></div>
-    {picker&&!admin&&<div className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
+    {picker&&!admin&&<div ref={pickerOverlayRef} className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
       <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
        <div className="member-config-picker-title"><div><span className="eyebrow">ОБОРУДОВАНИЕ / {picker.direction}</span><h2>Добавить оборудование</h2><p>Введите бренд и модель. Справочник подсказывает варианты, но своё название тоже можно сохранить.</p></div><button aria-label="Закрыть выбор оборудования" type="button" onClick={()=>setPicker(null)}><X size={20}/></button></div>
        <div className="member-config-picker-body"><div className="member-config-picker-fields">
-        <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPicker({...picker,kind,brand:'',model:''})}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
-        <label>Бренд<input value={picker.brand} list="config-picker-brands" maxLength={100} autoComplete="off" placeholder="Введите бренд" onChange={e=>setPicker({...picker,brand:e.target.value})}/><datalist id="config-picker-brands">{pickerBrands.map(name=><option key={name} value={name}/>)}</datalist></label>
-        <label>Модель<input value={picker.model} type="search" maxLength={160} autoComplete="off" placeholder="Название модели" onChange={e=>setPicker({...picker,model:e.target.value})}/></label>
+        <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPickerSearchStage('brand');setPicker({...picker,kind,brand:'',model:''})}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
+        <label>Бренд<input value={picker.brand} type="search" maxLength={100} autoComplete="off" placeholder="Начните вводить бренд" onFocus={()=>setPickerSearchStage('brand')} onChange={e=>{setPickerSearchStage('brand');setPicker({...picker,brand:e.target.value,model:''})}}/></label>
+        <label>Модель<input ref={pickerModelInputRef} value={picker.model} type="search" maxLength={160} autoComplete="off" placeholder="Введите или выберите модель" onFocus={()=>setPickerSearchStage('model')} onChange={e=>{setPickerSearchStage('model');setPicker({...picker,model:e.target.value})}}/></label>
        </div>
        {catalogStatus==='loading'&&<p className="field-help" role="status">Загружаем справочник оборудования USD…</p>}
        {catalogStatus==='error'&&<div className="notice" role="alert">Не удалось загрузить справочник. Проверьте интернет и повторите попытку. <button type="button" className="secondary-button compact" onClick={()=>setCatalogReload(n=>n+1)}>Повторить загрузку</button></div>}
        {catalogStatus==='ready'&&pickerBrands.length===0&&<p className="field-help">В этой категории пока нет моделей в справочнике. Введите своё название.</p>}
-       <div className="member-config-picker-list" aria-label="Подсказки моделей из справочника">
-        {catalogStatus!=='ready'?<p>Подсказки недоступны. Введите название самостоятельно.</p>:!picker.brand.trim()&&!picker.model.trim()?<p>Начните вводить бренд или модель.</p>:pickerModels.length?pickerModels.map((item:any)=><button className={picker.model===item.model&&picker.brand===item.brand?'selected':''} key={item.id??item.model} onClick={()=>setPicker({...picker,brand:String(item.brand),model:String(item.model)})} type="button"><Database size={23}/><span><strong>{item.brand} {item.model}</strong><small>{item.lifecycle==='DISCONTINUED'?'Снята с производства':'Подсказка справочника USD'}</small></span><CheckCircle2 size={18}/></button>):<p>Совпадений нет. Можно сохранить введённое название.</p>}
-       </div>
+       <div className="member-config-picker-list" aria-label={pickerSearchStage==='brand'?'Подсказки брендов из справочника':'Подсказки моделей из справочника'}>
+         {catalogStatus!=='ready'?<p>Подсказки недоступны. Бренд и модель можно ввести вручную.</p>
+          :pickerSearchStage==='brand'?
+            !picker.brand.trim()?<p>Введите несколько букв бренда. Можно выбрать подсказку или оставить своё название.</p>
+            :pickerBrandMatches.length?pickerBrandMatches.map(name=><button key={name} type="button" onClick={()=>{
+              setPicker({...picker,brand:name,model:''});setPickerSearchStage('model');pickerModelInputRef.current?.focus();
+             }}><Database size={23}/><span><strong>{name}</strong><small>Бренд из справочника USD</small></span><ChevronRight size={18}/></button>)
+            :<p>Такого бренда нет в справочнике. Оставьте введённое название и перейдите к модели.</p>
+          :!picker.brand.trim()?<p>Сначала укажите бренд.</p>
+          :pickerModelMatches.length?pickerModelMatches.map((item:any)=><button className={picker.model===item.model?'selected':''} key={item.id??item.model} onClick={()=>setPicker({...picker,brand:String(item.brand),model:String(item.model)})} type="button"><Database size={23}/><span><strong>{item.model}</strong><small>{item.brand} · {item.lifecycle==='DISCONTINUED'?'Снята с производства':'Модель из справочника USD'}</small></span><CheckCircle2 size={18}/></button>)
+          :<p>Моделей не найдено. Можно сохранить своё название без добавления в справочник.</p>}
+        </div>
        </div>
        <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.brand.trim()||!picker.model.trim()} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
       </section></div>}
