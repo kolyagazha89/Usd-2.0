@@ -506,6 +506,15 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           await tx.mediaUpload.deleteMany({
             where: { id: { in: ids(plan.media) } },
           });
+          // Remove now-obsolete administrative inbox tasks for deleted claims.
+          // Read receipts are cascaded by PostgreSQL; other inbox items remain.
+          if (plan.profileLinkRequests.length)
+            await tx.adminNotification.deleteMany({
+              where: {
+                kind: 'PROFILE_LINK_REQUEST',
+                sourceId: { in: ids(plan.profileLinkRequests) },
+              },
+            });
           // Profile claims and team memberships have RESTRICT foreign keys.
           // Delete only the relationships belonging to the confirmed target.
           await tx.profileLinkRequest.deleteMany({
