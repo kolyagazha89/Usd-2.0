@@ -2,20 +2,34 @@ import { jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
 
+const currentConsent = {
+  publicationConsentAt: new Date('2026-11-16'),
+  publicationConsentVersion: 'publication-v1.5',
+  publicationConsent: {
+    identity: true, city: true, team: true, results: true, car: true,
+    profilePhoto: true, carPhoto: true, eventPhoto: false, promotionPhoto: false,
+  },
+};
+
 describe('ParticipantsService public profile privacy', () => {
   const prisma: any = {
     participant: { findUnique: jest.fn() },
     car: { findUnique: jest.fn() },
+    siteSettings: { findUnique: jest.fn() },
   };
   let service: ParticipantsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.siteSettings.findUnique.mockResolvedValue({
+      legal: { legalApproved: true, legalVersion: '1.5',
+        documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } },
+    });
     service = new ParticipantsService(prisma);
   });
 
   it('does not expose private participant profiles', async () => {
-    prisma.participant.findUnique.mockResolvedValue({
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent,
       id: 'private-participant',
       isPublic: false,
       phone: '+79991234567',
@@ -28,7 +42,7 @@ describe('ParticipantsService public profile privacy', () => {
   });
 
   it('selects only public participant fields and omits contact and registration data', async () => {
-    prisma.participant.findUnique.mockResolvedValue({
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent,
       id: 'public-participant',
       isPublic: true,
       lastName: 'Иванов',
@@ -73,7 +87,7 @@ describe('ParticipantsService public profile privacy', () => {
   });
 
   it('only queries participation at published, nondeleted stages', async () => {
-    prisma.participant.findUnique.mockResolvedValue({ id: 'person', isPublic: true, registrations: [] });
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent, id: 'person', isPublic: true, registrations: [] });
     await service.findOne('person');
     const query = prisma.participant.findUnique.mock.calls[0][0];
     expect(query.select.registrations.where).toEqual({
@@ -82,7 +96,7 @@ describe('ParticipantsService public profile privacy', () => {
   });
 
   it('redacts private and inactive cars in public participation history while preserving achievements', async () => {
-    prisma.participant.findUnique.mockResolvedValue({
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent,
       id: 'person', isPublic: true, cars: [], registrations: [
         { id: 'private-entry', stage: { id: 'stage' }, car: { id: 'private-car', brand: 'Private', model: 'Secret', photoUrl: '/secret', isPublic: false, isActive: true } },
         { id: 'inactive-entry', stage: { id: 'stage' }, car: { id: 'inactive-car', brand: 'Old', model: 'Secret', isPublic: true, isActive: false } },
@@ -99,7 +113,7 @@ describe('ParticipantsService public profile privacy', () => {
 
   it('resolves a merged historic public URL without disclosing the archived source', async () => {
     prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
-    prisma.participant.findUnique.mockResolvedValue({
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent,
       id:'canonical',isPublic:true,firstName:'Иван',lastName:'Иванов',
       mergeAsSource:null,cars:[],registrations:[],
     });
@@ -116,7 +130,7 @@ describe('ParticipantsService public profile privacy', () => {
     prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
     prisma.participant.findUnique.mockImplementation(async({where}:any)=>
       where.usdIdToken?{id:'historical',isPublic:false,mergeAsSource:{targetId:'canonical'}}:
-      {id:'canonical',isPublic:true,mergeAsSource:null,cars:[],registrations:[]});
+      {id:'canonical',...currentConsent,isPublic:true,mergeAsSource:null,cars:[],registrations:[]});
     try {
       expect((await service.findPublicByUsdId('a'.repeat(48))).id).toBe('canonical');
     } finally { delete prisma.participantMergeRedirect; }
@@ -133,6 +147,7 @@ describe('ParticipantsService public profile privacy', () => {
       color: null,
       photoUrl: null,
       participant: {
+        ...currentConsent,
         id: 'public-participant',
         isPublic: true,
         lastName: 'Иванов',
