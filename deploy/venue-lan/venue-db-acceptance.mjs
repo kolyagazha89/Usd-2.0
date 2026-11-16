@@ -256,7 +256,7 @@ async function probe(){
  assert.equal(measured.body.rows.length,1);
  assert.equal(Number(measured.body.rows[0].value),152.345);
  assert.equal(measured.body.rows[0].number,6);
- assert.equal(measured.body.rows[0].participant,'Участник скрыт');
+ assert.equal(measured.body.rows[0].participant,'Участник Тестовый');
  assert.equal(measured.body.rows[0].car,'Автомобиль скрыт');
  assert.ok(!JSON.stringify(measured.body).includes('А123ВС55'));
  const resultId=measured.body.rows[0].id;
