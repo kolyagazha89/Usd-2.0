@@ -117,7 +117,7 @@ export class AuthController {
   @Patch('protocol-consent')
   async setProtocolConsent(@Req() request: Request, @Body() body: ProtocolConsentDto) {
     const userId = (request as AuthenticatedRequest).user.sub;
-    return this.authService.updateProtocolConsent(userId,body.consent);
+    return this.authService.updateProtocolConsent(userId,body.consent,body.version);
   }
 
   @Get('newsletter-consent')
