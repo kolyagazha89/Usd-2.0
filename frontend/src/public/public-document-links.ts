@@ -7,6 +7,19 @@ export const LEGAL_DOCUMENT_LABELS: Record<string, string> = {
   newsletterConsent: 'Согласие на рассылку',
   photoProfileConsent: 'Согласие на публикацию профиля',
 };
+/** Page heading for the six known public document routes. Unknown paths stay 404. */
+export function publicDocumentPageTitle(path: string): string | null {
+  const match = path.split(/[?#]/, 1)[0].match(/^\/documents\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    const key = decodeURIComponent(match[1]);
+    return Object.prototype.hasOwnProperty.call(LEGAL_DOCUMENT_LABELS, key)
+      ? LEGAL_DOCUMENT_LABELS[key] : null;
+  } catch {
+    return null;
+  }
+}
+
 type DocumentRef = { targetId?: string; url?: string; fileName?: string };
 type LegalSettings = { legalApproved?: boolean; documents?: Record<string, DocumentRef> };
 type RegistrationSettings = { rulesDocument?: { published?: {url?: string;fileName?: string} | null } };
