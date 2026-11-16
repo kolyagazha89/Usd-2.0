@@ -593,43 +593,44 @@ export class TeamsService {
         id: true, name: true,
         memberships: {
           where: { status: 'APPROVED' },
-          select: { participantId: true }
-        }
-        }
-        });
+          select: { participantId: true },
+        },
+      },
+    });
     if (!team) throw new NotFoundException('Команда не найдена');
     const memberIds = team.memberships.map(row => row.participantId);
     if (!memberIds.length) return {
       teamId: team.id, teamName: team.name, scope: 'CURRENT_PUBLIC_MEMBERS',
       total: 0, truncated: false, stages: [],
-      summary: { participants: 0, podiums: 0, firstPlaces: 0, directions: [] }
-        };
+      summary: { participants: 0, podiums: 0, firstPlaces: 0, directions: [] },
+    };
     const limit = 500;
     const results = await this.prisma.result.findMany({
       where: {
         registration: {
           participantId: { in: memberIds },
           status: 'ACTIVE',
-          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } }
-        }
+          stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
+          
         },
+      },
       select: {
         id: true, place: true, value: true, unit: true,
         registration: {
           select: {
             participant: { select: { id: true, firstName: true, lastName: true } },
-            stage: { select: { id: true, name: true, city: true, date: true } }
-        }
+            stage: { select: { id: true, name: true, city: true, date: true } },
+          },
         },
         registrationClass: {
           select: {
-            class: { select: { id: true, name: true, direction: { select: { name: true } } } }
-        }
-        }
+            class: { select: { id: true, name: true, direction: { select: { name: true } } } },
+          },
         },
+      },
       orderBy: [{ registration: { stage: { date: 'desc' } } }, { place: 'asc' }, { id: 'asc' }],
-      take: limit + 1
-        });
+      take: limit + 1,
+    });
     return formatTeamAchievements(team.id, team.name, 'CURRENT_PUBLIC_MEMBERS', results);
   }
 
@@ -639,8 +640,8 @@ export class TeamsService {
    */
   async publicInspectedStageAchievements(teamId: string) {
     const team = await this.prisma.team.findUnique({
-      where: { id: teamId }, select: { id: true, name: true }
-        });
+      where: { id: teamId }, select: { id: true, name: true },
+    });
     if (!team) throw new NotFoundException('Команда не найдена');
     const results = await this.prisma.result.findMany({
       where: {
@@ -648,33 +649,34 @@ export class TeamsService {
           teamIdAtInspection: team.id,
           teamAffiliationCapturedAt: { not: null },
           status: 'ACTIVE',
+          
           stage: {
             isDeleted: false,
             status: { in: ['PUBLISHED', 'COMPLETED'] },
-            resultsPublishedAt: { not: null }
-        }
-        }
+            resultsPublishedAt: { not: null },
+          },
         },
+      },
       select: {
         id: true, place: true, value: true, unit: true,
         registration: {
           select: {
             participant: { select: { id: true, firstName: true, lastName: true } },
-            stage: { select: { id: true, name: true, city: true, date: true } }
-        }
+            stage: { select: { id: true, name: true, city: true, date: true } },
+          },
         },
         registrationClass: {
           select: {
-            class: { select: { name: true, direction: { select: { name: true } } } }
-        }
-        }
+            class: { select: { name: true, direction: { select: { name: true } } } },
+          },
         },
+      },
       orderBy: [
         { registration: { stage: { date: 'desc' } } },
         { place: 'asc' }, { id: 'asc' },
       ],
-      take: 501
-        });
+      take: 501,
+    });
     return formatTeamAchievements(team.id, team.name, 'FIRST_PASSED_INSPECTION', results);
   }
 
@@ -704,33 +706,34 @@ export class TeamsService {
         teamIdAtInspection:{not:null},
         teamAffiliationCapturedAt:{not:null},
         status:'ACTIVE',
+        
         stage:{
           isDeleted:false,
           status:{in:['PUBLISHED','COMPLETED']},
           resultsPublishedAt:{not:null},
-          ...(stageId?{id:stageId}:{seasonId})
-        }
-        }},
+          ...(stageId?{id:stageId}:{seasonId}),
+        },
+      }},
       select:{
         id:true,place:true,value:true,unit:true,
         registration:{select:{
           teamIdAtInspection:true,teamNameAtInspection:true,
           participant:{select:{id:true,firstName:true,lastName:true}},
-          stage:{select:{id:true,name:true,city:true,date:true,seasonId:true}}
+          stage:{select:{id:true,name:true,city:true,date:true,seasonId:true}},
         }},
         registrationClass:{select:{
-          class:{select:{id:true,name:true,direction:{select:{name:true}}}}
-        }}
-        },
+          class:{select:{id:true,name:true,direction:{select:{name:true}}}},
+        }},
+      },
       orderBy:[{registration:{stage:{date:'desc'}}},{place:'asc'},{id:'asc'}],
-      take:limit+1
-        });
+      take:limit+1,
+    });
     const displayed=rows.slice(0,limit);
     const teamIds=[...new Set(displayed.map(row=>row.registration.teamIdAtInspection)
       .filter((value):value is string=>Boolean(value)))];
     const names=teamIds.length?await this.prisma.team.findMany({
-      where:{id:{in:teamIds}},select:{id:true,name:true}
-        }):[];
+      where:{id:{in:teamIds}},select:{id:true,name:true},
+    }):[];
     const teams=groupPublishedTeamPerformances(displayed,
       new Map(names.map(team=>[team.id,team.name])));
     return {scope:{type,id},total:displayed.length,truncated:rows.length>limit,
