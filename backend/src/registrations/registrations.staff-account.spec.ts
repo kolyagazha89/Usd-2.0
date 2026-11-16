@@ -20,9 +20,9 @@ describe('staff account personal registrations',()=>{
  });
  it('does not allow the public registration API to bypass consent by spoofing IMPORT source',async()=>{
    const request:any={user:{sub:'admin',role:'ADMIN'}};
-   await expect(controller.create(request,{
+   expect(()=>controller.create(request,{
      stageId:'s',carId:'c',classIds:['cl'],participantId:'p',source:'IMPORT',
-   } as any)).rejects.toThrow('Исторический импорт');
+   } as any)).toThrow('Исторический импорт');
    expect(service.create).not.toHaveBeenCalled();
  });
  it('also restricts permanent ADMIN personal submission to their own participant',async()=>{
