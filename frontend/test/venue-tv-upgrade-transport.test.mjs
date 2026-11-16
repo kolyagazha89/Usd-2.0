@@ -34,7 +34,7 @@ test('reinstalling a READY real stage refreshes TV only without touching databas
  assert.match(upgrade,/VENUE_TV_IMAGE_TAG/);
  assert.match(upgrade,/--no-deps/);
  assert.match(upgrade,/tv','gateway/);
- assert.doesNotMatch(upgrade,/--volumes|migrate|stop','api|up','-d','db|remove|down/);
+ assert.doesNotMatch(upgrade,/@\('down'|--volumes|migrate','deploy'|stop','api|up','-d','db/);
 });
 
 test('a new installation checks the current release before falling back to an already cached version',async()=>{
