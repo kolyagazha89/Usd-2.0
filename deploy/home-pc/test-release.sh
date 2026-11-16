@@ -71,12 +71,15 @@ trap cleanup EXIT
 # helper intentionally redirects expected refusal output, so without this trap
 # a failed assertion is otherwise invisible in GitHub Actions logs.
 diagnose_failure() {
-  local code="$1" line="$2" file
+  local code="$1" line="$2" file excerpt
   echo "Mock release rehearsal failed at line $line (exit $code)" >&2
   for file in "$WORK"/*.log; do
     [[ -f "$file" ]] || continue
-    echo "--- $(basename "$file") (last 12 lines) ---" >&2
-    tail -n 12 "$file" >&2
+    # Snapshot a bounded tail BEFORE writing to stderr. stderr may be redirected
+    # into this very same log; streaming tail -f-like self-append exhausts CI disk.
+    excerpt="$(tail -c 4096 -- "$file" | tail -n 12 || true)"
+    echo "--- $(basename "$file") (last 12 lines, <=4 KiB) ---" >&2
+    printf '%s\n' "$excerpt" >&2
   done
 }
 trap 'diagnose_failure "$?" "$LINENO"' ERR
@@ -576,10 +579,14 @@ for mode in moved malformed unavailable; do
     malformed) export USD_TEST_REMOTE_MAIN_SHA=not-a-sha; unset USD_TEST_FAIL_MAIN_LOOKUP || true ;;
     unavailable) unset USD_TEST_REMOTE_MAIN_SHA || true; export USD_TEST_FAIL_MAIN_LOOKUP=1 ;;
   esac
-  set +e
-  run_automatic_candidate > "$WORK/main-after-restore-$mode.log" 2>&1
-  status=$?
-  set -e
+  # A stale-main refusal (75) is expected, not an ERR-trap failure.
+  # Calling this function outside an if/else would invoke the inherited ERR trap
+  # inside the redirected subprocess, potentially reading its own growing log.
+  if run_automatic_candidate > "$WORK/main-after-restore-$mode.log" 2>&1; then
+    status=0
+  else
+    status=$?
+  fi
   [[ "$status" == 75 ]] || { echo "Expected automatic release to defer for $mode (got $status)" >&2; exit 1; }
   grep -q 'deferring .*release' "$WORK/main-after-restore-$mode.log"
   grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
