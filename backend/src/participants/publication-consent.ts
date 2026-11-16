@@ -45,7 +45,7 @@ export function publicationVersion(legal: unknown): string | null {
   const documentIsPublished = typeof publication.targetId === 'string' &&
     publication.targetId.startsWith('legal-document-photoProfileConsent-');
   return record.legalApproved === true && version && documentIsPublished
-    ? 'publication-v' + version : null;
+    ? 'publication-v' + version + '@' + publication.targetId : null;
 }
 
 type ConsentRow = {
