@@ -13,11 +13,13 @@ export type StageProtocolConsentPlan = {needsSave:boolean;version:string|null;er
 export function planRegistrationProtocolConsent(
  state:StageProtocolConsentState,checked:boolean,
 ):StageProtocolConsentPlan {
- if(state.accepted)return {needsSave:false,version:state.version,error:null};
- if(state.requiresRepresentative)return {needsSave:false,version:state.version,error:'Для несовершеннолетнего согласие оформляет законный представитель через организатора на площадке.'};
  const version=typeof state.version==='string'?state.version.trim():'';
+ // The current published document, not a historical accepted flag, is authoritative.
  if(!state.legalReady||!version)
   return {needsSave:false,version:null,error:'Регистрация временно недоступна: отдельный документ о публикации официальных протоколов не утверждён организатором'};
+ if(state.requiresRepresentative)
+  return {needsSave:false,version,error:'Для несовершеннолетнего согласие оформляет законный представитель через организатора на площадке.'};
+ if(state.accepted)return {needsSave:false,version,error:null};
  if(!checked)
   return {needsSave:false,version,error:'Отдельно подтвердите согласие на публикацию ФИО и результата соревнования'};
  return {needsSave:true,version,error:null};
