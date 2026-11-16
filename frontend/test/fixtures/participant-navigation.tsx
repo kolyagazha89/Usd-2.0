@@ -27,11 +27,12 @@ export async function runParticipantNavigation(){
  let root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<App/>));await flush();active('Профиль');assert.equal(document.querySelector('main h1')?.textContent,'Мой профиль');
-  assert.equal([...document.querySelectorAll('label')].some(label=>label.textContent?.startsWith('Команда')),false,'team membership is managed in its dedicated tab, not personal data');
+  assert.equal([...document.querySelectorAll('label')].some(label=>label.textContent?.startsWith('Команда')&&!!label.querySelector('input[type="text"]')),false,'team membership must not become an editable personal field');
   const saveProfile=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent==='Сохранить профиль');await click(saveProfile!);active('Профиль');assert.match(document.querySelector('[role="status"]')?.textContent??'',/Профиль сохранён/);
-  assert.deepEqual(profilePatch,{firstName:'Иван',lastName:'Тестовый',middleName:null,birthDate:null,city:'Тюмень',phone:'+79001111008',isPublic:true},'personal-data save must not write or clear the existing team');
+  assert.deepEqual(profilePatch,{firstName:'Иван',lastName:'Тестовый',middleName:null,birthDate:null,city:'Тюмень',phone:'+79001111008'},'personal-data save must not write team or publication flags');
   assert.equal(link('Команда').getAttribute('href'),'/participant?tab=team');
-  await click(document.querySelector<HTMLInputElement>('.participant-public-toggle input')!);assert.equal(document.querySelector('[role="status"]'),null,'changing profile visibility clears the saved confirmation');
+  assert.equal(document.querySelector('.participant-public-toggle'),null,'legacy visibility checkbox must not masquerade as publication consent');
+  assert.equal(document.querySelectorAll('section[aria-label="Согласия на публичное распространение"] input[type="checkbox"]').length,9,'nine distinct optional permissions are visible');
   assert.equal(link('Мои автомобили').getAttribute('href'),'/participant?tab=cars');
   await click(link('Мои автомобили'));assert.equal(location.search,'?tab=cars');active('Мои автомобили');assert.equal(document.querySelector('main h1')?.textContent,'Мои автомобили');
   await click(link('Регистрации'));assert.equal(location.search,'?tab=registrations');active('Регистрации');assert.equal([...document.querySelectorAll('button')].filter(b=>b.textContent==='QR-код для инспекции').length,1,'cancelled applications do not offer an unusable QR action');
