@@ -57,7 +57,7 @@ describe('MediaService media library', () => {
   });
 
   it('never exposes public participant or car photo without separate permissions', async () => {
-    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5' } });
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } } });
     prisma.participant.findFirst = jest.fn().mockResolvedValue({ id: 'person', isPublic: true });
     await expect(service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO, 'person'))
       .rejects.toBeInstanceOf(ForbiddenException);
@@ -70,7 +70,7 @@ describe('MediaService media library', () => {
   });
 
   it('keeps original public participant photo working when a merged profile was hidden',async()=>{
-    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5' } });
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } } });
     prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{
       isPublic:true, publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1.5',
       publicationConsent:{identity:true,profilePhoto:true},
