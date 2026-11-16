@@ -10,7 +10,7 @@ import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
 import {diffConfigurationVersions} from '../participant/configuration-diff';
-import {availableCatalogModels,catalogCategoryForEquipment,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
+import {availableCatalogModels,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
 import {validateConfigurationQuantities} from '../participant/configuration-quantity';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
