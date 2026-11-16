@@ -39,43 +39,7 @@ function Export-VenueCA {
    if($wait -lt 14){Start-Sleep -Seconds 1}
   }
  }
- if($container.Count -ne 1 -or [string]$container[0] -cnotmatch '^[a-f0-9]{12,64} $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
- try{
-  for($attempt=0;$attempt -lt 30;$attempt++){
-   $copied=$false
-   try{
-    & docker cp ($container[0]+':/data/caddy/pki/authorities/local/root.crt') $temp 2>$null|Out-Null
-    $copied=$LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $temp -PathType Leaf)
-   }catch{$copied=$false}
-   if($copied){
-    $fingerprint=Verify-VenueCACertificate $temp
-    Copy-Item -LiteralPath $temp -Destination $destination -Force
-    Copy-Item -LiteralPath $temp -Destination $share -Force
-    Write-Host ('USD VENUE CA: '+$share)
-    Write-Host ('USD VENUE CA SHA-256: '+$fingerprint)
-    return
-   }
-   if($attempt -lt 29){Start-Sleep -Seconds 1}
-  }
-  throw 'Caddy не создал корневой сертификат за 30 секунд. Нажмите «USD — Сертификат» снова. Данные сохранены.'
- }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
-}
-function Download-VenueCertificate {
- $state=Read-State
- if(!$state -or $state.phase -ne 'READY'){throw 'Сначала запустите настоящий офлайн-сервер USD.'}
- Ensure-DockerReady
- if(-not(Test-IsActiveVenueStage $state.stageId)){
-  throw 'Это исторический этап. Запустите «USD — Сертификат» из папки текущего этапа, иначе телефоны получат неверный CA.'
- }
- Set-VenueStep 'export-caddy-public-ca'
- Export-VenueCA
- if(!$Silent){
-  Show-VenueMessage ('Сертификат готов в папке USD-Offline-Windows и local-private.'+[Environment]::NewLine+
-   'Загрузите USD-Venue-CA.crt в онлайн-админку USD → Офлайн-сервер.'+[Environment]::NewLine+
-   'Сверьте SHA-256 в консоли с онлайн-страницей.')
- }
-}
-){
+ if($container.Count -ne 1 -or [string]$container[0] -cnotmatch '^[a-f0-9]{12,64}$'){
   throw 'Не удалось запустить Caddy. Посмотрите ошибку контейнера gateway в Docker Desktop. Локальная база и результаты сохранены.'
  }
  $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
