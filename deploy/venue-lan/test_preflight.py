@@ -42,6 +42,16 @@ class VenuePreflightTests(unittest.TestCase):
             env["VENUE_IMAGE_TAG"] = label
             with self.assertRaises(ValueError):
                 validate(env)
+    def test_tv_image_must_be_exact_pinned_sha(self):
+        for label in ("", "latest", "main", "a" * 8, "REPLACE_SHA"):
+            env = fixture()
+            env["VENUE_TV_IMAGE_TAG"] = label
+            with self.assertRaises(ValueError):
+                validate(env)
+        env = fixture()
+        env["VENUE_TV_IMAGE_TAG"] = "c" * 40
+        validate(env)
+
     def test_signing_public_key_fingerprint_required(self):
         for fingerprint in ("", "REPLACE_SHA", "a"*8, "x"*64):
             env=fixture()
@@ -118,7 +128,7 @@ class VenuePreflightTests(unittest.TestCase):
         source=(Path(__file__).resolve().parent/"compose.yaml").read_text(encoding="utf-8")
         validate_compose_network_exposure(source)
         variants=[]
-        for service in ("db","api","frontend"):
+        for service in ("db","api","frontend","tv"):
             variants.append(source.replace("  "+service+":\n","  "+service+":\n    ports:\n      - \"0.0.0.0:54320:5432\"\n",1))
         for port in ('"0.0.0.0:19000:9000/tcp"','"192.168.50.10:19000:9000/tcp"','"127.0.0.1:19999:9000/tcp"'):
             variants.append(source.replace('"127.0.0.1:19000:9000/tcp"',port))
@@ -126,6 +136,12 @@ class VenuePreflightTests(unittest.TestCase):
         variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "0.0.0.0:80:80/tcp"'))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "${VENUE_BIND_IP}:8080:80/tcp"'))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "${VENUE_BIND_IP}:443:443/tcp"\n      - "0.0.0.0:8080:80"'))
+        variants.append(source.replace('      - "USD_UNUSED_PORT"', '      - "0.0.0.0:9999:80"')) if False else None
+        variants.append(source.replace(
+            '  tv:\n', '  tv:\n    ports:\n      - "0.0.0.0:8080:80"\n', 1))
+        variants.append(source.replace(
+            'usd-2.0-frontend:${VENUE_TV_IMAGE_TAG',
+            'usd-2.0-api:${VENUE_TV_IMAGE_TAG',1))
         variants.append(source.replace("  gateway:\n","  gateway:\n    network_mode: host\n",1))
         for index,variant in enumerate(variants):
             with self.subTest(attack=index),self.assertRaises(ValueError):
