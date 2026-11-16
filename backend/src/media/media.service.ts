@@ -358,7 +358,7 @@ export class MediaService {
         const alias = await this.prisma.participantMergeRedirect.findUnique({
           where: { sourceId: targetId },
           select: { target: { select: {
-            isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true,
+            isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true,
           } } },
         });
         if (!mayPublish(alias?.target, 'identity', version) || !mayPublish(alias?.target, 'profilePhoto', version)) {
@@ -373,7 +373,7 @@ export class MediaService {
       const car = await this.prisma.car.findFirst({
         where: { id: targetId, isPublic: true, participant: { isPublic: true } },
         select: { participant: { select: {
-          isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true,
+          isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true,
         } } },
       });
       if (!car || !mayPublish(car.participant, 'identity', version) ||
