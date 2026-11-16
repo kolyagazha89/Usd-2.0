@@ -62,3 +62,17 @@ test('public reader must query the approved API independently of slow or failed 
  assert.match(src,/if\(!knownDocumentKey\)/);
  assert.doesNotMatch(src,/const isPublished=.*document\?\.targetId/);
 });
+
+test('CMS legal text import requires exactly three revision 1.8 TXT files with nonempty contents',async()=>{
+ const {planLegalReleaseTexts}=await import('../src/admin/legal-release-readiness.ts');
+ const files=[
+  {name:'privacyText.txt',size:10268},
+  {name:'consentText.txt',size:3064},
+  {name:'termsText.txt',size:4495},
+ ];
+ assert.deepEqual(planLegalReleaseTexts(files).map(x=>x.key),['privacyText','consentText','termsText']);
+ assert.throws(()=>planLegalReleaseTexts(files.slice(0,2)),/недоста/);
+ assert.throws(()=>planLegalReleaseTexts([...files,{...files[0]}]),/дубликат/);
+ assert.throws(()=>planLegalReleaseTexts([{...files[0],name:'malware.exe'},...files.slice(1)]),/неизвестн/);
+ assert.throws(()=>planLegalReleaseTexts([{...files[0],size:0},...files.slice(1)]),/размер/);
+});
