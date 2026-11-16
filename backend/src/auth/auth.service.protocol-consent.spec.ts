@@ -45,6 +45,21 @@ describe('separate official result consent in participant account',()=>{
    data:expect.objectContaining({protocolConsentRevokedAt:expect.any(Date)})
   }));
  });
+ it('never records agreement to a newer unseen version of the legal document',async()=>{
+  await expect(service.updateProtocolConsent('u1',true,'outdated'))
+    .rejects.toThrow('Редакция текста изменилась');
+  expect(db.user.update).not.toHaveBeenCalled();
+ });
+
+ it('allows withdrawal even if the approved legal text was unpublished',async()=>{
+  db.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:false}});
+  const withdrawn=await service.updateProtocolConsent('u1',false);
+  expect(withdrawn.accepted).toBe(false);
+  expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
+   data:expect.objectContaining({protocolConsentRevokedAt:expect.any(Date)}),
+  }));
+ });
+
  it('refuses a consent before approved legal texts are present',async()=>{
   db.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:false}});
   await expect(service.updateProtocolConsent('u1',true)).rejects.toThrow();
