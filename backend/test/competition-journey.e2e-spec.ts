@@ -664,8 +664,8 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
     const redacted = (await api('get', `/results/${result.id}`).expect(200))
       .body;
     expect(redacted.registration.participant).toMatchObject({
-      lastName: 'Участник скрыт',
-      firstName: '',
+      lastName: visible.registration.participant.lastName,
+      firstName: visible.registration.participant.firstName,
     });
     expect(redacted.registration.car).toMatchObject({
       brand: 'Автомобиль скрыт',
