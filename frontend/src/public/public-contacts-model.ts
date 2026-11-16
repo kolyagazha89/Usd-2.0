@@ -22,11 +22,20 @@ function publicSocialUrl(value: unknown): string {
 
 /** Admin saves these channels under contacts; social is a legacy fallback. */
 export function publicContactLinks(contacts: ContactValues, social: ContactValues) {
-  return CONTACT_CHANNELS.flatMap(([key, label]) => {
+  const known = CONTACT_CHANNELS.flatMap(([key, label]) => {
     const primary = contacts?.[key];
     const legacy = social?.[key];
     const supplied = typeof primary === 'string' && primary.trim() ? primary : legacy;
     const url = publicSocialUrl(supplied);
     return url ? [{ key, label, url }] : [];
   });
+  // Keep additional channels from older installations; before this fix every
+  // entry under settings.social could appear on the public contacts page.
+  const listed = new Set<string>(CONTACT_CHANNELS.map(([key]) => key));
+  const legacyExtra = Object.entries(social ?? {}).flatMap(([key, value]) => {
+    if (listed.has(key)) return [];
+    const url = publicSocialUrl(value);
+    return url ? [{ key, label: key.toLocaleUpperCase('ru'), url }] : [];
+  });
+  return [...known, ...legacyExtra];
 }
