@@ -12,3 +12,11 @@ test('official results publication terms have a dedicated approved document read
  assert.match(admin,/key:'officialProtocolConsent'/);
  assert.match(admin,/filename:'usd-official-protocol-consent.docx'/);
 });
+
+test('athlete and event staff can read the dedicated document before consent',async()=>{
+ const [app,staff]=await Promise.all([
+  read('../src/App.tsx'),read('../src/admin/InspectionsPage.tsx')]);
+ assert.match(app,/href="\/documents\/officialProtocolConsent"/);
+ assert.match(staff,/href="\/documents\/officialProtocolConsent"/);
+ assert.match(app,/Перед подтверждением прочитайте/);
+});
