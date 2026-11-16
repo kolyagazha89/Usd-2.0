@@ -11,7 +11,13 @@ const click=async(element:HTMLElement)=>{assert.ok(element);await act(async()=>e
 function active(label:string){assert.equal(nav().querySelector('[aria-current="page"]')?.textContent,label)}
 export async function runParticipantNavigation(){
  let profilePatch:any=null;
- state.__patchAction=async(path:string,body:any)=>{if(path==='/participants/me')profilePatch=body;return {}};
+ let protocolAction:any=null, newsletterAction:any=null;
+ state.__patchAction=async(path:string,body:any)=>{
+  if(path==='/participants/me')profilePatch=body;
+  if(path==='/auth/protocol-consent'){protocolAction=body;return {accepted:true,version:'fixture',legalReady:true};}
+  if(path==='/auth/newsletter-consent'){newsletterAction=body;return {consent:body.consent};}
+  return {};
+ };
  const stage={id:'stage1',name:'Этап USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'car1',brand:'Lada',model:'Vesta',isActive:true,configurations:[]};
  state.__getPublic=async(path:string)=>{
@@ -21,6 +27,7 @@ export async function runParticipantNavigation(){
   if(path==='/registrations/me')return [{id:'reg1',stageId:stage.id,stage,carId:car.id,car,status:'ACTIVE',classes:[],results:[]},{id:'cancelled1',stageId:stage.id,stage,carId:car.id,car,status:'CANCELLED',classes:[],results:[]}];
   if(path==='/auth/legal-consent')return {legalReady:false};
   if(path==='/auth/newsletter-consent')return {consent:false};
+  if(path==='/auth/protocol-consent')return {legalReady:true,version:'fixture',accepted:false};
   return [];
  };
  history.replaceState({},'','/participant?tab=profile');
@@ -31,6 +38,24 @@ export async function runParticipantNavigation(){
   const saveProfile=[...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent==='Сохранить профиль');await click(saveProfile!);active('Профиль');assert.match(document.querySelector('[role="status"]')?.textContent??'',/Профиль сохранён/);
   assert.deepEqual(profilePatch,{firstName:'Иван',lastName:'Тестовый',middleName:null,birthDate:null,city:'Тюмень',phone:'+79001111008',isPublic:true},'personal-data save must not write or clear the existing team');
   assert.equal(link('Команда').getAttribute('href'),'/participant?tab=team');
+  const profileLink=(title:string)=>[...document.querySelectorAll<HTMLAnchorElement>('.participant-profile-nav a')].find(a=>a.textContent?.includes(title))!;
+  assert.ok(profileLink('Согласия'),'profile offers its own consents section');
+  assert.equal(document.querySelector('section[aria-label="Отдельное согласие на публикацию официального протокола"]'),null,'personal data view has no protocol-consent checkbox');
+  await click(profileLink('Согласия'));
+  assert.equal(new URLSearchParams(location.search).get('section'),'consents');
+  assert.match(document.querySelector('main')?.textContent??'',/ФИО и официальный результат/);
+  assert.equal(document.querySelector('section[aria-label="Отдельное согласие на публикацию официального протокола"] input[type="checkbox"]')!==null,true);
+  await click(document.querySelector<HTMLInputElement>('section[aria-label="Отдельное согласие на публикацию официального протокола"] input[type="checkbox"]')!);
+  await click([...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.includes('Подтвердить публикацию ФИО'))!);
+  assert.deepEqual(protocolAction,{consent:true,version:'fixture'},'separate confirmation saves the visible document version');
+  assert.match(document.querySelector('main')?.textContent??'',/Согласие сохранено/);
+  assert.ok(profileLink('Согласия').getAttribute('aria-current')==='page');
+  await click(document.querySelector<HTMLInputElement>('.newsletter-settings input[type="checkbox"]')!);
+  assert.deepEqual(newsletterAction,{consent:true},'newsletter is independent and managed in consents');
+  await click(profileLink('Уведомления'));
+  assert.equal(document.querySelector('.newsletter-settings'),null,'notification controls contain PUSH, not marketing consent');
+  await click(profileLink('Личные данные'));
+
   await click(document.querySelector<HTMLInputElement>('.participant-public-toggle input')!);assert.equal(document.querySelector('[role="status"]'),null,'changing profile visibility clears the saved confirmation');
   assert.equal(link('Мои автомобили').getAttribute('href'),'/participant?tab=cars');
   await click(link('Мои автомобили'));assert.equal(location.search,'?tab=cars');active('Мои автомобили');assert.equal(document.querySelector('main h1')?.textContent,'Мои автомобили');
