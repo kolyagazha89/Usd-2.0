@@ -19,7 +19,7 @@ describe('Public profile publication permissions', () => {
   let service: ParticipantsService;
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5' } });
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } } });
     prisma.participantMergeRedirect.findUnique.mockResolvedValue(null);
     service = new ParticipantsService(prisma);
   });
