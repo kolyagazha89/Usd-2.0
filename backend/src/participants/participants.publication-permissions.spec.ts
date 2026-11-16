@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
 import { emptyPublicationConsent } from './publication-consent';
 
-const version = 'publication-v1.5';
+const version = 'publication-v1.5@legal-document-photoProfileConsent-current';
 const choices = { ...emptyPublicationConsent(), identity: true, city: false,
   team: false, car: true, profilePhoto: false, carPhoto: false, results: false };
 const confirmed = { isPublic: true, publicationConsentAt: new Date('2026-11-16'),
