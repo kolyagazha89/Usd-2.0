@@ -48,7 +48,7 @@ const snapshot=()=>({
   legal:{legalApproved:true,legalVersion:'7',ipName:'Организатор USD',privacyText:'Опубликованная политика USD',
    consentText:'Опубликованное согласие USD',termsText:'Опубликованные условия USD',
    operatorAddress:'Тестовый адрес',personalDataEmail:'data@example.org',
-   documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test',url:'https://example.org/official-protocol.docx'}}},
+   documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test',url:'https://example.org/official-protocol.docx',fileName:'Consent.docx',blocks:[{type:'paragraph',text:'Тестовое согласие'}]}}},
   contactEmail:'organizer@example.org',
   rulesPublished:{id:'rules-v7',blocks:[{type:'paragraph',text:'Правила этапа'}]},
  },

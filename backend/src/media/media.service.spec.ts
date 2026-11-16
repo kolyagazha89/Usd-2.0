@@ -56,8 +56,25 @@ describe('MediaService media library', () => {
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
   });
 
+  it('never exposes public participant or car photo without separate permissions', async () => {
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current', url: 'https://example.org/photo-profile.docx' } } } });
+    prisma.participant.findFirst = jest.fn().mockResolvedValue({ id: 'person', isPublic: true });
+    await expect(service.getPublicMediaFile(MediaTargetType.PARTICIPANT_PHOTO, 'person'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    prisma.car.findFirst = jest.fn().mockResolvedValue({
+      id: 'car', isPublic: true, participant: { isPublic: true },
+    });
+    await expect(service.getPublicMediaFile(MediaTargetType.CAR_PHOTO, 'car'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
   it('keeps original public participant photo working when a merged profile was hidden',async()=>{
-    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{isPublic:true}}))};
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current', url: 'https://example.org/photo-profile.docx' } } } });
+    prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{
+      isPublic:true, publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1.5@legal-document-photoProfileConsent-current',
+      publicationConsent:{identity:true,profilePhoto:true},
+    }}))};
     prisma.participant.findFirst=jest.fn(async()=>null);
     prisma.mediaUpload.findFirst.mockResolvedValue({objectKey:'original-avatar-key',contentType:'image/png'});
     global.fetch=jest.fn(async()=>new Response(Buffer.from([137,80,78,71]),{
@@ -69,7 +86,9 @@ describe('MediaService media library', () => {
       where:{targetType:MediaTargetType.PARTICIPANT_PHOTO,targetId:'old-profile',completedAt:{not:null}},
     }));
     expect(prisma.participantMergeRedirect.findUnique).toHaveBeenCalledWith({
-      where:{sourceId:'old-profile'},select:{target:{select:{isPublic:true}}},
+      where:{sourceId:'old-profile'},select:{target:{select:{
+        isPublic:true,publicationConsent:true,publicationConsentAt:true,publicationConsentVersion:true,publicationRestrictions:true,
+      }}},
     });
   });
 

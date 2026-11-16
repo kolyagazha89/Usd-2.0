@@ -94,6 +94,12 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
    ||!String(policy.legal.privacyText??'').trim()
    ||!String(policy.legal.consentText??'').trim()
    ||!String(policy.legal.termsText??'').trim()
+   ||!isObject(policy.legal.documents?.officialProtocolConsent)
+   ||!/^legal-document-officialProtocolConsent-[A-Za-z0-9_-]+$/.test(String(policy.legal.documents.officialProtocolConsent.targetId??''))
+   ||!String(policy.legal.documents.officialProtocolConsent.url??'').trim()
+   ||!Array.isArray(policy.legal.documents.officialProtocolConsent.blocks)
+   ||!policy.legal.documents.officialProtocolConsent.blocks.length
+   ||JSON.stringify(policy.legal.documents.officialProtocolConsent.blocks).length>300000
    ||!/^\S+@\S+\.\S+$/.test(policy.contactEmail??'')
    ||!isObject(policy.rulesPublished)||!String(policy.rulesPublished.id??'').trim()
    ||!Array.isArray(policy.rulesPublished.blocks)||!policy.rulesPublished.blocks.length)

@@ -60,6 +60,35 @@ describe('public legal document reader', () => {
     expect(media.getPublicMediaFile).toHaveBeenCalledWith(MediaTargetType.SITE_ASSET, id);
   });
 
+  it('reads the signed local protocol document with no RustFS when LAN mode is enabled', async()=>{
+    const old=process.env.USD_VENUE_LAN_MODE;
+    process.env.USD_VENUE_LAN_MODE='true';
+    try{
+      service.getPublic.mockResolvedValue({success:true,settings:{legal:{
+        legalApproved:true,documents:{officialProtocolConsent:{
+          targetId:'legal-document-officialProtocolConsent-test',
+          fileName:'Протокол.docx',blocks:[{type:'paragraph',text:'Условия протокола'}],
+        }},
+      }}});
+      await expect(controller.publicDocument('officialProtocolConsent')).resolves.toMatchObject({
+        success:true,fileName:'Протокол.docx',blocks:[{type:'paragraph',text:'Условия протокола'}],
+      });
+      expect(media.getPublicMediaFile).not.toHaveBeenCalled();
+    }finally{if(old===undefined)delete process.env.USD_VENUE_LAN_MODE;else process.env.USD_VENUE_LAN_MODE=old;}
+  });
+
+  it('fails closed when the venue package has no signed protocol text', async()=>{
+    const old=process.env.USD_VENUE_LAN_MODE;
+    process.env.USD_VENUE_LAN_MODE='true';
+    try{
+      service.getPublic.mockResolvedValue({success:true,settings:{legal:{
+        legalApproved:true,documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test'}},
+      }}});
+      await expect(controller.publicDocument('officialProtocolConsent')).rejects.toBeInstanceOf(NotFoundException);
+      expect(media.getPublicMediaFile).not.toHaveBeenCalled();
+    }finally{if(old===undefined)delete process.env.USD_VENUE_LAN_MODE;else process.env.USD_VENUE_LAN_MODE=old;}
+  });
+
   it('never reads files for unknown keys, including prototype properties', async () => {
     for (const key of ['__proto__', 'constructor', 'not-a-legal-document', '../private']) {
       await expect(controller.publicDocument(key)).rejects.toBeInstanceOf(NotFoundException);

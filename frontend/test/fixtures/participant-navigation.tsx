@@ -28,6 +28,7 @@ export async function runParticipantNavigation(){
   if(path==='/auth/legal-consent')return {legalReady:false};
   if(path==='/auth/newsletter-consent')return {consent:false};
   if(path==='/auth/protocol-consent')return {legalReady:true,version:'fixture',accepted:false};
+   if(path==='/participants/me/publication-consent')return {confirmed:false,currentVersion:null,choices:{}};
   return [];
  };
  history.replaceState({},'','/participant?tab=profile');

@@ -66,13 +66,25 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   const policy=snapshot.venuePolicy;
   fields(policy,['legal','contactEmail','rulesPublished'],'политика регистрации');
   fields(policy.legal,['legalApproved','legalVersion','ipName','privacyText',
-   'consentText','termsText','operatorAddress','personalDataEmail'],'законодательство');
+   'consentText','termsText','operatorAddress','personalDataEmail','documents'],'законодательство');
   if(policy.legal.legalApproved!==true
    ||typeof policy.contactEmail!=='string'
    ||!/^\S+@\S+\.\S+$/.test(policy.contactEmail)
-   ||Object.entries(policy.legal).some(([name,value])=>name!=='legalApproved'
+   ||Object.entries(policy.legal).some(([name,value])=>name!=='legalApproved'&&name!=='documents'
     &&(typeof value!=='string'||!value.trim()||value.length>500000)))
    throw new Error('Некорректные юридические документы и контактный email');
+  const documents=policy.legal.documents;
+  fields(documents,['officialProtocolConsent'],'юридические файлы');
+  const protocol=documents.officialProtocolConsent;
+  fields(protocol,['targetId','url','fileName','blocks'],'согласие на протокол');
+  if(typeof protocol.targetId!=='string'||
+   !/^legal-document-officialProtocolConsent-[A-Za-z0-9_-]+$/.test(protocol.targetId)||
+   typeof protocol.url!=='string'||!protocol.url.trim()||
+   typeof protocol.fileName!=='string'||protocol.fileName.length>255||
+   !Array.isArray(protocol.blocks)||!protocol.blocks.length||
+   protocol.blocks.length>1000||JSON.stringify(protocol.blocks).length>300000||
+   protocol.blocks.some(block=>!block||typeof block!=='object'||!['heading','paragraph','list-item','table'].includes(block.type)))
+   throw new Error('Недоступен утверждённый текст согласия на протоколы');
   fields(policy.rulesPublished,['id','blocks'],'опубликованный регламент');
   if(typeof policy.rulesPublished.id!=='string'||!policy.rulesPublished.id.trim()
    ||!Array.isArray(policy.rulesPublished.blocks)||policy.rulesPublished.blocks.length===0

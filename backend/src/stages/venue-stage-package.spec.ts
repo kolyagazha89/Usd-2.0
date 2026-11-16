@@ -72,12 +72,16 @@ describe('Signed LAN stage export',()=>{
   const old=process.env.VENUE_STAGE_SIGNING_KEY_B64;
   process.env.VENUE_STAGE_SIGNING_KEY_B64=secret;
   try{
-   const service=new VenueStageService(prisma);
+   const media={getPublicMediaFile:jest.fn<() => Promise<any>>().mockResolvedValue({
+    body:Buffer.from('UEsDBBQAAAAIAEB+cF36/Q6SeAAAAJgAAAARAAAAd29yZC9kb2N1bWVudC54bWyzKbdKyU8uzU3NK1GoyM3JK7Yqt1WqULKzKbdKyk+pBNEFIKIIRJTYXVh4Yd+FzRd2X9hwsfHCjgtbFS7svbBB4cL+i80XNgJFd1zYBZRpu7DjYh9IsOHCvotNQA27gBioRSE02MVGH2QMiCwCkwVgEmKVPsItdgBQSwECFAMUAAAACABAfnBd+v0OkngAAACYAAAAEQAAAAAAAAAAAAAAgAEAAAAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAEAAQA/AAAApwAAAAAA','base64'),
+    contentType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+   })};
+   const service=new VenueStageService(prisma,media as any);
    const pkg=await service.exportStage(stageId,admin as any);
    expect(verifyVenueStagePackage(pkg,publicPem,Date.parse(pkg.snapshot.generatedAt)).stageId).toBe(stageId);
    expect((pkg.snapshot as any).venuePolicy).toMatchObject({
     contactEmail:'organizer@example.org',
-    legal:{legalApproved:true,legalVersion:'2',documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-export-test'}}},
+    legal:{legalApproved:true,legalVersion:'2',documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-export-test',blocks:[{type:'paragraph',text:'Согласие на публикацию протокола USD'}]}}},
     rulesPublished:{id:'rules-v2'},
    });
    expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);

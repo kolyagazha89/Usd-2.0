@@ -7,9 +7,10 @@ import { VenueStageService } from './venue-stage.service';
 import { VenueCertificateService } from './venue-certificate.service';
 import { SiteSettingsModule } from '../site-settings/site-settings.module';
 import { MailModule } from '../mail/mail.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [SiteSettingsModule, MailModule, PushModule],
+  imports: [SiteSettingsModule, MailModule, PushModule, MediaModule],
   controllers: [StagesController],
   providers: [StagesService, VenueStageService, VenueAutoSyncService, VenueCertificateService],
 })

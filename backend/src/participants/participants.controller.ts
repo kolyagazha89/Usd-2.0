@@ -88,6 +88,20 @@ export class ParticipantsController {
   }
 
   @Roles('PARTICIPANT')
+  @Header('Cache-Control', 'no-store')
+  @Get('participants/me/publication-consent')
+  publicationConsent(@Req() request: AuthenticatedRequest) {
+    return this.participantsService.getPublicationConsent(request);
+  }
+
+  @Roles('PARTICIPANT')
+  @Header('Cache-Control', 'no-store')
+  @Patch('participants/me/publication-consent')
+  updatePublicationConsent(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.participantsService.updatePublicationConsent(request, body);
+  }
+
+  @Roles('PARTICIPANT')
   @Patch('participants/me')
   updateMe(
     @Req() request: AuthenticatedRequest,

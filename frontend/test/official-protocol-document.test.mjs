@@ -20,3 +20,10 @@ test('athlete and event staff can read the dedicated document before consent',as
  assert.match(staff,/href="\/documents\/officialProtocolConsent"/);
  assert.match(app,/Перед подтверждением прочитайте/);
 });
+
+test('judge gate checks published protocol document and requires confirmation of signed paper', async()=>{
+ const staff=await read('../src/admin/InspectionsPage.tsx');
+ assert.match(staff,/legal\.documents\?\.officialProtocolConsent/);
+ assert.match(staff,/protocolReady/);
+ assert.match(staff,/подписанный оригинал передан организатору/);
+});

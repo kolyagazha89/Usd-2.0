@@ -1,14 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } from './venue-stage-package';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { createHash, createPrivateKey, createPublicKey, randomBytes } from 'node:crypto';
 import {prepareVenueStaffExport} from './venue-staff-access';
+import { MediaService } from '../media/media.service';
+import { MediaTargetType } from '../generated/prisma/enums';
+import { parseDocxRules } from '../site-settings/docx-rules-parser';
 import { hasApprovedProtocolConsentDocument } from '../auth/protocol-consent-document';
 
 @Injectable()
 export class VenueStageService {
- constructor(private readonly prisma:PrismaService){}
+ constructor(private readonly prisma:PrismaService, @Optional() private readonly mediaService?:MediaService){}
 
  getSetup(request:AuthenticatedRequest){
   // Do not rely only on controller metadata: custom stage viewers must never
@@ -89,13 +92,36 @@ export class VenueStageService {
    &&legalFields.every(key=>String(legal[key]??'').trim())
    &&published&&String(published.id??'').trim()
    &&Array.isArray(published.blocks)&&published.blocks.length>0;
+  // An offline venue must be able to read the exact approved text without
+  // Internet or a RustFS media replica. The signed stage snapshot carries
+  // parsed public DOCX blocks, not a link to an unavailable central server.
+  let protocolBlocks:ReturnType<typeof parseDocxRules>|undefined;
+  if(approved){
+   if(!this.mediaService)throw new ServiceUnavailableException('Чтение юридического DOCX для офлайн-пакета не настроено');
+   try{
+    const targetId=String(legal.documents.officialProtocolConsent.targetId);
+    const media=await this.mediaService.getPublicMediaFile(MediaTargetType.SITE_ASSET,targetId);
+    if(media.contentType!=='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+     throw new Error('Invalid document type');
+    protocolBlocks=parseDocxRules(media.body);
+    if(!protocolBlocks.length||JSON.stringify(protocolBlocks).length>300000)
+     throw new Error('Invalid document size or content');
+   }catch{
+    throw new ServiceUnavailableException('Не удалось включить утверждённое согласие на протоколы в офлайн-пакет');
+   }
+  }
   const venuePolicy=approved?{
    legal:{
     legalApproved:true,legalVersion:String(legal.legalVersion),
     ipName:String(legal.ipName),privacyText:String(legal.privacyText),
     consentText:String(legal.consentText),termsText:String(legal.termsText),
     operatorAddress:String(legal.operatorAddress),personalDataEmail:String(legal.personalDataEmail),
-    documents:{officialProtocolConsent:legal.documents.officialProtocolConsent},
+    documents:{officialProtocolConsent:{
+     targetId:legal.documents.officialProtocolConsent.targetId,
+     url:legal.documents.officialProtocolConsent.url,
+     fileName:legal.documents.officialProtocolConsent.fileName||'Согласие на публикацию протокола USD.docx',
+     blocks:protocolBlocks,
+    }},
    },contactEmail,
    rulesPublished:{id:String(published.id),blocks:published.blocks},
   }:undefined;
