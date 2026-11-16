@@ -1,4 +1,5 @@
 import { deflateRawSync } from 'node:zlib';
+import { jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import { MediaTargetType } from '../generated/prisma/enums';
 import { SiteSettingsController } from './site-settings.controller';
