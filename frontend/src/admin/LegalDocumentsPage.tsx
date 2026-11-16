@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {AlertTriangle,CheckCircle2,FileText,Loader2,UploadCloud} from 'lucide-react';
 import {apiPost,getSiteSettings,updateSiteSettings,uploadRulesDocx} from '../api';
 import {DocumentBlocks,type Block} from '../public/PublicDocumentReader';
-import {missingLegalDocuments} from './legal-release-readiness';
+import {missingLegalDocuments,planLegalReleaseUpload} from './legal-release-readiness';
 
 const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const documents=[
@@ -37,6 +37,27 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
  const releaseReady=legal.legalApproved===true&&missingDocuments.length===0;
  const upload=async(key:DocKey,file?:File)=>{if(!file)return;setError('');setNotice('');if(!file.name.toLowerCase().endsWith('.docx')||(file.type&&file.type!==DOCX)){setError('Выбери документ Microsoft Word в формате .docx');return}if(file.size<=0||file.size>10*1024*1024){setError('Размер файла должен быть от 1 байта до 10 МБ');return}
  setBusy(key);try{const targetId='legal-document-'+key+'-'+newId();const result=await uploadRulesDocx(targetId,file);const nextLegal={...legal,documents:{...stored,[key]:{targetId,fileName:file.name,url:result.url,uploadedAt:new Date().toISOString()}}};const saved=await updateSiteSettings({legal:nextLegal});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Файл загружен. Изменение сбросило юридическое утверждение — после проверки всех документов утверди их в «Настройки сайта → Юридическая информация».')}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить документ')}finally{setBusy(null)}};
+ const uploadRelease=async(files:File[])=>{
+  if(!files.length)return;
+  setError('');setNotice('');
+  let planned:Array<{key:string;file:File}>;
+  try{planned=planLegalReleaseUpload(files,documents)}
+  catch(e){setError(e instanceof Error?e.message:'Выберите 7 файлов Word из публичной папки комплекта 1.8');return}
+  setBusy('release-bundle');
+  try{
+   const nextDocuments:{[key:string]:StoredDoc}={...stored};
+   for(const {key,file} of planned){
+    const targetId='legal-document-'+key+'-'+newId();
+    const uploaded=await uploadRulesDocx(targetId,file);
+    nextDocuments[key]={targetId,fileName:file.name,url:uploaded.url,uploadedAt:new Date().toISOString()};
+   }
+   // Save the complete set in one CMS update, never approve it implicitly.
+   const saved=await updateSiteSettings({legal:{...legal,documents:nextDocuments,legalApproved:false,legalApprovedAt:null,legalApprovedBy:null}});
+   setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);
+   setNotice('Все 7 Word-документов загружены. Откройте предпросмотр, проверьте тексты и утвердите комплект в юридических настройках. Регистрация до утверждения остаётся заблокированной.');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить комплект: утверждение не выполнялось. Повторите загрузку.')}
+  finally{setBusy(null)}
+ };
  const remove=async(key:DocKey)=>{setPendingRemoval(null);setBusy(key);setError('');setNotice('');try{const next={...stored};delete next[key];const saved=await updateSiteSettings({legal:{...legal,documents:next}});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Ссылка на документ убрана. Юридические документы нужно проверить и утвердить заново.')}catch(e){setError(e instanceof Error?e.message:'Не удалось убрать документ')}finally{setBusy(null)}};
  const saveTexts=async()=>{setSaving(true);setError('');setNotice('');try{const saved=await updateSiteSettings({legal});setSettings((s:any)=>({...s,...saved.settings}));setNotice('Юридические тексты сохранены. Если содержимое менялось, утверждение сброшено.')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить тексты')}finally{setSaving(false)}};
  if(loading)return <PageFrame title="Юридические документы" subtitle="Публикация документов Word и текстов для посетителей"><LoadingPage/></PageFrame>;
@@ -49,6 +70,16 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
   </div>
   <div className="settings-section">
    <PanelTitle title="Файлы Word" icon={UploadCloud}/>
+   <div className="settings-field-card" style={{padding:16,marginBottom:16}}>
+    <strong>Пакет юридических документов USD · редакция 1.8</strong>
+    <p className="settings-help">Распакуйте архив релиза и выберите сразу все семь Word-файлов из папки «01_ПУБЛИЧНЫЕ_DOCX_ДЛЯ_АДМИНКИ». Файлы автоматически сопоставятся с нужными разделами. Внутренние документы не загружайте.</p>
+    <label className="primary-button compact" style={{cursor:busy?'wait':'pointer',opacity:busy?0.65:1}}>
+      {busy==='release-bundle'?<><Loader2 size={14} className="spin"/>Загружаем 7 DOCX…</>:<><UploadCloud size={14}/>Загрузить комплект из 7 DOCX</>}
+      <input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple disabled={Boolean(busy)}
+       onChange={e=>{const files=Array.from(e.currentTarget.files??[]);e.currentTarget.value='';void uploadRelease(files)}}/>
+    </label>
+    <p className="settings-help">Загрузка не означает юридического утверждения; оно выполняется после проверки содержания.</p>
+   </div>
    <div className="settings-form-grid">{documents.map(doc=>{const current=stored[doc.key];return <div key={doc.key} className="settings-field-card" style={{padding:16,border:'1px solid var(--border,#303036)',borderRadius:12,minWidth:0}}>
     <strong>{doc.title}</strong><p className="settings-help">{doc.description}</p>
     {current?<div style={{display:'grid',gap:6,marginBottom:12}}>
