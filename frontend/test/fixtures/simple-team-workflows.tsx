@@ -6,10 +6,10 @@ import PublicTeamsPage from '../../src/public/PublicTeamsPage';
 import TeamsPage from '../../src/admin/TeamsPage';
 
 export async function runSimpleTeamWorkflows(){
- const host=document.getElementById('root')!,root=createRoot(host);let fullManagement=false,selectedTeam:string|null=null,fail=false;const writes:any[]=[];
+ const host=document.getElementById('root')!,root=createRoot(host);let fullManagement=false,selectedTeam:string|null=null,fail=false;const writes:any[]=[];let holdMode=false,failMode=false,releaseMode:(()=>void)|undefined;
  const team:any={id:'t1',name:'First team',isActive:true,memberships:[],members:[],historicalMembers:[],posts:[{id:'news',kind:'NEWS',title:'Preserved news',body:'Saved content',status:'PUBLISHED'}]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{
-  if(path==='/teams/mode'){if(method==='PATCH')fullManagement=body.fullManagement;return {fullManagement}}
+  if(path==='/teams/mode'){if(method==='PATCH'){if(failMode){failMode=false;throw Error('Mode save failed')}if(holdMode)await new Promise<void>(resolve=>{releaseMode=resolve});fullManagement=body.fullManagement}return {fullManagement}}
   if(path==='/teams/options')return [{name:team.name}];
   if(path==='/teams/me/selection'){if(method==='PATCH'){if(fail){fail=false;throw Error('Save failed')}selectedTeam=body.name||null;writes.push(body)}return {team:selectedTeam}}
   if(path==='/teams/public')return [team];
@@ -32,7 +32,17 @@ export async function runSimpleTeamWorkflows(){
   const Frame=({children}:any)=><main>{children}</main>;
   await render(<TeamsPage PageFrame={Frame} ErrorPanel={({message}:any)=><p role="alert">{message}</p>} LoadingPage={()=>null} Empty={({text}:any)=><p>{text}</p>}/>);
   assert.equal(host.querySelector('.team-review-queue'),null);assert.equal(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,false);
-  await act(async()=>{host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();await new Promise(r=>setTimeout(r,5))});assert.equal(fullManagement,true);assert.ok(host.querySelector('.team-review-queue'));
+  failMode=true;
+  await act(async()=>{host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();await new Promise(r=>setTimeout(r,5))});
+  assert.equal(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,false,'failed mode save restores the stored value');
+  assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Mode save failed/);
+  holdMode=true;
+  await act(async()=>{host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();await new Promise(r=>setTimeout(r,5))});
+  assert.equal(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,true,'checkbox retains the requested value while the server is saving');
+  assert.equal(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled,true);
+  assert.equal(fullManagement,false,'the pending request has not reached the server yet');
+  await act(async()=>{releaseMode!();await new Promise(r=>setTimeout(r,5))});holdMode=false;
+  assert.equal(fullManagement,true);assert.ok(host.querySelector('.team-review-queue'));
   await act(async()=>{host.querySelector<HTMLButtonElement>('.team-team-list li button')!.click();await new Promise(r=>setTimeout(r,5))});assert.ok(host.querySelector('.team-workspace'));
   await act(async()=>{host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();await new Promise(r=>setTimeout(r,5))});assert.equal(fullManagement,false);assert.equal(host.querySelector('.team-workspace'),null);assert.match(host.textContent??'',/Убрать из списка выбора/);
   assert.equal(team.posts[0].title,'Preserved news');

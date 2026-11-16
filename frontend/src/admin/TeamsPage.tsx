@@ -5,7 +5,7 @@ import TeamWorkspace,{TeamPhotoPreview} from '../teams/TeamWorkspace';
 import type {PublicTeam,Team,TeamUser} from '../teams/types';
 function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>}){
  const [teams,setTeams]=useState<Team[]>([]),[users,setUsers]=useState<TeamUser[]>([]),[legacy,setLegacy]=useState<PublicTeam[]>([]),[selected,setSelected]=useState(''),[name,setName]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const [full,setFull]=useState(false);
+ const [full,setFull]=useState(false),[modeDraft,setModeDraft]=useState<boolean|null>(null);
  const [teamFilter,setTeamFilter]=useState('ALL');
  const [reviewing,setReviewing]=useState(''),[reviewConfirm,setReviewConfirm]=useState<'approve'|'return'|''>(''),[reviewBusy,setReviewBusy]=useState(false),[reviewError,setReviewError]=useState(''),[reviewNotice,setReviewNotice]=useState('');
  const load=async()=>{
@@ -15,7 +15,7 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
  };
  const refresh=async()=>{setLoading(true);setError('');try{await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить команды')}finally{setLoading(false)}};
  useEffect(()=>{void refresh()},[]);
- const toggleMode=async(enabled:boolean)=>{setBusy(true);setError('');try{await apiPatch('/teams/mode',{fullManagement:enabled});setTeamFilter('ALL');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить режим команд')}finally{setBusy(false)}};
+ const toggleMode=async(enabled:boolean)=>{setModeDraft(enabled);setBusy(true);setError('');try{await apiPatch('/teams/mode',{fullManagement:enabled});setTeamFilter('ALL');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить режим команд')}finally{setModeDraft(null);setBusy(false)}};
  const create=async()=>{setBusy(true);setError('');try{const team=await apiPost<Team>('/teams',{name:name.trim()});setName('');await load();setSelected(team.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать команду')}finally{setBusy(false)}};
  const filtered=teams.filter(t=>t.name.toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).filter(t=>teamFilter==='ALL'||(teamFilter==='ACTIVE'?t.isActive:teamFilter==='ARCHIVED'?!t.isActive:t.memberships?.some(m=>m.status==='PENDING'))).sort((a,b)=>a.name.localeCompare(b.name,'ru')),current=teams.find(t=>t.id===selected);
  const pendingReviews=teams.flatMap(team=>(team.posts??[])
@@ -37,7 +37,7 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
  };
  return <PageFrame title="Команды" subtitle={full?"Составы, командиры и публикации USD":"Список команд и результаты"} action={<button className="secondary-button" disabled={loading||busy} onClick={()=>void refresh()}>Обновить</button>}>
  {error&&<ErrorPanel message={error} retry={refresh}/>}
- <section className="panel team-admin-intro"><label className="checkbox-line"><input type="checkbox" checked={full} disabled={busy||loading} onChange={e=>void toggleMode(e.target.checked)}/> Полное управление командами</label><p>Включает командиров, заявки, составы и новости. При выключении участники выбирают команду из списка. Сохранённые материалы можно вернуть включением этого режима.</p><h2>Управление командами</h2><p>{full?"Создайте команду, назначьте командира и проверяйте материалы перед публикацией.":"Добавляйте названия команд для выбора участниками."}</p><form className="team-create-form" onSubmit={e=>{e.preventDefault();void create()}}><label>Название новой команды<input aria-label="Название новой команды" value={name} maxLength={120} required onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()}>Создать команду</button></form></section>
+ <section className="panel team-admin-intro"><label className="checkbox-line"><input type="checkbox" checked={modeDraft??full} disabled={busy||loading} onChange={e=>void toggleMode(e.target.checked)}/> Полное управление командами</label><p>Включает командиров, заявки, составы и новости. При выключении участники выбирают команду из списка. Сохранённые материалы можно вернуть включением этого режима.</p><h2>Управление командами</h2><p>{full?"Создайте команду, назначьте командира и проверяйте материалы перед публикацией.":"Добавляйте названия команд для выбора участниками."}</p><form className="team-create-form" onSubmit={e=>{e.preventDefault();void create()}}><label>Название новой команды<input aria-label="Название новой команды" value={name} maxLength={120} required onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()}>Создать команду</button></form></section>
  {full&&!loading&&<section className="panel team-review-queue" aria-label="Очередь публикаций команд на проверке">
   <h2>Материалы на проверке · {pendingReviews.length}</h2>
   <p>Проверьте заголовок, полный текст и все фотографии. Подтверждение публикует только сохранённый материал — браузер не заменяет его устаревшей копией.</p>

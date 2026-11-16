@@ -54,6 +54,10 @@ jobs:
         run: node --test scripts/online-release-preflight.test.mjs
       - name: Verify live browser network boundary with local fixtures
         run: node scripts/browser-qa-routing-regression.mjs
+      - name: Verify team directories, roster filters and explicit application journey
+        run: node scripts/team-management-browser-qa.mjs
+      - name: Verify simple team selection and reversible full management
+        run: node scripts/simple-team-browser-qa.mjs
       - name: Check candidate public, participant and admin interfaces
         run: node scripts/candidate-browser-qa.mjs
       - name: Verify PWA safe areas with nonzero status-bar and home-indicator insets
@@ -70,10 +74,6 @@ jobs:
         run: node scripts/partner-image-browser-qa.mjs
       - name: Verify regulation contents and full-context reading on mobile and desktop
         run: node scripts/rules-browser-qa.mjs
-      - name: Verify team directories, roster filters and explicit application journey
-        run: node scripts/team-management-browser-qa.mjs
-      - name: Verify simple team selection and reversible full management
-        run: node scripts/simple-team-browser-qa.mjs
       - name: Verify signup email recovery and resend cooldown across screen sizes
         run: node scripts/verification-resend-browser-qa.mjs
       - name: Save candidate screenshots and structured report
