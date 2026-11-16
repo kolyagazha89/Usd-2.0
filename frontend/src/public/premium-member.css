@@ -440,3 +440,23 @@ body .usd-auth .notice.auth-recovery-notice svg{flex-shrink:0;color:#9fb4c9!impo
   position:absolute!important;pointer-events:auto;
  }
 }
+
+/* iPhone keyboard / cabinet chrome. A focused text field can move WebKit's
+ * visual viewport independently of the layout viewport, causing fixed header
+ * and portaled bottom tabs to glide out from behind the keyboard as the user
+ * scrolls. Keep page layout/height intact and temporarily suppress only the
+ * fixed navigation chrome; never hide the inline equipment form or its Save.
+ * :has() is supported in current iOS Safari and avoids JS timing races while
+ * the keyboard animates open/closed. */
+@media(max-width:760px){
+ body:has(.participant-portal.usd-member :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,[contenteditable="true"]):focus) .participant-portal-header,
+ body:has(.participant-portal.usd-member :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,[contenteditable="true"]):focus) > .participant-dock-viewport > .participant-tabs,
+ body:has(.participant-portal.usd-member :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,[contenteditable="true"]):focus) .usd-scroll-progress,
+ body:has(.participant-portal.usd-member :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,[contenteditable="true"]):focus) .configuration-editor-page .config-editor-actions{
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:none!important;
+  animation:none!important;
+ }
+}

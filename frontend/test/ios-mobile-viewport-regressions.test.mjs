@@ -29,3 +29,13 @@ test('standalone member dock has its own full-height viewport instead of dependi
  assert.match(nav,/className="participant-dock-viewport"/);
  assert.match(css,/@media[^{}]*\(display-mode:standalone\)[\s\S]*?height:100vh/);
 });
+
+test('iPhone keyboard focus suppresses both fixed cabinet bars without moving the content',async()=>{
+ const css=await source('../src/public/premium-member.css');
+ assert.match(css,/@media\(max-width:760px\)[\s\S]*?body:has\(\.participant-portal\.usd-member/);
+ assert.match(css,/body:has\(\.participant-portal\.usd-member[^\n]*:focus\) \.participant-portal-header/);
+ assert.match(css,/body:has\(\.participant-portal\.usd-member[^\n]*:focus\) > \.participant-dock-viewport > \.participant-tabs/);
+ assert.match(css,/visibility:hidden!important/);
+ assert.match(css,/pointer-events:none!important/);
+ assert.match(css,/transition:none!important/);
+});
