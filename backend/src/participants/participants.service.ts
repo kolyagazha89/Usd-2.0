@@ -277,7 +277,6 @@ export class ParticipantsService {
         isPublic: _public, ...person } = row;
       return {
         ...person,
-        publicationTerms: readPublicationConsent(row.publicationConsent),
         city: mayPublish(row, 'city', version) ? row.city : null,
         team: mayPublish(row, 'team', version) ? row.team : null,
         photoUrl: mayPublish(row, 'profilePhoto', version) ? row.photoUrl : null,
@@ -546,7 +545,6 @@ export class ParticipantsService {
     const showCarPhotos = mayPublish(participant, 'carPhoto', version);
     return {
       ...publicParticipant,
-      publicationTerms: readPublicationConsent(participant!.publicationConsent),
       team: mayPublish(participant, 'team', version) ? participant!.team : null,
       city: mayPublish(participant, 'city', version) ? participant!.city : null,
       photoUrl: mayPublish(participant, 'profilePhoto', version) ? participant!.photoUrl : null,
@@ -1697,7 +1695,6 @@ export class ParticipantsService {
       photoUrl: mayPublish(car.participant, 'carPhoto', version) ? car.photoUrl : null,
       participant: {
         ...owner,
-        publicationTerms: readPublicationConsent(car.participant.publicationConsent),
         city: mayPublish(car.participant, 'city', version) ? owner.city : null,
         team: mayPublish(car.participant, 'team', version) ? owner.team : null,
         photoUrl: mayPublish(car.participant, 'profilePhoto', version) ? owner.photoUrl : null,

@@ -45,7 +45,7 @@ describe('Public profile publication permissions', () => {
     expect(person.photoUrl).toBeNull();
     expect(person.cars[0].photoUrl).toBeNull();
     expect(person.publicationConsent).toBeUndefined();
-    expect(person.publicationTerms).toMatchObject({ identity: true, profilePhoto: false });
+    expect(person).not.toHaveProperty('publicationTerms');
   });
 
   it('hides participation history unless explicitly permitted and approved', async () => {
