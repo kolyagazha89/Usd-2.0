@@ -1,0 +1,31 @@
+name: Rebuild reviewed venue kit on repair branch
+on:
+  push:
+    branches: [fix/venue-ca-self-healing-20261116]
+    paths:
+      - 'deploy/venue-lan/**'
+      - '.github/workflows/venue-kit-branch-rebuild.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild deterministic allowlisted Windows kit
+        run: |
+          python3 deploy/venue-lan/build-windows-kit.py
+          python3 deploy/venue-lan/build-windows-kit.py --check
+      - name: Commit rebuilt kit to review branch
+        run: |
+          set -euo pipefail
+          git add frontend/public/downloads/USD-Offline-Windows.zip frontend/public/downloads/USD-Offline-Windows.json frontend/public/downloads/USD-Offline-Guide.html
+          if git diff --cached --quiet; then
+            echo "Windows kit already up to date"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build(venue): ship repaired Windows kit"
+          git push origin HEAD:fix/venue-ca-self-healing-20261116
