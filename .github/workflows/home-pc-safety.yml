@@ -24,7 +24,7 @@ permissions:
 jobs:
   build-candidate-images:
     name: Build actual API and frontend Docker images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -184,7 +184,7 @@ jobs:
           done
 
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
