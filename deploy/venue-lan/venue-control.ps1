@@ -312,7 +312,7 @@ function Replace-LegacyDemo([object]$State){
   if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID контейнера'}
   $labels=Read-VenueDockerLabels 'container' ([string]$id)
   if([string]$labels.'com.docker.compose.project' -cne 'usd-venue' -or
-   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','rustfs','gateway')){
+   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','tv','rustfs','gateway')){
    throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
   }
  }
@@ -434,6 +434,66 @@ function Confirm-SignedStage([object]$State) {
  Confirm-VenueStaffKey $State $mounts
  return $mounts
 }
+# Reinstalling the kit must upgrade the LIVE screen even for phase READY.
+# ONLY the read-only TV container and gateway are recreated. Judges keep
+# their original pinned API/frontend/DB and every stage result untouched.
+function Update-ReadyVenueTv([object]$State) {
+ if($State.phase -ne 'READY'){throw 'LIVE: установка этапа ещё не завершена'}
+ $cfg=Read-Env
+ if($cfg['VENUE_STAGE_ID'] -cne $State.stageId -or
+    $cfg['VENUE_IMAGE_TAG'] -cne $State.image -or
+    $cfg['VENUE_BIND_IP'] -cne $State.ip){
+  throw 'LIVE: идентификаторы текущего этапа не совпадают; обновление отменено'
+ }
+ $installed=$(if($cfg.ContainsKey('VENUE_TV_IMAGE_TAG')){[string]$cfg['VENUE_TV_IMAGE_TAG']}else{[string]$State.image})
+ if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'LIVE: неправильная версия существующего табло'}
+ $target=Get-OnlineVenueReleaseSha
+ $original=$null
+ if($target -and $target -cne $installed){
+  Set-VenueStep 'download-current-tv-image'
+  $ref='ghcr.io/kolyagazha89/usd-2.0-frontend:'+$target
+  Invoke-Docker @('pull',$ref) 'download latest LIVE image'
+  $labels=Read-VenueDockerLabels 'image' $ref
+  if([string]$labels.'org.opencontainers.image.revision' -cne $target){
+   throw 'LIVE: образ не соответствует опубликованной версии. База не изменена.'
+  }
+  # Atomic, ACL-protected .env update. Keep original API/image and secrets.
+  $original=[IO.File]::ReadAllText($EnvFile)
+  $newline=[Environment]::NewLine
+  $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_TV_IMAGE_TAG='})
+  $updated=($lines+@('VENUE_TV_IMAGE_TAG='+$target)) -join $newline
+  $temp=Join-Path $Root ('.usd-venue-tv-'+[guid]::NewGuid().ToString('N')+'.tmp')
+  try{
+   Write-PrivateFile $temp ($updated+$newline)
+   Move-Item -LiteralPath $temp -Destination $EnvFile -Force
+  }finally{
+   if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}
+  }
+ }
+ try{
+  Set-VenueStep 'activate-current-tv-only'
+  # --no-deps excludes DB and judging containers; no migration or down.
+  Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never',
+   '--force-recreate','tv','gateway') 'activate isolated LIVE TV'
+ }catch{
+  $failure=$_.Exception.Message
+  if($null -ne $original){
+   $temp=Join-Path $Root ('.usd-venue-tv-rollback-'+[guid]::NewGuid().ToString('N')+'.tmp')
+   try{
+    Write-PrivateFile $temp $original
+    Move-Item -LiteralPath $temp -Destination $EnvFile -Force
+    # Restore last approved TV image and gateway, never change the DB.
+    try{Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never',
+     'tv','gateway') 'restore previous LIVE after failed upgrade'}catch{}
+   }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+  }
+  throw ('LIVE обновление не прошло: '+$failure+'. База этапов не изменена.')
+ }
+ $active=$(if($target){$target}else{$installed})
+ Write-Host ('LIVE TV: образ '+$active+'; API/база и результаты сохранены')
+ if(!$target){Write-Warning 'Нет интернета до обоих сайтов USD. Оставлено текущее LIVE-табло; обновление пока не подтверждено.'}
+}
+
 function Install-Local {
  Set-VenueStep 'check-docker'
  Assert-VenueCompose
@@ -459,7 +519,7 @@ function Install-Local {
  Ensure-Firewall $state.ip
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
- if($state.phase -eq 'READY'){Start-Local;return}
+ if($state.phase -eq 'READY'){Update-ReadyVenueTv $state;Start-Local;return}
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
  Set-VenueStep 'verify-stage-and-staff'
  $mounts=Confirm-SignedStage $state
