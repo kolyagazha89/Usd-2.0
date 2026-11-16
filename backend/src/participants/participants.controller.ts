@@ -6,6 +6,7 @@ import {
   Header,
   Param,
   Patch,
+  Put,
   Post,
   Req,
 } from '@nestjs/common';
@@ -17,7 +18,7 @@ import { Roles } from '../auth/roles.decorator';
 
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
-import { CreateParticipantDto, UpdateParticipantDto } from './dto/participant.dto';
+import { CreateParticipantDto, UpdateParticipantDto, PublicationConsentDto } from './dto/participant.dto';
 
 @Controller()
 export class ParticipantsController {
@@ -97,6 +98,20 @@ export class ParticipantsController {
       request,
       body,
     );
+  }
+
+  @Roles('PARTICIPANT')
+  @Header('Cache-Control','no-store')
+  @Get('participants/me/publication-consent')
+  getMyPublicationConsent(@Req() request: AuthenticatedRequest) {
+    return this.participantsService.getMyPublicationConsent(request);
+  }
+
+  @Roles('PARTICIPANT')
+  @Header('Cache-Control','no-store')
+  @Put('participants/me/publication-consent')
+  setMyPublicationConsent(@Req() request: AuthenticatedRequest, @Body() body: PublicationConsentDto) {
+    return this.participantsService.updateMyPublicationConsent(request, body);
   }
 
   /** Personal USD ID is separate from the stage-specific registration QR. */
