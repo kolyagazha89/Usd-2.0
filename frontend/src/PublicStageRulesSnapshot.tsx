@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import './PublicStageRulesSnapshot.css';
 import { rulesListMarkers } from './rules-list-markers';
+import { selectPublicStageRules } from './stage-rules-model';
 
 type InlineRun = { text: string; bold?: boolean; italic?: boolean; href?: string };
 type RulesBlock =
@@ -10,7 +11,9 @@ type RulesBlock =
   | { type: 'table'; rows?: string[][]; cellRuns?: InlineRun[][][] };
 
 type Snapshot = {
+  id?: string;
   revisionId?: string;
+  createdAt?: string;
   fileName?: string;
   url?: string;
   publishedAt?: string;
@@ -53,9 +56,10 @@ function safeDocumentUrl(value: unknown): string {
   }
 }
 
-export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snapshot?: Snapshot | null; stageName: string }) {
-  const blocks = Array.isArray(snapshot?.blocks) ? snapshot.blocks : [];
-  if (!snapshot || !blocks.length) {
+export default function PublicStageRulesSnapshot({ snapshot, currentPublished, preferHistorical = false, stageName }: { snapshot?: Snapshot | null; currentPublished?: Snapshot | null; preferHistorical?: boolean; stageName: string }) {
+  const { document, source } = selectPublicStageRules(currentPublished, snapshot, preferHistorical);
+  const blocks = Array.isArray(document?.blocks) ? document.blocks : [];
+  if (!document || !blocks.length) {
     return (
       <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Общий регламент соревнований">
         <strong>Общий регламент соревнований</strong>
@@ -64,12 +68,12 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
       </aside>
     );
   }
-  const dateValue = snapshot.publishedAt || snapshot.capturedAt;
+  const dateValue = document.publishedAt || document.createdAt || document.capturedAt;
   const parsedDate = dateValue ? new Date(dateValue) : null;
   const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
     ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsedDate)
     : '';
-  const sourceUrl = safeDocumentUrl(snapshot.url);
+  const sourceUrl = safeDocumentUrl(document.url);
   const listMarkers = rulesListMarkers(blocks);
 
   return (
@@ -77,12 +81,12 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
       <summary>
         <span>
           <strong>Общий регламент соревнований</strong>
-          <small>{dateLabel ? 'Редакция общего регламента от ' + dateLabel : 'Редакция, сохранённая при публикации этапа'}</small>
+          <small>{source==='historical' ? (dateLabel ? 'Историческая редакция от ' + dateLabel : 'Историческая редакция этапа') : (dateLabel ? 'Действующая редакция от ' + dateLabel : 'Действующий общий регламент')}</small>
         </span>
         <span className="public-stage-rules-toggle" aria-hidden="true">+</span>
       </summary>
       <div className="public-stage-rules-body">
-        <p className="public-stage-rules-notice">Это редакция общего регламента, зафиксированная при публикации этапа «{stageName}». Последующие изменения общего регламента не меняют сохранённую историческую редакцию.</p>
+        <p className="public-stage-rules-notice">{source==='historical' ? (preferHistorical ? <>Это регламент, действовавший на завершённом этапе «{stageName}». Последующие изменения не переписывают его историю. <a href="/rules">Открыть действующий общий регламент ↗</a></> : <>Это сохранённая при публикации этапа «{stageName}» историческая редакция. Действующая редакция временно недоступна здесь. <a href="/rules">Открыть общий регламент ↗</a></>) : <>Это действующий общий регламент USD для этапа «{stageName}». При публикации новой редакции он обновляется здесь автоматически. Исторические редакции этапов сохраняются отдельно.</>}</p>
         <div className="public-rules-rich-document">
           {blocks.map((block, index) => {
             const text = 'text' in block ? String(block.text ?? '') : '';
@@ -109,6 +113,7 @@ export default function PublicStageRulesSnapshot({ snapshot, stageName }: { snap
           })}
         </div>
         {sourceUrl && <p className="public-stage-rules-download"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">Скачать исходный регламент Word ↗</a></p>}
+        <p className="public-stage-rules-download"><a href="/rules">Полный регламент на странице документов ↗</a></p>
       </div>
     </details>
   );
