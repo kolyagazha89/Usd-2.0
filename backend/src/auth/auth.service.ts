@@ -17,7 +17,7 @@ import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { normalizeHistoricalLinkEmail } from './profile-link-diagnostics';
-import { currentProtocolConsentVersion } from './protocol-consent-document';
+import { currentProtocolConsentVersion, requiresProtocolRepresentative } from './protocol-consent-document';
 
 @Injectable()
 export class AuthService {
@@ -156,7 +156,7 @@ export class AuthService {
     const [legal, user, settings] = await Promise.all([
       this.getLegalConsent(userId),
       this.prisma.user.findUnique({where:{id:userId},select:{
-        participantId:true,protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
+        participantId:true,participant:{select:{birthDate:true}},protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
       }}),
       this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}}),
     ]);
@@ -167,7 +167,7 @@ export class AuthService {
       user.protocolConsentVersion==='protocol-v'+version && !user.protocolConsentRevokedAt);
     return {legalReady:documentReady,version,accepted,
       acceptedAt:accepted?user.protocolConsentAt:null,revokedAt:user.protocolConsentRevokedAt??null,
-      hasParticipant:!!user.participantId};
+      hasParticipant:!!user.participantId,requiresRepresentative:requiresProtocolRepresentative(user.participant?.birthDate)};
   }
 
   async updateProtocolConsent(userId: string, consent: boolean, visibleVersion?: string) {
@@ -189,14 +189,8 @@ export class AuthService {
     if(consent && (!visibleVersion || visibleVersion!==version)) {
       throw new BadRequestException('Редакция текста изменилась. Откройте согласие ещё раз и подтвердите актуальную версию');
     }
-    const dob=user.participant?.birthDate;
-    if(consent && dob){
-      const date=new Date(dob),now=new Date();
-      const years=now.getUTCFullYear()-date.getUTCFullYear()-
-        (now.getUTCMonth()<date.getUTCMonth()||
-          (now.getUTCMonth()===date.getUTCMonth()&&now.getUTCDate()<date.getUTCDate())?1:0);
-      if(years<18)throw new ForbiddenException('Согласие несовершеннолетнего оформляет законный представитель через организатора');
-    }
+    if(consent && requiresProtocolRepresentative(user.participant?.birthDate))
+      throw new ForbiddenException('Согласие несовершеннолетнего оформляет законный представитель через организатора');
     const now=new Date();
     await this.prisma.$transaction(async tx=>{
       await tx.user.update({where:{id:userId},data:consent
