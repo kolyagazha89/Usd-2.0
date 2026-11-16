@@ -74,7 +74,7 @@ try{
       assert.equal(keyboard.progress,'hidden','scroll-progress decoration cannot float above keyboard');
       assert.equal(keyboard.headerHeight,h,'header size remains reserved and must not shift page layout');
       assert.ok(keyboard.viewportPadding>=h-1,'hidden header must preserve reserved safe-area space');
-      await page.locator('#usd-keyboard-probe').blur();
+      await page.locator('#usd-keyboard-probe').evaluate(node=>node.blur());
       assert.equal(await page.locator(header).evaluate(e=>getComputedStyle(e).visibility),'visible',
        'closing keyboard restores header with no layout jump');
       assert.equal(await page.locator('.participant-dock-viewport .participant-tabs').evaluate(e=>getComputedStyle(e).visibility),'visible',
