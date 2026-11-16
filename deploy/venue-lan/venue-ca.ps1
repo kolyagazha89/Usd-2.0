@@ -53,7 +53,7 @@ function Assert-VenueGatewayReady([string]$Ip,[string]$ExpectedStage){
  Set-VenueStep 'repair-lan-gateway'
  $repairError=''
  try{
-  Invoke-Compose @('up','-d','--no-build','--pull','never','--force-recreate','gateway') 'repair stopped Caddy only'
+  Invoke-Compose @('up','-d','--no-build','--pull','never','--no-deps','--force-recreate','gateway') 'repair stopped Caddy only'
  }catch{$repairError=$_.Exception.Message}
  for($i=0;$i -lt 8;$i++){
   if(Test-VenueGatewayReady -Ip $Ip -ExpectedStage $ExpectedStage){return}
