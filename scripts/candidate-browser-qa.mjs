@@ -171,7 +171,7 @@ try{
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
      const judgingFlow=role==='ADMIN'&&request.frame().url().includes('/admin/results');
-     const data=judgingFlow&&url.pathname==='/registrations'?[{...registration,stageInspection:{status:'PASSED'}}]:judgingFlow&&url.pathname==='/results/admin/stage/stage1'?[]:registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:registrationFlow&&url.pathname==='/auth/protocol-consent'?{legalReady:true,version:'fixture',accepted:true}:dataFor(url,role);
+     const data=judgingFlow&&url.pathname==='/registrations'?[{...registration,stageInspection:{status:'PASSED'}}]:judgingFlow&&url.pathname==='/results/admin/stage/stage1'?[]:registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:registrationFlow&&url.pathname==='/auth/protocol-consent'?{legalReady:true,version:'fixture',accepted:false}:dataFor(url,role);
      return route.fulfill({status:data===null?401:200,contentType:'application/json',body:JSON.stringify(data??{message:'Anonymous fixture'})});
     }
     // Images, fonts and third-party embeds must never contact a live service.
@@ -1242,6 +1242,11 @@ try{
       await page.getByRole('heading',{name:'Проверьте вашу заявку',exact:true}).waitFor();
       assert.equal(await page.locator('.registration-submit').isEnabled(),false,'requires rule consent');
       await page.locator('.registration-rules-consent input').check();
+      assert.equal(await page.locator('.registration-submit').isEnabled(),false,'first-time registration still requires independent protocol consent');
+      const protocol=page.locator('.registration-protocol-block .consent-option input');
+      assert.equal(await protocol.isChecked(),false,'official protocol opt-in must start unchecked');
+      assert.equal(await page.locator('.registration-protocol-block a[href="/documents/officialProtocolConsent"]').count(),1,'the separate published protocol must be readable');
+      await protocol.check();
       assert.equal(await page.locator('.registration-submit').isEnabled(),true);
       await page.getByRole('button',{name:'Изменить классы',exact:true}).click();
       assert.equal(await page.locator('.registration-class-option input').first().isChecked(),true,'back preserves class selection');
@@ -1250,7 +1255,7 @@ try{
       assert.equal(await page.getByLabel('Сохранённое оборудование',{exact:true}).inputValue(),'v1');
       await page.getByRole('button',{name:'Перейти к классам',exact:true}).click();
       await page.getByRole('button',{name:'Проверить заявку',exact:true}).click();
-      row.registrationFlow='three steps; selection gates; back preserves choices; rule consent gate; no submission';
+      row.registrationFlow='three steps; back preserves choices; separate protocol consent and rules gates; no submission';
       const end=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(end.scroll<=end.width+1,'confirmation fits viewport');
       assert.equal(errors.length,0,'flow has no runtime errors');
      }
