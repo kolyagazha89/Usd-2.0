@@ -86,7 +86,7 @@ export default function PublicStageRulesSnapshot({ snapshot, currentPublished, p
         <span className="public-stage-rules-toggle" aria-hidden="true">+</span>
       </summary>
       <div className="public-stage-rules-body">
-        <p className="public-stage-rules-notice">{source==='historical' ? <>Это сохранённая при публикации этапа «{stageName}» историческая редакция. Актуальная редакция временно недоступна здесь. <a href="/rules">Открыть действующий регламент ↗</a></> : <>Это действующий общий регламент USD для этапа «{stageName}». При публикации новой редакции он обновляется здесь автоматически. Исторические редакции этапов сохраняются отдельно.</>}</p>
+        <p className="public-stage-rules-notice">{source==='historical' ? (preferHistorical ? <>Это регламент, действовавший на завершённом этапе «{stageName}». Последующие изменения не переписывают его историю. <a href="/rules">Открыть действующий общий регламент ↗</a></> : <>Это сохранённая при публикации этапа «{stageName}» историческая редакция. Действующая редакция временно недоступна здесь. <a href="/rules">Открыть общий регламент ↗</a></>) : <>Это действующий общий регламент USD для этапа «{stageName}». При публикации новой редакции он обновляется здесь автоматически. Исторические редакции этапов сохраняются отдельно.</>}</p>
         <div className="public-rules-rich-document">
           {blocks.map((block, index) => {
             const text = 'text' in block ? String(block.text ?? '') : '';
