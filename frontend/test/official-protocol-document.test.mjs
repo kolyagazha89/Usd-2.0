@@ -54,3 +54,11 @@ test('single-batch legal release upload requires exactly the seven named DOCX',a
  assert.throws(()=>planLegalReleaseUpload([...files.slice(0,6),{...files[0]}],descriptors),/дубликат/);
  assert.throws(()=>planLegalReleaseUpload([...files.slice(0,6),{...files[6],size:0}],descriptors),/размер/);
 });
+
+test('public reader must query the approved API independently of slow or failed CMS settings',async()=>{
+ const src=await read('../src/public/PublicDocumentReader.tsx');
+ assert.match(src,/apiGet<DocumentResponse>\('\/site-settings\/documents\//);
+ assert.match(src,/documentStatus===404/);
+ assert.match(src,/if\(!knownDocumentKey\)/);
+ assert.doesNotMatch(src,/const isPublished=.*document\?\.targetId/);
+});
