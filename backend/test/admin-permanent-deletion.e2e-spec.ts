@@ -517,6 +517,124 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
       await db.participant.findUnique({ where: { id: survivor.id } }),
     ).not.toBeNull();
   }, 30000);
+  it('deletes a manually created account with a profile claim and a team publication, preserving unrelated data', async () => {
+    const suffix = randomUUID();
+    const manual = await db.user.create({
+      data: { email: 'manual-' + suffix + '@delete-test.invalid', passwordHash: 'unused' },
+    });
+    const otherParticipant = await db.participant.create({
+      data: { firstName: 'Чужой', lastName: 'Профиль' },
+    });
+    const team = await db.team.create({
+      data: { name: 'Delete test ' + suffix, nameKey: 'delete-test-' + suffix },
+    });
+    const post = await db.teamPost.create({
+      data: {
+        teamId: team.id,
+        authorUserId: manual.id,
+        kind: 'NEWS',
+        title: 'Сохранить публикацию',
+        body: 'Публикация команды не должна пропасть',
+      },
+    });
+    const claim = await db.profileLinkRequest.create({
+      data: {
+        claimantUserId: manual.id,
+        participantId: otherParticipant.id,
+        note: 'Тестовая заявка',
+      },
+    });
+    const preview = await service.preview('user', manual.id, request);
+    expect(preview.counts.participants).toBe(0);
+    expect(preview.counts.profileLinkRequests).toBe(1);
+    expect(preview.counts.teamPosts).toBe(1);
+
+    await remove('user', manual.id);
+
+    expect(await db.user.findUnique({ where: { id: manual.id } })).toBeNull();
+    expect(await db.profileLinkRequest.findUnique({ where: { id: claim.id } })).toBeNull();
+    expect((await db.teamPost.findUniqueOrThrow({ where: { id: post.id } })).authorUserId).toBe(actorId);
+    expect(await db.team.findUnique({ where: { id: team.id } })).not.toBeNull();
+    expect(await db.participant.findUnique({ where: { id: otherParticipant.id } })).not.toBeNull();
+  }, 30000);
+
+  it('deletes a linked account whose participant belongs to a team and has another claimant', async () => {
+    const suffix = randomUUID();
+    const participant = await db.participant.create({
+      data: { firstName: 'Командный', lastName: 'Участник' },
+    });
+    const owner = await db.user.create({
+      data: {
+        email: 'owner-' + suffix + '@delete-test.invalid',
+        passwordHash: 'unused',
+        participantId: participant.id,
+      },
+    });
+    const claimant = await db.user.create({
+      data: { email: 'claimant-' + suffix + '@delete-test.invalid', passwordHash: 'unused' },
+    });
+    const team = await db.team.create({
+      data: { name: 'Team ' + suffix, nameKey: 'team-' + suffix },
+    });
+    await db.teamMembership.create({
+      data: { teamId: team.id, participantId: participant.id, status: 'ACTIVE' },
+    });
+    const claim = await db.profileLinkRequest.create({
+      data: {
+        claimantUserId: claimant.id,
+        participantId: participant.id,
+        note: 'Историческая заявка',
+      },
+    });
+
+    const preview = await service.preview('user', owner.id, request);
+    expect(preview.counts.teamMemberships).toBe(1);
+    expect(preview.counts.profileLinkRequests).toBe(1);
+
+    await remove('user', owner.id);
+
+    expect(await db.user.findUnique({ where: { id: owner.id } })).toBeNull();
+    expect(await db.participant.findUnique({ where: { id: participant.id } })).toBeNull();
+    expect(await db.teamMembership.count({ where: { participantId: participant.id } })).toBe(0);
+    expect(await db.profileLinkRequest.findUnique({ where: { id: claim.id } })).toBeNull();
+    expect(await db.user.findUnique({ where: { id: claimant.id } })).not.toBeNull();
+    expect(await db.team.findUnique({ where: { id: team.id } })).not.toBeNull();
+  }, 30000);
+
+  it('keeps merge approval history when deleting a staff user and protects merged participant aliases', async () => {
+    const suffix = randomUUID();
+    const staff = await db.user.create({
+      data: { email: 'merger-' + suffix + '@delete-test.invalid', passwordHash: 'unused' },
+    });
+    const source = await db.participant.create({
+      data: { firstName: 'Исходный', lastName: 'Профиль' },
+    });
+    const target = await db.participant.create({
+      data: { firstName: 'Основной', lastName: 'Профиль' },
+    });
+    await db.participantMergeRedirect.create({
+      data: {
+        sourceId: source.id,
+        targetId: target.id,
+        mergedByUserId: staff.id,
+        recovery: {},
+      },
+    });
+    const preview = await service.preview('user', staff.id, request);
+    expect(preview.counts.mergeApprovals).toBe(1);
+
+    await remove('user', staff.id);
+
+    const redirect = await db.participantMergeRedirect.findUniqueOrThrow({
+      where: { sourceId: source.id },
+    });
+    expect(redirect.mergedByUserId).toBe(actorId);
+    await expect(service.preview('participant', source.id, request)).rejects.toThrow('объединени');
+    await expect(service.preview('participant', target.id, request)).rejects.toThrow('объединени');
+    expect(await db.participant.findUnique({ where: { id: source.id } })).not.toBeNull();
+    expect(await db.participant.findUnique({ where: { id: target.id } })).not.toBeNull();
+  }, 30000);
+
   it('rolls the entire deletion back if record recalculation fails', async () => {
     const f = await fixture(),
       a = f.people[0];
