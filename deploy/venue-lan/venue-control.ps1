@@ -559,6 +559,26 @@ function Get-VenueGatewayFailureDetails {
   return $details
  }catch{return 'Docker не предоставил журнал Caddy'}
 }
+function Assert-VenueGatewayReady([string]$Ip,[string]$ExpectedStage){
+ # Restart only Caddy when it fails. Volumes, database and signed stage stay intact.
+ for($i=0;$i -lt 8;$i++){
+  if(Test-VenueGatewayReady -Ip $Ip -ExpectedStage $ExpectedStage){return}
+  if($i -lt 7){Start-Sleep -Seconds 2}
+ }
+ Set-VenueStep 'repair-lan-gateway'
+ $repairError=''
+ try{
+  Invoke-Compose @('up','-d','--no-build','--pull','never','--force-recreate','gateway') 'repair stopped Caddy only'
+ }catch{$repairError=$_.Exception.Message}
+ for($i=0;$i -lt 8;$i++){
+  if(Test-VenueGatewayReady -Ip $Ip -ExpectedStage $ExpectedStage){return}
+  if($i -lt 7){Start-Sleep -Seconds 2}
+ }
+ $details=Get-VenueGatewayFailureDetails
+ throw ('Caddy недоступен по http://'+$Ip+'/venue/live. Проверьте порты 80 и 443 и журнал gateway:'+
+  [Environment]::NewLine+$repairError+[Environment]::NewLine+$details+
+  [Environment]::NewLine+'Данные и Docker-тома сохранены.')
+}
 function Start-Local {
  param([switch]$NoUi)
  Assert-VenueCompose
@@ -586,15 +606,7 @@ function Start-Local {
  }
  if(-not $ready){throw 'API USD пока не отвечает. Проверьте контейнер api и повторите «USD — Офлайн». Данные сохранены.'}
  Set-VenueStep 'verify-lan-gateway'
- $gatewayReady=$false
- for($i=0;$i -lt 15;$i++){
-  if(Test-VenueGatewayReady -Ip $state.ip -ExpectedStage $state.stageId){$gatewayReady=$true;break}
-  if($i -lt 14){Start-Sleep -Seconds 2}
- }
- if(-not $gatewayReady){
-  $details=Get-VenueGatewayFailureDetails
-  throw ('Caddy недоступен по http://'+$state.ip+'/venue/live. Проверьте свободные порты 80 и 443, сеть ноутбука и следующие сообщения шлюза:'+[Environment]::NewLine+$details+[Environment]::NewLine+'Данные и Docker-тома сохранены.')
- }
+ Assert-VenueGatewayReady -Ip $state.ip -ExpectedStage $state.stageId
  Set-VenueStep 'export-caddy-public-ca'
  Export-VenueCA
  Set-VenueStep 'trust-local-windows-ca'
