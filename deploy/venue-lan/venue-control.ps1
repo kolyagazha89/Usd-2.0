@@ -534,7 +534,33 @@ function Install-Local {
  Set-VenueStep 'verify-lan-readiness'
  Start-Local
 }
+function Test-VenueGatewayReady([string]$Ip,[string]$ExpectedStage) {
+ # The API container can be healthy while Caddy has crashed or Windows cannot
+ # reach ports 80/443. Probe the ACTUAL LAN HTTP route before claiming success.
+ $prior=$ErrorActionPreference
+ $ErrorActionPreference='Continue'
+ try {
+  $root='http://'+$Ip
+  $live=Invoke-WebRequest -Uri ($root+'/venue-api/results/venue-live') -UseBasicParsing -TimeoutSec 4 -Headers @{'Cache-Control'='no-cache'}
+  if([int]$live.StatusCode -ne 200){return $false}
+  $snapshot=ConvertFrom-Json -InputObject ([string]$live.Content) -ErrorAction Stop
+  if([string]$snapshot.stage.id -cne $ExpectedStage){return $false}
+  $page=Invoke-WebRequest -Uri ($root+'/venue/live') -UseBasicParsing -TimeoutSec 4 -Headers @{'Cache-Control'='no-cache'}
+  return ([int]$page.StatusCode -eq 200 -and [string]$page.Content -match '(?i)<!doctype html|<html')
+ }catch{return $false}
+ finally{$ErrorActionPreference=$prior}
+}
+function Get-VenueGatewayFailureDetails {
+ # Never print credentials, .env or database logs. Only recent Caddy messages.
+ try{
+  $lines=@(& docker @(Get-VenueComposeArguments) logs --no-color --tail 12 gateway 2>&1)
+  $details=($lines|ForEach-Object { [string]$_ }|Select-Object -Last 12) -join [Environment]::NewLine
+  if($details.Length -gt 1500){$details=$details.Substring($details.Length-1500)}
+  return $details
+ }catch{return 'Docker не предоставил журнал Caddy'}
+}
 function Start-Local {
+ param([switch]$NoUi)
  Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку USD-Install.cmd'}
@@ -558,13 +584,22 @@ function Start-Local {
   if(Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId){$ready=$true;break}
   Start-Sleep -Seconds 2
  }
- if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
+ if(-not $ready){throw 'API USD пока не отвечает. Проверьте контейнер api и повторите «USD — Офлайн». Данные сохранены.'}
+ Set-VenueStep 'verify-lan-gateway'
+ $gatewayReady=$false
+ for($i=0;$i -lt 15;$i++){
+  if(Test-VenueGatewayReady -Ip $state.ip -ExpectedStage $state.stageId){$gatewayReady=$true;break}
+  if($i -lt 14){Start-Sleep -Seconds 2}
+ }
+ if(-not $gatewayReady){
+  $details=Get-VenueGatewayFailureDetails
+  throw ('Caddy недоступен по http://'+$state.ip+'/venue/live. Проверьте свободные порты 80 и 443, сеть ноутбука и следующие сообщения шлюза:'+[Environment]::NewLine+$details+[Environment]::NewLine+'Данные и Docker-тома сохранены.')
+ }
+ Set-VenueStep 'export-caddy-public-ca'
+ Export-VenueCA
  Save-Autostart
  Save-DesktopShortcuts
- try{Export-VenueCA}catch{
-  Write-Warning ('Локальный сервер запущен, но сертификат пока не выгружен: '+$_.Exception.Message+'. Нажмите «USD — Сертификат».')
- }
- if(-not $Silent){
+ if(-not $Silent -and -not $NoUi){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
   Write-Host ('LIVE без сертификата: http://'+$state.ip+'/venue/live')
