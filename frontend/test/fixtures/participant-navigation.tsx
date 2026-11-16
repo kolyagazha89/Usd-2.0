@@ -79,6 +79,7 @@ export async function runRegistrationJourney(mode='saved'){
   if(path==='/cars/flow-car/configurations'){if(firstConfigurationRequest){firstConfigurationRequest=false;return new Promise(resolve=>{releaseOld=resolve})}return [{id:'flow-configuration',name:'На сезон',versions:[version]}]}
   if(path==='/cars/other-car/configurations')return [{id:'other-configuration',name:'Другой автомобиль',versions:[{...version,id:'other-version'}]}];
   if(path==='/auth/legal-consent')return {legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true};
+  if(path==='/auth/protocol-consent')return {legalReady:true,version:'fixture',accepted:true};
   return [];
  };
  state.__postAction=async(path:string,body:any)=>{
