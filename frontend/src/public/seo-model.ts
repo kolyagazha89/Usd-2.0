@@ -1,4 +1,4 @@
-import { publicDocumentPageTitle } from './public-document-links';
+import { publicDocumentPageTitle } from './public-document-links.ts';
 /**
  * Public SEO policy: never advertise private IDs, unpublished stages or arbitrary
  * SPA fallback paths to search engines. CMS overrides are homepage-only.
