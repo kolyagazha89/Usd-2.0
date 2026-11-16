@@ -312,6 +312,30 @@ function Get-CachedVenueReleaseSha {
  }
  return $null
 }
+function Get-OnlineVenueReleaseSha {
+ # A cached local image is not evidence of the latest public release.
+ # Both deployed API and frontend must report one immutable published revision.
+ $revisions=@()
+ foreach($endpoint in @(
+  'https://api.usd-russia.ru/release',
+  'https://app.usd-russia.ru/usd-release.json'
+ )){
+  try{
+   $release=Invoke-RestMethod -Uri $endpoint -TimeoutSec 8 -ErrorAction Stop
+   $candidate=[string]$release.revision
+   if($candidate -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия сервера'}
+   $revisions+=@($candidate)
+  }catch{
+   Write-Host ('USD VENUE: версия '+$endpoint+' недоступна: '+$_.Exception.Message)
+   return $null
+  }
+ }
+ if($revisions.Count -ne 2 -or $revisions[0] -cne $revisions[1]){
+  Write-Host 'USD VENUE: API и сайт ещё обновляются. Переход на другую версию отложен.'
+  return $null
+ }
+ return [string]$revisions[0]
+}
 function Get-VenueReleaseSha([object]$sharedConfig){
  if($sharedConfig){
   $local=[string]$sharedConfig['VENUE_IMAGE_TAG']
@@ -320,28 +344,18 @@ function Get-VenueReleaseSha([object]$sharedConfig){
    return $local
   }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
  }
- $cached=Get-CachedVenueReleaseSha
- if($cached){return $cached}
- $sha=$null
- foreach($endpoint in @(
-  [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
-  [pscustomobject]@{Uri='https://app.usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
- )){
-  Set-VenueStep $endpoint.Step
-  try{
-   $release=Invoke-RestMethod -Uri $endpoint.Uri -TimeoutSec 8 -ErrorAction Stop
-   $candidate=[string]$release.revision
-   if($candidate -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия USD в ответе сервера'}
-   $sha=$candidate
-   break
-  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
+ # Prefer the actual release when online; use cached images only on a truly
+ # offline laptop. This prevents a fresh install from silently reusing old UI.
+ $sha=Get-OnlineVenueReleaseSha
+ if(!$sha){
+  $cached=Get-CachedVenueReleaseSha
+  if($cached){return $cached}
  }
  if(!$sha){
-  # CI-published verified USD release candidate; not a mutable :latest tag.
-  # If the operator cannot reach either USD domain, GHCR alone can supply it.
+  # Last verified emergency fallback for first boot with no network.
   $sha='aa0d1a83c70b894a8b5e36141927bc572c71b3c5'
   Set-VenueStep 'resolve-release-published-fallback'
-  Write-Host ('USD VENUE: оба сайта не ответили, используем опубликованную проверенную версию '+$sha)
+  Write-Host ('USD VENUE: сайты недоступны, резервная опубликованная версия '+$sha)
  }
  Set-VenueStep 'download-immutable-release-images'
  try{
