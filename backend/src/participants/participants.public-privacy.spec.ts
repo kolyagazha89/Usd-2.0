@@ -3,9 +3,14 @@ import { NotFoundException } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
 
 describe('ParticipantsService public profile privacy', () => {
+  const granted = {textVersion:'1.5',fullName:true,city:true,team:true,results:true,car:true,profilePhoto:true,carPhoto:true};
+
   const prisma: any = {
     participant: { findUnique: jest.fn() },
     car: { findUnique: jest.fn() },
+    siteSettings: {findUnique:jest.fn().mockResolvedValue({
+      legal:{legalApproved:true,legalVersion:'1.5',documents:{photoProfileConsent:{targetId:'legal-document-photoProfileConsent-test'}}},
+    })},
   };
   let service: ParticipantsService;
 
@@ -31,6 +36,7 @@ describe('ParticipantsService public profile privacy', () => {
     prisma.participant.findUnique.mockResolvedValue({
       id: 'public-participant',
       isPublic: true,
+      publicationConsent: granted,
       lastName: 'Иванов',
       firstName: 'Иван',
       middleName: null,
@@ -73,7 +79,7 @@ describe('ParticipantsService public profile privacy', () => {
   });
 
   it('only queries participation at published, nondeleted stages', async () => {
-    prisma.participant.findUnique.mockResolvedValue({ id: 'person', isPublic: true, registrations: [] });
+    prisma.participant.findUnique.mockResolvedValue({ id: 'person', isPublic: true, publicationConsent:granted, registrations: [] });
     await service.findOne('person');
     const query = prisma.participant.findUnique.mock.calls[0][0];
     expect(query.select.registrations.where).toEqual({
@@ -83,7 +89,7 @@ describe('ParticipantsService public profile privacy', () => {
 
   it('redacts private and inactive cars in public participation history while preserving achievements', async () => {
     prisma.participant.findUnique.mockResolvedValue({
-      id: 'person', isPublic: true, cars: [], registrations: [
+      id: 'person', isPublic: true, publicationConsent:granted, cars: [], registrations: [
         { id: 'private-entry', stage: { id: 'stage' }, car: { id: 'private-car', brand: 'Private', model: 'Secret', photoUrl: '/secret', isPublic: false, isActive: true } },
         { id: 'inactive-entry', stage: { id: 'stage' }, car: { id: 'inactive-car', brand: 'Old', model: 'Secret', isPublic: true, isActive: false } },
         { id: 'public-entry', stage: { id: 'stage' }, car: { id: 'public-car', brand: 'Lada', model: 'Vesta', isPublic: true, isActive: true } },
@@ -100,7 +106,7 @@ describe('ParticipantsService public profile privacy', () => {
   it('resolves a merged historic public URL without disclosing the archived source', async () => {
     prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
     prisma.participant.findUnique.mockResolvedValue({
-      id:'canonical',isPublic:true,firstName:'Иван',lastName:'Иванов',
+      id:'canonical',isPublic:true,publicationConsent:granted,firstName:'Иван',lastName:'Иванов',
       mergeAsSource:null,cars:[],registrations:[],
     });
     try {
@@ -116,7 +122,7 @@ describe('ParticipantsService public profile privacy', () => {
     prisma.participantMergeRedirect={findUnique:jest.fn().mockResolvedValue({targetId:'canonical'})};
     prisma.participant.findUnique.mockImplementation(async({where}:any)=>
       where.usdIdToken?{id:'historical',isPublic:false,mergeAsSource:{targetId:'canonical'}}:
-      {id:'canonical',isPublic:true,mergeAsSource:null,cars:[],registrations:[]});
+      {id:'canonical',isPublic:true,publicationConsent:granted,mergeAsSource:null,cars:[],registrations:[]});
     try {
       expect((await service.findPublicByUsdId('a'.repeat(48))).id).toBe('canonical');
     } finally { delete prisma.participantMergeRedirect; }
@@ -135,6 +141,7 @@ describe('ParticipantsService public profile privacy', () => {
       participant: {
         id: 'public-participant',
         isPublic: true,
+        publicationConsent: granted,
         lastName: 'Иванов',
         firstName: 'Иван',
         middleName: null,
