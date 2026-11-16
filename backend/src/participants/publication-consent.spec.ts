@@ -5,7 +5,7 @@ import {
 } from './publication-consent';
 
 describe('separate subject-controlled publication permission', () => {
-  const legal = { legalApproved: true, legalVersion: '1.5' };
+  const legal = { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } };
   const version = publicationVersion(legal);
 
   it('starts with nine independent unchecked categories', () => {
@@ -33,6 +33,7 @@ describe('separate subject-controlled publication permission', () => {
 
   it('treats revoked, unapproved or unrecorded permission as denial', () => {
     expect(publicationVersion({ legalApproved: false, legalVersion: '1.5' })).toBeNull();
+    expect(publicationVersion({ legalApproved: true, legalVersion: '1.5' })).toBeNull();
     expect(mayPublish({ isPublic: true, publicationConsent: { profilePhoto: true } }, 'profilePhoto', version)).toBe(false);
     expect(mayPublish({ isPublic: true, publicationConsent: { profilePhoto: true },
       publicationConsentAt: new Date(), publicationConsentVersion: version }, 'profilePhoto', null)).toBe(false);
