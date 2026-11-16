@@ -559,6 +559,28 @@ body .usd-member .member-config-picker-title,body .usd-member .member-config-pic
  }
  body .usd-member .member-config-picker-foot label{min-width:0!important;flex:none!important}
  body .usd-member .member-config-picker-foot .primary-button{min-width:0!important}
+ /* The configuration action menu follows the same inline mobile pattern. */
+ body .usd-member .member-config-actions-overlay{
+  position:static!important;
+  inset:auto!important;
+  width:100%!important;height:auto!important;
+  max-height:none!important;
+  z-index:auto!important;
+  display:block!important;
+  margin:10px 0 14px!important;padding:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  overflow:visible!important;
+  scroll-margin-top:110px;
+ }
+ body .usd-member .member-config-actions-sheet{
+  position:static!important;
+  width:100%!important;height:auto!important;max-height:none!important;
+  overflow:visible!important;
+  border-radius:15px!important;
+  padding:16px 13px!important;
+  box-shadow:none!important;
+ }
 }
 
 /* Impeccable · task-first finishing for the member configurator.
