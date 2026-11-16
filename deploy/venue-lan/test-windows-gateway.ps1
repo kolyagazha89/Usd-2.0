@@ -46,6 +46,7 @@ function Start-Local {
  param([switch]$NoUi)
  if(-not $NoUi){throw 'Certificate repair launched an unnecessary browser/dialog'}
  $script:startCalls++
+ Export-VenueCA
 }
 function Export-VenueCA {
  if($script:startCalls -ne 1){throw 'Certificate export started before Caddy recovery'}
