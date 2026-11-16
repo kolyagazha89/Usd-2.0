@@ -147,6 +147,57 @@ export class AuthService {
     return { success: true, legalReady: true, version, privacyAccepted: true, termsAccepted: true };
   }
 
+  /**
+   * Dedicated, versioned decision about publishing FIO and the official sporting
+   * result. Generic privacy/terms acceptance never implies this consent.
+   */
+  async getProtocolConsent(userId: string) {
+    const [legal, user] = await Promise.all([
+      this.getLegalConsent(userId),
+      this.prisma.user.findUnique({where:{id:userId},select:{
+        participantId:true,protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
+      }}),
+    ]);
+    if(!user)throw new NotFoundException('Пользователь не найден');
+    const accepted=Boolean(legal.version && user.protocolConsentAt &&
+      user.protocolConsentVersion==='protocol-v'+legal.version && !user.protocolConsentRevokedAt);
+    return {legalReady:legal.legalReady,version:legal.version,accepted,
+      acceptedAt:accepted?user.protocolConsentAt:null,revokedAt:user.protocolConsentRevokedAt??null,
+      hasParticipant:!!user.participantId};
+  }
+
+  async updateProtocolConsent(userId: string, consent: boolean) {
+    if(typeof consent!=='boolean')throw new BadRequestException('Укажите отдельное решение о публикации протокола');
+    const version=await this.getApprovedLegalVersion();
+    const user=await this.prisma.user.findUnique({where:{id:userId},select:{
+      participantId:true,participant:{select:{birthDate:true}},
+      protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
+    }});
+    if(!user?.participantId)throw new BadRequestException('Сначала привяжите профиль участника к учётной записи');
+    const dob=user.participant?.birthDate;
+    if(consent && dob){
+      const date=new Date(dob),now=new Date();
+      const years=now.getUTCFullYear()-date.getUTCFullYear()-
+        (now.getUTCMonth()<date.getUTCMonth()||
+          (now.getUTCMonth()===date.getUTCMonth()&&now.getUTCDate()<date.getUTCDate())?1:0);
+      if(years<18)throw new ForbiddenException('Согласие несовершеннолетнего оформляет законный представитель через организатора');
+    }
+    const now=new Date();
+    await this.prisma.$transaction(async tx=>{
+      await tx.user.update({where:{id:userId},data:consent
+        ?{protocolConsentAt:now,protocolConsentVersion:'protocol-v'+version,protocolConsentRevokedAt:null}
+        :{protocolConsentRevokedAt:now}});
+      await tx.auditLog.create({data:{
+        userId,entity:'User',entityId:userId,
+        action:consent?'PROTOCOL_PUBLICATION_CONSENT_ACCEPTED':'PROTOCOL_PUBLICATION_CONSENT_REVOKED',
+        metadata:{version:'protocol-v'+version,source:'member-account',
+          categories:['ФИО','этап','класс','место','результат','рекорд'],
+          details:'Separate consent to publish official USD competition protocol; no photos, city or marketing'},
+      }});
+    });
+    return {accepted:consent,version,acceptedAt:consent?now:null,revokedAt:consent?null:now};
+  }
+
   async register(
     email: string,
     password: string,
