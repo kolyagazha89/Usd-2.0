@@ -47,34 +47,34 @@ try{
  function Invoke-Compose {
   param([string[]]$Arguments,[string]$Purpose)
   $script:commands+=('compose '+($Arguments -join ' '))
-  if($script:failOnce){$script:failOnce=$false;throw 'Simulated TV gateway restart failure'}
+  if($script:failOnce){$script:failOnce=$false;throw 'Simulated frontend gateway restart failure'}
  }
- Update-ReadyVenueTv $state
+ Update-ReadyVenueFrontend $state
  $cfg=Read-Env
- if($cfg['VENUE_TV_IMAGE_TAG'] -ne $tv -or $cfg['VENUE_IMAGE_TAG'] -ne $api -or
+ if($cfg['VENUE_WEB_IMAGE_TAG'] -ne $tv -or $cfg['VENUE_IMAGE_TAG'] -ne $api -or
   $cfg['VENUE_STAGE_ID'] -ne $stage -or $cfg['VENUE_JWT_SECRET'] -ne 'do-not-change-existing-auth-token'){
-  throw 'LIVE upgrade modified the pinned stage, API, JWT or did not write TV version'
+  throw 'LIVE upgrade modified the pinned stage, API, JWT or did not write frontend version'
  }
  $commands=$script:commands -join ';'
  if($commands -notmatch ('frontend:'+$tv) -or $commands -notmatch '--no-deps' -or
-  $commands -notmatch 'tv gateway' -or $commands -match 'down|--volumes|migrate|\bdb\b|\bapi\b'){
+  $commands -notmatch 'frontend gateway' -or $commands -match 'down|--volumes|migrate|\bdb\b|\bapi\b'){
   throw ('LIVE upgrade touched more than TV/gateway: '+$commands)
  }
  # An offline reinstall must retain the last verified TV and never pull.
  $script:commands=@();$script:target=$null
- Update-ReadyVenueTv $state
- if((Read-Env)['VENUE_TV_IMAGE_TAG'] -ne $tv -or
+ Update-ReadyVenueFrontend $state
+ if((Read-Env)['VENUE_WEB_IMAGE_TAG'] -ne $tv -or
   ($script:commands -join ';') -match 'docker pull'){
   throw 'Offline reinstall changed or re-downloaded installed TV'
  }
  # Failed rollout rolls back the exact prior .env without touching data.
  $script:commands=@();$script:target=$next;$script:failOnce=$true
  $rejected=$false
- try{Update-ReadyVenueTv $state}catch{$rejected=($ERROR[0].Exception.Message -match 'LIVE')}
- if(!$rejected -or (Read-Env)['VENUE_TV_IMAGE_TAG'] -ne $tv){
+ try{Update-ReadyVenueFrontend $state}catch{$rejected=($ERROR[0].Exception.Message -match 'LIVE')}
+ if(!$rejected -or (Read-Env)['VENUE_WEB_IMAGE_TAG'] -ne $tv){
   throw 'Failed TV upgrade did not preserve the previous known working image'
  }
- Write-Host 'USD TV UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback preserves stage and secrets'
+ Write-Host 'USD FRONTEND UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback preserves stage and secrets'
 }finally{
  $Root=$oldRoot;$EnvFile=$oldEnvFile
  if(Test-Path -LiteralPath $folder){[IO.Directory]::Delete($folder,$true)}
