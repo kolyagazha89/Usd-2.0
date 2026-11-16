@@ -89,7 +89,7 @@ describe('server-side equipment catalog authorization', () => {
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired }] }, previous))
       .not.toThrow();
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, catalogEntryId: undefined }] }, previous))
-      .toThrow(BadRequestException);
+      .not.toThrow('removing a retired ID converts the model into manual text');
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, quantity: 3 }] }, previous))
       .toThrow(BadRequestException);
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, direction: 'FRONT' }] }, previous))
