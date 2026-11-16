@@ -207,8 +207,17 @@ export class ParticipantsService {
   // PUBLIC PARTICIPANTS
   // =========================================================
 
+  private async activePublicationVersion(): Promise<string | null> {
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { legal: true },
+    });
+    return publicationVersion(settings?.legal);
+  }
+
   async findAll() {
-    return this.prisma.participant.findMany({
+    const [rows, version] = await Promise.all([
+      this.prisma.participant.findMany({
       where: {
         isPublic: true,
         mergeAsSource: { is: null },
@@ -229,6 +238,10 @@ export class ParticipantsService {
         team: true,
         city: true,
         photoUrl: true,
+        isPublic: true,
+        publicationConsent: true,
+        publicationConsentAt: true,
+        publicationConsentVersion: true,
 
         cars: {
           where: {
@@ -254,6 +267,21 @@ export class ParticipantsService {
           },
         },
       },
+    }),
+      this.activePublicationVersion(),
+    ]);
+    return rows.filter(row => mayPublish(row, 'identity', version)).map(row => {
+      const { publicationConsent: _c, publicationConsentAt: _at,
+        publicationConsentVersion: _v, isPublic: _public, ...person } = row;
+      return {
+        ...person,
+        city: mayPublish(row, 'city', version) ? row.city : null,
+        team: mayPublish(row, 'team', version) ? row.team : null,
+        photoUrl: mayPublish(row, 'profilePhoto', version) ? row.photoUrl : null,
+        cars: mayPublish(row, 'car', version) ? row.cars.map(car => ({
+          ...car, photoUrl: mayPublish(row, 'carPhoto', version) ? car.photoUrl : null,
+        })) : [],
+      };
     });
   }
 
@@ -281,6 +309,9 @@ export class ParticipantsService {
           city: true,
           photoUrl: true,
           isPublic: true,
+          publicationConsent: true,
+          publicationConsentAt: true,
+          publicationConsentVersion: true,
           mergeAsSource: { select: { targetId: true } },
 
           cars: {
@@ -499,19 +530,31 @@ export class ParticipantsService {
         },
       });
 
-    if (!participant || !participant.isPublic) {
-      throw new NotFoundException(
-        'Участник не найден',
-      );
+    const version = await this.activePublicationVersion();
+    if (!mayPublish(participant, 'identity', version)) {
+      throw new NotFoundException('Участник не найден');
     }
 
-    const { mergeAsSource: _mergedAlias, ...publicParticipant } = participant;
+    const { mergeAsSource: _mergedAlias, publicationConsent: _c,
+      publicationConsentAt: _at, publicationConsentVersion: _v,
+      ...publicParticipant } = participant!;
+    const showCars = mayPublish(participant, 'car', version);
+    const showCarPhotos = mayPublish(participant, 'carPhoto', version);
     return {
       ...publicParticipant,
-      registrations: participant.registrations?.map((registration) => ({
-        ...registration,
-        car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
-      })) ?? [],
+      team: mayPublish(participant, 'team', version) ? participant!.team : null,
+      city: mayPublish(participant, 'city', version) ? participant!.city : null,
+      photoUrl: mayPublish(participant, 'profilePhoto', version) ? participant!.photoUrl : null,
+      cars: showCars ? participant!.cars.map(car => ({
+        ...car, photoUrl: showCarPhotos ? car.photoUrl : null,
+      })) : [],
+      registrations: mayPublish(participant, 'results', version)
+        ? (participant!.registrations?.map(registration => ({
+          ...registration,
+          car: showCars && registration.car?.isPublic && registration.car?.isActive
+            ? { ...registration.car, photoUrl: showCarPhotos ? registration.car.photoUrl : null }
+            : null,
+        })) ?? []) : [],
     };
   }
 
@@ -1527,6 +1570,9 @@ export class ParticipantsService {
               city: true,
               photoUrl: true,
               isPublic: true,
+              publicationConsent: true,
+              publicationConsentAt: true,
+              publicationConsentVersion: true,
             },
           },
 
@@ -1624,18 +1670,24 @@ export class ParticipantsService {
         },
       });
 
-    if (
-      !car ||
-      !car.isActive ||
-      !car.isPublic ||
-      !car.participant.isPublic
-    ) {
-      throw new NotFoundException(
-        'Автомобиль не найден',
-      );
+    const version = await this.activePublicationVersion();
+    if (!car || !car.isActive || !car.isPublic ||
+        !mayPublish(car.participant, 'identity', version) ||
+        !mayPublish(car.participant, 'car', version)) {
+      throw new NotFoundException('Автомобиль не найден');
     }
-
-    return car;
+    const { publicationConsent: _c, publicationConsentAt: _at,
+      publicationConsentVersion: _v, ...owner } = car.participant;
+    return {
+      ...car,
+      photoUrl: mayPublish(car.participant, 'carPhoto', version) ? car.photoUrl : null,
+      participant: {
+        ...owner,
+        city: mayPublish(car.participant, 'city', version) ? owner.city : null,
+        team: mayPublish(car.participant, 'team', version) ? owner.team : null,
+        photoUrl: mayPublish(car.participant, 'profilePhoto', version) ? owner.photoUrl : null,
+      },
+    };
   }
 
   // =========================================================
