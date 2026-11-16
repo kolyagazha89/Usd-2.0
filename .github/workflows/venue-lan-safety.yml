@@ -31,6 +31,13 @@ jobs:
         run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
         run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
+      - name: Validate real Caddy config for iPhone hotspot and router LAN IPs
+        run: |
+          for ip in 172.20.10.3 192.168.50.10; do
+            docker run --rm -e "VENUE_BIND_IP=$ip" \
+              -v "$PWD/deploy/venue-lan/Caddyfile:/etc/caddy/Caddyfile:ro" \
+              caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          done
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |
