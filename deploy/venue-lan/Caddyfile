@@ -15,7 +15,7 @@ https://{$VENUE_BIND_IP} {
     # the public API from the laptop. LAN browser requests stay same-origin.
     Content-Security-Policy "connect-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
   }
-  # Old HTTPS LIVE bookmarks must never return the outdated judges SPA.
+  # Redirect HTTPS LIVE bookmarks to the spectator HTTP listener; never change the judging session.
   handle /venue/live {
     redir http://{$VENUE_BIND_IP}{uri} 302
   }
@@ -40,13 +40,13 @@ http://{$VENUE_BIND_IP} {
     Content-Security-Policy "default-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
   }
   handle /venue/live {
-    reverse_proxy tv:80
+    reverse_proxy frontend:80
   }
   handle /usd-venue-config.js {
-    reverse_proxy tv:80
+    reverse_proxy frontend:80
   }
   handle /assets/* {
-    reverse_proxy tv:80
+    reverse_proxy frontend:80
   }
   @venueTvRead {
     path /venue-api/results/venue-live
