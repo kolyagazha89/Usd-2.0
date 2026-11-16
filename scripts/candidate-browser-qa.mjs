@@ -1259,19 +1259,27 @@ try{
       const before=await workspace.locator('.config-row').count();
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
       const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
-      // The catalog only assists input: unknown models can be added immediately.
-      await picker.locator('datalist option[value="Alphard"]').waitFor({state:'attached',timeout:10000});
-      await picker.locator('input[list="config-picker-brands"]').fill('Alphard');
-      await picker.getByRole('searchbox',{name:'Модель'}).fill('missing-fixture');
+      // Partial brand input suggests brands only, never their entire model list.
+      const brandInput=picker.getByRole('searchbox',{name:'Бренд'});
+      const modelInput=picker.getByRole('searchbox',{name:'Модель'});
+      const suggestionList=picker.locator('.member-config-picker-list');
+      await brandInput.fill('Alp');
+      await suggestionList.getByRole('button',{name:/Alphard/}).waitFor({state:'visible',timeout:10000});
+      assert.equal(await suggestionList.getByRole('button',{name:/Machete/}).count(),0,
+       'typing a partial brand must show brands first, not matching model cards');
+      await suggestionList.getByRole('button',{name:/Alphard/}).click();
+      assert.equal(await brandInput.inputValue(),'Alphard','the selected brand populates the brand field');
+      await modelInput.fill('missing-fixture');
       assert.equal(await picker.getByRole('button',{name:'Добавить в бас',exact:true}).isEnabled(),true,
-       'manually entered models must be accepted');
+       'unlisted models are still saved without admin approval');
       await picker.getByRole('button',{name:'Добавить в бас',exact:true}).click();
       assert.equal(await workspace.locator('.config-row').count(),before+1,'manual equipment appears in the chosen direction');
       assert.match(await workspace.locator('.member-equipment-item').last().innerText(),/Alphard missing-fixture/);
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
-      await picker.locator('input[list="config-picker-brands"]').fill('Alphard');
-      await picker.getByRole('searchbox',{name:'Модель'}).fill('Machete');
-      await picker.getByRole('button',{name:/Alphard Machete/}).click();
+      await brandInput.fill('Alp');
+      await suggestionList.getByRole('button',{name:/Alphard/}).click();
+      await modelInput.fill('Machete');
+      await suggestionList.getByRole('button',{name:/Machete/}).click();
       const pickerBox=await picker.boundingBox(),footBox=await picker.locator('.member-config-picker-foot').boundingBox();
       assert.ok(footBox.y+footBox.height<=pickerBox.y+pickerBox.height+1,'catalog actions stay inside the dialog');
       await picker.getByRole('button',{name:'Добавить в бас',exact:true}).click();
@@ -1285,11 +1293,32 @@ try{
        const shortDialog=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
        const frame=await shortDialog.boundingBox(),footer=await shortDialog.locator('.member-config-picker-foot').boundingBox();
        assert.ok(footer.y+footer.height<=frame.y+frame.height+1,'catalog actions fit a 568px mobile viewport');
+       // Approximate the visible area left by the iPhone software keyboard.
+       await page.setViewportSize({width,height:355});
+       await shortDialog.locator('input').first().focus();
+       const pickerGeometry=await shortDialog.evaluate(element=>{
+        const fields=element.querySelector('.member-config-picker-body');
+        const foot=element.querySelector('.member-config-picker-foot');
+        const overlay=element.closest('.member-config-picker-overlay');
+        const footerRect=foot.getBoundingClientRect();
+        return {clientHeight:fields.clientHeight,scrollHeight:fields.scrollHeight,
+         footerBottom:footerRect.bottom,viewportHeight:innerHeight,
+         overlayHeight:overlay.getBoundingClientRect().height};
+       });
+       assert.ok(pickerGeometry.footerBottom<=pickerGeometry.viewportHeight+2,
+        'the add button must remain above the simulated iPhone keyboard: '+JSON.stringify(pickerGeometry));
+       assert.ok(pickerGeometry.scrollHeight>pickerGeometry.clientHeight,
+        'short visual viewport makes catalog fields scroll independently: '+JSON.stringify(pickerGeometry));
+       const scrollPosition=await shortDialog.locator('.member-config-picker-body').evaluate(node=>{
+        node.scrollTop=node.scrollHeight;return node.scrollTop;
+       });
+       assert.ok(scrollPosition>0,'picker fields are scrollable to the last item on a short iPhone viewport');
+       await page.setViewportSize({width,height:568});
        await shortDialog.getByRole('button',{name:'Закрыть выбор оборудования',exact:true}).click();
        await page.setViewportSize({width,height:960});
-       row.shortMobileCatalog='568px height; add action stays inside dialog';
+       row.shortMobileCatalog='568px and keyboard-sized 355px viewport; modal body scrolls and save button stays visible';
       }
-      row.configuratorInteraction='all seven sections; optional catalog suggestions; manual and catalog models added to SUB without saving';
+      row.configuratorInteraction='brand first, model second; manual names and catalog models added to SUB without saving';
       await page.evaluate(()=>scrollTo(0,0));
      }
      if(AxeBuilder){
