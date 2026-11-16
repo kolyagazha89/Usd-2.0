@@ -51,7 +51,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [actionsOpen,setActionsOpen]=useState(false);
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
  const [pickerSearchStage,setPickerSearchStage]=useState<'brand'|'model'>('brand');
- const [mobilePicker,setMobilePicker]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:600px)').matches);
+ const [mobilePicker,setMobilePicker]=useState(()=>typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width:600px)').matches);
  const pickerOverlayRef=useRef<HTMLDivElement|null>(null);
  const actionsInlineRef=useRef<HTMLDivElement|null>(null);
  const pickerModelInputRef=useRef<HTMLInputElement|null>(null);
@@ -60,11 +60,12 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const pickerReturnFocusRef=useRef<HTMLElement|null>(null);
  const pickerActive=Boolean(picker&&!admin);
  useEffect(()=>{
+  if(typeof window.matchMedia!=='function')return;
   const media=window.matchMedia('(max-width:600px)');
   const sync=()=>setMobilePicker(media.matches);
   sync();
-  media.addEventListener('change',sync);
-  return()=>media.removeEventListener('change',sync);
+  media.addEventListener?.('change',sync);
+  return()=>media.removeEventListener?.('change',sync);
  },[]);
  // Keep keyboard and screen-reader focus within this dialog; restore the
  // trigger after closing without trapping focus in an inert background.
@@ -112,17 +113,17 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  useEffect(()=>{
   if(!pickerActive||!mobilePicker)return;
   const returnTo=pickerReturnFocusRef.current;
-  pickerOverlayRef.current?.scrollIntoView({block:'start',behavior:'auto'});
+  pickerOverlayRef.current?.scrollIntoView?.({block:'start',behavior:'auto'});
   return()=>{
    if(returnTo?.isConnected){
     returnTo.focus({preventScroll:true});
-    returnTo.scrollIntoView({block:'center',behavior:'auto'});
+    returnTo.scrollIntoView?.({block:'center',behavior:'auto'});
    }
    pickerReturnFocusRef.current=null;
   };
  },[pickerActive,mobilePicker]);
  useEffect(()=>{
-  if(actionsOpen&&mobilePicker)actionsInlineRef.current?.scrollIntoView({block:'start',behavior:'auto'});
+  if(actionsOpen&&mobilePicker)actionsInlineRef.current?.scrollIntoView?.({block:'start',behavior:'auto'});
  },[actionsOpen,mobilePicker]);
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
@@ -157,8 +158,8 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const defaultBatteryCode=batteryTypes[0]?.code??'';
  const activeModels=(kind:'audioComponents'|'amplifiers'|'headUnits',type?:string)=>availableCatalogModels(catalogs.componentModels,kind,type);
  const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand).trim()))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
- const pickerBrandMatches=picker&&pickerSearchStage==='brand'?suggestCatalogBrands(catalogs.componentModels,picker.kind,picker.type,picker.brand):[];
- const pickerModelMatches=picker&&pickerSearchStage==='model'?suggestCatalogModels(catalogs.componentModels,picker.kind,picker.type,picker.brand,picker.model):[];
+ const pickerBrandMatches=picker&&pickerSearchStage==='brand'?suggestCatalogBrands(catalogs.componentModels,picker.kind,picker.type,picker.brand,mobilePicker?8:12):[];
+ const pickerModelMatches=picker&&pickerSearchStage==='model'?suggestCatalogModels(catalogs.componentModels,picker.kind,picker.type,picker.brand,picker.model,mobilePicker?8:20):[];
  const savePicker=()=>{
   if(!picker)return;
   const brand=picker.brand.trim(),model=picker.model.trim();
