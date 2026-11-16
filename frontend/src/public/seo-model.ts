@@ -1,3 +1,4 @@
+import { publicDocumentPageTitle } from './public-document-links.ts';
 /**
  * Public SEO policy: never advertise private IDs, unpublished stages or arbitrary
  * SPA fallback paths to search engines. CMS overrides are homepage-only.
@@ -57,6 +58,10 @@ export function publicSeoMetadata(path:string,stage?:SeoStage|null):SeoMetadata{
    return {title:stage.name+city+' | USD',description:stage.name+when+city+'. Этап соревнований по автозвуку USD: место проведения, правила и регистрация.',indexable:true};
   }
   return {title:'Этап соревнований — USD',description:'Опубликованные этапы соревнований по автозвуку USD.',indexable:false};
+ }
+ const legalTitle=publicDocumentPageTitle(route);
+ if (legalTitle) {
+   return {title:legalTitle+' — USD',description:legalTitle+'. Официальный опубликованный документ USD.',indexable:false};
  }
  const item=sections[route]??(isIndexablePublicRoute(route)?sections['/'+route.split('/')[1]]:null);
  return {title:item?.title??'Страница не найдена — USD',description:item?.description??'Официальный сайт соревнований по автозвуку USD.',indexable:isIndexablePublicRoute(route)};

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
+import { mayPublish, publicationVersion, readPublicationConsent, validatePublicationConsent } from './publication-consent';
 import { Prisma } from '../generated/prisma/client';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from './plate-identity';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -206,8 +207,17 @@ export class ParticipantsService {
   // PUBLIC PARTICIPANTS
   // =========================================================
 
+  private async activePublicationVersion(): Promise<string | null> {
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: { legal: true },
+    });
+    return publicationVersion(settings?.legal);
+  }
+
   async findAll() {
-    return this.prisma.participant.findMany({
+    const [rows, version] = await Promise.all([
+      this.prisma.participant.findMany({
       where: {
         isPublic: true,
         mergeAsSource: { is: null },
@@ -228,6 +238,10 @@ export class ParticipantsService {
         team: true,
         city: true,
         photoUrl: true,
+        isPublic: true,
+        publicationConsent: true,
+        publicationConsentAt: true,
+        publicationConsentVersion: true,
 
         cars: {
           where: {
@@ -253,6 +267,21 @@ export class ParticipantsService {
           },
         },
       },
+    }),
+      this.activePublicationVersion(),
+    ]);
+    return rows.filter(row => mayPublish(row, 'identity', version)).map(row => {
+      const { publicationConsent: _c, publicationConsentAt: _at,
+        publicationConsentVersion: _v, isPublic: _public, ...person } = row;
+      return {
+        ...person,
+        city: mayPublish(row, 'city', version) ? row.city : null,
+        team: mayPublish(row, 'team', version) ? row.team : null,
+        photoUrl: mayPublish(row, 'profilePhoto', version) ? row.photoUrl : null,
+        cars: mayPublish(row, 'car', version) ? row.cars.map(car => ({
+          ...car, photoUrl: mayPublish(row, 'carPhoto', version) ? car.photoUrl : null,
+        })) : [],
+      };
     });
   }
 
@@ -280,6 +309,9 @@ export class ParticipantsService {
           city: true,
           photoUrl: true,
           isPublic: true,
+          publicationConsent: true,
+          publicationConsentAt: true,
+          publicationConsentVersion: true,
           mergeAsSource: { select: { targetId: true } },
 
           cars: {
@@ -498,19 +530,31 @@ export class ParticipantsService {
         },
       });
 
-    if (!participant || !participant.isPublic) {
-      throw new NotFoundException(
-        'Участник не найден',
-      );
+    const version = await this.activePublicationVersion();
+    if (!mayPublish(participant, 'identity', version)) {
+      throw new NotFoundException('Участник не найден');
     }
 
-    const { mergeAsSource: _mergedAlias, ...publicParticipant } = participant;
+    const { mergeAsSource: _mergedAlias, publicationConsent: _c,
+      publicationConsentAt: _at, publicationConsentVersion: _v,
+      ...publicParticipant } = participant!;
+    const showCars = mayPublish(participant, 'car', version);
+    const showCarPhotos = mayPublish(participant, 'carPhoto', version);
     return {
       ...publicParticipant,
-      registrations: participant.registrations?.map((registration) => ({
-        ...registration,
-        car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
-      })) ?? [],
+      team: mayPublish(participant, 'team', version) ? participant!.team : null,
+      city: mayPublish(participant, 'city', version) ? participant!.city : null,
+      photoUrl: mayPublish(participant, 'profilePhoto', version) ? participant!.photoUrl : null,
+      cars: showCars ? participant!.cars.map(car => ({
+        ...car, photoUrl: showCarPhotos ? car.photoUrl : null,
+      })) : [],
+      registrations: mayPublish(participant, 'results', version)
+        ? (participant!.registrations?.map(registration => ({
+          ...registration,
+          car: showCars && registration.car?.isPublic && registration.car?.isActive
+            ? { ...registration.car, photoUrl: showCarPhotos ? registration.car.photoUrl : null }
+            : null,
+        })) ?? []) : [],
     };
   }
 
@@ -806,6 +850,55 @@ export class ParticipantsService {
   // =========================================================
   // UPDATE CURRENT PARTICIPANT
   // =========================================================
+
+  /** The account owner makes nine independent, versioned opt-in decisions. */
+  async getPublicationConsent(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const [participant, settings] = await Promise.all([
+      this.prisma.participant.findUnique({
+        where: { id: participantId },
+        select: { isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true },
+      }),
+      this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } }),
+    ]);
+    if (!participant) throw new NotFoundException('Профиль участника не найден');
+    const version = publicationVersion(settings?.legal);
+    const confirmed = Boolean(version && participant.publicationConsentAt && participant.publicationConsentVersion === version);
+    return {
+      choices: confirmed ? readPublicationConsent(participant.publicationConsent) : readPublicationConsent(null),
+      currentVersion: version,
+      confirmed,
+      recordedAt: confirmed ? participant.publicationConsentAt : null,
+      publicProfileEnabled: participant.isPublic,
+    };
+  }
+
+  async updatePublicationConsent(request: AuthenticatedRequest, body: unknown) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const choices = validatePublicationConsent((body as { choices?: unknown } | null)?.choices);
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' }, select: { legal: true },
+    });
+    const version = publicationVersion(settings?.legal);
+    if (!version) throw new BadRequestException('Документ о публикации не утверждён организатором USD');
+    const recordedAt = new Date();
+    await this.prisma.$transaction(async tx => {
+      const person = await tx.participant.findUnique({ where: { id: participantId }, select: { id: true } });
+      if (!person) throw new NotFoundException('Профиль участника не найден');
+      await tx.participant.update({
+        where: { id: participantId },
+        data: { publicationConsent: choices, publicationConsentAt: recordedAt, publicationConsentVersion: version },
+      });
+      await tx.auditLog.create({
+        data: { userId: user.id, action: 'PARTICIPANT_PUBLICATION_CONSENT',
+          entity: 'Participant', entityId: participantId,
+          metadata: { version, choices, recordedAt: recordedAt.toISOString(), source: 'participant-profile' } },
+      });
+    });
+    return { choices, currentVersion: version, confirmed: true, recordedAt };
+  }
 
   async updateMe(
     request: AuthenticatedRequest,
@@ -1477,6 +1570,9 @@ export class ParticipantsService {
               city: true,
               photoUrl: true,
               isPublic: true,
+              publicationConsent: true,
+              publicationConsentAt: true,
+              publicationConsentVersion: true,
             },
           },
 
@@ -1574,18 +1670,24 @@ export class ParticipantsService {
         },
       });
 
-    if (
-      !car ||
-      !car.isActive ||
-      !car.isPublic ||
-      !car.participant.isPublic
-    ) {
-      throw new NotFoundException(
-        'Автомобиль не найден',
-      );
+    const version = await this.activePublicationVersion();
+    if (!car || !car.isActive || !car.isPublic ||
+        !mayPublish(car.participant, 'identity', version) ||
+        !mayPublish(car.participant, 'car', version)) {
+      throw new NotFoundException('Автомобиль не найден');
     }
-
-    return car;
+    const { publicationConsent: _c, publicationConsentAt: _at,
+      publicationConsentVersion: _v, ...owner } = car.participant;
+    return {
+      ...car,
+      photoUrl: mayPublish(car.participant, 'carPhoto', version) ? car.photoUrl : null,
+      participant: {
+        ...owner,
+        city: mayPublish(car.participant, 'city', version) ? owner.city : null,
+        team: mayPublish(car.participant, 'team', version) ? owner.team : null,
+        photoUrl: mayPublish(car.participant, 'profilePhoto', version) ? owner.photoUrl : null,
+      },
+    };
   }
 
   // =========================================================
