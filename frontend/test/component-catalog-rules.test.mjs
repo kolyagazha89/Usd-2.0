@@ -157,17 +157,18 @@ test('model suggestions require the exact chosen brand; free-text remains possib
   'unknown brands are allowed without generating fake catalog entries');
 });
 
-test('iPhone equipment modal uses visible visual viewport for keyboard and keeps save button reachable',async()=>{
+test('on mobile equipment editing stays in native page flow without a modal or keyboard viewport hacks',async()=>{
  const [editor,css]=await Promise.all([
   readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/public/premium-configurator.css',import.meta.url),'utf8'),
  ]);
- assert.match(editor,/window\.visualViewport/);
- assert.match(editor,/visualViewport\.addEventListener\('resize'/);
- assert.match(editor,/visualViewport\.addEventListener\('scroll'/);
- assert.match(editor,/ref=\{pickerOverlayRef\}/);
- assert.match(css,/--usd-picker-visible-height/);
- assert.match(css,/--usd-picker-visible-top/);
- assert.match(css,/member-config-picker-body\{[^}]*overflow-y:auto/);
- assert.match(css,/member-config-picker-foot\{[^}]*flex-shrink:0/);
+ assert.match(editor,/matchMedia\('\(max-width:600px\)'\)/);
+ assert.match(editor,/role=\{mobilePicker\?'region':'dialog'\}/);
+ assert.match(editor,/aria-modal=\{mobilePicker\?undefined:true\}/);
+ assert.match(editor,/if\(!pickerActive\|\|mobilePicker\)return/,'mobile inline editor never traps focus or marks surrounding content inert');
+ assert.doesNotMatch(editor,/visualViewport\.addEventListener/,'native page scrolling must not depend on keyboard viewport resize events');
+ assert.match(css,/@media\(max-width:600px\)\{[\s\S]*?member-config-picker-overlay\{[^}]*position:static!important/);
+ assert.match(css,/member-config-picker-body\{[^}]*overflow:visible!important/);
+ assert.match(css,/member-config-picker-screen\{[^}]*overflow:visible!important/);
+ assert.match(css,/member-config-picker-list\{[^}]*overflow:visible!important/);
 });
