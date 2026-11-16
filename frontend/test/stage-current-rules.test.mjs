@@ -12,8 +12,9 @@ test('stage detail gets the currently published regulation without overwriting i
 test('upcoming stage displays the current regulation and retains an explicitly labeled historical snapshot', () => {
   const component = read('../src/PublicStageRulesSnapshot.tsx');
   assert.match(component, /status !== 'COMPLETED' && currentSnapshot\?\.blocks\?\.length/);
-  assert.match(component, /currentSnapshot\.id !== snapshot\?\.revisionId/);
+  assert.match(component, /currentSnapshot\?\.id !== snapshot\?\.revisionId/);
   assert.match(component, /Действующий общий регламент/);
+  assert.match(component, /if \(!selected \|\| !blocks.length\)/);
   assert.match(component, /Архивная редакция при публикации этапа/);
   assert.match(component, /Открыть действующий регламент/);
 });
@@ -21,5 +22,5 @@ test('upcoming stage displays the current regulation and retains an explicitly l
 test('completed stages keep their published snapshot as the historical record', () => {
   const component = read('../src/PublicStageRulesSnapshot.tsx');
   assert.match(component, /status === 'COMPLETED'/);
-  assert.match(component, /snapshot\.blocks/);
+  assert.match(component, /snapshot\?\.blocks/);
 });
