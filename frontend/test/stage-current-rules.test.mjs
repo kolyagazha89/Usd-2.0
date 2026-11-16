@@ -21,6 +21,6 @@ test('upcoming stage displays the current regulation and retains an explicitly l
 
 test('completed stages keep their published snapshot as the historical record', () => {
   const component = read('../src/PublicStageRulesSnapshot.tsx');
-  assert.match(component, /status === 'COMPLETED'/);
+  assert.match(component, /status !== 'COMPLETED'/);
   assert.match(component, /snapshot\?\.blocks/);
 });
