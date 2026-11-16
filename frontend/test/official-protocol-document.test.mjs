@@ -27,3 +27,12 @@ test('judge gate checks published protocol document and requires confirmation of
  assert.match(staff,/protocolReady/);
  assert.match(staff,/подписанный оригинал передан организатору/);
 });
+
+
+test('CMS release status shows missing protocol document rather than a green approval',async()=>{
+ const {missingLegalDocuments}=await import('../src/admin/legal-release-readiness.ts');
+ const descriptors=[{key:'privacyPolicy',title:'Политика'},{key:'officialProtocolConsent',title:'Протокол'}];
+ const docs={privacyPolicy:{targetId:'legal-document-privacyPolicy-1',fileName:'privacy.docx',url:'https://api.example.test/doc'}};
+ assert.deepEqual(missingLegalDocuments(descriptors,docs),['Протокол']);
+ assert.deepEqual(missingLegalDocuments(descriptors,{...docs,officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-1',fileName:'protocol.docx',url:'https://api.example.test/doc'}}),[]);
+});
