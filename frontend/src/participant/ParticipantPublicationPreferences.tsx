@@ -8,6 +8,8 @@ type ServerState = {
  confirmed?: boolean;
  recordedAt?: string|null;
  publicProfileEnabled?: boolean;
+ restrictions?: string;
+ publicationPendingReview?: boolean;
 };
 
 export default function ParticipantPublicationPreferences() {
@@ -18,6 +20,8 @@ export default function ParticipantPublicationPreferences() {
  const [notice, setNotice] = useState('');
  const [version, setVersion] = useState<string|null>(null);
  const [confirmed, setConfirmed] = useState(false);
+ const [restrictions, setRestrictions] = useState('');
+ const [pendingReview, setPendingReview] = useState(false);
 
  useEffect(() => {
    let active = true;
@@ -27,6 +31,8 @@ export default function ParticipantPublicationPreferences() {
        setChoices(coerceChoices(result.confirmed ? result.choices : null));
        setVersion(result.currentVersion ?? null);
        setConfirmed(result.confirmed === true);
+       setRestrictions(result.restrictions ?? '');
+       setPendingReview(result.publicationPendingReview === true);
      })
      .catch(e => { if (active) setError(e instanceof Error ? e.message : 'Не удалось получить разрешения на публикацию'); })
      .finally(() => { if (active) setLoaded(true); });
@@ -36,10 +42,13 @@ export default function ParticipantPublicationPreferences() {
  const save = async (next: PublicationChoices) => {
    setBusy(true); setError(''); setNotice('');
    try {
-     const result = await apiPatch<ServerState>('/participants/me/publication-consent', { choices: next });
+     const result = await apiPatch<ServerState>('/participants/me/publication-consent', { choices: next, restrictions });
      setChoices(coerceChoices(result.choices));
      setConfirmed(result.confirmed === true);
-     setNotice(Object.values(next).some(Boolean)
+     setPendingReview(result.publicationPendingReview === true);
+     setNotice(result.publicationPendingReview
+       ? 'Условия сохранены. Публикация приостановлена до проверки организатором.'
+       : Object.values(next).some(Boolean)
        ? 'Разрешения сохранены. Публикация ограничена выбранными категориями.'
        : 'Разрешения отозваны. Персональные публикации по этим разрешениям отключены.');
    } catch (e) {
@@ -64,6 +73,12 @@ export default function ParticipantPublicationPreferences() {
          <span>{item.label}</span>
        </label>)}
      </div>
+     <label>Дополнительные запреты и условия распространения (необязательно)
+       <textarea rows={3} maxLength={4000} value={restrictions} disabled={busy || !version}
+         placeholder="Например: запрещаю использовать фотографии в социальных сетях"
+         onChange={e => { setRestrictions(e.target.value); setNotice(''); }} />
+     </label>
+     {pendingReview && <p role="status">Ваши дополнительные ограничения сохранены. Публикация данных и фотографий по этим разрешениям приостановлена до рассмотрения условий организатором.</p>}
      <p><small>Если вы откажетесь от публикации, участие в соревнованиях и личный кабинет сохранятся. Исторические спортивные протоколы могут обрабатываться на самостоятельном законном основании.</small></p>
      {error && <div className="form-error" role="alert">{error}</div>}
      {notice && <p role="status">{notice}</p>}
