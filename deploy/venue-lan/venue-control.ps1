@@ -404,6 +404,12 @@ function New-InitialState {
     $values[$name]=$sharedConfig[$name]
    }
   }
+  # Preserve the reviewed frontend version when the next stage reuses the
+  # same database and staff Wi-Fi. Never reintroduce an older LIVE UI.
+  if($sharedConfig.ContainsKey('VENUE_WEB_IMAGE_TAG')){
+   $priorWeb=[string]$sharedConfig['VENUE_WEB_IMAGE_TAG']
+   if($priorWeb -cmatch '^[a-f0-9]{40}\z'){$values['VENUE_WEB_IMAGE_TAG']=$priorWeb}
+  }
  }
  $text=($values.GetEnumerator()|ForEach-Object {$_.Key+'='+$_.Value}) -join [Environment]::NewLine
  Write-PrivateFile $EnvFile ($text+[Environment]::NewLine)
