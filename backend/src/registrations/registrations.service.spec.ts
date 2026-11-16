@@ -23,7 +23,7 @@ describe('RegistrationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {}, registration: { rulesDocument: { published: { id: 'rules-v1', blocks: [{ type: 'paragraph', text: 'Общий регламент USD' }] } } } });
-    prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: new Date(), privacyConsentVersion: 'privacy-v1', termsAcceptedAt: new Date(), termsVersion: 'terms-v1' });
+    prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: new Date(), privacyConsentVersion: 'privacy-v1', termsAcceptedAt: new Date(), termsVersion: 'terms-v1', protocolConsentAt: new Date(), protocolConsentVersion: 'protocol-v1', protocolConsentRevokedAt: null });
     service = new RegistrationsService(prisma);
   });
 
@@ -573,7 +573,7 @@ describe('RegistrationsService', () => {
     await expect(service.create(
       { user: { sub: 'staff-1', role: 'ADMIN', customRoleId: null } } as any,
       { ...requestBody, configurationVersionId: 'old-gate-version', source: 'ON_SITE',
-        privacyConsent: true, termsAccepted: true },
+        privacyConsent: true, termsAccepted: true, protocolConsent: true },
     )).rejects.toThrow('Служебный черновик конфигурации нельзя использовать');
     expect(tx.registration.create).not.toHaveBeenCalled();
   });
@@ -602,8 +602,7 @@ describe('RegistrationsService', () => {
         ...requestBody,
         configurationVersionId: undefined,
         source: 'ON_SITE',
-        privacyConsent: true,
-        termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     );
     expect(registration).toEqual({ id: 'registration-1' });
@@ -646,7 +645,7 @@ describe('RegistrationsService', () => {
       {
         lastName: 'Иванов', firstName: 'Иван', middleName: '',
         brand: 'ВАЗ', model: '2107', registrationCountry: 'RU',
-        registrationNumber: 'A001YP01', privacyConsent: true, termsAccepted: true,
+        registrationNumber: 'A001YP01', privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     );
     expect(result).toEqual({ participantId: 'new-person', carId: 'new-car' });
@@ -684,7 +683,7 @@ describe('RegistrationsService', () => {
       {
         lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'А001УР01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     )).rejects.toThrow('Профиль с таким ФИО уже существует');
     expect(tx.participant.create).not.toHaveBeenCalled();
@@ -696,7 +695,7 @@ describe('RegistrationsService', () => {
       {
         lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'А001УР01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     )).rejects.toThrow('Только сотрудник');
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -849,7 +848,7 @@ describe('RegistrationsService', () => {
       {
         participantId: 'existing-person', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'A001YP01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     );
     expect(result).toEqual({ participantId: 'existing-person', carId: 'new-car' });
@@ -879,7 +878,7 @@ describe('RegistrationsService', () => {
       {
         participantId: 'existing-person', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'А001УР01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     )).rejects.toThrow('Автомобиль с таким госномером уже существует');
     expect(tx.car.create).not.toHaveBeenCalled();
@@ -906,7 +905,7 @@ describe('RegistrationsService', () => {
       {
         participantId: 'missing-person', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'А001УР01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     )).rejects.toThrow('Участник не найден');
     expect(tx.car.create).not.toHaveBeenCalled();
@@ -923,7 +922,7 @@ describe('RegistrationsService', () => {
       {
         lastName: 'Иванов', firstName: 'Иван', brand: 'ВАЗ', model: '2107',
         registrationCountry: 'RU', registrationNumber: 'А001УР01',
-        privacyConsent: true, termsAccepted: true,
+        privacyConsent: true, termsAccepted: true, protocolConsent: true,
       },
     )).rejects.toThrow('Недостаточно прав на регистрацию на месте');
     expect(prisma.$transaction).not.toHaveBeenCalled();
