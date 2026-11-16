@@ -506,6 +506,7 @@ body .usd-member .member-config-picker-title,body .usd-member .member-config-pic
 /* iPhone Safari changes the visual viewport when the keyboard opens.
    Keep the whole picker within that visible area; only the fields/list scroll. */
 body .usd-member .member-config-picker-overlay{
+ z-index:2000; /* above the fixed participant header (1000) while the keyboard is open */
  inset:auto 0 auto 0;
  top:var(--usd-picker-visible-top,0px);
  height:var(--usd-picker-visible-height,100dvh);
