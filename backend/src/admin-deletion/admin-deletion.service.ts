@@ -144,6 +144,54 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           'Нельзя удалить последнего активного администратора',
         );
     }
+    // Merged profiles are historical aliases: deleting either side would break
+    // the redirect and its rollback manifest. Recover the merge first.
+    if (
+      participant &&
+      (await tx.participantMergeRedirect.count({
+        where: {
+          OR: [
+            { sourceId: participant.id },
+            { targetId: participant.id },
+          ],
+        },
+      })) > 0
+    )
+      throw new ConflictException(
+        'Профиль участвует в объединении. Перед удалением требуется ручное восстановление объединения',
+      );
+    const teamMemberships = participant
+      ? await tx.teamMembership.findMany({
+          where: { participantId: participant.id },
+          orderBy: { id: 'asc' },
+        })
+      : [];
+    const profileLinkRequests =
+      participant || user
+        ? await tx.profileLinkRequest.findMany({
+            where: {
+              OR: [
+                ...(participant ? [{ participantId: participant.id }] : []),
+                ...(user ? [{ claimantUserId: user.id }] : []),
+              ],
+            },
+            orderBy: { id: 'asc' },
+          })
+        : [];
+    const teamPosts = user
+      ? await tx.teamPost.findMany({
+          where: { authorUserId: user.id },
+          select: { id: true, updatedAt: true },
+          orderBy: { id: 'asc' },
+        })
+      : [];
+    const mergeApprovals = user
+      ? await tx.participantMergeRedirect.findMany({
+          where: { mergedByUserId: user.id },
+          select: { sourceId: true, targetId: true, mergedAt: true },
+          orderBy: { sourceId: 'asc' },
+        })
+      : [];
     const cars = participant
       ? await tx.car.findMany({
           where: { participantId: participant.id },
@@ -287,6 +335,10 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
       tokens,
       participants: participant ? 1 : 0,
       accounts: user ? 1 : 0,
+      teamMemberships: teamMemberships.length,
+      profileLinkRequests: profileLinkRequests.length,
+      teamPosts: teamPosts.length,
+      mergeApprovals: mergeApprovals.length,
       cars: cars.length,
       configurationVersions: versions.length,
       registrations: registrations.length,
@@ -309,6 +361,10 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           linkedUser,
           stage,
           participant,
+          teamMemberships,
+          profileLinkRequests,
+          teamPosts,
+          mergeApprovals,
           cars,
           registrations,
           classes,
@@ -335,6 +391,10 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
       user,
       stage,
       participant,
+      teamMemberships,
+      profileLinkRequests,
+      teamPosts,
+      mergeApprovals,
       cars,
       versions,
       registrations,
@@ -446,6 +506,23 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           await tx.mediaUpload.deleteMany({
             where: { id: { in: ids(plan.media) } },
           });
+          // Remove now-obsolete administrative inbox tasks for deleted claims.
+          // Read receipts are cascaded by PostgreSQL; other inbox items remain.
+          if (plan.profileLinkRequests.length)
+            await tx.adminNotification.deleteMany({
+              where: {
+                kind: 'PROFILE_LINK_REQUEST',
+                sourceId: { in: ids(plan.profileLinkRequests) },
+              },
+            });
+          // Profile claims and team memberships have RESTRICT foreign keys.
+          // Delete only the relationships belonging to the confirmed target.
+          await tx.profileLinkRequest.deleteMany({
+            where: { id: { in: ids(plan.profileLinkRequests) } },
+          });
+          await tx.teamMembership.deleteMany({
+            where: { id: { in: ids(plan.teamMemberships) } },
+          });
           if (plan.participant) {
             await tx.user.updateMany({
               where: { participantId: plan.participant.id },
@@ -475,6 +552,21 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
             }
           }
           if (plan.user) {
+            // A team publication and merge recovery manifest must survive
+            // deletion of their original author/approving administrator.
+            await tx.teamPost.updateMany({
+              where: { authorUserId: id },
+              data: { authorUserId: request.user.sub },
+            });
+            await tx.participantMergeRedirect.updateMany({
+              where: { mergedByUserId: id },
+              data: { mergedByUserId: request.user.sub },
+            });
+            // Other claimants' requests reviewed by this user are retained.
+            await tx.profileLinkRequest.updateMany({
+              where: { reviewedByUserId: id },
+              data: { reviewedByUserId: null },
+            });
             // Judging/administration of other people remains valid after staff leave.
             // Required issuer/author links transfer to the deleting administrator.
             await tx.disqualification.updateMany({
@@ -563,6 +655,8 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
             ...ids(plan.classInspections),
             ...ids(plan.versions),
             ...ids(plan.disqualifications),
+            ...ids(plan.teamMemberships),
+            ...ids(plan.profileLinkRequests),
             ...ids(plan.jobs),
             ...ids(plan.importRows),
             ...ids(plan.media),
@@ -588,17 +682,19 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
               ],
             },
           });
-          // A subsequent archive run must inspect existing results again, rather than
-          // reuse a completed batch containing deleted participant/stage IDs.
-          await tx.historicalImportBatch.updateMany({
-            where: { status: { in: ['COMPLETED', 'NEEDS_REVIEW'] } },
-            data: {
-              status: 'INVALIDATED',
-              activeKey: null,
-              leaseOwner: null,
-              leaseUntil: null,
-            },
-          });
+          // Invalidate archive batches only when competition history changed.
+          // Deleting an unlinked login must not rewrite unrelated batches or
+          // contend with archive workers.
+          if (plan.participant || plan.stage)
+            await tx.historicalImportBatch.updateMany({
+              where: { status: { in: ['COMPLETED', 'NEEDS_REVIEW'] } },
+              data: {
+                status: 'INVALIDATED',
+                activeKey: null,
+                leaseOwner: null,
+                leaseUntil: null,
+              },
+            });
           for (const classId of affectedClasses)
             await this.records.recalculateCurrentRecordForClass(tx, classId);
           if (!plan.stage)
@@ -634,13 +730,16 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
         { isolationLevel: 'Serializable', timeout: 60000, maxWait: 10000 },
       );
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        ['P2034', 'P2003'].includes(error.code)
-      )
-        throw new ConflictException(
-          'Данные изменились во время удаления. Обновите подтверждение и повторите',
-        );
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2034')
+          throw new ConflictException(
+            'Данные изменились во время удаления. Обновите подтверждение и повторите',
+          );
+        if (error.code === 'P2003')
+          throw new ConflictException(
+            'Удаление заблокировано связанной записью. Данные не удалены; проверьте связи профиля',
+          );
+      }
       throw error;
     }
     const pending = await this.media.deleteStoredObjects(deleted.keys);
