@@ -549,8 +549,7 @@ export class ResultsService {
         return {
           id: score.id, value: score.value.toString(), unit: score.unit, place: score.place,
           number: score.registrationClass.number?.number ?? score.registration.participantNumber,
-          participant: participant?.isPublic === false ? 'Участник скрыт'
-            : [participant?.lastName, participant?.firstName, participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
+          participant: [participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
           car: !car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
             : [car.brand, car.model].filter(Boolean).join(' ') || 'Автомобиль USD',
           class: score.registrationClass.class,
