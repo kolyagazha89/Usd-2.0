@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
+import {availableCatalogModels,suggestCatalogBrands,suggestCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
 
 const models=[
  {id:'sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15',isActive:true},
@@ -128,4 +128,46 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/disabled=\{!picker.brand.trim\(\)\|\|!picker.model.trim\(\)\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
  assert.ok(qa.includes('datalist option[value="Alphard"]'),'browser QA waits for optional catalog suggestions');
+});
+
+test('brand autocomplete precedes model search and deduplicates matching brands',()=>{
+ const catalog=[
+  ...models,
+  {id:'second-sub',category:'SUBWOOFER',brand:'  Deaf Bonce ',model:'Another 15',isActive:true},
+  {id:'unrelated',category:'SUBWOOFER',brand:'Pride',model:'One',isActive:true},
+ ];
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER','Dea'),['Deaf Bonce']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','MIDBASS','dea'),['Deaf Bonce']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER','Pri'),['Pride']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER',''),[]);
+ assert.deepEqual(suggestCatalogBrands(catalog,'amplifiers',undefined,'Pride'),['Pride']);
+});
+
+test('model suggestions require the exact chosen brand; free-text remains possible',()=>{
+ const catalog=[
+  ...models,
+  {id:'second-sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Machete 15',isActive:true},
+  {id:'other-brand',category:'SUBWOOFER',brand:'Deaf Audio',model:'Machete 10',isActive:true},
+ ];
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Dea',''),[],
+  'typing a partial brand must never dump model cards');
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','DEAF BONCE','machete').map(x=>x.id),['second-sub']);
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Deaf Bonce','').map(x=>x.id),['sub','second-sub']);
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Unlisted Brand',''),[],
+  'unknown brands are allowed without generating fake catalog entries');
+});
+
+test('iPhone equipment modal uses visible visual viewport for keyboard and keeps save button reachable',async()=>{
+ const [editor,css]=await Promise.all([
+  readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/public/premium-configurator.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(editor,/window\.visualViewport/);
+ assert.match(editor,/visualViewport\.addEventListener\('resize'/);
+ assert.match(editor,/visualViewport\.addEventListener\('scroll'/);
+ assert.match(editor,/ref=\{pickerOverlayRef\}/);
+ assert.match(css,/--usd-picker-visible-height/);
+ assert.match(css,/--usd-picker-visible-top/);
+ assert.match(css,/member-config-picker-body\{[^}]*overflow-y:auto/);
+ assert.match(css,/member-config-picker-foot\{[^}]*flex-shrink:0/);
 });
