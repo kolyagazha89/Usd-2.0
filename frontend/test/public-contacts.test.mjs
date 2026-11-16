@@ -16,6 +16,11 @@ test('legacy social links still display, but saved contact values take priority'
  assert.deepEqual(links.map(link=>[link.key,link.url]),[['telegram','https://t.me/legacy'],['vk','https://vk.com/new']]);
 });
 
+test('clearing a contact link in admin does not resurrect an old social URL', () => {
+ const links=publicContactLinks({vk:'',telegram:'  '},{vk:'https://vk.com/obsolete',telegram:'https://t.me/obsolete'});
+ assert.deepEqual(links,[]);
+});
+
 test('legacy social links outside current admin channel list stay visible', () => {
  const links=publicContactLinks({}, {website:'https://usd.example.com',discord:'https://discord.gg/example'});
  assert.deepEqual(links.filter(link=>['website','discord'].includes(link.key)).map(link=>link.key),['website','discord']);
