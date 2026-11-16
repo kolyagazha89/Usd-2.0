@@ -19,3 +19,9 @@
 .public-stage-rules-unavailable strong{display:block;color:#f2c27c;font-size:13px;line-height:1.5}
 .public-stage-rules-unavailable p{margin:7px 0 0;color:#c9c2b7;font-size:12px;line-height:1.65}
 @media(max-width:600px){.public-stage-rules-unavailable{padding:14px}}
+
+/* Current regulation is authoritative for upcoming stages; the archived copy is secondary. */
+.public-stage-rules-current-link{margin:0 0 14px;font-size:13px}
+.public-stage-rules-current-link a{color:#ff7883;text-decoration:underline;text-underline-offset:3px}
+.public-stage-rules-archive{margin-top:10px;opacity:.9}
+.public-stage-rules-archive>summary strong{color:#c5c5cf}
