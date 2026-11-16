@@ -12,13 +12,23 @@ try{
  $next='cccccccccccccccccccccccccccccccccccccccc'
  $stage='324c3410-8ab9-4dcd-9965-31b5a4f59ecd'
  $original=@(
-  'VENUE_IMAGE_TAG='+$api,
-  'VENUE_STAGE_ID='+$stage,
+  "VENUE_IMAGE_TAG=$api",
+  "VENUE_STAGE_ID=$stage",
   'VENUE_BIND_IP=192.168.20.12',
   'VENUE_JWT_SECRET=do-not-change-existing-auth-token'
  ) -join [Environment]::NewLine
  [IO.File]::WriteAllText($EnvFile,$original+[Environment]::NewLine)
  $state=[pscustomobject]@{phase='READY';stageId=$stage;image=$api;ip='192.168.20.12'}
+ $roundtrip=Read-Env -Path $EnvFile
+ if($roundtrip['VENUE_IMAGE_TAG'] -cne $state.image -or
+    $roundtrip['VENUE_STAGE_ID'] -cne $state.stageId -or
+    $roundtrip['VENUE_BIND_IP'] -cne $state.ip){
+  throw ('READY TV fixture mismatch (API='+
+    ($roundtrip['VENUE_IMAGE_TAG'] -ceq $state.image)+', stage='+
+    ($roundtrip['VENUE_STAGE_ID'] -ceq $state.stageId)+', IP='+
+    ($roundtrip['VENUE_BIND_IP'] -ceq $state.ip)+')')
+ }
+
  $script:target=$tv;$script:commands=@();$script:failOnce=$false
  function Get-OnlineVenueReleaseSha{return $script:target}
  function Invoke-Docker {
