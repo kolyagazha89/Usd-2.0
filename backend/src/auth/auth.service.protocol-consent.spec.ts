@@ -24,14 +24,14 @@ describe('separate official result consent in participant account',()=>{
  });
  it('does not infer protocol consent from generic legal approval',async()=>{
   const state:any=await service.getProtocolConsent('u1');
-  expect(state).toMatchObject({version:'1',accepted:false});
+  expect(state).toMatchObject({version:'1@legal-document-officialProtocolConsent-test1',accepted:false});
  });
  it('records independent affirmative protocol consent, version, time and audit evidence',async()=>{
-  const result:any=await service.updateProtocolConsent('u1',true,'1');
-  expect(result).toMatchObject({accepted:true,version:'1'});
+  const result:any=await service.updateProtocolConsent('u1',true,'1@legal-document-officialProtocolConsent-test1');
+  expect(result).toMatchObject({accepted:true,version:'1@legal-document-officialProtocolConsent-test1'});
   expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
    data:expect.objectContaining({
-    protocolConsentAt:expect.any(Date),protocolConsentVersion:'protocol-v1',
+    protocolConsentAt:expect.any(Date),protocolConsentVersion:'protocol-v1@legal-document-officialProtocolConsent-test1',
     protocolConsentRevokedAt:null,
    }),
   }));
