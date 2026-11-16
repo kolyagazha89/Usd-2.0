@@ -15,7 +15,7 @@ describe('Explicit participant publication permissions', () => {
   beforeEach(() => {
     prisma = {
       user: { findUnique: jest.fn().mockResolvedValue({id:'user-1', role:'PARTICIPANT', participantId:'person-1', isActive:true}) },
-      participant: { findUnique: jest.fn().mockResolvedValue({id:'person-1',isPublic:false,birthDate:null}), update: jest.fn().mockResolvedValue({id:'person-1'}) },
+      participant: { findUnique: jest.fn().mockResolvedValue({id:'person-1',isPublic:false,birthDate:new Date('1990-01-01')}), update: jest.fn().mockResolvedValue({id:'person-1'}) },
       car: { updateMany: jest.fn().mockResolvedValue({count:1}) },
       participantPublicationConsent: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -56,6 +56,12 @@ describe('Explicit participant publication permissions', () => {
 
   it('never grants permission by omission or a malformed selection', async () => {
     await expect(service.updateMyPublicationConsent(request,{fullName:true} as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.participantPublicationConsent.upsert).not.toHaveBeenCalled();
+  });
+
+  it('requires an age to be provided before enabling any public publication', async () => {
+    prisma.participant.findUnique.mockResolvedValue({id:'person-1',birthDate:null});
+    await expect(service.updateMyPublicationConsent(request,{...permissions})).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.participantPublicationConsent.upsert).not.toHaveBeenCalled();
   });
 
