@@ -30,10 +30,19 @@ const sections:Record<string,{title:string;description:string}>={
  '/terms':{title:'Пользовательское соглашение — USD',description:'Условия использования официального сайта и сервисов чемпионата USD.'},
  '/consent':{title:'Согласие на обработку персональных данных — USD',description:'Условия согласия на обработку персональных данных пользователей USD.'},
 };
+const legalDocumentTitles:Record<string,string>={
+ privacyPolicy:'Политика обработки персональных данных',
+ personalDataConsent:'Согласие на обработку персональных данных',
+ termsOfUse:'Пользовательское соглашение',
+ cookiePolicy:'Политика cookie',
+ newsletterConsent:'Согласие на рассылку',
+ photoProfileConsent:'Согласие на публикацию профиля',
+};
 const detailSections=new Set(['/participants','/teams','/cars','/news']);
 export function isIndexablePublicRoute(path:string):boolean{
  const route=path.split(/[?#]/,1)[0]||'/';
  if(Object.hasOwn(sections,route))return true;
+ if(Object.hasOwn(legalDocumentTitles,route.startsWith('/documents/')&&route.split('/').length===3?route.slice('/documents/'.length):''))return true;
  if(/^\/stages\/[a-z0-9-]+$/i.test(route))return true;
  const parts=route.split('/').filter(Boolean);
  if(parts.length!==2||!detailSections.has('/'+parts[0]))return false;
@@ -57,6 +66,10 @@ export function publicSeoMetadata(path:string,stage?:SeoStage|null):SeoMetadata{
    return {title:stage.name+city+' | USD',description:stage.name+when+city+'. Этап соревнований по автозвуку USD: место проведения, правила и регистрация.',indexable:true};
   }
   return {title:'Этап соревнований — USD',description:'Опубликованные этапы соревнований по автозвуку USD.',indexable:false};
+ }
+ const legalKey=route.startsWith('/documents/')&&route.split('/').length===3?route.slice('/documents/'.length):'';
+ if(Object.hasOwn(legalDocumentTitles,legalKey)){
+  return {title:legalDocumentTitles[legalKey]+' — USD',description:'Официальный юридический документ USD: '+legalDocumentTitles[legalKey]+'.',indexable:true};
  }
  const item=sections[route]??(isIndexablePublicRoute(route)?sections['/'+route.split('/')[1]]:null);
  return {title:item?.title??'Страница не найдена — USD',description:item?.description??'Официальный сайт соревнований по автозвуку USD.',indexable:isIndexablePublicRoute(route)};
