@@ -312,7 +312,7 @@ function Replace-LegacyDemo([object]$State){
   if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID контейнера'}
   $labels=Read-VenueDockerLabels 'container' ([string]$id)
   if([string]$labels.'com.docker.compose.project' -cne 'usd-venue' -or
-   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','tv','rustfs','gateway')){
+   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','rustfs','gateway')){
    throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
   }
  }
@@ -437,61 +437,63 @@ function Confirm-SignedStage([object]$State) {
 # Reinstalling the kit must upgrade the LIVE screen even for phase READY.
 # ONLY the read-only TV container and gateway are recreated. Judges keep
 # their original pinned API/frontend/DB and every stage result untouched.
-function Update-ReadyVenueTv([object]$State) {
+# Repair an already installed READY stage in place. Only the existing
+# frontend and its Caddy gateway are restarted. The pinned API, PostgreSQL,
+# historical registrations, journal and RustFS volumes remain untouched.
+function Update-ReadyVenueFrontend([object]$State) {
  if($State.phase -ne 'READY'){throw 'LIVE: установка этапа ещё не завершена'}
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -cne $State.stageId -or
     $cfg['VENUE_IMAGE_TAG'] -cne $State.image -or
     $cfg['VENUE_BIND_IP'] -cne $State.ip){
-  throw 'LIVE: идентификаторы текущего этапа не совпадают; обновление отменено'
+  throw 'LIVE: данные текущего этапа не совпадают; обновление отменено'
  }
- $installed=$(if($cfg.ContainsKey('VENUE_TV_IMAGE_TAG')){[string]$cfg['VENUE_TV_IMAGE_TAG']}else{[string]$State.image})
- if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'LIVE: неправильная версия существующего табло'}
+ $installed=$(if($cfg.ContainsKey('VENUE_WEB_IMAGE_TAG')){[string]$cfg['VENUE_WEB_IMAGE_TAG']}else{[string]$State.image})
+ if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'LIVE: неверная версия установленного frontend'}
  $target=Get-OnlineVenueReleaseSha
  $original=$null
  if($target -and $target -cne $installed){
-  Set-VenueStep 'download-current-tv-image'
+  Set-VenueStep 'download-current-frontend-image'
   $ref='ghcr.io/kolyagazha89/usd-2.0-frontend:'+$target
-  Invoke-Docker @('pull',$ref) 'download latest LIVE image'
+  Invoke-Docker @('pull',$ref) 'download frontend update'
   $labels=Read-VenueDockerLabels 'image' $ref
   if([string]$labels.'org.opencontainers.image.revision' -cne $target){
-   throw 'LIVE: образ не соответствует опубликованной версии. База не изменена.'
+   throw 'LIVE: новый образ не соответствует версии сайта. Данные этапа сохранены.'
   }
-  # Atomic, ACL-protected .env update. Keep original API/image and secrets.
   $original=[IO.File]::ReadAllText($EnvFile)
   $newline=[Environment]::NewLine
-  $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_TV_IMAGE_TAG='})
-  $updated=($lines+@('VENUE_TV_IMAGE_TAG='+$target)) -join $newline
-  $temp=Join-Path $Root ('.usd-venue-tv-'+[guid]::NewGuid().ToString('N')+'.tmp')
+  $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_WEB_IMAGE_TAG='})
+  $updated=($lines+@('VENUE_WEB_IMAGE_TAG='+$target)) -join $newline
+  $temp=Join-Path $Root ('.usd-frontend-'+[guid]::NewGuid().ToString('N')+'.tmp')
   try{
    Write-PrivateFile $temp ($updated+$newline)
    Move-Item -LiteralPath $temp -Destination $EnvFile -Force
-  }finally{
-   if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}
-  }
+  }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
  }
  try{
-  Set-VenueStep 'activate-current-tv-only'
-  # --no-deps excludes DB and judging containers; no migration or down.
+  Set-VenueStep 'activate-updated-frontend'
+  # No database, API, migration, media volume or new Docker service.
+  # Recreate the gateway to load the revised spectator-only HTTP routing.
   Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never',
-   '--force-recreate','tv','gateway') 'activate isolated LIVE TV'
+   '--force-recreate','frontend','gateway') 'activate updated LIVE and judging frontend'
  }catch{
   $failure=$_.Exception.Message
   if($null -ne $original){
-   $temp=Join-Path $Root ('.usd-venue-tv-rollback-'+[guid]::NewGuid().ToString('N')+'.tmp')
+   $temp=Join-Path $Root ('.usd-frontend-rollback-'+[guid]::NewGuid().ToString('N')+'.tmp')
    try{
     Write-PrivateFile $temp $original
     Move-Item -LiteralPath $temp -Destination $EnvFile -Force
-    # Restore last approved TV image and gateway, never change the DB.
     try{Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never',
-     'tv','gateway') 'restore previous LIVE after failed upgrade'}catch{}
+     '--force-recreate','frontend','gateway') 'restore previous frontend'}catch{}
    }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
   }
-  throw ('LIVE обновление не прошло: '+$failure+'. База этапов не изменена.')
+  throw ('LIVE: обновление экрана не выполнено: '+$failure+'. База и результаты сохранены.')
  }
  $active=$(if($target){$target}else{$installed})
- Write-Host ('LIVE TV: образ '+$active+'; API/база и результаты сохранены')
- if(!$target){Write-Warning 'Нет интернета до обоих сайтов USD. Оставлено текущее LIVE-табло; обновление пока не подтверждено.'}
+ Write-Host ('USD LIVE: frontend '+$active+'; API и база без изменений')
+ if(!$target){
+  Write-Warning 'Обе версии USD не подтверждены: сохранили установленный frontend. Обновите при доступном интернете.'
+ }
 }
 
 function Install-Local {
@@ -519,7 +521,7 @@ function Install-Local {
  Ensure-Firewall $state.ip
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
- if($state.phase -eq 'READY'){Update-ReadyVenueTv $state;Start-Local;return}
+ if($state.phase -eq 'READY'){Update-ReadyVenueFrontend $state;Start-Local;return}
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
  Set-VenueStep 'verify-stage-and-staff'
  $mounts=Confirm-SignedStage $state
