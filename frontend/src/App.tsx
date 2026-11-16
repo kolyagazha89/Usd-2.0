@@ -427,7 +427,7 @@ function ParticipantPortal({user,path,go,onUserChange,onLogout}:{user:User;path:
    if(!protocolConsentChecked){setError('Сначала отдельно подтвердите согласие на публикацию официального протокола');return}
    setSavingProtocolConsent(true);setError('');
    try{
-     const saved=await apiPatch<any>('/auth/protocol-consent',{consent:true});
+     const saved=await apiPatch<any>('/auth/protocol-consent',{consent:true,version:protocolConsentState.version});
      setProtocolConsentState({...saved,legalReady:true});
      setProtocolConsentChecked(false);
      setFeedback('Отдельное согласие на ФИО и официальный результат подтверждено.');
