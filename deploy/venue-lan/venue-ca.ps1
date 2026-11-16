@@ -25,10 +25,10 @@ function Trust-VenueWindowsCertificate([string]$File){
  # never alter LocalMachine roots or export/import Caddy's signing key.
  $null=Verify-VenueCACertificate $File
  $raw=[IO.File]::ReadAllText($File)
- $encoded=([regex]::Match($raw,'-----BEGIN CERTIFICATE-----\\s+([A-Za-z0-9+/=\\r\\n]+)-----END CERTIFICATE-----')).Groups[1].Value
+ $encoded=([regex]::Match($raw,'-----BEGIN CERTIFICATE-----\s+([A-Za-z0-9+/=\r\n]+)-----END CERTIFICATE-----')).Groups[1].Value
  $certificate=[System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($encoded))
  try{$thumbprint=$certificate.Thumbprint}finally{$certificate.Dispose()}
- $store='Cert:\\CurrentUser\\Root\\'+$thumbprint
+ $store='Cert:\CurrentUser\Root\'+$thumbprint
  if(Get-Item -LiteralPath $store -ErrorAction SilentlyContinue){return}
  if($Silent){Write-Host 'USD CA: проверка доверия пропущена при фоновом запуске';return}
  if(-not(Get-Command Confirm-VenueAction -ErrorAction SilentlyContinue)){return}
