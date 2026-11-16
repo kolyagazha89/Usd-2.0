@@ -501,9 +501,22 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
         completedAt: new Date(),
       },
     });
+    const completedArchive = await db.historicalImportBatch.create({
+      data: {
+        sourceHash: randomUUID(),
+        status: 'COMPLETED',
+        plan: {},
+        progress: {},
+      },
+    });
     const preview = await service.preview('user', staff.id, request);
     expect(preview.counts.participants).toBe(0);
     await remove('user', staff.id);
+    expect(
+      (await db.historicalImportBatch.findUniqueOrThrow({
+        where: { id: completedArchive.id },
+      })).status,
+    ).toBe('COMPLETED');
     expect(await db.user.findUnique({ where: { id: staff.id } })).toBeNull();
     expect(
       (await db.auditLog.findUniqueOrThrow({ where: { id: receipt.id } }))
