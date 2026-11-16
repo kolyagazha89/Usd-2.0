@@ -10,7 +10,7 @@ import {usePhotoPlaceholders} from '../public/usePhotoPlaceholders';
 import {boxFromDescription,withoutBoxLine,validateBoxParameters,isBoxConfigured,formatBoxLine} from '../participant/box-parameters';
 import {allocateAmplifierLinks} from '../participant/amplifier-links';
 import {diffConfigurationVersions} from '../participant/configuration-diff';
-import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,findUnapprovedEquipmentRow,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
+import {availableCatalogModels,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../participant/component-catalog-rules';
 import {validateConfigurationQuantities} from '../participant/configuration-quantity';
 
 const typeName:Record<string,string>={SUBWOOFER:'Сабвуфер',MIDBASS:'Мидбас',MIDRANGE:'Среднечастотник',HORN:'Рупор',OTHER:'Другое'};
@@ -50,7 +50,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [activeView,setActiveView]=useState<'SUB'|'FRONT'|'REAR'|'POWER'|'BOX'|'NOTES'|'SETUP'|'REVIEW'>(isNew||admin?'SETUP':'SUB');
  const [actionsOpen,setActionsOpen]=useState(false);
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
- const [modelQuery,setModelQuery]=useState('');
+
  const pickerDialogRef=useRef<HTMLElement|null>(null);
  const pickerReturnFocusRef=useRef<HTMLElement|null>(null);
  const pickerActive=Boolean(picker&&!admin);
@@ -109,11 +109,11 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const viewIsReady=(key:string)=>key==='SUB'||key==='FRONT'||key==='REAR'?configuredIn(key as 'SUB'|'FRONT'|'REAR')>0:key==='POWER'?(v.batteries.length+v.generators.length)>0:key==='BOX'?isBoxConfigured(box):key==='NOTES'?Boolean(v.additionalDescription.trim()):Boolean(v.name.trim());
  const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR')=>{
   pickerReturnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
-  setModelQuery('');setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
+  setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
  };
  const addEquipmentForView=()=>{if(activeView==='SUB'||activeView==='FRONT'||activeView==='REAR')openPicker('audioComponents',activeView);else if(activeView==='POWER'){if(defaultBatteryCode)add('batteries',{brand:defaultBatteryCode,model:'100',quantity:1});else setError('Справочник аккумуляторов недоступен. Повторите попытку после загрузки каталога.');}else setActiveView('SUB');setActionsOpen(false)};
 
- const [requestOpen,setRequestOpen]=useState(false),[requestCategory,setRequestCategory]=useState('AUDIO_COMPONENT'),[requestBrand,setRequestBrand]=useState(''),[requestModel,setRequestModel]=useState(''),[requestDetails,setRequestDetails]=useState(''),[requestBusy,setRequestBusy]=useState(false),[requestNotice,setRequestNotice]=useState('');
+
  const [catalogs,setCatalogs]=useState<any>({vibrationBrands:[],componentBrands:[],componentModels:[],batteryTypes:[]});
  const [catalogStatus,setCatalogStatus]=useState<'loading'|'ready'|'error'>('loading'),[catalogReload,setCatalogReload]=useState(0);
  useEffect(()=>{let cancelled=false;setCatalogStatus('loading');
@@ -129,18 +129,20 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const defaultBatteryCode=batteryTypes[0]?.code??'';
  const activeModels=(kind:'audioComponents'|'amplifiers'|'headUnits',type?:string)=>availableCatalogModels(catalogs.componentModels,kind,type);
  const pickerBrands=picker?[...new Set<string>(activeModels(picker.kind,picker.type).map((x:any)=>String(x.brand)))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')):[];
- const pickerModels=picker?activeModels(picker.kind,picker.type).filter((x:any)=>x.brand===picker.brand&&String(x.model).toLowerCase().includes(modelQuery.trim().toLowerCase())):[];
- const savePicker=()=>{if(!picker)return;if(catalogStatus!=='ready'){setError('Сначала загрузите справочник моделей оборудования.');return}const approved=isApprovedCatalogModel(catalogs.componentModels,picker.kind,picker);
-   const entry=activeModels(picker.kind,picker.type).find((model:any)=>model.brand===picker.brand&&model.model===picker.model&&model.id);
-  if(!approved||!entry){setError('Выберите модель с ID из каталога USD. Если её нет, отправьте запрос администратору.');return}
+ const pickerModels=picker&&(picker.brand.trim()||picker.model.trim())?activeModels(picker.kind,picker.type).filter((x:any)=>(!picker.brand.trim()||String(x.brand).toLocaleLowerCase('ru').includes(picker.brand.trim().toLocaleLowerCase('ru')))&&(!picker.model.trim()||String(x.model).toLocaleLowerCase('ru').includes(picker.model.trim().toLocaleLowerCase('ru')))).slice(0,20):[];
+ const savePicker=()=>{
+  if(!picker)return;
+  const brand=picker.brand.trim(),model=picker.model.trim();
+  if(!brand||!model||brand.length>100||model.length>160){setError('Укажите марку и модель оборудования (до 100 и 160 символов).');return}
   if(!Number.isSafeInteger(picker.quantity)||picker.quantity<1||picker.quantity>99){setError('Укажите целое количество оборудования от 1 до 99.');return}
-  add(picker.kind,{catalogEntryId:String(entry.id),brand:picker.brand,model:picker.model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
+  const entry=activeModels(picker.kind,picker.type).find((item:any)=>item.id
+   &&String(item.brand).trim().toLocaleLowerCase('ru')===brand.toLocaleLowerCase('ru')
+   &&String(item.model).trim().toLocaleLowerCase('ru')===model.toLocaleLowerCase('ru'));
+  add(picker.kind,{catalogEntryId:entry?String(entry.id):null,brand,model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
   setPicker(null);setError('');
  };
  const brandOptions=(cat:string,current:string,type?:string)=>{const wanted=cat==='AUDIO_COMPONENT'&&type==='SUBWOOFER'?'SUBWOOFER':cat;const values=catalogs.componentBrands.filter((x:any)=>x.category===wanted&&x.isActive!==false).map((x:any)=>String(x.name));return [...new Set<string>(current&&!values.includes(current)?[current,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
  const modelOptions=(cat:string,currentBrand:string,currentModel:string,type?:string)=>{const wanted=cat==='AUDIO_COMPONENT'&&type==='SUBWOOFER'?'SUBWOOFER':cat;const values=catalogs.componentModels.filter((x:any)=>x.category===wanted&&x.brand===currentBrand&&x.isActive!==false).map((x:any)=>String(x.model));return [...new Set<string>(currentModel&&!values.includes(currentModel)?[currentModel,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
- const modelLabel=(cat:string,brand:string,model:string)=>{const item=catalogs.componentModels.find((x:any)=>(x.category===cat||(cat==='AUDIO_COMPONENT'&&x.category==='SUBWOOFER'))&&x.brand===brand&&String(x.model)===model);return item?.lifecycle==='DISCONTINUED'?`${model} · снята с производства`:model};
- const submitCatalogRequest=async()=>{setRequestBusy(true);setError('');setRequestNotice('');try{const result=await apiPost<any>('/component-catalog-requests',{category:requestCategory,brand:requestBrand.trim(),model:requestModel.trim(),details:requestDetails.trim()});setRequestNotice(result?.message??'Запрос отправлен администратору.');setRequestBrand('');setRequestModel('');setRequestDetails('');setRequestOpen(false)}catch(e){setError(e instanceof Error?e.message:'Не удалось отправить запрос')}finally{setRequestBusy(false)}};
  const directions=['FRONT','REAR','SUB'],types=['SUBWOOFER','MIDBASS','MIDRANGE','HORN','OTHER'];
  const directionName:Record<string,string>={FRONT:'Фронт',REAR:'Тыл',SUB:'Сабвуфер'};
 
@@ -158,19 +160,20 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const add=(key:string,item:any)=>setV((s:any)=>({...s,[key]:[...s[key],item]}));
 
  const validateCatalog=()=>{
-  if(catalogStatus!=='ready'){setError('Справочники оборудования не загружены. Проверьте соединение и повторите загрузку каталога.');return false}
-  for(const [key,category] of [['headUnits','HEAD_UNIT'],['audioComponents','AUDIO_COMPONENT'],['amplifiers','AMPLIFIER']] as const){
-   const invalid=findUnapprovedEquipmentRow(catalogs.componentModels,key,v[key],initial[key]);
+  for(const key of ['headUnits','audioComponents','amplifiers'] as const){
+   const invalid=findInvalidEquipmentNameRow(v[key]);
    if(invalid){
-    const brand=String(invalid.brand??'').trim(),model=String(invalid.model??'').trim();
-    setError('Модель «'+(model||'не указана')+'» не найдена в каталоге USD. Выберите существующую модель или запросите добавление.');
-    setRequestCategory(category);setRequestBrand(brand);setRequestModel(model);setRequestOpen(true);return false;
+    const where=String(invalid.direction??'SUB');
+    setActiveView(key==='headUnits'?'SETUP':where==='FRONT'||where==='REAR'?where:'SUB');
+    setError('Укажите марку (до 100 символов) и модель (до 160 символов) для каждой позиции оборудования.');
+    return false;
    }
   }
+  // Battery chemistry is a technical classification, not a model name.
   const invalidBattery=findUnapprovedBatteryRow(catalogs.batteryTypes,v.batteries,initial.batteries);
   if(invalidBattery){
    setActiveView('POWER');
-   setError('Тип аккумулятора «'+String(invalidBattery.brand??'не указан')+'» отсутствует в активном справочнике USD. Выберите доступный тип. Исторические аккумуляторы можно сохранить только без изменений.');
+   setError(catalogStatus==='ready'?'Тип аккумулятора не найден в активном справочнике USD. Выберите доступный тип.':'Не удалось проверить тип аккумулятора. Повторите загрузку справочника.');
    return false;
   }
   return true;
@@ -179,8 +182,8 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   const boxError=validateBoxParameters(box);if(boxError){setActiveView('BOX');setError(boxError);return}
   setSaving(true);try{
    const boxLine=formatBoxLine(box);
-   const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription},catalogs.componentModels);if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
- return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':admin?'Новая версия · '+configuration.name:selectedView.label}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':admin?'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.':selectedView.desc}</p></header>{catalogStatus==='error'&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>Справочники USD не загрузились. Сохранение временно недоступно, введённые данные остаются в форме.</span><button type="button" className="secondary-button compact" onClick={()=>setCatalogReload(n=>n+1)}>Повторить загрузку</button></div>}
+   const body=cleanConfig({...v,additionalDescription:boxLine+v.additionalDescription},catalogs.componentModels,initial);if(saveOverride)await saveOverride(body);else if(isNew)await apiPost('/cars/'+carId+'/configurations',body);else await apiPut('/configurations/'+configuration.id,body);await onSaved()}catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения конфигурации')}finally{setSaving(false)}};
+ return <div className="configuration-editor-page" data-member-view={admin?undefined:activeView}><header className="configuration-subpage-header"><button type="button" className="registration-back-link" onClick={onClose}><ChevronLeft size={16}/>{historicalFinal?'Вернуться в кабинет':'К конфигурациям автомобиля'}</button><span className="eyebrow">ГАРАЖ USD / КОНФИГУРАЦИИ</span><h1>{historicalFinal?'Ваша конфигурация на финале 2026':isNew?'Новая конфигурация':admin?'Новая версия · '+configuration.name:selectedView.label}</h1><p>{historicalFinal?'Укажите оборудование, с которым вы выступали 12 сентября 2026 в Волгограде. Сохраним отдельную версию с вашим подтверждением. Исходная запись останется в истории.':isNew?'Опишите оборудование и текущую сборку автомобиля.':admin?'Сохраните изменения отдельной версией — история предыдущей сборки останется доступной.':selectedView.desc}</p></header>{catalogStatus==='error'&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>Подсказки справочника временно недоступны. Названия можно вводить вручную. Для новых аккумуляторов нужен каталог типов.</span><button type="button" className="secondary-button compact" onClick={()=>setCatalogReload(n=>n+1)}>Повторить загрузку</button></div>}
   {!admin&&<section className="member-config-experience" aria-label="Конфигурация оборудования">
     <div className="member-config-vehicle">
       <div className="member-config-vehicle-info"><span className="eyebrow">МОЙ АВТОМОБИЛЬ</span><h2>{[car?.brand,car?.model].filter(Boolean).join(' ')||configuration.name||'Мой автомобиль'}</h2><p>{car?.registrationNumber||'Соревновательная конфигурация'}{car?.color?' · '+car.color:''}</p>
@@ -193,24 +196,24 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Заполнено':activeView==='SETUP'?'Укажите название':['SUB','FRONT','REAR'].includes(activeView)?'Не заполнено':'Необязательно'}</strong></div>
     {picker&&!admin&&<div className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
       <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
-       <div className="member-config-picker-title"><div><span className="eyebrow">КАТАЛОГ USD / {picker.direction}</span><h2>Добавить оборудование</h2><p>Выберите бренд и модель. Если нужной модели нет, запросите её добавление.</p></div><button aria-label="Закрыть выбор оборудования" type="button" onClick={()=>setPicker(null)}><X size={20}/></button></div>
+       <div className="member-config-picker-title"><div><span className="eyebrow">ОБОРУДОВАНИЕ / {picker.direction}</span><h2>Добавить оборудование</h2><p>Введите бренд и модель. Справочник подсказывает варианты, но своё название тоже можно сохранить.</p></div><button aria-label="Закрыть выбор оборудования" type="button" onClick={()=>setPicker(null)}><X size={20}/></button></div>
        <div className="member-config-picker-body"><div className="member-config-picker-fields">
-        <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPicker({...picker,kind,brand:'',model:''});setModelQuery('')}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
-        <label>Бренд<select value={picker.brand} disabled={catalogStatus!=='ready'} onChange={e=>{setPicker({...picker,brand:e.target.value,model:''});setModelQuery('')}}><option value="">Выберите бренд</option>{pickerBrands.map(name=><option key={name} value={name}>{name}</option>)}</select></label>
-        <label>Поиск модели<input value={modelQuery} type="search" placeholder="Название модели" onChange={e=>{setModelQuery(e.target.value);setPicker({...picker,model:''})}}/></label>
+        <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPicker({...picker,kind,brand:'',model:''})}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
+        <label>Бренд<input value={picker.brand} list="config-picker-brands" maxLength={100} autoComplete="off" placeholder="Введите бренд" onChange={e=>setPicker({...picker,brand:e.target.value})}/><datalist id="config-picker-brands">{pickerBrands.map(name=><option key={name} value={name}/>)}</datalist></label>
+        <label>Модель<input value={picker.model} type="search" maxLength={160} autoComplete="off" placeholder="Название модели" onChange={e=>setPicker({...picker,model:e.target.value})}/></label>
        </div>
        {catalogStatus==='loading'&&<p className="field-help" role="status">Загружаем справочник оборудования USD…</p>}
        {catalogStatus==='error'&&<div className="notice" role="alert">Не удалось загрузить справочник. Проверьте интернет и повторите попытку. <button type="button" className="secondary-button compact" onClick={()=>setCatalogReload(n=>n+1)}>Повторить загрузку</button></div>}
-       {catalogStatus==='ready'&&pickerBrands.length===0&&<p className="field-help">В этой категории пока нет опубликованных моделей. Отправьте запрос на добавление.</p>}
-       <div className="member-config-picker-list" aria-label="Модели из каталога">
-        {catalogStatus!=='ready'?<p>Выбор моделей будет доступен после загрузки справочника.</p>:!picker.brand?<p>Сначала выберите бренд.</p>:pickerModels.length?pickerModels.map((item:any)=><button className={picker.model===item.model?'selected':''} key={item.id??item.model} onClick={()=>setPicker({...picker,model:String(item.model)})} type="button"><Database size={23}/><span><strong>{item.brand} {item.model}</strong><small>{item.lifecycle==='DISCONTINUED'?'Снята с производства':'Модель каталога USD'}</small></span><CheckCircle2 size={18}/></button>):<p>Модели не найдены. Можно запросить добавление в каталог.</p>}
+       {catalogStatus==='ready'&&pickerBrands.length===0&&<p className="field-help">В этой категории пока нет моделей в справочнике. Введите своё название.</p>}
+       <div className="member-config-picker-list" aria-label="Подсказки моделей из справочника">
+        {catalogStatus!=='ready'?<p>Подсказки недоступны. Введите название самостоятельно.</p>:!picker.brand.trim()&&!picker.model.trim()?<p>Начните вводить бренд или модель.</p>:pickerModels.length?pickerModels.map((item:any)=><button className={picker.model===item.model&&picker.brand===item.brand?'selected':''} key={item.id??item.model} onClick={()=>setPicker({...picker,brand:String(item.brand),model:String(item.model)})} type="button"><Database size={23}/><span><strong>{item.brand} {item.model}</strong><small>{item.lifecycle==='DISCONTINUED'?'Снята с производства':'Подсказка справочника USD'}</small></span><CheckCircle2 size={18}/></button>):<p>Совпадений нет. Можно сохранить введённое название.</p>}
        </div>
-       <button type="button" className="member-config-picker-request" onClick={()=>{setRequestCategory(catalogCategoryForEquipment(picker.kind,picker.type));setRequestBrand(picker.brand);setRequestModel(modelQuery);setRequestOpen(true);setPicker(null)}}>Нет нужной модели? Отправить запрос <ChevronRight size={16}/></button></div>
-       <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={catalogStatus!=='ready'||!picker.model} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
+       </div>
+       <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.brand.trim()||!picker.model.trim()} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
       </section></div>}
     {actionsOpen&&<div className="member-config-actions-overlay" role="presentation" onClick={()=>setActionsOpen(false)}><section role="dialog" aria-modal="true" aria-label="Действия с конфигурацией" className="member-config-actions-sheet" onClick={e=>e.stopPropagation()}><div className="member-config-sheet-top"><h2>Действия</h2><button type="button" aria-label="Закрыть меню действий" onClick={()=>setActionsOpen(false)}><X size={20}/></button></div>
-      <button type="button" onClick={addEquipmentForView}><Plus size={20}/><span><strong>Добавить оборудование</strong><small>Выбрать модель из каталога USD</small></span><ChevronRight size={17}/></button>
-      <button type="button" onClick={()=>{setRequestOpen(true);setActionsOpen(false)}}><Database size={20}/><span><strong>Запросить модель в каталог</strong><small>Отправить заявку администратору USD</small></span><ChevronRight size={17}/></button>
+      <button type="button" onClick={addEquipmentForView}><Plus size={20}/><span><strong>Добавить оборудование</strong><small>Свободный ввод с подсказками из справочника</small></span><ChevronRight size={17}/></button>
+      
       <button type="button" onClick={()=>{setActiveView('SETUP');setActionsOpen(false)}}><Pencil size={20}/><span><strong>Изменить параметры</strong><small>Название конфигурации и виброизоляция</small></span><ChevronRight size={17}/></button>
       <button type="button" onClick={()=>{setActiveView('NOTES');setActionsOpen(false)}}><FileText size={20}/><span><strong>Описание системы</strong><small>Дополнительные сведения для судей</small></span><ChevronRight size={17}/></button>
       {!isNew&&!historicalFinal&&<div className="member-config-version-note"><Layers3 size={18}/><span>При сохранении автоматически создаётся новая версия. Предыдущая сборка останется в истории.</span></div>}
@@ -223,7 +226,6 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
   <div className="form config-editor">
    <div className="config-editor-intro"><div className="config-editor-icon"><Settings2 size={20}/></div><div><span className="eyebrow">{isNew?'НОВАЯ КОНФИГУРАЦИЯ':'НОВАЯ ВЕРСИЯ'}</span><strong>{historicalFinal?'Уточните сборку именно на день финала 2026':isNew?'Опишите текущую сборку автомобиля':'Сохраните изменения отдельной версией — история предыдущей сборки не потеряется.'}</strong></div></div>
    {!historicalFinal&&<div className="configuration-admission-guide"><strong>Что нужно заполнить для допуска к направлениям</strong><ul><li><b>SUB · Сабвуфер</b> — для всех классов направлений SPL, BassRace и Hurrican добавьте компонент типа «Сабвуфер» с направлением «Сабвуфер».</li><li><b>FRONT · Фронт</b> — для BFSPL добавьте хотя бы один аудиокомпонент с направлением «Фронт».</li><li><b>REAR · Тыл</b> — для BDW добавьте хотя бы один аудиокомпонент с направлением «Тыл».</li></ul><small>При регистрации система проверит конфигурацию автоматически. Изменения сохраняются отдельной версией, прошлые выступления не переписываются.</small></div>}
-   <div className="catalog-request-inline"><button type="button" className="secondary-button compact" onClick={()=>setRequestOpen(x=>!x)}><Plus size={14}/>{requestOpen?'Скрыть форму запроса':'Не нашли комплектующее? Запросить добавление'}</button>{requestNotice&&<div className="notice">{requestNotice}</div>}{requestOpen&&<div className="catalog-request-form" role="dialog" aria-modal={!admin} aria-label="Запрос новой модели в каталог"><strong>Запрос нового комплектующего</strong><p className="field-help">Укажите точную модель. Администратор получит письмо и рассмотрит заявку; после добавления мы пришлём вам уведомление.</p><div className="config-basic-grid"><label>Категория<select value={requestCategory} onChange={e=>setRequestCategory(e.target.value)}><option value="HEAD_UNIT">Головное устройство</option><option value="AUDIO_COMPONENT">Акустика и динамики</option><option value="AMPLIFIER">Усилитель</option><option value="SUBWOOFER">Сабвуфер</option><option value="DSP">Процессор / DSP</option></select></label><label>Бренд<input value={requestBrand} onChange={e=>setRequestBrand(e.target.value)} maxLength={100} placeholder="Например, Deaf Bonce" required/></label><label>Модель<input value={requestModel} onChange={e=>setRequestModel(e.target.value)} maxLength={160} placeholder="Точное название модели" required/></label></div><label>Комментарий (необязательно)<textarea rows={2} value={requestDetails} onChange={e=>setRequestDetails(e.target.value)} maxLength={1000} placeholder="Год выпуска, характеристики, ссылка на производителя…"/></label><div className="page-actions"><button type="button" className="primary-button compact" disabled={requestBusy||!requestBrand.trim()||!requestModel.trim()} onClick={()=>void submitCatalogRequest()}>{requestBusy?'Отправляем…':'Отправить запрос'}</button><button type="button" className="secondary-button compact" onClick={()=>setRequestOpen(false)}>Отмена</button></div></div>}</div>
    <div className="config-basic-grid" hidden={admin&&activeView!=='SETUP'}><label>Название конфигурации<input readOnly={historicalFinal} value={v.name} onChange={e=>setV({...v,name:e.target.value})} placeholder="Например: Сезон 2026 · Stage 2" required/></label><label>Виброизоляция<select value={v.vibrationIsolation} onChange={e=>setV({...v,vibrationIsolation:e.target.value})}><option value="">Не указана</option>{[...new Set<string>([...(catalogs.vibrationBrands??[]),...(v.vibrationIsolation&&!catalogs.vibrationBrands.includes(v.vibrationIsolation)?[v.vibrationIsolation]:[])])].map((x:string)=><option key={x} value={x}>{x}</option>)}</select><small className="field-help">Выберите марку из справочника «Виброизоляция».</small></label></div>
    <div className="member-config-description" hidden={admin&&activeView!=='NOTES'}><label>Описание<textarea rows={5} value={v.additionalDescription} onChange={e=>setV({...v,additionalDescription:e.target.value})} placeholder="Опишите питание, короб, установку, настройку и особенности системы для судей…"/></label>{!admin&&<p className="member-config-notes-hint">Например: тип и объём короба, настройка в Гц, схема питания и проводки. Это описание сохраняется в версии конфигурации.</p>}</div>
    <div className="member-config-box" hidden={admin&&activeView!=='BOX'}><div className="member-config-box-intro"><span className="eyebrow">БАСОВАЯ СИСТЕМА / КОРОБ</span><h3>Параметры короба</h3><p>Необязательно, если короб отсутствует. Для сохранения укажите полный набор параметров.</p></div><div className="member-config-box-fields"><label>Тип короба<select value={box.type} onChange={e=>setBox(x=>({...x,type:e.target.value}))}><option value="ФИ">Фазоинвертор (ФИ)</option><option value="ЗЯ">Закрытый ящик (ЗЯ)</option><option value="ЧВ">Четвертьволновик (ЧВ)</option><option value="БП">Бандпасс (БП)</option><option value="Другое">Другое</option></select></label><label>Объём, л<input type="text" inputMode="decimal" autoComplete="off" value={box.volume} onChange={e=>setBox(x=>({...x,volume:e.target.value}))} placeholder="Например, 180"/></label><label>Настройка, Гц<input type="text" inputMode="decimal" autoComplete="off" value={box.tuning} onChange={e=>setBox(x=>({...x,tuning:e.target.value}))} placeholder="Например, 32"/></label></div></div>
@@ -257,7 +259,7 @@ function ConfigDirectionListEditor({title,subtitle,icon:Icon,items,direction,onA
  return <section className="config-section config-direction-section" data-direction={direction}><div className="config-section-head"><div className="config-section-title"><span className="config-section-icon"><Icon size={16}/></span><div><strong>{title}</strong><small>{rows.length?rows.length+' поз.':'Пока пусто'} · {subtitle}</small></div></div><button type="button" className="secondary-button compact" onClick={onAdd}><Plus size={13}/>Добавить</button></div>{rows.map(({item,index})=><EquipmentRow key={item.id??index} member={member} item={item} index={index} Icon={Icon} onRemove={()=>onRemove(index)}>{children(item,index)}</EquipmentRow>)}{!rows.length&&<div className="config-section-empty">В этом направлении пока нет оборудования. Нажмите «Добавить», чтобы внести первую позицию.</div>}</section>
 }
 
-function cleanConfig(v:any,catalogModels:any[]=[]){
+function cleanConfig(v:any,catalogModels:any[]=[],initialRows:any={}){
  const audioComponents=(v.audioComponents??[]).map((component:any)=>({...component,quantity:Number(component.quantity)}));
  const amplifierLinks=allocateAmplifierLinks(audioComponents,v.amplifiers??[]);
  // Head-unit DTO does not accept quantity; the UI can retain it locally,
@@ -275,16 +277,13 @@ function cleanConfig(v:any,catalogModels:any[]=[]){
    componentLinks:amplifierLinks[index]
   }))
  };
- // Resolve stable IDs against the current published catalog. Never trust a stale
- // ID left on an edited row, and never synthesize IDs for unknown models.
+ // Suggestions are optional: only a real match gets an ID. Edited manual
+ // equipment must never retain a stale model reference.
  for(const kind of ['headUnits','audioComponents','amplifiers'] as const){
-  normalized[kind]=(normalized[kind]??[]).map((row:any)=>{
-   const category=catalogCategoryForEquipment(kind,row.type);
-   const entry=catalogModels.find((item:any)=>item?.id&&item.isActive!==false&&item.category===category
-    &&String(item.brand??'').trim().toLocaleLowerCase('ru')===String(row.brand??'').trim().toLocaleLowerCase('ru')
-    &&String(item.model??'').trim().toLocaleLowerCase('ru')===String(row.model??'').trim().toLocaleLowerCase('ru'));
-   return {...row,catalogEntryId:entry?String(entry.id):row.catalogEntryId};
-  });
+  normalized[kind]=(normalized[kind]??[]).map((row:any)=>({
+   ...row,brand:String(row.brand??'').trim(),model:String(row.model??'').trim(),
+   catalogEntryId:resolveEquipmentCatalogId(catalogModels,kind,row,initialRows[kind])
+  }));
  }
  const strip=(x:any):any=>{
   if(Array.isArray(x))return x.map(strip);
