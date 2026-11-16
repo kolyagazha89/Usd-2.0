@@ -136,7 +136,6 @@ class VenuePreflightTests(unittest.TestCase):
         variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "0.0.0.0:80:80/tcp"'))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:80:80/tcp"','      - "${VENUE_BIND_IP}:8080:80/tcp"'))
         variants.append(source.replace('      - "${VENUE_BIND_IP}:443:443/tcp"','      - "${VENUE_BIND_IP}:443:443/tcp"\n      - "0.0.0.0:8080:80"'))
-        variants.append(source.replace('      - "USD_UNUSED_PORT"', '      - "0.0.0.0:9999:80"')) if False else None
         variants.append(source.replace(
             '  tv:\n', '  tv:\n    ports:\n      - "0.0.0.0:8080:80"\n', 1))
         variants.append(source.replace(
