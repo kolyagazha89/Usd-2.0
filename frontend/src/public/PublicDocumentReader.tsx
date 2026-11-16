@@ -6,7 +6,7 @@ import {EmptyState,Link} from './PremiumUI';
 import {LEGAL_DOCUMENT_LABELS} from './public-document-links';
 
 type Run = {text:string;bold?:boolean;italic?:boolean;href?:string};
-type Block =
+export type Block =
   | {type:'heading';level?:number;text?:string;runs?:Run[]}
   | {type:'paragraph';text?:string;runs?:Run[]}
   | {type:'list-item';ordered?:boolean;level?:number;text?:string;runs?:Run[]}
@@ -25,7 +25,7 @@ function formatRuns(runs:Run[]|undefined,text:string,key:string):ReactNode {
     return <span key={key+'-'+index}>{result}</span>;
   });
 }
-function DocumentBlocks({blocks}:{blocks:Block[]}){
+export function DocumentBlocks({blocks}:{blocks:Block[]}){
   const markers=rulesListMarkers(blocks);
   return <div className="public-rules-rich-document">{blocks.map((block,index)=>{
     if(block.type==='table')return <div className="public-rules-table-wrap" key={index} style={{overflowX:'auto'}}>
