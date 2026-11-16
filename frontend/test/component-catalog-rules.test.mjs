@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
+import {availableCatalogModels,suggestCatalogBrands,suggestCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
 
 const models=[
  {id:'sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15',isActive:true},
@@ -123,9 +123,56 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
  assert.doesNotMatch(editor,/DEFAULT_VIBRATION_BRANDS|\['STP','ComfortMat','Audior','Global'\]/,'editable vibration brand choices must not be hardcoded in React');
  assert.match(editor,/vibrationBrands:Array\.isArray\(c\.vibrationBrands\)\?c\.vibrationBrands:\[\]/);
- assert.match(editor,/value=\{picker.brand\} list=/);
+ assert.match(editor,/value=\{picker.brand\} type="search"/);
  assert.match(editor,/value=\{picker.model\} type="search"/);
  assert.match(editor,/disabled=\{!picker.brand.trim\(\)\|\|!picker.model.trim\(\)\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
- assert.ok(qa.includes('datalist option[value="Alphard"]'),'browser QA waits for optional catalog suggestions');
+ assert.ok(qa.includes("getByRole('searchbox',{name:'Бренд'})"),'browser QA interacts with the brand field');
+});
+
+test('brand autocomplete precedes model search and deduplicates matching brands',()=>{
+ const catalog=[
+  ...models,
+  {id:'second-sub',category:'SUBWOOFER',brand:'  Deaf Bonce ',model:'Another 15',isActive:true},
+  {id:'unrelated',category:'SUBWOOFER',brand:'Pride',model:'One',isActive:true},
+ ];
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER','Dea'),['Deaf Bonce']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','MIDBASS','dea'),['Deaf Bonce']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER','Pri'),['Pride']);
+ assert.deepEqual(suggestCatalogBrands(catalog,'audioComponents','SUBWOOFER',''),[]);
+ assert.deepEqual(suggestCatalogBrands(catalog,'amplifiers',undefined,'Pride'),['Pride']);
+});
+
+test('model suggestions require the exact chosen brand; free-text remains possible',()=>{
+ const catalog=[
+  ...models,
+  {id:'second-sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Machete 15',isActive:true},
+  {id:'other-brand',category:'SUBWOOFER',brand:'Deaf Audio',model:'Machete 10',isActive:true},
+ ];
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Dea',''),[],
+  'typing a partial brand must never dump model cards');
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','DEAF BONCE','machete').map(x=>x.id),['second-sub']);
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Deaf Bonce','').map(x=>x.id),['sub','second-sub']);
+ assert.deepEqual(suggestCatalogModels(catalog,'audioComponents','SUBWOOFER','Unlisted Brand',''),[],
+  'unknown brands are allowed without generating fake catalog entries');
+});
+
+test('on mobile equipment editing stays in native page flow without a modal or keyboard viewport hacks',async()=>{
+ const [editor,css]=await Promise.all([
+  readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/public/premium-configurator.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(editor,/matchMedia\('\(max-width:600px\)'\)/);
+ assert.match(editor,/role=\{mobilePicker\?'region':'dialog'\}/);
+ assert.match(editor,/aria-modal=\{mobilePicker\?undefined:true\}/);
+ assert.match(editor,/if\(!pickerActive\|\|mobilePicker\)return/,'mobile inline editor never traps focus or marks surrounding content inert');
+ assert.doesNotMatch(editor,/visualViewport\.addEventListener/,'native page scrolling must not depend on keyboard viewport resize events');
+ assert.match(css,/@media\(max-width:600px\)\{[\s\S]*?member-config-picker-overlay\{[^}]*position:static!important/);
+ assert.match(css,/member-config-picker-body\{[^}]*overflow:visible!important/);
+ assert.match(css,/member-config-picker-screen\{[^}]*overflow:visible!important/);
+ assert.match(css,/member-config-picker-list\{[^}]*overflow:visible!important/);
+ assert.match(editor,/aria-label="Действия с конфигурацией"/);
+ assert.match(editor,/ref=\{actionsInlineRef\}/);
+ assert.match(css,/member-config-actions-overlay\{[^}]*position:static!important/);
+ assert.match(css,/member-config-actions-sheet\{[^}]*overflow:visible!important/);
 });
