@@ -16,12 +16,13 @@ describe('Historical public results cannot bypass participant publication permis
   });
   beforeEach(()=>jest.clearAllMocks());
 
-  it('redacts historic names, alias, city, team and pictures without independent permission',async()=>{
+  it('keeps archived protocol names but hides unrelated fields without independent permission',async()=>{
     prisma.result.findFirst.mockResolvedValue(fixture());
     const score:any=await service.findPublicOne('archived-score');
     expect(score.value).toBe(149.5);
-    expect(score.registration.participant.lastName).toBe('Участник скрыт');
-    expect(score.registration.participant.historicalAlias).toBeNull();
+    expect(score.registration.participant.lastName).toBe('Иванов');
+    expect(score.registration.participant.firstName).toBe('Иван');
+    expect(score.registration.participant.historicalAlias).toBe('Иванов Иван');
     expect(score.registration.participant.city).toBeNull();
     expect(score.registration.participant.team).toBeNull();
     expect(score.registration.participant.photoUrl).toBeNull();
