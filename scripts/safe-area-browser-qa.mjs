@@ -30,7 +30,7 @@ try{
    await page.setContent('<div class="'+(member?'participant-portal usd-member':'usd usd-live')+'">'+
     (member?'<header class="participant-portal-header usd-member-header"><button class="public-brand"><span class="participant-brand-logo">USD</span><span>Личный кабинет</span></button><div class="participant-header-actions">'+controls+'</div></header>':
      '<header class="u-header p-public-header"><div class="u-container u-header-inner"><button class="u-brand">USD</button><nav class="public-nav"><button class="public-nav-toggle">Меню</button></nav></div></header>')+
-    '<main id="public-content" class="'+(member?'participant-portal-main':'u-container p-inner-page')+'" style="min-height:2400px"><h1>Проверка шапки</h1></main></div>'+
+    '<main id="public-content" class="'+(member?'participant-portal-main':'u-container p-inner-page')+'" style="min-height:2400px"><h1>Проверка шапки</h1>'+(member?'<label>Бренд <input id="usd-keyboard-probe" type="search" placeholder="Бренд"></label>':'')+'</main></div>'+
     (member?'<div class="participant-dock-viewport">':'')+'<nav class="'+(member?'participant-tabs participant-tabs-with-team':'u-mobile-dock')+'" aria-label="Навигация"><a href="#">Обзор</a><a href="#">Профиль</a><a href="#">Автомобили</a><a href="#">Регистрации</a><a href="#">Команда</a></nav>'+(member?'</div>':'')+'<div class="usd-scroll-progress" style="transform:scaleX(1)"></div>');
    await page.addStyleTag({content:css});
    await page.addScriptTag({content:observer.code});
@@ -58,6 +58,28 @@ try{
      await page.evaluate(()=>scrollTo(0,400));
      assert.equal(await page.locator(header).evaluate(e=>e.getBoundingClientRect().top),0,'header stays fixed while scrolling');
      assert.equal(await page.locator('.usd-scroll-progress').evaluate(e=>e.getBoundingClientRect().top),top,'progress stays in its safe area while scrolling');
+     if(member){
+      const h=await page.locator(header).evaluate(e=>e.getBoundingClientRect().height);
+      await page.locator('#usd-keyboard-probe').focus();
+      await page.evaluate(()=>scrollTo(0,1000));
+      const keyboard=await page.evaluate(()=>({
+       header:getComputedStyle(document.querySelector('.participant-portal-header')).visibility,
+       dock:getComputedStyle(document.querySelector('.participant-dock-viewport .participant-tabs')).visibility,
+       progress:getComputedStyle(document.querySelector('.usd-scroll-progress')).visibility,
+       headerHeight:document.querySelector('.participant-portal-header').getBoundingClientRect().height,
+       viewportPadding:parseFloat(getComputedStyle(document.querySelector('.participant-portal.usd-member')).paddingTop),
+      }));
+      assert.equal(keyboard.header,'hidden','focused iPhone input must hide fixed header while typing');
+      assert.equal(keyboard.dock,'hidden','focused iPhone input must hide floating bottom navigation');
+      assert.equal(keyboard.progress,'hidden','scroll-progress decoration cannot float above keyboard');
+      assert.equal(keyboard.headerHeight,h,'header size remains reserved and must not shift page layout');
+      assert.ok(keyboard.viewportPadding>=h-1,'hidden header must preserve reserved safe-area space');
+      await page.locator('#usd-keyboard-probe').blur();
+      assert.equal(await page.locator(header).evaluate(e=>getComputedStyle(e).visibility),'visible',
+       'closing keyboard restores header with no layout jump');
+      assert.equal(await page.locator('.participant-dock-viewport .participant-tabs').evaluate(e=>getComputedStyle(e).visibility),'visible',
+       'closing keyboard restores navigation');
+     }
     }
     row.status='passed';
    }catch(error){row.status='failed';row.error=error.message;report.failures.push({surface,width,top,error:error.message})}
