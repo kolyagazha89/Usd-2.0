@@ -123,11 +123,11 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
  assert.doesNotMatch(editor,/DEFAULT_VIBRATION_BRANDS|\['STP','ComfortMat','Audior','Global'\]/,'editable vibration brand choices must not be hardcoded in React');
  assert.match(editor,/vibrationBrands:Array\.isArray\(c\.vibrationBrands\)\?c\.vibrationBrands:\[\]/);
- assert.match(editor,/value=\{picker.brand\} list=/);
+ assert.match(editor,/value=\{picker.brand\} type="search"/);
  assert.match(editor,/value=\{picker.model\} type="search"/);
  assert.match(editor,/disabled=\{!picker.brand.trim\(\)\|\|!picker.model.trim\(\)\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
- assert.ok(qa.includes('datalist option[value="Alphard"]'),'browser QA waits for optional catalog suggestions');
+ assert.ok(qa.includes("getByRole('searchbox',{name:'Бренд'})"),'browser QA interacts with the brand field');
 });
 
 test('brand autocomplete precedes model search and deduplicates matching brands',()=>{
