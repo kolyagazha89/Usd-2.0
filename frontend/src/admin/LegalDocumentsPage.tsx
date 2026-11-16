@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,CheckCircle2,FileText,Loader2,UploadCloud} from 'lucide-react';
-import {getSiteSettings,updateSiteSettings,uploadRulesDocx} from '../api';
+import {apiPost,getSiteSettings,updateSiteSettings,uploadRulesDocx} from '../api';
+import {DocumentBlocks,type Block} from '../public/PublicDocumentReader';
 
 const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const documents=[
@@ -19,10 +20,19 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
  const[settings,setSettings]=useState<any>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState<string|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[pendingRemoval,setPendingRemoval]=useState<DocKey|null>(null);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings)}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить юридические документы')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
+ const showPreview=async(key:DocKey,targetId:string)=>{
+  setPreviewBusy(key);setError('');setPreview(null);
+  try{
+   const result=await apiPost<{success:boolean;blocks:Block[]}>('/site-settings/rules/preview',{targetId});
+   if(!result.blocks?.length)throw new Error('В документе нет текста для предпросмотра');
+   setPreview({key,blocks:result.blocks});
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать Word-файл')}
+  finally{setPreviewBusy(null)}
+ };
  const legal=settings?.legal??{},stored=(legal.documents??{}) as Partial<Record<DocKey,StoredDoc>>;
  const upload=async(key:DocKey,file?:File)=>{if(!file)return;setError('');setNotice('');if(!file.name.toLowerCase().endsWith('.docx')||(file.type&&file.type!==DOCX)){setError('Выбери документ Microsoft Word в формате .docx');return}if(file.size<=0||file.size>10*1024*1024){setError('Размер файла должен быть от 1 байта до 10 МБ');return}
- setBusy(key);try{const targetId='legal-document-'+key+'-'+newId();const result=await uploadRulesDocx(targetId,file);const nextLegal={...legal,documents:{...stored,[key]:{targetId,fileName:file.name,url:result.url,uploadedAt:new Date().toISOString()}}};const saved=await updateSiteSettings({legal:nextLegal});setSettings((s:any)=>({...s,...saved.settings}));setNotice('Файл загружен. Изменение сбросило юридическое утверждение — после проверки всех документов утверди их в «Настройки сайта → Юридическая информация».')}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить документ')}finally{setBusy(null)}};
- const remove=async(key:DocKey)=>{setPendingRemoval(null);setBusy(key);setError('');setNotice('');try{const next={...stored};delete next[key];const saved=await updateSiteSettings({legal:{...legal,documents:next}});setSettings((s:any)=>({...s,...saved.settings}));setNotice('Ссылка на документ убрана. Юридические документы нужно проверить и утвердить заново.')}catch(e){setError(e instanceof Error?e.message:'Не удалось убрать документ')}finally{setBusy(null)}};
+ setBusy(key);try{const targetId='legal-document-'+key+'-'+newId();const result=await uploadRulesDocx(targetId,file);const nextLegal={...legal,documents:{...stored,[key]:{targetId,fileName:file.name,url:result.url,uploadedAt:new Date().toISOString()}}};const saved=await updateSiteSettings({legal:nextLegal});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Файл загружен. Изменение сбросило юридическое утверждение — после проверки всех документов утверди их в «Настройки сайта → Юридическая информация».')}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить документ')}finally{setBusy(null)}};
+ const remove=async(key:DocKey)=>{setPendingRemoval(null);setBusy(key);setError('');setNotice('');try{const next={...stored};delete next[key];const saved=await updateSiteSettings({legal:{...legal,documents:next}});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Ссылка на документ убрана. Юридические документы нужно проверить и утвердить заново.')}catch(e){setError(e instanceof Error?e.message:'Не удалось убрать документ')}finally{setBusy(null)}};
  const saveTexts=async()=>{setSaving(true);setError('');setNotice('');try{const saved=await updateSiteSettings({legal});setSettings((s:any)=>({...s,...saved.settings}));setNotice('Юридические тексты сохранены. Если содержимое менялось, утверждение сброшено.')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить тексты')}finally{setSaving(false)}};
  if(loading)return <PageFrame title="Юридические документы" subtitle="Публикация документов Word и текстов для посетителей"><LoadingPage/></PageFrame>;
  if(!settings)return <PageFrame title="Юридические документы" subtitle="Публикация документов Word и текстов для посетителей"><ErrorPanel message={error||'Настройки недоступны'} retry={load}/></PageFrame>;
@@ -30,15 +40,29 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
   <div className="settings-section">
    <PanelTitle title="Статус публикации" icon={FileText}/>
    <div className={legal.legalApproved===true?'rules-admin-notice':'form-error'}>{legal.legalApproved===true?<><CheckCircle2 size={17}/>Юридические документы утверждены, версия {legal.legalVersion??'—'}. Любое изменение текста или списка файлов должно сбросить утверждение.</>:<><AlertTriangle size={17}/>Документы пока не утверждены. На публичных страницах останется предупреждение, регистрация не должна включаться.</>}</div>
-   <p className="settings-help">DOCX-файлы хранятся в медиахранилище. После загрузки открой ссылку и проверь файл. Текстовые версии, которые показываются на страницах /privacy, /consent и /terms, редактируются ниже. Загрузка Word сама по себе не означает юридического утверждения.</p>
+   <p className="settings-help">DOCX-файлы хранятся в медиахранилище. После загрузки нажми «Просмотреть текст»: предпросмотр доступен и до утверждения. Текстовые версии, которые показываются на страницах /privacy, /consent и /terms, редактируются ниже. Загрузка Word сама по себе не означает юридического утверждения.</p>
   </div>
   <div className="settings-section">
    <PanelTitle title="Файлы Word" icon={UploadCloud}/>
    <div className="settings-form-grid">{documents.map(doc=>{const current=stored[doc.key];return <div key={doc.key} className="settings-field-card" style={{padding:16,border:'1px solid var(--border,#303036)',borderRadius:12,minWidth:0}}>
     <strong>{doc.title}</strong><p className="settings-help">{doc.description}</p>
-    {current?<div style={{display:'grid',gap:6,marginBottom:12}}><a href={current.url} target="_blank" rel="noreferrer">{current.fileName||doc.filename} ↗</a><small>Загружен: {current.uploadedAt?new Date(current.uploadedAt).toLocaleString('ru-RU'):'дата не указана'}</small></div>:<p className="settings-help">Файл ещё не загружен.</p>}
+    {current?<div style={{display:'grid',gap:6,marginBottom:12}}>
+     <strong>{current.fileName||doc.filename}</strong>
+     <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+      <button type="button" className="secondary-button compact" disabled={Boolean(previewBusy)||Boolean(busy)} onClick={()=>void showPreview(doc.key,current.targetId)}>{previewBusy===doc.key?'Загружаем…':'Просмотреть текст'}</button>
+      {legal.legalApproved===true&&<a className="secondary-button compact" href={current.url}>Скачать DOCX ↓</a>}
+     </div>
+     <small>Загружен: {current.uploadedAt?new Date(current.uploadedAt).toLocaleString('ru-RU'):'дата не указана'}</small>
+    </div>:<p className="settings-help">Файл ещё не загружен.</p>}
     <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><label className="primary-button compact" style={{cursor:busy?'wait':'pointer',opacity:busy?0.65:1}}>{busy===doc.key?<><Loader2 size={14} className="spin"/>Загружаем…</>:<><UploadCloud size={14}/>{current?'Заменить DOCX':'Загрузить DOCX'}</>}<input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={Boolean(busy)} onChange={e=>{void upload(doc.key,e.target.files?.[0]);e.currentTarget.value=''}}/></label>{current&&(pendingRemoval===doc.key?<span className="inline-confirm-actions"><span>Убрать ссылку? Файл сохранится в хранилище.</span><button className="danger-button compact" type="button" disabled={Boolean(busy)} onClick={()=>void remove(doc.key)}>Подтвердить</button><button className="secondary-button compact" type="button" onClick={()=>setPendingRemoval(null)}>Отмена</button></span>:<button className="secondary-button" type="button" disabled={Boolean(busy)} onClick={()=>setPendingRemoval(doc.key)}>Убрать ссылку</button>)}</div>
    </div>})}</div>
+   {preview&&<section className="settings-field-card" aria-label="Предпросмотр документа Word" style={{padding:20,marginTop:18,maxHeight:650,overflow:'auto'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:12}}>
+     <h3>Предпросмотр: {documents.find(doc=>doc.key===preview.key)?.title}</h3>
+     <button type="button" className="secondary-button compact" onClick={()=>setPreview(null)}>Закрыть</button>
+    </div>
+    <DocumentBlocks blocks={preview.blocks}/>
+   </section>}
   </div>
   <div className="settings-section">
    <PanelTitle title="Тексты публичных страниц" icon={FileText}/>
