@@ -597,6 +597,8 @@ function Start-Local {
  }
  Set-VenueStep 'export-caddy-public-ca'
  Export-VenueCA
+ Set-VenueStep 'trust-local-windows-ca'
+ Trust-VenueWindowsCertificate (Join-Path $PrivateDir 'USD-Venue-CA.crt')
  Save-Autostart
  Save-DesktopShortcuts
  if(-not $Silent -and -not $NoUi){
