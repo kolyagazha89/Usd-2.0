@@ -26,33 +26,40 @@ export class RecordsService {
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
+    // Official result/protocol identity is separate from an optional public profile.
+    // The endpoint still requires the stage and results to be officially published.
+    // Never expose city, team, personal photos or car details without their scope.
     const permissions=participant?.publicationConsent;
-    const showIdentity=Boolean(participant?.isPublic && permissions?.fullName && permissions?.results);
-    const hideCar=Boolean(car && (car.isPublic!==true || car.isActive===false || !showIdentity || !permissions?.car));
-    const hideParticipant=Boolean(participant && !showIdentity);
-    if (!hideCar && !hideParticipant && !permissions) return record;
+    const publicProfile=participant?.isPublic===true;
+    const showCar=Boolean(car && publicProfile && permissions?.car && car.isPublic===true && car.isActive!==false);
+    if (!participant && !car) return record;
     return {
       ...record,
       result: {
         ...record.result,
-        registration: {
+        registration:{
           ...record.result?.registration,
-          ...(hideCar ? {
-            car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
-          } : {}),
-          participant: {
+          ...(car?{car:{
+            ...car,
+            brand:showCar?car.brand:'Автомобиль скрыт',
+            model:showCar?car.model:'',
+            color:showCar?car.color:null,
+            photoUrl:showCar && permissions?.carPhoto?car.photoUrl:null,
+          }}:{}),
+          ...(participant?{participant:{
             ...participant,
-            publicationConsent: undefined,
-            lastName:hideParticipant?'Участник скрыт':participant?.lastName,
-            firstName:hideParticipant?'':participant?.firstName,
-            middleName:hideParticipant?null:participant?.middleName,
-            team:showIdentity && permissions?.team?participant?.team:null,
-            city:showIdentity && permissions?.city?participant?.city:null,
-            photoUrl:showIdentity && permissions?.profilePhoto?participant?.photoUrl:null,
-          },
+            publicationConsent:undefined,
+            // Name is intrinsic to the officially published sporting result.
+            lastName:participant.lastName,
+            firstName:participant.firstName,
+            middleName:participant.middleName,
+            team:publicProfile && permissions?.team?participant.team:null,
+            city:publicProfile && permissions?.city?participant.city:null,
+            photoUrl:publicProfile && permissions?.profilePhoto?participant.photoUrl:null,
+          }}:{}),
         },
       },
-    } as T;
+      } as T;
   }
 
   private isRecordClassExcluded(classItem: any): boolean {
