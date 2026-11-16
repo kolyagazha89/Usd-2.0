@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
-
 :root{
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   color:#111214;background:#f2f3f4;font-synthesis:none;text-rendering:optimizeLegibility;
   --black:#090a0b;--black-2:#111214;--graphite:#1b1d20;--red:#e21d2f;--red-dark:#b91425;
   --red-soft:#fff0f2;--green:#16833b;--green-soft:#eaf7ef;--amber:#9a6500;--amber-soft:#fff5d9;
