@@ -22,6 +22,17 @@ describe('separate official result consent in participant account',()=>{
   db.user.update.mockResolvedValue({id:'u1'});
   db.auditLog.create.mockResolvedValue({});
  });
+ it('alerts a minor that a representative must provide agreement at the venue',async()=>{
+  db.user.findUnique.mockResolvedValue({
+   id:'u1',participantId:'p1',participant:{birthDate:new Date('2010-01-01T00:00:00.000Z')},
+   protocolConsentAt:null,protocolConsentVersion:null,protocolConsentRevokedAt:null,
+  });
+  const state:any=await service.getProtocolConsent('u1');
+  expect(state).toMatchObject({accepted:false,requiresRepresentative:true});
+  await expect(service.updateProtocolConsent('u1',true,'1@legal-document-officialProtocolConsent-test1'))
+    .rejects.toThrow('несовершеннолетнего');
+  expect(db.user.update).not.toHaveBeenCalled();
+ });
  it('does not infer protocol consent from generic legal approval',async()=>{
   const state:any=await service.getProtocolConsent('u1');
   expect(state).toMatchObject({version:'1@legal-document-officialProtocolConsent-test1',accepted:false});
