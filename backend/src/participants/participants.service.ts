@@ -242,6 +242,7 @@ export class ParticipantsService {
         publicationConsent: true,
         publicationConsentAt: true,
         publicationConsentVersion: true,
+          publicationRestrictions: true,
 
         cars: {
           where: {
@@ -272,7 +273,8 @@ export class ParticipantsService {
     ]);
     return rows.filter(row => mayPublish(row, 'identity', version)).map(row => {
       const { publicationConsent: _c, publicationConsentAt: _at,
-        publicationConsentVersion: _v, isPublic: _public, ...person } = row;
+        publicationConsentVersion: _v, publicationRestrictions: _restrictions,
+        isPublic: _public, ...person } = row;
       return {
         ...person,
         city: mayPublish(row, 'city', version) ? row.city : null,
@@ -312,6 +314,7 @@ export class ParticipantsService {
           publicationConsent: true,
           publicationConsentAt: true,
           publicationConsentVersion: true,
+          publicationRestrictions: true,
           mergeAsSource: { select: { targetId: true } },
 
           cars: {
@@ -537,7 +540,7 @@ export class ParticipantsService {
 
     const { mergeAsSource: _mergedAlias, publicationConsent: _c,
       publicationConsentAt: _at, publicationConsentVersion: _v,
-      ...publicParticipant } = participant!;
+      publicationRestrictions: _restrictions, ...publicParticipant } = participant!;
     const showCars = mayPublish(participant, 'car', version);
     const showCarPhotos = mayPublish(participant, 'carPhoto', version);
     return {
@@ -858,7 +861,7 @@ export class ParticipantsService {
     const [participant, settings] = await Promise.all([
       this.prisma.participant.findUnique({
         where: { id: participantId },
-        select: { isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true },
+        select: { isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true },
       }),
       this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } }),
     ]);
@@ -870,6 +873,8 @@ export class ParticipantsService {
       currentVersion: version,
       confirmed,
       recordedAt: confirmed ? participant.publicationConsentAt : null,
+      restrictions: confirmed ? participant.publicationRestrictions ?? '' : '',
+      publicationPendingReview: Boolean(confirmed && participant.publicationRestrictions?.trim()),
       publicProfileEnabled: participant.isPublic,
     };
   }
@@ -878,6 +883,11 @@ export class ParticipantsService {
     const user = await this.getAuthenticatedUser(request);
     const participantId = this.requireParticipantId(user.participantId);
     const choices = validatePublicationConsent((body as { choices?: unknown } | null)?.choices);
+    const suppliedRestrictions = (body as { restrictions?: unknown } | null)?.restrictions ?? '';
+    if (typeof suppliedRestrictions !== 'string' || suppliedRestrictions.length > 4000) {
+      throw new BadRequestException('Условия распространения должны быть текстом длиной до 4000 символов');
+    }
+    const restrictions = suppliedRestrictions.trim();
     const settings = await this.prisma.siteSettings.findUnique({
       where: { id: 'default' }, select: { legal: true },
     });
@@ -889,15 +899,16 @@ export class ParticipantsService {
       if (!person) throw new NotFoundException('Профиль участника не найден');
       await tx.participant.update({
         where: { id: participantId },
-        data: { publicationConsent: choices, publicationConsentAt: recordedAt, publicationConsentVersion: version },
+        data: { publicationConsent: choices, publicationConsentAt: recordedAt,
+          publicationConsentVersion: version, publicationRestrictions: restrictions },
       });
       await tx.auditLog.create({
         data: { userId: user.id, action: 'PARTICIPANT_PUBLICATION_CONSENT',
           entity: 'Participant', entityId: participantId,
-          metadata: { version, choices, recordedAt: recordedAt.toISOString(), source: 'participant-profile' } },
+          metadata: { version, choices, restrictions, recordedAt: recordedAt.toISOString(), source: 'participant-profile' } },
       });
     });
-    return { choices, currentVersion: version, confirmed: true, recordedAt };
+    return { choices, restrictions, currentVersion: version, confirmed: true, recordedAt, publicationPendingReview: Boolean(restrictions) };
   }
 
   async updateMe(
@@ -1573,6 +1584,7 @@ export class ParticipantsService {
               publicationConsent: true,
               publicationConsentAt: true,
               publicationConsentVersion: true,
+          publicationRestrictions: true,
             },
           },
 
@@ -1677,7 +1689,7 @@ export class ParticipantsService {
       throw new NotFoundException('Автомобиль не найден');
     }
     const { publicationConsent: _c, publicationConsentAt: _at,
-      publicationConsentVersion: _v, ...owner } = car.participant;
+      publicationConsentVersion: _v, publicationRestrictions: _restrictions, ...owner } = car.participant;
     return {
       ...car,
       photoUrl: mayPublish(car.participant, 'carPhoto', version) ? car.photoUrl : null,
