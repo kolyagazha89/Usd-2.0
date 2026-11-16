@@ -53,6 +53,18 @@ describe('configuration equipment revision history',()=>{
    })});
    expect(db.carConfiguration.update).toHaveBeenCalled();
   });
+  it('persists manually entered names in a new immutable version without a catalog ID',async()=>{
+   db.carAudioComponent.create.mockResolvedValue({id:'freeform-audio'});
+   const changed={...dto,audioComponents:[{brand:'Custom Audio',model:'Prototype 18',quantity:2,type:'SUBWOOFER',direction:'SUB'}]};
+   await service.update(request,'config',changed as any);
+   expect(db.carAudioComponent.create).toHaveBeenCalledWith({data:expect.objectContaining({
+    catalogEntryId:null,brand:'Custom Audio',model:'Prototype 18',quantity:2,
+   })});
+   expect(db.carConfiguration.update).toHaveBeenCalledWith({
+    where:{id:'config'},data:{name:'Сборка для SPL',currentVersion:2},
+   });
+  });
+
   it('does not advance the pointer if saving the new equipment fails',async()=>{
   db.carAudioComponent.create.mockRejectedValue(new Error('Failed to save component'));
   const changed={...dto,audioComponents:[{catalogEntryId:'00000000-0000-4000-8000-000000000001',brand:'Deaf Bonce',model:'Test',quantity:1,type:'SUBWOOFER',direction:'SUB'}]};
