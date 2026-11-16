@@ -30,7 +30,7 @@ describe('Historical public results cannot bypass participant publication permis
   });
 
   it('shows only explicit fields when allowed, never assumes photo or city permissions',async()=>{
-    const data=fixture();
+    const data:any=fixture();
     data.registration.participant.publicationConsent={fullName:true,results:true,car:true,
       city:false,team:false,profilePhoto:false,carPhoto:false};
     prisma.result.findFirst.mockResolvedValue(data);
