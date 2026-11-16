@@ -53,6 +53,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [pickerSearchStage,setPickerSearchStage]=useState<'brand'|'model'>('brand');
  const [mobilePicker,setMobilePicker]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:600px)').matches);
  const pickerOverlayRef=useRef<HTMLDivElement|null>(null);
+ const actionsInlineRef=useRef<HTMLDivElement|null>(null);
  const pickerModelInputRef=useRef<HTMLInputElement|null>(null);
 
  const pickerDialogRef=useRef<HTMLElement|null>(null);
@@ -120,6 +121,9 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
    pickerReturnFocusRef.current=null;
   };
  },[pickerActive,mobilePicker]);
+ useEffect(()=>{
+  if(actionsOpen&&mobilePicker)actionsInlineRef.current?.scrollIntoView({block:'start',behavior:'auto'});
+ },[actionsOpen,mobilePicker]);
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
  const editorViews=[{key:'SUB',label:'Басовая система',short:'Бас',icon:Volume2,desc:'Сабвуферы и усилители для SPL, BassRace и Storm Wall.'},
@@ -245,7 +249,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
        </div>
        <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.brand.trim()||!picker.model.trim()} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
       </section></div>}
-    {actionsOpen&&<div className="member-config-actions-overlay" role="presentation" onClick={()=>setActionsOpen(false)}><section role="dialog" aria-modal="true" aria-label="Действия с конфигурацией" className="member-config-actions-sheet" onClick={e=>e.stopPropagation()}><div className="member-config-sheet-top"><h2>Действия</h2><button type="button" aria-label="Закрыть меню действий" onClick={()=>setActionsOpen(false)}><X size={20}/></button></div>
+    {actionsOpen&&<div ref={actionsInlineRef} className="member-config-actions-overlay" role="presentation" onClick={()=>{if(!mobilePicker)setActionsOpen(false)}}><section role={mobilePicker?'region':'dialog'} aria-modal={mobilePicker?undefined:true} aria-label="Действия с конфигурацией" className="member-config-actions-sheet" onClick={e=>e.stopPropagation()}><div className="member-config-sheet-top"><h2>Действия</h2><button type="button" aria-label="Закрыть меню действий" onClick={()=>setActionsOpen(false)}><X size={20}/></button></div>
       <button type="button" onClick={addEquipmentForView}><Plus size={20}/><span><strong>Добавить оборудование</strong><small>Свободный ввод с подсказками из справочника</small></span><ChevronRight size={17}/></button>
       
       <button type="button" onClick={()=>{setActiveView('SETUP');setActionsOpen(false)}}><Pencil size={20}/><span><strong>Изменить параметры</strong><small>Название конфигурации и виброизоляция</small></span><ChevronRight size={17}/></button>
