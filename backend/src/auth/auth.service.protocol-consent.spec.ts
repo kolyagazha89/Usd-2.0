@@ -6,6 +6,7 @@ describe('separate official result consent in participant account',()=>{
   user:{findUnique:jest.fn(),update:jest.fn()},
   siteSettings:{findUnique:jest.fn()},
   auditLog:{create:jest.fn()},
+  $transaction:jest.fn(async (cb:any)=>cb(db)),
  };
  const service=new AuthService(db,{} as any,{} as any);
  beforeEach(()=>{
