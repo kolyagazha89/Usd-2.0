@@ -33,6 +33,11 @@ try{
  assert.equal(galleryColumn.rows.length,1,'TeamPost gallery column must exist');
  assert.equal(galleryColumn.rows[0].attnotnull,false,'Gallery migration must remain nullable for old posts');
  assert.deepEqual((await db.query('SELECT row_to_json(p) AS data FROM "Participant" p')).rows,before,'Existing participant fields must be byte-for-byte unchanged');
+ // This suite starts from a pre-feature baseline; the generated Prisma
+ // client requires every later additive column before running team E2E.
+ await db.query(await readFile(path.join(migrations,'20261116184500_official_protocol_consent','migration.sql'),'utf8'));
+ assert.equal((await db.query('SELECT count(*) FROM "Registration"')).rows[0].count,'0',
+   'protocol consent migration must never create or expose historic registrations');
  for(const table of ['Team','TeamMembership','TeamPost'])assert.equal((await db.query(`SELECT count(*) FROM "${table}"`)).rows[0].count,'0','No linking or backfill during migration');
  await assert.rejects(db.query(`INSERT INTO "Team" (id,name,"nameKey","updatedAt") VALUES ('invalid','','',now())`));
  console.log('PostgreSQL 18 baseline → team migration passed; sentinel unchanged, three empty tables, nullable image column and storage constraints enforced.');
