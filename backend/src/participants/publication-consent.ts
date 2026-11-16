@@ -38,7 +38,14 @@ export function validatePublicationConsent(input: unknown): PublicationConsentCh
 export function publicationVersion(legal: unknown): string | null {
   const record = legal && typeof legal === 'object' ? legal as Record<string, unknown> : {};
   const version = String(record.legalVersion ?? '').trim();
-  return record.legalApproved === true && version ? 'publication-v' + version : null;
+  const documents = record.documents && typeof record.documents === 'object'
+    ? record.documents as Record<string, unknown> : {};
+  const publication = documents.photoProfileConsent && typeof documents.photoProfileConsent === 'object'
+    ? documents.photoProfileConsent as Record<string, unknown> : {};
+  const documentIsPublished = typeof publication.targetId === 'string' &&
+    publication.targetId.startsWith('legal-document-photoProfileConsent-');
+  return record.legalApproved === true && version && documentIsPublished
+    ? 'publication-v' + version : null;
 }
 
 type ConsentRow = {
