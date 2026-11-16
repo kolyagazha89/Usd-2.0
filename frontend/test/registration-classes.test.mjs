@@ -74,3 +74,12 @@ test('inspection and gate frontends use primary-number policy instead of total 5
  assert.doesNotMatch(admin,/if\(classIds\.length>5\)/);
  assert.match(admin,/BassRace.*отдельные номера/);
 });
+
+test('participant registration shows class names without exposing technical class codes',async()=>{
+ const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+ const row=app.match(/className="registration-class-text">([\s\S]*?)<\/span><span className="registration-class-arrow"/)?.[1];
+ assert.ok(row,'class selection must retain visible class title');
+ assert.match(row,/<strong>\{c\.name\|\|'Класс'\}<\/strong>/);
+ assert.match(row,/\{missing&&<small>\{missing\}<\/small>\}/,'configuration warning remains visible if a class is blocked');
+ assert.doesNotMatch(row,/c\.code|class\.code|Класс USD/,'internal class codes are not a second label');
+});
