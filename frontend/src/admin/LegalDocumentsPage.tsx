@@ -18,6 +18,7 @@ function newId(){return globalThis.crypto?.randomUUID?.()??Date.now().toString(3
 
 export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,ErrorPanel}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>}){
  const[settings,setSettings]=useState<any>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState<string|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[pendingRemoval,setPendingRemoval]=useState<DocKey|null>(null);
+ const[preview,setPreview]=useState<{key:DocKey;blocks:Block[]}|null>(null),[previewBusy,setPreviewBusy]=useState<DocKey|null>(null);
  const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setSettings(r.settings)}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить юридические документы')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
  const showPreview=async(key:DocKey,targetId:string)=>{
