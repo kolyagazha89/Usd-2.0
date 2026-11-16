@@ -117,7 +117,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
         <p>Единый регламент соревнований и требования к классам для всех этапов USD. Особенности конкретного соревнования указываются в описании этапа.</p>
         <div className="public-rules-actions">
           <a href="#rules-reader-start" onClick={()=>focusTarget('rules-reader-start')}>Читать регламент ↓</a>
-          {links.some(([key]) => key === 'rulesUrl') && <a href={links.find(([key]) => key === 'rulesUrl')?.[2]} target="_blank" rel="noopener noreferrer">Открыть полный документ ↗</a>}
+          {links.some(([key]) => key === 'rulesUrl') && <a href={links.find(([key]) => key === 'rulesUrl')?.[2]} target="_blank" rel="noopener noreferrer">Скачать регламент Word ↓</a>}
         </div>
       </section>
       {publishedUrl&&<div className="public-rules-original-doc"><a href={publishedUrl} target="_blank" rel="noopener noreferrer">Скачать оригинал регламента Word ↗</a>{!Number.isNaN(date.getTime())&&<span>Редакция от {date.toLocaleDateString('ru-RU')}</span>}</div>}
