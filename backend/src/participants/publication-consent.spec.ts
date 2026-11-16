@@ -27,6 +27,7 @@ describe('separate subject-controlled publication permission', () => {
     expect(mayPublish(row, 'results', version)).toBe(true);
     expect(mayPublish(row, 'profilePhoto', version)).toBe(false);
     expect(mayPublish(row, 'carPhoto', version)).toBe(false);
+    expect(mayPublish({ ...row, publicationRestrictions: 'Запрещаю публикацию в социальных сетях' }, 'identity', version)).toBe(false);
     expect(mayPublish({ ...row, isPublic: false }, 'identity', version)).toBe(false);
     expect(mayPublish(row, 'identity', 'publication-v2')).toBe(false);
   });
