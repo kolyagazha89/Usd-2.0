@@ -544,6 +544,16 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
         note: 'Тестовая заявка',
       },
     });
+    const notice = await db.adminNotification.create({
+      data: {
+        eventKey: 'profile-link-request:' + claim.id,
+        kind: 'PROFILE_LINK_REQUEST',
+        title: 'Заявка на привязку профиля',
+        body: 'Тест',
+        path: '/admin/profile-links',
+        sourceId: claim.id,
+      },
+    });
     const preview = await service.preview('user', manual.id, request);
     expect(preview.counts.participants).toBe(0);
     expect(preview.counts.profileLinkRequests).toBe(1);
@@ -553,6 +563,7 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
 
     expect(await db.user.findUnique({ where: { id: manual.id } })).toBeNull();
     expect(await db.profileLinkRequest.findUnique({ where: { id: claim.id } })).toBeNull();
+    expect(await db.adminNotification.findUnique({ where: { id: notice.id } })).toBeNull();
     expect((await db.teamPost.findUniqueOrThrow({ where: { id: post.id } })).authorUserId).toBe(actorId);
     expect(await db.team.findUnique({ where: { id: team.id } })).not.toBeNull();
     expect(await db.participant.findUnique({ where: { id: otherParticipant.id } })).not.toBeNull();
