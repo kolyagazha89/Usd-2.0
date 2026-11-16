@@ -1255,6 +1255,16 @@ try{
        const tab=nav.locator('[data-section="'+key+'"]');await tab.click();
        assert.equal(await tab.getAttribute('aria-pressed'),'true');
       }
+      if(width<=390){
+       await page.getByRole('button',{name:'Действия с оборудованием'}).click();
+       const actions=page.locator('.member-config-actions-sheet');
+       assert.equal(await actions.getAttribute('role'),'region',
+        'mobile configuration actions must appear inline, never as a bottom sheet');
+       assert.equal(await actions.getAttribute('aria-modal'),null,
+        'mobile actions must not mark other page sections as modal');
+       assert.equal(await actions.evaluate(node=>getComputedStyle(node.parentElement).position),'static');
+       await actions.getByRole('button',{name:'Закрыть меню действий'}).click();
+      }
       const workspace=page.locator('.config-direction-workspace[data-direction="SUB"]');
       const before=await workspace.locator('.config-row').count();
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
