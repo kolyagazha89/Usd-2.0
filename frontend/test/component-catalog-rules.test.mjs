@@ -171,4 +171,8 @@ test('on mobile equipment editing stays in native page flow without a modal or k
  assert.match(css,/member-config-picker-body\{[^}]*overflow:visible!important/);
  assert.match(css,/member-config-picker-screen\{[^}]*overflow:visible!important/);
  assert.match(css,/member-config-picker-list\{[^}]*overflow:visible!important/);
+ assert.match(editor,/aria-label="Действия с конфигурацией"/);
+ assert.match(editor,/ref=\{actionsInlineRef\}/);
+ assert.match(css,/member-config-actions-overlay\{[^}]*position:static!important/);
+ assert.match(css,/member-config-actions-sheet\{[^}]*overflow:visible!important/);
 });
