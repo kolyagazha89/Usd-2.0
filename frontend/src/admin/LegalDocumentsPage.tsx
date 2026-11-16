@@ -11,6 +11,7 @@ const documents=[
  {key:'cookiePolicy',title:'Политика cookie и технических данных',description:'Объясняет необходимые cookie и необязательную аналитику; включайте аналитику только после соответствующей настройки согласия.',filename:'usd-cookie-policy.docx'},
  {key:'newsletterConsent',title:'Согласие на информационные и рекламные рассылки',description:'Добровольное согласие отдельно от регистрации; должно быть возможно отозвать.',filename:'usd-newsletter-consent.docx'},
  {key:'photoProfileConsent',title:'Согласие на публикацию фото и профиля',description:'Отдельное согласие для публикации изображений и профиля; проверьте возраст и объём разрешения.',filename:'usd-photo-profile-consent.docx'},
+ {key:'officialProtocolConsent',title:'Согласие на публикацию официальных протоколов',description:'Отдельный утверждаемый текст по ст. 10.1 № 152-ФЗ: категории ФИО и спортивных результатов, условия, запреты, отзыв и срок.',filename:'usd-official-protocol-consent.docx'},
 ] as const;
 type DocKey=typeof documents[number]['key'];
 type StoredDoc={targetId:string;fileName:string;url:string;uploadedAt:string};

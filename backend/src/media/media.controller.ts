@@ -81,6 +81,7 @@ export class MediaController {
         : targetId.startsWith('legal-document-cookiePolicy-') ? 'usd-cookie-policy.docx'
         : targetId.startsWith('legal-document-newsletterConsent-') ? 'usd-newsletter-consent.docx'
         : targetId.startsWith('legal-document-photoProfileConsent-') ? 'usd-photo-profile-consent.docx'
+        : targetId.startsWith('legal-document-officialProtocolConsent-') ? 'usd-official-protocol-consent.docx'
         : 'reglament-usd.docx';
       response.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '"');
     }

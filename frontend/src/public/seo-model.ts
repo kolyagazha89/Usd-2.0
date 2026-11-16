@@ -37,6 +37,7 @@ const legalDocumentTitles:Record<string,string>={
  cookiePolicy:'Политика cookie',
  newsletterConsent:'Согласие на рассылку',
  photoProfileConsent:'Согласие на публикацию профиля',
+ officialProtocolConsent:'Согласие на публикацию ФИО и спортивных результатов',
 };
 const detailSections=new Set(['/participants','/teams','/cars','/news']);
 export function isIndexablePublicRoute(path:string):boolean{

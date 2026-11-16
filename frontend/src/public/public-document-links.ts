@@ -6,6 +6,7 @@ export const LEGAL_DOCUMENT_LABELS: Record<string, string> = {
   cookiePolicy: 'Политика cookie',
   newsletterConsent: 'Согласие на рассылку',
   photoProfileConsent: 'Согласие на публикацию профиля',
+  officialProtocolConsent: 'Согласие на публикацию ФИО и спортивных результатов',
 };
 type DocumentRef = { targetId?: string; url?: string; fileName?: string };
 type LegalSettings = { legalApproved?: boolean; documents?: Record<string, DocumentRef> };
