@@ -19,6 +19,51 @@ function Verify-VenueCACertificate([string]$File){
   }finally{$sha.Dispose();$cert.Dispose()}
  }catch{throw ('Сертификат Caddy не прошёл проверку: '+$_.Exception.Message)}
 }
+function Test-VenueGatewayReady([string]$Ip,[string]$ExpectedStage) {
+ # The API container can be healthy while Caddy has crashed or Windows cannot
+ # reach ports 80/443. Probe the ACTUAL LAN HTTP route before claiming success.
+ $prior=$ErrorActionPreference
+ $ErrorActionPreference='Continue'
+ try {
+  $root='http://'+$Ip
+  $live=Invoke-WebRequest -Uri ($root+'/venue-api/results/venue-live') -UseBasicParsing -TimeoutSec 4 -Headers @{'Cache-Control'='no-cache'}
+  if([int]$live.StatusCode -ne 200){return $false}
+  $snapshot=ConvertFrom-Json -InputObject ([string]$live.Content) -ErrorAction Stop
+  if([string]$snapshot.stage.id -cne $ExpectedStage){return $false}
+  $page=Invoke-WebRequest -Uri ($root+'/venue/live') -UseBasicParsing -TimeoutSec 4 -Headers @{'Cache-Control'='no-cache'}
+  return ([int]$page.StatusCode -eq 200 -and [string]$page.Content -match '(?i)<!doctype html|<html')
+ }catch{return $false}
+ finally{$ErrorActionPreference=$prior}
+}
+function Get-VenueGatewayFailureDetails {
+ # Never print credentials, .env or database logs. Only recent Caddy messages.
+ try{
+  $lines=@(& docker @(Get-VenueComposeArguments) logs --no-color --tail 12 gateway 2>&1)
+  $details=($lines|ForEach-Object { [string]$_ }|Select-Object -Last 12) -join [Environment]::NewLine
+  if($details.Length -gt 1500){$details=$details.Substring($details.Length-1500)}
+  return $details
+ }catch{return 'Docker не предоставил журнал Caddy'}
+}
+function Assert-VenueGatewayReady([string]$Ip,[string]$ExpectedStage){
+ # Restart only Caddy when it fails. Volumes, database and signed stage stay intact.
+ for($i=0;$i -lt 8;$i++){
+  if(Test-VenueGatewayReady -Ip $Ip -ExpectedStage $ExpectedStage){return}
+  if($i -lt 7){Start-Sleep -Seconds 2}
+ }
+ Set-VenueStep 'repair-lan-gateway'
+ $repairError=''
+ try{
+  Invoke-Compose @('up','-d','--no-build','--pull','never','--force-recreate','gateway') 'repair stopped Caddy only'
+ }catch{$repairError=$_.Exception.Message}
+ for($i=0;$i -lt 8;$i++){
+  if(Test-VenueGatewayReady -Ip $Ip -ExpectedStage $ExpectedStage){return}
+  if($i -lt 7){Start-Sleep -Seconds 2}
+ }
+ $details=Get-VenueGatewayFailureDetails
+ throw ('Caddy недоступен по http://'+$Ip+'/venue/live. Проверьте порты 80 и 443 и журнал gateway:'+
+  [Environment]::NewLine+$repairError+[Environment]::NewLine+$details+
+  [Environment]::NewLine+'Данные и Docker-тома сохранены.')
+}
 function Trust-VenueWindowsCertificate([string]$File){
  # A local Caddy CA cannot be globally trusted by browsers without approval.
  # Install ONLY after an explicit operator click, and ONLY for the current user;
