@@ -741,7 +741,7 @@ export class ParticipantsService {
               phone,
               photoUrl,
               isPublic:
-                body.isPublic ?? true,
+                body.isPublic ?? false,
             },
           });
 
@@ -888,7 +888,7 @@ export class ParticipantsService {
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
-          body.isPublic ?? true,
+          body.isPublic ?? false,
       },
     });
     if (actor.role === 'ADMIN') return created;

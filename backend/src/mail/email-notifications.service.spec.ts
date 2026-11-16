@@ -55,6 +55,13 @@ describe('EmailNotificationsService', () => {
       subject: expect.stringContaining('Этап 1'),
     });
     expect(String(mail.sendNotificationEmail.mock.calls[0][0].html)).toContain('border-bottom:4px solid #ed2638');
+    const sent = mail.sendNotificationEmail.mock.calls[0][0];
+    for (const body of [sent.html, sent.text]) {
+      const link = String(body).match(/https?:[^\s"<>]+participant\?tab=profile[^\s"<>]*/)?.[0];
+      expect(link).toBeDefined();
+      const destination = new URL(link!.replace(/&amp;/g, '&'));
+      expect(destination.searchParams.get('section')).toBe('notifications');
+    }
     expect(prisma.emailNotificationLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ type: 'STAGE_REGISTRATION_OPEN', status: 'PENDING' }),
     }));
