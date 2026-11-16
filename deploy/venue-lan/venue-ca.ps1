@@ -19,6 +19,34 @@ function Verify-VenueCACertificate([string]$File){
   }finally{$sha.Dispose();$cert.Dispose()}
  }catch{throw ('Сертификат Caddy не прошёл проверку: '+$_.Exception.Message)}
 }
+function Trust-VenueWindowsCertificate([string]$File){
+ # A local Caddy CA cannot be globally trusted by browsers without approval.
+ # Install ONLY after an explicit operator click, and ONLY for the current user;
+ # never alter LocalMachine roots or export/import Caddy's signing key.
+ $null=Verify-VenueCACertificate $File
+ $raw=[IO.File]::ReadAllText($File)
+ $encoded=([regex]::Match($raw,'-----BEGIN CERTIFICATE-----\\s+([A-Za-z0-9+/=\\r\\n]+)-----END CERTIFICATE-----')).Groups[1].Value
+ $certificate=[System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($encoded))
+ try{$thumbprint=$certificate.Thumbprint}finally{$certificate.Dispose()}
+ $store='Cert:\\CurrentUser\\Root\\'+$thumbprint
+ if(Get-Item -LiteralPath $store -ErrorAction SilentlyContinue){return}
+ if($Silent){Write-Host 'USD CA: проверка доверия пропущена при фоновом запуске';return}
+ if(-not(Get-Command Confirm-VenueAction -ErrorAction SilentlyContinue)){return}
+ $message='Для входа в локальную админку без предупреждения Chrome требуется один раз доверить CA этого ноутбука.'+
+  [Environment]::NewLine+'Установить только для текущего пользователя Windows (CurrentUser), без изменения других устройств?'+
+  [Environment]::NewLine+'Отмените, если ноутбук или его Docker-сервер вам не принадлежит.'
+ if(-not(Confirm-VenueAction $message)){
+  Write-Warning 'Локальный сертификат не доверен Windows. Chrome может показывать предупреждение о HTTPS.'
+  return
+ }
+ try{
+  Import-Certificate -FilePath $File -CertStoreLocation 'Cert:\CurrentUser\Root' -ErrorAction Stop | Out-Null
+  if(!(Get-Item -LiteralPath $store -ErrorAction SilentlyContinue)){
+   throw 'Windows не подтвердил установку доверия'
+  }
+  Write-Host 'USD CA: Windows доверяет локальному HTTPS для текущего пользователя.'
+ }catch{throw ('Не удалось автоматически включить доверие HTTPS в Windows: '+$_.Exception.Message)}
+}
 function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  $share=Join-Path $Root 'USD-Venue-CA.crt'
