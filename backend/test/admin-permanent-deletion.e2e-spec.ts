@@ -577,7 +577,7 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
       data: { name: 'Team ' + suffix, nameKey: 'team-' + suffix },
     });
     await db.teamMembership.create({
-      data: { teamId: team.id, participantId: participant.id, status: 'ACTIVE' },
+      data: { teamId: team.id, participantId: participant.id, status: 'APPROVED' },
     });
     const claim = await db.profileLinkRequest.create({
       data: {
