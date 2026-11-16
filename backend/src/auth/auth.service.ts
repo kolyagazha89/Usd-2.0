@@ -166,14 +166,19 @@ export class AuthService {
       hasParticipant:!!user.participantId};
   }
 
-  async updateProtocolConsent(userId: string, consent: boolean) {
+  async updateProtocolConsent(userId: string, consent: boolean, visibleVersion?: string) {
     if(typeof consent!=='boolean')throw new BadRequestException('Укажите отдельное решение о публикации протокола');
-    const version=await this.getApprovedLegalVersion();
     const user=await this.prisma.user.findUnique({where:{id:userId},select:{
       participantId:true,participant:{select:{birthDate:true}},
       protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
     }});
     if(!user?.participantId)throw new BadRequestException('Сначала привяжите профиль участника к учётной записи');
+    // Withdrawal does not depend on whether the administrator has withdrawn a legal publication.
+    const version=consent?await this.getApprovedLegalVersion()
+      :(user.protocolConsentVersion?.replace(/^protocol-v/,'')??null);
+    if(consent && (!visibleVersion || visibleVersion!==version)) {
+      throw new BadRequestException('Редакция текста изменилась. Откройте согласие ещё раз и подтвердите актуальную версию');
+    }
     const dob=user.participant?.birthDate;
     if(consent && dob){
       const date=new Date(dob),now=new Date();
@@ -190,7 +195,7 @@ export class AuthService {
       await tx.auditLog.create({data:{
         userId,entity:'User',entityId:userId,
         action:consent?'PROTOCOL_PUBLICATION_CONSENT_ACCEPTED':'PROTOCOL_PUBLICATION_CONSENT_REVOKED',
-        metadata:{version:'protocol-v'+version,source:'member-account',
+        metadata:{version:version?'protocol-v'+version:null,source:'member-account',
           categories:['ФИО','этап','класс','место','результат','рекорд'],
           details:'Separate consent to publish official USD competition protocol; no photos, city or marketing'},
       }});
