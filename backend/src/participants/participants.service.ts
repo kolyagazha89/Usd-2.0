@@ -80,6 +80,8 @@ export class ParticipantsService {
     if(!version)throw new BadRequestException('Сначала организатор должен утвердить текст отдельного согласия на публикацию');
     const person=await this.prisma.participant.findUnique({where:{id:participantId},select:{birthDate:true}});
     if(!person)throw new NotFoundException('Профиль участника не найден');
+    if(!person.birthDate && Object.values(permissions).some(Boolean))
+      throw new BadRequestException('Для разрешения публикации сначала укажите дату рождения в профиле');
     if(person.birthDate){
       const dob=new Date(person.birthDate), now=new Date();
       const age=now.getUTCFullYear()-dob.getUTCFullYear()-
