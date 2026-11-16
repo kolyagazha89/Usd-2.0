@@ -20,6 +20,7 @@ for(const key of ['admin','commander','member']){
  await db.refreshSession.create({data:{userId:user.id,familyId,tokenHash:'teams-browser-'+randomUUID(),expiresAt:new Date(Date.now()+3600000)}});
  actors[key]={user:{id:user.id,email:user.email,role:user.role,participantId:participant.id,emailVerifiedAt:user.emailVerifiedAt},participant,accessToken:await jwt.signAsync({sub:user.id,role:user.role,fid:familyId})};
 }
+await db.siteSettings.upsert({where:{id:'default'},update:{registration:{fullTeamManagement:true}},create:{id:'default',branding:{},homepage:{},stream:{},liveResults:{},navigation:{},contacts:{},social:{},seo:{},legal:{},footer:{},registration:{fullTeamManagement:true}}});
 const app=module.createNestApplication();app.useGlobalPipes(new ValidationPipe({transform:true,whitelist:true,forbidNonWhitelisted:true}));app.useGlobalGuards(new JwtAuthGuard(jwt,module.get(Reflector),db),new RolesGuard(module.get(Reflector),db));app.enableCors({origin:'http://127.0.0.1:55441',credentials:true});
 await app.listen(55440,'127.0.0.1');
 await writeFile(process.env.USD_TEAMS_BROWSER_FIXTURE??'/tmp/usd-teams-browser-fixture.json',JSON.stringify({tag,actors}),{mode:0o600});

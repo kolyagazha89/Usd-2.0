@@ -72,6 +72,8 @@ jobs:
         run: node scripts/rules-browser-qa.mjs
       - name: Verify team directories, roster filters and explicit application journey
         run: node scripts/team-management-browser-qa.mjs
+      - name: Verify simple team selection and reversible full management
+        run: node scripts/simple-team-browser-qa.mjs
       - name: Verify signup email recovery and resend cooldown across screen sizes
         run: node scripts/verification-resend-browser-qa.mjs
       - name: Save candidate screenshots and structured report
@@ -88,6 +90,7 @@ jobs:
             partner-image-browser-qa/
             rules-browser-qa/
             team-management-browser-qa/
+            simple-team-browser-qa/
             verification-resend-browser-qa/
             stage-actions-browser-qa/
             admin-navigation-browser-qa/

@@ -1,18 +1,21 @@
 import {useEffect,useState} from 'react';
-import {apiGet,apiPost,listData} from '../api';
+import {apiGet,apiPost,apiPatch,listData} from '../api';
+import TeamStageAchievements from '../teams/TeamStageAchievements';
 import TeamWorkspace,{TeamPhotoPreview} from '../teams/TeamWorkspace';
 import type {PublicTeam,Team,TeamUser} from '../teams/types';
 function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>}){
  const [teams,setTeams]=useState<Team[]>([]),[users,setUsers]=useState<TeamUser[]>([]),[legacy,setLegacy]=useState<PublicTeam[]>([]),[selected,setSelected]=useState(''),[name,setName]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [full,setFull]=useState(false);
  const [teamFilter,setTeamFilter]=useState('ALL');
  const [reviewing,setReviewing]=useState(''),[reviewConfirm,setReviewConfirm]=useState<'approve'|'return'|''>(''),[reviewBusy,setReviewBusy]=useState(false),[reviewError,setReviewError]=useState(''),[reviewNotice,setReviewNotice]=useState('');
  const load=async()=>{
-  const [result,directory]=await Promise.all([apiGet<{teams:Team[];users:TeamUser[]}>('/teams/admin'),apiGet<PublicTeam[]>('/teams/public')]);
+  const [result,directory]=await Promise.all([apiGet<{teams:Team[];users:TeamUser[];fullManagement:boolean}>('/teams/admin'),apiGet<PublicTeam[]>('/teams/public')]);
   if(!Array.isArray(result?.teams)||!Array.isArray(result?.users))throw new Error('Не удалось загрузить список команд. Попробуйте ещё раз.');
-  setTeams(result.teams);setUsers(result.users);setLegacy(listData<PublicTeam>(directory).filter(t=>!t.id));
+  setFull(result.fullManagement===true);setTeams(result.teams);setUsers(result.users);setLegacy(listData<PublicTeam>(directory).filter(t=>!t.id));
  };
  const refresh=async()=>{setLoading(true);setError('');try{await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить команды')}finally{setLoading(false)}};
  useEffect(()=>{void refresh()},[]);
+ const toggleMode=async(enabled:boolean)=>{setBusy(true);setError('');try{await apiPatch('/teams/mode',{fullManagement:enabled});setTeamFilter('ALL');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить режим команд')}finally{setBusy(false)}};
  const create=async()=>{setBusy(true);setError('');try{const team=await apiPost<Team>('/teams',{name:name.trim()});setName('');await load();setSelected(team.id)}catch(e){setError(e instanceof Error?e.message:'Не удалось создать команду')}finally{setBusy(false)}};
  const filtered=teams.filter(t=>t.name.toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).filter(t=>teamFilter==='ALL'||(teamFilter==='ACTIVE'?t.isActive:teamFilter==='ARCHIVED'?!t.isActive:t.memberships?.some(m=>m.status==='PENDING'))).sort((a,b)=>a.name.localeCompare(b.name,'ru')),current=teams.find(t=>t.id===selected);
  const pendingReviews=teams.flatMap(team=>(team.posts??[])
@@ -32,10 +35,10 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
    setReviewError(e instanceof Error?e.message:'Не удалось завершить проверку материала. Обновите список.');
   }finally{setReviewBusy(false)}
  };
- return <PageFrame title="Команды" subtitle="Составы, командиры и публикации USD" action={<button className="secondary-button" disabled={loading||busy} onClick={()=>void refresh()}>Обновить</button>}>
+ return <PageFrame title="Команды" subtitle={full?"Составы, командиры и публикации USD":"Список команд и результаты"} action={<button className="secondary-button" disabled={loading||busy} onClick={()=>void refresh()}>Обновить</button>}>
  {error&&<ErrorPanel message={error} retry={refresh}/>}
- <section className="panel team-admin-intro"><h2>Управление командами</h2><p>Создайте команду, назначьте командира и проверяйте материалы перед публикацией. Назначение действует только внутри выбранной команды.</p><form className="team-create-form" onSubmit={e=>{e.preventDefault();void create()}}><label>Название новой команды<input aria-label="Название новой команды" value={name} maxLength={120} required onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()}>Создать команду</button></form></section>
- {!loading&&<section className="panel team-review-queue" aria-label="Очередь публикаций команд на проверке">
+ <section className="panel team-admin-intro"><label className="checkbox-line"><input type="checkbox" checked={full} disabled={busy||loading} onChange={e=>void toggleMode(e.target.checked)}/> Полное управление командами</label><p>Включает командиров, заявки, составы и новости. При выключении участники выбирают команду из списка. Сохранённые материалы можно вернуть включением этого режима.</p><h2>Управление командами</h2><p>{full?"Создайте команду, назначьте командира и проверяйте материалы перед публикацией.":"Добавляйте названия команд для выбора участниками."}</p><form className="team-create-form" onSubmit={e=>{e.preventDefault();void create()}}><label>Название новой команды<input aria-label="Название новой команды" value={name} maxLength={120} required onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()}>Создать команду</button></form></section>
+ {full&&!loading&&<section className="panel team-review-queue" aria-label="Очередь публикаций команд на проверке">
   <h2>Материалы на проверке · {pendingReviews.length}</h2>
   <p>Проверьте заголовок, полный текст и все фотографии. Подтверждение публикует только сохранённый материал — браузер не заменяет его устаревшей копией.</p>
   {reviewError&&<div className="form-error" role="alert">{reviewError}</div>}
@@ -61,8 +64,13 @@ function TeamsPage({PageFrame,ErrorPanel,LoadingPage,Empty}:{PageFrame:React.Com
    </div>}
   </li>)}</ul>:<p>Нет материалов, ожидающих решения администратора.</p>}
  </section>}
- {loading?<LoadingPage/>:<div className="team-admin-layout"><section className="panel team-team-list"><p className="team-directory-count">{teams.length} команд · {teams.filter(t=>t.isActive).length} активных</p><label>Показать<select aria-label="Статус команд" value={teamFilter} onChange={e=>setTeamFilter(e.target.value)}><option value="ALL">Все команды</option><option value="ACTIVE">Активные</option><option value="PENDING">С заявками</option><option value="ARCHIVED">В архиве</option></select></label><label>Найти команду<input aria-label="Найти команду" value={query} onChange={e=>setQuery(e.target.value)}/></label>{filtered.length?<ul>{filtered.map(t=><li key={t.id}><button className={selected===t.id?'is-selected':''} aria-pressed={selected===t.id} onClick={()=>setSelected(t.id)}><strong>{t.name}</strong><span>{t.memberships?.filter(m=>m.status==='APPROVED').length??0} в составе · {t.isActive?'Активна':'В архиве'} · {t.memberships?.filter(m=>m.status==='PENDING').length??0} заявок · {t.posts?.filter(p=>p.status==='IN_REVIEW').length??0} публикаций на проверке</span></button></li>)}</ul>:<Empty text={teams.length?'Команды не найдены. Измените поиск или фильтр.':'Создайте первую команду'}/>}</section><section className="panel team-admin-detail">{current?<TeamWorkspace key={current.id} team={current} users={users} admin onChanged={load}/>:<Empty text="Выберите команду для управления составом и публикациями"/>}</section></div>}
+ {loading?<LoadingPage/>:<div className="team-admin-layout"><section className="panel team-team-list"><p className="team-directory-count">{teams.length} команд · {teams.filter(t=>t.isActive).length} активных</p><label>Показать<select aria-label="Статус команд" value={teamFilter} onChange={e=>setTeamFilter(e.target.value)}><option value="ALL">Все команды</option><option value="ACTIVE">Активные</option>{full&&<option value="PENDING">С заявками</option>}<option value="ARCHIVED">В архиве</option></select></label><label>Найти команду<input aria-label="Найти команду" value={query} onChange={e=>setQuery(e.target.value)}/></label>{filtered.length?<ul>{filtered.map(t=><li key={t.id}><button className={selected===t.id?'is-selected':''} aria-pressed={selected===t.id} onClick={()=>setSelected(t.id)}><strong>{t.name}</strong><span>{t.memberships?.filter(m=>m.status==='APPROVED').length??0} в составе · {t.isActive?'Активна':'В архиве'}{full&&<> · {t.memberships?.filter(m=>m.status==='PENDING').length??0} заявок · {t.posts?.filter(p=>p.status==='IN_REVIEW').length??0} публикаций на проверке</>}</span></button></li>)}</ul>:<Empty text={teams.length?'Команды не найдены. Измените поиск или фильтр.':'Создайте первую команду'}/>}</section><section className="panel team-admin-detail">{current?(full?<TeamWorkspace key={current.id} team={current} users={users} admin onChanged={load}/>:<BasicTeamEditor key={current.id} team={current} onChanged={load}/>):<Empty text="Выберите команду"/>}</section></div>}
  <section className="panel team-archive"><h2>Архивные названия</h2><p>История выступлений сохранена. Архивные связи не означают подтверждённое текущее членство.</p>{legacy.length?<ul>{legacy.map(t=><li key={t.name}><strong>{t.name}</strong><span>{t.historicalMembers.length} публичных участников в архиве</span></li>)}</ul>:<p>Отдельных архивных названий нет.</p>}</section>
  </PageFrame>;
+}
+function BasicTeamEditor({team,onChanged}:{team:Team;onChanged:()=>Promise<void>}){
+ const [name,setName]=useState(team.name),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const save=async(data:{name?:string;isActive?:boolean})=>{setBusy(true);setError('');try{await apiPatch('/teams/'+encodeURIComponent(team.id),data);await onChanged()}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить команду')}finally{setBusy(false)}};
+ return <><h2>{team.name}</h2>{error&&<p role="alert">{error}</p>}<form className="team-create-form" onSubmit={e=>{e.preventDefault();void save({name:name.trim()})}}><label>Название команды<input value={name} maxLength={120} required disabled={busy} onChange={e=>setName(e.target.value)}/></label><button className="primary-button" disabled={busy||!name.trim()||name.trim()===team.name}>Сохранить название</button></form><button className="secondary-button" disabled={busy} onClick={()=>void save({isActive:!team.isActive})}>{team.isActive?'Убрать из списка выбора':'Вернуть в список выбора'}</button><TeamStageAchievements teamId={team.id} admin mode="inspected"/></>;
 }
 export default TeamsPage;

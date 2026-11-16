@@ -15,7 +15,7 @@ describe('MediaService media library', () => {
         findFirst: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
-      siteSettings: { findUnique: jest.fn().mockResolvedValue({}) },
+      siteSettings: { findUnique: jest.fn().mockResolvedValue({registration:{fullTeamManagement:true}}) },
       teamPost: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null), findUnique: jest.fn().mockResolvedValue(null) },
       participant: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       participantMergeRedirect:{findUnique:jest.fn().mockResolvedValue(null),findMany:jest.fn().mockResolvedValue([])},
@@ -252,6 +252,13 @@ describe('MediaService media library', () => {
     await expect(service.getSignedPublicMediaUrl(MediaTargetType.SITE_ASSET, teamImage))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('blocks existing team photo links and uploads when full management is disabled',async()=>{
+    prisma.siteSettings.findUnique.mockResolvedValue({registration:{fullTeamManagement:false}});
+    await expect(service.prepare('admin-1','ADMIN',MediaTargetType.SITE_ASSET,teamImage,'image/png')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.getPublicMediaFile(MediaTargetType.SITE_ASSET,teamImage)).rejects.toThrow();
+    expect(prisma.teamPost.findUnique).not.toHaveBeenCalled();
   });
 
   it('allows only the matching team commander to upload a draft image', async () => {

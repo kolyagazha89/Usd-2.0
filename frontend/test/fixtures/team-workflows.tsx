@@ -12,10 +12,11 @@ export async function runTeamWorkflows(){
  const team:any={id:'t1',name:'First team',description:'Team description',isActive:true,commanderUserId:'u1',memberships:[{id:'m1',status:'PENDING',participant:{id:'p1',firstName:'Member',lastName:'Synthetic',city:'Test city'}}],posts:[{id:'post1',kind:'NEWS',title:'Reviewed news',body:'Public text',status:'PUBLISHED',updatedAt:'2026-11-03T12:00:00.000Z'}],members:[{id:'p1',firstName:'Member',lastName:'Synthetic'}],historicalMembers:[]};
  const archive={id:null,name:'Archive team',description:'',isActive:false,members:[],historicalMembers:[{id:'old1',firstName:'Historic',lastName:'Member'}],posts:[]};
  (globalThis as any).__teamApi=async(method:string,path:string,body:any)=>{calls.push({method,path,body});
+  if(path==='/teams/mode')return {fullManagement:true};
   if(path==='/teams/public')return [team,archive];
   if(path==='/teams/t1/posts'&&method==='POST'&&failPostOnce){failPostOnce=false;throw new Error('Synthetic publication failure')}
   if(path==='/teams/public/t1/achievements'||path==='/teams/public/t1/inspected-achievements')return {teamId:'t1',teamName:'First team',scope:path.endsWith('inspected-achievements')?'FIRST_PASSED_INSPECTION':'CURRENT_PUBLIC_MEMBERS',total:0,truncated:false,summary:{participants:0,podiums:0,firstPlaces:0,directions:[]},stages:[]};
-  if(path==='/teams/admin')return malformedAdmin?[]:{teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
+  if(path==='/teams/admin')return malformedAdmin?[]:{fullManagement:true,teams:[{...team,posts:[{...team.posts[0],status:'IN_REVIEW'}]}],users:[{id:'u1',name:'Commander',email:'synthetic@teams.invalid'}]};
   if(path==='/teams/me')return {membership,commandedTeam:null};
   if(path==='/teams/t1/join'){membership={id:'m2',status:'PENDING',team:{id:'t1',name:'First team'}};return membership}
   if(path==='/teams/me/leave'){membership=null;return {success:true}}
