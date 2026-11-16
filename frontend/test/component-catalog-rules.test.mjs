@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findUnapprovedEquipmentRow,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
+import {availableCatalogModels,catalogCategoryForEquipment,isApprovedCatalogModel,isUnchangedLegacyCatalogRow,findInvalidEquipmentNameRow,resolveEquipmentCatalogId,findUnapprovedBatteryRow} from '../src/participant/component-catalog-rules.ts';
 
 const models=[
  {id:'sub',category:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15',isActive:true},
@@ -45,15 +45,16 @@ test('retired catalog entries remain editable only with an unchanged ID, quantit
  assert.equal(isUnchangedLegacyCatalogRow([old],'audioComponents',{...old,direction:'FRONT'}),false);
 });
 
-test('both member and admin editor validate models against the same catalog rules',async()=>{
+test('member and admin editor accept free text while maintaining technical validation',async()=>{
  const editor=await readFile(new URL('../src/admin/ConfigurationsPage.tsx',import.meta.url),'utf8');
- assert.match(editor,/findUnapprovedEquipmentRow\(catalogs\.componentModels,key,v\[key\],initial\[key\]\)/);
+ assert.match(editor,/findInvalidEquipmentNameRow\(v\[key\]\)/);
  assert.match(editor,/findUnapprovedBatteryRow\(catalogs\.batteryTypes,v\.batteries,initial\.batteries\)/);
  assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/modelOptions\('AUDIO_COMPONENT',x\.brand,x\.model,x\.type\)/);
- assert.doesNotMatch(editor,/if\(admin\|\|historicalFinal\)return true/);
  assert.match(editor,/Number\.isSafeInteger\(Number\(x\.quantity\)\)/);
- assert.match(editor,/catalogEntryId:entry\?String\(entry\.id\):row\.catalogEntryId/);
+ assert.match(editor,/resolveEquipmentCatalogId\(catalogModels,kind,row,initialRows\[kind\]\)/);
+ assert.doesNotMatch(editor,/Выберите модель с ID из каталога USD/);
+ assert.doesNotMatch(editor,/отправьте запрос администратору/);
 });
 
 test('catalog admin preserves stable IDs by deactivating rather than deleting models',async()=>{
@@ -68,19 +69,23 @@ test('catalog admin preserves stable IDs by deactivating rather than deleting mo
 });
 
 
-test('editor consumes retired equipment only once and rejects altered historical rows',()=>{
- const old={id:'saved-1',catalogEntryId:'retired-id',type:'SUBWOOFER',direction:'SUB',quantity:2,brand:'Pride',model:'Retired 15'};
- assert.equal(findUnapprovedEquipmentRow(models,'audioComponents',[old],[old]),null);
- assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[old,{...old}],[old]),old);
- assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,quantity:3}],[old]),{...old,quantity:3});
- assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,type:'MIDBASS'}],[old]),{...old,type:'MIDBASS'});
- assert.deepEqual(findUnapprovedEquipmentRow(models,'audioComponents',[{...old,catalogEntryId:''}],[old]),{...old,catalogEntryId:''});
- assert.equal(findUnapprovedEquipmentRow(models,'audioComponents',[
-  {type:'SUBWOOFER',brand:'Deaf Bonce',model:'Apocalypse 15'}
- ],[]),null,'a published model is resolved to its stable ID before the API call');
- assert.deepEqual(findUnapprovedEquipmentRow([{category:'SUBWOOFER',brand:'Pride',model:'No ID'}],
-  'audioComponents',[{type:'SUBWOOFER',brand:'Pride',model:'No ID'}],[]),
-  {type:'SUBWOOFER',brand:'Pride',model:'No ID'});
+test('free-text equipment needs a brand and model; suggestions are never mandatory',()=>{
+ assert.equal(findInvalidEquipmentNameRow([{brand:' Custom ',model:' Model X '}]),null);
+ assert.deepEqual(findInvalidEquipmentNameRow([{brand:' ',model:'Model X'}]),{brand:' ',model:'Model X'});
+ assert.deepEqual(findInvalidEquipmentNameRow([{brand:'Custom',model:'   '}]),{brand:'Custom',model:'   '});
+ assert.deepEqual(findInvalidEquipmentNameRow([{brand:'Custom',model:'X'.repeat(161)}]),{brand:'Custom',model:'X'.repeat(161)});
+ assert.equal(findInvalidEquipmentNameRow([]),null);
+});
+
+test('only real catalog matches keep IDs; manual edits clear stale IDs, unchanged retired models keep history',()=>{
+ const selected={brand:'Deaf Bonce',model:'Apocalypse 15',type:'SUBWOOFER',direction:'SUB',quantity:2};
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',selected,[]),'sub');
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',{...selected,brand:'  deaf bonce  ',model:'apocalypse 15'},[]),'sub');
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',{...selected,model:'Custom 18',catalogEntryId:'sub'},[]),null);
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',{...selected,type:'MIDBASS',catalogEntryId:'sub'},[]),null);
+ const retired={id:'old',catalogEntryId:'retired-id',brand:'Pride',model:'Retired 15',type:'SUBWOOFER',direction:'SUB',quantity:2};
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',retired,[retired]),'retired-id');
+ assert.equal(resolveEquipmentCatalogId(models,'audioComponents',{...retired,quantity:3},[retired]),null);
 });
 
 test('battery types must be active CMS codes; historical exceptions are bounded',()=>{
@@ -118,8 +123,9 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/catalogStatus==='ready'&&pickerBrands\.length===0/);
  assert.doesNotMatch(editor,/DEFAULT_VIBRATION_BRANDS|\['STP','ComfortMat','Audior','Global'\]/,'editable vibration brand choices must not be hardcoded in React');
  assert.match(editor,/vibrationBrands:Array\.isArray\(c\.vibrationBrands\)\?c\.vibrationBrands:\[\]/);
- assert.match(editor,/disabled=\{catalogStatus!=='ready'\}/);
- assert.match(editor,/disabled=\{catalogStatus!=='ready'\|\|!picker\.model\}/);
+ assert.match(editor,/value=\{picker.brand\} list=/);
+ assert.match(editor,/value=\{picker.model\} type="search"/);
+ assert.match(editor,/disabled=\{!picker.brand.trim\(\)\|\|!picker.model.trim\(\)\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
  assert.match(qa,/option\[value="Alphard"\]/,'browser QA waits for catalog hydration');
 });
