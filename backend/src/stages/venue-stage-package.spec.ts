@@ -43,7 +43,8 @@ describe('Signed LAN stage export',()=>{
   const prisma:any={siteSettings:{findUnique:jest.fn<() => Promise<any>>().mockResolvedValue({
    legal:{legalApproved:true,legalVersion:'2',ipName:'Организатор USD',
     privacyText:'Published privacy',consentText:'Published consent',termsText:'Published terms',
-    operatorAddress:'Published address',personalDataEmail:'data@example.org'},
+    operatorAddress:'Published address',personalDataEmail:'data@example.org',
+    documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-export-test',url:'https://example.org/official-protocol.docx'}}},
    contacts:{email:'organizer@example.org'},footer:{},
    registration:{rulesDocument:{
     published:{id:'rules-v2',blocks:[{type:'paragraph',text:'Public rules'}]},
@@ -76,7 +77,7 @@ describe('Signed LAN stage export',()=>{
    expect(verifyVenueStagePackage(pkg,publicPem,Date.parse(pkg.snapshot.generatedAt)).stageId).toBe(stageId);
    expect((pkg.snapshot as any).venuePolicy).toMatchObject({
     contactEmail:'organizer@example.org',
-    legal:{legalApproved:true,legalVersion:'2'},
+    legal:{legalApproved:true,legalVersion:'2',documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-export-test'}}},
     rulesPublished:{id:'rules-v2'},
    });
    expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);

@@ -4,6 +4,7 @@ import { signVenueStageSnapshot, VENUE_STAGE_TTL_MS, type VenueStageSnapshot } f
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { createHash, createPrivateKey, createPublicKey, randomBytes } from 'node:crypto';
 import {prepareVenueStaffExport} from './venue-staff-access';
+import { hasApprovedProtocolConsentDocument } from '../auth/protocol-consent-document';
 
 @Injectable()
 export class VenueStageService {
@@ -83,7 +84,7 @@ export class VenueStageService {
    (settings?.footer as Record<string,any>|null)?.email??'').trim();
   const published=(settings?.registration as Record<string,any>|null)?.rulesDocument?.published;
   const legalFields=['ipName','privacyText','consentText','termsText','operatorAddress','personalDataEmail'];
-  const approved=legal.legalApproved===true&&String(legal.legalVersion??'').trim()
+  const approved=hasApprovedProtocolConsentDocument(legal)&&String(legal.legalVersion??'').trim()
    &&/^\S+@\S+\.\S+$/.test(contactEmail)
    &&legalFields.every(key=>String(legal[key]??'').trim())
    &&published&&String(published.id??'').trim()
@@ -94,6 +95,7 @@ export class VenueStageService {
     ipName:String(legal.ipName),privacyText:String(legal.privacyText),
     consentText:String(legal.consentText),termsText:String(legal.termsText),
     operatorAddress:String(legal.operatorAddress),personalDataEmail:String(legal.personalDataEmail),
+    documents:{officialProtocolConsent:legal.documents.officialProtocolConsent},
    },contactEmail,
    rulesPublished:{id:String(published.id),blocks:published.blocks},
   }:undefined;

@@ -68,7 +68,8 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
   venuePolicy:{
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
     privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
-    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org'},
+    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org',
+     documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-ci',url:'https://example.org/official-protocol.docx'}}},
    contactEmail:'venue@example.org',
    rulesPublished:{id:'ci-rules-1',blocks:[{type:'paragraph',text:'Тестовый регламент'}]},
   },
