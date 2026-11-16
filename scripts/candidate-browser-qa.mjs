@@ -170,7 +170,7 @@ try{
      }
      const registrationFlow=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register');
      const judgingFlow=role==='ADMIN'&&request.frame().url().includes('/admin/results');
-     const data=judgingFlow&&url.pathname==='/registrations'?[{...registration,stageInspection:{status:'PASSED'}}]:judgingFlow&&url.pathname==='/results/admin/stage/stage1'?[]:registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:dataFor(url,role);
+     const data=judgingFlow&&url.pathname==='/registrations'?[{...registration,stageInspection:{status:'PASSED'}}]:judgingFlow&&url.pathname==='/results/admin/stage/stage1'?[]:registrationFlow&&url.pathname==='/registrations/me'?[]:registrationFlow&&url.pathname==='/auth/legal-consent'?{legalReady:true,version:'fixture',privacyAccepted:true,termsAccepted:true}:registrationFlow&&url.pathname==='/auth/protocol-consent'?{legalReady:true,version:'fixture',accepted:true}:dataFor(url,role);
      return route.fulfill({status:data===null?401:200,contentType:'application/json',body:JSON.stringify(data??{message:'Anonymous fixture'})});
     }
     // Images, fonts and third-party embeds must never contact a live service.
