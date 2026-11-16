@@ -60,7 +60,7 @@ export class ProtocolConsentDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(40)
+  @MaxLength(128)
   version?: string;
 }
 
