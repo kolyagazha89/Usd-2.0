@@ -7,6 +7,8 @@ describe('SiteSettingsService legal approval gate', () => {
   const prisma: any = {
     siteSettings: { findUnique: jest.fn(), upsert: jest.fn() },
     auditLog: { create: jest.fn() },
+    participant: { updateMany: jest.fn().mockResolvedValue({count:0}) },
+    car: { updateMany: jest.fn().mockResolvedValue({count:0}) },
   };
   const legal = {
     ipName: 'Организатор USD',
@@ -74,5 +76,7 @@ describe('SiteSettingsService legal approval gate', () => {
     expect(saved.legalApproved).toBe(false);
     expect(saved.legalApprovedAt).toBeNull();
     expect(saved.legalApprovedBy).toBeNull();
+    expect(prisma.participant.updateMany).toHaveBeenCalledWith({where:{isPublic:true},data:{isPublic:false}});
+    expect(prisma.car.updateMany).toHaveBeenCalledWith({where:{isPublic:true},data:{isPublic:false}});
   });
 });
